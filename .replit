@@ -1,0 +1,13 @@
+modules = ["nodejs-20", "postgresql-16"]
+
+[workflows]
+runButton = "npm run dev"
+
+[[workflows.workflow]]
+name = "npm run dev"
+mode = "sequential"
+author = 40372127
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
