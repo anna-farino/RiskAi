@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, useNavigate } from 'react-router-dom'
 import { ThemeProvider } from './components/theme-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
@@ -9,10 +9,15 @@ import Home from './pages/dashboard/Home'
 import ProtectedRoutesWrapper from './pages/ProtectedRoutesWrapper'
 import Admin from './pages/dashboard/Admin'
 import OtpPage from './pages/otp-page.tsx'
+import Redirect from './Redirect.tsx'
 
 const queryClient = new QueryClient()
 
 const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Redirect/>
+  },
   {
     path: "/login",
     element: <Login />
