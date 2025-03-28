@@ -1,0 +1,125 @@
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv'
+import { verifyRefreshToken, revokeRefreshToken, createAndStoreLoginTokens } from '../utils/auth';
+import { User, users } from '../db/schema/user';
+import { db } from '../db/db';
+import { permissions } from '../db/schema/rbac';
+import { rolesPermissions } from '../db/schema/rbac';
+import { roles } from '../db/schema/rbac';
+import { rolesUsers } from '../db/schema/rbac';
+import { eq } from 'drizzle-orm';
+
+dotenv.config()
+export const SECRET = process.env.JWT_SECRET || 'secret';
+const baseURL = process.env.BASE_URL;
+
+console.log("base url", baseURL)
+
+export type FullRequest = Request & { user: User & { permissions?: string[] } };
+
+type Token = {
+	id: number,
+	email: string,
+	iat: number,
+	exp: number
+}
+// Request logging middleware
+export function requestLogger(req: express.Request, _res: express.Response, next: express.NextFunction) {
+  console.log(`📝 [${req.method}] ${req.path}`, {
+    query: req.query,
+    cookies: req.cookies,
+    headers: {
+      authorization: req.headers.authorization,
+      'content-type': req.headers['content-type']
+    }
+  });
+  next();
+}
+
+export async function verifyToken(
+	req: express.Request, 
+	res: express.Response, 
+	next: express.NextFunction
+) {
+	console.log("🔐 [AUTH] Verifying token for path:", req.path)
+	const token = req.cookies.token;
+	const refreshToken = req.cookies.refreshToken;
+
+	if (!token && !refreshToken) {
+		console.log("❌ [AUTH] No tokens found")
+		res.status(401).json({ message: "Unauthorized"})
+		return
+	}
+
+	try {
+		if (token) {
+			console.log("🔍 [AUTH] Verifying access token...")
+			const decoded: Token = jwt.verify(token, SECRET) as unknown as Token;
+			if (decoded) {
+				console.log("✅ [AUTH] JWT valid for user:", decoded.id);
+				const user = await db
+					.select()
+					.from(users)
+					.where(eq(users.id, Number(decoded.id)))
+					.limit(1);
+
+				if (!user[0]) {
+					console.log("❌ [AUTH] User not found")
+					res.status(401).end();
+					return;
+				}
+
+				(req as unknown as FullRequest).user = user[0];
+				const userPermissions = await getUserPermissions(user[0].id.toString());
+				(req as unknown as FullRequest).user.permissions = userPermissions
+				next();
+				return;
+			}
+		}
+
+		// If we reach here, either there was no token or it was invalid
+		// Try to refresh using the refresh token
+		if (refreshToken) {
+			console.log("🔄 [AUTH] Attempting to refresh token...")
+			const user = await verifyRefreshToken(refreshToken);
+
+			if (user) {
+				console.log("✅ [AUTH] Refresh token valid, generating new tokens...")
+				// Revoke the old refresh token
+				await revokeRefreshToken(refreshToken);
+
+        await createAndStoreLoginTokens(res, user);
+
+				(req as unknown as FullRequest).user = user;
+				const userPermissions = await getUserPermissions(user.id.toString());
+
+				(req as unknown as FullRequest).user.permissions = userPermissions
+
+				next();
+				return;
+			}
+		}
+
+		// If we reach here, both tokens expired or are invalid
+		console.log("❌ [AUTH] Both tokens expired/invalid, redirecting to login")
+		res.status(401).end();
+
+	} catch (error) {
+		console.error('❌ [AUTH] Token verification error:', error);
+		// For any token verification errors, redirect to login
+		res.status(401).end();
+	}
+}
+
+async function getUserPermissions(userId: string) {
+	const userPermissions = await db
+		.select()
+		.from(rolesUsers)
+		.leftJoin(roles, eq(rolesUsers.roleId, roles.id))
+		.leftJoin(rolesPermissions, eq(roles.id, rolesPermissions.roleId))
+		.leftJoin(permissions, eq(rolesPermissions.permissionId, permissions.id))
+		.where(eq(rolesUsers.userId, Number(userId)));
+
+	return userPermissions.map((p) => p.permissions?.name ?? '');
+}

@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+.env.local
+frontend/.env
+frontend/.env
+backend/.env
+backend/.env.local
+.env
+.env.local
