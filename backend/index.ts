@@ -40,7 +40,7 @@ app.use('/api', router);
 
 if (isDevelopment) {
   app.use('/', createProxyMiddleware({
-    target: 'http://localhost:5173',
+    target: 'http://localhost:5174',
     changeOrigin: true,
     ws: true,
     proxyTimeout: 0,
