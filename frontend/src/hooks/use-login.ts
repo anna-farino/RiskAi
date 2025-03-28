@@ -1,15 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { serverUrl } from "@/utils/server-url";
 
 export type LoginData = {
   email: string;
   password: string;
 }
-
-const serverUrl = (import.meta as ImportMeta & { env: { VITE_SERVER_URL_DEV: string } }).env.VITE_SERVER_URL_DEV;
-
-//console.log("serverUrl", serverUrl);
 
 export function useLogin() {
   const navigate = useNavigate();

@@ -2,8 +2,7 @@ import { useMutation } from "@tanstack/react-query"
 import { LoginData } from "./use-login"
 import { toast } from "./use-toast";
 import { useNavigate } from "react-router-dom";
-
-const serverUrl = (import.meta as ImportMeta & { env: { VITE_SERVER_URL_DEV: string } }).env.VITE_SERVER_URL_DEV;
+import { serverUrl } from "@/utils/server-url";
 
 export default function useLoginOtp() {
   const navigate = useNavigate();

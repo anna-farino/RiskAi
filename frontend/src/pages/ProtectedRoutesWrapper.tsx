@@ -1,7 +1,6 @@
+import { serverUrl } from "@/utils/server-url";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const serverUrl = (import.meta as any).env.VITE_SERVER_URL_DEV;
 
 type Props = {
     children: React.ReactNode;

@@ -1,3 +1,4 @@
+import { serverUrl } from "@/utils/server-url";
 import { useQuery } from "@tanstack/react-query";
 
 interface User {
@@ -6,8 +7,6 @@ interface User {
   name: string;
   permissions: string[]
 }
-
-const serverUrl = (import.meta as ImportMeta & { env: { VITE_SERVER_URL_DEV: string } }).env.VITE_SERVER_URL_DEV;
 
 export function useAuth() {
   const { data: user } = useQuery<User>({

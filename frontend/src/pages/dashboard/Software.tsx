@@ -33,8 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
-
-const serverUrl = (import.meta as any).env.VITE_SERVER_URL_DEV;
+import { serverUrl } from "@/utils/server-url";
 
 // Form Schema
 const softwareSchema = z.object({
