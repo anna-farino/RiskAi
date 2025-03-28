@@ -21,8 +21,8 @@ const port = Number(process.env.PORT) || 5000;
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const corsOptions = {
   origin: [
-    'http://localhost:5173',
-    'http://0.0.0.0:5173',
+    'http://localhost:5174',
+    'http://0.0.0.0:5174',
     /\.replit\.dev$/,
     /\.repl\.co$/,
     /\.spock\.replit\.dev$/

@@ -6,8 +6,9 @@ import { otps } from "../db/schema/otps";
 import { desc, eq } from "drizzle-orm";
 import { cookieOptions, createAndStoreLoginTokens, verifyHashedString } from "../utils/auth";
 import { users } from "../db/schema/user";
+import dotenvConfig from "../utils/dotenv-config";
 
-dotenv.config()
+dotenvConfig(dotenv)
 
 export async function handleVerifyOtp(req: Request, res: Response) {
   console.log("[🍪 VERIFY] Verifying otp token...")

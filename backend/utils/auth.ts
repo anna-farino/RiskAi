@@ -6,8 +6,9 @@ import crypto from 'crypto';
 import { User, users, refreshTokens } from '../db/schema/user';
 import { db } from '../db/db';
 import { and, eq, isNull, gt } from 'drizzle-orm';
+import dotenvConfig from './dotenv-config';
 
-dotenv.config()
+dotenvConfig(dotenv)
 
 const SECRET = process.env.JWT_SECRET!;
 const REFRESH_TOKEN_EXPIRES_IN = 30 * 24 * 60 * 60; // 30 days in seconds

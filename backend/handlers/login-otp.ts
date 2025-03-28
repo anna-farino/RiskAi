@@ -8,8 +8,9 @@ import { eq } from 'drizzle-orm';
 import { hashString, verifyHashedString } from '../utils/auth';
 import { otps } from '../db/schema/otps';
 import dotenv from 'dotenv'
+import dotenvConfig from '../utils/dotenv-config';
 
-dotenv.config({ path: '../'})
+dotenvConfig(dotenv)
 
 export async function handleLoginOtp(req: Request, res: Response) {
 
