@@ -1,7 +1,7 @@
 modules = ["nodejs-20", "postgresql-16"]
 
 [workflows]
-runButton = "npm run dev"
+runButton = "dev"
 
 [[workflows.workflow]]
 name = "npm run dev"
@@ -11,3 +11,20 @@ author = 40372127
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
+
+[[workflows.workflow]]
+name = "dev"
+author = 40372127
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && npm run dev"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && npm run dev"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
