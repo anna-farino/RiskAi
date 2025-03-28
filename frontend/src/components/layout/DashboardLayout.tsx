@@ -16,18 +16,6 @@ const buttons = [
     restricted: false,
   },
   {
-    label: "CVEs",
-    path: "/dashboard/cve",
-    icon: Bug,
-    restricted: false,
-  },
-  {
-    label: "Software",
-    path: "/dashboard/software",
-    icon: File,
-    restricted: false,
-  },
-  {
     label: "Admin",
     path: "/dashboard/admin",
     icon: File,
@@ -40,7 +28,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { setVulnData } = useMainStore();
   const data = useLoaderData();
   const { user } = useAuth(); 
 
@@ -53,16 +40,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setIsMobile(window.innerWidth < 768);
       setSidebarCollapsed(window.innerWidth < 768);
     };
-    setVulnData(data);
-
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, [data, user]);
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
 
   return (
     <div className="h-screen flex bg-background overflow-hidden">
