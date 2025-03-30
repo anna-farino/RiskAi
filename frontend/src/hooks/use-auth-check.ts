@@ -1,16 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { csfrHeader } from "@/utils/csrf-header";
 
 export function useAuthCheck() {
   const navigate = useNavigate();
-  console.log("useAuthCheck")
 
   return useQuery({
     queryKey: ['auth-check'],
     queryFn: async () => {
       try {
         const response = await fetch('/api/auth/check', {
-          credentials: 'include' // Important for cookies
+          credentials: 'include',
+          headers: {
+            [csfrHeader().name]: csfrHeader().token
+          }
         });
 
         if (!response.ok) {
@@ -19,12 +22,11 @@ export function useAuthCheck() {
 
         return true;
       } catch (error) {
-        // If authentication fails, redirect to login
         navigate('/login');
         throw error;
       }
     },
-    retry: false, // Don't retry on failure
-    refetchOnWindowFocus: true, // Check auth status when window regains focus
+    retry: false, 
+    refetchOnWindowFocus: true, 
   });
 }

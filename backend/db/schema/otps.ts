@@ -9,5 +9,5 @@ export const otps = pgTable('otps', {
   expires_at: timestamp("expires_at", { mode: 'string' }).notNull(),
   attempts: integer("attempts").default(0),
   used: boolean("used").default(false),
-  user_id: integer("user_id").notNull().references(()=>users.id)
+  user_id: uuid("user_id").notNull().references(()=>users.id)
 })

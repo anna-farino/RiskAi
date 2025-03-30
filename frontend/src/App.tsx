@@ -10,6 +10,7 @@ import ProtectedRoutesWrapper from './pages/ProtectedRoutesWrapper'
 import Admin from './pages/dashboard/Admin'
 import OtpPage from './pages/otp-page.tsx'
 import Redirect from './Redirect.tsx'
+import { csfrHeader } from './utils/csrf-header.ts'
 
 const queryClient = new QueryClient()
 
@@ -53,8 +54,8 @@ const router = createBrowserRouter([
   }
 ])
 
-
 function App() {
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">

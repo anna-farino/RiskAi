@@ -28,7 +28,7 @@ export async function handleVerifyOtp(req: Request, res: Response) {
     const [ otpFromDb ] = await db
       .select()
       .from(otps)
-      .where(eq(otps.user_id,Number(userId)))
+      .where(eq(otps.user_id,userId))
       .orderBy(desc(otps.created_at))
       .limit(1)
 
@@ -67,7 +67,7 @@ export async function handleVerifyOtp(req: Request, res: Response) {
     const [ user ] = await db
       .select()
       .from(users)
-      .where(eq(users.id,Number(userId)))
+      .where(eq(users.id,userId))
       .limit(1)
 
     if (!user) {

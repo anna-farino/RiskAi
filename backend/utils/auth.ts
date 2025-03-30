@@ -56,7 +56,7 @@ export function generateRefreshToken(): string {
 }
 
 
-export async function createRefreshToken(userId: number): Promise<string> {
+export async function createRefreshToken(userId: string): Promise<string> {
   const token = generateRefreshToken();
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_IN * 1000);
 

@@ -23,7 +23,7 @@ export async function handleLogout(req: Request, res: Response) {
     try {
         await db
           .delete(refreshTokens)
-          .where(eq(refreshTokens.userId, Number(userId)));
+          .where(eq(refreshTokens.userId, userId));
 
         res.clearCookie('token', cookieOptions)
         res.clearCookie('refreshToken', cookieOptions)

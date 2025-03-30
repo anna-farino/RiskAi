@@ -17,7 +17,7 @@ export const roles = pgTable("roles", {
 
 // Connecting table between roles and users
 export const rolesUsers = pgTable("roles_users", {
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
   roleId: uuid("role_id").notNull().references(() => roles.id),
 });
 

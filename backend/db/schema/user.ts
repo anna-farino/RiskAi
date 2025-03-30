@@ -1,9 +1,9 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 
 export const users = pgTable("users", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
@@ -11,8 +11,8 @@ export const users = pgTable("users", {
 });
 
 export const refreshTokens = pgTable("refresh_tokens", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

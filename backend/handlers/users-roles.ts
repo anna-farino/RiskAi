@@ -34,7 +34,7 @@ export async function handleEditUsersRoles(req: Request, res: Response) {
   const response = await db
     .update(rolesUsers)
     .set({ roleId: sql`(select id from roles where name=${roleName})`})
-    .where(eq(rolesUsers.userId, Number(userId)))
+    .where(eq(rolesUsers.userId, userId))
     .returning()
 
   console.log("📝🚫👤 [EDIT USERS ROLES] Update role:", response)

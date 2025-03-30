@@ -5,7 +5,7 @@ CREATE TABLE "otps" (
 	"expires_at" timestamp NOT NULL,
 	"attempts" integer DEFAULT 0,
 	"used" boolean DEFAULT false,
-	"user_id" integer NOT NULL
+	"user_id" uuid NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "permissions" (
@@ -26,13 +26,13 @@ CREATE TABLE "roles_permissions" (
 );
 --> statement-breakpoint
 CREATE TABLE "roles_users" (
-	"user_id" integer NOT NULL,
+	"user_id" uuid NOT NULL,
 	"role_id" uuid NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "refresh_tokens" (
-	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "refresh_tokens_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
-	"user_id" integer NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
 	"token" text NOT NULL,
 	"expires_at" timestamp NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE "refresh_tokens" (
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
-	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "users_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"email" text NOT NULL,
 	"password" text NOT NULL,
 	"name" text NOT NULL,

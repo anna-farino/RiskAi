@@ -5,12 +5,18 @@ import { handleTest } from '../handlers/test';
 import { handleGetRoles } from '../handlers/roles';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
+import { noSimpleRequests } from '../middleware/no-simple-requests';
+import { doubleCsrfProtection } from '../middleware/csrf';
 
 const router = Router();
 
 router.get('/test', handleTest)
 
 router.use('/auth', authRouter)
+
+router.use(doubleCsrfProtection)
+router.use(noSimpleRequests)
+router.get('/test-simple-request', handleTest)
 
 router.use(verifyToken)
 // Protected routes

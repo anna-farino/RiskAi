@@ -1,8 +1,9 @@
-import { CookieOptions, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { db } from '../db/db';
 import { users } from '../db/schema/user';
 import { eq } from 'drizzle-orm';
-import { generateAccessToken, createRefreshToken, verifyHashedString, createAndStoreLoginTokens } from '../utils/auth';
+import { verifyHashedString, createAndStoreLoginTokens } from '../utils/auth';
+import { generateToken as generateCsfrToken } from '../middleware/csrf';
 
 export async function handleLogin(req: Request, res: Response) {
   try {
@@ -21,27 +22,23 @@ export async function handleLogin(req: Request, res: Response) {
       console.log("❌ [LOGIN] Missing credentials");
       return res.status(400).json({ error: 'Email and password are required' });
     }
-
     // Find user by email
     const [user] = await db
       .select()
       .from(users)
       .where(eq(users.email, email));
 
-    if (!user) {
-      console.log("❌ [LOGIN] User not found:", email);
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
     // Verify password
     const isValidPassword = await verifyHashedString(password, user.password);
 
-    if (!isValidPassword) {
-      console.log("❌ [LOGIN] Invalid password for:", email);
+    if (!isValidPassword || !user) {
+      console.log("❌ [LOGIN] Invalid credentials");
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     await createAndStoreLoginTokens(res, user)
+     
+    generateCsfrToken(req, res);
 
     console.log("✅ [LOGIN] Successful login for:", email);
 

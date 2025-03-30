@@ -6,6 +6,8 @@ import { verifyToken } from "../../../middleware";
 import { handleAuthCheck } from "../../../handlers/auth-check";
 import { handleLoginOtp } from "../../../handlers/login-otp";
 import { handleVerifyOtp } from "../../../handlers/verify-otp"
+import { doubleCsrfProtection } from "../../../middleware/csrf";
+import { noSimpleRequests } from "../../../middleware/no-simple-requests";
 
 
 export const authRouter = Router()
@@ -16,5 +18,9 @@ authRouter.post('/login-otp', handleLoginOtp);
 authRouter.post('/verify-otp', handleVerifyOtp)
 
 authRouter.post('/logout', handleLogout);
-authRouter.get('/check', verifyToken, handleAuthCheck);
+authRouter.get(
+  '/check', 
+  verifyToken, doubleCsrfProtection, noSimpleRequests, 
+  handleAuthCheck
+);
 

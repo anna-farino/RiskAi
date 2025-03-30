@@ -1,3 +1,4 @@
+import { csfrHeader } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,7 +14,10 @@ export function useAuth() {
     queryKey: ['auth-user'],
     queryFn: async () => {
       const response = await fetch(serverUrl + '/api/auth/check', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          [csfrHeader().name]: csfrHeader().token
+        }
       });
 
       if (!response.ok) {

@@ -19,7 +19,7 @@ console.log("base url", baseURL)
 export type FullRequest = Request & { user: User & { permissions?: string[] } };
 
 type Token = {
-	id: number,
+	id: string,
 	email: string,
 	iat: number,
 	exp: number
@@ -61,7 +61,7 @@ export async function verifyToken(
 				const user = await db
 					.select()
 					.from(users)
-					.where(eq(users.id, Number(decoded.id)))
+					.where(eq(users.id, decoded.id))
 					.limit(1);
 
 				if (!user[0]) {
@@ -119,7 +119,7 @@ async function getUserPermissions(userId: string) {
 		.leftJoin(roles, eq(rolesUsers.roleId, roles.id))
 		.leftJoin(rolesPermissions, eq(roles.id, rolesPermissions.roleId))
 		.leftJoin(permissions, eq(rolesPermissions.permissionId, permissions.id))
-		.where(eq(rolesUsers.userId, Number(userId)));
+		.where(eq(rolesUsers.userId, userId));
 
 	return userPermissions.map((p) => p.permissions?.name ?? '');
 }

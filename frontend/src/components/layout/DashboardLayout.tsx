@@ -32,7 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user } = useAuth(); 
 
   useEffect(()=>{
-    if (user) console.log("👤 [DASHBOARD] User data in dashboard:", user);
+    // if (user) console.log("👤 [DASHBOARD] User data in dashboard:", user);
   },[user])
 
   useEffect(() => {
