@@ -1,16 +1,12 @@
 import { csfrHeader } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useQuery } from "@tanstack/react-query";
+import { User } from "@shared/db/schema/user"
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  permissions: string[]
-}
+type UserWithPerm = User & { permissions: string[] }
 
 export function useAuth() {
-  const { data: user } = useQuery<User>({
+  const { data: user } = useQuery<UserWithPerm>({
     queryKey: ['auth-user'],
     queryFn: async () => {
       const response = await fetch(serverUrl + '/api/auth/check', {

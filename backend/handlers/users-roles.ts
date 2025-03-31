@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../db/db";
-import { users } from "../db/schema/user";
-import { roles, rolesUsers } from "../db/schema/rbac";
+import { users } from "@shared/db/schema/user";
+import { roles, rolesUsers } from "@shared/db/schema/rbac";
 import { eq, sql } from "drizzle-orm";
 
 

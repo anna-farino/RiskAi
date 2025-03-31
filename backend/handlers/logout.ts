@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/db';
-import { refreshTokens } from '../db/schema/user';
+import { refreshTokens } from '@shared/db/schema/user';
 import { cookieOptions } from '../utils/auth';
 
 export async function handleLogout(req: Request, res: Response) {

@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../db/db';
-import { users } from '../db/schema/user';
+import { users } from '@shared/db/schema/user';
 import { hashString } from '../utils/auth';
-import { eq, sql } from 'drizzle-orm';
-import { roles, rolesUsers } from '../db/schema/rbac';
-import { use } from 'passport';
+import { eq } from 'drizzle-orm';
+import { roles, rolesUsers } from '@shared/db/schema/rbac';
 
 export async function handleSignUp(req: Request, res: Response) {
   const { email, password, name } = req.body;

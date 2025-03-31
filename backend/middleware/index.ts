@@ -2,12 +2,9 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv'
 import { verifyRefreshToken, revokeRefreshToken, createAndStoreLoginTokens } from '../utils/auth';
-import { User, users } from '../db/schema/user';
+import { User, users } from '@shared/db/schema/user';
 import { db } from '../db/db';
-import { permissions } from '../db/schema/rbac';
-import { rolesPermissions } from '../db/schema/rbac';
-import { roles } from '../db/schema/rbac';
-import { rolesUsers } from '../db/schema/rbac';
+import { permissions, rolesPermissions, roles, rolesUsers } from '@shared/db/schema/rbac';
 import { eq } from 'drizzle-orm';
 
 dotenv.config()

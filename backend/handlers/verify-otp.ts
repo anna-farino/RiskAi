@@ -2,10 +2,10 @@ import { Request, Response } from "express";
 import dotenv from 'dotenv'
 import jwt from 'jsonwebtoken'
 import { db } from "../db/db";
-import { otps } from "../db/schema/otps";
+import { otps } from "@shared/db/schema/otps";
 import { desc, eq } from "drizzle-orm";
 import { cookieOptions, createAndStoreLoginTokens, verifyHashedString } from "../utils/auth";
-import { users } from "../db/schema/user";
+import { users } from "@shared/db/schema/user";
 import dotenvConfig from "../utils/dotenv-config";
 
 dotenvConfig(dotenv)
@@ -86,7 +86,7 @@ export async function handleVerifyOtp(req: Request, res: Response) {
     })
 
   } catch(error) {
-      console.log("[🍪❌ VERIFY] Error:", error.message)
+      console.log("[🍪❌ VERIFY] Error:", (error as any).message)
       res.status(500).json({
         message: "Server Error"
     })

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../db/db";
-import { roles } from "../db/schema/rbac";
+import { roles } from '@shared/db/schema/rbac';
 
 
 export async function handleGetRoles(_req: Request, res: Response) {

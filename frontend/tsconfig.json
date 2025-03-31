@@ -17,9 +17,12 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@shared/*": ["../shared/*"],
+      "@schema/*": ["../shared/schema/*"]
     }
   },
+  "extends": "../tsconfig.json",
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

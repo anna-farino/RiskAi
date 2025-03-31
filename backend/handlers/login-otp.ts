@@ -3,10 +3,10 @@ import emailjs from '@emailjs/nodejs'
 import otpGenerator from 'otp-generator' 
 import jwt from 'jsonwebtoken';
 import { db } from '../db/db';
-import { users } from '../db/schema/user';
+import { users } from '@shared/db/schema/user';
 import { eq } from 'drizzle-orm';
 import { hashString, verifyHashedString } from '../utils/auth';
-import { otps } from '../db/schema/otps';
+import { otps } from '@shared/db/schema/otps';
 import dotenv from 'dotenv'
 import dotenvConfig from '../utils/dotenv-config';
 

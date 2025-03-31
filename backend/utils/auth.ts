@@ -3,7 +3,7 @@ import { CookieOptions, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
-import { User, users, refreshTokens } from '../db/schema/user';
+import { User, users, refreshTokens } from '@shared/db/schema/user';
 import { db } from '../db/db';
 import { and, eq, isNull, gt } from 'drizzle-orm';
 import dotenvConfig from './dotenv-config';

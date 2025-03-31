@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { db } from '../db/db';
 import { users } from '@shared/db/schema/user';
 import { eq } from 'drizzle-orm';
 import { FullRequest } from '../middleware';
+import { db } from 'backend/db/db';
 
 
 export async function handleAuthCheck(req: Request, res: Response) {
