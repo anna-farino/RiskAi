@@ -14,9 +14,13 @@
     "@types/nodemon": "^1.19.6",
     "concurrently": "^9.1.2",
     "csrf-csrf": "^3.1.0",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.41.0",
+    "drizzle-zod": "^0.7.1",
     "nodemon": "^3.1.9"
   },
   "devDependencies": {
+    "drizzle-kit": "^0.30.6",
     "tsx": "^4.19.3"
   }
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db/db';
-import { users } from '../db/schema/user';
+import { users } from '@shared/db/schema/user';
 import { eq } from 'drizzle-orm';
 import { FullRequest } from '../middleware';
 
