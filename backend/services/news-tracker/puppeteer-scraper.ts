@@ -4,43 +4,70 @@ import type { Browser, Page } from 'puppeteer';
 import { execSync } from 'child_process';
 import { log } from 'console';
 import vanillaPuppeteer from 'puppeteer';
+import * as path from 'path';
+import * as os from 'os';
+import * as fs from 'fs';
+
+// Define environment variables for Puppeteer
+process.env.PUPPETEER_SKIP_DOWNLOAD = 'true'; // Skip downloading Chromium
+process.env.PUPPETEER_EXECUTABLE_PATH = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium'; // Use our installed Chromium unwrapped
 
 // Add stealth plugin to bypass bot detection
 puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
-  // First try the known Chromium path that exists on this system
-  const knownChromiumPath = '/nix/store/ia69plrrvn7czdhn3flq1ll39i92ixab-chromium-92.0.4515.159/bin/chromium';
+  // First try the known Replit Chromium unwrapped path (most likely to work)
+  const replitChromiumUnwrapped = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium';
   try {
-    if (execSync(`test -f ${knownChromiumPath} && echo exists`).toString().trim() === 'exists') {
-      console.log(`[findChromePath] Using known Chromium path:`, knownChromiumPath);
-      return knownChromiumPath;
+    if (fs.existsSync(replitChromiumUnwrapped)) {
+      console.log(`[findChromePath] Using Replit's installed Chromium Unwrapped:`, replitChromiumUnwrapped);
+      return replitChromiumUnwrapped;
     }
-  } catch (e) {
-    console.log(`[findChromePath] Known Chromium path check failed:`, e);
+  } catch (err) {
+    console.log(`[findChromePath] Error checking Replit Chromium Unwrapped:`, err);
   }
   
-  // Fall back to vanilla puppeteer's path
+  // Try the wrapper script as a fallback
+  const replitChromium = '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+  try {
+    if (fs.existsSync(replitChromium)) {
+      console.log(`[findChromePath] Using Replit's installed Chromium wrapper:`, replitChromium);
+      return replitChromium;
+    }
+  } catch (err) {
+    console.log(`[findChromePath] Error checking Replit Chromium wrapper:`, err);
+  }
+  
+  // Then try puppeteer's bundled Chromium (for local development)
   try {
     const chrome = vanillaPuppeteer.executablePath();
     console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
     return chrome;
   } catch (e) {
-    console.log(`[findChromePath] Puppeteer's bundled Chromium check failed:`, e);
+    console.log(`[findChromePath] Error getting puppeteer path:`, e);
+    
+    // Then try to find Chromium using which command
     try {
-      console.log("[findChromePath] Trying 'which chromium'")
+      console.log("[findChromePath] Trying 'which chromium'");
       const chromePath = execSync('which chromium').toString().trim();
-      console.log("[findChromePath] chromePath:", chromePath)
+      console.log("[findChromePath] chromePath:", chromePath);
       return chromePath;
     } catch(e) {
+      console.log(`[findChromePath] Error with 'which chromium':`, e);
+      
+      // Then try to find Chrome using which command
       try {
-        console.log("[findChromePath] Trying 'which chrome'")
+        console.log("[findChromePath] Trying 'which chrome'");
         const chromePath = execSync('which chrome').toString().trim();
+        console.log("[findChromePath] chromePath:", chromePath);
         return chromePath;
       } catch (e) {
-      // Default paths to try
-      return '/nix/var/nix/profiles/default/bin/chromium';
+        console.log(`[findChromePath] Error with 'which chrome':`, e);
+        
+        // Default paths to try
+        console.log("[findChromePath] Using default path");
+        return '/nix/var/nix/profiles/default/bin/chromium';
       }
     }
   }
@@ -54,19 +81,41 @@ let browser: Browser | null = null;
 async function getBrowser() {
   log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, process.env.PUPPETEER_EXECUTABLE_PATH )
   if (!browser) {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080',
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || CHROME_PATH,
-    });
+    try {
+      // Use a more minimal configuration to avoid dependencies
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess',  // For stability
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--disable-gl-drawing-for-tests',  // Disable GPU usage
+          '--mute-audio',  // No audio needed for scraping
+          '--no-zygote',   // Run without zygote process
+          '--no-first-run',  // Skip first run wizards
+          '--no-default-browser-check',
+          '--ignore-certificate-errors',
+          '--allow-running-insecure-content',
+          '--disable-web-security',
+          '--disable-blink-features=AutomationControlled' // Avoid detection
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || CHROME_PATH,
+        // Set longer browser launch timeout
+        timeout: 180000 // 3 minute timeout on browser launch
+      });
+      console.log("[getBrowser] Browser launched successfully");
+    } catch (error) {
+      console.error("[getBrowser] Failed to launch browser:", error);
+      throw error;
+    }
   }
+  console.log("[getBrowser] browser instance:", browser)
   return browser;
 }
 
@@ -139,24 +188,58 @@ async function extractArticleLinks(page: Page): Promise<string> {
 
 export async function scrapePuppeteer(url: string, isArticlePage: boolean = false, scrapingConfig: any): Promise<string> {
   let page: Page | null = null;
-  log(`[scrapePuppeteer] Function started...`)
+  log(`[scrapePuppeteer] Function started with URL: ${url}`)
+  
+  // Simple URL validation
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
+  }
+  
   try {
-    page = await setupPage();
+    try {
+      page = await setupPage();
+      log(`[scrapePuppeteer] Page setup complete`);
+    } catch (error: any) {
+      console.error("[scrapePuppeteer] Error setting up page:", error);
+      throw new Error(`Failed to setup browser page: ${error?.message || String(error)}`);
+    }
 
     // Set a more realistic user agent
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
-  log(`[scrapePuppeteer] User Agent has been set! 👍`)
+    try {
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+      log(`[scrapePuppeteer] User Agent has been set! 👍`);
+    } catch (error: any) {
+      console.error("[scrapePuppeteer] Error setting user agent (non-critical):", error);
+      // Continue despite this error
+    }
 
     // Enable JavaScript and cookies
-    await page.setJavaScriptEnabled(true);
+    try {
+      await page.setJavaScriptEnabled(true);
+    } catch (error: any) {
+      console.error("[scrapePuppeteer] Error enabling JavaScript (non-critical):", error);
+      // Continue despite this error
+    }
 
     // Go to the specified URL with longer timeout
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    console.log('[Puppeteer] Initial page load complete');
+    try {
+      const response = await page.goto(url, { 
+        waitUntil: 'networkidle2', 
+        timeout: 60000 
+      });
+      console.log(`[Puppeteer] Initial page load complete. Status: ${response ? response.status() : 'unknown'}`);
+      
+      if (response && !response.ok()) {
+        console.warn(`[Puppeteer] Warning: Response status is not OK: ${response.status()}`);
+      }
+    } catch (error: any) {
+      console.error("[scrapePuppeteer] Error navigating to URL:", error);
+      throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+    }
 
-    // Wait longer for Incapsula challenge to be processed
-    console.log('[Puppeteer] Waiting for Incapsula challenge to resolve...');
-    await new Promise(resolve => setTimeout(resolve, 15000));
+    // Wait for potential challenges to be processed (shorter timeout for testing)
+    console.log('[Puppeteer] Waiting for page to stabilize...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Check if we're still on the Incapsula page
     const incapsulaCheck = await page.evaluate(() => {
@@ -326,18 +409,33 @@ export async function scrapePuppeteer(url: string, isArticlePage: boolean = fals
     // For source/listing pages, extract article links
     return await extractArticleLinks(page);
 
-  } catch (error) {
-    throw new Error(`Puppeteer scraping failed: ${error}`);
+  } catch (error: any) {
+    console.error("[scrapePuppeteer] Fatal error during scraping:", error);
+    throw new Error(`Puppeteer scraping failed: ${error?.message || String(error)}`);
   } finally {
     if (page) {
-      await page.close();
+      try {
+        await page.close();
+        console.log("[scrapePuppeteer] Page closed successfully");
+      } catch (closeError: any) {
+        console.error("[scrapePuppeteer] Error closing page:", closeError?.message || String(closeError));
+        // Don't rethrow as we're already in finally
+      }
     }
   }
 }
 
-// Clean up browser on process exit
-process.on('exit', async () => {
-  if (browser) {
-    await browser.close();
-  }
+// Clean up browser on process exit and termination signals
+['exit', 'SIGINT', 'SIGTERM'].forEach(event => {
+  process.on(event, () => {
+    if (browser) {
+      try {
+        // Note: We can't use async/await in these handlers
+        console.log("[Puppeteer] Closing browser due to", event);
+        browser.close().catch(err => console.error("[Puppeteer] Error closing browser:", err));
+      } catch (err) {
+        console.error("[Puppeteer] Error during browser cleanup:", err);
+      }
+    }
+  });
 });

@@ -1,6 +1,7 @@
 
 { pkgs }: {
   deps = [
+    pkgs.libxkbcommon
     pkgs.glib
     pkgs.lsof
     pkgs.nss
