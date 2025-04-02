@@ -2,26 +2,33 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, Page } from 'puppeteer';
 import { execSync } from 'child_process';
+import { log } from 'console';
+import vanillaPuppeteer from 'puppeteer';
 
 // Add stealth plugin to bypass bot detection
 puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
-  try {
-    // Try to find chromium using 'which' command
-    const chromePath = execSync('which chromium').toString().trim();
-    return chromePath;
-  } catch (e) {
-    try {
-      // Try to find chrome using 'which' command
-      const chromePath = execSync('which chrome').toString().trim();
-      return chromePath;
-    } catch (e) {
-      // Default paths to try
-      return '/nix/var/nix/profiles/default/bin/chromium';
-    }
-  }
+  const chrome = vanillaPuppeteer.executablePath();
+  console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
+  return chrome;
+  //try {
+  //  // Try to find chromium using 'which' command
+  //  console.log("[findChromePath]")
+  //  const chromePath = execSync('which chromium').toString().trim();
+  //  console.log("[findChromePath] chromePath:", chromePath)
+  //  return chromePath;
+  //} catch (e) {
+  //  try {
+  //    // Try to find chrome using 'which' command
+  //    const chromePath = execSync('which chrome').toString().trim();
+  //    return chromePath;
+  //  } catch (e) {
+  //    // Default paths to try
+  //    return '/nix/var/nix/profiles/default/bin/chromium';
+  //  }
+  //}
 }
 
 const CHROME_PATH = findChromePath();
@@ -30,6 +37,7 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 let browser: Browser | null = null;
 
 async function getBrowser() {
+  log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, process.env.PUPPETEER_EXECUTABLE_PATH )
   if (!browser) {
     browser = await puppeteer.launch({
       headless: true,
@@ -48,7 +56,9 @@ async function getBrowser() {
 }
 
 async function setupPage(): Promise<Page> {
+  log(`[setupPage] About to set browser... 😬🤞`)
   const browser = await getBrowser();
+  log(`[setupPage] About to set page... 😬🤞`)
   const page = await browser.newPage();
 
   // Set viewport
@@ -114,11 +124,13 @@ async function extractArticleLinks(page: Page): Promise<string> {
 
 export async function scrapePuppeteer(url: string, isArticlePage: boolean = false, scrapingConfig: any): Promise<string> {
   let page: Page | null = null;
+  log(`[scrapePuppeteer] Function started...`)
   try {
     page = await setupPage();
 
     // Set a more realistic user agent
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+  log(`[scrapePuppeteer] User Agent has been set! 👍`)
 
     // Enable JavaScript and cookies
     await page.setJavaScriptEnabled(true);

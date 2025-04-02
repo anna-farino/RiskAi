@@ -64,6 +64,7 @@ newsRouter.delete("/sources/:id", async (req, res) => {
 
 // Keywords
 newsRouter.get("/keywords", async (req, res) => {
+  console.log("Getting keywords")
   const userId = (req.user as User).id as string;
   const keywords = await storage.getKeywords(userId);
   res.json(keywords);
