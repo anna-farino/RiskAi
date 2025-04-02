@@ -8,6 +8,7 @@
     pkgs.chromium
     pkgs.alsaLib
     pkgs.atk
+    pkgs.at-spi2-atk
     pkgs.cairo
     pkgs.cups
     pkgs.dbus
@@ -15,6 +16,7 @@
     pkgs.fontconfig
     pkgs.freetype
     pkgs.gdk-pixbuf
+    pkgs.gtk3
     pkgs.pango
     pkgs.xorg.libX11
     pkgs.xorg.libXcomposite
@@ -27,5 +29,6 @@
     pkgs.xorg.libXrender
     pkgs.xorg.libXtst
     pkgs.xorg.libxcb
+    pkgs.libuuid
   ];
 }
