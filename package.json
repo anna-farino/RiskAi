@@ -1,7 +1,11 @@
 {
   "name": "root",
   "private": true,
-  "workspaces": ["backend", "frontend", "shared"],
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
@@ -14,12 +18,15 @@
   },
   "dependencies": {
     "@types/nodemon": "^1.19.6",
+    "cheerio": "^1.0.0",
     "concurrently": "^9.1.2",
     "csrf-csrf": "^3.1.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.41.0",
     "drizzle-zod": "^0.7.1",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "devDependencies": {
     "drizzle-kit": "^0.30.6",

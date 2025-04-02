@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, useNavigate } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { ThemeProvider } from './components/theme-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
@@ -10,7 +10,10 @@ import ProtectedRoutesWrapper from './pages/ProtectedRoutesWrapper'
 import Admin from './pages/dashboard/Admin'
 import OtpPage from './pages/otp-page.tsx'
 import Redirect from './Redirect.tsx'
-import { csfrHeader } from './utils/csrf-header.ts'
+import NewsHome from './pages/dashboard/news/home.tsx'
+import Sources from './pages/dashboard/news/sources.tsx'
+import Keywords from './pages/dashboard/news/keywords.tsx'
+import NewsLayout from './pages/dashboard/news/layout.tsx'
 
 const queryClient = new QueryClient()
 
@@ -45,6 +48,24 @@ const router = createBrowserRouter([
       {
         path: "admin",
         element: <Admin/>,
+      },
+      {
+        path: "news",
+        element: <NewsLayout/>,
+        children: [
+          {
+            path: "home",
+            element: <NewsHome/>,
+          },
+          {
+            path: "sources",
+            element: <Sources/>,
+          },
+          {
+            path: "keywords",
+            element: <Keywords/>,
+          },
+        ]
       },
     ]
   },

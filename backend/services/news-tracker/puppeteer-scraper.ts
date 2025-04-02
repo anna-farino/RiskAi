@@ -1,0 +1,316 @@
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import type { Browser, Page } from 'puppeteer';
+import { execSync } from 'child_process';
+
+// Add stealth plugin to bypass bot detection
+puppeteer.use(StealthPlugin());
+
+// Try to find the Chrome executable path
+function findChromePath() {
+  try {
+    // Try to find chromium using 'which' command
+    const chromePath = execSync('which chromium').toString().trim();
+    return chromePath;
+  } catch (e) {
+    try {
+      // Try to find chrome using 'which' command
+      const chromePath = execSync('which chrome').toString().trim();
+      return chromePath;
+    } catch (e) {
+      // Default paths to try
+      return '/nix/var/nix/profiles/default/bin/chromium';
+    }
+  }
+}
+
+const CHROME_PATH = findChromePath();
+console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
+
+let browser: Browser | null = null;
+
+async function getBrowser() {
+  if (!browser) {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1920x1080',
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || CHROME_PATH,
+    });
+  }
+  return browser;
+}
+
+async function setupPage(): Promise<Page> {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  // Set viewport
+  await page.setViewport({ width: 1920, height: 1080 });
+
+  // Set user agent
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+  // Set extra headers
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  });
+
+  return page;
+}
+
+async function extractArticleLinks(page: Page): Promise<string> {
+  // Wait for any links to appear
+  await page.waitForSelector('a', { timeout: 5000 });
+  console.log('[Puppeteer] Found anchor tags on page');
+
+  // Wait for any remaining dynamic content to load
+  await page.waitForFunction(
+    () => {
+      const loadingElements = document.querySelectorAll(
+        '.loading, .spinner, [data-loading="true"], .skeleton'
+      );
+      return loadingElements.length === 0;
+    },
+    { timeout: 10000 }
+  ).catch(() => console.log('[Puppeteer] Timeout waiting for loading indicators'));
+
+  // Extract all links after ensuring content is loaded
+  const articleLinkData = await page.evaluate(() => {
+    const links = Array.from(document.querySelectorAll('a'));
+    return links.map(link => ({
+      href: link.getAttribute('href'),
+      text: link.textContent?.trim() || '',
+      parentText: link.parentElement?.textContent?.trim() || '',
+      parentClass: link.parentElement?.className || ''
+    })).filter(link => link.href); // Only keep links with href attribute
+  });
+
+  console.log(`[Puppeteer] Extracted ${articleLinkData.length} potential article links`);
+  console.log(`[Puppeteer] Page has ${await page.evaluate(() => document.querySelectorAll('a').length)} total anchor tags`);
+
+  // Create a simplified HTML with just the extracted links
+  return `
+  <html>
+    <body>
+      <div class="extracted-article-links">
+        ${articleLinkData.map(link =>
+          `<div class="article-link-item">
+            <a href="${link.href}">${link.text}</a>
+            <div class="context">${link.parentText.substring(0, 100)}</div>
+          </div>`
+        ).join('\n')}
+      </div>
+    </body>
+  </html>`;
+}
+
+export async function scrapePuppeteer(url: string, isArticlePage: boolean = false, scrapingConfig: any): Promise<string> {
+  let page: Page | null = null;
+  try {
+    page = await setupPage();
+
+    // Set a more realistic user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+
+    // Enable JavaScript and cookies
+    await page.setJavaScriptEnabled(true);
+
+    // Go to the specified URL with longer timeout
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    console.log('[Puppeteer] Initial page load complete');
+
+    // Wait longer for Incapsula challenge to be processed
+    console.log('[Puppeteer] Waiting for Incapsula challenge to resolve...');
+    await new Promise(resolve => setTimeout(resolve, 15000));
+
+    // Check if we're still on the Incapsula page
+    const incapsulaCheck = await page.evaluate(() => {
+      return document.body.innerHTML.includes('/_Incapsula_Resource') ||
+        document.body.innerHTML.includes('Incapsula');
+    });
+
+    if (incapsulaCheck) {
+      console.log('[Puppeteer] Still on Incapsula challenge page, performing additional actions');
+      // Perform some human-like actions
+      await page.mouse.move(50, 50);
+      await page.mouse.down();
+      await page.mouse.move(100, 100);
+      await page.mouse.up();
+      // Reload the page and wait again
+      await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
+      await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+
+    // For article pages, just extract the content
+    if (isArticlePage) {
+      console.log('[Puppeteer] Extracting article content - starting extraction');
+
+      // Scroll through the page to ensure all content is loaded
+      await page.evaluate(() => {
+        console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
+        console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
+        window.scrollTo(0, document.body.scrollHeight / 3);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
+      await page.evaluate(() => {
+        console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
+        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
+      await page.evaluate(() => {
+        console.log('[Puppeteer-Debug] Scrolling to bottom of page');
+        window.scrollTo(0, document.body.scrollHeight);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
+
+      console.log('[Puppeteer] Finished scrolling; waiting briefly for content to settle');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Extract article content using the detected scrapingConfig
+      const articleContent = await page.evaluate((scrapingConfig) => {
+        // Log what selectors we're trying to use
+        console.log('[Puppeteer-Debug] Using selectors:', JSON.stringify(scrapingConfig));
+
+        // First try to get content using the scrapingConfig
+        if (scrapingConfig) {
+          const title = scrapingConfig.titleSelector ? document.querySelector(scrapingConfig.titleSelector)?.textContent?.trim() : '';
+          const content = scrapingConfig.contentSelector ? document.querySelector(scrapingConfig.contentSelector)?.textContent?.trim() : '';
+          const author = scrapingConfig.authorSelector ? document.querySelector(scrapingConfig.authorSelector)?.textContent?.trim() : '';
+          const date = scrapingConfig.dateSelector ? document.querySelector(scrapingConfig.dateSelector)?.textContent?.trim() : '';
+
+          if (content) {
+            console.log('[Puppeteer-Debug] Successfully extracted content using scrapingConfig');
+            console.log('[Puppeteer-Debug] Content length:', content.length);
+            return { title, content, author, date };
+          }
+        }
+
+        // Fallback selectors if scrapingConfig fails
+        const fallbackSelectors = {
+          content: [
+            'article',
+            '.article-content',
+            '.article-body',
+            'main .content',
+            '.post-content',
+            '#article-content',
+            '.story-content'
+          ],
+          title: ['h1', '.article-title', '.post-title'],
+          author: ['.author', '.byline', '.article-author'],
+          date: [
+            'time',
+            '[datetime]',
+            '.article-date',
+            '.post-date',
+            '.published-date',
+            '.timestamp'
+          ]
+        };
+
+        // Try fallback selectors
+        let content = '';
+        for (const selector of fallbackSelectors.content) {
+          const element = document.querySelector(selector);
+          if (element) {
+            content = element.textContent?.trim() || '';
+            console.log(`[Puppeteer-Debug] Found content using fallback selector: ${selector}`);
+            console.log('[Puppeteer-Debug] Content length:', content.length);
+            break;
+          }
+        }
+
+        // If still no content, try getting main content area
+        if (!content) {
+          const main = document.querySelector('main');
+          if (main) {
+            content = main.textContent?.trim() || '';
+            console.log('[Puppeteer-Debug] Using main element content');
+            console.log('[Puppeteer-Debug] Content length:', content.length);
+          }
+        }
+
+        // If still no content, get the body content
+        if (!content) {
+          content = document.body.textContent?.trim() || '';
+          console.log('[Puppeteer-Debug] Using body content as fallback');
+          console.log('[Puppeteer-Debug] Content length:', content.length);
+        }
+
+        // Try to get title
+        let title = '';
+        for (const selector of fallbackSelectors.title) {
+          const element = document.querySelector(selector);
+          if (element) {
+            title = element.textContent?.trim() || '';
+            break;
+          }
+        }
+
+        // Try to get author
+        let author = '';
+        for (const selector of fallbackSelectors.author) {
+          const element = document.querySelector(selector);
+          if (element) {
+            author = element.textContent?.trim() || '';
+            break;
+          }
+        }
+
+        // Try to get date
+        let date = '';
+        for (const selector of fallbackSelectors.date) {
+          const element = document.querySelector(selector);
+          if (element) {
+            date = element.textContent?.trim() || '';
+            break;
+          }
+        }
+
+        return { title, content, author, date };
+      }, scrapingConfig);
+
+      console.log('[Puppeteer] Extraction results:', {
+        hasTitle: !!articleContent.title,
+        titleLength: articleContent.title?.length || 0,
+        hasContent: !!articleContent.content,
+        contentLength: articleContent.content?.length || 0,
+        hasAuthor: !!articleContent.author,
+        hasDate: !!articleContent.date
+      });
+
+      // Return the content in HTML format
+      return `<html><body>
+        <h1>${articleContent.title || ''}</h1>
+        ${articleContent.author ? `<div class="author">${articleContent.author}</div>` : ''}
+        ${articleContent.date ? `<div class="date">${articleContent.date}</div>` : ''}
+        <div class="content">${articleContent.content || ''}</div>
+      </body></html>`;
+    }
+
+    // For source/listing pages, extract article links
+    return await extractArticleLinks(page);
+
+  } catch (error) {
+    throw new Error(`Puppeteer scraping failed: ${error}`);
+  } finally {
+    if (page) {
+      await page.close();
+    }
+  }
+}
+
+// Clean up browser on process exit
+process.on('exit', async () => {
+  if (browser) {
+    await browser.close();
+  }
+});

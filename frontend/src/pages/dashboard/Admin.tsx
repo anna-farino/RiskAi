@@ -74,7 +74,7 @@ export default function Admin() {
   })
 
   const editUserRole = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: number, newRole: string }) => {
+    mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
       if (userId === user?.id) {
         console.error("Admins cannot change their own role")
         return data;
@@ -94,7 +94,7 @@ export default function Admin() {
     }
   })
 
-  function changeRole(userId: number, newRole: string) {
+  function changeRole(userId: string, newRole: string) {
     editUserRole.mutate({
       userId,
       newRole

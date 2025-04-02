@@ -16,6 +16,12 @@ const buttons = [
     restricted: false,
   },
   {
+    label: "News",
+    path: "/dashboard/news/home",
+    icon: Home,
+    restricted: false,
+  },
+  {
     label: "Admin",
     path: "/dashboard/admin",
     icon: File,
