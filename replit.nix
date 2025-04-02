@@ -4,6 +4,7 @@
     pkgs.glib
     pkgs.lsof
     pkgs.nss
+    pkgs.nspr
     pkgs.chromium
     pkgs.alsaLib
     pkgs.atk
