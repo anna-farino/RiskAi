@@ -4,9 +4,3 @@
     pkgs.lsof
   ];
 }
-{ pkgs ? import <nixpkgs> {} }:
-pkgs.mkShell {
-  buildInputs = [
-    pkgs.nss
-  ];
-}
