@@ -30,5 +30,6 @@
     pkgs.xorg.libXtst
     pkgs.xorg.libxcb
     pkgs.libuuid
+    pkgs.mesa
   ];
 }
