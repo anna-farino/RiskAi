@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { setSeconds } from "date-fns";
 import { useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 
 
 const buttons = [
@@ -20,8 +20,7 @@ const buttons = [
 ]
 
 export default function NewsLayout() {
-  const pathnameSegments = window.location.pathname.split('/')
-  const [ section, setSection ] = useState(pathnameSegments[3])
+  const location = useLocation().pathname.split('/')[3]
 
   return (
     <div className="flex flex-col w-full h-full gap-y-4">
@@ -31,7 +30,7 @@ export default function NewsLayout() {
         "font-light"
       )}>
         {buttons.map(button => {
-          const selected = section === button.label.toLowerCase()
+          const selected = location === button.label.toLowerCase()
 
           return (
             <Link
@@ -40,7 +39,6 @@ export default function NewsLayout() {
               className={cn("hover:underline", {
                 "text-orange-400": selected
               })} 
-              onClick={()=>setSection(button.label.toLowerCase())}
             >
               {button.label}
             </Link>

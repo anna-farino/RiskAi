@@ -107,7 +107,7 @@ export default function Sources() {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/sources`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      sources.refetch()
       form.reset();
       toast({
         title: "Source added successfully",
@@ -123,7 +123,7 @@ export default function Sources() {
       toast({
         title: "Source scraped successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+      sources.refetch()
     },
   });
 
@@ -132,6 +132,7 @@ export default function Sources() {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/sources/${id}/stop`);
     },
     onSuccess: () => {
+      sources.refetch()
       toast({
         title: "Scraping stopped successfully",
       });
@@ -146,7 +147,7 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      sources.refetch()
       toast({
         title: "Auto-scrape settings updated",
       });
@@ -159,6 +160,7 @@ export default function Sources() {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/jobs/scrape`);
     },
     onSuccess: () => {
+      sources.refetch()
       toast({
         title: "Global scrape job started",
         description: "All eligible sources are being scraped"
@@ -191,7 +193,7 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/settings/auto-scrape"] });
+      sources.refetch()
       toast({
         title: "Auto-scrape schedule updated",
       });

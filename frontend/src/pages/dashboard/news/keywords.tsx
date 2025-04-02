@@ -11,6 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { serverUrl } from "@/utils/server-url";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 
 export default function Keywords() {
   const { toast } = useToast();
@@ -22,15 +24,32 @@ export default function Keywords() {
   });
 
   const keywords = useQuery<Keyword[]>({
-    queryKey: ["/api/keywords"],
+    queryKey: ["/api/news-tracker/keywords"],
+    queryFn: async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...csfrHeaderObject()
+          }
+        })
+        if (!response.ok) throw new Error()
+        const data = await response.json()
+        return data || []
+      } catch(error) {
+        console.error(error)
+      }
+    }
   });
 
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
-      await apiRequest("POST", "/api/keywords", data);
+      await apiRequest("POST", `${serverUrl}/api/news-tracker/keywords`, data);
+      console.log("Sent POST request:", data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/keywords"] });
+      keywords.refetch()
       form.reset();
       toast({
         title: "Keyword added successfully",
@@ -40,19 +59,19 @@ export default function Keywords() {
 
   const toggleKeyword = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      await apiRequest("PATCH", `/api/keywords/${id}`, { active });
+      await apiRequest("PATCH", `${serverUrl}/api/news-tracker/keywords/${id}`, { active });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/keywords"] });
+      keywords.refetch()
     },
   });
 
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/keywords/${id}`);
+      await apiRequest("DELETE", `${serverUrl}/api/news-tracker/keywords/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/keywords"] });
+      keywords.refetch()
       toast({
         title: "Keyword deleted successfully",
       });

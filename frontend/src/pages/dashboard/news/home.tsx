@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
 import type { Article } from "@shared/db/schema/news-tracker/index";
@@ -23,13 +24,20 @@ import { Link } from "react-router-dom";
 
 export default function NewsHome() {
   const { toast } = useToast();
+  console.log("")
+
   const articles = useQuery<Article[]>({
     queryKey: ["/api/news-tracker/articles"],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles`)
+        const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...csfrHeaderObject()
+          }
+        })
         if (!response.ok) throw new Error()
-
         const data = await response.json()
         return data || []
       } catch (error) {
@@ -40,19 +48,19 @@ export default function NewsHome() {
 
   const deleteArticle = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/news-tracker/articles/${id}`);
+      await apiRequest("DELETE", `${serverUrl}/api/news-tracker/articles/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+      articles.refetch()
     },
   });
   
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      return await apiRequest("DELETE", "/api/news-tracker/articles");
+      return await apiRequest("DELETE", `${serverUrl}/api/news-tracker/articles`);
     },
     onSuccess: (data: { success: boolean; message: string; deletedCount: number }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+      articles.refetch()
       toast({
         title: "Articles deleted",
         description: `Successfully deleted ${data.deletedCount} articles.`,
@@ -104,9 +112,9 @@ export default function NewsHome() {
                 asChild
                 className="p-0 h-auto text-primary hover:text-primary/80"
               >
-                <a href="/sources" className="flex items-center gap-1">
+                <Link to="/dashboard/news/sources" className="flex items-center gap-1">
                   Manage Sources <ArrowRight className="h-3.5 w-3.5" />
-                </a>
+                </Link>
               </Button>
             </div>
           </div>
@@ -134,9 +142,9 @@ export default function NewsHome() {
                 asChild
                 className="p-0 h-auto text-primary hover:text-primary/80"
               >
-                <a href="/keywords" className="flex items-center gap-1">
+                <Link to="/dashboard/news/keywords" className="flex items-center gap-1">
                   Manage Keywords <ArrowRight className="h-3.5 w-3.5" />
-                </a>
+                </Link>
               </Button>
             </div>
           </div>
