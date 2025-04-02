@@ -10,25 +10,26 @@ puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
-  const chrome = vanillaPuppeteer.executablePath();
-  console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
-  return chrome;
-  //try {
-  //  // Try to find chromium using 'which' command
-  //  console.log("[findChromePath]")
-  //  const chromePath = execSync('which chromium').toString().trim();
-  //  console.log("[findChromePath] chromePath:", chromePath)
-  //  return chromePath;
-  //} catch (e) {
-  //  try {
-  //    // Try to find chrome using 'which' command
-  //    const chromePath = execSync('which chrome').toString().trim();
-  //    return chromePath;
-  //  } catch (e) {
-  //    // Default paths to try
-  //    return '/nix/var/nix/profiles/default/bin/chromium';
-  //  }
-  //}
+  try {
+    const chrome = vanillaPuppeteer.executablePath();
+    console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
+    return chrome;
+  } catch (e) {
+    try {
+      console.log("[findChromePath]")
+      const chromePath = execSync('which chromium').toString().trim();
+      console.log("[findChromePath] chromePath:", chromePath)
+      return chromePath;
+    } catch(e) {
+      try {
+        const chromePath = execSync('which chrome').toString().trim();
+        return chromePath;
+      } catch (e) {
+      // Default paths to try
+      return '/nix/var/nix/profiles/default/bin/chromium';
+      }
+    }
+  }
 }
 
 const CHROME_PATH = findChromePath();
