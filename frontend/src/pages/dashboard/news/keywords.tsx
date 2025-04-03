@@ -61,7 +61,7 @@ export default function Keywords() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       await apiRequest("PATCH", `${serverUrl}/api/news-tracker/keywords/${id}`, { active });
     },
-    onSuccess: () => {
+    onSettled: () => {
       keywords.refetch()
     },
   });
@@ -77,6 +77,7 @@ export default function Keywords() {
       });
     },
   });
+
 
   const onSubmit = form.handleSubmit((data) => {
     addKeyword.mutate(data);

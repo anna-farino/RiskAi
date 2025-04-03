@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { DeleteAlertDialog } from "../delete-alert-dialog";
 
 interface ArticleCardProps {
   article: Article;
@@ -12,6 +14,7 @@ interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, onDelete }: ArticleCardProps) {
+  const [ openAlert, setOpenAlert ] = useState(false)
   // Generate a random color for the card accent (in a real app, this could be based on source or category)
   const getRandomAccent = () => {
     const accents = ['from-blue-500/20', 'from-green-500/20', 'from-purple-500/20', 'from-amber-500/20', 'from-pink-500/20'];
@@ -42,7 +45,8 @@ export function ArticleCard({ article, onDelete }: ArticleCardProps) {
           </h3>
           
           <div className="flex items-center gap-3 mb-3">
-            {article.author && (
+            {/*Author disabled*/}
+            {article.author && false && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <User className="h-3 w-3" />
                 <span>{article.author}</span>
@@ -79,14 +83,28 @@ export function ArticleCard({ article, onDelete }: ArticleCardProps) {
               )}
             </div>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="h-7 w-7 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+            <DeleteAlertDialog
+              open={openAlert}
+              setOpen={setOpenAlert}
+              action={(e: React.MouseEvent) => handleDelete(e)}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e)=> {
+                  e.preventDefault()
+                  setOpenAlert(true)
+                  console.log("here")
+                }}
+                className={cn(
+                  "h-fit w-fit p-2",
+                  "border border-slate-700 rounded-full",
+                  "text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+                )}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </DeleteAlertDialog>
           </div>
         </div>
       </div>
