@@ -1,5 +1,5 @@
 import { runGlobalScrapeJob } from "./background-jobs";
-import { storage } from "backend/db/queries/news-tracker";
+import { storage } from "../queries/news-tracker";
 import { log } from "console";
 
 // Job intervals in milliseconds

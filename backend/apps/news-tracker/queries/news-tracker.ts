@@ -13,7 +13,7 @@ import {
   articles, 
   settings, 
 } from "@shared/db/schema/news-tracker/index";
-import { db } from "../db";
+import { db } from "backend/db/db";
 import { eq, and, isNull } from "drizzle-orm";
 
 export interface IStorage {

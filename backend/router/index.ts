@@ -7,7 +7,7 @@ import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
 import { noSimpleRequests } from '../middleware/no-simple-requests';
 import { doubleCsrfProtection } from '../middleware/csrf';
-import { newsRouter } from './routes/news-tracker';
+import { newsRouter } from '../apps/news-tracker/router';
 
 const router = Router();
 

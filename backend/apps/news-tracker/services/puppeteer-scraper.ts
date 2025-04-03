@@ -4,8 +4,6 @@ import type { Browser, Page } from 'puppeteer';
 import { execSync } from 'child_process';
 import { log } from 'console';
 import vanillaPuppeteer from 'puppeteer';
-import * as path from 'path';
-import * as os from 'os';
 import * as fs from 'fs';
 
 // Define environment variables for Puppeteer
@@ -17,6 +15,34 @@ puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
+  try {
+    const chrome = vanillaPuppeteer.executablePath();
+    console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
+    return chrome;
+  } catch (e) {
+    console.log(`[findChromePath] Error getting puppeteer path:`, e);
+  }
+  try {
+    console.log("[findChromePath] Trying 'which chromium'");
+    const chromePath = execSync('which chromium').toString().trim();
+    console.log("[findChromePath] chromePath:", chromePath);
+    return chromePath;
+  } catch(e) {
+    console.log(`[findChromePath] Error with 'which chromium':`, e);
+    
+    // Then try to find Chrome using which command
+    try {
+      console.log("[findChromePath] Trying 'which chrome'");
+      const chromePath = execSync('which chrome').toString().trim();
+      console.log("[findChromePath] chromePath:", chromePath);
+      return chromePath;
+    } catch (e) {
+      console.log(`[findChromePath] Error with 'which chrome':`, e);
+      
+      // Default paths to try
+      console.log("[findChromePath] Using default path");
+    }
+  }
   // First try the known Replit Chromium unwrapped path (most likely to work)
   const replitChromiumUnwrapped = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium';
   try {
@@ -39,38 +65,6 @@ function findChromePath() {
     console.log(`[findChromePath] Error checking Replit Chromium wrapper:`, err);
   }
   
-  // Then try puppeteer's bundled Chromium (for local development)
-  try {
-    const chrome = vanillaPuppeteer.executablePath();
-    console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
-    return chrome;
-  } catch (e) {
-    console.log(`[findChromePath] Error getting puppeteer path:`, e);
-    
-    // Then try to find Chromium using which command
-    try {
-      console.log("[findChromePath] Trying 'which chromium'");
-      const chromePath = execSync('which chromium').toString().trim();
-      console.log("[findChromePath] chromePath:", chromePath);
-      return chromePath;
-    } catch(e) {
-      console.log(`[findChromePath] Error with 'which chromium':`, e);
-      
-      // Then try to find Chrome using which command
-      try {
-        console.log("[findChromePath] Trying 'which chrome'");
-        const chromePath = execSync('which chrome').toString().trim();
-        console.log("[findChromePath] chromePath:", chromePath);
-        return chromePath;
-      } catch (e) {
-        console.log(`[findChromePath] Error with 'which chrome':`, e);
-        
-        // Default paths to try
-        console.log("[findChromePath] Using default path");
-        return '/nix/var/nix/profiles/default/bin/chromium';
-      }
-    }
-  }
 }
 
 const CHROME_PATH = findChromePath();
@@ -105,7 +99,7 @@ async function getBrowser() {
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled' // Avoid detection
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || CHROME_PATH,
+        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         // Set longer browser launch timeout
         timeout: 180000 // 3 minute timeout on browser launch
       });

@@ -1,5 +1,5 @@
 import { scrapeUrl, extractArticleLinks, extractArticleContent } from "./scraper";
-import { storage } from "backend/db/queries/news-tracker";
+import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
 import { analyzeContent, detectHtmlStructure } from "./openai";
 import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";

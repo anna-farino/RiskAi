@@ -1,10 +1,10 @@
 import { insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
 import { User } from "@shared/db/schema/user";
-import { storage } from "backend/db/queries/news-tracker";
-import { isGlobalJobRunning, runGlobalScrapeJob } from "backend/services/news-tracker/background-jobs";
-import { analyzeContent, detectHtmlStructure } from "backend/services/news-tracker/openai";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule } from "backend/services/news-tracker/scheduler";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "backend/services/news-tracker/scraper";
+import { storage } from "../queries/news-tracker";
+import { isGlobalJobRunning, runGlobalScrapeJob } from "../services/background-jobs";
+import { analyzeContent, detectHtmlStructure } from "../services/openai";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule } from "../services/scheduler";
+import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
