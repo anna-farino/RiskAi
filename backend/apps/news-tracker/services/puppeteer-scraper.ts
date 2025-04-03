@@ -15,13 +15,7 @@ puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
-  try {
-    const chrome = vanillaPuppeteer.executablePath();
-    console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
-    return chrome;
-  } catch (e) {
-    console.log(`[findChromePath] Error getting puppeteer path:`, e);
-  }
+  
   try {
     console.log("[findChromePath] Trying 'which chromium'");
     const chromePath = execSync('which chromium').toString().trim();
@@ -64,7 +58,14 @@ function findChromePath() {
   } catch (err) {
     console.log(`[findChromePath] Error checking Replit Chromium wrapper:`, err);
   }
-  
+  try {
+    console.log("[Trying vanilla Puppeteer...]")
+    const chrome = vanillaPuppeteer.executablePath();
+    console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
+    return chrome;
+  } catch (e) {
+    console.log(`[findChromePath] Error getting puppeteer path:`, e);
+  }
 }
 
 const CHROME_PATH = findChromePath();
