@@ -6,9 +6,7 @@ import { log } from 'console';
 import vanillaPuppeteer from 'puppeteer';
 import * as fs from 'fs';
 
-// Define environment variables for Puppeteer
-process.env.PUPPETEER_SKIP_DOWNLOAD = 'true'; // Skip downloading Chromium
-process.env.PUPPETEER_EXECUTABLE_PATH = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium'; // Use our installed Chromium unwrapped
+const PUPPETEER_EXECUTABLE_PATH = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium'; // Use our installed Chromium unwrapped
 
 // Add stealth plugin to bypass bot detection
 puppeteer.use(StealthPlugin());
@@ -74,7 +72,7 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 let browser: Browser | null = null;
 
 async function getBrowser() {
-  log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, process.env.PUPPETEER_EXECUTABLE_PATH )
+  log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, PUPPETEER_EXECUTABLE_PATH )
   if (!browser) {
     try {
       // Use a more minimal configuration to avoid dependencies
