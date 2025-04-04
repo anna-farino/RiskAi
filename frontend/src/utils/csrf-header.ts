@@ -29,7 +29,7 @@ export function csfrHeaderObject(): Record<string,string> {
     ?.split('=')[1]
     ?.split('%7C')[0] || ""
 
-  //console.log("csfrToken", csfrToken)
+  console.log("csfrToken", csfrToken)
 
   return {
     [csfrHeaderName]: csfrToken,
