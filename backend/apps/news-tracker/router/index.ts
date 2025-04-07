@@ -305,6 +305,8 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
 // Background Jobs and Auto-Scraping
 newsRouter.post("/jobs/scrape", async (req, res) => {
   try {
+    const userId = (req.user as User).id as string;
+    
     if (isGlobalJobRunning()) {
       return res.status(400).json({ 
         success: false, 
@@ -312,7 +314,7 @@ newsRouter.post("/jobs/scrape", async (req, res) => {
       });
     }
     
-    const result = await runGlobalScrapeJob();
+    const result = await runGlobalScrapeJob(userId);
     res.json(result);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

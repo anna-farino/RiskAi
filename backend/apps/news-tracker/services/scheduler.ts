@@ -73,7 +73,26 @@ export function scheduleGlobalScrapeJob(interval: JobInterval): void {
     log("[Scheduler] Running scheduled global scrape job", "scheduler");
     
     try {
-      const result = await runGlobalScrapeJob();
+      // Get all sources that are eligible for auto-scrape
+      const autoScrapeSources = await storage.getAutoScrapeSources();
+      
+      // Collect unique user IDs from these sources
+      const userIdSet = new Set<string>();
+      for (const source of autoScrapeSources) {
+        if (source.userId) {
+          userIdSet.add(source.userId);
+        }
+      }
+      const userIds = Array.from(userIdSet);
+      
+      log(`[Scheduler] Found ${userIds.length} users with auto-scrape sources`, "scheduler");
+      
+      // Run the job for each user sequentially
+      for (const userId of userIds) {
+        log(`[Scheduler] Running scheduled global scrape job for user ${userId}`, "scheduler");
+        const result = await runGlobalScrapeJob(userId);
+        log(`[Scheduler] Completed job for user ${userId}: ${result.message}`, "scheduler");
+      }
       
       // Update last run timestamp in settings
       const frequencySetting = await storage.getSetting(AUTO_SCRAPE_FREQUENCY_KEY);
@@ -88,7 +107,7 @@ export function scheduleGlobalScrapeJob(interval: JobInterval): void {
         await storage.setSetting(AUTO_SCRAPE_FREQUENCY_KEY, frequencyValue);
       }
       
-      log(`[Scheduler] Scheduled job completed: ${result.message}`, "scheduler");
+      log(`[Scheduler] Scheduled job completed successfully`, "scheduler");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       log(`[Scheduler] Error in scheduled job: ${errorMessage}`, "scheduler");

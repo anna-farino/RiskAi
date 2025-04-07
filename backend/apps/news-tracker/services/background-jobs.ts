@@ -162,8 +162,9 @@ export function stopScrapingSource(sourceId: string): void {
 
 /**
  * Run the global scraping job for all eligible sources
+ * @param userId The ID of the user whose sources should be scraped
  */
-export async function runGlobalScrapeJob(): Promise<{ 
+export async function runGlobalScrapeJob(userId: string): Promise<{ 
   success: boolean; 
   message: string; 
   results?: { 
@@ -182,11 +183,11 @@ export async function runGlobalScrapeJob(): Promise<{
   globalJobRunning = true;
   
   try {
-    log(`[Background Job] Starting global scrape job`, 'scraper');
+    log(`[Background Job] Starting global scrape job for user ${userId}`, 'scraper');
     
-    // Get all sources that are active and included in auto-scrape
-    const sources = await storage.getAutoScrapeSources();
-    log(`[Background Job] Found ${sources.length} sources for auto-scraping`, 'scraper');
+    // Get all sources that are active and included in auto-scrape for this user
+    const sources = await storage.getAutoScrapeSources(userId);
+    log(`[Background Job] Found ${sources.length} sources for auto-scraping for user ${userId}`, 'scraper');
     
     if (sources.length === 0) {
       globalJobRunning = false;
