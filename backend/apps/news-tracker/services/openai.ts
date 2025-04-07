@@ -1,7 +1,9 @@
 import OpenAI from "openai";
-import type { AIAnalysisResult, ScrapingConfig } from "@shared/db/schema/news-tracker/types";
+import type {
+  AIAnalysisResult,
+  ScrapingConfig,
+} from "@shared/db/schema/news-tracker/types";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function analyzeContent(
@@ -11,7 +13,7 @@ export async function analyzeContent(
 ): Promise<AIAnalysisResult> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "o1-mini",
       messages: [
         {
           role: "system",
@@ -106,7 +108,7 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
     );
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "o1-mini",
       messages: [
         {
           role: "system",
@@ -187,7 +189,7 @@ export async function detectHtmlStructure(
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "o1-mini",
       messages: [
         {
           role: "system",
