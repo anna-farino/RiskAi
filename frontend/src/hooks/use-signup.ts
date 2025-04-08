@@ -50,7 +50,7 @@ export function useSignup() {
         title: "Success",
         description: "Account created successfully! Please log in.",
       });
-      navigate('/login');
+      navigate('/auth/login');
     },
     onError: (error: Error) => {
       toast({

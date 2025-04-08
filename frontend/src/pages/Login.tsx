@@ -12,18 +12,26 @@ import { useLogin } from "@/hooks/use-login"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import useLoginOtp from "@/hooks/use-login-otp"
+import PasswordEye from "@/components/password-eye"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/\d/, 'Password must contain at least one number')
+    .regex(/[?!@#$%^&*()]/, 'Password must contain at least one special character (!?@#$%^&*())'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const [twoFactorAuth, setTwoFactorAuth] = useState(false);
+  const [ showPassword, setShowPassword ] = useState(false)
+  const [ twoFactorAuth, setTwoFactorAuth] = useState(false);
   const { mutate: login, isPending } = useLogin();
   const { mutate: loginOtp, isPending: isPendingOtp } = useLoginOtp();
+
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -61,7 +69,7 @@ export default function Login() {
         <CardContent>
           <form onSubmit={onSubmit}>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
+              <div className="grid gap-2 relative">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -76,19 +84,26 @@ export default function Login() {
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  <a
-                    href="#"
+                  <Link
+                    to="/auth/email-otp"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?
-                  </a>
+                  </Link>
                 </div>
-                <Input 
-                  id="password" 
-                  type="password"
-                  disabled={isPending}
-                  {...form.register("password")}
-                />
+                <div className="flex relative">
+                  <Input 
+                    id="password" 
+                    type={showPassword ? "text" : "password"}
+                    disabled={isPending}
+                    {...form.register("password")}
+                  />
+                  <PasswordEye
+                    state={showPassword}
+                    setStateFn={setShowPassword}
+                    top={9}
+                  />
+                </div>
                 {form.formState.errors.password && (
                   <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
                 )}
@@ -106,7 +121,7 @@ export default function Login() {
             </div>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}
-              <Link to="/signup" className="underline underline-offset-4 hover:text-primary">
+              <Link to="/auth/signup" className="underline underline-offset-4 hover:text-primary">
                 Sign up
               </Link>
             </div>

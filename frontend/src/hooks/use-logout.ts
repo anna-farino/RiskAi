@@ -20,12 +20,12 @@ export function useLogout() {
 
       const data = await response.json()
       console.log(data)
-      if (data.noToken) navigate('/login')
+      if (data.noToken) navigate('/auth/login')
 
       if (!response.ok) {
         throw new Error('Logout failed');
       }
-      navigate('/login');
+      navigate('/auth/login');
 
       toast({
         title: "Success",

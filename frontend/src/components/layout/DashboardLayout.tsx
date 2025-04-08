@@ -5,7 +5,6 @@ import { useLogout } from "@/hooks/use-logout";
 import { LogOut, ChevronLeft, ChevronRight, Bug, Home, File, AppWindowIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useMainStore } from "@/store/main-store";
 import { useAuth } from "@/hooks/use-auth"; 
 
 const buttons = [
@@ -31,15 +30,10 @@ const buttons = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { logout } = useLogout();
-  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const data = useLoaderData();
-  const { user } = useAuth(); 
-
-  useEffect(()=>{
-    // if (user) console.log("👤 [DASHBOARD] User data in dashboard:", user);
-  },[user])
+  const { data: userData } = useAuth(); 
 
   useEffect(() => {
     const checkMobile = () => {
@@ -49,7 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [data, user]);
+  }, [data, userData]);
 
 
   return (
@@ -76,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {buttons
               .filter(button => {
                 if (
-                  user?.permissions.includes("permissions:edit") ||
+                  userData?.permissions.includes("permissions:edit") ||
                   !button.restricted
                 ) {
                   return button
@@ -134,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Button>
             <div className="flex items-center gap-4">
               <p className="hidden md:block text-sm text-foreground">
-                Hello, {user?.email}
+                Hello, {userData?.email}
               </p>
               <ModeToggle />
             </div>

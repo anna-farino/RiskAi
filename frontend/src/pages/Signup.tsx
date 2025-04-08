@@ -10,15 +10,23 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useSignup } from "@/hooks/use-signup"
 import { Loader2 } from "lucide-react"
+import PasswordEye from "@/components/password-eye"
+import { useState } from "react"
 
 const signupSchema = z.object({
   email: z.string().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/\d/, 'Password must contain at least one number')
+    .regex(/[?!@#$%^&*()]/, 'Password must contain at least one special character (!?@#$%^&*())'),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function Signup() {
+  const [ showPassword, setShowPassword ] = useState(false)
   const { mutate: signup, isPending } = useSignup();
 
   const form = useForm<SignupFormData>({
@@ -59,12 +67,19 @@ export default function Signup() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password"
-                  disabled={isPending}
-                  {...form.register("password")}
-                />
+                <div className="flex relative">
+                  <Input 
+                    id="password" 
+                    type={ showPassword ? "text" : "password"}
+                    disabled={isPending}
+                    {...form.register("password")}
+                  />
+                  <PasswordEye
+                    state={showPassword}
+                    setStateFn={setShowPassword}
+                    top={9}
+                  />
+                </div>
                 {form.formState.errors.password && (
                   <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
                 )}
@@ -82,7 +97,7 @@ export default function Signup() {
             </Button>
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}
-              <Link to="/login" className="underline underline-offset-4 hover:text-primary">
+              <Link to="/auth/login" className="underline underline-offset-4 hover:text-primary">
                 Login
               </Link>
             </div>

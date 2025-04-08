@@ -14,25 +14,38 @@ import NewsHome from './pages/dashboard/news/home.tsx'
 import Sources from './pages/dashboard/news/sources.tsx'
 import Keywords from './pages/dashboard/news/keywords.tsx'
 import NewsLayout from './pages/dashboard/news/layout.tsx'
+import EmailOtp from './pages/email-otp.tsx'
+import ConfirmPassword from './pages/new-password.tsx'
+import AuthLayout from './pages/auth-layout.tsx'
 
 const queryClient = new QueryClient()
 
 const router = createBrowserRouter([
   {
-    path: '/',
-    element: <Redirect/>
-  },
-  {
-    path: "/login",
-    element: <Login />
-  },
-  {
-    path: "/signup",
-    element: <Signup />
-  },
-  {
-    path: "otp",
-    element: <OtpPage/>
+    path: '/auth',
+    element: <AuthLayout/>,
+    children: [
+      {
+        path: "login",
+        element: <Login />
+      },
+      {
+        path: "signup",
+        element: <Signup />
+      },
+      {
+        path: "email-otp",
+        element: <EmailOtp />
+      },
+      {
+        path: "otp",
+        element: <OtpPage/>
+      },
+      {
+        path: "new-password",
+        element: <ConfirmPassword/>
+      },
+    ]
   },
   {
     path: "/dashboard",
@@ -68,6 +81,10 @@ const router = createBrowserRouter([
         ]
       },
     ]
+  },
+  {
+    path: '*',
+    element: <Redirect/>
   },
   {
     path: "*",

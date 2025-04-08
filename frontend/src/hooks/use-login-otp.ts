@@ -25,7 +25,7 @@ export default function useLoginOtp() {
       if (!response.ok) throw new Error(error)
     },
     onSuccess: () => {
-      navigate('/otp');
+      navigate('/auth/otp?p=login');
     },
     onError: (error: Error) => {
       toast({

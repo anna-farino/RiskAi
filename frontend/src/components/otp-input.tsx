@@ -22,14 +22,18 @@ import { toast } from "@/hooks/use-toast"
 import { useNavigate } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
+import GoBackToLogin from "./go-back-to-login"
 
 const FormSchema = z.object({
   pin: z.string().min(6, {
-    message: "Your one-time password must be 6 characters.",
+    message: "Your one-time password must be 6 characters long.",
   }),
 })
 
-export function InputOTPForm() {
+type Props = {
+  pParam: 'login' | 'pw'
+}
+export function InputOTPForm({ pParam }: Props) {
   const [ showLoader, setShowLoader ] = useState(false)
   const navigate = useNavigate();
 
@@ -43,21 +47,31 @@ export function InputOTPForm() {
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setShowLoader(true)
     try {
-      const response = await fetch(`${serverUrl}/api/auth/verify-otp`, {
+      const url = pParam === 'login'
+        ? `${serverUrl}/api/auth/verify-otp-login`
+        : `${serverUrl}/api/auth/verify-otp-new-password`
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify({
-          email: 'test@email.test',
           code: data.pin
         })
       })
       if (!response.ok) {
         throw new Error("An error occurred while validating the code")
       }
-      navigate('/dashboard/home')
+      switch (pParam) {
+        case 'login':
+          navigate('/dashboard/home');
+          break
+        case 'pw':
+          navigate('/auth/new-password');
+          break
+      }
     } catch(error) {
       toast({
         title: "Error",
@@ -101,6 +115,7 @@ export function InputOTPForm() {
           {showLoader && <Loader2 className="animate-spin"/>}
           {showLoader ? "Verifying..." : "Submit"}
         </Button>
+        <GoBackToLogin text="left"/>
       </form>
     </Form>
   )

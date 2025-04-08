@@ -12,9 +12,7 @@ import { z } from "zod";
 
 export const newsRouter = Router()
 
-
 const activeScraping = new Map<string, boolean>();
-
 
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;

@@ -1,13 +1,16 @@
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { csfrHeader } from "@/utils/csrf-header";
+import { useNavigate } from "react-router-dom";
 import { serverUrl } from "@/utils/server-url";
+import { useState } from "react";
 
-export function useAuthCheck() {
+
+export function useCanAccessAuth() {
+  const [ result, setResult ] = useState(false)
   const navigate = useNavigate();
 
-  return useQuery({
-    queryKey: ['auth-check'],
+  useQuery({
+    queryKey: ['redirect-dashboard'],
     queryFn: async () => {
       try {
         const response = await fetch(serverUrl + '/api/auth/check', {
@@ -16,18 +19,22 @@ export function useAuthCheck() {
             [csfrHeader().name]: csfrHeader().token
           }
         });
-
         if (!response.ok) {
-          throw new Error('Authentication failed');
+          setResult(true)
+        } 
+        const data = await response.json()
+        if (data.authenticated) {
+          navigate("/dashboard/home")
+          return true
         }
-
-        return true;
+        setResult(true)
+        return true
       } catch (error) {
-        navigate('/auth/login');
         throw error;
       }
     },
-    retry: false, 
-    refetchOnWindowFocus: true, 
+    retry: false
   });
+
+  return result
 }

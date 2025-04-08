@@ -3,16 +3,20 @@ import { useAuth } from "./hooks/use-auth"
 import { useEffect } from "react"
 
 export default function Redirect() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
-  
-  useEffect(()=>{
-    if (user) {
-      navigate("/dashboard/home")
-    } else {
-      navigate("/login")
-    }
-  },[])
+  const { data, isLoading } = useAuth();
+  const navigate = useNavigate();
 
-  return (<></>)
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (data) {
+      console.log("Redirect: authenticated");
+      navigate("/dashboard/home");
+    } else {
+      console.log("Redirect: NOT authenticated");
+      navigate("/auth/login");
+    }
+  }, [data, isLoading, navigate]);
+
+  return null;
 }

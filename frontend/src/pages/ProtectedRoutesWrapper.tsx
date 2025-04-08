@@ -24,7 +24,7 @@ export default function ProtectedRoutesWrapper({ children }: Props) {
         setIsAuthenticated(true);
       } catch (error) {
           console.error('Error checking authentication:', error);
-          navigate('/login');
+          navigate('/auth/login');
       }
     }
     checkAuth();

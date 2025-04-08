@@ -1,5 +1,4 @@
 import { CookieOptions, Request, Response } from 'express';
-import emailjs from '@emailjs/nodejs'
 import otpGenerator from 'otp-generator' 
 import jwt from 'jsonwebtoken';
 import { db } from '../db/db';
@@ -9,11 +8,11 @@ import { hashString, verifyHashedString } from '../utils/auth';
 import { otps } from '@shared/db/schema/otps';
 import dotenv from 'dotenv'
 import dotenvConfig from '../utils/dotenv-config';
+import { sendEmailJs } from 'backend/utils/sendEmailJs';
 
 dotenvConfig(dotenv)
 
 export async function handleLoginOtp(req: Request, res: Response) {
-
   try {
     console.log("🔐 [LOGIN-OTP] Incoming login request with body:", {
       email: req.body?.email,
@@ -69,22 +68,15 @@ export async function handleLoginOtp(req: Request, res: Response) {
     };
     
     try {
-      emailjs.init({
-        publicKey: process.env.EMAILJS_PUBLIC_KEY,
-      })
-      await emailjs.send(
-        process.env.EMAILJS_SERVICE_ID as string, 
-        process.env.EMAILJS_TEMPLATE_OTP_ID as string, 
-        templateParams,
-        {
-          publicKey: process.env.EMAILJS_PUBLIC_KEY as string,  
-          privateKey: process.env.EMAILJS_PRIVATE_KEY as string 
-        },
-      );
+      const template = process.env.EMAILJS_TEMPLATE_OTP_ID as string
+      sendEmailJs({ template, templateParams })
+
       console.log("🔐 [LOGIN-OTP] Email sent correctly");
     } catch(err) {
+
       console.log("❌ [LOGIN-OTP] An error occurred while sending the email")
       console.error(err)
+
       res.status(500).json({
         message: "An error occurred while sending the email"
       })
@@ -102,6 +94,7 @@ export async function handleLoginOtp(req: Request, res: Response) {
 
     const tempSessionToken = jwt.sign(
       {
+        purpose: 'login',
         userId: user.id
       },
       process.env.JWT_SECRET!,
