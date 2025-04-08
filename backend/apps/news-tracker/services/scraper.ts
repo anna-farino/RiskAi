@@ -612,9 +612,35 @@ export function extractArticleContent(html: string, config: ScrapingConfig) {
   const title = sanitizedConfig.titleSelector
     ? $(sanitizedConfig.titleSelector).first().text().trim()
     : "";
-  const content = sanitizedConfig.contentSelector
-    ? $(sanitizedConfig.contentSelector).text().trim()
-    : "";
+  // Handle content more robustly
+  let content = "";
+  if (sanitizedConfig.contentSelector) {
+    content = $(sanitizedConfig.contentSelector).text().trim();
+    
+    // If content is empty but we have an articleSelector, try using it
+    if (content.length === 0 && config.articleSelector) {
+      const articleSelector = sanitizeSelector(config.articleSelector);
+      if (articleSelector) {
+        // Get all paragraph elements within articleSelector
+        content = $(articleSelector).find('p').text().trim();
+        
+        // If still empty, get all text
+        if (content.length === 0) {
+          content = $(articleSelector).text().trim();
+        }
+      }
+    }
+    
+    // If still empty and we have a config.contentSelector with :contains
+    // which was sanitized away, use a more direct approach
+    if (content.length === 0 && config.contentSelector && config.contentSelector.includes(':contains')) {
+      // Extract base selector without the :contains part
+      const baseSelector = config.contentSelector.split(':contains')[0].trim();
+      if (baseSelector) {
+        content = $(baseSelector).text().trim();
+      }
+    }
+  }
   // Handle author - check if it's a selector or direct text
   let author;
   if (sanitizedConfig.authorSelector) {
@@ -628,6 +654,34 @@ export function extractArticleContent(html: string, config: ScrapingConfig) {
   // Skip date extraction entirely as requested by user
   // Date will be set to current date in article creation
 
+  // Fallback method if content is still empty - use main content area or body
+  if (content.length === 0) {
+    log(`[Scraping] Content extraction failed with configured selectors, trying fallbacks`, "scraper");
+    
+    // Try common content area selectors
+    const fallbackSelectors = [
+      "article", ".article", ".post", ".entry", "main", 
+      "#content", ".content", "#main-content", ".main-content",
+      ".article-content", ".post-content", ".entry-content"
+    ];
+    
+    for (const selector of fallbackSelectors) {
+      if (content.length > 0) break;
+      
+      const element = $(selector).first();
+      if (element.length > 0) {
+        content = element.text().trim();
+        log(`[Scraping] Found content using fallback selector: ${selector}`, "scraper");
+      }
+    }
+    
+    // Last resort - get all paragraph text from body
+    if (content.length === 0) {
+      content = $("body p").text().trim();
+      log(`[Scraping] Using all paragraph text from body as fallback`, "scraper");
+    }
+  }
+  
   // Log extraction results
   log(`[Scraping] Extracted title length: ${title.length}`, "scraper");
   log(`[Scraping] Extracted content length: ${content.length}`, "scraper");

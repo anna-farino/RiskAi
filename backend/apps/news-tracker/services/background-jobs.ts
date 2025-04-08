@@ -84,10 +84,12 @@ export async function scrapeSource(sourceId: string): Promise<{ processedCount: 
         const article = extractArticleContent(articleHtml, scrapingConfig as ScrapingConfig);
         log(`[Scraping] Article extracted successfully: "${article.title}"`, 'scraper');
 
-        // First check title for keyword matches
-        const titleKeywordMatches = activeKeywords.filter(keyword =>
-          article.title.toLowerCase().includes(keyword.toLowerCase())
-        );
+        // First check title for keyword matches - using word boundary check
+        const titleKeywordMatches = activeKeywords.filter(keyword => {
+          // Create a regex with word boundaries to ensure we match whole words only
+          const keywordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return keywordRegex.test(article.title);
+        });
 
         if (titleKeywordMatches.length > 0) {
           log(`[Scraping] Keywords found in title: ${titleKeywordMatches.join(', ')}`, 'scraper');
