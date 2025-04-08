@@ -230,10 +230,12 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
         const article = extractArticleContent(articleHtml, scrapingConfig);
         log(`[Scraping] Article extracted successfully: "${article.title}"`, 'scraper');
 
-        // First check title for keyword matches
-        const titleKeywordMatches = activeKeywords.filter(keyword =>
-          article.title.toLowerCase().includes(keyword.toLowerCase())
-        );
+        // First check title for keyword matches - using word boundary check
+        const titleKeywordMatches = activeKeywords.filter(keyword => {
+          // Create a regex with word boundaries to ensure we match whole words only
+          const keywordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return keywordRegex.test(article.title);
+        });
 
         if (titleKeywordMatches.length > 0) {
           log(`[Scraping] Keywords found in title: ${titleKeywordMatches.join(', ')}`, 'scraper');
@@ -303,6 +305,8 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
 // Background Jobs and Auto-Scraping
 newsRouter.post("/jobs/scrape", async (req, res) => {
   try {
+    const userId = (req.user as User).id as string;
+    
     if (isGlobalJobRunning()) {
       return res.status(400).json({ 
         success: false, 
@@ -310,7 +314,7 @@ newsRouter.post("/jobs/scrape", async (req, res) => {
       });
     }
     
-    const result = await runGlobalScrapeJob();
+    const result = await runGlobalScrapeJob(userId);
     res.json(result);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

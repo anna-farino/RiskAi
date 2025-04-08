@@ -1,7 +1,9 @@
 import OpenAI from "openai";
-import type { AIAnalysisResult, ScrapingConfig } from "@shared/db/schema/news-tracker/types";
+import type {
+  AIAnalysisResult,
+  ScrapingConfig,
+} from "@shared/db/schema/news-tracker/types";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function analyzeContent(
@@ -11,7 +13,7 @@ export async function analyzeContent(
 ): Promise<AIAnalysisResult> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -23,11 +25,16 @@ export async function analyzeContent(
           - matchExamples: object mapping each found keyword to a brief excerpt showing its context
           - publishDate: ISO date string of article publish date if found, otherwise null
 
-          IMPORTANT: Only include keywords that appear verbatim in the article title or content (ignoring case).
-          Do NOT include matches from navigational elements, sidebars, footers, or menus.
-          Do NOT include partial matches or related terms.
-          Be extremely strict about exact keyword matching.
-          For dates, return valid ISO date strings (YYYY-MM-DD) or null if no valid date found.`,
+          IMPORTANT MATCHING RULES:
+          1. Only include keywords that appear as complete words in the article title or content.
+          2. Do NOT include partial or substring matches (e.g. do not match "AIG" inside "campaign").
+          3. Words must have clear word boundaries - start/end of text or surrounded by spaces, punctuation, etc.
+          4. Do NOT include matches from navigational elements, sidebars, footers, or menus.
+          5. For acronyms, ensure they stand alone and are not part of larger words.
+          6. Be extremely strict about exact keyword matching.
+          7. Do NOT include partial matches or related terms.
+          
+          - For dates, return valid ISO date strings (YYYY-MM-DD) or null if no valid date found.`,
         },
         {
           role: "user",
@@ -56,11 +63,16 @@ export async function analyzeContent(
       }
     }
 
-    // Double-check keyword matches in both title and content
+    // Double-check keyword matches in both title and content using word boundaries
     const validatedKeywords = result.detectedKeywords.filter(
-      (keyword: string) =>
-        title.toLowerCase().includes(keyword.toLowerCase()) ||
-        content.toLowerCase().includes(keyword.toLowerCase()),
+      (keyword: string) => {
+        // Create regex with word boundaries to ensure exact word matches
+        const keywordRegex = new RegExp(
+          `\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+          "i",
+        );
+        return keywordRegex.test(title) || keywordRegex.test(content);
+      },
     );
 
     return {
@@ -106,7 +118,7 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
     );
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -187,7 +199,7 @@ export async function detectHtmlStructure(
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

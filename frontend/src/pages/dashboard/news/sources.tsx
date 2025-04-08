@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Link2, Globe, Plus, RotateCw, Check, X, Clock, Settings, Play } from "lucide-react";
+import { Loader2, Link2, Globe, Plus, RotateCw, Check, X, Clock, Settings, Play, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { serverUrl } from "@/utils/server-url";
 import { cn } from "@/lib/utils";
+import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
@@ -51,6 +52,8 @@ interface AutoScrapeSettings {
 export default function Sources() {
   const { toast } = useToast();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
   
   const form = useForm({
     resolver: zodResolver(insertSourceSchema),
@@ -154,6 +157,19 @@ export default function Sources() {
     },
   });
   
+  // Delete a source
+  const deleteSource = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
+    },
+    onSuccess: () => {
+      sources.refetch();
+      toast({
+        title: "Source deleted successfully",
+      });
+    },
+  });
+  
   // Run global scrape job manually
   const runGlobalScrape = useMutation({
     mutationFn: async () => {
@@ -209,6 +225,20 @@ export default function Sources() {
     <div className={cn(
       "flex flex-col pb-20"
     )}>
+      {/* Delete confirmation dialog */}
+      <DeleteAlertDialog
+        open={deleteDialogOpen}
+        setOpen={setDeleteDialogOpen}
+        action={() => {
+          if (sourceToDelete) {
+            deleteSource.mutate(sourceToDelete);
+            setSourceToDelete(null);
+          }
+        }}
+      >
+        <></>
+      </DeleteAlertDialog>
+
       <div className="flex flex-col gap-5 mb-8">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-2">
@@ -428,15 +458,15 @@ export default function Sources() {
               <TableBody>
                 {sources.data?.map((source) => (
                   <TableRow key={source.id} className="border-slate-700/50 hover:bg-white/5">
-                    <TableCell className="font-medium text-white">
+                    <TableCell className="min-w-[150px] font-medium text-white">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <div className="h-8 min-w-8 rounded-full bg-primary/10 flex items-center justify-center">
                           <Globe className="h-4 w-4 text-primary" />
                         </div>
                         {source.name}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="md:max-w-[150px] lg:max-w-[200px]">
                       <div className="flex items-center gap-2">
                         <Link2 className="h-4 w-4 text-slate-500" />
                         <a 
@@ -445,7 +475,7 @@ export default function Sources() {
                           rel="noopener noreferrer"
                           className="text-slate-300 hover:text-primary transition-colors truncate max-w-[300px]"
                         >
-                          {source.url}
+                          {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </a>
                       </div>
                     </TableCell>
@@ -493,6 +523,22 @@ export default function Sources() {
                             <X className="mr-2 h-4 w-4" />
                           )}
                           Stop
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSourceToDelete(source.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                          disabled={deleteSource.isPending}
+                          className="justify-center border-red-900/50 bg-red-950/20 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+                        >
+                          {deleteSource.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>

@@ -84,10 +84,12 @@ export async function scrapeSource(sourceId: string): Promise<{ processedCount: 
         const article = extractArticleContent(articleHtml, scrapingConfig as ScrapingConfig);
         log(`[Scraping] Article extracted successfully: "${article.title}"`, 'scraper');
 
-        // First check title for keyword matches
-        const titleKeywordMatches = activeKeywords.filter(keyword =>
-          article.title.toLowerCase().includes(keyword.toLowerCase())
-        );
+        // First check title for keyword matches - using word boundary check
+        const titleKeywordMatches = activeKeywords.filter(keyword => {
+          // Create a regex with word boundaries to ensure we match whole words only
+          const keywordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return keywordRegex.test(article.title);
+        });
 
         if (titleKeywordMatches.length > 0) {
           log(`[Scraping] Keywords found in title: ${titleKeywordMatches.join(', ')}`, 'scraper');
@@ -162,8 +164,9 @@ export function stopScrapingSource(sourceId: string): void {
 
 /**
  * Run the global scraping job for all eligible sources
+ * @param userId The ID of the user whose sources should be scraped
  */
-export async function runGlobalScrapeJob(): Promise<{ 
+export async function runGlobalScrapeJob(userId: string): Promise<{ 
   success: boolean; 
   message: string; 
   results?: { 
@@ -182,11 +185,11 @@ export async function runGlobalScrapeJob(): Promise<{
   globalJobRunning = true;
   
   try {
-    log(`[Background Job] Starting global scrape job`, 'scraper');
+    log(`[Background Job] Starting global scrape job for user ${userId}`, 'scraper');
     
-    // Get all sources that are active and included in auto-scrape
-    const sources = await storage.getAutoScrapeSources();
-    log(`[Background Job] Found ${sources.length} sources for auto-scraping`, 'scraper');
+    // Get all sources that are active and included in auto-scrape for this user
+    const sources = await storage.getAutoScrapeSources(userId);
+    log(`[Background Job] Found ${sources.length} sources for auto-scraping for user ${userId}`, 'scraper');
     
     if (sources.length === 0) {
       globalJobRunning = false;
