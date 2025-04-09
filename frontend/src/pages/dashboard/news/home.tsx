@@ -4,10 +4,18 @@ import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
-import { Loader2, Newspaper, Filter, Search, ArrowRight, Trash2, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Newspaper,
+  Filter,
+  Search,
+  ArrowRight,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -24,43 +32,53 @@ import { Link } from "react-router-dom";
 
 export default function NewsHome() {
   const { toast } = useToast();
-  console.log("")
+  console.log("");
 
   const articles = useQuery<Article[]>({
     queryKey: ["/api/news-tracker/articles"],
     queryFn: async () => {
       try {
         const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
-          method: 'GET',
-          credentials: 'include',
+          method: "GET",
+          credentials: "include",
           headers: {
-            ...csfrHeaderObject()
-          }
-        })
-        if (!response.ok) throw new Error()
-        const data = await response.json()
-        return data || []
+            ...csfrHeaderObject(),
+          },
+        });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        return data || [];
       } catch (error) {
-        console.error(error)
+        console.error(error);
       }
-    }
+    },
   });
 
   const deleteArticle = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `${serverUrl}/api/news-tracker/articles/${id}`);
+      await apiRequest(
+        "DELETE",
+        `${serverUrl}/api/news-tracker/articles/${id}`,
+      );
     },
     onSuccess: () => {
-      articles.refetch()
+      articles.refetch();
     },
   });
-  
+
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      return await apiRequest("DELETE", `${serverUrl}/api/news-tracker/articles`);
+      return await apiRequest(
+        "DELETE",
+        `${serverUrl}/api/news-tracker/articles`,
+      );
     },
-    onSuccess: (data: { success: boolean; message: string; deletedCount: number }) => {
-      articles.refetch()
+    onSuccess: (data: {
+      success: boolean;
+      message: string;
+      deletedCount: number;
+    }) => {
+      articles.refetch();
       toast({
         title: "Articles deleted",
         description: `Successfully deleted ${data.deletedCount} articles.`,
@@ -80,11 +98,11 @@ export default function NewsHome() {
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-            Intelligent <span className="text-primary">News</span> Aggregation
+            News Radar
           </h1>
           <p className="text-lg text-slate-300 max-w-3xl">
-            Advanced web scraping and AI-driven content analysis for efficient
-            news collection and processing
+            Advanced aggregation and AI-driven content analysis for efficient
+            news collection and processing.
           </p>
         </div>
 
@@ -112,7 +130,10 @@ export default function NewsHome() {
                 asChild
                 className="p-0 h-auto text-primary hover:text-primary/80"
               >
-                <Link to="/dashboard/news/sources" className="flex items-center gap-1">
+                <Link
+                  to="/dashboard/news/sources"
+                  className="flex items-center gap-1"
+                >
                   Manage Sources <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </Button>
@@ -142,7 +163,10 @@ export default function NewsHome() {
                 asChild
                 className="p-0 h-auto text-primary hover:text-primary/80"
               >
-                <Link to="/dashboard/news/keywords" className="flex items-center gap-1">
+                <Link
+                  to="/dashboard/news/keywords"
+                  className="flex items-center gap-1"
+                >
                   Manage Keywords <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </Button>
@@ -175,12 +199,12 @@ export default function NewsHome() {
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
               </Button>
-              
+
               {articles.data && articles.data.length > 0 && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
                       className="ml-2"
                       disabled={deleteAllArticles.isPending}
@@ -195,15 +219,18 @@ export default function NewsHome() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action will permanently delete all {articles.data.length} articles. 
-                        This action cannot be undone.
+                        This action will permanently delete all{" "}
+                        {articles.data.length} articles. This action cannot be
+                        undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction 
+                      <AlertDialogAction
                         onClick={() => deleteAllArticles.mutate()}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
@@ -241,7 +268,9 @@ export default function NewsHome() {
                 the latest articles.
               </p>
               <Button asChild>
-                <Link to="/dashboard/news/sources">Get Started with Sources</Link>
+                <Link to="/dashboard/news/sources">
+                  Get Started with Sources
+                </Link>
               </Button>
             </div>
           ) : (
@@ -256,7 +285,7 @@ export default function NewsHome() {
                 >
                   <ArticleCard
                     article={article}
-                    onDelete={(id:any) => deleteArticle.mutate(id)}
+                    onDelete={(id: any) => deleteArticle.mutate(id)}
                   />
                 </a>
               ))}
