@@ -115,7 +115,8 @@ export default function Sources() {
 
   const addSource = useMutation({
     mutationFn: async (data: { url: string; name: string }) => {
-      await apiRequest("POST", `${serverUrl}/api/news-tracker/sources`, data);
+      const response = await apiRequest("POST", `${serverUrl}/api/news-tracker/sources`, data);
+      return response;
     },
     onMutate: async (newSource) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -124,22 +125,22 @@ export default function Sources() {
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       
-      // Generate a temporary ID for optimistic UI
-      const tempId = `temp_${Date.now()}`;
+      // Use a consistent temporary ID for optimistic UI
+      const tempId = "temp-id";
       
-      // Optimistically add the new source
+      // Optimistically add the new source at the beginning
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => [
-        ...oldData,
         {
           id: tempId,
           url: newSource.url,
           name: newSource.name,
-          active: true,
-          includeInAutoScrape: true,
+          active: false,
+          includeInAutoScrape: false,
           scrapingConfig: {},
           lastScraped: null,
           userId: null
         } as Source,
+        ...oldData,
       ]);
       
       return { previousSources };
@@ -153,9 +154,18 @@ export default function Sources() {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
-      // Invalidate and refetch to get the real data with server-generated ID
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+    onSuccess: (data) => {
+      // Don't invalidate and refetch - rely on the optimistic update
+      // But remove the temporary entry and add the real one
+      const currentSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]) || [];
+      
+      // Remove the temporary item and add the real one from the server
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], 
+        currentSources
+          .filter(source => source.id !== "temp-id") // Remove the temp entry
+          .concat([data as Source]) // Add the real server data
+      );
+      
       form.reset();
       toast({
         title: "Source added successfully",
@@ -197,8 +207,8 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      // Don't invalidate the sources - we already updated them optimistically
+      // For articles we do need to update since the content has changed
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
       toast({
         title: "Source scraped successfully",
@@ -238,8 +248,7 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      // Don't invalidate - rely on the optimistic update
       toast({
         title: "Scraping stopped successfully",
       });
@@ -280,7 +289,7 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      sources.refetch();
+      // Don't refetch - the optimistic update already handled the UI change
       toast({
         title: "Auto-scrape settings updated",
       });
@@ -328,8 +337,7 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Source deleted successfully",
       });
@@ -384,8 +392,9 @@ export default function Sources() {
             toast({
               title: "Global scrape job completed",
             });
+            // Invalidate only articles since they've changed
             queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+            // Don't invalidate sources - their status was already updated optimistically
           }
         } catch (error) {
           clearInterval(checkInterval);
@@ -421,9 +430,7 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch for consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      // Don't invalidate - rely on optimistic updates
       toast({
         title: "Auto-scrape schedule updated",
       });

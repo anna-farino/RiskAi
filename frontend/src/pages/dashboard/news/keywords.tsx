@@ -45,7 +45,8 @@ export default function Keywords() {
 
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
-      await apiRequest("POST", `${serverUrl}/api/news-tracker/keywords`, data);
+      const response = await apiRequest("POST", `${serverUrl}/api/news-tracker/keywords`, data);
+      return response;
     },
     onMutate: async (newKeyword) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -54,19 +55,19 @@ export default function Keywords() {
       // Snapshot the previous value
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
       
-      // Generate a temporary ID for optimistic UI (will be replaced by server-generated one)
-      const tempId = `temp_${Date.now()}`;
+      // Use a consistent temporary ID for optimistic UI (will be replaced by server-generated one)
+      const tempId = "temp-id";
       
-      // Optimistically add the new keyword
+      // Optimistically add the new keyword at the beginning of the list
       queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => [
-        ...oldData,
         {
           id: tempId,
           term: newKeyword.term,
           active: true,
-          userId: "current", // This will be set by the server
+          userId: null, // This will be set by the server
           createdAt: new Date().toISOString(),
         } as Keyword,
+        ...oldData,
       ]);
       
       return { previousKeywords };
@@ -80,9 +81,18 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
-      // Invalidate and refetch to get the real data with server-generated ID
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+    onSuccess: (data) => {
+      // Don't invalidate queries - update the cache directly
+      // Replace temporary ID with server-generated one
+      const currentKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]) || [];
+      
+      // Find and update the temporary keyword with the real data
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], 
+        currentKeywords.map(keyword => 
+          keyword.id === "temp-id" ? data as Keyword : keyword
+        )
+      );
+      
       form.reset();
       toast({
         title: "Keyword added successfully",
@@ -92,7 +102,8 @@ export default function Keywords() {
 
   const toggleKeyword = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      await apiRequest("PATCH", `${serverUrl}/api/news-tracker/keywords/${id}`, { active });
+      const response = await apiRequest("PATCH", `${serverUrl}/api/news-tracker/keywords/${id}`, { active });
+      return response;
     },
     onMutate: async ({ id, active }) => {
       // Cancel any outgoing refetches
@@ -119,9 +130,11 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
-      // Ensure consistency with server data
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+    onSuccess: (data) => {
+      // Don't invalidate and refetch - our optimistic update already handled this
+      toast({
+        title: "Keyword status updated",
+      });
     },
   });
 
@@ -153,8 +166,7 @@ export default function Keywords() {
       });
     },
     onSuccess: () => {
-      // Ensure consistency with server data
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      // Don't invalidate - our optimistic delete already updated the UI
       toast({
         title: "Keyword deleted successfully",
       });
