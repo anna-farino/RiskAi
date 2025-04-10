@@ -242,8 +242,26 @@ export default function Sources() {
         interval
       });
     },
+    onMutate: async ({ enabled, interval }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
+      const previousSettings = queryClient.getQueryData(["/api/news-tracker/settings/auto-scrape"]);
+      
+      queryClient.setQueryData(["/api/news-tracker/settings/auto-scrape"], {
+        enabled,
+        interval: interval || previousSettings?.interval
+      });
+      
+      return { previousSettings };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(["/api/news-tracker/settings/auto-scrape"], context?.previousSettings);
+      toast({
+        title: "Failed to update settings",
+        variant: "destructive"
+      });
+    },
     onSuccess: () => {
-      sources.refetch()
+      sources.refetch();
       toast({
         title: "Auto-scrape schedule updated",
       });
