@@ -290,7 +290,16 @@ export default function Sources() {
   // Delete a source
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
+      try {
+        const response = await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to delete source');
+        }
+        return response;
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : 'Failed to delete source');
+      }
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
@@ -306,12 +315,12 @@ export default function Sources() {
       
       return { previousSources };
     },
-    onError: (err, id, context) => {
+    onError: (error: Error, id, context) => {
       // If the mutation fails, use the context to roll back
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Error deleting source",
-        description: "Failed to delete source. Please try again.",
+        description: error.message || "Failed to delete source. Please try again.",
         variant: "destructive",
       });
     },
