@@ -3,7 +3,7 @@ import { serverUrl } from "@/utils/server-url";
 import { useQuery } from "@tanstack/react-query";
 import { User } from "@shared/db/schema/user"
 
-type UserWithPerm = User & { permissions: string[] }
+export type UserWithPerm = User & { permissions: string[] }
 
 export function useAuth() {
   return useQuery<UserWithPerm>({

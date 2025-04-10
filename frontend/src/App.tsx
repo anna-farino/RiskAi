@@ -17,6 +17,7 @@ import NewsLayout from './pages/dashboard/news/layout.tsx'
 import EmailOtp from './pages/email-otp.tsx'
 import ConfirmPassword from './pages/new-password.tsx'
 import AuthLayout from './pages/auth-layout.tsx'
+import Settings from './pages/dashboard/Settings.tsx'
 
 const queryClient = new QueryClient()
 
@@ -57,6 +58,10 @@ const router = createBrowserRouter([
       {
         path: "home",
         element: <Home/>,
+      },
+      {
+        path: "settings",
+        element: <Settings/>,
       },
       {
         path: "admin",

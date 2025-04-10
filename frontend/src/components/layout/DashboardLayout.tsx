@@ -6,6 +6,7 @@ import { LogOut, ChevronLeft, ChevronRight, Bug, Home, File, AppWindowIcon } fro
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth"; 
+import UserBadgeAndDropDown from "@/pages/user-badge";
 
 const buttons = [
   {
@@ -131,6 +132,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 Hello, {userData?.email}
               </p>
               <ModeToggle />
+              <UserBadgeAndDropDown userData={userData}/>
             </div>
           </div>
         </header>
