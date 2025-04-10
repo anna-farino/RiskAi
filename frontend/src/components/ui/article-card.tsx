@@ -35,10 +35,14 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
         className={cn(
           "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden", 
           "hover:border-slate-600/80 transition-all duration-300",
-          "flex flex-col relative"
+          "flex flex-col relative",
+          isPending && "bg-black/30"
         )}
       >
-        <div className={cn("h-1.5 w-full bg-gradient-to-r", getRandomAccent())}></div>
+        <div className={cn(
+          "h-1.5 w-full bg-gradient-to-r", 
+          isPending ? "from-slate-500/50 to-slate-700/50 animate-pulse" : getRandomAccent()
+        )}></div>
         
         <div className="flex-1 p-5 flex flex-col">
           <h3 className="text-lg font-medium text-white line-clamp-2 mb-2 group-hover:text-primary transition-colors">
@@ -92,18 +96,23 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
               <Button
                 variant="ghost"
                 size="icon"
+                disabled={isPending}
                 onClick={(e)=> {
                   e.preventDefault()
                   setOpenAlert(true)
-                  console.log("here")
                 }}
                 className={cn(
                   "h-fit w-fit p-2",
                   "border border-slate-700 rounded-full",
-                  "text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+                  "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
+                  isPending && "cursor-not-allowed opacity-70"
                 )}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                {isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
               </Button>
             </DeleteAlertDialog>
           </div>

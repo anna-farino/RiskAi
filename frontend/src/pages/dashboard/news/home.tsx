@@ -304,7 +304,7 @@ export default function NewsHome() {
                 Recent Articles
               </h2>
               <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
-                {articles.data?.length || 0}
+                {localArticles.length}
               </span>
             </div>
             <div className="flex items-center gap-2 w-[100%] justify-end">
@@ -321,7 +321,7 @@ export default function NewsHome() {
                 Filter
               </Button>
 
-              {articles.data && articles.data.length > 0 && (
+              {localArticles.length > 0 && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -344,7 +344,7 @@ export default function NewsHome() {
                       </AlertDialogTitle>
                       <AlertDialogDescription>
                         This action will permanently delete all{" "}
-                        {articles.data.length} articles. This action cannot be
+                        {localArticles.length} articles. This action cannot be
                         undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
