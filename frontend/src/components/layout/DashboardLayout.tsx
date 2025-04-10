@@ -2,10 +2,18 @@ import { ModeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link, useLoaderData } from "react-router-dom";
 import { useLogout } from "@/hooks/use-logout";
-import { LogOut, ChevronLeft, ChevronRight, Bug, Home, File, AppWindowIcon } from "lucide-react";
+import {
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Bug,
+  Home,
+  File,
+  AppWindowIcon,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth"; 
+import { useAuth } from "@/hooks/use-auth";
 import UserBadgeAndDropDown from "@/pages/user-badge";
 
 const buttons = [
@@ -16,7 +24,7 @@ const buttons = [
     restricted: false,
   },
   {
-    label: "News",
+    label: "News Radar",
     path: "/dashboard/news/home",
     icon: Home,
     restricted: false,
@@ -29,12 +37,16 @@ const buttons = [
   },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { logout } = useLogout();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const data = useLoaderData();
-  const { data: userData } = useAuth(); 
+  const { data: userData } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -42,10 +54,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setSidebarCollapsed(window.innerWidth < 768);
     };
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, [data, userData]);
-
 
   return (
     <div className="h-screen flex bg-background overflow-hidden">
@@ -60,21 +71,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className={cn(
           "fixed left-0 top-0 z-40 h-screen flex flex-col border-r border-border bg-background transition-all duration-300",
           "md:relative md:z-0",
-          sidebarCollapsed ? "-translate-x-full md:translate-x-0 md:w-16" : "translate-x-0 w-64",
+          sidebarCollapsed
+            ? "-translate-x-full md:translate-x-0 md:w-16"
+            : "translate-x-0 w-64",
         )}
       >
-        <div className="flex h-14 items-center justify-center border-b border-border">
-        </div>
+        <div className="flex h-14 items-center justify-center border-b border-border"></div>
 
         <div className="flex flex-1 flex-col justify-between">
           <div className="flex flex-col p-4 gap-y-2">
             {buttons
-              .filter(button => {
+              .filter((button) => {
                 if (
                   userData?.permissions.includes("permissions:edit") ||
                   !button.restricted
                 ) {
-                  return button
+                  return button;
                 }
               })
               .map((button) => (
@@ -97,7 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     )}
                   </Button>
                 </Link>
-            ))}
+              ))}
           </div>
           <div className="p-4 border-t border-border">
             <Button
@@ -132,14 +144,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 Hello, {userData?.email}
               </p>
               <ModeToggle />
-              <UserBadgeAndDropDown userData={userData}/>
+              <UserBadgeAndDropDown userData={userData} />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );
