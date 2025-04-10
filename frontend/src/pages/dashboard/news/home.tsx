@@ -45,11 +45,12 @@ export default function NewsHome() {
             ...csfrHeaderObject(),
           },
         });
-        if (!response.ok) throw new Error();
+        if (!response.ok) throw new Error('Failed to fetch articles');
         const data = await response.json();
         return data || [];
       } catch (error) {
         console.error(error);
+        return []; // Return empty array instead of undefined to prevent errors
       }
     },
   });

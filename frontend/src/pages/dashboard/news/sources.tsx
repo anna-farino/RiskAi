@@ -77,12 +77,13 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error()
+        if (!response.ok) throw new Error('Failed to fetch sources')
         
         const data = await response.json()
         return data || []
       } catch(error) {
-        console.error((error))
+        console.error(error)
+        return [] // Return empty array instead of undefined to prevent errors
       }
     }
   });
@@ -99,12 +100,14 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error()
+        if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
         
         const data = await response.json()
-        return data || []
+        return data || { enabled: false, interval: JobInterval.DAILY }
       } catch(error) {
-        console.error((error))
+        console.error(error)
+        // Return default settings instead of undefined to prevent errors
+        return { enabled: false, interval: JobInterval.DAILY }
       }
     },
     placeholderData: { 
