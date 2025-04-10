@@ -1,7 +1,7 @@
 import { insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
-import { isGlobalJobRunning, runGlobalScrapeJob } from "../services/background-jobs";
+import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail } from "../services/background-jobs";
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
@@ -173,124 +173,28 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
     return res.status(404).json({ message: "Source not found" });
   }
 
-  // Set active flag for this source
-  activeScraping.set(sourceId, true);
-
   try {
-    // Step 1: Initial scraping setup
-    log(`[Scraping] Starting scrape for source: ${source.url}`, 'scraper');
-    log(`[Scraping] Source ID: ${sourceId}, Name: ${source.name}`, 'scraper');
+    // Use the updated scrapeSource function that handles all the scraping logic
+    const { processedCount, savedCount, newArticles } = await scrapeSource(sourceId);
 
-    // Step 2: Fetch source HTML and extract article links
-    log(`[Scraping] Fetching HTML from source URL`, 'scraper');
-    const html = await scrapeUrl(source.url, true); // true indicates this is a source URL
-    log(`[Scraping] Successfully fetched source HTML`, 'scraper');
-
-    // Step 3: Extract article links
-    log(`[Scraping] Analyzing page for article links using OpenAI`, 'scraper');
-    const articleLinks = await extractArticleLinks(html, source.url);
-    log(`[Scraping] Found ${articleLinks.length} potential article links`, 'scraper');
-
-    if (articleLinks.length === 0) {
-      log(`[Scraping] No article links found, aborting`, 'scraper');
-      return res.status(400).json({ message: "No article links found" });
-    }
-
-    // Step 4: Analyze first article structure (no link detection needed here)
-    log(`[Scraping] Fetching first article for HTML structure analysis`, 'scraper');
-    const firstArticleHtml = await scrapeUrl(articleLinks[0], false); // false indicates this is not a source URL
-    log(`[Scraping] Detecting HTML structure using OpenAI`, 'scraper');
-    const scrapingConfig = await detectHtmlStructure(firstArticleHtml);
-    log(`[Scraping] HTML structure detected successfully`, 'scraper');
-
-    // Step 5: Cache the scraping config
-    log(`[Scraping] Caching scraping configuration for future use`, 'scraper');
-    await storage.updateSource(sourceId, { scrapingConfig });
-
-    // Step 6: Get active keywords for this user
-    const keywords = await storage.getKeywords(userId);
-    const activeKeywords = keywords.filter(k => k.active).map(k => k.term);
-    log(`[Scraping] Using ${activeKeywords.length} active keywords for content analysis: ${activeKeywords.join(', ')}`, 'scraper');
-
-    // Step 7: Process articles
-    log(`[Scraping] Starting batch processing of articles`, 'scraper');
-    let processedCount = 0;
-    let savedCount = 0;
-
-    for (const link of articleLinks) {
-      // Check if scraping should continue
-      if (!activeScraping.get(sourceId)) {
-        log(`[Scraping] Stopping scrape for source ID: ${sourceId} as requested`, 'scraper');
-        break;
-      }
-
+    // If there are new articles, send an email notification
+    if (newArticles.length > 0) {
       try {
-        log(`[Scraping] Processing article ${++processedCount}/${articleLinks.length}: ${link}`, 'scraper');
-        const articleHtml = await scrapeUrl(link, false); // false indicates this is not a source URL
-        const article = extractArticleContent(articleHtml, scrapingConfig);
-        log(`[Scraping] Article extracted successfully: "${article.title}"`, 'scraper');
-
-        // First check title for keyword matches - using word boundary check
-        const titleKeywordMatches = activeKeywords.filter(keyword => {
-          // Create a regex with word boundaries to ensure we match whole words only
-          const keywordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-          return keywordRegex.test(article.title);
-        });
-
-        if (titleKeywordMatches.length > 0) {
-          log(`[Scraping] Keywords found in title: ${titleKeywordMatches.join(', ')}`, 'scraper');
-        }
-
-        // Analyze content with OpenAI
-        log(`[Scraping] Analyzing article content with OpenAI`, 'scraper');
-        const analysis = await analyzeContent(article.content, activeKeywords, article.title);
-
-        // Combine unique keywords from both title and content analysis
-        const combinedKeywords = [...titleKeywordMatches, ...analysis.detectedKeywords];
-        const allKeywords = combinedKeywords.filter((value, index, self) => self.indexOf(value) === index);
-
-        if (allKeywords.length > 0) {
-          log(`[Scraping] Total keywords detected: ${allKeywords.join(', ')}`, 'scraper');
-
-          // Check if article with this URL already exists in the database for this user
-          const existingArticle = await storage.getArticleByUrl(link, userId);
-          
-          if (existingArticle) {
-            log(`[Scraping] Article with URL ${link} already exists in database for this user, skipping`, 'scraper');
-          } else {
-            await storage.createArticle({
-              sourceId,
-              userId,
-              title: article.title,
-              content: article.content,
-              url: link,
-              author: article.author || null,
-              publishDate: new Date(), // Always use current date
-              summary: analysis.summary,
-              relevanceScore: analysis.relevanceScore,
-              detectedKeywords: allKeywords
-            });
-            savedCount++;
-            log(`[Scraping] Article saved to database with ${allKeywords.length} keyword matches`, 'scraper');
-          }
-        } else {
-          log(`[Scraping] No relevant keywords found in title or content`, 'scraper');
-        }
-      } catch (error) {
-        log(`[Scraping] Error processing article ${link}: ${error}`, 'scraper');
-        continue;
+        await sendNewArticlesEmail(userId, newArticles, source.name);
+        log(`[Email] Sent notification email for ${newArticles.length} new articles from ${source.name}`, 'scraper');
+      } catch (emailError) {
+        log(`[Email] Error sending notification: ${emailError}`, 'scraper');
+        // Continue processing - don't fail the request if email sending fails
       }
     }
-
-    // Clear active flag
-    activeScraping.delete(sourceId);
 
     log(`[Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`, 'scraper');
     res.json({
       message: "Scraping completed successfully",
       stats: {
         totalProcessed: processedCount,
-        totalSaved: savedCount
+        totalSaved: savedCount,
+        newArticlesFound: newArticles.length
       }
     });
   } catch (error: unknown) {

@@ -17,7 +17,7 @@ export async function analyzeContent(
       messages: [
         {
           role: "system",
-          content: `Analyze the article title and content for EXACT matches of the provided keywords (case-insensitive). 
+          content: `Analyze the article title and content for EXACT matches of the provided keywords ONLY (case-insensitive).
           Return a JSON object with:
           - summary: A concise summary of the article (max 200 words)
           - relevanceScore: 0-100 based on keyword matches and context
@@ -25,16 +25,19 @@ export async function analyzeContent(
           - matchExamples: object mapping each found keyword to a brief excerpt showing its context
           - publishDate: ISO date string of article publish date if found, otherwise null
 
-          IMPORTANT MATCHING RULES:
-          1. Only include keywords that appear as complete words in the article title or content.
-          2. Do NOT include partial or substring matches (e.g. do not match "AIG" inside "campaign").
-          3. Words must have clear word boundaries - start/end of text or surrounded by spaces, punctuation, etc.
-          4. Do NOT include matches from navigational elements, sidebars, footers, or menus.
-          5. For acronyms, ensure they stand alone and are not part of larger words.
-          6. Be extremely strict about exact keyword matching.
-          7. Do NOT include partial matches or related terms.
+          CRITICALLY IMPORTANT MATCHING RULES:
+          1. ONLY include keywords that appear EXACTLY as provided in the list - no variations, no related terms.
+          2. Keywords must appear as complete words with clear word boundaries (spaces, punctuation, etc).
+          3. Do NOT include partial matches (e.g., do not match "best" inside "AM Best" or vice versa).
+          4. Do NOT infer related terms or synonyms - ONLY exact matches from the provided list.
+          5. Do NOT include company names unless they exactly match a keyword (e.g., "AM Best" is not a match unless "AM Best" is explicitly in the keyword list).
+          6. Be extraordinarily strict and conservative in matching - when in doubt, exclude the match.
+          7. The detectedKeywords array must ONLY contain strings that are 100% identical to the provided keywords (except for case).
+          8. Multi-word keywords must match completely (all words in the same order).
           
-          - For dates, return valid ISO date strings (YYYY-MM-DD) or null if no valid date found.`,
+          - For dates, return valid ISO date strings (YYYY-MM-DD) or null if no valid date found.
+          
+          This is critical: Under NO circumstances should the detectedKeywords array contain ANY term that is not a verbatim, exact match from the provided keyword list.`,
         },
         {
           role: "user",
@@ -63,15 +66,32 @@ export async function analyzeContent(
       }
     }
 
-    // Double-check keyword matches in both title and content using word boundaries
+    // Double-check keyword matches against the provided list and content validation
     const validatedKeywords = result.detectedKeywords.filter(
-      (keyword: string) => {
-        // Create regex with word boundaries to ensure exact word matches
+      (detectedKeyword: string) => {
+        // First, check if the keyword is in our provided keywords list (exact match)
+        const isInProvidedList = keywords.some(
+          keyword => keyword.toLowerCase() === detectedKeyword.toLowerCase()
+        );
+        
+        if (!isInProvidedList) {
+          console.log(`[OpenAI] Filtering out invalid keyword match: "${detectedKeyword}" - not in provided list`);
+          return false;
+        }
+        
+        // Second, verify that it actually appears in the content with word boundaries
         const keywordRegex = new RegExp(
-          `\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+          `\\b${detectedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
           "i",
         );
-        return keywordRegex.test(title) || keywordRegex.test(content);
+        
+        const foundInContent = keywordRegex.test(title) || keywordRegex.test(content);
+        
+        if (!foundInContent) {
+          console.log(`[OpenAI] Filtering out invalid keyword match: "${detectedKeyword}" - not found in content with word boundaries`);
+        }
+        
+        return foundInContent;
       },
     );
 
