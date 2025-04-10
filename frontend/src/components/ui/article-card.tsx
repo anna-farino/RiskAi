@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Clock, User } from "lucide-react";
+import { Trash2, Clock, User, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { formatDistanceToNow } from "date-fns";
@@ -11,9 +11,10 @@ import { DeleteAlertDialog } from "../delete-alert-dialog";
 interface ArticleCardProps {
   article: Article;
   onDelete: (id: string) => void;
+  isPending?: boolean;
 }
 
-export function ArticleCard({ article, onDelete }: ArticleCardProps) {
+export function ArticleCard({ article, onDelete, isPending = false }: ArticleCardProps) {
   const [ openAlert, setOpenAlert ] = useState(false)
   // Generate a random color for the card accent (in a real app, this could be based on source or category)
   const getRandomAccent = () => {

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
+import { cn } from "@/lib/utils";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
 import {
@@ -39,13 +40,6 @@ export default function NewsHome() {
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   
-  // Sync local state with query data when it changes
-  useEffect(() => {
-    if (articles.data) {
-      setLocalArticles(articles.data);
-    }
-  }, [articles.data]);
-
   const articles = useQuery<Article[]>({
     queryKey: ["/api/news-tracker/articles"],
     queryFn: async () => {
@@ -66,6 +60,13 @@ export default function NewsHome() {
       }
     },
   });
+  
+  // Sync local state with query data when it changes
+  useEffect(() => {
+    if (articles.data) {
+      setLocalArticles(articles.data);
+    }
+  }, [articles.data]);
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
@@ -92,27 +93,52 @@ export default function NewsHome() {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
       
-      // Snapshot the previous value
+      // Snapshot the previous values
       const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
+      const previousLocalArticles = [...localArticles];
       
-      // Optimistically update to the new value
+      // Add to pendingItems to show loading indicator
+      setPendingItems(prev => new Set(prev).add(id));
+      
+      // Optimistically update local state for immediate UI feedback
+      setLocalArticles(prev => prev.filter(article => article.id !== id));
+      
+      // Optimistically update React Query cache
       queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], (oldData = []) => {
         return oldData.filter(article => article.id !== id);
       });
       
-      // Return a context object with the snapshotted value
-      return { previousArticles };
+      // Return a context object with the snapshotted values
+      return { previousArticles, previousLocalArticles, id };
     },
     onError: (err, id, context) => {
-      // If the mutation fails, use the context to roll back
-      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context?.previousArticles);
+      if (context) {
+        // If the mutation fails, restore both local state and React Query cache
+        setLocalArticles(context.previousLocalArticles);
+        queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context.previousArticles);
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Error deleting article",
         description: "Failed to delete article. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, id) => {
+      // Remove from pending items
+      setPendingItems(prev => {
+        const updated = new Set(prev);
+        updated.delete(id);
+        return updated;
+      });
+      
       // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Article deleted successfully",
@@ -152,15 +178,23 @@ export default function NewsHome() {
       
       // Snapshot the previous articles
       const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
+      const previousLocalArticles = [...localArticles];
       
-      // Optimistically clear the articles
+      // Optimistically clear the articles in local state
+      setLocalArticles([]);
+      
+      // Optimistically clear the articles in React Query cache
       queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], []);
       
-      return { previousArticles };
+      return { previousArticles, previousLocalArticles };
     },
     onError: (error, variables, context) => {
-      // If the mutation fails, revert back to previous articles
-      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context?.previousArticles);
+      if (context) {
+        // If the mutation fails, restore both local state and React Query cache
+        setLocalArticles(context.previousLocalArticles);
+        queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context.previousArticles);
+      }
+      
       toast({
         title: "Error",
         description: "Failed to delete articles. Please try again.",
@@ -341,7 +375,7 @@ export default function NewsHome() {
                 </div>
               ))}
             </div>
-          ) : articles.data?.length === 0 ? (
+          ) : localArticles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                 <Newspaper className="h-8 w-8 text-slate-400" />
@@ -361,17 +395,21 @@ export default function NewsHome() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {articles.data?.map((article) => (
+              {localArticles.map((article) => (
                 <a
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   key={article.id}
-                  className="group"
+                  className={cn(
+                    "group transition-opacity duration-200",
+                    pendingItems.has(article.id) && "opacity-60"
+                  )}
                 >
                   <ArticleCard
                     article={article}
                     onDelete={(id: any) => deleteArticle.mutate(id)}
+                    isPending={pendingItems.has(article.id)}
                   />
                 </a>
               ))}
