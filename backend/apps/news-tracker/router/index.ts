@@ -57,7 +57,8 @@ newsRouter.delete("/sources/:id", async (req, res) => {
   }
   
   await storage.deleteSource(id);
-  res.sendStatus(204);
+  // Return success object instead of empty response to better support optimistic UI updates
+  res.status(200).json({ success: true, id, message: "Source deleted successfully" });
 });
 
 // Keywords
@@ -103,7 +104,8 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
   }
   
   await storage.deleteKeyword(id);
-  res.sendStatus(204);
+  // Return success object instead of empty response to better support optimistic UI updates
+  res.status(200).json({ success: true, id, message: "Keyword deleted successfully" });
 });
 
 // Articles
@@ -124,7 +126,8 @@ newsRouter.delete("/articles/:id", async (req, res) => {
   }
   
   await storage.deleteArticle(id);
-  res.sendStatus(204);
+  // Return success object instead of empty response to better support optimistic UI updates
+  res.status(200).json({ success: true, id, message: "Article deleted successfully" });
 });
 
 // Delete all articles
