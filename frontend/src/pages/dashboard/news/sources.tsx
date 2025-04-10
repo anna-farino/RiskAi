@@ -290,16 +290,19 @@ export default function Sources() {
   // Delete a source
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
-      try {
-        const response = await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to delete source');
+      const response = await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to delete source';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
         }
-        return response;
-      } catch (error) {
-        throw new Error(error instanceof Error ? error.message : 'Failed to delete source');
+        throw new Error(errorMessage);
       }
+      return response;
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
