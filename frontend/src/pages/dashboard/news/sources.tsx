@@ -134,11 +134,11 @@ export default function Sources() {
           id: tempId,
           url: newSource.url,
           name: newSource.name,
-          userId: "current", // This will be set by the server
-          createdAt: new Date().toISOString(),
+          active: true,
           includeInAutoScrape: true,
-          lastScrapeAt: null,
-          status: "idle"
+          scrapingConfig: {},
+          lastScraped: null,
+          userId: null
         } as Source,
       ]);
       
@@ -174,11 +174,13 @@ export default function Sources() {
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       
-      // Optimistically update the source status
+      // Optimistically update the source
+      // We can't easily update the status directly as it may be part of scrapingConfig
+      // But we can set a temporary visual indication by updating another property
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
           source.id === id 
-            ? { ...source, status: "scraping" } 
+            ? { ...source, active: true } 
             : source
         )
       );
@@ -215,11 +217,11 @@ export default function Sources() {
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       
-      // Optimistically update the source status
+      // Optimistically update the source
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
           source.id === id 
-            ? { ...source, status: "idle" } 
+            ? { ...source, active: true } // Use active property as a visual indicator
             : source
         )
       );
@@ -256,11 +258,11 @@ export default function Sources() {
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
       // Get snapshot of current data
-      const previousSources = queryClient.getQueryData(["/api/news-tracker/sources"]);
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       
       // Optimistically update sources
-      queryClient.setQueryData(["/api/news-tracker/sources"], (old: Source[] | undefined) => 
-        old?.map(source => 
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (old = []) => 
+        old.map(source => 
           source.id === id 
             ? { ...source, includeInAutoScrape: include }
             : source
@@ -271,7 +273,7 @@ export default function Sources() {
     },
     onError: (err, variables, context) => {
       // Revert optimistic update on error
-      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Failed to update auto-scrape setting",
         variant: "destructive",
@@ -290,8 +292,32 @@ export default function Sources() {
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot the previous value
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Optimistically remove the source
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
+        oldData.filter(source => source.id !== id)
+      );
+      
+      return { previousSources };
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      toast({
+        title: "Error deleting source",
+        description: "Failed to delete source. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      sources.refetch();
+      // Invalidate and refetch to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
       toast({
         title: "Source deleted successfully",
       });
@@ -303,8 +329,35 @@ export default function Sources() {
     mutationFn: async () => {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/jobs/scrape`);
     },
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot the previous state
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Optimistically update all eligible sources
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
+        oldData.map(source => 
+          source.includeInAutoScrape 
+            ? { ...source, active: true } // Use active property as a visual indicator
+            : source
+        )
+      );
+      
+      return { previousSources };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      toast({
+        title: "Error starting global scrape",
+        description: "Failed to start scraping. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      sources.refetch()
+      // Don't refetch immediately - we'll poll instead
       toast({
         title: "Global scrape job started",
         description: "All eligible sources are being scraped"
@@ -320,6 +373,7 @@ export default function Sources() {
               title: "Global scrape job completed",
             });
             queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
           }
         } catch (error) {
           clearInterval(checkInterval);
@@ -338,11 +392,11 @@ export default function Sources() {
     },
     onMutate: async ({ enabled, interval }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
-      const previousSettings = queryClient.getQueryData(["/api/news-tracker/settings/auto-scrape"]);
+      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
       
-      queryClient.setQueryData(["/api/news-tracker/settings/auto-scrape"], {
+      queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], {
         enabled,
-        interval: interval || previousSettings?.interval
+        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
       });
       
       return { previousSettings };
@@ -355,7 +409,9 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      sources.refetch();
+      // Invalidate and refetch for consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
       toast({
         title: "Auto-scrape schedule updated",
       });
