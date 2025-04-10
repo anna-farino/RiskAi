@@ -30,7 +30,9 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
     <DropdownMenu>
       <DropdownMenuTrigger className="bg-transparent w-fit p-0 h-fit rounded-full">
         <Avatar>
-          <AvatarFallback>{userData?.email[0].toUpperCase() || ""}</AvatarFallback>
+          <AvatarFallback className="text-foreground">
+            {userData?.email[0].toUpperCase() || ""}
+          </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent

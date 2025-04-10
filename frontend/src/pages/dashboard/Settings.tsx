@@ -3,20 +3,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { csfrHeader } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function Settings() {
+  const [ error, setError ] = useState(false)
   const userData = useAuth()
-  const [ twoFA, setTwoFA ] = useState(userData.data?.twoFactorEnabled)
-
-  useEffect(()=>{
-    setTwoFA(userData.data?.twoFactorEnabled)
-  },[userData.data])
-
 
   const twoFAmutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(serverUrl + `/api/users/${userData.data?.id}/2fa`, {
+    mutationFn: (newTwoFAvalue: boolean) => {
+      //throw new Error("test") //Error for testing. To be removed soon
+      return fetch(serverUrl + `/api/users/${userData.data?.id}/2fa`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -24,24 +20,18 @@ export default function Settings() {
           [csfrHeader().name]: csfrHeader().token 
         },
         body: JSON.stringify({
-          twoFactorEnabled: twoFA 
+          twoFactorEnabled: newTwoFAvalue 
         })
       })
-      if (!response.ok) {
-        throw new Error("An error occurred while trying to update 2FA settings");
-      }
-      userData.refetch()
-      return response
+    },
+    onSettled: () => userData.refetch(),
+    onError: () => {
+      setError(true)
+      setTimeout(()=>setError(false),3000)
     }
   })
 
-
-  function switchHandler() {
-    setTwoFA(prev => !prev)
-    twoFAmutation.mutate()
-  }
-
-  console.log(userData.data)
+  //console.log(userData.data)
 
   return (
     <div className="space-y-6">
@@ -58,9 +48,12 @@ export default function Settings() {
           </h1>
           <Switch
             id="two-factor-authentication"
-            checked={!!twoFA}
-            onCheckedChange={switchHandler}
+            checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
+            onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
           />
+          {error && 
+            <h1 className="text-destructive">An error occurred! Try again later</h1>
+          }
         </div>
       </div>
     </div>

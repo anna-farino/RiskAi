@@ -1,6 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query"
+import { toast } from "./use-toast";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 
 export type LoginData = {
@@ -8,49 +8,37 @@ export type LoginData = {
   password: string;
 }
 
-export function useLogin() {
+export default function useLogin() {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: LoginData) => {
-      try {
-        const response = await fetch(serverUrl + '/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            "Accept": "application/json"
-          },
-          body: JSON.stringify(data),
-          credentials: 'include',
-        });
-
-        // Log response details for debugging
-        const responseData = await response.json().catch(e => {
-          console.error("❌ [LOGIN] Failed to parse response:", e);
-          throw new Error('Invalid response from server');
-        });
-
-
-        if (!response.ok) {
-          throw new Error(responseData.error || 'Failed to login');
-        }
-
-        return responseData;
-      } catch (error) {
-        console.error('❌ [LOGIN] Error:', error);
-        if (error instanceof Error) {
-          throw error;
-        }
-        throw new Error('An unexpected error occurred');
-      }
+    mutationFn: async (loginData: LoginData) => {
+      const response = await fetch(`${serverUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: loginData.email,
+          password: loginData.password
+        })
+      })
+      if (!response.ok) throw new Error("An error occurred while attempting to log in.")
+      return await response.json()
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Logged in successfully!",
-      });
-      navigate('/dashboard/home');
+    onSuccess: (data) => {
+      console.log("Data returned: ", data)
+      if (data.twoFactorEnabled) {
+        navigate('/auth/otp?p=login');
+      } else {
+        toast({
+          title: "Success",
+          description: "Logged in successfully!",
+        });
+        navigate('/dashboard/home');
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -59,5 +47,5 @@ export function useLogin() {
         variant: "destructive",
       });
     },
-  });
+  })
 }

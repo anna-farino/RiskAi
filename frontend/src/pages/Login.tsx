@@ -4,15 +4,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import AuthLayout from "@/components/layout/AuthLayout"
-import { Link, useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { useLogin } from "@/hooks/use-login"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
-import useLoginOtp from "@/hooks/use-login-otp"
 import PasswordEye from "@/components/password-eye"
+import useLogin from "@/hooks/use-login"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -28,10 +27,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [ showPassword, setShowPassword ] = useState(false)
-  const [ twoFactorAuth, setTwoFactorAuth] = useState(false);
-  const { mutate: login, isPending } = useLogin();
-  const { mutate: loginOtp, isPending: isPendingOtp } = useLoginOtp();
-
+  const { mutate: login, isPending: loginIsPending } = useLogin();
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -42,24 +38,12 @@ export default function Login() {
   });
 
   const onSubmit = form.handleSubmit((data) => {
-    if (!twoFactorAuth) {
-      login(data);
-    } else {
-      loginOtp(data)
-    }
-  });
+    login(data)
+  })
 
   return (
     <AuthLayout>
       <Card>
-        <div className="p-6 flex items-center justify-end space-x-2">
-          <Label htmlFor="2fa">Two-Factor Authentication</Label>
-          <Switch
-            id="2fa"
-            checked={twoFactorAuth}
-            onCheckedChange={setTwoFactorAuth}
-          />
-        </div>
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
@@ -74,7 +58,7 @@ export default function Login() {
                 <Input
                   id="email"
                   type="email"
-                  disabled={isPending}
+                  disabled={loginIsPending}
                   {...form.register("email")}
                 />
                 {form.formState.errors.email && (
@@ -95,7 +79,7 @@ export default function Login() {
                   <Input 
                     id="password" 
                     type={showPassword ? "text" : "password"}
-                    disabled={isPending}
+                    disabled={loginIsPending}
                     {...form.register("password")}
                   />
                   <PasswordEye
@@ -108,8 +92,8 @@ export default function Login() {
                   <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
                 )}
               </div>
-              <Button type="submit" className="w-full" disabled={isPending}>
-                {( isPending || isPendingOtp ) ? (
+              <Button type="submit" className="w-full" disabled={loginIsPending}>
+                {loginIsPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
