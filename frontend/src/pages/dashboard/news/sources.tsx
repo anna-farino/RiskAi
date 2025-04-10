@@ -146,7 +146,7 @@ export default function Sources() {
     },
     onError: (err, newSource, context) => {
       // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Error adding source",
         description: "Failed to add source. Please try again.",
@@ -189,7 +189,7 @@ export default function Sources() {
     },
     onError: (err, id, context) => {
       // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Error scraping source",
         description: "Failed to scrape source. Please try again.",
@@ -230,7 +230,7 @@ export default function Sources() {
     },
     onError: (err, id, context) => {
       // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Error stopping scrape",
         description: "Failed to stop scraping. Please try again.",
@@ -308,7 +308,7 @@ export default function Sources() {
     },
     onError: (err, id, context) => {
       // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Error deleting source",
         description: "Failed to delete source. Please try again.",
@@ -349,7 +349,7 @@ export default function Sources() {
     },
     onError: (err, variables, context) => {
       // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
         title: "Error starting global scrape",
         description: "Failed to start scraping. Please try again.",
@@ -402,7 +402,7 @@ export default function Sources() {
       return { previousSettings };
     },
     onError: (err, variables, context) => {
-      queryClient.setQueryData(["/api/news-tracker/settings/auto-scrape"], context?.previousSettings);
+      queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], context?.previousSettings);
       toast({
         title: "Failed to update settings",
         variant: "destructive"
