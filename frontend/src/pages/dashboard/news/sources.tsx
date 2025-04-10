@@ -22,9 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { serverUrl } from "@/utils/server-url";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
-import { csfrHeaderObject } from "@/utils/csrf-header";
 
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
@@ -115,8 +115,28 @@ export default function Sources() {
 
   const addSource = useMutation({
     mutationFn: async (data: { url: string; name: string }) => {
-      const response = await apiRequest("POST", `${serverUrl}/api/news-tracker/sources`, data);
-      return response;
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify(data),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to add source: ${response.statusText}`);
+        }
+        
+        // Parse JSON response
+        const responseData = await response.json();
+        return responseData;
+      } catch (error) {
+        console.error("Add source error:", error);
+        throw error;
+      }
     },
     onMutate: async (newSource) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -258,9 +278,33 @@ export default function Sources() {
   // Toggle auto-scrape inclusion for a source
   const toggleAutoScrape = useMutation({
     mutationFn: async ({ id, include }: { id: string, include: boolean }) => {
-      await apiRequest("PATCH", `${serverUrl}/api/news-tracker/sources/${id}/auto-scrape`, {
-        includeInAutoScrape: include
-      });
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}/auto-scrape`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify({ includeInAutoScrape: include }),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to update auto-scrape setting: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success with the data we know
+          return { id, includeInAutoScrape: include, success: true };
+        }
+      } catch (error) {
+        console.error("Toggle auto-scrape error:", error);
+        throw error;
+      }
     },
     onMutate: async ({ id, include }) => {
       // Cancel outgoing refetches
@@ -299,19 +343,24 @@ export default function Sources() {
   // Delete a source
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `${serverUrl}/api/news-tracker/sources/${id}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = 'Failed to delete source';
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorMessage;
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
+      try {
+        // Use fetch directly to handle empty responses properly
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete source: ${response.statusText}`);
         }
-        throw new Error(errorMessage);
+        
+        // Don't try to parse JSON - some DELETE endpoints return empty responses
+        return { success: true, id };
+      } catch (error) {
+        console.error("Delete source error:", error);
+        throw error;
       }
-      return response;
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
@@ -406,10 +455,33 @@ export default function Sources() {
   // Update auto-scrape settings
   const updateAutoScrapeSettings = useMutation({
     mutationFn: async ({ enabled, interval }: { enabled: boolean, interval: JobInterval }) => {
-      await apiRequest("POST", `${serverUrl}/api/news-tracker/settings/auto-scrape`, {
-        enabled, 
-        interval
-      });
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/settings/auto-scrape`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify({ enabled, interval }),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to update auto-scrape settings: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success with the data we know
+          return { enabled, interval, success: true };
+        }
+      } catch (error) {
+        console.error("Update auto-scrape settings error:", error);
+        throw error;
+      }
     },
     onMutate: async ({ enabled, interval }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });

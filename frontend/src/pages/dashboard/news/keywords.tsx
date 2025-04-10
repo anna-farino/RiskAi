@@ -45,8 +45,28 @@ export default function Keywords() {
 
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
-      const response = await apiRequest("POST", `${serverUrl}/api/news-tracker/keywords`, data);
-      return response;
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify(data),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to add keyword: ${response.statusText}`);
+        }
+        
+        // Parse JSON response
+        const responseData = await response.json();
+        return responseData;
+      } catch (error) {
+        console.error("Add keyword error:", error);
+        throw error;
+      }
     },
     onMutate: async (newKeyword) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -102,8 +122,33 @@ export default function Keywords() {
 
   const toggleKeyword = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const response = await apiRequest("PATCH", `${serverUrl}/api/news-tracker/keywords/${id}`, { active });
-      return response;
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/keywords/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify({ active }),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to toggle keyword: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success with the data we know
+          return { id, active, success: true };
+        }
+      } catch (error) {
+        console.error("Toggle keyword error:", error);
+        throw error;
+      }
     },
     onMutate: async ({ id, active }) => {
       // Cancel any outgoing refetches
@@ -140,7 +185,24 @@ export default function Keywords() {
 
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `${serverUrl}/api/news-tracker/keywords/${id}`);
+      try {
+        // Use fetch directly to handle empty responses properly
+        const response = await fetch(`${serverUrl}/api/news-tracker/keywords/${id}`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete keyword: ${response.statusText}`);
+        }
+        
+        // Don't try to parse JSON - some DELETE endpoints return empty responses
+        return { success: true, id };
+      } catch (error) {
+        console.error("Delete keyword error:", error);
+        throw error;
+      }
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
