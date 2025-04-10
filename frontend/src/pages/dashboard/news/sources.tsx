@@ -195,7 +195,29 @@ export default function Sources() {
 
   const scrapeSource = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("POST", `${serverUrl}/api/news-tracker/sources/${id}/scrape`);
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}/scrape`, {
+          method: "POST",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to scrape source: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success
+          return { success: true, id };
+        }
+      } catch (error) {
+        console.error("Scrape source error:", error);
+        throw error;
+      }
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
@@ -238,7 +260,29 @@ export default function Sources() {
 
   const stopScraping = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("POST", `${serverUrl}/api/news-tracker/sources/${id}/stop`);
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}/stop`, {
+          method: "POST",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to stop scraping: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success
+          return { success: true, id };
+        }
+      } catch (error) {
+        console.error("Stop scraping error:", error);
+        throw error;
+      }
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
@@ -396,7 +440,29 @@ export default function Sources() {
   // Run global scrape job manually
   const runGlobalScrape = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", `${serverUrl}/api/news-tracker/jobs/scrape`);
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/jobs/scrape`, {
+          method: "POST",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to start global scrape: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success
+          return { success: true };
+        }
+      } catch (error) {
+        console.error("Run global scrape error:", error);
+        throw error;
+      }
     },
     onMutate: async () => {
       // Cancel any outgoing refetches
