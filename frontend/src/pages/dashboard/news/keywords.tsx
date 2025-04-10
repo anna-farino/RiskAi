@@ -34,11 +34,12 @@ export default function Keywords() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error()
+        if (!response.ok) throw new Error('Failed to fetch keywords')
         const data = await response.json()
         return data || []
       } catch(error) {
         console.error(error)
+        return [] // Return empty array instead of undefined to prevent errors
       }
     }
   });
