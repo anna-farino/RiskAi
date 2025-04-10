@@ -272,6 +272,7 @@ export default function Sources() {
                     <Switch 
                       id="auto-scrape-enabled" 
                       checked={!!autoScrapeSettings.data?.enabled}
+                      disabled={updateAutoScrapeSettings.isPending}
                       onCheckedChange={(checked) => {
                         updateAutoScrapeSettings.mutate({
                           enabled: checked,
