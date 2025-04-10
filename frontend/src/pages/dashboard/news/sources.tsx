@@ -117,8 +117,45 @@ export default function Sources() {
     mutationFn: async (data: { url: string; name: string }) => {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/sources`, data);
     },
+    onMutate: async (newSource) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot the previous value
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Generate a temporary ID for optimistic UI
+      const tempId = `temp_${Date.now()}`;
+      
+      // Optimistically add the new source
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => [
+        ...oldData,
+        {
+          id: tempId,
+          url: newSource.url,
+          name: newSource.name,
+          userId: "current", // This will be set by the server
+          createdAt: new Date().toISOString(),
+          includeInAutoScrape: true,
+          lastScrapeAt: null,
+          status: "idle"
+        } as Source,
+      ]);
+      
+      return { previousSources };
+    },
+    onError: (err, newSource, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      toast({
+        title: "Error adding source",
+        description: "Failed to add source. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      sources.refetch()
+      // Invalidate and refetch to get the real data with server-generated ID
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
       form.reset();
       toast({
         title: "Source added successfully",
@@ -130,11 +167,40 @@ export default function Sources() {
     mutationFn: async (id: string) => {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/sources/${id}/scrape`);
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot the previous value
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Optimistically update the source status
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
+        oldData.map(source => 
+          source.id === id 
+            ? { ...source, status: "scraping" } 
+            : source
+        )
+      );
+      
+      return { previousSources };
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      toast({
+        title: "Error scraping source",
+        description: "Failed to scrape source. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
+      // Invalidate and refetch to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
       toast({
         title: "Source scraped successfully",
       });
-      sources.refetch()
     },
   });
 
@@ -142,8 +208,36 @@ export default function Sources() {
     mutationFn: async (id: string) => {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/sources/${id}/stop`);
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot the previous value
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Optimistically update the source status
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
+        oldData.map(source => 
+          source.id === id 
+            ? { ...source, status: "idle" } 
+            : source
+        )
+      );
+      
+      return { previousSources };
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      toast({
+        title: "Error stopping scrape",
+        description: "Failed to stop scraping. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      sources.refetch()
+      // Invalidate and refetch to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
       toast({
         title: "Scraping stopped successfully",
       });

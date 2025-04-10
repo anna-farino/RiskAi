@@ -61,8 +61,38 @@ export default function NewsHome() {
         `${serverUrl}/api/news-tracker/articles/${id}`,
       );
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
+      
+      // Snapshot the previous value
+      const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], (oldData) => {
+        if (!oldData) return [];
+        return oldData.filter(article => article.id !== id);
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousArticles };
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/articles"], context?.previousArticles);
+      toast({
+        title: "Error deleting article",
+        description: "Failed to delete article. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      articles.refetch();
+      // Invalidate and refetch to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+      toast({
+        title: "Article deleted",
+        description: "Article successfully deleted.",
+      });
     },
   });
 
@@ -73,22 +103,37 @@ export default function NewsHome() {
         `${serverUrl}/api/news-tracker/articles`,
       );
     },
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
+      
+      // Snapshot the previous articles
+      const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
+      
+      // Optimistically clear the articles
+      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], []);
+      
+      return { previousArticles };
+    },
+    onError: (error, variables, context) => {
+      // If the mutation fails, revert back to previous articles
+      queryClient.setQueryData(["/api/news-tracker/articles"], context?.previousArticles);
+      toast({
+        title: "Error",
+        description: "Failed to delete articles. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: (data: {
       success: boolean;
       message: string;
       deletedCount: number;
     }) => {
-      articles.refetch();
+      // Ensure data consistency by invalidating the query
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
       toast({
         title: "Articles deleted",
         description: `Successfully deleted ${data.deletedCount} articles.`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete articles. Please try again.",
-        variant: "destructive",
       });
     },
   });

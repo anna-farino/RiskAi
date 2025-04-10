@@ -46,10 +46,43 @@ export default function Keywords() {
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
       await apiRequest("POST", `${serverUrl}/api/news-tracker/keywords`, data);
-      console.log("Sent POST request:", data)
+    },
+    onMutate: async (newKeyword) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
+      // Snapshot the previous value
+      const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      
+      // Generate a temporary ID for optimistic UI (will be replaced by server-generated one)
+      const tempId = `temp_${Date.now()}`;
+      
+      // Optimistically add the new keyword
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => [
+        ...oldData,
+        {
+          id: tempId,
+          term: newKeyword.term,
+          active: true,
+          userId: "current", // This will be set by the server
+          createdAt: new Date().toISOString(),
+        } as Keyword,
+      ]);
+      
+      return { previousKeywords };
+    },
+    onError: (err, newKeyword, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/keywords"], context?.previousKeywords);
+      toast({
+        title: "Error adding keyword",
+        description: "Failed to add keyword. Please try again.",
+        variant: "destructive",
+      });
     },
     onSuccess: () => {
-      keywords.refetch()
+      // Invalidate and refetch to get the real data with server-generated ID
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
       form.reset();
       toast({
         title: "Keyword added successfully",
@@ -61,8 +94,34 @@ export default function Keywords() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       await apiRequest("PATCH", `${serverUrl}/api/news-tracker/keywords/${id}`, { active });
     },
-    onSettled: () => {
-      keywords.refetch()
+    onMutate: async ({ id, active }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
+      // Snapshot the previous value
+      const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      
+      // Optimistically update the active status
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => 
+        oldData.map((keyword) => 
+          keyword.id === id ? { ...keyword, active } : keyword
+        )
+      );
+      
+      return { previousKeywords };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/keywords"], context?.previousKeywords);
+      toast({
+        title: "Error updating keyword",
+        description: "Failed to update keyword status. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      // Ensure consistency with server data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
     },
   });
 
@@ -70,8 +129,32 @@ export default function Keywords() {
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `${serverUrl}/api/news-tracker/keywords/${id}`);
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
+      // Snapshot the previous data
+      const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      
+      // Optimistically remove the keyword
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => 
+        oldData.filter(keyword => keyword.id !== id)
+      );
+      
+      return { previousKeywords };
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context to roll back
+      queryClient.setQueryData(["/api/news-tracker/keywords"], context?.previousKeywords);
+      toast({
+        title: "Error deleting keyword",
+        description: "Failed to delete keyword. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      keywords.refetch()
+      // Ensure consistency with server data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
       toast({
         title: "Keyword deleted successfully",
       });
