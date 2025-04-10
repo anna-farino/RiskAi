@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -58,6 +58,11 @@ export default function Sources() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
   
+  // Local state for optimistic UI updates
+  const [localSources, setLocalSources] = useState<Source[]>([]);
+  // Track pending operations for visual feedback
+  const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  
   const form = useForm({
     resolver: zodResolver(insertSourceSchema),
     defaultValues: {
@@ -87,6 +92,13 @@ export default function Sources() {
       }
     }
   });
+  
+  // Sync local state with query data when it changes
+  useEffect(() => {
+    if (sources.data) {
+      setLocalSources(sources.data);
+    }
+  }, [sources.data]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
@@ -142,52 +154,82 @@ export default function Sources() {
       }
     },
     onMutate: async (newSource) => {
+      // Create a temporary optimistic source with unique ID for tracking
+      const tempId = `temp-${Date.now()}`;
+      const tempSource = {
+        id: tempId,
+        url: newSource.url,
+        name: newSource.name,
+        active: false,
+        includeInAutoScrape: false,
+        scrapingConfig: {},
+        lastScraped: null,
+        userId: null
+      } as Source;
+      
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
-      // Snapshot the previous value
+      // Snapshot the previous states for potential rollback
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      const previousLocalSources = [...localSources];
       
-      // Use a consistent temporary ID for optimistic UI
-      const tempId = "temp-id";
+      // Update local state immediately for UI feedback
+      setLocalSources(prev => [tempSource, ...prev]);
       
-      // Optimistically add the new source at the beginning
-      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => [
-        {
-          id: tempId,
-          url: newSource.url,
-          name: newSource.name,
-          active: false,
-          includeInAutoScrape: false,
-          scrapingConfig: {},
-          lastScraped: null,
-          userId: null
-        } as Source,
-        ...oldData,
-      ]);
+      // Add to pendingItems to show loading indicators
+      setPendingItems(prev => new Set(prev).add(tempId));
       
-      return { previousSources };
+      // Update React Query cache 
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
+        [tempSource, ...oldData]
+      );
+      
+      return { previousSources, previousLocalSources, tempId };
     },
     onError: (err, newSource, context) => {
-      // If the mutation fails, use the context to roll back
-      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
+      if (context) {
+        // Revert both local state and React Query cache
+        setLocalSources(context.previousLocalSources);
+        queryClient.setQueryData(["/api/news-tracker/sources"], context.previousSources);
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.tempId);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Error adding source",
         description: "Failed to add source. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: (data) => {
-      // Don't invalidate and refetch - rely on the optimistic update
-      // But remove the temporary entry and add the real one
-      const currentSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]) || [];
-      
-      // Remove the temporary item and add the real one from the server
-      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], 
-        currentSources
-          .filter(source => source.id !== "temp-id") // Remove the temp entry
-          .concat([data as Source]) // Add the real server data
-      );
+    onSuccess: (data, variables, context) => {
+      if (context?.tempId) {
+        // Update local state with actual server data
+        setLocalSources(prev => 
+          prev.map(source => 
+            source.id === context.tempId ? (data as Source) : source
+          )
+        );
+        
+        // Update React Query cache with server data
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], prev => 
+          prev?.map(source => 
+            source.id === context.tempId ? (data as Source) : source
+          ) || []
+        );
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.tempId);
+          return updated;
+        });
+      }
       
       form.reset();
       toast({
