@@ -401,8 +401,21 @@ export default function Sources() {
       
       // Get snapshot of current data
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      const previousLocalSources = [...localSources];
       
-      // Optimistically update sources
+      // Add to pendingItems to show loading indicator
+      setPendingItems(prev => new Set(prev).add(id));
+      
+      // Optimistically update local state for UI feedback
+      setLocalSources(prev => 
+        prev.map(source => 
+          source.id === id 
+            ? { ...source, includeInAutoScrape: include }
+            : source
+        )
+      );
+      
+      // Optimistically update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (old = []) => 
         old.map(source => 
           source.id === id 
@@ -411,17 +424,35 @@ export default function Sources() {
         )
       );
       
-      return { previousSources };
+      return { previousSources, previousLocalSources, id };
     },
     onError: (err, variables, context) => {
-      // Revert optimistic update on error
-      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
+      if (context) {
+        // Revert both local state and React Query cache on error
+        setLocalSources(context.previousLocalSources);
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Failed to update auto-scrape setting",
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Remove from pending items
+      setPendingItems(prev => {
+        const updated = new Set(prev);
+        updated.delete(variables.id);
+        return updated;
+      });
+      
       // Don't refetch - the optimistic update already handled the UI change
       toast({
         title: "Auto-scrape settings updated",
@@ -455,30 +486,59 @@ export default function Sources() {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
-      // Snapshot the previous value
+      // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      const previousLocalSources = [...localSources];
       
-      // Optimistically remove the source
+      // Add to pendingItems to show loading indicator
+      setPendingItems(prev => new Set(prev).add(id));
+      
+      // Optimistically update the local state for immediate UI feedback
+      setLocalSources(prev => prev.filter(source => source.id !== id));
+      
+      // Update React Query cache optimistically
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.filter(source => source.id !== id)
       );
       
-      return { previousSources };
+      return { previousSources, previousLocalSources, id };
     },
     onError: (error: Error, id, context) => {
-      // If the mutation fails, use the context to roll back
-      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
+      if (context) {
+        // If the mutation fails, restore both local state and React Query cache
+        setLocalSources(context.previousLocalSources);
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Error deleting source",
         description: error.message || "Failed to delete source. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, id) => {
+      // Remove from pending items
+      setPendingItems(prev => {
+        const updated = new Set(prev);
+        updated.delete(id);
+        return updated;
+      });
+      
       // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Source deleted successfully",
       });
+      
+      // Close the delete dialog
+      setDeleteDialogOpen(false);
+      setSourceToDelete(null);
     },
   });
   
@@ -861,12 +921,21 @@ export default function Sources() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sources.data?.map((source) => (
-                  <TableRow key={source.id} className="border-slate-700/50 hover:bg-white/5">
+                {localSources.map((source) => (
+                  <TableRow 
+                    key={source.id} 
+                    className={cn(
+                      "border-slate-700/50 hover:bg-white/5 transition-opacity duration-200",
+                      pendingItems.has(source.id) && "opacity-60"
+                    )}
+                  >
                     <TableCell className="min-w-[150px] font-medium text-white">
                       <div className="flex items-center gap-2">
                         <div className="h-8 min-w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Globe className="h-4 w-4 text-primary" />
+                          {pendingItems.has(source.id) 
+                            ? <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                            : <Globe className="h-4 w-4 text-primary" />
+                          }
                         </div>
                         {source.name}
                       </div>

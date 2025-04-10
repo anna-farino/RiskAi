@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
@@ -32,7 +33,18 @@ import { Link } from "react-router-dom";
 
 export default function NewsHome() {
   const { toast } = useToast();
-  console.log("");
+  
+  // Local state for optimistic UI updates
+  const [localArticles, setLocalArticles] = useState<Article[]>([]);
+  // Track pending operations for visual feedback
+  const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  
+  // Sync local state with query data when it changes
+  useEffect(() => {
+    if (articles.data) {
+      setLocalArticles(articles.data);
+    }
+  }, [articles.data]);
 
   const articles = useQuery<Article[]>({
     queryKey: ["/api/news-tracker/articles"],
