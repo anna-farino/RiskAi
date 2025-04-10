@@ -155,8 +155,34 @@ export default function Sources() {
         includeInAutoScrape: include
       });
     },
+    onMutate: async ({ id, include }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Get snapshot of current data
+      const previousSources = queryClient.getQueryData(["/api/news-tracker/sources"]);
+      
+      // Optimistically update sources
+      queryClient.setQueryData(["/api/news-tracker/sources"], (old: Source[] | undefined) => 
+        old?.map(source => 
+          source.id === id 
+            ? { ...source, includeInAutoScrape: include }
+            : source
+        )
+      );
+      
+      return { previousSources };
+    },
+    onError: (err, variables, context) => {
+      // Revert optimistic update on error
+      queryClient.setQueryData(["/api/news-tracker/sources"], context?.previousSources);
+      toast({
+        title: "Failed to update auto-scrape setting",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      sources.refetch()
+      sources.refetch();
       toast({
         title: "Auto-scrape settings updated",
       });
