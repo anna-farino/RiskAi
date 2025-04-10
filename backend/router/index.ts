@@ -15,8 +15,6 @@ router.get('/test', handleTest)
 
 router.use('/auth', authRouter)
 
-router.use('/news-tracker', verifyToken, newsRouter)
-
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 router.get('/test-simple-request', handleTest)
@@ -24,6 +22,7 @@ router.get('/test-simple-request', handleTest)
 router.use(verifyToken)
 // Protected routes
 router.use('/users', usersRouter)
+router.use('/news-tracker', verifyToken, newsRouter)
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
 
