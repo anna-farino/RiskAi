@@ -15,6 +15,34 @@
       "when": 1743525088039,
       "tag": "0001_mute_micromax",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1744220443419,
+      "tag": "0002_condemned_star_brand",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1744224680855,
+      "tag": "0003_outgoing_shocker",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1744224712230,
+      "tag": "0004_open_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1744225005158,
+      "tag": "0005_lucky_william_stryker",
+      "breakpoints": true
     }
   ]
 }

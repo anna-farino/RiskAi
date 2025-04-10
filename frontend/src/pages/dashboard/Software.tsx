@@ -65,7 +65,7 @@ export default function Software() {
   const [softwareToDelete, setSoftwareToDelete] = useState<Software | null>(null);
   const [userCanModifySoftware, setUserCanModifySoftware] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { data: user } = useAuth();
   const queryClient = useQueryClient();
 
   useEffect(()=>{

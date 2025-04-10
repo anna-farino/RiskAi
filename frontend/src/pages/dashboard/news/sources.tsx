@@ -24,6 +24,7 @@ import {
 import { serverUrl } from "@/utils/server-url";
 import { cn } from "@/lib/utils";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
@@ -69,7 +70,10 @@ export default function Sources() {
       try {
         const response = await fetch(`${serverUrl}/api/news-tracker/sources`, {
           method: 'GET',
-          credentials: 'include'
+          credentials: 'include',
+          headers: {
+            ...csfrHeaderObject()
+          }
         })
         if (!response.ok) throw new Error()
         
@@ -80,7 +84,6 @@ export default function Sources() {
       }
     }
   });
-  console.log(sources.data)
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
@@ -89,7 +92,10 @@ export default function Sources() {
       try {
         const response = await fetch(`${serverUrl}/api/news-tracker/settings/auto-scrape`, {
           method: 'GET',
-          credentials: 'include'
+          credentials: 'include',
+          headers: {
+            ...csfrHeaderObject()
+          }
         })
         if (!response.ok) throw new Error()
         

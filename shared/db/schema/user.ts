@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, uuid } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 
@@ -7,6 +7,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
