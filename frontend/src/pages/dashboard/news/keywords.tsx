@@ -13,9 +13,15 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
+import { useState, useEffect } from "react";
 
 export default function Keywords() {
   const { toast } = useToast();
+  // Local state for immediate UI updates
+  const [localKeywords, setLocalKeywords] = useState<Keyword[]>([]);
+  // Track IDs of items with pending actions for visual feedback
+  const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  
   const form = useForm({
     resolver: zodResolver(insertKeywordSchema),
     defaultValues: {
@@ -41,8 +47,16 @@ export default function Keywords() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    }
+    },
+    staleTime: 60000 // Reduce refetching frequency (1 minute)
   });
+  
+  // Update local state whenever query data changes
+  useEffect(() => {
+    if (keywords.data) {
+      setLocalKeywords(keywords.data);
+    }
+  }, [keywords.data]);
 
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
@@ -70,49 +84,78 @@ export default function Keywords() {
       }
     },
     onMutate: async (newKeyword) => {
+      // Create a temporary optimistic keyword
+      const tempId = `temp-${Date.now()}`;
+      // Cast to any to avoid type errors with missing properties that will be filled by the server
+      const tempKeyword = {
+        id: tempId,
+        term: newKeyword.term,
+        active: true,
+        userId: null,
+      } as Keyword;
+      
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
       
-      // Snapshot the previous value
+      // Snapshot the previous state for potential rollback
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      const previousLocalKeywords = [...localKeywords];
       
-      // Use a consistent temporary ID for optimistic UI (will be replaced by server-generated one)
-      const tempId = "temp-id";
+      // Update local state immediately for UI
+      setLocalKeywords(prev => [tempKeyword, ...prev]);
       
-      // Optimistically add the new keyword at the beginning of the list
-      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => [
-        {
-          id: tempId,
-          term: newKeyword.term,
-          active: true,
-          userId: null, // This will be set by the server
-          createdAt: new Date().toISOString(),
-        } as Keyword,
-        ...oldData,
-      ]);
+      // Add to pendingItems to show loading indicators
+      setPendingItems(prev => new Set(prev).add(tempId));
       
-      return { previousKeywords };
+      // Update React Query cache
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], old => 
+        old ? [tempKeyword, ...old] : [tempKeyword]
+      );
+      
+      return { previousKeywords, previousLocalKeywords, tempId };
     },
     onError: (err, newKeyword, context) => {
-      // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/keywords"], context?.previousKeywords);
+      // Revert both local state and React Query cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.tempId);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Error adding keyword",
         description: "Failed to add keyword. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: (data) => {
-      // Don't invalidate queries - update the cache directly
-      // Replace temporary ID with server-generated one
-      const currentKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]) || [];
-      
-      // Find and update the temporary keyword with the real data
-      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], 
-        currentKeywords.map(keyword => 
-          keyword.id === "temp-id" ? data as Keyword : keyword
-        )
-      );
+    onSuccess: (data, variables, context) => {
+      if (context?.tempId) {
+        // Update local state with actual server data
+        setLocalKeywords(prev => 
+          prev.map(keyword => 
+            keyword.id === context.tempId ? (data as Keyword) : keyword
+          )
+        );
+        
+        // Update React Query cache
+        queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], prev => 
+          prev?.map(keyword => 
+            keyword.id === context.tempId ? (data as Keyword) : keyword
+          ) || []
+        );
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.tempId);
+          return updated;
+        });
+      }
       
       form.reset();
       toast({
@@ -152,32 +195,62 @@ export default function Keywords() {
       }
     },
     onMutate: async ({ id, active }) => {
+      // Add to pendingItems to show loading indicators
+      setPendingItems(prev => new Set(prev).add(id));
+      
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
       
-      // Snapshot the previous value
+      // Snapshot the previous values
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      const previousLocalKeywords = [...localKeywords];
       
-      // Optimistically update the active status
-      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => 
-        oldData.map((keyword) => 
+      // Update local state immediately
+      setLocalKeywords(prev => 
+        prev.map(keyword => 
           keyword.id === id ? { ...keyword, active } : keyword
         )
       );
       
-      return { previousKeywords };
+      // Also update React Query cache
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], oldData => 
+        (oldData || []).map(keyword => 
+          keyword.id === id ? { ...keyword, active } : keyword
+        )
+      );
+      
+      return { previousKeywords, previousLocalKeywords, id };
     },
     onError: (err, variables, context) => {
-      // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/keywords"], context?.previousKeywords);
+      if (context) {
+        // Revert both local state and cache
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Error updating keyword",
         description: "Failed to update keyword status. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: (data) => {
-      // Don't invalidate and refetch - our optimistic update already handled this
+    onSuccess: (data, variables, context) => {
+      if (context?.id) {
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Keyword status updated",
       });
@@ -206,30 +279,56 @@ export default function Keywords() {
       }
     },
     onMutate: async (id) => {
+      // Mark as pending for visual feedback
+      setPendingItems(prev => new Set(prev).add(id));
+      
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
       
       // Snapshot the previous data
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      const previousLocalKeywords = [...localKeywords];
       
-      // Optimistically remove the keyword
+      // Immediately update local state
+      setLocalKeywords(prev => prev.filter(keyword => keyword.id !== id));
+      
+      // Update React Query cache
       queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => 
         oldData.filter(keyword => keyword.id !== id)
       );
       
-      return { previousKeywords };
+      return { previousKeywords, previousLocalKeywords, id };
     },
     onError: (err, id, context) => {
-      // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/keywords"], context?.previousKeywords);
+      if (context) {
+        // Revert both local state and cache
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
+        
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Error deleting keyword",
         description: "Failed to delete keyword. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: () => {
-      // Don't invalidate - our optimistic delete already updated the UI
+    onSuccess: (data, variables, context) => {
+      if (context?.id) {
+        // Remove from pending items
+        setPendingItems(prev => {
+          const updated = new Set(prev);
+          updated.delete(context.id);
+          return updated;
+        });
+      }
+      
       toast({
         title: "Keyword deleted successfully",
       });
@@ -369,71 +468,88 @@ export default function Keywords() {
           </div>
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {keywords.data?.map((keyword) => (
-              <div 
-                key={keyword.id} 
-                className={cn(
-                  "relative border border-slate-700/50 rounded-lg overflow-hidden",
-                  "transition-all duration-200 hover:border-slate-500",
-                  keyword.active ? "bg-primary/5" : "bg-white/5"
-                )}
-              >
-                <div className={cn(
-                  "absolute top-0 right-0 h-6 w-6 flex items-center justify-center",
-                  "rounded-bl-lg",
-                  keyword.active ? "bg-green-500/20" : "bg-slate-500/20"
-                )}>
-                  {keyword.active ? (
-                    <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5 text-slate-400" />
+            {/* Use localKeywords for immediate UI updates */}
+            {localKeywords.map((keyword) => {
+              // Check if this item has a pending action
+              const isPending = pendingItems.has(keyword.id);
+              
+              return (
+                <div 
+                  key={keyword.id} 
+                  className={cn(
+                    "relative border border-slate-700/50 rounded-lg overflow-hidden",
+                    "transition-all duration-200",
+                    isPending ? "border-orange-500/50 shadow-orange-500/10 shadow-md" : "hover:border-slate-500",
+                    keyword.active ? "bg-primary/5" : "bg-white/5"
                   )}
-                </div>
-                
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "h-8 w-8 rounded-full flex items-center justify-center",
-                        keyword.active ? "bg-primary/20" : "bg-slate-500/20"
-                      )}>
-                        <Tag className={cn(
-                          "h-4 w-4", 
-                          keyword.active ? "text-primary" : "text-slate-400"
-                        )} />
-                      </div>
-                      <h3 className="font-medium text-white">{keyword.term}</h3>
+                >
+                  {/* Show loading indicator for pending items */}
+                  {isPending && (
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
+                  )}
+                
+                  <div className={cn(
+                    "absolute top-0 right-0 h-6 w-6 flex items-center justify-center",
+                    "rounded-bl-lg",
+                    keyword.active ? "bg-green-500/20" : "bg-slate-500/20"
+                  )}>
+                    {keyword.active ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                    )}
                   </div>
                   
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={keyword.active}
-                        onCheckedChange={(checked) =>
-                          toggleKeyword.mutate({ id: keyword.id, active: checked })
-                        }
-                      />
-                      <span className={cn(
-                        "text-xs font-medium",
-                        keyword.active ? "text-green-400" : "text-slate-400"
-                      )}>
-                        {keyword.active ? "Active" : "Inactive"}
-                      </span>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "h-8 w-8 rounded-full flex items-center justify-center",
+                          keyword.active ? "bg-primary/20" : "bg-slate-500/20"
+                        )}>
+                          <Tag className={cn(
+                            "h-4 w-4", 
+                            keyword.active ? "text-primary" : "text-slate-400"
+                          )} />
+                        </div>
+                        <h3 className="font-medium text-white">{keyword.term}</h3>
+                      </div>
                     </div>
                     
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteKeyword.mutate(keyword.id)}
-                      className="h-8 w-8 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={keyword.active}
+                          disabled={isPending}
+                          onCheckedChange={(checked) =>
+                            toggleKeyword.mutate({ id: keyword.id, active: checked })
+                          }
+                        />
+                        <span className={cn(
+                          "text-xs font-medium",
+                          keyword.active ? "text-green-400" : "text-slate-400",
+                          isPending && "opacity-50"
+                        )}>
+                          {keyword.active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                      
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={isPending}
+                        onClick={() => deleteKeyword.mutate(keyword.id)}
+                        className="h-8 w-8 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
