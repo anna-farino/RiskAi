@@ -209,7 +209,7 @@ export default function Sources() {
   // Update auto-scrape settings
   const updateAutoScrapeSettings = useMutation({
     mutationFn: async ({ enabled, interval }: { enabled: boolean, interval: JobInterval }) => {
-      await apiRequest("POST", `${serverUrl}/api/settings/auto-scrape`, {
+      await apiRequest("POST", `${serverUrl}/api/news-tracker/settings/auto-scrape`, {
         enabled, 
         interval
       });
