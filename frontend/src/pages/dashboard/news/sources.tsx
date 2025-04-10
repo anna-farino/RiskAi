@@ -29,6 +29,7 @@ import { csfrHeaderObject } from "@/utils/csrf-header";
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
   HOURLY = 60 * 60 * 1000,
+  FOUR_HOURS = 4 * 60 * 60 * 1000,
   TWICE_DAILY = 12 * 60 * 60 * 1000,
   DAILY = 24 * 60 * 60 * 1000,
   WEEKLY = 7 * 24 * 60 * 60 * 1000
@@ -37,6 +38,7 @@ enum JobInterval {
 // Convert enum to human-readable labels
 const intervalLabels: Record<JobInterval, string> = {
   [JobInterval.HOURLY]: "Hourly",
+  [JobInterval.FOUR_HOURS]: "Every 4 Hours",
   [JobInterval.TWICE_DAILY]: "Twice Daily",
   [JobInterval.DAILY]: "Daily", 
   [JobInterval.WEEKLY]: "Weekly"
