@@ -56,11 +56,25 @@ export default function NewsHome() {
   });
 
   const deleteArticle = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest(
-        "DELETE",
-        `${serverUrl}/api/news-tracker/articles/${id}`,
-      );
+    mutationFn: async (id: string) => {
+      try {
+        // Use fetch directly to handle empty responses properly
+        const response = await fetch(`${serverUrl}/api/news-tracker/articles/${id}`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete article: ${response.statusText}`);
+        }
+        
+        // Don't try to parse JSON - some DELETE endpoints return empty responses
+        return { success: true, id };
+      } catch (error) {
+        console.error("Delete article error:", error);
+        throw error;
+      }
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -70,8 +84,7 @@ export default function NewsHome() {
       const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
       
       // Optimistically update to the new value
-      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], (oldData) => {
-        if (!oldData) return [];
+      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], (oldData = []) => {
         return oldData.filter(article => article.id !== id);
       });
       
@@ -80,7 +93,7 @@ export default function NewsHome() {
     },
     onError: (err, id, context) => {
       // If the mutation fails, use the context to roll back
-      queryClient.setQueryData(["/api/news-tracker/articles"], context?.previousArticles);
+      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context?.previousArticles);
       toast({
         title: "Error deleting article",
         description: "Failed to delete article. Please try again.",
@@ -88,21 +101,38 @@ export default function NewsHome() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+      // Don't invalidate - optimistic delete already removed the item
       toast({
-        title: "Article deleted",
-        description: "Article successfully deleted.",
+        title: "Article deleted successfully",
       });
     },
   });
 
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      return await apiRequest(
-        "DELETE",
-        `${serverUrl}/api/news-tracker/articles`,
-      );
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete all articles: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON response
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success
+          return { success: true, deletedCount: 0 };
+        }
+      } catch (error) {
+        console.error("Delete all articles error:", error);
+        throw error;
+      }
     },
     onMutate: async () => {
       // Cancel any outgoing refetches
@@ -118,7 +148,7 @@ export default function NewsHome() {
     },
     onError: (error, variables, context) => {
       // If the mutation fails, revert back to previous articles
-      queryClient.setQueryData(["/api/news-tracker/articles"], context?.previousArticles);
+      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context?.previousArticles);
       toast({
         title: "Error",
         description: "Failed to delete articles. Please try again.",
@@ -127,11 +157,10 @@ export default function NewsHome() {
     },
     onSuccess: (data: {
       success: boolean;
-      message: string;
+      message?: string;
       deletedCount: number;
     }) => {
-      // Ensure data consistency by invalidating the query
-      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+      // Don't invalidate - optimistic update already cleared the list
       toast({
         title: "Articles deleted",
         description: `Successfully deleted ${data.deletedCount} articles.`,
