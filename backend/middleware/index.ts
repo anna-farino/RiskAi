@@ -109,7 +109,7 @@ export async function verifyToken(
 		}
 
 		// If we reach here, both tokens expired or are invalid
-		console.log("❌ [AUTH] Both tokens expired/invalid, redirecting to login")
+		console.log("❌ [AUTH] Login tokens invalid, redirecting to login")
 		res.status(401).end();
 
 	} catch (error) {

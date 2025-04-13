@@ -15,23 +15,14 @@ puppeteer.use(StealthPlugin());
 function findChromePath() {
   
   try {
-    console.log("[findChromePath] Trying 'which chromium'");
     const chromePath = execSync('which chromium').toString().trim();
-    console.log("[findChromePath] chromePath:", chromePath);
     return chromePath;
   } catch(e) {
-    console.log(`[findChromePath] Error with 'which chromium':`, e);
-    
     // Then try to find Chrome using which command
     try {
-      console.log("[findChromePath] Trying 'which chrome'");
       const chromePath = execSync('which chrome').toString().trim();
-      console.log("[findChromePath] chromePath:", chromePath);
       return chromePath;
     } catch (e) {
-      console.log(`[findChromePath] Error with 'which chrome':`, e);
-      
-      // Default paths to try
       console.log("[findChromePath] Using default path");
     }
   }
