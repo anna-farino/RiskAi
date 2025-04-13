@@ -32,7 +32,8 @@ router.use(verifyToken)
 // Protected routes
 router.use('/users', usersRouter)
 router.use('/news-tracker', verifyToken, newsRouter)
-router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
+// DEV only
+router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
 export default router;

@@ -1,21 +1,23 @@
+import UserRoleRow from "@/components/user-role-row"
 import { useAuth } from "@/hooks/use-auth"
-import { cn } from "@/lib/utils"
+import { csfrHeaderObject } from "@/utils/csrf-header"
 import { serverUrl } from "@/utils/server-url"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { it } from "node:test"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 
 export default function Admin() {
   const [ isUserAdmin, setIsUserAdmin ] = useState(false) 
-  const [ showDropdown, setShowDropdown ] = useState(0)
-  const { user } = useAuth()
+  const [ showDropdown, setShowDropdown ] = useState("0")
+  const user = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   useEffect(()=>{
-    if (user) {
-      const isAdmin = user.permissions.includes("roles:edit")
+    if (user.data) {
+      const isAdmin = user.data?.role == 'admin'
       if (!isAdmin) {
           navigate('/dashboard/home')
       } else {
@@ -23,10 +25,12 @@ export default function Admin() {
       }
 
     }
-  },[user])
+  },[user.data])
+
+  //console.log("[Admin] User: ", user.data)
 
 
-  const { data, isPending: userRolesPending } = useQuery({
+  const userRolesQuery = useQuery({
     queryKey: ['users-roles'],
     enabled: !!isUserAdmin,
     retry: false,
@@ -40,6 +44,7 @@ export default function Admin() {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            ...csfrHeaderObject()
           },
         });
         if (!response.ok) throw new Error('Failed to fetch permissions');
@@ -52,7 +57,7 @@ export default function Admin() {
 
   const { data: rolesData } = useQuery({
     queryKey: ['roles'],
-    enabled: !!data,
+    enabled: !!userRolesQuery.data,
     queryFn: async () => {
       if (!isUserAdmin) {
         console.error("User doesn't have the permission to fetch roles")
@@ -62,7 +67,8 @@ export default function Admin() {
         const response = await fetch(`${serverUrl}/api/roles`, {
           credentials: 'include',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...csfrHeaderObject()
           }
         })
         if (!response.ok) throw new Error('Failed to fetch roles')
@@ -74,35 +80,55 @@ export default function Admin() {
   })
 
   const editUserRole = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
-      if (userId === user?.id) {
+    mutationFn: async (item: { userId: string, userRole: string, userEmail: string }) => {
+      if (item.userId === user.data?.id) {
         console.error("Admins cannot change their own role")
-        return data;
+        return userRolesQuery.data;
       }
-      const response = await fetch(`${serverUrl}/api/users/${userId}/roles/${newRole}`, {
+      return fetch(`${serverUrl}/api/users/${item.userId}/roles/${item.userRole}`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          ...csfrHeaderObject()
         }
       })
-      if (!response.ok) throw new Error("Update role failed")
-      return await response.json()
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['users-roles'], data)
-    }
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['users-roles'] })
+
+      const previousUserRoles = queryClient.getQueryData(['users-roles'])
+
+      queryClient.setQueryData(
+        ['users-roles'], 
+        (old: (typeof variables)[]) => old
+          .map(item => {
+            if (item.userId !== variables.userId) return item
+            else return {
+              ...item,
+              userRole: variables.userRole
+            }
+          })
+      )
+
+      return { previousUserRoles }
+    },
+    onError: (error, variables, context) => {
+      queryClient.setQueryData(['users-roles'], context?.previousUserRoles)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['user-roles']})
   })
 
-  function changeRole(userId: string, newRole: string) {
-    editUserRole.mutate({
-      userId,
-      newRole
-    })
+  function changeRole(item: {userId: string, userRole: string, userEmail: string}) {
+    console.log("Item for change", item)
+    editUserRole.mutate(item)
   }
 
   if (!isUserAdmin) return
-  if (userRolesPending) return <h1> Fetching the data...</h1>
+  if (userRolesQuery.isPending) return <h1> Fetching the data...</h1>
+
+
+  console.log(userRolesQuery.data)
 
   return (
     <div className="flex flex-col gap-y-4">
@@ -112,61 +138,24 @@ export default function Admin() {
       <table className="table-auto w-full">
         <thead>
           <tr className="ml-10">
-            <th className="text-left">User Name</th>
             <th className="text-left">User Email</th>
             <th className="text-left">User Role</th>
           </tr>
         </thead>
         <tbody>
-        {Array.isArray(data) && data
-          .sort((a,b) => a.id - b.id)
+        {Array.isArray(userRolesQuery.data) && userRolesQuery.data
           .map((item: any) => (
-          <tr key={item.userId} className="border-t">
-            <td className=" py-2">{item.userName}</td>
-            <td className=" py-2">{item.userEmail}</td>
-            <td className=" py-2">
-              <div className="relative">
-                <div className="relative">
-                  <button 
-                    className="underline" 
-                    onClick={() => setShowDropdown(
-                        showDropdown === item.userId ? 0 : item.userId
-                      )}
-                  >
-                    {item.userRole}
-                  </button>
-                  {showDropdown === item.userId && (
-                    <div
-                      className={cn(
-                        "flex flex-col absolute",
-                        "z-40 p-4 mt-2 rounded-lg gap-2",
-                        "bg-muted text-foreground border-muted-foreground border shadow-md"
-                      )}
-                    >
-                      {rolesData && rolesData.map((role: any) => (
-                        <div 
-                          key={role.name}
-                          className={cn(
-                            "flex flex-row w-fit",
-                            "px-1 text-center py-2",
-                            "rounded-sm w-[120px]", 
-                            "cursor-pointer hover:bg-background/50"
-                          )}
-                          onClick={() => {
-                            changeRole(item.userId, role.name);
-                            setShowDropdown(0);
-                          }}
-                        >
-                          {role.name}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </td>
-          </tr>
-        ))}
+            <UserRoleRow 
+              key={item.userEmail}
+              item={item}
+              showDropdown={showDropdown}
+              setShowDropdown={setShowDropdown}
+              user={user}
+              rolesData={rolesData}
+              changeRole={changeRole}
+            />
+          ))
+        }
         </tbody>
       </table>
     </div>

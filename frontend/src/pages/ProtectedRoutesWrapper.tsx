@@ -1,4 +1,4 @@
-import { csfrHeader } from "@/utils/csrf-header";
+import { csfrHeader, csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -15,12 +15,13 @@ export default function ProtectedRoutesWrapper({ children }: Props) {
         const response = await fetch(serverUrl + '/api/auth/check', {
           credentials: 'include',
           headers: {
-            [csfrHeader().name]: csfrHeader().token
+            ...csfrHeaderObject()
           }
         });
         if (!response.ok) {
           throw new Error('Authentication failed');
         }
+        const data = await response.json()
         setIsAuthenticated(true);
       } catch (error) {
           console.error('Error checking authentication:', error);
