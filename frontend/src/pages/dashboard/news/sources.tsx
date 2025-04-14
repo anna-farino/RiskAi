@@ -846,19 +846,11 @@ export default function Sources() {
             <ul className="space-y-3 text-sm">
               <li className="flex gap-2 text-slate-300">
                 <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                <span>Add reliable news sources with well-structured content for best results</span>
+                <span>Add reliable news sources with well-structured content for best results.</span>
               </li>
               <li className="flex gap-2 text-slate-300">
                 <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                <span>The scraper works with static and dynamic sites including React-based ones</span>
-              </li>
-              <li className="flex gap-2 text-slate-300">
-                <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                <span>Configure auto-scrape settings to automatically collect new content on a schedule</span>
-              </li>
-              <li className="flex gap-2 text-slate-300">
-                <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                <span>Toggle which sources to include in the auto-scrape process using the switches</span>
+                <span>Configure auto-scrape settings to automatically collect new content on a schedule.</span>
               </li>
             </ul>
           </div>
