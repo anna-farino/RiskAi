@@ -14,6 +14,7 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import PasswordEye from "@/components/password-eye"
 import GoBackToLogin from "@/components/go-back-to-login"
+import { toast } from "@/hooks/use-toast"
 
 const loginSchema = z.
   object({
@@ -31,7 +32,14 @@ const loginSchema = z.
   });
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function ConfirmPassword() {
+type Props = {
+  twHeight?: 'h-full' | 'min-h-screen',
+  redirect?: 'home' | 'settings'
+}
+export default function ConfirmPassword({ 
+  twHeight='min-h-screen',
+  redirect='home'
+}: Props) {
   const [ showPassword, setShowPassword ] = useState(false)
   const [ showConfirmPassword, setShowConfirmPassword ] = useState(false)
   const navigate = useNavigate();
@@ -52,7 +60,17 @@ export default function ConfirmPassword() {
       if (!response.ok) throw new Error("No response")
     },
     onSuccess() {
-      navigate('/dashboard/home')
+      switch (redirect) {
+        case 'home':
+          navigate('/dashboard/home')
+          break
+        case 'settings':
+          toast({
+            title: "Success!",
+            description: "Password updated successfully"
+          })
+          navigate('/dashboard/settings')
+      }
     },
     onError(error) {
       console.error(error)
@@ -73,7 +91,7 @@ export default function ConfirmPassword() {
   });
 
   return (
-    <AuthLayout>
+    <AuthLayout twHeight={twHeight}>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Enter New Password</CardTitle>
@@ -130,7 +148,7 @@ export default function ConfirmPassword() {
                 )}
               </Button>
             </div>
-            <GoBackToLogin/>
+            {redirect==='home' && <GoBackToLogin/>}
           </form>
         </CardContent>
       </Card>

@@ -127,9 +127,6 @@ export default function Admin() {
   if (!isUserAdmin) return
   if (userRolesQuery.isPending) return <h1> Fetching the data...</h1>
 
-
-  console.log(userRolesQuery.data)
-
   return (
     <div className="flex flex-col gap-y-4">
       <h1 className="font-semibold text-2xl mb-4">

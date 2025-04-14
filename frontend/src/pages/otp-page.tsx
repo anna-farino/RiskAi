@@ -4,12 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useSearchParams } from "react-router-dom";
 
 
-export default function OtpPage() {
+type Props = {
+  twHeight?: 'h-full' | 'min-h-screen' 
+}
+export default function OtpPage({ twHeight='h-full' }: Props) {
   const [ params ] = useSearchParams()
   const pParam = params.get('p') as 'login' | 'pw'
 
   return (
-    <AuthLayout>
+    <AuthLayout twHeight={twHeight}>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">
