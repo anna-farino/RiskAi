@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { csfrHeader } from "@/utils/csrf-header";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 
 export function useAuthCheck() {
@@ -13,7 +13,7 @@ export function useAuthCheck() {
         const response = await fetch(serverUrl + '/api/auth/check', {
           credentials: 'include',
           headers: {
-            [csfrHeader().name]: csfrHeader().token
+            ...csfrHeaderObject()
           }
         });
 

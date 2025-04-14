@@ -8,6 +8,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { db } from './db/db';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import logTime from './middleware/log-time';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,7 @@ const corsOptions = {
   ],
 };
 
+app.use(logTime);
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());

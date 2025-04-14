@@ -479,7 +479,9 @@ export default function Keywords() {
                   className={cn(
                     "relative border border-slate-700/50 rounded-lg overflow-hidden",
                     "transition-all duration-200",
-                    isPending ? "border-orange-500/50 shadow-orange-500/10 shadow-md" : "hover:border-slate-500",
+                    isPending 
+                      ? "border-orange-500/50 shadow-orange-500/10 shadow-md" 
+                      : "hover:border-slate-500",
                     keyword.active ? "bg-primary/5" : "bg-white/5"
                   )}
                 >
@@ -541,9 +543,13 @@ export default function Keywords() {
                         size="icon"
                         disabled={isPending}
                         onClick={() => deleteKeyword.mutate(keyword.id)}
-                        className="h-8 w-8 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+                        className={cn(
+                          "h-fit w-fit",
+                          "rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10",
+                          "p-2"
+                        )}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-foreground" />
                       </Button>
                     </div>
                   </div>

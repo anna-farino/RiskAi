@@ -13,7 +13,11 @@ const baseURL = process.env.BASE_URL;
 
 console.log("base url", baseURL)
 
-export type FullRequest = Request & { user: User & { permissions?: string[] } };
+export type FullRequest = Request & { 
+  user: User 
+    & { permissions?: string[] } 
+    & { role? : string | undefined | null }
+};
 
 type Token = {
 	id: string,
@@ -66,10 +70,16 @@ export async function verifyToken(
 					res.status(401).end();
 					return;
 				}
-
 				(req as unknown as FullRequest).user = user[0];
-				const userPermissions = await getUserPermissions(user[0].id.toString());
-				(req as unknown as FullRequest).user.permissions = userPermissions
+
+        const userId = user[0].id.toString();
+
+        const userRole = await getUserRole(userId)
+				const userPermissions = await getUserPermissions(userId);
+
+				(req as unknown as FullRequest).user.permissions = userPermissions;
+				(req as unknown as FullRequest).user.role = userRole;
+
 				next();
 				return;
 			}
@@ -99,7 +109,7 @@ export async function verifyToken(
 		}
 
 		// If we reach here, both tokens expired or are invalid
-		console.log("❌ [AUTH] Both tokens expired/invalid, redirecting to login")
+		console.log("❌ [AUTH] Login tokens invalid, redirecting to login")
 		res.status(401).end();
 
 	} catch (error) {
@@ -107,6 +117,17 @@ export async function verifyToken(
 		// For any token verification errors, redirect to login
 		res.status(401).end();
 	}
+}
+
+async function getUserRole(userId: string) {
+  const userRole = await db
+    .select({ role: roles.name })
+    .from(rolesUsers)
+    .leftJoin(roles, eq(rolesUsers.roleId,roles.id))
+    .where(eq(rolesUsers.userId,userId))
+
+  if (userRole.length === 0) return undefined
+  else return userRole[0].role
 }
 
 async function getUserPermissions(userId: string) {

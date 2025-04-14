@@ -17,7 +17,7 @@ export async function handleAuthCheck(req: Request, res: Response) {
     .from(users)
     .where(eq(users.id, userId)) 
   
-  console.log("[👤 AUTH-CHECK] User found:", user.email)
+  console.log("[👤 AUTH-CHECK] User found:", user)
   
   res.status(200).json({ 
     authenticated: true,
@@ -25,6 +25,7 @@ export async function handleAuthCheck(req: Request, res: Response) {
       { 
         ...user, 
         permissions: (req as unknown as FullRequest).user.permissions,
+        role: (req as unknown as FullRequest).user.role,
         password: "hidden"
       }
     ]

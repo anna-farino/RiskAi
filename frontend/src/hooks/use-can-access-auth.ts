@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { csfrHeader } from "@/utils/csrf-header";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 import { useNavigate } from "react-router-dom";
 import { serverUrl } from "@/utils/server-url";
 import { useState } from "react";
@@ -16,7 +16,7 @@ export function useCanAccessAuth() {
         const response = await fetch(serverUrl + '/api/auth/check', {
           credentials: 'include',
           headers: {
-            [csfrHeader().name]: csfrHeader().token
+            ...csfrHeaderObject()
           }
         });
         if (!response.ok) {

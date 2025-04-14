@@ -2,10 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { FullRequest } from './index';
 
 type Permission =  
-    'software:edit' | 
-    'software:view' |
     'actions:view' |
-    'vces:view' |
     'permissions:edit' |
     'roles:edit' |
     'roles:view'

@@ -64,6 +64,14 @@ const router = createBrowserRouter([
         element: <Settings/>,
       },
       {
+        path: "settings/otp",
+        element: <OtpPage twHeight='h-full' />
+      },
+      {
+        path: "settings/new-password",
+        element: <ConfirmPassword twHeight='h-full' redirect='settings'/>
+      },
+      {
         path: "admin",
         element: <Admin/>,
       },

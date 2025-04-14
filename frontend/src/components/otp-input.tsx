@@ -31,7 +31,7 @@ const FormSchema = z.object({
 })
 
 type Props = {
-  pParam: 'login' | 'pw'
+  pParam: 'login' | 'pw' | 'npw'
 }
 export function InputOTPForm({ pParam }: Props) {
   const [ showLoader, setShowLoader ] = useState(false)
@@ -70,6 +70,9 @@ export function InputOTPForm({ pParam }: Props) {
           break
         case 'pw':
           navigate('/auth/new-password');
+          break
+        case 'npw':
+          navigate('/dashboard/settings/new-password');
           break
       }
     } catch(error) {
@@ -115,7 +118,7 @@ export function InputOTPForm({ pParam }: Props) {
           {showLoader && <Loader2 className="animate-spin"/>}
           {showLoader ? "Verifying..." : "Submit"}
         </Button>
-        <GoBackToLogin text="left"/>
+        {pParam !== 'npw' && <GoBackToLogin text="left"/>}
       </form>
     </Form>
   )

@@ -16,18 +16,23 @@ import { Link } from "react-router-dom"
 import { LogOut } from "lucide-react"
 import { useLogout } from "@/hooks/use-logout"
 import { cn } from "@/lib/utils"
-import { useQuery } from "@tanstack/react-query"
-import { serverUrl } from "@/utils/server-url"
+import { useState } from "react"
 
 
 type Props = {
   userData: UserWithPerm | undefined
 }
 export default function UserBadgeAndDropDown({ userData }: Props) {
+  const [ open, setOpen ] = useState(false)
   const { logout } = useLogout()
 
+  function handleLogout() {
+    setOpen(false)
+    logout()
+  }
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={(b)=>setOpen(b)}>
       <DropdownMenuTrigger className="bg-transparent w-fit p-0 h-fit rounded-full">
         <Avatar>
           <AvatarFallback className="text-foreground">
@@ -38,23 +43,37 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
       <DropdownMenuContent
         className="mr-4"
       >
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          My Account
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <Link to='/dashboard/settings'>
-              Settings
+          {userData?.role === 'admin' && 
+            <Link to='/dashboard/admin'
+              className={cn("flex flex-row cursor-pointer w-full h-full")}
+            >
+              <DropdownMenuItem className="flex flex-row w-full cursor-pointer">
+                Admin
+              </DropdownMenuItem>
             </Link>
-          </DropdownMenuItem>
+          }
+          <Link to='/dashboard/settings'
+            className={cn("flex flex-row cursor-pointer w-full h-full")}
+          >
+            <DropdownMenuItem className="flex flex-row w-full cursor-pointer">
+              Settings
+            </DropdownMenuItem>
+          </Link>
         <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={handleLogout}
+          >
             <div
               className={cn(
                 "flex flex-row w-full justify-start items-center",
                 "text-foreground bg-transparent",
                 "cursor-pointer"
               )}
-              onClick={logout}
             >
               <LogOut className="h-4 w-4" />
               {<span className="ml-2">Logout</span>}
