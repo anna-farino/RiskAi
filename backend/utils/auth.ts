@@ -80,7 +80,7 @@ export async function createAndStoreLoginTokens(res: Response, user: User) {
     });
     res.cookie('refreshToken', refreshToken, {
       ...cookieOptions,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 60 * 60 * 1000, // 1 hour 
     });
 }
 
