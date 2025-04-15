@@ -217,11 +217,16 @@ export class DatabaseStorage implements IStorage {
       const keywordConditions = keywordTerms.map((term) => {
         const condIdx = paramIndex++;
         
-        // Use a case-insensitive JSON search to ensure we catch variations
+        // Use multiple JSONB operators to ensure we find all matches
         return `(
-          detected_keywords ? $${condIdx} 
+          detected_keywords ? $${condIdx}::text
           OR 
           detected_keywords::text ILIKE '%' || $${condIdx} || '%'
+          OR
+          EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(detected_keywords) AS kw
+            WHERE LOWER(kw) LIKE LOWER('%' || $${condIdx} || '%')
+          )
         )`;
       });
       
