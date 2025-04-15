@@ -14,7 +14,7 @@ import {
   settings, 
 } from "@shared/db/schema/news-tracker/index";
 import { db } from "backend/db/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Sources
@@ -145,14 +145,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Articles
-  async getArticles(userId?: string): Promise<Article[]> {
-    if (userId) {
-      return await db.select()
-        .from(articles)
-        .where(eq(articles.userId, userId));
-    } else {
-      return await db.select().from(articles);
+  async getArticles(
+    userId?: string, 
+    filters?: { 
+      search?: string, 
+      keywordIds?: string[],
+      startDate?: Date,
+      endDate?: Date
     }
+  ): Promise<Article[]> {
+    // Build a raw SQL query to handle all conditions appropriately
+    let queryStr = `SELECT * FROM articles WHERE 1=1`;
+    const queryParams: any[] = [];
+    let paramCounter = 1;
+    
+    // Add user filter
+    if (userId) {
+      queryStr += ` AND user_id = $${paramCounter++}`;
+      queryParams.push(userId);
+    }
+    
+    // Apply search filter if provided (case insensitive search in title and content)
+    if (filters?.search && filters.search.trim()) {
+      const searchTerm = `%${filters.search.trim()}%`;
+      queryStr += ` AND (title ILIKE $${paramCounter++} OR content ILIKE $${paramCounter++})`;
+      queryParams.push(searchTerm, searchTerm);
+    }
+    
+    // Apply date range filter
+    if (filters?.startDate) {
+      queryStr += ` AND publish_date >= $${paramCounter++}`;
+      queryParams.push(filters.startDate);
+    }
+    
+    if (filters?.endDate) {
+      queryStr += ` AND publish_date <= $${paramCounter++}`;
+      queryParams.push(filters.endDate);
+    }
+    
+    // Apply keyword filter if provided
+    if (filters?.keywordIds && filters.keywordIds.length > 0) {
+      const keywordConditions = filters.keywordIds.map((_keywordId, index) => {
+        return `detected_keywords @> $${paramCounter + index}`;
+      });
+      
+      queryStr += ` AND (${keywordConditions.join(' OR ')})`;
+      
+      // Add each keyword as a parameter
+      filters.keywordIds.forEach(keywordId => {
+        queryParams.push(JSON.stringify([keywordId]));
+        paramCounter++;
+      });
+    }
+    
+    // Execute the raw query
+    const result = await db.execute(sql.raw(queryStr, ...queryParams));
+    
+    // Convert the raw rows to Article objects
+    return result.rows as Article[];
   }
 
   async getArticle(id: string): Promise<Article | undefined> {
