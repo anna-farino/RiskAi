@@ -73,7 +73,7 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5">
               {Array.isArray(article.detectedKeywords) &&
-                article.detectedKeywords.slice(0, 3).map((keyword) => (
+                article.detectedKeywords.slice(0, 3).map((keyword: string) => (
                   <Badge 
                     key={keyword} 
                     variant="outline"

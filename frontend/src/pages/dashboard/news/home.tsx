@@ -670,20 +670,20 @@ function FetchKeywords({
   const toggleKeyword = (keywordId: string) => {
     console.log('Toggling keyword:', keywordId);
     
-    // Use a callback function with setSelectedKeywordIds to ensure we're working with the latest state
-    setSelectedKeywordIds((prevIds: string[]) => {
-      if (prevIds.includes(keywordId)) {
-        console.log('Removing keyword from selection');
-        const newIds = prevIds.filter((id: string) => id !== keywordId);
-        console.log('New selection:', newIds);
-        return newIds;
-      } else {
-        console.log('Adding keyword to selection');
-        const newIds = [...prevIds, keywordId];
-        console.log('New selection:', newIds);
-        return newIds;
-      }
-    });
+    // Check if the keyword is already selected
+    if (selectedKeywordIds.includes(keywordId)) {
+      console.log('Removing keyword from selection');
+      // Remove the keyword
+      const newIds = selectedKeywordIds.filter(id => id !== keywordId);
+      setSelectedKeywordIds(newIds);
+      console.log('New selection:', newIds);
+    } else {
+      console.log('Adding keyword to selection');
+      // Add the keyword
+      const newIds = [...selectedKeywordIds, keywordId];
+      setSelectedKeywordIds(newIds);
+      console.log('New selection:', newIds);
+    }
     
     // Force an immediate invalidation of the query after state update
     setTimeout(() => {

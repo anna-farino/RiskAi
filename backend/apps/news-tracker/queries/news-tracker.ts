@@ -183,7 +183,11 @@ export class DatabaseStorage implements IStorage {
       const searchPattern = `%${search.trim()}%`;
       
       // We need to add the parameter twice since we're using it for both title and content
-      sqlQuery += ` AND (title ILIKE $${paramIndex} OR content ILIKE $${paramIndex+1})`;
+      sqlQuery += ` AND (
+        CASE WHEN title IS NOT NULL THEN title ILIKE $${paramIndex} ELSE false END
+        OR 
+        CASE WHEN content IS NOT NULL THEN content ILIKE $${paramIndex+1} ELSE false END
+      )`;
       params.push(searchPattern);
       params.push(searchPattern);
       paramIndex += 2;
@@ -212,8 +216,13 @@ export class DatabaseStorage implements IStorage {
       // Create conditions to check if each keyword term is in the detected_keywords array
       const keywordConditions = keywordTerms.map((term) => {
         const condIdx = paramIndex++;
-        // Use JSON array contains operator to check if the term is in the array
-        return `(detected_keywords)::text LIKE '%' || $${condIdx} || '%'`;
+        
+        // Use a case-insensitive JSON search to ensure we catch variations
+        return `(
+          detected_keywords ? $${condIdx} 
+          OR 
+          detected_keywords::text ILIKE '%' || $${condIdx} || '%'
+        )`;
       });
       
       if (keywordConditions.length > 0) {

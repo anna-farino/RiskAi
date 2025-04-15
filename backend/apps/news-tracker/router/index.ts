@@ -131,20 +131,35 @@ newsRouter.get("/articles", async (req, res) => {
   
   console.log('Parsed keywordIdArray:', keywordIdArray);
   
-  // Parse dates if provided
-  const parsedStartDate = startDate ? new Date(startDate) : undefined;
-  const parsedEndDate = endDate ? new Date(endDate) : undefined;
-  
-  // Get articles with filters
-  const articles = await storage.getArticlesWithFilters(
-    userId,
-    search,
-    keywordIdArray,
-    parsedStartDate,
-    parsedEndDate
-  );
-  
-  res.json(articles);
+  try {
+    // Parse dates if provided
+    const parsedStartDate = startDate ? new Date(startDate) : undefined;
+    const parsedEndDate = endDate ? new Date(endDate) : undefined;
+    
+    console.log('Getting articles with filters:', {
+      userId,
+      search,
+      keywordIdArray,
+      parsedStartDate,
+      parsedEndDate
+    });
+    
+    // Get articles with filters
+    const articles = await storage.getArticlesWithFilters(
+      userId,
+      search,
+      keywordIdArray,
+      parsedStartDate,
+      parsedEndDate
+    );
+    
+    console.log(`Found ${articles.length} articles matching the filters`);
+    
+    res.json(articles);
+  } catch (error) {
+    console.error('Error filtering articles:', error);
+    res.status(500).json({ error: 'Failed to filter articles', message: error instanceof Error ? error.message : String(error) });
+  }
 });
 
 newsRouter.delete("/articles/:id", async (req, res) => {
