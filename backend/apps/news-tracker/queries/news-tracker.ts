@@ -13,8 +13,8 @@ import {
   articles, 
   settings, 
 } from "@shared/db/schema/news-tracker/index";
-import { db } from "backend/db/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { db, pool } from "backend/db/db";
+import { eq, and, isNull, like, gte, lte, inArray, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Sources
@@ -160,6 +160,67 @@ export class DatabaseStorage implements IStorage {
     } else {
       return await db.select().from(articles);
     }
+  }
+
+  async getArticlesWithFilters(
+    userId: string,
+    search?: string,
+    keywordIds?: string[],
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Article[]> {
+    // Start with a base query
+    let sqlQuery = `
+      SELECT * FROM "articles"
+      WHERE "user_id" = $1
+    `;
+    
+    const params: any[] = [userId];
+    let paramIndex = 2;
+    
+    // Add search filter if provided
+    if (search && search.trim() !== '') {
+      const searchPattern = `%${search.trim()}%`;
+      sqlQuery += ` AND (title ILIKE $${paramIndex} OR content ILIKE $${paramIndex})`;
+      params.push(searchPattern);
+      paramIndex++;
+    }
+    
+    // Add keyword filter if provided
+    if (keywordIds && keywordIds.length > 0) {
+      // Create the condition for checking keywords
+      const keywordConditions = keywordIds.map(() => {
+        const condIdx = paramIndex++;
+        return `detected_keywords::text ILIKE $${condIdx}`;
+      });
+      
+      sqlQuery += ` AND detected_keywords IS NOT NULL AND (${keywordConditions.join(' OR ')})`;
+      
+      // Add the pattern parameters for each keyword
+      keywordIds.forEach(id => {
+        params.push(`%${id}%`);
+      });
+    }
+    
+    // Add date range filters
+    if (startDate) {
+      sqlQuery += ` AND publish_date >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      sqlQuery += ` AND publish_date <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+    
+    // Add ordering
+    sqlQuery += ` ORDER BY publish_date DESC NULLS LAST`;
+    
+    // Execute the raw query
+    const { rows } = await pool.query(sqlQuery, params);
+    return rows as Article[];
   }
 
   async getArticle(id: string): Promise<Article | undefined> {

@@ -40,22 +40,70 @@ export default function NewsHome() {
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
+  const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  
+  // Debounce search query to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  
+  // Build query parameters for API call
+  const buildQueryParams = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Add search query if provided
+    if (debouncedSearchQuery) {
+      params.append('search', debouncedSearchQuery);
+    }
+    
+    // Add keyword IDs if selected
+    if (selectedKeywordIds.length > 0) {
+      params.append('keywordIds', selectedKeywordIds.join(','));
+    }
+    
+    // Add date range if provided
+    if (startDate) {
+      params.append('startDate', startDate.toISOString());
+    }
+    
+    if (endDate) {
+      params.append('endDate', endDate.toISOString());
+    }
+    
+    return params.toString();
+  }, [debouncedSearchQuery, selectedKeywordIds, startDate, endDate]);
+  
+  // Fetch articles with filters
   const articles = useQuery<Article[]>({
-    queryKey: ["/api/news-tracker/articles"],
+    queryKey: ["/api/news-tracker/articles", debouncedSearchQuery, selectedKeywordIds, startDate, endDate],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+        const queryParams = buildQueryParams();
+        const url = `${serverUrl}/api/news-tracker/articles${queryParams ? `?${queryParams}` : ''}`;
+        
+        const response = await fetch(url, {
           method: "GET",
           credentials: "include",
           headers: {
             ...csfrHeaderObject(),
           },
         });
+        
         if (!response.ok) throw new Error('Failed to fetch articles');
         const data = await response.json();
         return data || [];
       } catch (error) {
-        console.error(error);
+        console.error('Error fetching articles:', error);
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
@@ -67,6 +115,14 @@ export default function NewsHome() {
       setLocalArticles(articles.data);
     }
   }, [articles.data]);
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSelectedKeywordIds([]);
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
