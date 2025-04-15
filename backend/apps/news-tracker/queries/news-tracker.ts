@@ -34,6 +34,13 @@ export interface IStorage {
 
   // Articles
   getArticles(userId?: string): Promise<Article[]>;
+  getArticlesWithFilters(
+    userId: string,
+    search?: string,
+    keywordIds?: string[],
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Article[]>;
   getArticle(id: string): Promise<Article | undefined>;
   getArticleByUrl(url: string): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;

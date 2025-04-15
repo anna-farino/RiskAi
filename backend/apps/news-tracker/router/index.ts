@@ -111,7 +111,29 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 // Articles
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
-  const articles = await storage.getArticles(userId);
+  
+  // Extract filter parameters from query
+  const search = req.query.search as string | undefined;
+  const keywordIds = req.query.keywordIds as string | undefined;
+  const startDate = req.query.startDate as string | undefined;
+  const endDate = req.query.endDate as string | undefined;
+  
+  // Parse array of keyword IDs if provided
+  const keywordIdArray = keywordIds ? keywordIds.split(',') : undefined;
+  
+  // Parse dates if provided
+  const parsedStartDate = startDate ? new Date(startDate) : undefined;
+  const parsedEndDate = endDate ? new Date(endDate) : undefined;
+  
+  // Get articles with filters
+  const articles = await storage.getArticlesWithFilters(
+    userId,
+    search,
+    keywordIdArray,
+    parsedStartDate,
+    parsedEndDate
+  );
+  
   res.json(articles);
 });
 
