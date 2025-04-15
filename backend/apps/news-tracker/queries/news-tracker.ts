@@ -261,7 +261,24 @@ export class DatabaseStorage implements IStorage {
     
     // Execute the raw query
     const { rows } = await pool.query(sqlQuery, params);
-    return rows as Article[];
+    
+    // Transform detected_keywords to detectedKeywords for consistency with frontend
+    const transformedRows = rows.map(row => {
+      const transformed = { ...row };
+      
+      // Check if detected_keywords exists and convert it to detectedKeywords
+      if (row.detected_keywords !== undefined) {
+        transformed.detectedKeywords = row.detected_keywords;
+        delete transformed.detected_keywords;
+      }
+      
+      return transformed;
+    });
+    
+    console.log('Transformed article rows, sample keywords:', 
+      transformedRows.length > 0 ? transformedRows[0].detectedKeywords : 'no articles');
+    
+    return transformedRows as unknown as Article[];
   }
 
   async getArticle(id: string): Promise<Article | undefined> {
