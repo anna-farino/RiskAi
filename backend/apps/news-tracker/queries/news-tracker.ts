@@ -13,8 +13,20 @@ import {
   articles, 
   settings, 
 } from "@shared/db/schema/news-tracker/index";
-import { db } from "backend/db/db";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { db, pool } from "backend/db/db";
+import { eq, and, isNull, sql, SQL } from "drizzle-orm";
+
+// Helper function to execute SQL with parameters
+async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
+  try {
+    // Direct execution with the pool instead of through drizzle
+    const result = await pool.query(sqlStr, params);
+    return result.rows as T[];
+  } catch (error) {
+    console.error("SQL execution error:", error);
+    return [];
+  }
+}
 
 export interface IStorage {
   // Sources
@@ -154,80 +166,78 @@ export class DatabaseStorage implements IStorage {
       endDate?: Date
     }
   ): Promise<Article[]> {
-    // Build a raw SQL query to handle all conditions appropriately
-    let queryStr = `SELECT * FROM articles WHERE 1=1`;
-    const queryParams: any[] = [];
-    let paramCounter = 1;
+    // Build SQL parts separately
+    let sqlParts = ["SELECT * FROM articles WHERE 1=1"];
+    const params: any[] = [];
+    let paramIndex = 1;
     
     // Add user filter
     if (userId) {
-      queryStr += ` AND user_id = $${paramCounter++}`;
-      queryParams.push(userId);
+      sqlParts.push(`AND user_id = $${paramIndex++}`);
+      params.push(userId);
     }
     
     // Apply search filter if provided (case insensitive search in title and content)
     if (filters?.search && filters.search.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
-      queryStr += ` AND (title ILIKE $${paramCounter++} OR content ILIKE $${paramCounter++})`;
-      queryParams.push(searchTerm, searchTerm);
+      sqlParts.push(`AND (title ILIKE $${paramIndex++} OR content ILIKE $${paramIndex++})`);
+      params.push(searchTerm, searchTerm);
     }
     
     // Apply date range filter
     if (filters?.startDate) {
-      queryStr += ` AND publish_date >= $${paramCounter++}`;
-      queryParams.push(filters.startDate);
+      sqlParts.push(`AND publish_date >= $${paramIndex++}`);
+      params.push(filters.startDate);
     }
     
     if (filters?.endDate) {
-      queryStr += ` AND publish_date <= $${paramCounter++}`;
-      queryParams.push(filters.endDate);
+      sqlParts.push(`AND publish_date <= $${paramIndex++}`);
+      params.push(filters.endDate);
     }
     
     // Apply keyword filter if provided
     if (filters?.keywordIds && filters.keywordIds.length > 0) {
-      const keywordConditions = filters.keywordIds.map((_keywordId, index) => {
-        return `detected_keywords @> $${paramCounter + index}`;
+      const keywordConditions = filters.keywordIds.map((_, i) => {
+        return `detected_keywords @> $${paramIndex + i}`;
       });
       
-      queryStr += ` AND (${keywordConditions.join(' OR ')})`;
+      sqlParts.push(`AND (${keywordConditions.join(' OR ')})`);
       
       // Add each keyword as a parameter
-      filters.keywordIds.forEach(keywordId => {
-        queryParams.push(JSON.stringify([keywordId]));
-        paramCounter++;
+      filters.keywordIds.forEach(id => {
+        params.push(JSON.stringify([id]));
+        paramIndex++;
       });
     }
     
-    // Execute the raw query
-    const result = await db.execute(sql.raw(queryStr, ...queryParams));
+    // Combine all SQL parts
+    const finalSql = sqlParts.join(' ');
     
-    // Convert the raw rows to Article objects
-    return result.rows as Article[];
+    // Use helper function to execute the query
+    return await executeRawSql<Article>(finalSql, params);
   }
 
   async getArticle(id: string): Promise<Article | undefined> {
-    const [article] = await db.select().from(articles).where(eq(articles.id, id));
-    return article;
+    // Use helper function to execute the query
+    const articles = await executeRawSql<Article>('SELECT * FROM articles WHERE id = $1 LIMIT 1', [id]);
+    return articles.length > 0 ? articles[0] : undefined;
   }
 
   async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
-    let query = db
-      .select()
-      .from(articles)
-      .where(eq(articles.url, url));
+    // Build query string
+    let sqlStr = "SELECT * FROM articles WHERE url = $1";
+    const params: any[] = [url];
     
     if (userId) {
-      query = db
-        .select()
-        .from(articles)
-        .where(and(
-          eq(articles.url, url),
-          eq(articles.userId, userId)
-        ))
+      sqlStr += " AND user_id = $2";
+      params.push(userId);
     }
     
-    const [article] = await query;
-    return article;
+    sqlStr += " LIMIT 1";
+    
+    // Use helper function to execute the query
+    const articles = await executeRawSql<Article>(sqlStr, params);
+    return articles.length > 0 ? articles[0] : undefined;
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
