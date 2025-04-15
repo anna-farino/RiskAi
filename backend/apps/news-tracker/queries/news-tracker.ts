@@ -13,8 +13,8 @@ import {
   articles, 
   settings, 
 } from "@shared/db/schema/news-tracker/index";
-import { db, pool } from "backend/db/db";
-import { eq, and, isNull, like, gte, lte, inArray, or, sql } from "drizzle-orm";
+import { db } from "backend/db/db";
+import { eq, and, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Sources
@@ -34,13 +34,6 @@ export interface IStorage {
 
   // Articles
   getArticles(userId?: string): Promise<Article[]>;
-  getArticlesWithFilters(
-    userId: string,
-    search?: string,
-    keywordIds?: string[],
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<Article[]>;
   getArticle(id: string): Promise<Article | undefined>;
   getArticleByUrl(url: string): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
@@ -162,176 +155,29 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getArticlesWithFilters(
-    userId: string,
-    search?: string,
-    keywordIds?: string[],
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<Article[]> {
-    // Start with a base query
-    let sqlQuery = `
-      SELECT * FROM "articles"
-      WHERE "user_id" = $1
-    `;
-    
-    const params: any[] = [userId];
-    let paramIndex = 2;
-    
-    // Add search filter if provided
-    if (search && search.trim() !== '') {
-      const searchPattern = `%${search.trim()}%`;
-      
-      // We need to add the parameter twice since we're using it for both title and content
-      sqlQuery += ` AND (
-        CASE WHEN title IS NOT NULL THEN title ILIKE $${paramIndex} ELSE false END
-        OR 
-        CASE WHEN content IS NOT NULL THEN content ILIKE $${paramIndex+1} ELSE false END
-      )`;
-      params.push(searchPattern);
-      params.push(searchPattern);
-      paramIndex += 2;
-      
-      console.log('SQL with search filter:', sqlQuery);
-      console.log('Search parameters:', params);
-    }
-    
-    // Add keyword filter if provided
-    if (keywordIds && keywordIds.length > 0) {
-      // First, get the terms for the selected keyword IDs
-      const keywordTermsQuery = `
-        SELECT term FROM keywords WHERE id IN (${keywordIds.map((_, i) => `$${paramIndex + i}`).join(',')})
-      `;
-      
-      // Add the parameters for the keyword ID query
-      const keywordParams = [...keywordIds];
-      
-      console.log('Fetching keyword terms for IDs:', keywordIds);
-      const { rows: keywordRows } = await pool.query(keywordTermsQuery, keywordParams);
-      const keywordTerms = keywordRows.map(row => row.term);
-      console.log('Found keyword terms:', keywordTerms);
-      
-      paramIndex += keywordIds.length;
-      
-      // Create conditions to check if each keyword term is in the detected_keywords array
-      const keywordConditions = keywordTerms.map((term) => {
-        const condIdx = paramIndex++;
-        
-        // Use multiple JSONB operators to ensure we find all matches
-        return `(
-          detected_keywords ? $${condIdx}::text
-          OR 
-          detected_keywords::text ILIKE '%' || $${condIdx} || '%'
-          OR
-          EXISTS (
-            SELECT 1 FROM jsonb_array_elements_text(detected_keywords) AS kw
-            WHERE LOWER(kw) LIKE LOWER('%' || $${condIdx} || '%')
-          )
-        )`;
-      });
-      
-      if (keywordConditions.length > 0) {
-        sqlQuery += ` AND detected_keywords IS NOT NULL AND (${keywordConditions.join(' OR ')})`;
-        
-        // Add the parameters for each keyword term
-        keywordTerms.forEach(term => {
-          params.push(term);
-        });
-        
-        console.log('SQL with keyword filter:', sqlQuery);
-        console.log('Parameters:', params);
-      }
-    }
-    
-    // Add date range filters
-    if (startDate) {
-      sqlQuery += ` AND publish_date >= $${paramIndex}`;
-      params.push(startDate);
-      paramIndex++;
-    }
-    
-    if (endDate) {
-      sqlQuery += ` AND publish_date <= $${paramIndex}`;
-      params.push(endDate);
-      paramIndex++;
-    }
-    
-    // Add ordering
-    sqlQuery += ` ORDER BY publish_date DESC NULLS LAST`;
-    
-    // Execute the raw query
-    const { rows } = await pool.query(sqlQuery, params);
-    
-    // Transform detected_keywords to detectedKeywords for consistency with frontend
-    const transformedRows = rows.map(row => {
-      const transformed = { ...row };
-      
-      // Check if detected_keywords exists and convert it to detectedKeywords
-      if (row.detected_keywords !== undefined) {
-        transformed.detectedKeywords = row.detected_keywords;
-        delete transformed.detected_keywords;
-      }
-      
-      return transformed;
-    });
-    
-    console.log('Transformed article rows, sample keywords:', 
-      transformedRows.length > 0 ? transformedRows[0].detectedKeywords : 'no articles');
-    
-    return transformedRows as unknown as Article[];
-  }
-
   async getArticle(id: string): Promise<Article | undefined> {
-    // Using raw query for consistency with getArticlesWithFilters
-    const sqlQuery = `
-      SELECT * FROM "articles"
-      WHERE "id" = $1
-    `;
-    
-    const { rows } = await pool.query(sqlQuery, [id]);
-    
-    if (rows.length === 0) {
-      return undefined;
-    }
-    
-    // Transform detected_keywords to detectedKeywords for consistency with frontend
-    const article = rows[0];
-    if (article.detected_keywords !== undefined) {
-      article.detectedKeywords = article.detected_keywords;
-      delete article.detected_keywords;
-    }
-    
-    return article as unknown as Article;
+    const [article] = await db.select().from(articles).where(eq(articles.id, id));
+    return article;
   }
 
   async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
-    // Using raw query for consistency with getArticlesWithFilters
-    let sqlQuery = `
-      SELECT * FROM "articles"
-      WHERE "url" = $1
-    `;
-    
-    const params: any[] = [url];
+    let query = db
+      .select()
+      .from(articles)
+      .where(eq(articles.url, url));
     
     if (userId) {
-      sqlQuery += ` AND "user_id" = $2`;
-      params.push(userId);
+      query = db
+        .select()
+        .from(articles)
+        .where(and(
+          eq(articles.url, url),
+          eq(articles.userId, userId)
+        ))
     }
     
-    const { rows } = await pool.query(sqlQuery, params);
-    
-    if (rows.length === 0) {
-      return undefined;
-    }
-    
-    // Transform detected_keywords to detectedKeywords for consistency with frontend
-    const article = rows[0];
-    if (article.detected_keywords !== undefined) {
-      article.detectedKeywords = article.detected_keywords;
-      delete article.detected_keywords;
-    }
-    
-    return article as unknown as Article;
+    const [article] = await query;
+    return article;
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {

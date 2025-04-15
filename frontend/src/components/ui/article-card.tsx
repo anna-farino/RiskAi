@@ -72,73 +72,20 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
           
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5">
-              {/* Try to get keywords from both camelCase and snake_case properties */}
-              {(() => {
-                // Access potential keyword arrays - try both naming conventions
-                let keywordsArray = article.detectedKeywords || (article as any).detected_keywords;
-                
-                // If keywordsArray is a string (which can happen with JSONB data), try to parse it
-                if (typeof keywordsArray === 'string') {
-                  try {
-                    keywordsArray = JSON.parse(keywordsArray);
-                  } catch (e) {
-                    console.log('Failed to parse keywords string:', keywordsArray);
-                  }
-                }
-                
-                if (Array.isArray(keywordsArray) && keywordsArray.length > 0) {
-                  return (
-                    <>
-                      {keywordsArray.slice(0, 3).map((keyword: any, index: number) => {
-                        // Handle different keyword formats that could come from the API
-                        let keywordText;
-                        
-                        if (typeof keyword === 'string') {
-                          // Direct string
-                          keywordText = keyword;
-                        } else if (keyword?.term) {
-                          // Object with term property
-                          keywordText = keyword.term;
-                        } else if (typeof keyword === 'object') {
-                          // Try to extract from potential string representations
-                          // Handle case where it might be a stringified array with one element
-                          try {
-                            if (Array.isArray(keyword)) {
-                              keywordText = keyword[0];
-                            } else {
-                              keywordText = JSON.stringify(keyword);
-                            }
-                          } catch (e) {
-                            keywordText = String(keyword);
-                          }
-                        } else {
-                          // Fallback for any other type
-                          keywordText = String(keyword);
-                        }
-                        
-                        // Clean up the keyword text (remove quotes if it was stringified)
-                        keywordText = keywordText.replace(/^["'](.*)["']$/, '$1');
-                        
-                        return (
-                          <Badge 
-                            key={index} 
-                            variant="outline"
-                            className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700"
-                          >
-                            {keywordText}
-                          </Badge>
-                        );
-                      })}
-                      
-                      {keywordsArray.length > 3 && (
-                        <span className="text-xs text-slate-500">+{keywordsArray.length - 3} more</span>
-                      )}
-                    </>
-                  );
-                } else {
-                  return null;
-                }
-              })()}
+              {Array.isArray(article.detectedKeywords) &&
+                article.detectedKeywords.slice(0, 3).map((keyword) => (
+                  <Badge 
+                    key={keyword} 
+                    variant="outline"
+                    className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700"
+                  >
+                    {keyword}
+                  </Badge>
+                ))}
+              
+              {Array.isArray(article.detectedKeywords) && article.detectedKeywords.length > 3 && (
+                <span className="text-xs text-slate-500">+{article.detectedKeywords.length - 3} more</span>
+              )}
             </div>
             
             <DeleteAlertDialog

@@ -111,64 +111,8 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 // Articles
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
-  
-  // Extract filter parameters from query
-  const search = req.query.search as string | undefined;
-  const keywordIds = req.query.keywordIds as string | undefined;
-  const startDate = req.query.startDate as string | undefined;
-  const endDate = req.query.endDate as string | undefined;
-  
-  // Log the incoming query parameters
-  console.log('Article filter - Query parameters:', {
-    search,
-    keywordIds,
-    startDate,
-    endDate
-  });
-  
-  // Parse array of keyword IDs if provided
-  const keywordIdArray = keywordIds ? keywordIds.split(',') : undefined;
-  
-  console.log('Parsed keywordIdArray:', keywordIdArray);
-  
-  try {
-    // Parse dates if provided
-    const parsedStartDate = startDate ? new Date(startDate) : undefined;
-    const parsedEndDate = endDate ? new Date(endDate) : undefined;
-    
-    console.log('Getting articles with filters:', {
-      userId,
-      search,
-      keywordIdArray,
-      parsedStartDate,
-      parsedEndDate
-    });
-    
-    // Get articles with filters
-    const articles = await storage.getArticlesWithFilters(
-      userId,
-      search,
-      keywordIdArray,
-      parsedStartDate,
-      parsedEndDate
-    );
-    
-    console.log(`Found ${articles.length} articles matching the filters`);
-    
-    // Log sample article data to debug
-    if (articles.length > 0) {
-      console.log('Sample article data (first article):', {
-        id: articles[0].id,
-        title: articles[0].title?.substring(0, 30) + '...',
-        detectedKeywords: articles[0].detectedKeywords
-      });
-    }
-    
-    res.json(articles);
-  } catch (error) {
-    console.error('Error filtering articles:', error);
-    res.status(500).json({ error: 'Failed to filter articles', message: error instanceof Error ? error.message : String(error) });
-  }
+  const articles = await storage.getArticles(userId);
+  res.json(articles);
 });
 
 newsRouter.delete("/articles/:id", async (req, res) => {
