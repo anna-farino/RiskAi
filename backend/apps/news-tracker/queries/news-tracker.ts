@@ -181,25 +181,36 @@ export class DatabaseStorage implements IStorage {
     // Add search filter if provided
     if (search && search.trim() !== '') {
       const searchPattern = `%${search.trim()}%`;
-      sqlQuery += ` AND (title ILIKE $${paramIndex} OR content ILIKE $${paramIndex})`;
+      
+      // We need to add the parameter twice since we're using it for both title and content
+      sqlQuery += ` AND (title ILIKE $${paramIndex} OR content ILIKE $${paramIndex+1})`;
       params.push(searchPattern);
-      paramIndex++;
+      params.push(searchPattern);
+      paramIndex += 2;
+      
+      console.log('SQL with search filter:', sqlQuery);
+      console.log('Search parameters:', params);
     }
     
     // Add keyword filter if provided
     if (keywordIds && keywordIds.length > 0) {
-      // Create the condition for checking keywords
-      const keywordConditions = keywordIds.map(() => {
+      // Create conditions to check if each keyword ID is in the detected_keywords
+      const keywordConditions = keywordIds.map((id) => {
         const condIdx = paramIndex++;
-        return `detected_keywords::text ILIKE $${condIdx}`;
+        // Check if the keyword ID is in the detected_keywords
+        // This handles both array format and JSON object format
+        return `(detected_keywords)::text LIKE '%' || $${condIdx} || '%'`;
       });
       
       sqlQuery += ` AND detected_keywords IS NOT NULL AND (${keywordConditions.join(' OR ')})`;
       
-      // Add the pattern parameters for each keyword
+      // Add the parameters for each keyword
       keywordIds.forEach(id => {
-        params.push(`%${id}%`);
+        params.push(id);
       });
+      
+      console.log('SQL with keyword filter:', sqlQuery);
+      console.log('Parameters:', params);
     }
     
     // Add date range filters

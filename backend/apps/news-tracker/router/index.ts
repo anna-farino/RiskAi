@@ -118,8 +118,18 @@ newsRouter.get("/articles", async (req, res) => {
   const startDate = req.query.startDate as string | undefined;
   const endDate = req.query.endDate as string | undefined;
   
+  // Log the incoming query parameters
+  console.log('Article filter - Query parameters:', {
+    search,
+    keywordIds,
+    startDate,
+    endDate
+  });
+  
   // Parse array of keyword IDs if provided
   const keywordIdArray = keywordIds ? keywordIds.split(',') : undefined;
+  
+  console.log('Parsed keywordIdArray:', keywordIdArray);
   
   // Parse dates if provided
   const parsedStartDate = startDate ? new Date(startDate) : undefined;

@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   X,
   Calendar,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,8 @@ export default function NewsHome() {
       try {
         const queryParams = buildQueryParams();
         const url = `${serverUrl}/api/news-tracker/articles${queryParams ? `?${queryParams}` : ''}`;
+        
+        console.log('Fetching articles with URL:', url);
         
         const response = await fetch(url, {
           method: "GET",
@@ -407,9 +410,17 @@ export default function NewsHome() {
               
               {showFilters && (
                 <div className="absolute right-0 top-12 z-10 w-full max-w-md bg-slate-900 border border-slate-700/50 rounded-lg shadow-lg p-4">
-                  <div className="mb-3">
-                    <h3 className="text-lg font-semibold text-white">Filter Articles</h3>
-                    <p className="text-sm text-slate-400">Filter articles by keywords and date range</p>
+                  <div className="mb-3 flex justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Filter Articles</h3>
+                      <p className="text-sm text-slate-400">Filter articles by keywords and date range</p>
+                    </div>
+                    <button 
+                      onClick={() => setShowFilters(false)}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                   </div>
                   
                   <div className="flex flex-col gap-4 my-4">
@@ -462,9 +473,16 @@ export default function NewsHome() {
                     </div>
                   </div>
                   
-                  <div className="flex justify-end space-x-2 mt-4">
-                    <Button variant="ghost" onClick={resetFilters}>Reset</Button>
-                    <Button variant="outline" onClick={() => setShowFilters(false)}>Cancel</Button>
+                  <div className="flex justify-end space-x-2 mt-4 pt-3 border-t border-slate-700/50">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => {
+                        resetFilters();
+                        setShowFilters(false);
+                      }}
+                    >
+                      Reset All
+                    </Button>
                     <Button onClick={() => setShowFilters(false)}>Apply Filters</Button>
                   </div>
                 </div>
@@ -529,18 +547,34 @@ export default function NewsHome() {
               <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                 <Newspaper className="h-8 w-8 text-slate-400" />
               </div>
-              <h3 className="text-xl font-medium text-white mb-2">
-                No articles yet
-              </h3>
-              <p className="text-slate-400 max-w-md mb-6">
-                Add sources and start scraping to populate your news feed with
-                the latest articles.
-              </p>
-              <Button asChild>
-                <Link to="/dashboard/news/sources">
-                  Get Started with Sources
-                </Link>
-              </Button>
+              
+              {debouncedSearchQuery || selectedKeywordIds.length > 0 || startDate || endDate ? (
+                <>
+                  <h3 className="text-xl font-medium text-white mb-2">
+                    No matching articles
+                  </h3>
+                  <p className="text-slate-400 max-w-md mb-6">
+                    No articles match your current filters. Try adjusting your search criteria or 
+                    reset the filters to see all articles.
+                  </p>
+                  <Button onClick={resetFilters}>Reset Filters</Button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-xl font-medium text-white mb-2">
+                    No articles yet
+                  </h3>
+                  <p className="text-slate-400 max-w-md mb-6">
+                    Add sources and start scraping to populate your news feed with
+                    the latest articles.
+                  </p>
+                  <Button asChild>
+                    <Link to="/dashboard/news/sources">
+                      Get Started with Sources
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -600,11 +634,20 @@ function FetchKeywords({
   
   // Toggle keyword selection
   const toggleKeyword = (keywordId: string) => {
+    console.log('Toggling keyword:', keywordId);
+    
     if (selectedKeywordIds.includes(keywordId)) {
+      console.log('Removing keyword from selection');
       setSelectedKeywordIds(selectedKeywordIds.filter(id => id !== keywordId));
     } else {
+      console.log('Adding keyword to selection');
       setSelectedKeywordIds([...selectedKeywordIds, keywordId]);
     }
+
+    // Log the updated selection after state update in next render cycle  
+    setTimeout(() => {
+      console.log('Current keyword selection:', selectedKeywordIds);
+    }, 0);
   };
   
   return (
@@ -647,6 +690,7 @@ function FetchKeywords({
                 )}
                 onClick={() => toggleKeyword(keyword.id)}
               >
+                <Tag className="h-3.5 w-3.5 mr-1 text-slate-400" />
                 <div className="text-sm">{keyword.term}</div>
                 <div className="ml-auto">
                   {selectedKeywordIds.includes(keyword.id) && "✓"}
