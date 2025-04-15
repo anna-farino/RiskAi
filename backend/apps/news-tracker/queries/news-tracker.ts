@@ -194,23 +194,39 @@ export class DatabaseStorage implements IStorage {
     
     // Add keyword filter if provided
     if (keywordIds && keywordIds.length > 0) {
-      // Create conditions to check if each keyword ID is in the detected_keywords
-      const keywordConditions = keywordIds.map((id) => {
+      // First, get the terms for the selected keyword IDs
+      const keywordTermsQuery = `
+        SELECT term FROM keywords WHERE id IN (${keywordIds.map((_, i) => `$${paramIndex + i}`).join(',')})
+      `;
+      
+      // Add the parameters for the keyword ID query
+      const keywordParams = [...keywordIds];
+      
+      console.log('Fetching keyword terms for IDs:', keywordIds);
+      const { rows: keywordRows } = await pool.query(keywordTermsQuery, keywordParams);
+      const keywordTerms = keywordRows.map(row => row.term);
+      console.log('Found keyword terms:', keywordTerms);
+      
+      paramIndex += keywordIds.length;
+      
+      // Create conditions to check if each keyword term is in the detected_keywords array
+      const keywordConditions = keywordTerms.map((term) => {
         const condIdx = paramIndex++;
-        // Check if the keyword ID is in the detected_keywords
-        // This handles both array format and JSON object format
+        // Use JSON array contains operator to check if the term is in the array
         return `(detected_keywords)::text LIKE '%' || $${condIdx} || '%'`;
       });
       
-      sqlQuery += ` AND detected_keywords IS NOT NULL AND (${keywordConditions.join(' OR ')})`;
-      
-      // Add the parameters for each keyword
-      keywordIds.forEach(id => {
-        params.push(id);
-      });
-      
-      console.log('SQL with keyword filter:', sqlQuery);
-      console.log('Parameters:', params);
+      if (keywordConditions.length > 0) {
+        sqlQuery += ` AND detected_keywords IS NOT NULL AND (${keywordConditions.join(' OR ')})`;
+        
+        // Add the parameters for each keyword term
+        keywordTerms.forEach(term => {
+          params.push(term);
+        });
+        
+        console.log('SQL with keyword filter:', sqlQuery);
+        console.log('Parameters:', params);
+      }
     }
     
     // Add date range filters

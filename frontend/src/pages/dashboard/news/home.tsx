@@ -671,10 +671,10 @@ function FetchKeywords({
     console.log('Toggling keyword:', keywordId);
     
     // Use a callback function with setSelectedKeywordIds to ensure we're working with the latest state
-    setSelectedKeywordIds(prevIds => {
+    setSelectedKeywordIds((prevIds: string[]) => {
       if (prevIds.includes(keywordId)) {
         console.log('Removing keyword from selection');
-        const newIds = prevIds.filter(id => id !== keywordId);
+        const newIds = prevIds.filter((id: string) => id !== keywordId);
         console.log('New selection:', newIds);
         return newIds;
       } else {

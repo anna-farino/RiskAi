@@ -1,6 +1,7 @@
 
 { pkgs }: {
   deps = [
+    pkgs.postgresql
     pkgs.libxkbcommon
     pkgs.glib
     pkgs.lsof
