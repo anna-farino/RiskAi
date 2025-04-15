@@ -282,28 +282,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getArticle(id: string): Promise<Article | undefined> {
-    const [article] = await db.select().from(articles).where(eq(articles.id, id));
-    return article;
+    // Using raw query for consistency with getArticlesWithFilters
+    const sqlQuery = `
+      SELECT * FROM "articles"
+      WHERE "id" = $1
+    `;
+    
+    const { rows } = await pool.query(sqlQuery, [id]);
+    
+    if (rows.length === 0) {
+      return undefined;
+    }
+    
+    // Transform detected_keywords to detectedKeywords for consistency with frontend
+    const article = rows[0];
+    if (article.detected_keywords !== undefined) {
+      article.detectedKeywords = article.detected_keywords;
+      delete article.detected_keywords;
+    }
+    
+    return article as unknown as Article;
   }
 
   async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
-    let query = db
-      .select()
-      .from(articles)
-      .where(eq(articles.url, url));
+    // Using raw query for consistency with getArticlesWithFilters
+    let sqlQuery = `
+      SELECT * FROM "articles"
+      WHERE "url" = $1
+    `;
+    
+    const params: any[] = [url];
     
     if (userId) {
-      query = db
-        .select()
-        .from(articles)
-        .where(and(
-          eq(articles.url, url),
-          eq(articles.userId, userId)
-        ))
+      sqlQuery += ` AND "user_id" = $2`;
+      params.push(userId);
     }
     
-    const [article] = await query;
-    return article;
+    const { rows } = await pool.query(sqlQuery, params);
+    
+    if (rows.length === 0) {
+      return undefined;
+    }
+    
+    // Transform detected_keywords to detectedKeywords for consistency with frontend
+    const article = rows[0];
+    if (article.detected_keywords !== undefined) {
+      article.detectedKeywords = article.detected_keywords;
+      delete article.detected_keywords;
+    }
+    
+    return article as unknown as Article;
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
