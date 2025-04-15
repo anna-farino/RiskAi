@@ -120,12 +120,15 @@ export default function NewsHome() {
         const data = await response.json();
         console.log('Received filtered articles:', data.length);
         
-        // Log the first article to check if detectedKeywords is present
+        // Log the first article to check all available properties
         if (data && data.length > 0) {
+          const firstArticle = data[0];
           console.log('Sample article data:', {
-            id: data[0].id,
-            title: data[0].title.substring(0, 30) + '...',
-            detectedKeywords: data[0].detectedKeywords
+            id: firstArticle.id,
+            title: firstArticle.title.substring(0, 30) + '...',
+            detectedKeywords: firstArticle.detectedKeywords,
+            detected_keywords: (firstArticle as any).detected_keywords,
+            rawArticleKeys: Object.keys(firstArticle)
           });
         }
         
