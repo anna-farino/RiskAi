@@ -88,13 +88,25 @@ export default function NewsHome() {
   
   // Fetch articles with filters
   const articles = useQuery<Article[]>({
-    queryKey: ["/api/news-tracker/articles", debouncedSearchQuery, selectedKeywordIds, startDate, endDate],
+    queryKey: [
+      "/api/news-tracker/articles", 
+      debouncedSearchQuery, 
+      selectedKeywordIds.join(','), // Convert array to string to ensure proper dependency tracking
+      startDate?.toISOString(), 
+      endDate?.toISOString()
+    ],
     queryFn: async () => {
       try {
         const queryParams = buildQueryParams();
         const url = `${serverUrl}/api/news-tracker/articles${queryParams ? `?${queryParams}` : ''}`;
         
         console.log('Fetching articles with URL:', url);
+        console.log('Filter parameters:', {
+          search: debouncedSearchQuery,
+          keywordIds: selectedKeywordIds,
+          startDate,
+          endDate
+        });
         
         const response = await fetch(url, {
           method: "GET",
@@ -106,12 +118,14 @@ export default function NewsHome() {
         
         if (!response.ok) throw new Error('Failed to fetch articles');
         const data = await response.json();
+        console.log('Received filtered articles:', data.length);
         return data || [];
       } catch (error) {
         console.error('Error fetching articles:', error);
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
+    refetchOnWindowFocus: false, // Prevent unnecessary refetching when window regains focus
   });
   
   // Sync local state with query data when it changes
@@ -479,11 +493,25 @@ export default function NewsHome() {
                       onClick={() => {
                         resetFilters();
                         setShowFilters(false);
+                        // Force a refetch with the reset filters
+                        queryClient.invalidateQueries({ 
+                          queryKey: ["/api/news-tracker/articles"] 
+                        });
                       }}
                     >
                       Reset All
                     </Button>
-                    <Button onClick={() => setShowFilters(false)}>Apply Filters</Button>
+                    <Button 
+                      onClick={() => {
+                        setShowFilters(false);
+                        // Force a refetch to ensure changes are applied
+                        queryClient.invalidateQueries({ 
+                          queryKey: ["/api/news-tracker/articles"] 
+                        });
+                      }}
+                    >
+                      Apply Filters
+                    </Button>
                   </div>
                 </div>
               )}
@@ -557,7 +585,13 @@ export default function NewsHome() {
                     No articles match your current filters. Try adjusting your search criteria or 
                     reset the filters to see all articles.
                   </p>
-                  <Button onClick={resetFilters}>Reset Filters</Button>
+                  <Button onClick={() => {
+                    resetFilters();
+                    // Force a refetch with the reset filters
+                    queryClient.invalidateQueries({ 
+                      queryKey: ["/api/news-tracker/articles"] 
+                    });
+                  }}>Reset Filters</Button>
                 </>
               ) : (
                 <>
@@ -636,18 +670,25 @@ function FetchKeywords({
   const toggleKeyword = (keywordId: string) => {
     console.log('Toggling keyword:', keywordId);
     
-    if (selectedKeywordIds.includes(keywordId)) {
-      console.log('Removing keyword from selection');
-      setSelectedKeywordIds(selectedKeywordIds.filter(id => id !== keywordId));
-    } else {
-      console.log('Adding keyword to selection');
-      setSelectedKeywordIds([...selectedKeywordIds, keywordId]);
-    }
-
-    // Log the updated selection after state update in next render cycle  
+    // Use a callback function with setSelectedKeywordIds to ensure we're working with the latest state
+    setSelectedKeywordIds(prevIds => {
+      if (prevIds.includes(keywordId)) {
+        console.log('Removing keyword from selection');
+        const newIds = prevIds.filter(id => id !== keywordId);
+        console.log('New selection:', newIds);
+        return newIds;
+      } else {
+        console.log('Adding keyword to selection');
+        const newIds = [...prevIds, keywordId];
+        console.log('New selection:', newIds);
+        return newIds;
+      }
+    });
+    
+    // Force an immediate invalidation of the query after state update
     setTimeout(() => {
-      console.log('Current keyword selection:', selectedKeywordIds);
-    }, 0);
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
+    }, 100);
   };
   
   return (
