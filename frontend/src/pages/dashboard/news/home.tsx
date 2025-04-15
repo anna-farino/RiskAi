@@ -119,6 +119,16 @@ export default function NewsHome() {
         if (!response.ok) throw new Error('Failed to fetch articles');
         const data = await response.json();
         console.log('Received filtered articles:', data.length);
+        
+        // Log the first article to check if detectedKeywords is present
+        if (data && data.length > 0) {
+          console.log('Sample article data:', {
+            id: data[0].id,
+            title: data[0].title.substring(0, 30) + '...',
+            detectedKeywords: data[0].detectedKeywords
+          });
+        }
+        
         return data || [];
       } catch (error) {
         console.error('Error fetching articles:', error);

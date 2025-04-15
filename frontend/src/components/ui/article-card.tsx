@@ -72,16 +72,24 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
           
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5">
+              {/* First, console log the article to debug */}
+              {console.log('Article detectedKeywords in ArticleCard:', article.detectedKeywords)}
+              
               {Array.isArray(article.detectedKeywords) &&
-                article.detectedKeywords.slice(0, 3).map((keyword: string) => (
-                  <Badge 
-                    key={keyword} 
-                    variant="outline"
-                    className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700"
-                  >
-                    {keyword}
-                  </Badge>
-                ))}
+                article.detectedKeywords.slice(0, 3).map((keyword: any, index: number) => {
+                  // Handle both string arrays and object arrays (with term property)
+                  const keywordText = typeof keyword === 'string' ? keyword : keyword?.term || JSON.stringify(keyword);
+                  
+                  return (
+                    <Badge 
+                      key={index} 
+                      variant="outline"
+                      className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700"
+                    >
+                      {keywordText}
+                    </Badge>
+                  );
+                })}
               
               {Array.isArray(article.detectedKeywords) && article.detectedKeywords.length > 3 && (
                 <span className="text-xs text-slate-500">+{article.detectedKeywords.length - 3} more</span>

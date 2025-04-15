@@ -155,6 +155,15 @@ newsRouter.get("/articles", async (req, res) => {
     
     console.log(`Found ${articles.length} articles matching the filters`);
     
+    // Log sample article data to debug
+    if (articles.length > 0) {
+      console.log('Sample article data (first article):', {
+        id: articles[0].id,
+        title: articles[0].title?.substring(0, 30) + '...',
+        detectedKeywords: articles[0].detectedKeywords
+      });
+    }
+    
     res.json(articles);
   } catch (error) {
     console.error('Error filtering articles:', error);
