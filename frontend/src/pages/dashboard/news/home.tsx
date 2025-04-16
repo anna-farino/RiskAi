@@ -4,7 +4,7 @@ import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
-import type { Article } from "@shared/db/schema/news-tracker/index";
+import type { Article, Keyword } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
 import {
   Loader2,
@@ -14,9 +14,11 @@ import {
   ArrowRight,
   Trash2,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,31 +37,139 @@ import { Link } from "react-router-dom";
 export default function NewsHome() {
   const { toast } = useToast();
   
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{
+    startDate?: Date;
+    endDate?: Date;
+  }>({});
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   
-  const articles = useQuery<Article[]>({
-    queryKey: ["/api/news-tracker/articles"],
+  // Fetch keywords for filter dropdown
+  const keywords = useQuery<Keyword[]>({
+    queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
           method: "GET",
           credentials: "include",
           headers: {
             ...csfrHeaderObject(),
           },
         });
-        if (!response.ok) throw new Error('Failed to fetch articles');
+        if (!response.ok) throw new Error('Failed to fetch keywords');
         const data = await response.json();
         return data || [];
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching keywords:", error);
+        return [];
+      }
+    },
+  });
+  
+  // Build query string for filtering
+  const buildQueryString = () => {
+    const params = new URLSearchParams();
+    
+    if (searchTerm) {
+      params.append("search", searchTerm);
+    }
+    
+    if (selectedKeywordIds.length > 0) {
+      selectedKeywordIds.forEach(id => {
+        params.append("keywordIds", id);
+      });
+    }
+    
+    if (dateRange.startDate) {
+      params.append("startDate", dateRange.startDate.toISOString());
+    }
+    
+    if (dateRange.endDate) {
+      params.append("endDate", dateRange.endDate.toISOString());
+    }
+    
+    return params.toString();
+  };
+  
+  // Articles query with filtering
+  const articles = useQuery<Article[]>({
+    queryKey: ["/api/news-tracker/articles", searchTerm, selectedKeywordIds, dateRange],
+    queryFn: async () => {
+      try {
+        const queryString = buildQueryString();
+        const url = `${serverUrl}/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
+        
+        console.log("Fetching articles with URL:", url);
+        console.log("Filter parameters:", {
+          search: searchTerm,
+          keywordIds: selectedKeywordIds,
+          ...dateRange
+        });
+        
+        const response = await fetch(url, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            ...csfrHeaderObject(),
+          },
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch articles');
+        const data = await response.json();
+        console.log("Received filtered articles:", data.length);
+        if (data.length > 0) {
+          console.log("Sample article data:", {
+            id: data[0].id,
+            title: data[0].title.substring(0, 30) + "...",
+            detected_keywords: data[0].detectedKeywords,
+            rawArticleKeys: Object.keys(data[0])
+          });
+        }
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching articles:", error);
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
   });
+  
+  // Toggle keyword selection for filtering
+  const toggleKeywordSelection = (keywordId: string) => {
+    setSelectedKeywordIds(prev => {
+      if (prev.includes(keywordId)) {
+        console.log("Removing keyword from selection");
+        return prev.filter(id => id !== keywordId);
+      } else {
+        console.log("Adding keyword to selection");
+        return [...prev, keywordId];
+      }
+    });
+  };
+  
+  // Handle search input changes with debounce
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  // Set date range
+  const handleDateRangeChange = (range: {startDate?: Date; endDate?: Date}) => {
+    setDateRange(range);
+  };
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedKeywordIds([]);
+    setDateRange({});
+    setIsFilterOpen(false);
+  };
   
   // Sync local state with query data when it changes
   useEffect(() => {
@@ -308,18 +418,132 @@ export default function NewsHome() {
               </span>
             </div>
             <div className="flex items-center gap-2 w-[100%] justify-end">
-              <Input
-                placeholder="Search articles..."
-                className="h-9 w-[200px] lg:w-[250px] bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-slate-600 hover:bg-white/10 text-white"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
+              <div className="relative">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search articles..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="h-9 w-[200px] lg:w-[250px] pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
+                />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-white/10"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <X className="h-3 w-3 text-slate-400" />
+                  </Button>
+                )}
+              </div>
+              
+              <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "border-slate-600 hover:bg-white/10 text-white",
+                      (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
+                      "bg-primary/20 border-primary/50 text-primary"
+                    )}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
+                    {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
+                      <Badge variant="secondary" className="ml-2 bg-primary/30 text-primary text-xs">
+                        {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
+                      </Badge>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-background border-slate-700/50 text-white">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white">Filter Articles</AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-400">
+                      Filter articles by keywords and date range
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  
+                  <div className="py-4 space-y-4">
+                    {/* Keywords section */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-white">Keywords</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {keywords.data && keywords.data.length > 0 ? (
+                          keywords.data.map((keyword: Keyword) => (
+                            <Badge 
+                              key={keyword.id}
+                              variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
+                              className={cn(
+                                "cursor-pointer hover:bg-white/10",
+                                selectedKeywordIds.includes(keyword.id) ? 
+                                "bg-primary text-primary-foreground hover:bg-primary/80" : 
+                                "bg-transparent text-slate-300 border-slate-600"
+                              )}
+                              onClick={() => toggleKeywordSelection(keyword.id)}
+                            >
+                              {keyword.term}
+                              {selectedKeywordIds.includes(keyword.id) && (
+                                <X className="h-3 w-3 ml-1" />
+                              )}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400">
+                            No keywords found. <Link to="/dashboard/news/keywords" className="text-primary">Add some keywords</Link> to enable filtering.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Date range section */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-white">Date Range</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-400">Start Date</label>
+                          <Input 
+                            type="date"
+                            value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : undefined;
+                              handleDateRangeChange({...dateRange, startDate: date});
+                            }}
+                            className="bg-white/5 border-slate-700/50 text-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-400">End Date</label>
+                          <Input 
+                            type="date"
+                            value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : undefined;
+                              handleDateRangeChange({...dateRange, endDate: date});
+                            }}
+                            className="bg-white/5 border-slate-700/50 text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <AlertDialogFooter>
+                    <Button
+                      variant="ghost"
+                      onClick={resetFilters}
+                      className="text-slate-300 hover:text-white hover:bg-white/10"
+                    >
+                      Reset Filters
+                    </Button>
+                    <AlertDialogCancel className="border-slate-700 bg-background text-white hover:bg-white/10 hover:text-white">
+                      Close
+                    </AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {localArticles.length > 0 && (
                 <AlertDialog>
