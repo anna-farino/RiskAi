@@ -72,8 +72,8 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
           
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5">
-              {Array.isArray(article.detectedKeywords) &&
-                article.detectedKeywords.slice(0, 3).map((keyword) => (
+              {Array.isArray(article.detected_keywords) &&
+                article.detected_keywords.slice(0, 3).map((keyword) => (
                   <Badge 
                     key={keyword} 
                     variant="outline"
@@ -83,8 +83,8 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
                   </Badge>
                 ))}
               
-              {Array.isArray(article.detectedKeywords) && article.detectedKeywords.length > 3 && (
-                <span className="text-xs text-slate-500">+{article.detectedKeywords.length - 3} more</span>
+              {Array.isArray(article.detected_keywords) && article.detected_keywords.length > 3 && (
+                <span className="text-xs text-slate-500">+{article.detected_keywords.length - 3} more</span>
               )}
             </div>
             
