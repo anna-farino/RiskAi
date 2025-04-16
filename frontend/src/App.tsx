@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { ThemeProvider } from './components/theme-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
@@ -10,14 +10,17 @@ import ProtectedRoutesWrapper from './pages/ProtectedRoutesWrapper'
 import Admin from './pages/dashboard/Admin'
 import OtpPage from './pages/otp-page.tsx'
 import Redirect from './Redirect.tsx'
-import NewsHome from './pages/dashboard/news/home.tsx'
-import Sources from './pages/dashboard/news/sources.tsx'
-import Keywords from './pages/dashboard/news/keywords.tsx'
-import NewsLayout from './pages/dashboard/news/layout.tsx'
+import NewsHome from './pages/dashboard/news-tracker//home.tsx'
+import Sources from './pages/dashboard/news-tracker/sources.tsx'
+import Keywords from './pages/dashboard/news-tracker/keywords.tsx'
+import NewsLayout from './pages/dashboard/news-tracker/layout.tsx'
 import EmailOtp from './pages/email-otp.tsx'
 import ConfirmPassword from './pages/new-password.tsx'
 import AuthLayout from './pages/auth-layout.tsx'
 import Settings from './pages/dashboard/Settings.tsx'
+import NewsCapsuleHome from './pages/dashboard/news-capsule/news-capsule-home.tsx'
+import AnalysisPage from './pages/dashboard/news-capsule/AnalysisPage.tsx'
+import HistoryPage from './pages/dashboard/news-capsule/HistoryPage.tsx'
 
 const queryClient = new QueryClient()
 
@@ -93,6 +96,20 @@ const router = createBrowserRouter([
           },
         ]
       },
+      {
+        path: "news-capsule",
+        element: <NewsCapsuleHome/>,
+        children: [
+          {
+            path: "analysis",
+            element: <AnalysisPage/>
+          },
+          {
+            path: "history",
+            element: <HistoryPage/>
+          }
+        ]
+      }
     ]
   },
   {

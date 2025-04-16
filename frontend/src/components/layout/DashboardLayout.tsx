@@ -30,10 +30,10 @@ const buttons = [
     restricted: false,
   },
   {
-    label: "Admin",
-    path: "/dashboard/admin",
-    icon: File,
-    restricted: true,
+    label: "News Capsule",
+    path: "/dashboard/news-capsule/analysis",
+    icon: Home,
+    restricted: false,
   },
 ];
 

@@ -9,6 +9,7 @@ import { noSimpleRequests } from '../middleware/no-simple-requests';
 import { doubleCsrfProtection } from '../middleware/csrf';
 import { newsRouter } from '../apps/news-tracker/router';
 import { rateLimit } from 'express-rate-limit'
+import { capsuleRouter } from 'backend/apps/news-capsule/routes';
 
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, 
@@ -31,7 +32,8 @@ router.use(verifyToken)
 
 // Protected routes
 router.use('/users', usersRouter)
-router.use('/news-tracker', verifyToken, newsRouter)
+router.use('/news-tracker', newsRouter)
+router.use('/news-capsule', capsuleRouter)
 
 // DEV only
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)

@@ -16,58 +16,76 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --background: 0 0% 100%; /* rgb(255, 255, 255) */
+    --foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --card: 0 0% 100%; /* rgb(255, 255, 255) */
+    --card-foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --popover: 0 0% 100%; /* rgb(255, 255, 255) */
+    --popover-foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --primary: 0 0% 9%; /* rgb(23, 23, 23) */
+    --primary-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --secondary: 0 0% 96.1%; /* rgb(245, 245, 245) */
+    --secondary-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
+    --muted: 0 0% 96.1%; /* rgb(245, 245, 245) */
+    --muted-foreground: 0 0% 45.1%; /* rgb(115, 115, 115) */
+    --accent: 0 0% 96.1%; /* rgb(245, 245, 245) */
+    --accent-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
+    --destructive: 0 84.2% 60.2%; /* rgb(154, 0, 0) */
+    --destructive-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --border: 0 0% 89.8%; /* rgb(229, 229, 229) */
+    --input: 0 0% 89.8%; /* rgb(229, 229, 229) */
+    --ring: 0 0% 3.9%; /* rgb(10, 10, 10) */
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 12 76% 61%; /* rgb(219, 84, 46) */
+    --chart-2: 173 58% 39%; /* rgb(42, 159, 134) */
+    --chart-3: 197 37% 24%; /* rgb(39, 91, 122) */
+    --chart-4: 43 74% 66%; /* rgb(191, 186, 45) */
+    --chart-5: 27 87% 67%; /* rgb(234, 151, 33) */
+    /* Sidebar colors - light mode */
+    --sidebar-background: 0 0% 96%; /* rgb(245, 245, 245) */
+    --sidebar-foreground: 0 0% 10%; /* rgb(26, 26, 26) */
+    --sidebar-primary: 210 67% 42%; /* rgb(0, 108, 179) */
+    --sidebar-primary-foreground: 0 0% 100%; /* rgb(255, 255, 255) */
+    --sidebar-accent: 0 0% 92%; /* rgb(235, 235, 235) */
+    --sidebar-accent-foreground: 0 0% 10%; /* rgb(26, 26, 26) */
+    --sidebar-border: 0 0% 86%; /* rgb(219, 219, 219) */
+    --sidebar-ring: 210 67% 42%; /* rgb(0, 108, 179) */
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --card: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --card-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --popover: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --popover-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --primary: 0 0% 98%; /* rgb(250, 250, 250) */
+    --primary-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
+    --secondary: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --secondary-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --muted: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --muted-foreground: 0 0% 63.9%; /* rgb(163, 163, 163) */
+    --accent: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --accent-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --destructive: 0 62.8% 30.6%; /* rgb(78, 0, 0) */
+    --destructive-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --border: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --input: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --ring: 0 0% 83.1%; /* rgb(212, 212, 212) */
+    --chart-1: 220 70% 50%; /* rgb(38, 133, 224) */
+    --chart-2: 160 60% 45%; /* rgb(45, 179, 113) */
+    --chart-3: 30 80% 55%; /* rgb(224, 133, 38) */
+    --chart-4: 280 65% 60%; /* rgb(163, 38, 224) */
+    --chart-5: 340 75% 55%; /* rgb(224, 38, 133) */
+    /* Sidebar colors - dark mode */
+    --sidebar-background: 220 13% 8%; /* rgb(18, 20, 23) */
+    --sidebar-foreground: 180 2% 88%; /* rgb(224, 224, 224) */
+    --sidebar-primary: 210 67% 42%; /* rgb(0, 108, 179) */
+    --sidebar-primary-foreground: 0 0% 100%; /* rgb(255, 255, 255) */
+    --sidebar-accent: 180 2% 88%; /* rgb(224, 224, 224) */
+    --sidebar-accent-foreground: 180 2% 88%; /* rgb(224, 224, 224) */
+    --sidebar-border: 220 9% 20%; /* rgb(51, 56, 64) */
+    --sidebar-ring: 210 67% 42%; /* rgb(0, 108, 179) */
   }
 }
 
@@ -137,3 +155,74 @@ button {
     @apply bg-background text-foreground;
   }
 }
+
+/* Font styling for reports - using Arial or comparable sans-serif fonts */
+.report-content {
+  font-family: 'Arial', 'Helvetica', 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Severity badges colors */
+.severity-critical {
+  @apply bg-destructive/20 text-destructive;
+}
+
+.severity-high {
+  @apply bg-red-500/20 text-red-400;
+}
+
+.severity-medium {
+  @apply bg-yellow-500/20 text-yellow-400;
+}
+
+.severity-low {
+  @apply bg-green-500/20 text-green-400;
+}
+
+/* Threat type badges colors */
+.threat-zero-day {
+  @apply bg-destructive/20 text-destructive;
+}
+
+.threat-vulnerability {
+  @apply bg-red-500/20 text-red-400;
+}
+
+.threat-malware {
+  @apply bg-yellow-500/20 text-yellow-400;
+}
+
+.threat-ransomware {
+  @apply bg-purple-500/20 text-purple-400;
+}
+
+.threat-exploit {
+  @apply bg-orange-500/20 text-orange-400;
+}
+
+.threat-other {
+  @apply bg-blue-500/20 text-blue-400;
+}
+
+/* Formatting for article paragraphs in the Original Article Summary */
+.prose p {
+  margin-bottom: 1em;
+}
+
+.prose div {
+  position: relative;
+}
+
+.prose div:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .prose div:after {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
