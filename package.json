@@ -28,7 +28,8 @@
     "puppeteer": "^24.5.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "rate-limit": "^0.1.1"
+    "rate-limit": "^0.1.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.30.6",
