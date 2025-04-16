@@ -111,7 +111,65 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 // Articles
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
-  const articles = await storage.getArticles(userId);
+  
+  // Parse query parameters for filtering
+  const { search, keywordIds, startDate, endDate } = req.query;
+  
+  // Prepare filter object
+  const filters: {
+    search?: string;
+    keywordIds?: string[];
+    startDate?: Date;
+    endDate?: Date;
+  } = {};
+  
+  // Add search filter if provided
+  if (search && typeof search === 'string') {
+    filters.search = search;
+  }
+  
+  // Parse keyword IDs (could be a single string or an array)
+  if (keywordIds) {
+    if (typeof keywordIds === 'string') {
+      // Single keyword ID as string
+      filters.keywordIds = [keywordIds];
+    } else if (Array.isArray(keywordIds)) {
+      // Array of keyword IDs
+      filters.keywordIds = keywordIds as string[];
+    }
+  }
+  
+  // Parse date range filters
+  if (startDate && typeof startDate === 'string') {
+    try {
+      filters.startDate = new Date(startDate);
+    } catch (error) {
+      console.error("Invalid startDate format:", error);
+    }
+  }
+  
+  if (endDate && typeof endDate === 'string') {
+    try {
+      filters.endDate = new Date(endDate);
+    } catch (error) {
+      console.error("Invalid endDate format:", error);
+    }
+  }
+  
+  console.log("Filter parameters:", filters);
+  
+  // Get filtered articles
+  const articles = await storage.getArticles(userId, filters);
+  console.log("Received filtered articles:", articles.length);
+  if (articles.length > 0) {
+    console.log("Sample article data:", {
+      id: articles[0].id,
+      title: articles[0].title.substring(0, 30) + "...",
+      detected_keywords: articles[0].detectedKeywords,
+      rawArticleKeys: Object.keys(articles[0])
+    });
+  }
+  
   res.json(articles);
 });
 

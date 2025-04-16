@@ -13,8 +13,20 @@ import {
   articles, 
   settings, 
 } from "@shared/db/schema/news-tracker/index";
-import { db } from "backend/db/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { db, pool } from "backend/db/db";
+import { eq, and, isNull, sql, SQL } from "drizzle-orm";
+
+// Helper function to execute SQL with parameters
+async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
+  try {
+    // Direct execution with the pool instead of through drizzle
+    const result = await pool.query(sqlStr, params);
+    return result.rows as T[];
+  } catch (error) {
+    console.error("SQL execution error:", error);
+    return [];
+  }
+}
 
 export interface IStorage {
   // Sources
@@ -28,12 +40,18 @@ export interface IStorage {
   // Keywords
   getKeywords(userId?: string): Promise<Keyword[]>;
   getKeyword(id: string): Promise<Keyword | undefined>;
+  getKeywordTermsById(ids: string[]): Promise<string[]>;
   createKeyword(keyword: InsertKeyword): Promise<Keyword>;
   updateKeyword(id: string, keyword: Partial<Keyword>): Promise<Keyword>;
   deleteKeyword(id: string): Promise<void>;
 
   // Articles
-  getArticles(userId?: string): Promise<Article[]>;
+  getArticles(userId?: string, filters?: { 
+    search?: string, 
+    keywordIds?: string[],
+    startDate?: Date,
+    endDate?: Date
+  }): Promise<Article[]>;
   getArticle(id: string): Promise<Article | undefined>;
   getArticleByUrl(url: string): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
@@ -125,6 +143,22 @@ export class DatabaseStorage implements IStorage {
     const [keyword] = await db.select().from(keywords).where(eq(keywords.id, id));
     return keyword;
   }
+  
+  async getKeywordTermsById(ids: string[]): Promise<string[]> {
+    if (!ids || ids.length === 0) return [];
+    
+    try {
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+      const sqlStr = `SELECT term FROM keywords WHERE id IN (${placeholders})`;
+      
+      // Use raw SQL query to get terms for the given IDs
+      const results = await executeRawSql<{ term: string }>(sqlStr, ids);
+      return results.map(row => row.term);
+    } catch (error) {
+      console.error("Error getting keyword terms by IDs:", error);
+      return [];
+    }
+  }
 
   async createKeyword(keyword: InsertKeyword): Promise<Keyword> {
     const [created] = await db.insert(keywords).values(keyword).returning();
@@ -145,39 +179,95 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Articles
-  async getArticles(userId?: string): Promise<Article[]> {
-    if (userId) {
-      return await db.select()
-        .from(articles)
-        .where(eq(articles.userId, userId));
-    } else {
-      return await db.select().from(articles);
+  async getArticles(
+    userId?: string, 
+    filters?: { 
+      search?: string, 
+      keywordIds?: string[],
+      startDate?: Date,
+      endDate?: Date
     }
+  ): Promise<Article[]> {
+    // Build SQL parts separately
+    let sqlParts = ["SELECT * FROM articles WHERE 1=1"];
+    const params: any[] = [];
+    let paramIndex = 1;
+    
+    // Add user filter
+    if (userId) {
+      sqlParts.push(`AND user_id = $${paramIndex++}`);
+      params.push(userId);
+    }
+    
+    // Apply search filter if provided (case insensitive search in title and content)
+    if (filters?.search && filters.search.trim()) {
+      const searchTerm = `%${filters.search.trim()}%`;
+      sqlParts.push(`AND (title ILIKE $${paramIndex++} OR content ILIKE $${paramIndex++})`);
+      params.push(searchTerm, searchTerm);
+    }
+    
+    // Apply date range filter
+    if (filters?.startDate) {
+      sqlParts.push(`AND publish_date >= $${paramIndex++}`);
+      params.push(filters.startDate);
+    }
+    
+    if (filters?.endDate) {
+      sqlParts.push(`AND publish_date <= $${paramIndex++}`);
+      params.push(filters.endDate);
+    }
+    
+    // Apply keyword filter if provided
+    if (filters?.keywordIds && filters.keywordIds.length > 0) {
+      // First, get the keyword terms for the given IDs
+      const keywordTerms = await this.getKeywordTermsById(filters.keywordIds);
+      console.log("Found keyword terms for filtering:", keywordTerms);
+      
+      if (keywordTerms.length > 0) {
+        // Build conditions for each keyword term
+        const keywordConditions = keywordTerms.map((term: string) => {
+          // Add condition to check if JSON array contains the term (convert to text to ensure case-insensitive match)
+          const condition = `EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(detected_keywords) 
+            WHERE value ILIKE $${paramIndex++}
+          )`;
+          params.push(`%${term}%`);
+          return condition;
+        });
+        
+        // Combine all keyword conditions with OR
+        sqlParts.push(`AND (${keywordConditions.join(' OR ')})`);
+      }
+    }
+    
+    // Combine all SQL parts
+    const finalSql = sqlParts.join(' ');
+    
+    // Use helper function to execute the query
+    return await executeRawSql<Article>(finalSql, params);
   }
 
   async getArticle(id: string): Promise<Article | undefined> {
-    const [article] = await db.select().from(articles).where(eq(articles.id, id));
-    return article;
+    // Use helper function to execute the query
+    const articles = await executeRawSql<Article>('SELECT * FROM articles WHERE id = $1 LIMIT 1', [id]);
+    return articles.length > 0 ? articles[0] : undefined;
   }
 
   async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
-    let query = db
-      .select()
-      .from(articles)
-      .where(eq(articles.url, url));
+    // Build query string
+    let sqlStr = "SELECT * FROM articles WHERE url = $1";
+    const params: any[] = [url];
     
     if (userId) {
-      query = db
-        .select()
-        .from(articles)
-        .where(and(
-          eq(articles.url, url),
-          eq(articles.userId, userId)
-        ))
+      sqlStr += " AND user_id = $2";
+      params.push(userId);
     }
     
-    const [article] = await query;
-    return article;
+    sqlStr += " LIMIT 1";
+    
+    // Use helper function to execute the query
+    const articles = await executeRawSql<Article>(sqlStr, params);
+    return articles.length > 0 ? articles[0] : undefined;
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
