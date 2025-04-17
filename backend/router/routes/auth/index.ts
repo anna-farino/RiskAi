@@ -19,8 +19,9 @@ authRouter.post('/new-password-otp', handleForgotPswOtp)
 authRouter.post('/verify-otp-login', handleVerifyOtp({ otpPurpose: 'login' }))
 authRouter.post('/verify-otp-new-password', handleVerifyOtp({ otpPurpose: 'new-password' }))
 authRouter.post('/store-new-password', handleNewPassword)
-
 authRouter.post('/logout', handleLogout);
+
+//protected route 
 authRouter.get(
   '/check', 
   verifyToken, doubleCsrfProtection, noSimpleRequests, 

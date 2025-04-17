@@ -76,7 +76,7 @@ export async function createAndStoreLoginTokens(res: Response, user: User) {
 
     res.cookie('token', accessToken, {
       ...cookieOptions,
-      maxAge: 60 * 10 * 1000, // 10 minutes 
+      maxAge: 60 * 1000 // * 10 // 10 minutes 
     });
     res.cookie('refreshToken', refreshToken, {
       ...cookieOptions,

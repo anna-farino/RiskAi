@@ -38,14 +38,11 @@ export function requestLogger(req: express.Request, _res: express.Response, next
   next();
 }
 
-export async function verifyToken(
-	req: express.Request, 
-	res: express.Response, 
-	next: express.NextFunction
-) {
-	console.log("🔐 [AUTH] Verifying token for path:", req.path)
+export async function verifyToken(req: express.Request,  res: express.Response, next: express.NextFunction) {
+	console.log("🔐 [AUTH] Verifying token for path:", req.path, req.originalUrl)
 	const token = req.cookies.token;
 	const refreshToken = req.cookies.refreshToken;
+	console.log("🔐 [AUTH] Access and refresh tokens:", token, refreshToken)
 
 	if (!token && !refreshToken) {
 		console.log("❌ [AUTH] No tokens found")
