@@ -1,7 +1,7 @@
 modules = ["nodejs-20", "postgresql-16"]
 
 [workflows]
-runButton = "dev"
+runButton = "npm run dev"
 
 [[workflows.workflow]]
 name = "npm run dev"
