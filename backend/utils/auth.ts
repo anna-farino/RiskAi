@@ -1,5 +1,5 @@
 import * as argon2 from 'argon2';
-import { CookieOptions, Response } from 'express';
+import { CookieOptions, Response, Request } from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
@@ -7,6 +7,7 @@ import { User, users, refreshTokens } from '@shared/db/schema/user';
 import { db } from '../db/db';
 import { and, eq, isNull, gt } from 'drizzle-orm';
 import dotenvConfig from './dotenv-config';
+import { reqLog } from './req-log';
 
 dotenvConfig(dotenv)
 
@@ -76,7 +77,7 @@ export async function createAndStoreLoginTokens(res: Response, user: User) {
 
     res.cookie('token', accessToken, {
       ...cookieOptions,
-      maxAge: 60 * 1000 // * 10 // 10 minutes 
+      maxAge: 60 * 1000, // 1 minute 
     });
     res.cookie('refreshToken', refreshToken, {
       ...cookieOptions,
@@ -84,43 +85,79 @@ export async function createAndStoreLoginTokens(res: Response, user: User) {
     });
 }
 
-export async function verifyRefreshToken(token: string): Promise<User | null> {
+type Return = Promise<{ user: User | null, isRefreshTokenValid: boolean }>
+
+export async function verifyRefreshToken(req: Request, token: string): Return {
   try {
-    console.log('Verifying refresh token...');
-    const [refreshToken] = await db
+    reqLog(req, 'Verifying refresh token...');
+    
+    const [ refreshToken ] = await db
       .select()
       .from(refreshTokens)
-      .where(
-        and(
-          eq(refreshTokens.token, token),
-          isNull(refreshTokens.revokedAt),
-          gt(refreshTokens.expiresAt, new Date())
-        )
-      );
+      .where(eq(refreshTokens.token, token));
 
     if (!refreshToken) {
-      console.log('No valid refresh token found');
-      return null;
+      reqLog(req, "The refresh token doesn't match any token in the database")
+      return {
+        user: null,
+        isRefreshTokenValid: false
+      }
     }
 
-    console.log(`Found valid refresh token for user ${refreshToken.userId}`);
-    const [user] = await db
+    const [ user ] = await db
       .select()
       .from(users)
       .where(eq(users.id, refreshToken.userId));
 
-    return user || null;
+    if (!user) {
+      reqLog(req, "No corresponding user found")
+      return {
+        user: null,
+        isRefreshTokenValid: false
+      }
+    }
+
+    const currentDate = new Date()
+    const expiresAt = new Date(refreshToken.expiresAt)
+    const isRefreshTokenValid =  expiresAt > currentDate 
+    reqLog(req, "[verifyRefreshToken], expiresAt, newDate, >?", expiresAt, currentDate, refreshToken.expiresAt > currentDate)
+
+    if (!isRefreshTokenValid) {
+      reqLog(req, 'No valid refresh token found');
+      return {
+        user,
+        isRefreshTokenValid
+      };
+    }
+
+    reqLog(req, `Found valid refresh token: `, refreshToken.token);
+
+      return {
+        user: user || null,
+        isRefreshTokenValid
+      };
   } catch (error) {
-    console.error('Error verifying refresh token:', error);
-    return null;
+    reqLog(req, 'Error verifying refresh token:', error);
+      return {
+        user: null,
+        isRefreshTokenValid: false
+      };
   }
 }
 
-export async function revokeRefreshToken(token: string): Promise<void> {
-  console.log('Revoking refresh token...');
-  await db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(eq(refreshTokens.token, token));
-  console.log('Refresh token revoked');
+export async function revokeRefreshToken(req: Request, token: string): Promise<void> {
+  reqLog(req,'Revoking refresh token...');
+  const revokedDate = new Date()
+  try {
+    const data = await db
+      .update(refreshTokens)
+      .set({ revokedAt: revokedDate })
+      .where(eq(refreshTokens.token, token))
+      .returning()
+    if (data.length === 0) throw new Error()
+    reqLog(req,'Refresh token revoked:', token, revokedDate);
+
+  } catch(err) {
+    reqLog(req, "An error occurred while revoking the refresh token")
+  }
 }
