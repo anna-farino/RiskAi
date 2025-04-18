@@ -10,13 +10,14 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"nodemon\" \"cd frontend && npm run dev\"",
+    "dev": "concurrently \"nodemon backend/index.js \" \"cd frontend && npm run dev\"",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@tanstack/react-query-devtools": "^5.74.4",
     "@types/nodemon": "^1.19.6",
     "cheerio": "^1.0.0",
     "concurrently": "^9.1.2",
@@ -24,15 +25,17 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.41.0",
     "drizzle-zod": "^0.7.1",
+    "esbuild": "^0.25.2",
     "nodemon": "^3.1.9",
     "puppeteer": "^24.5.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "rate-limit": "^0.1.1",
+    "react-router": "^7.5.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.30.6",
+    "drizzle-kit": "^0.31.0",
     "tsx": "^4.19.3"
   }
 }

@@ -8,6 +8,7 @@ import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../servic
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
+import { reqLog } from "backend/utils/req-log";
 
 
 export const newsRouter = Router()
@@ -16,8 +17,7 @@ const activeScraping = new Map<string, boolean>();
 
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;
-  console.log("GET sources hit. userId=", userId)
-  console.log("User", req.user)
+  reqLog(req,"GET sources hit. userId=", userId)
   const sources = await storage.getSources(userId);
   res.json(sources);
 });
