@@ -6,6 +6,9 @@ import { User, users } from '@shared/db/schema/user';
 import { db } from '../db/db';
 import { permissions, rolesPermissions, roles, rolesUsers } from '@shared/db/schema/rbac';
 import { eq } from 'drizzle-orm';
+import { lockWrap } from 'backend/utils/lock';
+import { reqLog } from 'backend/utils/req-log';
+import { refreshTokenLock } from 'backend/utils/refreshTokenLock';
 
 dotenv.config()
 export const SECRET = process.env.JWT_SECRET || 'secret';
@@ -38,14 +41,11 @@ export function requestLogger(req: express.Request, _res: express.Response, next
   next();
 }
 
-export async function verifyToken(
-	req: express.Request, 
-	res: express.Response, 
-	next: express.NextFunction
-) {
-	console.log("🔐 [AUTH] Verifying token for path:", req.path)
+export async function verifyToken(req: express.Request,  res: express.Response, next: express.NextFunction) {
+	console.log("🔐 [AUTH] Verifying token for path:", req.path, req.originalUrl)
 	const token = req.cookies.token;
 	const refreshToken = req.cookies.refreshToken;
+	console.log("🔐 [AUTH] Access and refresh tokens:", token, refreshToken)
 
 	if (!token && !refreshToken) {
 		console.log("❌ [AUTH] No tokens found")
@@ -88,28 +88,39 @@ export async function verifyToken(
 		// If we reach here, either there was no token or it was invalid
 		// Try to refresh using the refresh token
 		if (refreshToken) {
-			console.log("🔄 [AUTH] Attempting to refresh token...")
-			const user = await verifyRefreshToken(refreshToken);
+			reqLog(req, "🔄 [AUTH] Attempting to refresh token...")
+			const { user, isRefreshTokenValid } = await verifyRefreshToken(req, refreshToken);
 
-			if (user) {
-				console.log("✅ [AUTH] Refresh token valid, generating new tokens...")
-				// Revoke the old refresh token
-				await revokeRefreshToken(refreshToken);
+      if (!user) {
+        reqLog(req, "No user found while verifying refresh token")
+        res.status(500).send()
+        return
+      }
 
-        await createAndStoreLoginTokens(res, user);
+			if (isRefreshTokenValid) {
+				reqLog(req, "✅ [AUTH] Refresh token valid, generating new tokens...")
 
-				(req as unknown as FullRequest).user = user;
-				const userPermissions = await getUserPermissions(user.id.toString());
+        await refreshTokenLock({
+          req: req,
+          refreshToken: refreshToken,
+          asyncFn: async () => {
+            await revokeRefreshToken(req,refreshToken);
+            await createAndStoreLoginTokens(res, user);
+          }
+        });
 
-				(req as unknown as FullRequest).user.permissions = userPermissions
+        (req as unknown as FullRequest).user = user;
+        const userPermissions = await getUserPermissions(user.id.toString());
 
-				next();
-				return;
+        (req as unknown as FullRequest).user.permissions = userPermissions
+
+        next();
+        return;
 			}
 		}
 
 		// If we reach here, both tokens expired or are invalid
-		console.log("❌ [AUTH] Login tokens invalid, redirecting to login")
+		reqLog(req,"❌ [AUTH] Either the tokens are invalid or the user doesn't exist")
 		res.status(401).end();
 
 	} catch (error) {
@@ -118,6 +129,8 @@ export async function verifyToken(
 		res.status(401).end();
 	}
 }
+
+
 
 async function getUserRole(userId: string) {
   const userRole = await db

@@ -15,8 +15,6 @@ export const {
     httpOnly: false 
   },
   getTokenFromRequest: (req) => {
-    console.log("csrf cookie", req.cookies['csrf-token'])
-    console.log("csrf header", req.headers["x-csrf-token"])
     return req.headers["x-csrf-token"] as string | undefined
   }
 });
