@@ -31,7 +31,7 @@ router.use(verifyToken)
 
 // Protected routes
 router.use('/users', usersRouter)
-router.use('/news-tracker', verifyToken, newsRouter)
+router.use('/news-tracker', newsRouter)
 
 // DEV only
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)

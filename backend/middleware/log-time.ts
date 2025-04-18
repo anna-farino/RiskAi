@@ -1,3 +1,4 @@
+import { reqLog } from 'backend/utils/req-log';
 import { Request, Response, NextFunction } from 'express'
 
 function getCurrentDate() {
@@ -15,10 +16,10 @@ function getCurrentDate() {
 }
 
 
-export default function logTime(_req: Request, _res: Response, next: NextFunction) {
+export default function logTime(req: Request, _res: Response, next: NextFunction) {
 
-  console.log(`
-|${getCurrentDate()}|
+  console.log("")
+  reqLog(req, `${getCurrentDate()} path: ${req.path}, method: ${req.method}
 `)
 
   next()
