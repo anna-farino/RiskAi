@@ -2,11 +2,15 @@ import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useQuery } from "@tanstack/react-query";
 import { User } from "@shared/db/schema/user"
+import { useNavigate } from "react-router";
 
 export type Role = 'admin' | 'user'
 export type UserWithPerm = User & { permissions: string[] } & { role: Role }
 
 export function useAuth() {
+
+  const navigate = useNavigate();
+
   return useQuery<UserWithPerm>({
     queryKey: ['auth-user'],
     queryFn: async () => {
@@ -18,6 +22,7 @@ export function useAuth() {
       });
 
       if (!response.ok) {
+        navigate("/auth/login")
         return null
       }
       const data = await response.json();

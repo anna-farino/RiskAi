@@ -10,15 +10,9 @@ import { doubleCsrfProtection } from '../middleware/csrf';
 import { newsRouter } from '../apps/news-tracker/router';
 import { rateLimit } from 'express-rate-limit'
 import { capsuleRouter } from 'backend/apps/news-capsule/routes';
+import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 
-const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, 
-	limit: 30, 
-  message: "Too many requests. Try again later.",
-	standardHeaders: 'draft-8', 
-	legacyHeaders: false, 
-  skipSuccessfulRequests: true
-})
+const limiter = rateLimit(rateLimitConfig)
 
 const router = Router();
 

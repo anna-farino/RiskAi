@@ -45,7 +45,7 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
 	console.log("🔐 [AUTH] Verifying token for path:", req.path, req.originalUrl)
 	const token = req.cookies.token;
 	const refreshToken = req.cookies.refreshToken;
-	console.log("🔐 [AUTH] Access and refresh tokens:", token, refreshToken)
+	console.log("🔐 [AUTH] Access and refresh tokens received")
 
 	if (!token && !refreshToken) {
 		console.log("❌ [AUTH] No tokens found")

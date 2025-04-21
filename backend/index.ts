@@ -10,34 +10,17 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import logTime from './middleware/log-time';
 import { callId } from './middleware/call-id';
+import { corsOptions } from './utils/cors-options';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsFolder = __dirname + "/db/migrations"
-
-console.log("Migrations folder: ", migrationsFolder)
 await migrate(db, { migrationsFolder })
 
-const app = express();
 const port = Number(process.env.PORT) || 5000;
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const corsOptions = {
-  origin: [
-    'http://localhost:5174',
-    'http://0.0.0.0:5174',
-    /\.replit\.dev$/,
-    /\.repl\.co$/,
-    /\.spock\.replit\.dev$/
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'x-csrf-token'
-  ],
-};
+
+const app = express();
 
 app.use(callId);
 app.use(logTime);
@@ -45,6 +28,7 @@ app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
 app.use('/api', router);
 
 if (isDevelopment) {

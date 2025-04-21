@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { User, users, refreshTokens } from '@shared/db/schema/user';
 import { db } from '../db/db';
-import { and, eq, isNull, gt } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import dotenvConfig from './dotenv-config';
 import { reqLog } from './req-log';
 
@@ -22,9 +22,9 @@ export const cookieOptions: CookieOptions = {
   path: '/',
 };
 
-export async function hashString(password: string) {
+export async function hashString(stringToHash: string) {
   try {
-    const hash = await argon2.hash(password)
+    const hash = await argon2.hash(stringToHash)
     return hash
   }	catch(error) {
     console.error(error)
@@ -56,14 +56,22 @@ export function generateRefreshToken(): string {
   return crypto.randomBytes(40).toString('hex');
 }
 
+const PEPPER = Buffer.from(process.env.REFRESH_PEPPER!, 'hex');
+
+export function tokenHash(raw: string): string {
+  return crypto.createHmac('sha256', PEPPER).update(raw).digest('hex');
+}
+
 
 export async function createRefreshToken(userId: string): Promise<string> {
   const token = generateRefreshToken();
+  const hashedToken = tokenHash(token)
+
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_IN * 1000);
 
   await db.insert(refreshTokens).values({
     userId,
-    token,
+    token: hashedToken,
     expiresAt
   });
 
@@ -77,7 +85,7 @@ export async function createAndStoreLoginTokens(res: Response, user: User) {
 
     res.cookie('token', accessToken, {
       ...cookieOptions,
-      maxAge: 60 * 1000, // 1 minute 
+      maxAge: 60 * 1000 * 5, // 5 minutes 
     });
     res.cookie('refreshToken', refreshToken, {
       ...cookieOptions,
@@ -90,11 +98,13 @@ type Return = Promise<{ user: User | null, isRefreshTokenValid: boolean }>
 export async function verifyRefreshToken(req: Request, token: string): Return {
   try {
     reqLog(req, 'Verifying refresh token...');
+
+    const hashedToken = tokenHash(token)
     
     const [ refreshToken ] = await db
       .select()
       .from(refreshTokens)
-      .where(eq(refreshTokens.token, token));
+      .where(eq(refreshTokens.token, hashedToken));
 
     if (!refreshToken) {
       reqLog(req, "The refresh token doesn't match any token in the database")
