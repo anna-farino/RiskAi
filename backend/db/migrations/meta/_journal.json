@@ -43,6 +43,13 @@
       "when": 1744225005158,
       "tag": "0005_lucky_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1745337432857,
+      "tag": "0006_amazing_wildside",
+      "breakpoints": true
     }
   ]
 }

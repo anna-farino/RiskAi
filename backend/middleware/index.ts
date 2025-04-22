@@ -6,7 +6,6 @@ import { User, users } from '@shared/db/schema/user';
 import { db } from '../db/db';
 import { permissions, rolesPermissions, roles, rolesUsers } from '@shared/db/schema/rbac';
 import { eq } from 'drizzle-orm';
-import { lockWrap } from 'backend/utils/lock';
 import { reqLog } from 'backend/utils/req-log';
 import { refreshTokenLock } from 'backend/utils/refreshTokenLock';
 
@@ -16,7 +15,7 @@ const baseURL = process.env.BASE_URL;
 
 console.log("base url", baseURL)
 
-export type FullRequest = Request & { 
+export type FullRequest = express.Request & { 
   user: User 
     & { permissions?: string[] } 
     & { role? : string | undefined | null }
@@ -70,15 +69,11 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
 					res.status(401).end();
 					return;
 				}
-				(req as unknown as FullRequest).user = user[0];
 
+				(req as unknown as FullRequest).user = user[0];
         const userId = user[0].id.toString();
 
-        const userRole = await getUserRole(userId)
-				const userPermissions = await getUserPermissions(userId);
-
-				(req as unknown as FullRequest).user.permissions = userPermissions;
-				(req as unknown as FullRequest).user.role = userRole;
+        await attachPermissionsAndRoleToRequest(userId, req)
 
 				next();
 				return;
@@ -110,9 +105,9 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
         });
 
         (req as unknown as FullRequest).user = user;
-        const userPermissions = await getUserPermissions(user.id.toString());
+        const userId = user.id.toString();
 
-        (req as unknown as FullRequest).user.permissions = userPermissions
+        await attachPermissionsAndRoleToRequest(userId, req)
 
         next();
         return;
@@ -153,4 +148,13 @@ async function getUserPermissions(userId: string) {
 		.where(eq(rolesUsers.userId, userId));
 
 	return userPermissions.map((p) => p.permissions?.name ?? '');
+}
+
+
+async function attachPermissionsAndRoleToRequest(userId: string, req: express.Request) {
+    const userRole = await getUserRole(userId)
+    const userPermissions = await getUserPermissions(userId);
+
+    (req as unknown as FullRequest).user.permissions = userPermissions;
+    (req as unknown as FullRequest).user.role = userRole;
 }

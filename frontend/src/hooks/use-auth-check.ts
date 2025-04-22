@@ -27,7 +27,6 @@ export function useAuthCheck() {
         throw error;
       }
     },
-    retry: false, 
     refetchOnWindowFocus: true, 
   });
 }

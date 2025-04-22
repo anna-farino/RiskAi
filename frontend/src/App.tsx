@@ -19,6 +19,7 @@ import EmailOtp from './pages/email-otp.tsx'
 import ConfirmPassword from './pages/new-password.tsx'
 import AuthLayout from './pages/auth-layout.tsx'
 import Settings from './pages/dashboard/Settings.tsx'
+import Secrets from './pages/dashboard/Secrets.tsx'
 
 const queryClient = new QueryClient()
 
@@ -65,6 +66,10 @@ const router = createBrowserRouter([
         element: <Settings/>,
       },
       {
+        path: "secrets",
+        element: <Secrets/>
+      },
+      {
         path: "settings/otp",
         element: <OtpPage twHeight='h-full' />
       },
@@ -105,9 +110,6 @@ const router = createBrowserRouter([
     element: <h1>Ooops! Page not found... </h1>
   }
 ])
-
-// Test for git
-// test test test
 
 function App() {
 

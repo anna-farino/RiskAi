@@ -47,6 +47,8 @@ export default function DashboardLayout({
   const [isMobile, setIsMobile] = useState(false);
   const data = useLoaderData();
   const { data: userData } = useAuth();
+  
+  //console.log("User data from dashboard layout", userData)
 
   useEffect(() => {
     const checkMobile = () => {

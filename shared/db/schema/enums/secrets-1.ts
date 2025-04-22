@@ -5,4 +5,6 @@ export enum Type {
   TEST = 'test',
 }
 
-export const secretTypeEnum = pgEnum('role', enumToPgEnum(Type))
+export const secretTypeEnum = pgEnum('secretType', enumToPgEnum(Type))
+
+

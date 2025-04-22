@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/use-auth"
 import { csfrHeaderObject } from "@/utils/csrf-header"
 import { serverUrl } from "@/utils/server-url"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { it } from "node:test"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -15,29 +14,30 @@ export default function Admin() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+
+  console.log(user.data)
+
+
   useEffect(()=>{
     if (user.data) {
       const isAdmin = user.data?.role == 'admin'
-      if (!isAdmin) {
-          navigate('/dashboard/home')
-      } else {
-          setIsUserAdmin(true)
+      if (isAdmin) {
+        setIsUserAdmin(true)
+      } else if (user.data === null) {
+        navigate('/dashboard/home')
       }
-
     }
   },[user.data])
-
-  //console.log("[Admin] User: ", user.data)
 
 
   const userRolesQuery = useQuery({
     queryKey: ['users-roles'],
+    retry: true,
     enabled: !!isUserAdmin,
-    retry: false,
     queryFn: async () => {
       if (!isUserAdmin) {
-        console.error("User doesn't have the permission to fetch users-roles")
-        return
+        //console.error("User doesn't have the permission to fetch users-roles")
+        return []
       };
       try {
         const response = await fetch(`${serverUrl}/api/users/roles`, {
@@ -55,13 +55,15 @@ export default function Admin() {
     }
   })
 
-  const { data: rolesData } = useQuery({
+
+  const rolesData = useQuery({
     queryKey: ['roles'],
-    enabled: !!userRolesQuery.data,
+    enabled: isUserAdmin,
+    retry: true,
     queryFn: async () => {
       if (!isUserAdmin) {
-        console.error("User doesn't have the permission to fetch roles")
-        return
+        //console.error("User doesn't have the permission to fetch roles")
+        return []
       };
       try {
         const response = await fetch(`${serverUrl}/api/roles`, {
@@ -74,7 +76,8 @@ export default function Admin() {
         if (!response.ok) throw new Error('Failed to fetch roles')
         return response.json()
       } catch(error) {
-        console.error(error)
+        return []
+        //console.error(error)
       }
     },
   })
@@ -113,18 +116,17 @@ export default function Admin() {
 
       return { previousUserRoles }
     },
-    onError: (error, variables, context) => {
+    onError: (_, __, context) => {
       queryClient.setQueryData(['users-roles'], context?.previousUserRoles)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['user-roles']})
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['users-roles']})
   })
 
   function changeRole(item: {userId: string, userRole: string, userEmail: string}) {
-    console.log("Item for change", item)
     editUserRole.mutate(item)
   }
 
-  if (!isUserAdmin) return
+  if (!isUserAdmin) <></>
   if (userRolesQuery.isPending) return <h1> Fetching the data...</h1>
 
   return (
@@ -148,7 +150,7 @@ export default function Admin() {
               showDropdown={showDropdown}
               setShowDropdown={setShowDropdown}
               user={user}
-              rolesData={rolesData}
+              rolesData={rolesData.data}
               changeRole={changeRole}
             />
           ))

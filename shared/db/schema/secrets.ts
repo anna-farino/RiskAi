@@ -28,3 +28,5 @@ export const secretsToUser = relations(secrets, ({ one }) => ({
 
 
 export const insertSecretSchema = createInsertSchema(secrets).omit({ id: true, createdAt: true })
+
+export type Secret = typeof secrets.$inferSelect;
