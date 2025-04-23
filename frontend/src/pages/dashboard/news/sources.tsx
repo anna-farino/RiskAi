@@ -76,13 +76,16 @@ export default function Sources() {
           headers: csfrHeaderObject()
         });
         if (!response.ok) throw new Error('Failed to fetch job status');
-        return response.json();
+        const data = await response.json();
+        return data;
       } catch(error) {
-        console.error(error);
+        console.error("Error fetching job status:", error);
         return { running: false };
       }
     },
-    refetchInterval: 5000 // Poll every 5 seconds
+    refetchInterval: 5000, // Poll every 5 seconds
+    // Add initial data to prevent undefined state
+    initialData: { running: false }
   });
   
   const form = useForm({
