@@ -545,6 +545,48 @@ export default function Sources() {
   });
   
   // Run global scrape job manually
+  // Add the stop global scrape mutation
+  const stopGlobalScrape = useMutation({
+    mutationFn: async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/jobs/stop`, {
+          method: "POST",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to stop global scrape: ${response.statusText}`);
+        }
+        
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          return { success: true };
+        }
+      } catch (error) {
+        console.error("Stop global scrape error:", error);
+        throw error;
+      }
+    },
+    onError: (err) => {
+      toast({
+        title: "Error stopping global scrape",
+        description: "Failed to stop scraping. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Global scrape job stopped",
+        description: "All scraping operations have been stopped"
+      });
+      // Refetch job status
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/jobs/status"] });
+    },
+  });
+
   const runGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
@@ -770,19 +812,35 @@ export default function Sources() {
               </PopoverContent>}
             </Popover>
             
-            <Button 
-              onClick={() => runGlobalScrape.mutate()}
-              disabled={runGlobalScrape.isPending}
-              size="sm"
-              className="bg-primary hover:bg-primary/90"
-            >
-              {runGlobalScrape.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="mr-2 h-4 w-4" />
-              )}
-              Run Auto-Scrape Now
-            </Button>
+            {autoScrapeStatus?.data?.running ? (
+              <Button 
+                onClick={() => stopGlobalScrape.mutate()}
+                disabled={stopGlobalScrape.isPending}
+                size="sm"
+                variant="destructive"
+              >
+                {stopGlobalScrape.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="mr-2 h-4 w-4" />
+                )}
+                Stop Auto-Scrape
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => runGlobalScrape.mutate()}
+                disabled={runGlobalScrape.isPending}
+                size="sm"
+                className="bg-primary hover:bg-primary/90"
+              >
+                {runGlobalScrape.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                Run Auto-Scrape Now
+              </Button>
+            )}
           </div>
         </div>
         

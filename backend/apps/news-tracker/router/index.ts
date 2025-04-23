@@ -300,6 +300,17 @@ newsRouter.get("/jobs/status", async (req, res) => {
   }
 });
 
+newsRouter.post("/jobs/stop", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    const result = await stopGlobalScrapeJob();
+    res.json(result);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
 // Source Auto-Scrape Inclusion
 newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
   try {
