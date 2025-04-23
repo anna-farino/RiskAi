@@ -65,6 +65,26 @@ export default function Sources() {
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   
+  // Get job status
+  const autoScrapeStatus = useQuery({
+    queryKey: ["/api/news-tracker/jobs/status"],
+    queryFn: async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/jobs/status`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: csfrHeaderObject()
+        });
+        if (!response.ok) throw new Error('Failed to fetch job status');
+        return response.json();
+      } catch(error) {
+        console.error(error);
+        return { running: false };
+      }
+    },
+    refetchInterval: 5000 // Poll every 5 seconds
+  });
+  
   const form = useForm({
     resolver: zodResolver(insertSourceSchema),
     defaultValues: {
