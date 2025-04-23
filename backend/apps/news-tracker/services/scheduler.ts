@@ -4,6 +4,7 @@ import { log } from "console";
 
 // Job intervals in milliseconds
 export enum JobInterval {
+  FIFTEEN_MINUTES = 15 * 60 * 1000,
   HOURLY = 60 * 60 * 1000,
   FOUR_HOURS = 4 * 60 * 60 * 1000,
   TWICE_DAILY = 12 * 60 * 60 * 1000,
