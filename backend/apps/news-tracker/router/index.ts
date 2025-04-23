@@ -3,7 +3,7 @@ import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail } from "../services/background-jobs";
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule } from "../services/scheduler";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
@@ -12,6 +12,13 @@ import { reqLog } from "backend/utils/req-log";
 
 
 export const newsRouter = Router()
+
+// Initialize the scheduler when the router is loaded
+initializeScheduler().then(() => {
+  log("[NewsTracker] Auto-scrape scheduler initialized", "scheduler");
+}).catch(err => {
+  log(`[NewsTracker] Error initializing auto-scrape scheduler: ${err.message}`, "scheduler");
+});
 
 const activeScraping = new Map<string, boolean>();
 
