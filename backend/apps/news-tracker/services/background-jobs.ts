@@ -487,6 +487,7 @@ export function isGlobalJobRunning(): boolean {
 
 /**
  * Stop the global scraping job
+ * This terminates any running job and resets the global status
  */
 export async function stopGlobalScrapeJob(): Promise<{
   success: boolean;

@@ -572,20 +572,33 @@ export default function Sources() {
   const stopGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
+        // Add a debugging log before making the request
+        console.log("Attempting to stop global scrape job...");
+        
         const response = await fetch(`${serverUrl}/api/news-tracker/jobs/stop`, {
           method: "POST",
-          headers: csfrHeaderObject(),
+          headers: {
+            ...csfrHeaderObject(),
+            "Content-Type": "application/json"
+          },
           credentials: "include"
         });
         
+        console.log("Stop request response status:", response.status);
+        
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
           throw new Error(`Failed to stop global scrape: ${response.statusText}`);
         }
         
+        // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
+          console.log("Stop job succeeded with data:", data);
           return data;
         } catch (e) {
+          console.log("Empty response, returning success object");
           return { success: true };
         }
       } catch (error) {
@@ -594,18 +607,20 @@ export default function Sources() {
       }
     },
     onError: (err) => {
+      console.error("Stop global scrape mutation error handler:", err);
       toast({
         title: "Error stopping global scrape",
         description: "Failed to stop scraping. Please try again.",
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Stop global scrape succeeded:", data);
       toast({
         title: "Global scrape job stopped",
         description: "All scraping operations have been stopped"
       });
-      // Refetch job status
+      // Force update job status
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/jobs/status"] });
     },
   });
