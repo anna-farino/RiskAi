@@ -8,8 +8,13 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DeleteAlertDialog } from "../delete-alert-dialog";
 
+// Type interface to handle both detectedKeywords and detected_keywords
+interface ArticleWithKeywords extends Article {
+  detected_keywords?: string[];
+}
+
 interface ArticleCardProps {
-  article: Article;
+  article: ArticleWithKeywords;
   onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string) => void;
@@ -30,6 +35,14 @@ export function ArticleCard({ article, onDelete, isPending = false, onKeywordCli
     onDelete(article.id);
   };
 
+  // Get keywords from either detected_keywords or detectedKeywords
+  const getKeywords = (): string[] => {
+    // @ts-ignore: Handle both naming conventions
+    return (article.detected_keywords || article.detectedKeywords || []) as string[];
+  };
+  
+  const keywords = getKeywords();
+  
   return (
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div 
@@ -73,24 +86,23 @@ export function ArticleCard({ article, onDelete, isPending = false, onKeywordCli
           
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5">
-              {Array.isArray(article.detectedKeywords) &&
-                (article.detectedKeywords as string[]).slice(0, 3).map((keyword: string) => (
-                  <Badge 
-                    key={keyword} 
-                    variant="outline"
-                    className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700 cursor-pointer"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (onKeywordClick) onKeywordClick(keyword);
-                    }}
-                  >
-                    {keyword}
-                  </Badge>
-                ))}
+              {Array.isArray(keywords) && keywords.slice(0, 3).map((keyword: string) => (
+                <Badge 
+                  key={keyword} 
+                  variant="outline"
+                  className="bg-white/5 text-xs text-slate-300 hover:bg-primary/20 hover:text-primary hover:border-primary/30 border-slate-700 cursor-pointer transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (onKeywordClick) onKeywordClick(keyword);
+                  }}
+                >
+                  {keyword}
+                </Badge>
+              ))}
               
-              {Array.isArray(article.detectedKeywords) && (article.detectedKeywords as string[]).length > 3 && (
-                <span className="text-xs text-slate-500">+{(article.detectedKeywords as string[]).length - 3} more</span>
+              {Array.isArray(keywords) && keywords.length > 3 && (
+                <span className="text-xs text-slate-500">+{keywords.length - 3} more</span>
               )}
             </div>
             
