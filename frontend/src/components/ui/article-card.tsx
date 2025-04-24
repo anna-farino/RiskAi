@@ -12,9 +12,10 @@ interface ArticleCardProps {
   article: Article;
   onDelete: (id: string) => void;
   isPending?: boolean;
+  onKeywordClick?: (keyword: string) => void;
 }
 
-export function ArticleCard({ article, onDelete, isPending = false }: ArticleCardProps) {
+export function ArticleCard({ article, onDelete, isPending = false, onKeywordClick }: ArticleCardProps) {
   const [ openAlert, setOpenAlert ] = useState(false)
   // Generate a random color for the card accent (in a real app, this could be based on source or category)
   const getRandomAccent = () => {
@@ -72,19 +73,24 @@ export function ArticleCard({ article, onDelete, isPending = false }: ArticleCar
           
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5">
-              {Array.isArray(article.detected_keywords) &&
-                article.detected_keywords.slice(0, 3).map((keyword) => (
+              {Array.isArray(article.detectedKeywords) &&
+                (article.detectedKeywords as string[]).slice(0, 3).map((keyword: string) => (
                   <Badge 
                     key={keyword} 
                     variant="outline"
-                    className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700"
+                    className="bg-white/5 text-xs text-slate-300 hover:bg-white/10 border-slate-700 cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onKeywordClick) onKeywordClick(keyword);
+                    }}
                   >
                     {keyword}
                   </Badge>
                 ))}
               
-              {Array.isArray(article.detected_keywords) && article.detected_keywords.length > 3 && (
-                <span className="text-xs text-slate-500">+{article.detected_keywords.length - 3} more</span>
+              {Array.isArray(article.detectedKeywords) && (article.detectedKeywords as string[]).length > 3 && (
+                <span className="text-xs text-slate-500">+{(article.detectedKeywords as string[]).length - 3} more</span>
               )}
             </div>
             
