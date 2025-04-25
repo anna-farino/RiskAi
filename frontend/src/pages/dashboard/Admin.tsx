@@ -15,9 +15,6 @@ export default function Admin() {
   const queryClient = useQueryClient()
 
 
-  console.log(user.data)
-
-
   useEffect(()=>{
     if (user.data) {
       const isAdmin = user.data?.role == 'admin'
@@ -126,7 +123,10 @@ export default function Admin() {
     editUserRole.mutate(item)
   }
 
+  console.log("User data", user.data)
+  console.log("User is pending", user.isPending)
   if (!isUserAdmin) <></>
+  if (!user.isPending && !user.data?.role) navigate('/dashboard/home')
   if (userRolesQuery.isPending) return <h1> Fetching the data...</h1>
 
   return (

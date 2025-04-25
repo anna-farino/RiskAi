@@ -3,6 +3,7 @@ import { users } from '@shared/db/schema/user';
 import { eq } from 'drizzle-orm';
 import { FullRequest } from '../middleware';
 import { db } from 'backend/db/db';
+import { withUserContext } from 'backend/db/with-user-context';
 
 
 export async function handleAuthCheck(req: Request, res: Response) {
@@ -12,10 +13,15 @@ export async function handleAuthCheck(req: Request, res: Response) {
     console.log("[👤 AUTH-CHECK] No user found!")
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  const [ user ] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId)) 
+  const [ user ] = await withUserContext(
+    userId,
+    async (db) => {
+      return db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId)) 
+    }
+  )
   
   console.log("[👤 AUTH-CHECK] User found", user)
   
