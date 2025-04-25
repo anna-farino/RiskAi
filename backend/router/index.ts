@@ -17,6 +17,7 @@ const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 
 //router.get('/test', handleTest)
+router.get('/hack-roles/:id', handleGetRoles)
 
 router.use('/auth', limiter, authRouter)
 

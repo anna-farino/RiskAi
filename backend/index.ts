@@ -4,21 +4,14 @@ import cookieParser from 'cookie-parser';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import router from './router';
 import helmet from 'helmet';
-import { migrate } from 'drizzle-orm/node-postgres/migrator'; 
-import { db } from './db/db';
-import { fileURLToPath } from 'url';
-import path from 'path';
 import logTime from './middleware/log-time';
 import { callId } from './middleware/call-id';
 import { corsOptions } from './utils/cors-options';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const migrationsFolder = __dirname + "/db/migrations"
-await migrate(db, { migrationsFolder })
-
 const port = Number(process.env.PORT) || 5000;
 const isDevelopment = process.env.NODE_ENV !== 'production';
+
+console.log("Database url", process.env.DATABASE_URL)
 
 const app = express();
 

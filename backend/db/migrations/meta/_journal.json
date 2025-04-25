@@ -50,6 +50,13 @@
       "when": 1745337432857,
       "tag": "0006_amazing_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1745523024834,
+      "tag": "0007_sweet_whistler",
+      "breakpoints": true
     }
   ]
 }

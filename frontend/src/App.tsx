@@ -20,6 +20,7 @@ import ConfirmPassword from './pages/new-password.tsx'
 import AuthLayout from './pages/auth-layout.tsx'
 import Settings from './pages/dashboard/Settings.tsx'
 import Secrets from './pages/dashboard/Secrets.tsx'
+import HackRoles from './pages/dashboard/hack-roles.tsx'
 
 const queryClient = new QueryClient()
 
@@ -42,7 +43,7 @@ const router = createBrowserRouter([
       },
       {
         path: "otp",
-        element: <OtpPage/>
+        element: <OtpPage twHeight='min-h-screen'/>
       },
       {
         path: "new-password",
@@ -68,6 +69,10 @@ const router = createBrowserRouter([
       {
         path: "secrets",
         element: <Secrets/>
+      },
+      {
+        path: "hack-roles",
+        element: <HackRoles/>
       },
       {
         path: "settings/otp",

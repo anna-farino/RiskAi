@@ -27,7 +27,6 @@ type Token = {
 	iat: number,
 	exp: number
 }
-// Request logging middleware
 export function requestLogger(req: express.Request, _res: express.Response, next: express.NextFunction) {
   console.log(`📝 [${req.method}] ${req.path}`, {
     query: req.query,
@@ -80,8 +79,6 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
 			}
 		}
 
-		// If we reach here, either there was no token or it was invalid
-		// Try to refresh using the refresh token
 		if (refreshToken) {
 			reqLog(req, "🔄 [AUTH] Attempting to refresh token...")
 			const { user, isRefreshTokenValid } = await verifyRefreshToken(req, refreshToken);
@@ -114,13 +111,11 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
 			}
 		}
 
-		// If we reach here, both tokens expired or are invalid
 		reqLog(req,"❌ [AUTH] Either the tokens are invalid or the user doesn't exist")
 		res.status(401).end();
 
 	} catch (error) {
 		console.error('❌ [AUTH] Token verification error:', error);
-		// For any token verification errors, redirect to login
 		res.status(401).end();
 	}
 }

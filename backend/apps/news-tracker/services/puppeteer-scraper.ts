@@ -5,6 +5,10 @@ import { execSync } from 'child_process';
 import { log } from 'console';
 import vanillaPuppeteer from 'puppeteer';
 import * as fs from 'fs';
+import dotenv from 'dotenv';
+import dotenvConfig from 'backend/utils/dotenv-config';
+
+dotenvConfig(dotenv)
 
 const PUPPETEER_EXECUTABLE_PATH = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium'; // Use our installed Chromium unwrapped
 
@@ -13,6 +17,7 @@ puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
+  console.log("Database URL", process.env.DATABASE_URL)
   
   try {
     const chromePath = execSync('which chromium').toString().trim();
