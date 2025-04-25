@@ -6,7 +6,6 @@ import { User, users } from '@shared/db/schema/user';
 import { db } from '../db/db';
 import { permissions, rolesPermissions, roles, rolesUsers } from '@shared/db/schema/rbac';
 import { eq } from 'drizzle-orm';
-import { lockWrap } from 'backend/utils/lock';
 import { reqLog } from 'backend/utils/req-log';
 import { refreshTokenLock } from 'backend/utils/refreshTokenLock';
 
@@ -16,7 +15,7 @@ const baseURL = process.env.BASE_URL;
 
 console.log("base url", baseURL)
 
-export type FullRequest = Request & { 
+export type FullRequest = express.Request & { 
   user: User 
     & { permissions?: string[] } 
     & { role? : string | undefined | null }
@@ -28,7 +27,6 @@ type Token = {
 	iat: number,
 	exp: number
 }
-// Request logging middleware
 export function requestLogger(req: express.Request, _res: express.Response, next: express.NextFunction) {
   console.log(`📝 [${req.method}] ${req.path}`, {
     query: req.query,
@@ -70,23 +68,17 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
 					res.status(401).end();
 					return;
 				}
-				(req as unknown as FullRequest).user = user[0];
 
+				(req as unknown as FullRequest).user = user[0];
         const userId = user[0].id.toString();
 
-        const userRole = await getUserRole(userId)
-				const userPermissions = await getUserPermissions(userId);
-
-				(req as unknown as FullRequest).user.permissions = userPermissions;
-				(req as unknown as FullRequest).user.role = userRole;
+        await attachPermissionsAndRoleToRequest(userId, req)
 
 				next();
 				return;
 			}
 		}
 
-		// If we reach here, either there was no token or it was invalid
-		// Try to refresh using the refresh token
 		if (refreshToken) {
 			reqLog(req, "🔄 [AUTH] Attempting to refresh token...")
 			const { user, isRefreshTokenValid } = await verifyRefreshToken(req, refreshToken);
@@ -110,22 +102,20 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
         });
 
         (req as unknown as FullRequest).user = user;
-        const userPermissions = await getUserPermissions(user.id.toString());
+        const userId = user.id.toString();
 
-        (req as unknown as FullRequest).user.permissions = userPermissions
+        await attachPermissionsAndRoleToRequest(userId, req)
 
         next();
         return;
 			}
 		}
 
-		// If we reach here, both tokens expired or are invalid
 		reqLog(req,"❌ [AUTH] Either the tokens are invalid or the user doesn't exist")
 		res.status(401).end();
 
 	} catch (error) {
 		console.error('❌ [AUTH] Token verification error:', error);
-		// For any token verification errors, redirect to login
 		res.status(401).end();
 	}
 }
@@ -153,4 +143,13 @@ async function getUserPermissions(userId: string) {
 		.where(eq(rolesUsers.userId, userId));
 
 	return userPermissions.map((p) => p.permissions?.name ?? '');
+}
+
+
+async function attachPermissionsAndRoleToRequest(userId: string, req: express.Request) {
+    const userRole = await getUserRole(userId)
+    const userPermissions = await getUserPermissions(userId);
+
+    (req as unknown as FullRequest).user.permissions = userPermissions;
+    (req as unknown as FullRequest).user.role = userRole;
 }

@@ -22,6 +22,8 @@ import Settings from './pages/dashboard/Settings.tsx'
 import NewsCapsuleHome from './pages/dashboard/news-capsule/news-capsule-home.tsx'
 import AnalysisPage from './pages/dashboard/news-capsule/AnalysisPage.tsx'
 import HistoryPage from './pages/dashboard/news-capsule/HistoryPage.tsx'
+import Secrets from './pages/dashboard/Secrets.tsx'
+import HackRoles from './pages/dashboard/hack-roles.tsx'
 
 const queryClient = new QueryClient()
 
@@ -44,7 +46,7 @@ const router = createBrowserRouter([
       },
       {
         path: "otp",
-        element: <OtpPage/>
+        element: <OtpPage twHeight='min-h-screen'/>
       },
       {
         path: "new-password",
@@ -66,6 +68,14 @@ const router = createBrowserRouter([
       {
         path: "settings",
         element: <Settings/>,
+      },
+      {
+        path: "secrets",
+        element: <Secrets/>
+      },
+      {
+        path: "hack-roles",
+        element: <HackRoles/>
       },
       {
         path: "settings/otp",
@@ -122,9 +132,6 @@ const router = createBrowserRouter([
     element: <h1>Ooops! Page not found... </h1>
   }
 ])
-
-// Test for git
-// test test test
 
 function App() {
 

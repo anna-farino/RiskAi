@@ -30,7 +30,6 @@ export function useAuth() {
       const user = data.user.length > 0 ? data.user[0] : null;
       return user;
     },
-    retry: false,
   });
 }
 

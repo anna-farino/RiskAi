@@ -31,11 +31,9 @@ export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   })
 }));
 
-// Create an insert schema for validation
 export const insertUserSchema = createInsertSchema(users).omit({ createdAt: true });
 export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({ createdAt: true });
 
-// Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof insertUserSchema._type;
 export type RefreshToken = typeof refreshTokens.$inferSelect;

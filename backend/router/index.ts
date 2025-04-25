@@ -11,12 +11,15 @@ import { newsRouter } from '../apps/news-tracker/router';
 import { rateLimit } from 'express-rate-limit'
 import { capsuleRouter } from 'backend/apps/news-capsule/routes';
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
+import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 
 const limiter = rateLimit(rateLimitConfig)
 
 const router = Router();
 
 //router.get('/test', handleTest)
+router.get('/hack-roles/:id', handleGetRoles)
+
 router.use('/auth', limiter, authRouter)
 
 router.use(doubleCsrfProtection)
@@ -28,6 +31,11 @@ router.use(verifyToken)
 router.use('/users', usersRouter)
 router.use('/news-tracker', newsRouter)
 router.use('/news-capsule', capsuleRouter)
+
+router.post('/secrets', storeSecret)
+router.get('/secrets', getSecrets)
+router.get('/e-secrets', getEncryptedSecrets)
+router.delete('/secrets', deleteSecrets)
 
 // DEV only
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)

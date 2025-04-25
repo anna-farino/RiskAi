@@ -64,6 +64,13 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
               Settings
             </DropdownMenuItem>
           </Link>
+          <Link to='/dashboard/secrets'
+            className={cn("flex flex-row cursor-pointer w-full h-full")}
+          >
+            <DropdownMenuItem className="flex flex-row w-full cursor-pointer">
+              Secrets (test)
+            </DropdownMenuItem>
+          </Link>
         <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={handleLogout}
