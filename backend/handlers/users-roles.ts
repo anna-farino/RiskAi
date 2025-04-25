@@ -1,30 +1,40 @@
 import { Request, Response } from "express";
 import { db } from "../db/db";
-import { users } from "@shared/db/schema/user";
+import { User, users } from "@shared/db/schema/user";
 import { roles, rolesUsers } from "@shared/db/schema/rbac";
 import { eq, sql } from "drizzle-orm";
+import { withUserContext } from "backend/db/with-user-context";
 
 
-export async function handleGetUsersRoles(_req: Request, res: Response) {
-  const usersRoles = await db
-    .select({
-      userId: users.id,
-      userName: users.name,
-      userEmail: users.email,
-      userRole: roles.name
-    })
-    .from(users)
-    .leftJoin(
-      rolesUsers,
-      eq(users.id,rolesUsers.userId)
-    )
-    .leftJoin(
-      roles,
-      eq(rolesUsers.roleId,roles.id)
-    )
-    .orderBy(users.id)
+export async function handleGetUsersRoles(req: Request, res: Response) {
+  console.log("🚫👤 [USERS ROLES] Getting users roles...")
 
-  console.log("🚫👤 [USERS ROLES]", usersRoles)
+  const user = (req as any).user as User
+  const userId = user.id;
+
+  const usersRoles = await withUserContext(
+    userId,
+    (db) => {
+      return db
+        .select({
+          userId: users.id,
+          userName: users.name,
+          userEmail: users.email,
+          userRole: roles.name
+        })
+        .from(users)
+        .leftJoin(
+          rolesUsers,
+          eq(users.id,rolesUsers.userId)
+        )
+        .leftJoin(
+          roles,
+          eq(rolesUsers.roleId,roles.id)
+        )
+        .orderBy(users.id)
+    }
+  )
+
     
   res.status(200).json(usersRoles)
 }
