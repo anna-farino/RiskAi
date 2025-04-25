@@ -6,10 +6,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Bug,
   Home,
-  File,
-  AppWindowIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -31,7 +28,7 @@ const buttons = [
   },
   {
     label: "News Capsule",
-    path: "/dashboard/news-capsule/analysis",
+    path: "/dashboard/news-capsule/",
     icon: Home,
     restricted: false,
   },

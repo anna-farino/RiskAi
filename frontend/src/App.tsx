@@ -19,9 +19,6 @@ import EmailOtp from './pages/email-otp.tsx'
 import ConfirmPassword from './pages/new-password.tsx'
 import AuthLayout from './pages/auth-layout.tsx'
 import Settings from './pages/dashboard/Settings.tsx'
-import NewsCapsuleHome from './pages/dashboard/news-capsule/news-capsule-home.tsx'
-import AnalysisPage from './pages/dashboard/news-capsule/AnalysisPage.tsx'
-import HistoryPage from './pages/dashboard/news-capsule/HistoryPage.tsx'
 import Secrets from './pages/dashboard/Secrets.tsx'
 import HackRoles from './pages/dashboard/hack-roles.tsx'
 
@@ -109,15 +106,15 @@ const router = createBrowserRouter([
       },
       {
         path: "news-capsule",
-        element: <NewsCapsuleHome/>,
+        element: <></>,
         children: [
           {
             path: "analysis",
-            element: <AnalysisPage/>
+            element: <></>,
           },
           {
             path: "history",
-            element: <HistoryPage/>
+            element: <></>
           }
         ]
       }

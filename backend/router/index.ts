@@ -9,7 +9,6 @@ import { noSimpleRequests } from '../middleware/no-simple-requests';
 import { doubleCsrfProtection } from '../middleware/csrf';
 import { newsRouter } from '../apps/news-tracker/router';
 import { rateLimit } from 'express-rate-limit'
-import { capsuleRouter } from 'backend/apps/news-capsule/routes';
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 
@@ -29,8 +28,9 @@ router.use(verifyToken)
 
 // Protected routes
 router.use('/users', usersRouter)
+//
 router.use('/news-tracker', newsRouter)
-router.use('/news-capsule', capsuleRouter)
+//
 
 router.post('/secrets', storeSecret)
 router.get('/secrets', getSecrets)
