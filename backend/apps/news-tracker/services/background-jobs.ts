@@ -484,3 +484,32 @@ export async function runGlobalScrapeJob(userId: string): Promise<{
 export function isGlobalJobRunning(): boolean {
   return globalJobRunning;
 }
+
+/**
+ * Stop the global scraping job
+ * This terminates any running job and resets the global status
+ */
+export async function stopGlobalScrapeJob(): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  if (!globalJobRunning) {
+    return {
+      success: false,
+      message: "No global scraping job is currently running"
+    };
+  }
+
+  // Stop all active source scraping
+  for (const [sourceId] of activeScraping) {
+    stopScrapingSource(sourceId);
+  }
+  
+  // Set global job status to false
+  globalJobRunning = false;
+
+  return {
+    success: true,
+    message: "Global scrape job stopped successfully"
+  };
+}

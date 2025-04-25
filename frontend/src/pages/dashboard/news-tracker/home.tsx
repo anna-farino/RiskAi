@@ -171,6 +171,27 @@ export default function NewsHome() {
     setIsFilterOpen(false);
   };
   
+  // Handle keyword click from article card
+  const handleKeywordClick = (keywordTerm: string) => {
+    // First check if we have this keyword in our list
+    if (keywords.data) {
+      const keyword = keywords.data.find(k => k.term.toLowerCase() === keywordTerm.toLowerCase());
+      
+      if (keyword) {
+        // Keyword exists - toggle its selection
+        toggleKeywordSelection(keyword.id);
+      } else {
+        // For now, just log if we don't find the keyword
+        console.log(`Keyword "${keywordTerm}" not found in your keywords list`);
+        // Optionally, you could show a toast message here
+        toast({
+          title: "Keyword not in your list",
+          description: `"${keywordTerm}" exists in articles but isn't in your keyword list. Add it in Keywords tab for filtering.`,
+        });
+      }
+    }
+  };
+  
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
@@ -634,6 +655,7 @@ export default function NewsHome() {
                     article={article}
                     onDelete={(id: any) => deleteArticle.mutate(id)}
                     isPending={pendingItems.has(article.id)}
+                    onKeywordClick={handleKeywordClick}
                   />
                 </a>
               ))}

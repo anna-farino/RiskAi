@@ -28,6 +28,7 @@ import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
+  FIFTEEN_MINUTES = 15 * 60 * 1000,
   HOURLY = 60 * 60 * 1000,
   FOUR_HOURS = 4 * 60 * 60 * 1000,
   TWICE_DAILY = 12 * 60 * 60 * 1000,
@@ -37,6 +38,7 @@ enum JobInterval {
 
 // Convert enum to human-readable labels
 const intervalLabels: Record<JobInterval, string> = {
+  [JobInterval.FIFTEEN_MINUTES]: "Every 15 Minutes",
   [JobInterval.HOURLY]: "Hourly",
   [JobInterval.FOUR_HOURS]: "Every 4 Hours",
   [JobInterval.TWICE_DAILY]: "Twice Daily",
@@ -62,6 +64,29 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<Source[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  
+  // Get job status
+  const autoScrapeStatus = useQuery({
+    queryKey: ["/api/news-tracker/jobs/status"],
+    queryFn: async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/jobs/status`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: csfrHeaderObject()
+        });
+        if (!response.ok) throw new Error('Failed to fetch job status');
+        const data = await response.json();
+        return data;
+      } catch(error) {
+        console.error("Error fetching job status:", error);
+        return { running: false };
+      }
+    },
+    refetchInterval: 5000, // Poll every 5 seconds
+    // Add initial data to prevent undefined state
+    initialData: { running: false }
+  });
   
   const form = useForm({
     resolver: zodResolver(insertSourceSchema),
@@ -543,6 +568,63 @@ export default function Sources() {
   });
   
   // Run global scrape job manually
+  // Add the stop global scrape mutation
+  const stopGlobalScrape = useMutation({
+    mutationFn: async () => {
+      try {
+        // Add a debugging log before making the request
+        console.log("Attempting to stop global scrape job...");
+        
+        const response = await fetch(`${serverUrl}/api/news-tracker/jobs/stop`, {
+          method: "POST",
+          headers: {
+            ...csfrHeaderObject(),
+            "Content-Type": "application/json"
+          },
+          credentials: "include"
+        });
+        
+        console.log("Stop request response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Failed to stop global scrape: ${response.statusText}`);
+        }
+        
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          console.log("Stop job succeeded with data:", data);
+          return data;
+        } catch (e) {
+          console.log("Empty response, returning success object");
+          return { success: true };
+        }
+      } catch (error) {
+        console.error("Stop global scrape error:", error);
+        throw error;
+      }
+    },
+    onError: (err) => {
+      console.error("Stop global scrape mutation error handler:", err);
+      toast({
+        title: "Error stopping global scrape",
+        description: "Failed to stop scraping. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      console.log("Stop global scrape succeeded:", data);
+      toast({
+        title: "Global scrape job stopped",
+        description: "All scraping operations have been stopped"
+      });
+      // Force update job status
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/jobs/status"] });
+    },
+  });
+
   const runGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
@@ -768,19 +850,35 @@ export default function Sources() {
               </PopoverContent>}
             </Popover>
             
-            <Button 
-              onClick={() => runGlobalScrape.mutate()}
-              disabled={runGlobalScrape.isPending}
-              size="sm"
-              className="bg-primary hover:bg-primary/90"
-            >
-              {runGlobalScrape.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="mr-2 h-4 w-4" />
-              )}
-              Run Auto-Scrape Now
-            </Button>
+            {autoScrapeStatus?.data?.running ? (
+              <Button 
+                onClick={() => stopGlobalScrape.mutate()}
+                disabled={stopGlobalScrape.isPending}
+                size="sm"
+                variant="destructive"
+              >
+                {stopGlobalScrape.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="mr-2 h-4 w-4" />
+                )}
+                Stop Auto-Scrape
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => runGlobalScrape.mutate()}
+                disabled={runGlobalScrape.isPending}
+                size="sm"
+                className="bg-primary hover:bg-primary/90"
+              >
+                {runGlobalScrape.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                Run Auto-Scrape Now
+              </Button>
+            )}
           </div>
         </div>
         

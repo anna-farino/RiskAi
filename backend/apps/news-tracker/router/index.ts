@@ -1,9 +1,9 @@
 import { insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
-import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail } from "../services/background-jobs";
+import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule } from "../services/scheduler";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
@@ -12,6 +12,13 @@ import { reqLog } from "backend/utils/req-log";
 
 
 export const newsRouter = Router()
+
+// Initialize the scheduler when the router is loaded
+initializeScheduler().then(() => {
+  log("[NewsTracker] Auto-scrape scheduler initialized", "scheduler");
+}).catch(err => {
+  log(`[NewsTracker] Error initializing auto-scrape scheduler: ${err.message}`, "scheduler");
+});
 
 const activeScraping = new Map<string, boolean>();
 
@@ -296,6 +303,34 @@ newsRouter.get("/jobs/status", async (req, res) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+newsRouter.post("/jobs/stop", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    log(`[API] Stopping global scrape job requested by user ${userId}`, 'scraper');
+    
+    // Check if a job is actually running
+    const isRunning = isGlobalJobRunning();
+    log(`[API] Current job running status: ${isRunning}`, 'scraper');
+    
+    // Call the stop function - this might be undefined causing the error
+    if (typeof stopGlobalScrapeJob !== 'function') {
+      log(`[API] stopGlobalScrapeJob is not a function: ${typeof stopGlobalScrapeJob}`, 'scraper');
+      return res.status(500).json({ 
+        success: false, 
+        message: "Internal server error: stop function not available" 
+      });
+    }
+    
+    const result = await stopGlobalScrapeJob();
+    log(`[API] Stop job result: ${JSON.stringify(result)}`, 'scraper');
+    res.json(result);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    log(`[API] Error stopping global scrape job: ${errorMessage}`, 'scraper');
     res.status(500).json({ success: false, message: errorMessage });
   }
 });
