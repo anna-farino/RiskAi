@@ -7,7 +7,10 @@ export default defineConfig({
   server: {
     port: 5174,
     host: true,
-    hmr: true,
+    hmr: { overlay: false },
+    watch: {
+      ignored: ['**/.DS_Store']
+    },
     // Allow all hosts since we're in a Replit environment
     allowedHosts: [
       '.replit.dev',
