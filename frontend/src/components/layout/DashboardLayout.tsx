@@ -30,9 +30,15 @@ const buttons = [
     restricted: false,
   },
   {
-    label: "Admin",
-    path: "/dashboard/admin",
-    icon: File,
+    label: "News Capsule",
+    path: "/dashboard/capsule/home",
+    icon: Home,
+    restricted: false,
+  },
+  {
+    label: "Vendor Threat",
+    path: "/dashboard/vendor/home",
+    icon: Home,
     restricted: true,
   },
 ];
@@ -83,14 +89,7 @@ export default function DashboardLayout({
         <div className="flex flex-1 flex-col justify-between">
           <div className="flex flex-col p-4 gap-y-2">
             {buttons
-              .filter((button) => {
-                if (
-                  userData?.permissions.includes("permissions:edit") ||
-                  !button.restricted
-                ) {
-                  return button;
-                }
-              })
+              .filter((button) => !button.restricted)
               .map((button) => (
                 <Link to={button.path} key={button.path}>
                   <Button

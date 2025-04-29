@@ -1,21 +1,15 @@
 import { cn } from "@/lib/utils";
-import { setSeconds } from "date-fns";
-import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 
 const buttons = [
   {
-    label: 'Articles',
-    url: '/dashboard/news/home'
+    label: 'Home',
+    url: '/dashboard/capsule/home'
   },
   {
-    label: 'Keywords',
-    url: '/dashboard/news/keywords'
-  },
-  {
-    label: 'Sources',
-    url: '/dashboard/news/sources'
+    label: 'Reports',
+    url: '/dashboard/capsule/reports'
   },
 ]
 
