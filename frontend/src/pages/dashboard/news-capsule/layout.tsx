@@ -5,15 +5,11 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 const buttons = [
   {
     label: 'Home',
-    url: '/dashboard/news/home'
+    url: '/dashboard/capsule/home'
   },
   {
-    label: 'Keywords',
-    url: '/dashboard/news/keywords'
-  },
-  {
-    label: 'Sources',
-    url: '/dashboard/news/sources'
+    label: 'Reports',
+    url: '/dashboard/capsule/reports'
   },
 ]
 
