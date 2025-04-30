@@ -1,22 +1,8 @@
-import { pgTable, text, serial, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-export const articles = pgTable("articles", {
+export const capsuleArticles = pgTable("capsule_articles", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
   threatName: text("threat_name").notNull(),
@@ -33,11 +19,11 @@ export const articles = pgTable("articles", {
   markedForDeletion: boolean("marked_for_deletion").default(false).notNull(),
 });
 
-export const insertArticleSchema = createInsertSchema(articles).omit({
+export const insertCapsuleArticleSchema = createInsertSchema(capsuleArticles).omit({
   id: true,
   createdAt: true,
 });
 
-export type InsertArticle = z.infer<typeof insertArticleSchema>;
-export type Article = typeof articles.$inferSelect;
+export type InsertCapsuleArticle = z.infer<typeof insertCapsuleArticleSchema>;
+export type CapsuleArticle = typeof capsuleArticles.$inferSelect;
 

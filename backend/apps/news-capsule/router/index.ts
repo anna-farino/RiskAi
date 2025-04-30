@@ -1,17 +1,17 @@
 import { Router, Request, Response } from "express";
-import { storage } from "../storage";
-import { insertArticleSchema } from "@shared/db/schema/news-capsule";
+import { insertCapsuleArticleSchema } from "@shared/db/schema/news-capsule";
 import { processArticleUrl } from "../services/articleService";
 import { generateThreatReport } from "../services/reportService";
 import { analyzeWithAI, getOpenAIInfo } from "../services/openai";
 import { z } from "zod";
+import { createArticle, deleteAllArticles, deleteArticle, getAllArticles, getArticle, getEarlierArticles, updateArticle } from "../queries";
 
 
 export const newsCapsuleRouter = Router()
 
 newsCapsuleRouter.get("/articles", async (_req: Request, res: Response) => {
   try {
-    const articles = await storage.getAllArticles();
+    const articles = await getAllArticles();
     
     // Filter out articles marked for deletion for the News Capsule view
     const activeArticles = articles.filter(article => !article.markedForDeletion);
@@ -25,7 +25,7 @@ newsCapsuleRouter.get("/articles", async (_req: Request, res: Response) => {
 // Get today's articles
 newsCapsuleRouter.get("/articles/today", async (_req: Request, res: Response) => {
   try {
-    const articles = await storage.getAllArticles();
+    const articles = await getAllArticles();
     //const articles = await storage.getTodayArticles();
     res.json(articles);
   } catch (error) {
@@ -36,7 +36,7 @@ newsCapsuleRouter.get("/articles/today", async (_req: Request, res: Response) =>
 // Get earlier articles (from previous sessions)
 newsCapsuleRouter.get("/articles/earlier", async (_req: Request, res: Response) => {
   try {
-    const articles = await storage.getEarlierArticles();
+    const articles = await getEarlierArticles();
     res.json(articles);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch earlier articles" });
@@ -50,7 +50,7 @@ newsCapsuleRouter.get("/articles/:id", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid article ID" });
     }
     
-    const article = await storage.getArticle(id);
+    const article = await getArticle(id);
     if (!article) {
       return res.status(404).json({ error: "Article not found" });
     }
@@ -63,13 +63,13 @@ newsCapsuleRouter.get("/articles/:id", async (req: Request, res: Response) => {
 
 newsCapsuleRouter.post("/articles", async (req: Request, res: Response) => {
   try {
-    const result = insertArticleSchema.safeParse(req.body);
+    const result = insertCapsuleArticleSchema.safeParse(req.body);
     
     if (!result.success) {
       return res.status(400).json({ error: "Invalid article data", details: result.error });
     }
     
-    const article = await storage.createArticle(result.data);
+    const article = await createArticle(result.data);
     res.status(201).json(article);
   } catch (error) {
     res.status(500).json({ error: "Failed to create article" });
@@ -80,26 +80,22 @@ newsCapsuleRouter.post("/articles", async (req: Request, res: Response) => {
 newsCapsuleRouter.post("/process-article", async (req: Request, res: Response) => {
   console.log("news capsule hit: process-article")
   try {
-    // Validate request
     const urlSchema = z.object({
       url: z.string().url("Invalid URL format"),
       targetOS: z.string().optional().default("Microsoft / Windows")
     });
-    
     const result = urlSchema.safeParse(req.body);
     
     if (!result.success) {
       return res.status(400).json({ error: "Invalid URL", details: result.error });
     }
-    
-    // Process the article URL with target OS
     const articleData = await processArticleUrl(result.data.url, result.data.targetOS);
-    
+
     console.log("Article to be stored", articleData)
     // Save the processed article
-    const article = await storage.createArticle(articleData);
+    const article = await createArticle(articleData);
 
-    console.log("State of the storage", await storage.getAllArticles())
+    console.log("State of the storage", await getAllArticles())
     
     res.status(201).json(article);
   } catch (error: any) {
@@ -127,7 +123,7 @@ newsCapsuleRouter.patch("/articles/:id", async (req: Request, res: Response) => 
       return res.status(400).json({ error: "Invalid update data", details: result.error });
     }
     
-    const article = await storage.updateArticle(id, result.data);
+    const article = await updateArticle(id, result.data);
     if (!article) {
       return res.status(404).json({ error: "Article not found" });
     }
@@ -146,7 +142,7 @@ newsCapsuleRouter.delete("/articles/:id", async (req: Request, res: Response) =>
       return res.status(400).json({ error: "Invalid article ID" });
     }
     
-    const success = await storage.deleteArticle(id);
+    const success = await deleteArticle(id);
     if (!success) {
       return res.status(404).json({ error: "Article not found" });
     }
@@ -161,7 +157,7 @@ newsCapsuleRouter.delete("/articles/:id", async (req: Request, res: Response) =>
 // Endpoint to delete all articles
 newsCapsuleRouter.delete("/articles", async (_req: Request, res: Response) => {
   try {
-    const success = await storage.deleteAllArticles();
+    const success = await deleteAllArticles();
     if (!success) {
       return res.status(500).json({ error: "Failed to delete all articles" });
     }
@@ -187,12 +183,12 @@ newsCapsuleRouter.get("/reports/threats", async (_req: Request, res: Response) =
 // Clear reports history (by unmarking all articles for reporting)
 newsCapsuleRouter.delete("/reports/history", async (_req: Request, res: Response) => {
   try {
-    const allArticles = await storage.getAllArticles();
+    const allArticles = await getAllArticles();
     
     // Update each article to set markedForReporting to false
     const updatePromises = allArticles
       .filter(article => article.markedForReporting === true)
-      .map(article => storage.updateArticle(((article as any).id as string), { markedForReporting: false }));
+      .map(article => updateArticle(((article as any).id as string), { markedForReporting: false }));
       
     await Promise.all(updatePromises);
     

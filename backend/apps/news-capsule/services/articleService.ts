@@ -1,4 +1,4 @@
-import { InsertArticle, Article } from "@shared/db/schema/news-capsule/index";
+import { InsertCapsuleArticle, CapsuleArticle } from "@shared/db/schema/news-capsule/index";
 import { enhanceArticleWithAI } from "./aiService";
 
 /**
@@ -447,7 +447,7 @@ export async function processArticleUrl(
   url: string, 
   targetOS: string = 'Microsoft / Windows'
 )
-  : Promise<InsertArticle> 
+  : Promise<InsertCapsuleArticle> 
 {
   try {
     // Validate and normalize URL format
@@ -599,7 +599,7 @@ export async function processArticleUrl(
     // Enhance the article content with OpenAI analysis
     try {
       // Use AI to enhance the article with OS-specific threat intelligence
-      const enhancedArticle = await enhanceArticleWithAI(baseArticle as Article, targetOS);
+      const enhancedArticle = await enhanceArticleWithAI(baseArticle as CapsuleArticle, targetOS);
 
       console.log("🤖 ENHANCED article from AI:", enhancedArticle)
       

@@ -1,4 +1,4 @@
-import { Article } from "@shared/db/schema/news-capsule/index";
+import { CapsuleArticle } from "@shared/db/schema/news-capsule/index";
 import { getStructuredAnalysis, isOpenAIAvailable } from "./openai";
 
 // Define OS-specific threat analysis interface
@@ -136,7 +136,7 @@ SPECIAL INSTRUCTIONS FOR ANDROID:
 /**
  * Enhance an article's content with AI-generated OS-specific information
  */
-export async function enhanceArticleWithAI(article: Article, targetOS: string): Promise<Partial<Article>> {
+export async function enhanceArticleWithAI(article: CapsuleArticle, targetOS: string): Promise<Partial<CapsuleArticle>> {
   // Extract content from the article for analysis
   const articleContent = `
     Title: ${article.title}
@@ -224,7 +224,7 @@ export async function enhanceArticleWithAI(article: Article, targetOS: string): 
 /**
  * Provide basic OS-specific enhancements when AI is not available
  */
-function getDefaultOSEnhancements(article: Article, targetOS: string): Partial<Article> {
+function getDefaultOSEnhancements(article: CapsuleArticle, targetOS: string): Partial<CapsuleArticle> {
   // Add OS-specific marker to the threat name if it doesn't already include OS info
   let enhancedThreatName = article.threatName;
   if (!article.threatName.toLowerCase().includes(targetOS.toLowerCase())) {

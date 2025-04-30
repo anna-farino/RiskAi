@@ -24,6 +24,7 @@ import { exportToFormat, exportToJson, getVisibleReports, handleFormatReport } f
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { CheckedState } from "@radix-ui/react-checkbox";
+import HistoryDialog from "./reports/history-dialog";
 
 
 export default function Reports() {
@@ -159,6 +160,7 @@ export default function Reports() {
 
 
   function handleOnCheckChange(checked: CheckedState, article: any) {
+    console.log("Checked:", checked)
     // Call the API to update the article status
     fetch(serverUrl + `/api/news-capsule/articles/${article.id}`, {
       method: 'PATCH',
@@ -253,73 +255,15 @@ export default function Reports() {
       </Dialog>
       
       {/* History Dialog to Choose Reports */}
-      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-        <DialogContent className="sm:max-w-[625px]">
-          <DialogHeader>
-            <DialogTitle>Article History</DialogTitle>
-            <DialogDescription>
-              Select articles to include in your reports. Articles marked for reporting will be included in generated threat reports.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="max-h-[60vh] overflow-y-auto pr-6 -mr-6 mt-4">
-            {articlesQuery.isLoading ? (
-              <div className="py-4 text-center">Loading articles...</div>
-            ) : allArticles && allArticles.length > 0 ? (
-              <div className="space-y-4">
-                {allArticles.map((article) => (
-                  <div key={article.id} className="border rounded-md p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox 
-                          id={`article-${article.id}`}
-                          checked={article.markedForReporting}
-                          onCheckedChange={(c) => handleOnCheckChange(c,article)}
-                        />
-                        <label 
-                          htmlFor={`article-${article.id}`}
-                          className="font-medium text-sm cursor-pointer"
-                        >
-                          {article.title}
-                        </label>
-                      </div>
-                      
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        title="Delete article"
-                        onClick={() => {
-                          setArticleToDelete(article.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <AlertCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="pl-6 text-xs text-primary-500">
-                      <Badge variant="outline" className="mr-2">
-                        {article.threatName}
-                      </Badge>
-                      <span>{formatDate(new Date(article.createdAt))}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-4 text-center text-gray-500">
-                No articles found in history.
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter className="mt-4">
-            <Button onClick={() => setHistoryDialogOpen(false)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <HistoryDialog
+        historyDialogOpen={historyDialogOpen}
+        setHistoryDialogOpen={setHistoryDialogOpen}
+        allArticles={allArticles}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        setArticleToDelete={setArticleToDelete}
+        articlesQuery={articlesQuery}
+        handleOnCheckChange={handleOnCheckChange}
+      />
 
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
