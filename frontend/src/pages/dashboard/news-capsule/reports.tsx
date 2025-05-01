@@ -265,18 +265,19 @@ export default function Reports() {
         handleOnCheckChange={handleOnCheckChange}
       />
 
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
+      <div className="mb-8 gap-x-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Threat Reports</h1>
           <p className="text-primary-600">Consolidated reports of cybersecurity threats for {targetOS}</p>
-          {targetOS !== "All Applications" && (
-            <p className="text-xs text-primary-500 mt-1">
-              <span className="inline-flex items-center">
-                <Shield className="h-3 w-3 mr-1" />
-                Showing threats specific to {targetOS} and cross-platform issues
-              </span>
-            </p>
-          )}
+          <p className="text-xs text-primary-500 mt-1">
+            <span className="inline-flex items-center">
+              <Shield className="h-3 w-3 mr-1" />
+              {targetOS !== "All Applications" 
+                ? `Showing threats specific to ${targetOS} and cross-platform issues`
+                : `Showing threats concerning any OS`
+              }
+            </span>
+          </p>
           
           {/* OS Selection */}
           <div className="mt-3 flex flex-wrap gap-2">

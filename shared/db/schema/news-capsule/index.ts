@@ -1,6 +1,7 @@
 import { pgTable, text, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { users } from "../user";
 
 export const capsuleArticles = pgTable("capsule_articles", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -17,6 +18,7 @@ export const capsuleArticles = pgTable("capsule_articles", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   markedForReporting: boolean("marked_for_reporting").default(true).notNull(),
   markedForDeletion: boolean("marked_for_deletion").default(false).notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id),
 });
 
 export const insertCapsuleArticleSchema = createInsertSchema(capsuleArticles).omit({

@@ -2,38 +2,30 @@ import { Router, Request, Response } from "express";
 import { insertCapsuleArticleSchema } from "@shared/db/schema/news-capsule";
 import { processArticleUrl } from "../services/articleService";
 import { generateThreatReport } from "../services/reportService";
-import { analyzeWithAI, getOpenAIInfo } from "../services/openai";
 import { z } from "zod";
 import { createArticle, deleteAllArticles, deleteArticle, getAllArticles, getArticle, getEarlierArticles, updateArticle } from "../queries";
-
 
 export const newsCapsuleRouter = Router()
 
 newsCapsuleRouter.get("/articles", async (_req: Request, res: Response) => {
   try {
     const articles = await getAllArticles();
-    
-    // Filter out articles marked for deletion for the News Capsule view
     const activeArticles = articles.filter(article => !article.markedForDeletion);
-    
     res.json(activeArticles);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch articles" });
   }
 });
 
-// Get today's articles
 newsCapsuleRouter.get("/articles/today", async (_req: Request, res: Response) => {
   try {
     const articles = await getAllArticles();
-    //const articles = await storage.getTodayArticles();
     res.json(articles);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch today's articles" });
   }
 });
 
-// Get earlier articles (from previous sessions)
 newsCapsuleRouter.get("/articles/earlier", async (_req: Request, res: Response) => {
   try {
     const articles = await getEarlierArticles();
@@ -49,12 +41,10 @@ newsCapsuleRouter.get("/articles/:id", async (req: Request, res: Response) => {
     if (!id) {
       return res.status(400).json({ error: "Invalid article ID" });
     }
-    
     const article = await getArticle(id);
     if (!article) {
       return res.status(404).json({ error: "Article not found" });
     }
-    
     res.json(article);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch article" });
@@ -64,11 +54,9 @@ newsCapsuleRouter.get("/articles/:id", async (req: Request, res: Response) => {
 newsCapsuleRouter.post("/articles", async (req: Request, res: Response) => {
   try {
     const result = insertCapsuleArticleSchema.safeParse(req.body);
-    
     if (!result.success) {
       return res.status(400).json({ error: "Invalid article data", details: result.error });
     }
-    
     const article = await createArticle(result.data);
     res.status(201).json(article);
   } catch (error) {
@@ -91,6 +79,9 @@ newsCapsuleRouter.post("/process-article", async (req: Request, res: Response) =
     }
     const articleData = await processArticleUrl(result.data.url, result.data.targetOS);
 
+    const userId = (req as any).user?.id
+    articleData.userId = userId
+
     console.log("Article to be stored", articleData)
     // Save the processed article
     const article = await createArticle(articleData);
@@ -104,15 +95,12 @@ newsCapsuleRouter.post("/process-article", async (req: Request, res: Response) =
   }
 });
 
-// Article management endpoints
 newsCapsuleRouter.patch("/articles/:id", async (req: Request, res: Response) => {
   try {
     const id = req.params.id;
     if (!id) {
       return res.status(400).json({ error: "Invalid article ID" });
     }
-    
-    // Validate request body
     const updateSchema = z.object({
       markedForReporting: z.boolean().optional(),
       markedForDeletion: z.boolean().optional(),
@@ -122,12 +110,10 @@ newsCapsuleRouter.patch("/articles/:id", async (req: Request, res: Response) => 
     if (!result.success) {
       return res.status(400).json({ error: "Invalid update data", details: result.error });
     }
-    
     const article = await updateArticle(id, result.data);
     if (!article) {
       return res.status(404).json({ error: "Article not found" });
     }
-    
     res.json(article);
   } catch (error: any) {
     console.error("Error updating article:", error);
@@ -141,12 +127,10 @@ newsCapsuleRouter.delete("/articles/:id", async (req: Request, res: Response) =>
     if (!id) {
       return res.status(400).json({ error: "Invalid article ID" });
     }
-    
     const success = await deleteArticle(id);
     if (!success) {
       return res.status(404).json({ error: "Article not found" });
     }
-    
     res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting article:", error);
@@ -154,14 +138,12 @@ newsCapsuleRouter.delete("/articles/:id", async (req: Request, res: Response) =>
   }
 });
 
-// Endpoint to delete all articles
 newsCapsuleRouter.delete("/articles", async (_req: Request, res: Response) => {
   try {
     const success = await deleteAllArticles();
     if (!success) {
       return res.status(500).json({ error: "Failed to delete all articles" });
     }
-    
     res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting all articles:", error);
@@ -169,7 +151,6 @@ newsCapsuleRouter.delete("/articles", async (_req: Request, res: Response) => {
   }
 });
 
-// Reports API endpoints
 newsCapsuleRouter.get("/reports/threats", async (_req: Request, res: Response) => {
   try {
     const reports = await generateThreatReport();
@@ -180,15 +161,15 @@ newsCapsuleRouter.get("/reports/threats", async (_req: Request, res: Response) =
   }
 });
 
-// Clear reports history (by unmarking all articles for reporting)
 newsCapsuleRouter.delete("/reports/history", async (_req: Request, res: Response) => {
   try {
     const allArticles = await getAllArticles();
-    
     // Update each article to set markedForReporting to false
     const updatePromises = allArticles
       .filter(article => article.markedForReporting === true)
-      .map(article => updateArticle(((article as any).id as string), { markedForReporting: false }));
+      .map(article => updateArticle(
+        ((article as any).id as string), { markedForReporting: false })
+      );
       
     await Promise.all(updatePromises);
     
@@ -199,53 +180,4 @@ newsCapsuleRouter.delete("/reports/history", async (_req: Request, res: Response
   }
 });
 
-// Status API route
-newsCapsuleRouter.get("/status", (_req: Request, res: Response) => {
-  res.json({
-    status: "operational",
-    uptime: process.uptime() + "s",
-    version: "1.0.0"
-  });
-});
-
-// Test OpenAI API endpoint
-newsCapsuleRouter.get("/test-openai", async (_req: Request, res: Response) => {
-  try {
-    const result = await analyzeWithAI("Summarize the newest trends in cybersecurity for 2025 in one sentence.");
-    res.json({ 
-      success: true, 
-      message: "OpenAI API is working correctly",
-      result 
-    });
-  } catch (error: any) {
-    console.error("Error testing OpenAI integration:", error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || "Failed to test OpenAI integration" 
-    });
-  }
-});
-
-// OpenAI Account Information Endpoint
-newsCapsuleRouter.get("/openai-account-info", async (_req: Request, res: Response) => {
-  try {
-    const accountInfo = await getOpenAIInfo();
-    res.json({
-      success: true,
-      accountInfo: {
-        ...accountInfo,
-        // Remove any sensitive information from the response
-        apiKeyLastFour: process.env.OPENAI_API_KEY ? 
-          `...${process.env.OPENAI_API_KEY.slice(-4)}` : 
-          'not available'
-      }
-    });
-  } catch (error: any) {
-    console.error("Error fetching OpenAI account information:", error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || "Failed to retrieve OpenAI account information" 
-    });
-  }
-});
 

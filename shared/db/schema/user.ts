@@ -1,6 +1,7 @@
-import { pgTable, serial, text, timestamp, integer, uuid, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
+import { capsuleArticles } from "./news-capsule";
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -21,7 +22,8 @@ export const refreshTokens = pgTable("refresh_tokens", {
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
-  refreshTokens: many(refreshTokens)
+  refreshTokens: many(refreshTokens),
+  capsuleArticles: many(capsuleArticles)
 }));
 
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({

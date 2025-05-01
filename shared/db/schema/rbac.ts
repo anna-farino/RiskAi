@@ -13,7 +13,7 @@ export const permissions = pgTable("permissions", {
 export const roles = pgTable("roles", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull().unique()
-}, (roles) => [
+}, (_roles) => [
     pgPolicy("roles_read_policy", {
       as: "permissive",
       to: "public",

@@ -71,6 +71,13 @@
       "when": 1746047419931,
       "tag": "0009_huge_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1746050217415,
+      "tag": "0010_bored_randall_flagg",
+      "breakpoints": true
     }
   ]
 }

@@ -594,6 +594,7 @@ export async function processArticleUrl(
       sourcePublication: publicationName,
       originalUrl: processUrl,
       targetOS: targetOS,
+      userId: ""
     };
 
     // Enhance the article content with OpenAI analysis
