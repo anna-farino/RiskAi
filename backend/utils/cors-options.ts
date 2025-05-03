@@ -3,6 +3,7 @@ export const corsOptions = {
   origin: [
     'http://localhost:5174',
     'http://0.0.0.0:5174',
+    'https://news-project-1-frontend.onrender.com',
     /\.replit\.dev$/,
     /\.repl\.co$/,
     /\.spock\.replit\.dev$/
