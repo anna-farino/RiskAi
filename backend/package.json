@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev":  "tsx index.ts",
-    "build":"esbuild index.ts --platform=node --bundle --format=esm --outdir=dist --external:argon2",
+    "build":"esbuild index.ts --platform=node --bundle --format=cjs --outdir=dist --external:argon3",
     "start":"NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
