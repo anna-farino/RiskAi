@@ -1,4 +1,8 @@
 import { doubleCsrf } from "csrf-csrf";
+import dotenv from 'dotenv';
+import dotenvConfig from "utils/dotenv-config";
+
+dotenvConfig(dotenv)
 
 export const {
   doubleCsrfProtection,
@@ -11,6 +15,7 @@ export const {
   cookieOptions: {
     sameSite: "none",     
     secure: true,         
+    domain: process.env.BASE_URL,
     path: "/",
     httpOnly: false 
   },
