@@ -17,7 +17,6 @@ export const {
     secure: true,         
     path: "/",
     httpOnly: false,
-    domain: ".onrender.com"
   },
   getTokenFromRequest: (req) => {
     return req.headers["x-csrf-token"] as string | undefined
