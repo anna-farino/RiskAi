@@ -15,7 +15,6 @@ export const {
   cookieOptions: {
     sameSite: "none",     
     secure: true,         
-    domain: process.env.BASE_URL,
     path: "/",
     httpOnly: false 
   },
