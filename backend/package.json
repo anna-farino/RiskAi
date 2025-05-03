@@ -3,13 +3,10 @@
   "version": "1.0.0",
   "type": "commonjs",
   "license": "MIT",
-  {
-    "scripts": {
-      "dev":  "tsx index.ts",
-      "build":"esbuild index.ts --platform=node --bundle --format=esm --outdir=dist --external:argon2",
-      "start":"NODE_ENV=production node dist/index.js",
-      "check":"tsc"
-    }
+  "scripts": {
+    "dev":  "tsx index.ts",
+    "build":"esbuild index.ts --platform=node --bundle --format=esm --outdir=dist --external:argon2",
+    "start":"NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
     "@emailjs/nodejs": "^5.0.2",
