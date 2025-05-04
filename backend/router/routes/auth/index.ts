@@ -24,7 +24,9 @@ authRouter.post('/logout', handleLogout);
 //protected route 
 authRouter.get(
   '/check', 
-  verifyToken, doubleCsrfProtection, noSimpleRequests, 
+    verifyToken, 
+    //doubleCsrfProtection, 
+    noSimpleRequests, 
   handleAuthCheck
 );
 
