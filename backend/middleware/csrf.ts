@@ -16,7 +16,6 @@ export const {
     sameSite: "none",     
     secure: true,         
     path: "/",
-    domain: "*",
     httpOnly: false,
   },
   getTokenFromRequest: (req) => {
