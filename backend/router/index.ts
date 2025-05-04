@@ -21,7 +21,7 @@ const router = Router();
 router.get('/hack-roles/:id', handleGetRoles)
 
 router.use('/auth', limiter, authRouter)
-//router.use(doubleCsrfProtection)
+router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 //router.get('/test-simple-request', handleTest)
 router.use(verifyToken)

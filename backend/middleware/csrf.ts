@@ -13,6 +13,7 @@ export const {
   ignoredMethods: [],
   cookieName: "csrf-token",
   cookieOptions: {
+    domain: "onrender.com",
     sameSite: "none",     
     secure: true,         
     path: "/",
