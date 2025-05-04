@@ -16,6 +16,7 @@ export const {
     sameSite: "none",     
     secure: true,         
     path: "/",
+    domain: "news-project-1-frontend.onrender.com",
     httpOnly: false,
   },
   getTokenFromRequest: (req) => {
