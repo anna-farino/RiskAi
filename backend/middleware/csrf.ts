@@ -1,6 +1,6 @@
 import { doubleCsrf } from "csrf-csrf";
 import dotenv from 'dotenv';
-import dotenvConfig from "utils/dotenv-config";
+import dotenvConfig from "../utils/dotenv-config";
 
 dotenvConfig(dotenv)
 

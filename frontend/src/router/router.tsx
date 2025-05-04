@@ -24,8 +24,4 @@ export const router = createBrowserRouter([
     path: '*',
     element: <Redirect/>
   },
-  {
-    path: "*",
-    element: <h1>Ooops! Page not found... </h1>
-  }
 ])
