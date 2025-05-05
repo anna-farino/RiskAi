@@ -13,20 +13,27 @@ import { Loader2 } from "lucide-react"
 import PasswordEye from "@/components/password-eye"
 import { useState } from "react"
 
-const signupSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string()
-    .min(8, 'Password must be at least 8 characters long')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/\d/, 'Password must contain at least one number')
-    .regex(/[?!@#$%^&*()]/, 'Password must contain at least one special character (!?@#$%^&*())'),
-});
+const signupSchema = z
+  .object({
+    email: z.string().email("Please enter a valid email"),
+    password: z.string()
+      .min(8, 'Password must be at least 8 characters long')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/\d/, 'Password must contain at least one number')
+      .regex(/[?!@#$%^&*()]/, 'Password must contain at least one special character (!?@#$%^&*())'),
+    confirmPassword: z.string().min(1, "Password is required")
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"], 
+  });
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function Signup() {
   const [ showPassword, setShowPassword ] = useState(false)
+  const [ showConfirmPassword, setShowConfirmPassword ] = useState(false)
   const { mutate: signup, isPending } = useSignup();
 
   const form = useForm<SignupFormData>({
@@ -34,6 +41,7 @@ export default function Signup() {
     defaultValues: {
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
@@ -82,6 +90,25 @@ export default function Signup() {
                 </div>
                 {form.formState.errors.password && (
                   <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <div className="flex relative">
+                  <Input 
+                    id="confirmPassword" 
+                    type={ showConfirmPassword ? "text" : "password"}
+                    disabled={isPending}
+                    {...form.register("confirmPassword")}
+                  />
+                  <PasswordEye
+                    state={showConfirmPassword}
+                    setStateFn={setShowConfirmPassword}
+                    top={9}
+                  />
+                </div>
+                {form.formState.errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
                 )}
               </div>
             </div>

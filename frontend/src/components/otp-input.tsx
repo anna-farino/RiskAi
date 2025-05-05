@@ -31,7 +31,7 @@ const FormSchema = z.object({
 })
 
 type Props = {
-  pParam: 'login' | 'pw' | 'npw'
+  pParam: 'login' | 'pw' | 'npw' | 'signup'
 }
 export function InputOTPForm({ pParam }: Props) {
   const [ showLoader, setShowLoader ] = useState(false)
@@ -47,9 +47,20 @@ export function InputOTPForm({ pParam }: Props) {
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setShowLoader(true)
     try {
-      const url = pParam === 'login'
-        ? `${serverUrl}/api/auth/verify-otp-login`
-        : `${serverUrl}/api/auth/verify-otp-new-password`
+      let url: string = "";
+
+      switch (pParam) {
+        case 'login':
+          url = `${serverUrl}/api/auth/verify-otp-login`;
+          break;
+        case 'signup':
+          url = `${serverUrl}/api/auth/verify-otp-signup`;
+          break;
+        case 'pw':
+        case 'npw':
+          url = `${serverUrl}/api/auth/verify-otp-new-password`
+          break;
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -65,6 +76,7 @@ export function InputOTPForm({ pParam }: Props) {
         throw new Error("An error occurred while validating the code")
       }
       switch (pParam) {
+        case 'signup':
         case 'login':
           navigate('/dashboard/home');
           break

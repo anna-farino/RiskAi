@@ -46,11 +46,7 @@ export function useSignup() {
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Account created successfully! Please log in.",
-      });
-      navigate('/auth/login');
+      navigate('/auth/otp?p=signup');
     },
     onError: (error: Error) => {
       toast({

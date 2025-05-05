@@ -64,7 +64,7 @@ export async function verifyToken(req: express.Request,  res: express.Response, 
 					.where(eq(users.id, decoded.id))
 					.limit(1);
 
-				if (!user[0]) {
+				if (!user[0] || !user[0].verified) {
 					console.log("❌ [AUTH-MIDDLEWARE] User not found")
 					res.status(401).end();
 					return;

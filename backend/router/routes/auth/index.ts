@@ -17,6 +17,7 @@ authRouter.post('/signup', handleSignUp);
 authRouter.post('/login', handleLogin);
 authRouter.post('/new-password-otp', handleForgotPswOtp)
 authRouter.post('/verify-otp-login', handleVerifyOtp({ otpPurpose: 'login' }))
+authRouter.post('/verify-otp-signup', handleVerifyOtp({ otpPurpose: 'signup' }))
 authRouter.post('/verify-otp-new-password', handleVerifyOtp({ otpPurpose: 'new-password' }))
 authRouter.post('/store-new-password', handleNewPassword)
 authRouter.post('/logout', handleLogout);

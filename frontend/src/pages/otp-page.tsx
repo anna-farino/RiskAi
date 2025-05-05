@@ -9,7 +9,7 @@ type Props = {
 }
 export default function OtpPage({ twHeight='h-full' }: Props) {
   const [ params ] = useSearchParams()
-  const pParam = params.get('p') as 'login' | 'pw'
+  const pParam = params.get('p') as 'login' | 'pw' | 'signup'
 
   return (
     <AuthLayout twHeight={twHeight}>

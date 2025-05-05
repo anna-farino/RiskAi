@@ -1,13 +1,10 @@
-import { otps } from '@shared/db/schema/otps';
 import { generateToken as generateCsfrToken } from 'backend/middleware/csrf';
-import otpGenerator from 'otp-generator' 
-import jwt from 'jsonwebtoken';
 import { users } from '@shared/db/schema/user';
 import { db } from 'backend/db/db';
-import { createAndStoreLoginTokens, hashString, verifyHashedString } from 'backend/utils/auth';
-import { sendEmailJs } from 'backend/utils/sendEmailJs';
+import { createAndStoreLoginTokens, verifyHashedString } from 'backend/utils/auth';
 import { eq } from 'drizzle-orm';
-import { Request, Response, CookieOptions } from 'express';
+import { Request, Response } from 'express';
+import { generateOtpAndSendToUser } from '../utils/otp-create-send';
 
 export async function handleLogin(req: Request, res: Response) {
   try {
@@ -43,87 +40,12 @@ export async function handleLogin(req: Request, res: Response) {
 
     if (twoFactorEnabled) {
       console.log("🔐 [LOGIN] 2FA enabled. Generating OTP...")
-      const otp = otpGenerator.generate(
-        6,
-        {
-          digits: true,
-          lowerCaseAlphabets: false,
-          upperCaseAlphabets: false,
-          specialChars: false
-        }
-      )
-      console.log("🔐 [LOGIN] OTP created")
-
-      const hashedOtp = await hashString(otp)
-
-      if (!hashedOtp) {
-        console.log("❌ [LOGIN] An error was encountered while hashing the OTP")
-        return res.status(500).json({
-          message: "An error was encountered while hashing the OTP"
-        })
-      }
-      console.log("🔐 [LOGIN] OTP hashed");
-
-      const templateParams = { 
-        email, 
-        otp
-      };
-      
-      try {
-        const template = process.env.EMAILJS_TEMPLATE_OTP_ID as string
-        sendEmailJs({ template, templateParams })
-
-        console.log("🔐 [LOGIN] Email sent correctly");
-      } catch(err) {
-
-        console.log("❌ [LOGIN] An error occurred while sending the email")
-        console.error(err)
-
-        res.status(500).json({
-          message: "An error occurred while sending the email"
-        })
-        return
-      }
-
-      await db
-        .insert(otps)
-        .values({
-          otp: hashedOtp,
-          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-          user_id: user.id
-        })
-      console.log("🔐 [LOGIN] OTP stored")
-
-      const tempSessionToken = jwt.sign(
-        {
-          purpose: 'login',
-          userId: user.id
-        },
-        process.env.JWT_SECRET!,
-        {
-          expiresIn: "5m" 
-        }
-
-      );
-      const cookieOptions: CookieOptions = {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        path: '/',
-      };
-
-      res.cookie('otp', tempSessionToken, {
-        ...cookieOptions,
-        maxAge: 1000 * 60 * 5, 
-      });
-
-      console.log("✅ [LOGIN] OTP sent to:", email);
-
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
-        twoFactorEnabled: true,
-        otpSent: true
-      });
+      generateOtpAndSendToUser({
+        user,
+        email,
+        res,
+        purpose: 'login'
+      })
     } 
 
     if (!twoFactorEnabled) {

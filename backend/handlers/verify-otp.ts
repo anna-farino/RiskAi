@@ -12,7 +12,7 @@ import dotenvConfig from "../utils/dotenv-config";
 dotenvConfig(dotenv)
 
 type Args = {
-  otpPurpose: 'login' | 'new-password'
+  otpPurpose: 'login' | 'new-password' | 'signup'
 }
 export function handleVerifyOtp({ otpPurpose }: Args) {
   return async function(req: Request, res: Response) {
@@ -96,7 +96,14 @@ export function handleVerifyOtp({ otpPurpose }: Args) {
         return
       }
 
-      if (purpose === 'login') {
+      if (purpose === 'signup') {
+        await db
+          .update(users)
+          .set({ verified: true})
+          .where(eq(users.id, user.id))
+      }
+
+      if (purpose === 'login' || purpose === 'signup') {
         await createAndStoreLoginTokens(res, user)
         generateCsfrToken(req, res);
         res.clearCookie('otp', cookieOptions)
