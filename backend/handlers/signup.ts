@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db/db';
-import { User, users } from '@shared/db/schema/user';
+import { allowedEmails, User, users } from '@shared/db/schema/user';
 import { hashString } from '../utils/auth';
 import { eq } from 'drizzle-orm';
 import { roles, rolesUsers } from '@shared/db/schema/rbac';
@@ -38,6 +38,23 @@ export async function handleSignUp(req: Request, res: Response) {
       user = updatedUser
 
     } else {
+      const [allowedEmail] = await db
+        .select()
+        .from(allowedEmails)
+        .where(eq(allowedEmails.name,email))
+
+      if (!allowedEmail) {
+        const emailDomain = email.split('@')[1]
+        const [allowedDomain] = await db
+          .select()
+          .from(allowedEmails)
+          .where(eq(allowedEmails.name,emailDomain))
+
+        if (!allowedDomain) {
+          return res.status(403).json({ message: "No permission to signup"})
+        }
+      }
+
       const [newUser] = await db
         .insert(users)
         .values({
