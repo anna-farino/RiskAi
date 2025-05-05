@@ -12,12 +12,13 @@ import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
+import { handleTest } from 'handlers/test';
 
 const limiter = rateLimit(rateLimitConfig)
 
 const router = Router();
 
-//router.get('/test', handleTest)
+router.get('/test', handleTest)
 router.get('/hack-roles/:id', handleGetRoles)
 
 router.use('/auth', limiter, authRouter)

@@ -11,3 +11,5 @@ backend/.env
 backend/.env.local
 .env
 .env.local
+.opencode
+.opencode/*
