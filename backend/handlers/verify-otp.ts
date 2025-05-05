@@ -4,8 +4,8 @@ import dotenv from 'dotenv'
 import jwt from 'jsonwebtoken'
 import { db } from "../db/db";
 import { otps } from "@shared/db/schema/otps";
-import { desc, eq } from "drizzle-orm";
-import { cookieOptions, createAndStoreLoginTokens, verifyHashedString } from "../utils/auth";
+import { and, desc, eq } from "drizzle-orm";
+import { cookieOptions, createAndStoreLoginTokens, hashString, verifyHashedString } from "../utils/auth";
 import { users } from "@shared/db/schema/user";
 import dotenvConfig from "../utils/dotenv-config";
 
@@ -17,12 +17,12 @@ type Args = {
 export function handleVerifyOtp({ otpPurpose }: Args) {
   return async function(req: Request, res: Response) {
 
-    console.log("[🍪 VERIFY] Verifying otp token...", otpPurpose)
+    console.log("[🍪 VERIFY OTP] Verifying otp token...", otpPurpose)
 
     try {
       const { code } = req.body;
       if (!req.cookies.otp) {
-        console.log("[🍪❌ VERIFY] No cookie found...")
+        console.log("[🍪❌ VERIFY OTP] No cookie found...")
         res.status(500).json({ message: "No cookie found"})
         return
       }
@@ -37,44 +37,49 @@ export function handleVerifyOtp({ otpPurpose }: Args) {
 
       const { userId, purpose } = decodedToken;
 
+      console.log(`[🍪 VERIFY OTP] userId, purpose:`, userId, purpose)
+
       if (otpPurpose != purpose) {
         console.error("Wrong otp purpose: handler, purpose", otpPurpose, purpose)
         return res.status(403).json({ message: "Permission denied" })
       }
 
-      console.log(`[🍪 VERIFY] Verifying code ${code} for user with id ${userId}...`)
+      console.log(`[🍪 VERIFY OTP] Verifying code ${code} for user with id ${userId}...`)
 
       const [ otpFromDb ] = await db
         .select()
         .from(otps)
-        .where(eq(otps.user_id,userId))
+        .where(and(
+          eq(otps.user_id,userId),
+        ))
         .orderBy(desc(otps.created_at))
         .limit(1)
 
       if (!otpFromDb) {
-        console.log("[🍪❌ VERIFY] No stored otp found")
-        res.status(500).json({
+        console.log("[🍪❌ VERIFY OTP] No stored otp found")
+        return res.status(500).json({
           message: "No stored otp"
         })
       } 
+      console.log(`[🍪 VERIFY OTP] an otp was found in db`)
 
-      const isOtpCorrect = verifyHashedString(code,otpFromDb.otp)
+      const isOtpCorrect = await verifyHashedString(code,otpFromDb.otp)
 
       if (!isOtpCorrect) {
-        console.log("[🍪❌ VERIFY] Otp incorrect")
-        res.status(500).json({
+        console.log("[🍪❌ VERIFY OTP] Otp incorrect")
+        return res.status(500).json({
           message: "Otp is not correct"
         })
       }
       if (otpFromDb.used) {
-        console.log("[🍪❌ VERIFY] Otp used")
-        res.status(500).json({
+        console.log("[🍪❌ VERIFY OTP] Otp used")
+        return res.status(500).json({
           message: "Otp is not valid"
         })
       }
       if (new Date(otpFromDb.expires_at).getTime() < Date.now()) {
-        console.log("[🍪❌ VERIFY] Otp expired")
-        res.status(500).json({
+        console.log("[🍪❌ VERIFY OTP] Otp expired")
+        return res.status(500).json({
           message: "Otp expired"
         })
       }
@@ -90,10 +95,9 @@ export function handleVerifyOtp({ otpPurpose }: Args) {
         .limit(1)
 
       if (!user) {
-        res.status(500).json({
+        return res.status(500).json({
           message: "No user found"
         })
-        return
       }
 
       if (purpose === 'signup') {
@@ -109,12 +113,12 @@ export function handleVerifyOtp({ otpPurpose }: Args) {
         res.clearCookie('otp', cookieOptions)
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         message: "code correct"
       })
 
     } catch(error) {
-        console.log("[🍪❌ VERIFY] Error:", (error as any).message)
+        console.log("[🍪❌ VERIFY OTP] Error:", (error as any).message)
         res.status(500).json({
           message: "Server Error"
       })
