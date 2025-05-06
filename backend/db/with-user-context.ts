@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { permissions, rolesPermissions, rolesUsers } from '@shared/db/schema/rbac';
 import { Request } from 'express';
 
+
 export async function withUserContext<T>(
   userId: string,
   fn: (db: ReturnType<typeof drizzle>) => Promise<T>,
@@ -12,7 +13,7 @@ export async function withUserContext<T>(
   : Promise<T> 
 {
   const client = await pool.connect();
-  let reqLog;
+  let reqLog: (...args: unknown[]) => void;
   if (req) reqLog = (req as any).log
 
   try {
@@ -31,21 +32,31 @@ export async function withUserContext<T>(
       .innerJoin(permissions, eq(rolesPermissions.permissionId, permissions.id))
       .where(eq(rolesUsers.userId, userId));
 
-    const permissionNames = perms.map(p => p.name); 
-    req && reqLog("[🔒 WITH USER CONTEXT] permissionNames", permissionNames)
 
-    const pgArrayString = `{${permissionNames.map(p => `"${p}"`).join(',')}}`;
+    const permissionNames = perms.map(p => p.name).filter(Boolean);
+    req && reqLog("[🔒 WITH USER CONTEXT] permissionNames", permissionNames)
+    const pgArrayString = permissionNames.length > 0
+      ? `{${permissionNames.map(p => `"${p}"`).join(',')}}`
+      : '{}';
+
     await client.query(`SET LOCAL app.current_user_permissions = '${pgArrayString}'`);
 
     const result = await fn(db);
 
     await client.query('COMMIT');
+
     req && reqLog("[🔒 WITH USER CONTEXT] pgArrayString", pgArrayString)
+
     return result;
+
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    try {
+      client.release(); 
+    } catch (e) {
+      console.error('Error releasing client:', e);
+    }
   }
 }

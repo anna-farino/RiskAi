@@ -11,7 +11,6 @@ export default defineConfig({
     watch: {
       ignored: ['**/.DS_Store']
     },
-    // Allow all hosts since we're in a Replit environment
     allowedHosts: [
       '.replit.dev',
       '.repl.co',
