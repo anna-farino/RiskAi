@@ -45,23 +45,29 @@ export const settings = pgTable("settings", {
 });
 
 
-export const insertSourceSchema = createInsertSchema(sources)
-  .pick({
-    url: true,
-    name: true,
-    userId: true,
-  })
+export const insertSourceSchema = z.object({
+  url: z.string(),
+  name: z.string(),
+  userId: z.string().optional(),
+});
 
-export const insertKeywordSchema = createInsertSchema(keywords)
-  .pick({
-    term: true,
-    userId: true,
-  })
+export const insertKeywordSchema = z.object({
+  term: z.string(),
+  userId: z.string().optional(),
+});
 
-export const insertArticleSchema = createInsertSchema(articles)
-  .omit({
-    id: true,
-  })
+export const insertArticleSchema = z.object({
+  sourceId: z.string(),
+  title: z.string(),
+  content: z.string(),
+  url: z.string(),
+  author: z.string().optional(),
+  publishDate: z.date().optional(),
+  summary: z.string().optional(),
+  relevanceScore: z.number().optional(),
+  detectedKeywords: z.array(z.any()).optional(),
+  userId: z.string().optional(),
+})
 
 export const insertSettingSchema = createInsertSchema(settings)
   .pick({

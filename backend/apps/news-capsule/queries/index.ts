@@ -20,11 +20,11 @@ export async function getAllArticles(): Promise<CapsuleArticle[]> {
  }
 
 export async function createArticle(insertArticle: InsertCapsuleArticle): Promise<CapsuleArticle> {
-   const [article] = await db
-     .insert(capsuleArticles)
-     .values(insertArticle)
-     .returning();
-   return article;
+  const [article] = await db
+   .insert(capsuleArticles)
+   .values(insertArticle as Required<InsertCapsuleArticle>)
+   .returning();
+  return article;
  }
 
 export async function updateArticle(id: string, updates: Partial<CapsuleArticle>): Promise<CapsuleArticle | undefined> {

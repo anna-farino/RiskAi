@@ -109,7 +109,7 @@ export class DatabaseStorage implements IStorage {
   async createSource(source: InsertSource): Promise<Source> {
     const [created] = await db
       .insert(sources)
-      .values(source)
+      .values(source as Required<InsertSource>)
       .returning();
 
     return created;
@@ -161,7 +161,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createKeyword(keyword: InsertKeyword): Promise<Keyword> {
-    const [created] = await db.insert(keywords).values(keyword).returning();
+    const [created] = await db
+      .insert(keywords)
+      .values(keyword as Required<InsertKeyword>)
+      .returning();
     return created;
   }
 
@@ -271,7 +274,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
-    const [created] = await db.insert(articles).values(article).returning();
+    const [created] = await db
+      .insert(articles)
+      .values(article as Required<InsertArticle>)
+      .returning();
     return created;
   }
 

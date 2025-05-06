@@ -21,9 +21,23 @@ export const capsuleArticles = pgTable("capsule_articles", {
   userId: uuid("user_id").notNull().references(() => users.id),
 });
 
-export const insertCapsuleArticleSchema = createInsertSchema(capsuleArticles).omit({
-  id: true,
-  createdAt: true,
+const fullInsert = createInsertSchema(capsuleArticles);
+
+// pick only the keys you actually insert
+export const insertCapsuleArticleSchema = z.object({
+  title: z.string(),
+  threatName: z.string(),
+  vulnerabilityId: z.string().default("Unspecified"),
+  summary: z.string(),
+  impacts: z.string(),
+  attackVector: z.string().default("Unknown attack vector"),
+  microsoftConnection: z.string(),
+  sourcePublication: z.string(),
+  originalUrl: z.string(),
+  targetOS: z.string().default("Microsoft / Windows"),
+  markedForReporting: z.boolean().default(true),
+  markedForDeletion: z.boolean().default(false),
+  userId: z.string().uuid(),
 });
 
 export type InsertCapsuleArticle = z.infer<typeof insertCapsuleArticleSchema>;
