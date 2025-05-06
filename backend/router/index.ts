@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { verifyToken } from '../middleware';
 import { verifyPermissions } from '../middleware/verify-permissions';
-//import { handleTest } from '../handlers/test';
+import { handleTest } from '../handlers/test';
 import { handleGetRoles } from '../handlers/roles';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
@@ -12,7 +12,6 @@ import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
-import { handleTest } from 'handlers/test';
 
 const limiter = rateLimit(rateLimitConfig)
 
