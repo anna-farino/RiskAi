@@ -17,10 +17,10 @@ console.log("Database url", process.env.DATABASE_URL)
 const app = express();
 
 app.set('trust-proxy', 1);
+app.use(helmet(helmetConfig));
 app.use(callId);
 app.use(logTime);
 app.use(setNonce)
-app.use(helmet(helmetConfig));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
