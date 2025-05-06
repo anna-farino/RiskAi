@@ -13,7 +13,7 @@ export const {
   ignoredMethods: [],
   cookieName: "csrf-token",
   cookieOptions: {
-    domain: "risqai.com",
+    domain: ".risqai.com",
     sameSite: "none",     
     secure: true,         
     path: "/",
