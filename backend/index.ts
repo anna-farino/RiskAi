@@ -16,6 +16,7 @@ console.log("Database url", process.env.DATABASE_URL)
 
 const app = express();
 
+app.set('trust-proxy', 1);
 app.use(callId);
 app.use(logTime);
 app.use(setNonce)
