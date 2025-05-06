@@ -4,6 +4,7 @@ export const corsOptions = {
     'http://localhost:5174',
     'http://0.0.0.0:5174',
     'https://news-project-1-frontend.onrender.com',
+    'https://app.risqai.co',
     /\.replit\.dev$/,
     /\.repl\.co$/,
     /\.spock\.replit\.dev$/
