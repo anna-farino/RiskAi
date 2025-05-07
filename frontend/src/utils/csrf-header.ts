@@ -4,32 +4,38 @@ type Return = {
   token: string
 }
 export function csfrHeader(): Return {
-  const csfrHeaderName = "x-csrf-token"
-  const csfrToken = document.cookie
-    .split('; ')
-    .map(str => str.trim())
-    .find(str => str.startsWith('csrf-token='))      
-    ?.split('=')[1]                                 
-    ?? ""; 
+  const csrfHeaderName = "x-csrf-token"
+  const raw = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith("csrf-token="))
+    ?.split("=")[1] ?? "";
+
+  const decoded = decodeURIComponent(raw);
+
+  const token = decoded.split("|")[0];
+  console.log("csrf-token", token)
 
 
   return {
-    name: csfrHeaderName,
-    token: csfrToken
+    name: csrfHeaderName,
+    token: token
   }
 }
 
 export function csfrHeaderObject(): Record<string,string> {
   const csrfHeaderName = "x-csrf-token"
-  const csrfToken = document.cookie
-    .split('; ')
-    .map(str => str.trim())
-    .find(str => str.startsWith('csrf-token='))      
-    ?.split('=')[1]                                  
-    ?? ""; 
+  const raw = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith("csrf-token="))
+    ?.split("=")[1] ?? "";
+
+  const decoded = decodeURIComponent(raw);
+
+  const token = decoded.split("|")[0];
+  console.log("csrf-token", token)
 
   return {
-    [csrfHeaderName]: csrfToken,
+    [csrfHeaderName]: token,
   }
 }
 
