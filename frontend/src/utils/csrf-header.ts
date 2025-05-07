@@ -5,14 +5,13 @@ type Return = {
 }
 export function csfrHeader(): Return {
   const csfrHeaderName = "x-csrf-token"
-  const csfrToken = document
-    .cookie
-    .split(';')
-    .find(cookie => cookie.startsWith('csrf-token'))
-    ?.split('=')[1]
-    ?.split('%7C')[0] || ""
+  const csfrToken = document.cookie
+    .split('; ')
+    .map(str => str.trim())
+    .find(str => str.startsWith('csrf-token='))      
+    ?.split('=')[1]                                 
+    ?? ""; 
 
-  //console.log("csfrToken", csfrToken)
 
   return {
     name: csfrHeaderName,
@@ -21,16 +20,16 @@ export function csfrHeader(): Return {
 }
 
 export function csfrHeaderObject(): Record<string,string> {
-  const csfrHeaderName = "x-csrf-token"
-  const csfrToken = document
-    .cookie
-    .split(';')
-    .find(cookie => cookie.startsWith('csrf-token'))
-    ?.split('=')[1]
-    ?.split('%7C')[0] || ""
+  const csrfHeaderName = "x-csrf-token"
+  const csrfToken = document.cookie
+    .split('; ')
+    .map(str => str.trim())
+    .find(str => str.startsWith('csrf-token='))      
+    ?.split('=')[1]                                  
+    ?? ""; 
 
   return {
-    [csfrHeaderName]: csfrToken,
+    [csrfHeaderName]: csrfToken,
   }
 }
 
