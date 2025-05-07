@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { db } from '../db/db';
 import { refreshTokens } from '@shared/db/schema/user';
 import { cookieOptions } from '../utils/auth';
+import { csrfCookieOptions } from '../middleware/csrf';
 
 export async function handleLogout(req: Request, res: Response) {
     const token = req.cookies.token;
@@ -27,6 +28,7 @@ export async function handleLogout(req: Request, res: Response) {
 
         res.clearCookie('token', cookieOptions)
         res.clearCookie('refreshToken', cookieOptions)
+        res.clearCookie('csrf-token', csrfCookieOptions)
 
         res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
