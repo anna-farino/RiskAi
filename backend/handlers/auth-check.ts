@@ -2,12 +2,12 @@ import { Request, Response } from 'express';
 import { users } from '@shared/db/schema/user';
 import { eq } from 'drizzle-orm';
 import { FullRequest } from '../middleware';
-import { db } from 'backend/db/db';
 import { withUserContext } from 'backend/db/with-user-context';
 
 
 export async function handleAuthCheck(req: Request, res: Response) {
   console.log("[👤 AUTH-CHECK] Checking if user is logged in...")
+
   const userId = (req as unknown as FullRequest).user.id;
   if (!userId) {
     console.log("[👤 AUTH-CHECK] No user found!")
@@ -22,8 +22,7 @@ export async function handleAuthCheck(req: Request, res: Response) {
         .where(eq(users.id, userId)) 
     }
   )
-  
-  console.log("[👤 AUTH-CHECK] User found", user)
+  console.log("[👤 AUTH-CHECK] User found", user.email)
   
   res.status(200).json({ 
     authenticated: true,

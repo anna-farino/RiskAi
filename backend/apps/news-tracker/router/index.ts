@@ -169,12 +169,7 @@ newsRouter.get("/articles", async (req, res) => {
   const articles = await storage.getArticles(userId, filters);
   console.log("Received filtered articles:", articles.length);
   if (articles.length > 0) {
-    console.log("Sample article data:", {
-      id: articles[0].id,
-      title: articles[0].title.substring(0, 30) + "...",
-      detected_keywords: articles[0].detectedKeywords,
-      rawArticleKeys: Object.keys(articles[0])
-    });
+    console.log("Filtered articles:", articles.length);
   }
   
   res.json(articles);
