@@ -13,7 +13,7 @@ export function csfrHeader(): Return {
   const decoded = decodeURIComponent(raw);
 
   const token = decoded.split("|")[0];
-  console.log("csrf-token", token)
+  //console.log("csrf-token", token)
 
 
   return {
@@ -32,7 +32,7 @@ export function csfrHeaderObject(): Record<string,string> {
   const decoded = decodeURIComponent(raw);
 
   const token = decoded.split("|")[0];
-  console.log("csrf-token", token)
+  //console.log("csrf-token", token)
 
   return {
     [csrfHeaderName]: token,
