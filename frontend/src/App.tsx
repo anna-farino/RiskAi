@@ -16,7 +16,7 @@ export default function App() {
         <Toaster />
       </ThemeProvider>
       {
-        true && <ReactQueryDevtools position='right'/> // change to "false" to hide
+        true && <ReactQueryDevtools position='right'/> // change to "false" to hide//
       }
     </QueryClientProvider>
   )
