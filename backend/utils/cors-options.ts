@@ -5,6 +5,7 @@ export const corsOptions = {
     'http://0.0.0.0:5174',
     'https://news-project-1-frontend.onrender.com',
     'https://preview-risqai-frontend.onrender.com',
+    'https://preview.risqai.co',
     'https://app.risqai.co',
     /\.replit\.dev$/,
     /\.repl\.co$/,
