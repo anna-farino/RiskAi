@@ -13,8 +13,14 @@ type CsrfCookieOptions = {
 }
 
 const isProd = process.env.NODE_ENV === 'production'
+const isStaging = process.env.NODE_ENV === 'staging'
+
 export const csrfCookieOptions: CsrfCookieOptions = {
-  domain: isProd ? "app.risqai.co" : 'localhost',
+  domain: isProd 
+          ? "app.risqai.co" 
+          : isStaging 
+            ? 'preview.risqai.co' 
+            : 'localhost',
   sameSite: "none",     
   secure: true,         
   path: "/",
