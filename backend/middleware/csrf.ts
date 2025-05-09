@@ -15,6 +15,23 @@ type CsrfCookieOptions = {
 const isProd = process.env.NODE_ENV === 'production'
 const isStaging = process.env.NODE_ENV === 'staging'
 
+let domain = ''
+
+switch(process.env.NODE_ENV) {
+  case 'production':
+    domain = "app.risqai.co"
+    break
+  case 'staging':
+    domain = "preview.risqai.co"
+    break
+  case 'development':
+    domain = "localhost"
+    break
+  case 'replit':
+    domain = ""
+    break
+}
+
 export const csrfCookieOptions: CsrfCookieOptions = {
   domain: isProd 
           ? "app.risqai.co" 
