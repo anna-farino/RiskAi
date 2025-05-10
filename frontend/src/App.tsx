@@ -11,6 +11,8 @@ const queryClient = new QueryClient()
 
 export default function App() {
 
+  //new feature in dev to be pulled to personal branch
+  
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
