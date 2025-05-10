@@ -12,9 +12,6 @@ type CsrfCookieOptions = {
   httpOnly: boolean
 }
 
-const isProd = process.env.NODE_ENV === 'production'
-const isStaging = process.env.NODE_ENV === 'staging'
-
 let domain = ''
 
 switch(process.env.NODE_ENV) {
@@ -33,11 +30,7 @@ switch(process.env.NODE_ENV) {
 }
 
 export const csrfCookieOptions: CsrfCookieOptions = {
-  domain: isProd 
-          ? "app.risqai.co" 
-          : isStaging 
-            ? 'preview.risqai.co' 
-            : 'localhost',
+  domain,
   sameSite: "none",     
   secure: true,         
   path: "/",
