@@ -4,7 +4,7 @@ import { ThemeProvider } from './components/theme-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
 import { router } from './router/router'
-
+//comment test
 const queryClient = new QueryClient()
 
 export default function App() {
