@@ -11,7 +11,8 @@ const queryClient = new QueryClient()
 
 export default function App() {
 
-  //new feature in dev to be pulled to personal branch
+
+  //test
   
   return (
     <QueryClientProvider client={queryClient}>
