@@ -8,7 +8,7 @@ import { router } from './router/router'
 const queryClient = new QueryClient()
 
 //testing github rules #attempt 2
-// new test
+
 export default function App() {
 
   return (
