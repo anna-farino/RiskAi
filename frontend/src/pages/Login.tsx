@@ -45,7 +45,7 @@ export default function Login() {
     <AuthLayout>
       <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-2xl text-white">Login Credentials</CardTitle>
+          <CardTitle className="text-2xl text-white">Login</CardTitle>
           <CardDescription className="text-slate-300">
             Enter your email below to login to your account
           </CardDescription>
