@@ -7,7 +7,7 @@ import { router } from './router/router'
 //comment test
 const queryClient = new QueryClient()
 
-// new test
+//testing github rules
 
 export default function App() {
 
