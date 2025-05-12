@@ -9,14 +9,10 @@ import { router } from './router/router'
 //test for demo
 
 
+
 const queryClient = new QueryClient()
 
-//testing github rules
-
 export default function App() {
-
-
-  //test
   
   return (
     <QueryClientProvider client={queryClient}>
