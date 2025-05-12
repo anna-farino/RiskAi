@@ -91,10 +91,10 @@ export default function ConfirmPassword({
 
   return (
     <AuthLayout twHeight={twHeight}>
-      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-2xl text-white">Enter New Password</CardTitle>
-          <CardDescription className="text-slate-300">
+          <CardTitle className="text-2xl">Enter New Password</CardTitle>
+          <CardDescription>
             Enter your new password below 
           </CardDescription>
         </CardHeader>
@@ -102,13 +102,13 @@ export default function ConfirmPassword({
           <form onSubmit={onSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2 relative">
-                <Label htmlFor="password" className="text-slate-300">Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   disabled={mutation.isPending}
                   {...form.register("password")}
-                  className="pr-10 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500" // padding for the eye icon
+                  className="pr-10" // padding for the eye icon
                 />
                 <PasswordEye 
                   state={showPassword} 
@@ -121,13 +121,12 @@ export default function ConfirmPassword({
                 )}
               </div>
               <div className="grid gap-2 relative">
-                <Label htmlFor="confirm-password" className="text-slate-300">Confirm Password</Label>
+                <Label htmlFor="confirm-password">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   disabled={mutation.isPending}
                   {...form.register("confirmPassword")}
-                  className="pr-10 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
                 <PasswordEye 
                   state={showConfirmPassword} 
@@ -137,7 +136,7 @@ export default function ConfirmPassword({
                   <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
                 )}
               </div>
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full" disabled={mutation.isPending}>
                 { mutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

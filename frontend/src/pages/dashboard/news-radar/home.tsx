@@ -347,35 +347,35 @@ export default function NewsHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 py-4 sm:py-6 md:py-8">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
+      <div className="flex flex-col gap-6 md:gap-10 mb-10">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             News Radar
           </h1>
-          <p className="text-base sm:text-lg text-slate-300 max-w-3xl">
+          <p className="text-lg text-slate-300 max-w-3xl">
             Advanced aggregation and AI-driven content analysis for efficient
             news collection and processing.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Newspaper className="h-4 w-4 sm:h-5 sm:w-5" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 flex flex-col">
+            <div className="flex justify-between items-start mb-3">
+              <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+                <Newspaper className="h-5 w-5" />
               </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-medium text-white/70 bg-white/10 px-2 py-0.5 rounded-full">
                 Automated
               </span>
             </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
+            <h3 className="text-lg font-medium text-white mb-1">
               Content Scraping
             </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
+            <p className="text-sm text-slate-400 flex-1">
               Automatically extract content from multiple sources with advanced
               browser automation
             </p>
-            <div className="mt-3 sm:mt-4">
+            <div className="mt-4">
               <Button
                 variant="link"
                 size="sm"
@@ -386,29 +386,29 @@ export default function NewsHome() {
                   to="/dashboard/news/sources"
                   className="flex items-center gap-1"
                 >
-                  Manage Sources <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  Manage Sources <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </Button>
             </div>
           </div>
 
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
+          <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 flex flex-col">
+            <div className="flex justify-between items-start mb-3">
+              <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+                <Filter className="h-5 w-5" />
               </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-medium text-white/70 bg-white/10 px-2 py-0.5 rounded-full">
                 Customizable
               </span>
             </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
+            <h3 className="text-lg font-medium text-white mb-1">
               Keyword Filtering
             </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
+            <p className="text-sm text-slate-400 flex-1">
               Set up keywords to automatically categorize and filter relevant
               articles
             </p>
-            <div className="mt-3 sm:mt-4">
+            <div className="mt-4">
               <Button
                 variant="link"
                 size="sm"
@@ -419,7 +419,7 @@ export default function NewsHome() {
                   to="/dashboard/news/keywords"
                   className="flex items-center gap-1"
                 >
-                  Manage Keywords <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  Manage Keywords <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </Button>
             </div>
@@ -427,15 +427,14 @@ export default function NewsHome() {
         </div>
       </div>
 
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
-        <div className="flex flex-col gap-4 sm:gap-6">
-          {/* Header section - responsive layout for mobile */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 md:gap-8">
+      <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-8">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-semibold text-white">
+              <h2 className="text-xl font-semibold text-white">
                 Recent Articles
               </h2>
-              <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
+              <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
                 {localArticles.length}
               </span>
             </div>
@@ -566,86 +565,81 @@ export default function NewsHome() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-                {localArticles.length > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 sm:h-9 w-8 sm:w-9 p-0"
-                        disabled={deleteAllArticles.isPending}
+
+              {localArticles.length > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="ml-2"
+                      disabled={deleteAllArticles.isPending}
+                    >
+                      {deleteAllArticles.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action will permanently delete all{" "}
+                        {localArticles.length} articles. This action cannot be
+                        undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteAllArticles.mutate()}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        {deleteAllArticles.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action will permanently delete all{" "}
-                          {localArticles.length} articles. This action cannot be
-                          undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteAllArticles.mutate()}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Delete All Articles
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Delete All Articles
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
-              {/* Adjust number of skeleton items based on screen size */}
-              {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 py-4">
+              {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
                   className="rounded-lg border border-slate-700/50 overflow-hidden"
                 >
-                  <div className="h-32 sm:h-40 md:h-48 bg-slate-800/50 animate-pulse" />
-                  <div className="p-3 sm:p-4">
-                    <div className="h-4 w-3/4 bg-slate-800/50 animate-pulse rounded mb-2" />
-                    <div className="h-3 w-1/2 bg-slate-800/50 animate-pulse rounded" />
-                  </div>
+                  <div className="h-48 bg-white/5 animate-pulse" />
                 </div>
               ))}
             </div>
           ) : localArticles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 sm:py-12 md:py-16 text-center">
-              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-slate-800/50 flex items-center justify-center mb-3 sm:mb-4">
-                <Newspaper className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" />
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Newspaper className="h-8 w-8 text-slate-400" />
               </div>
-              <h3 className="text-lg sm:text-xl font-medium text-white mb-1 sm:mb-2">
+              <h3 className="text-xl font-medium text-white mb-2">
                 No articles yet
               </h3>
-              <p className="text-sm sm:text-base text-slate-400 max-w-md mb-4 sm:mb-6 px-4">
+              <p className="text-slate-400 max-w-md mb-6">
                 Add sources and start scraping to populate your news feed with
                 the latest articles.
               </p>
-              <Button asChild size="sm" className="sm:py-2 sm:px-4">
+              <Button asChild>
                 <Link to="/dashboard/news/sources">
                   Get Started with Sources
                 </Link>
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {localArticles.map((article) => (
                 <a
                   href={article.url}
@@ -668,6 +662,7 @@ export default function NewsHome() {
             </div>
           )}
         </div>
+      </div>
     </>
   );
 }

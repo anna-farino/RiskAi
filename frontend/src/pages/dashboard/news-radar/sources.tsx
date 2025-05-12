@@ -798,7 +798,7 @@ export default function Sources() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white"
+                  className="border-slate-700 bg-white/5 text-white hover:bg-white/10 hover:text-white"
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Auto-Scrape Settings
@@ -833,7 +833,7 @@ export default function Sources() {
                         });
                       }}
                     >
-                      <SelectTrigger id="schedule-select" className="bg-slate-800/70 border-slate-700 text-white">
+                      <SelectTrigger id="schedule-select" className="bg-white/5 border-slate-700 text-white">
                         <SelectValue placeholder="Select frequency" />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
@@ -896,7 +896,7 @@ export default function Sources() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <div className="lg:col-span-2 bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-medium text-white">Add News Source</h2>
@@ -908,7 +908,7 @@ export default function Sources() {
                 <Input
                   placeholder="E.g., Tech News Daily"
                   {...form.register("name")}
-                  className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  className="bg-white/5 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
               </div>
               <div>
@@ -916,7 +916,7 @@ export default function Sources() {
                 <Input
                   placeholder="https://example.com"
                   {...form.register("url")}
-                  className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  className="bg-white/5 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -938,7 +938,7 @@ export default function Sources() {
           </form>
         </div>
 
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 flex flex-col justify-between">
+        <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 flex flex-col justify-between">
           <div>
             <h2 className="text-lg font-medium text-white mb-3">Quick Tips</h2>
             <ul className="space-y-3 text-sm">
@@ -967,7 +967,7 @@ export default function Sources() {
       </div>
 
       <div className={cn(
-        "bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden",
+        "bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden",
         "flex flex-col"
       )}>
         <div className="p-5 border-b border-slate-700/50">
@@ -985,7 +985,7 @@ export default function Sources() {
           </div>
         ) : sources.data?.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
               <Globe className="h-8 w-8 text-slate-400" />
             </div>
             <h3 className="text-xl font-medium text-white mb-2">No sources added</h3>
@@ -1003,7 +1003,7 @@ export default function Sources() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
+                <TableRow className="border-slate-700/50 hover:bg-white/5">
                   <TableHead className="text-slate-300">Source</TableHead>
                   <TableHead className="text-slate-300">URL</TableHead>
                   <TableHead className="text-slate-300">Auto-Scrape</TableHead>
@@ -1015,7 +1015,7 @@ export default function Sources() {
                   <TableRow 
                     key={source.id} 
                     className={cn(
-                      "border-slate-700/50 hover:bg-slate-800/70 transition-opacity duration-200",
+                      "border-slate-700/50 hover:bg-white/5 transition-opacity duration-200",
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
@@ -1065,7 +1065,7 @@ export default function Sources() {
                           variant="outline"
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending}
-                          className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/70 hover:text-white"
+                          className="border-slate-700 bg-white/5 text-white hover:bg-white/10 hover:text-white"
                         >
                           {scrapeSource.isPending ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

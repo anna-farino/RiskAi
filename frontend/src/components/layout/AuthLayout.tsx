@@ -1,5 +1,4 @@
 import { ModeToggle } from "@/components/theme-toggle"
-import { Logo } from "@/components/ui/logo"
 
 type Props = {
   children: React.ReactNode
@@ -10,18 +9,12 @@ export default function AuthLayout({
   twHeight='min-h-screen'
 }: Props) {
   return (
-    <div className={`flex ${twHeight} items-center justify-center bg-slate-900 bg-[radial-gradient(ellipse_at_center,rgba(94,58,162,0.05)_0%,rgba(0,0,0,0)_80%)]`}>
+    <div className={`flex ${twHeight} items-center justify-center bg-background`}>
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
-      <div className="w-full max-w-md flex flex-col items-center">
-        <div className="mb-6 flex flex-col items-center">
-          <Logo size="lg" interactive />
-          <p className="text-sm text-slate-400 italic mt-1">Secure your tomorrow, today.</p>
-        </div>
-        <div className="w-full">
-          {children}
-        </div>
+      <div className="w-full max-w-md">
+        {children}
       </div>
     </div>
   )
