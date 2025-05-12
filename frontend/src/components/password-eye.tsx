@@ -13,7 +13,7 @@ export default function PasswordEye({ setStateFn, state, top }: Props) {
       onClick={() => setStateFn((prev: boolean) => !prev)}
       className={cn(
         "absolute right-4",
-        "z-10 text-slate-400 hover:text-white cursor-pointer",
+        "z-10 text-muted-foreground hover:text-foreground cursor-pointer",
         "bg-transparent hover:border-none hover:shadow-none"
       )}
       style={{

@@ -106,16 +106,16 @@ export function InputOTPForm({ pParam }: Props) {
           name="pin"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-slate-300">One-Time Password</FormLabel>
+              <FormLabel>One-Time Password</FormLabel>
               <FormControl>
                 <InputOTP maxLength={6} {...field}>
                   <InputOTPGroup>
-                    <InputOTPSlot index={0} className="bg-slate-800/70 border-slate-700/50 text-white" />
-                    <InputOTPSlot index={1} className="bg-slate-800/70 border-slate-700/50 text-white" />
-                    <InputOTPSlot index={2} className="bg-slate-800/70 border-slate-700/50 text-white" />
-                    <InputOTPSlot index={3} className="bg-slate-800/70 border-slate-700/50 text-white" />
-                    <InputOTPSlot index={4} className="bg-slate-800/70 border-slate-700/50 text-white" />
-                    <InputOTPSlot index={5} className="bg-slate-800/70 border-slate-700/50 text-white" />
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
                   </InputOTPGroup>
                 </InputOTP>
               </FormControl>
@@ -126,7 +126,7 @@ export function InputOTPForm({ pParam }: Props) {
           )}
         />
 
-        <Button disabled={showLoader} type="submit" className="gap-x-2 min-w-[140px] bg-primary hover:bg-primary/90 text-white">
+        <Button disabled={showLoader} type="submit" className="gap-x-2 min-w-[140px]">
           {showLoader && <Loader2 className="animate-spin"/>}
           {showLoader ? "Verifying..." : "Submit"}
         </Button>

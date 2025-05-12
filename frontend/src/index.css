@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Google Fonts - Poppins for logo */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
-
-/* Import RisqAi utility styles */
-@import './styles/risqai-utils.css';
-@import './styles/logo.css';
-
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -23,67 +16,76 @@ body {
 
 @layer base {
   :root {
-    /* Base color system */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    
-    /* RisqAi Colors - Light Mode */
-    --primary: 285 100% 50%; /* RisqAi Purple #BF00FF */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 153 100% 33%; /* RisqAi Green #00AA55 */
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 16 100% 50%; /* RisqAi Orange #FF5500 */
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 100% 50%; /* RisqAi Error #FF3300 */
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 326 100% 50%; /* RisqAi Magenta #FF00BF */
-    
+    --background: 0 0% 100%; /* rgb(255, 255, 255) */
+    --foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --card: 0 0% 100%; /* rgb(255, 255, 255) */
+    --card-foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --popover: 0 0% 100%; /* rgb(255, 255, 255) */
+    --popover-foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --primary: 0 0% 9%; /* rgb(23, 23, 23) */
+    --primary-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --secondary: 0 0% 96.1%; /* rgb(245, 245, 245) */
+    --secondary-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
+    --muted: 0 0% 96.1%; /* rgb(245, 245, 245) */
+    --muted-foreground: 0 0% 45.1%; /* rgb(115, 115, 115) */
+    --accent: 0 0% 96.1%; /* rgb(245, 245, 245) */
+    --accent-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
+    --destructive: 0 84.2% 60.2%; /* rgb(154, 0, 0) */
+    --destructive-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --border: 0 0% 89.8%; /* rgb(229, 229, 229) */
+    --input: 0 0% 89.8%; /* rgb(229, 229, 229) */
+    --ring: 0 0% 3.9%; /* rgb(10, 10, 10) */
     --radius: 0.5rem;
-    --chart-1: 285 100% 50%; /* Purple */
-    --chart-2: 326 100% 50%; /* Magenta */
-    --chart-3: 180 100% 50%; /* Cyan */
-    --chart-4: 16 100% 50%;  /* Orange */ 
-    --chart-5: 153 100% 33%; /* Green */
+    --chart-1: 12 76% 61%; /* rgb(219, 84, 46) */
+    --chart-2: 173 58% 39%; /* rgb(42, 159, 134) */
+    --chart-3: 197 37% 24%; /* rgb(39, 91, 122) */
+    --chart-4: 43 74% 66%; /* rgb(191, 186, 45) */
+    --chart-5: 27 87% 67%; /* rgb(234, 151, 33) */
+    /* Sidebar colors - light mode */
+    --sidebar-background: 0 0% 96%; /* rgb(245, 245, 245) */
+    --sidebar-foreground: 0 0% 10%; /* rgb(26, 26, 26) */
+    --sidebar-primary: 210 67% 42%; /* rgb(0, 108, 179) */
+    --sidebar-primary-foreground: 0 0% 100%; /* rgb(255, 255, 255) */
+    --sidebar-accent: 0 0% 92%; /* rgb(235, 235, 235) */
+    --sidebar-accent-foreground: 0 0% 10%; /* rgb(26, 26, 26) */
+    --sidebar-border: 0 0% 86%; /* rgb(219, 219, 219) */
+    --sidebar-ring: 210 67% 42%; /* rgb(0, 108, 179) */
   }
 
   .dark {
-    /* Dark mode base system */
-    --background: 220 10% 10%;
-    --foreground: 0 0% 98%;
-    --card: 220 10% 12%;
-    --card-foreground: 0 0% 98%;
-    --popover: 220 10% 10%;
-    --popover-foreground: 0 0% 98%;
-    
-    /* RisqAi Colors - Dark Mode - Slightly adjusted for dark theme */
-    --primary: 285 100% 50%; /* RisqAi Purple #BF00FF */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 153 100% 33%; /* RisqAi Green #00AA55 */
-    --secondary-foreground: 0 0% 100%;
-    --muted: 220 10% 15%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 16 100% 50%; /* RisqAi Orange #FF5500 */
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 100% 50%; /* RisqAi Error #FF3300 */
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 10% 20%;
-    --input: 220 10% 15%;
-    --ring: 326 100% 50%; /* RisqAi Magenta #FF00BF */
-    
-    /* Chart colors - brighter for dark mode */
-    --chart-1: 285 100% 60%; /* Purple brighter */
-    --chart-2: 326 100% 60%; /* Magenta brighter */
-    --chart-3: 180 100% 60%; /* Cyan brighter */
-    --chart-4: 16 100% 60%;  /* Orange brighter */ 
-    --chart-5: 153 100% 43%; /* Green brighter */
+    --background: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --card: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --card-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --popover: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    --popover-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --primary: 0 0% 98%; /* rgb(250, 250, 250) */
+    --primary-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
+    --secondary: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --secondary-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --muted: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --muted-foreground: 0 0% 63.9%; /* rgb(163, 163, 163) */
+    --accent: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --accent-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --destructive: 0 62.8% 30.6%; /* rgb(78, 0, 0) */
+    --destructive-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
+    --border: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --input: 0 0% 14.9%; /* rgb(38, 38, 38) */
+    --ring: 0 0% 83.1%; /* rgb(212, 212, 212) */
+    --chart-1: 220 70% 50%; /* rgb(38, 133, 224) */
+    --chart-2: 160 60% 45%; /* rgb(45, 179, 113) */
+    --chart-3: 30 80% 55%; /* rgb(224, 133, 38) */
+    --chart-4: 280 65% 60%; /* rgb(163, 38, 224) */
+    --chart-5: 340 75% 55%; /* rgb(224, 38, 133) */
+    /* Sidebar colors - dark mode */
+    --sidebar-background: 220 13% 8%; /* rgb(18, 20, 23) */
+    --sidebar-foreground: 180 2% 88%; /* rgb(224, 224, 224) */
+    --sidebar-primary: 210 67% 42%; /* rgb(0, 108, 179) */
+    --sidebar-primary-foreground: 0 0% 100%; /* rgb(255, 255, 255) */
+    --sidebar-accent: 180 2% 88%; /* rgb(224, 224, 224) */
+    --sidebar-accent-foreground: 180 2% 88%; /* rgb(224, 224, 224) */
+    --sidebar-border: 220 9% 20%; /* rgb(51, 56, 64) */
+    --sidebar-ring: 210 67% 42%; /* rgb(0, 108, 179) */
   }
 }
 
@@ -92,7 +94,7 @@ body {
 }
 
 body {
-  @apply bg-background text-foreground dark:bg-slate-900 dark:text-white;
+  @apply bg-background text-foreground;
 }
 
 .App {
@@ -105,14 +107,14 @@ body {
 
 button {
   @apply rounded-lg border border-transparent px-4 py-2 text-base font-medium 
-         bg-background text-foreground cursor-pointer transition-all duration-200
-         hover:bg-primary/10 hover:border-primary hover:text-primary;
+         bg-gray-800 text-white cursor-pointer transition-colors
+         hover:border-blue-500;
 }
 
-/* Custom Scrollbar Styling - RisqAi Theme */
+/* Custom Scrollbar Styling */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(191, 0, 255, 0.3) transparent; /* RisqAi Purple */
+  scrollbar-color: hsl(215 27.9% 16.9%) transparent;
 }
 
 /* Webkit scrollbar styling */
@@ -126,21 +128,21 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(191, 0, 255, 0.3); /* RisqAi Purple */
+  background-color: hsl(215 27.9% 16.9%);
   border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(191, 0, 255, 0.5); /* RisqAi Purple - darker on hover */
+  background-color: hsl(215 27.9% 25%);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background-color: rgba(191, 0, 255, 0.4); /* RisqAi Purple - slightly more visible in dark mode */
+  background-color: hsl(215 27.9% 25%);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(191, 0, 255, 0.6); /* RisqAi Purple - darker on hover in dark mode */
+  background-color: hsl(215 27.9% 30%);
 }
 
 
@@ -150,7 +152,7 @@ button {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground dark:bg-slate-900 dark:text-white;
+    @apply bg-background text-foreground;
   }
 }
 

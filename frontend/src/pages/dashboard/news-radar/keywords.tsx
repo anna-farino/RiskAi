@@ -350,7 +350,7 @@ export default function Keywords() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <h2 className="text-lg font-medium text-white mb-2">Add Keyword</h2>
             
@@ -364,7 +364,7 @@ export default function Keywords() {
                   <Input
                     placeholder="Enter keyword term..."
                     {...form.register("term")}
-                    className="pl-9 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                    className="pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-500"
                   />
                 </div>
                 <Button 
@@ -391,11 +391,11 @@ export default function Keywords() {
           </form>
         </div>
 
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <h2 className="text-lg font-medium text-white mb-4">Keyword Stats</h2>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700/50">
+            <div className="bg-white/5 rounded-lg p-4 border border-slate-700/50">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-slate-400">Total Keywords</span>
                 <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
@@ -405,7 +405,7 @@ export default function Keywords() {
               <p className="text-2xl font-semibold text-white">{keywords.data?.length || 0}</p>
             </div>
             
-            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700/50">
+            <div className="bg-white/5 rounded-lg p-4 border border-slate-700/50">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-slate-400">Active Keywords</span>
                 <div className="h-6 w-6 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -432,7 +432,7 @@ export default function Keywords() {
         </div>
       </div>
 
-      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+      <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-medium text-white">Keyword List</h2>
@@ -447,7 +447,7 @@ export default function Keywords() {
             </div>
             <Input 
               placeholder="Filter keywords..."
-              className="pl-9 h-9 w-[200px] bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+              className="pl-9 h-9 w-[200px] bg-white/5 border-slate-700/50 text-white placeholder:text-slate-500"
             />
           </div>
         </div>
@@ -458,7 +458,7 @@ export default function Keywords() {
           </div>
         ) : keywords.data?.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
               <HelpCircle className="h-8 w-8 text-slate-400" />
             </div>
             <h3 className="text-xl font-medium text-white mb-2">No keywords found</h3>
@@ -482,7 +482,7 @@ export default function Keywords() {
                     isPending 
                       ? "border-orange-500/50 shadow-orange-500/10 shadow-md" 
                       : "hover:border-slate-500",
-                    keyword.active ? "bg-primary/5" : "bg-slate-800/70"
+                    keyword.active ? "bg-primary/5" : "bg-white/5"
                   )}
                 >
                   {/* Show loading indicator for pending items */}

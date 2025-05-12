@@ -13,12 +13,12 @@ export default function OtpPage({ twHeight='h-full' }: Props) {
 
   return (
     <AuthLayout twHeight={twHeight}>
-      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-2xl text-white">
+          <CardTitle className="text-2xl">
             Verify Code
           </CardTitle>
-          <CardDescription className="text-slate-300">
+          <CardDescription>
             Enter the code we sent to your email below:
           </CardDescription>
         </CardHeader>
