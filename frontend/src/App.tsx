@@ -9,6 +9,7 @@ import { router } from './router/router'
 //test for demo
 
 // NEW FEATURE!!!
+//Amazing!!!
 
 
 const queryClient = new QueryClient()
