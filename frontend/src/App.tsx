@@ -8,6 +8,7 @@ import { router } from './router/router'
 const queryClient = new QueryClient()
 
 //testing github rules #attempt 2
+//replit's agent comment
 
 export default function App() {
 
