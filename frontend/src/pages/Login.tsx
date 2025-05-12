@@ -43,10 +43,10 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <Card>
+      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl text-white">Login Credentials</CardTitle>
+          <CardDescription className="text-slate-300">
             Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
@@ -54,12 +54,13 @@ export default function Login() {
           <form onSubmit={onSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2 relative">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-300">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   disabled={loginIsPending}
                   {...form.register("email")}
+                  className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
                 {form.formState.errors.email && (
                   <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
@@ -67,10 +68,10 @@ export default function Login() {
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-slate-300">Password</Label>
                   <Link
                     to="/auth/email-otp"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                    className="ml-auto inline-block text-sm text-slate-300 underline-offset-4 hover:text-primary hover:underline"
                   >
                     Forgot your password?
                   </Link>
@@ -81,6 +82,7 @@ export default function Login() {
                     type={showPassword ? "text" : "password"}
                     disabled={loginIsPending}
                     {...form.register("password")}
+                    className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   />
                   <PasswordEye
                     state={showPassword}
@@ -92,20 +94,20 @@ export default function Login() {
                   <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
                 )}
               </div>
-              <Button type="submit" className="w-full" disabled={loginIsPending}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={loginIsPending}>
                 {loginIsPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
                   </>
                 ) : (
-                  "Login"
+                  "Login Credentials"
                 )}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-4 text-center text-sm text-slate-300">
               Don&apos;t have an account?{" "}
-              <Link to="/auth/signup" className="underline underline-offset-4 hover:text-primary">
+              <Link to="/auth/signup" className="text-primary underline underline-offset-4 hover:text-primary/80">
                 Sign up
               </Link>
             </div>

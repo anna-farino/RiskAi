@@ -1,0 +1,175 @@
+/* RisqAi Utility Classes */
+
+/* Gradient Backgrounds */
+.risq-gradient-primary {
+  background-image: linear-gradient(to right, #BF00FF, #FF00BF); /* Purple to Magenta */
+}
+
+.risq-gradient-secondary {
+  background-image: linear-gradient(to right, #00AA55, #33BB77); /* Green to Green-light */
+}
+
+.risq-gradient-accent {
+  background-image: linear-gradient(to right, #FF5500, #FF7733); /* Orange to Orange-light */
+}
+
+.risq-gradient-blue-cyan {
+  background-image: linear-gradient(to right, #1E3A8A, #00FFFF); /* Blue to Cyan */
+}
+
+/* Shadow Effects */
+.risq-shadow-purple {
+  box-shadow: 0 4px 12px rgba(191, 0, 255, 0.3);
+}
+
+.risq-shadow-magenta {
+  box-shadow: 0 4px 12px rgba(255, 0, 191, 0.3);
+}
+
+.risq-shadow-cyan {
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.3);
+}
+
+.risq-shadow-green {
+  box-shadow: 0 4px 12px rgba(0, 170, 85, 0.3);
+}
+
+.risq-shadow-orange {
+  box-shadow: 0 4px 12px rgba(255, 85, 0, 0.3);
+}
+
+/* Button Variations */
+.risq-btn-purple {
+  background-color: #BF00FF;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.risq-btn-purple:hover {
+  background-color: #D54AFF;
+  box-shadow: 0 4px 12px rgba(191, 0, 255, 0.3);
+}
+
+.risq-btn-magenta {
+  background-color: #FF00BF;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.risq-btn-magenta:hover {
+  background-color: #FF33CC;
+  box-shadow: 0 4px 12px rgba(255, 0, 191, 0.3);
+}
+
+.risq-btn-outline-purple {
+  background-color: transparent;
+  border: 1px solid #BF00FF;
+  color: #BF00FF;
+  transition: all 0.2s ease;
+}
+
+.risq-btn-outline-purple:hover {
+  background-color: rgba(191, 0, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(191, 0, 255, 0.2);
+}
+
+/* Card Styles */
+.risq-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(191, 0, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.risq-card:hover {
+  border-color: rgba(191, 0, 255, 0.4);
+  transform: translateY(-3px);
+}
+
+.dark .risq-card {
+  background: rgba(17, 17, 17, 0.6);
+  border-color: rgba(191, 0, 255, 0.3);
+}
+
+.dark .risq-card:hover {
+  border-color: rgba(191, 0, 255, 0.5);
+}
+
+/* Badge Styles */
+.risq-badge-purple {
+  background-color: rgba(191, 0, 255, 0.2);
+  color: #BF00FF;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.dark .risq-badge-purple {
+  background-color: rgba(191, 0, 255, 0.25);
+  color: #D54AFF;
+}
+
+.risq-badge-magenta {
+  background-color: rgba(255, 0, 191, 0.2);
+  color: #FF00BF;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.dark .risq-badge-magenta {
+  background-color: rgba(255, 0, 191, 0.25);
+  color: #FF33CC;
+}
+
+/* Text Colors */
+.risq-text-purple {
+  color: #BF00FF;
+}
+
+.risq-text-magenta {
+  color: #FF00BF;
+}
+
+.risq-text-cyan {
+  color: #00FFFF;
+}
+
+.risq-text-green {
+  color: #00AA55;
+}
+
+.risq-text-orange {
+  color: #FF5500;
+}
+
+/* Border Styles */
+.risq-border-purple {
+  border-color: rgba(191, 0, 255, 0.5);
+}
+
+.risq-border-magenta {
+  border-color: rgba(255, 0, 191, 0.5);
+}
+
+/* Animation */
+.risq-pulse {
+  animation: risq-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes risq-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Gradient Text (requires inline style with element) */
+.risq-gradient-text {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}

@@ -1,0 +1,83 @@
+.logo {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 2rem;
+  background: linear-gradient(to right, #8A00C2, #FF00D6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.logo-responsive {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  background: linear-gradient(to right, #8A00C2, #FF00D6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Responsive sizes */
+@media (max-width: 640px) {
+  .logo-responsive {
+    font-size: 1.5rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .logo-responsive {
+    font-size: 2rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  .logo-responsive {
+    font-size: 2.5rem;
+  }
+}
+
+.logo-interactive {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 2rem;
+  background: linear-gradient(to right, #8A00C2, #FF00D6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.3s ease;
+}
+
+.logo-interactive:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+  text-shadow: 0 0 15px rgba(255, 0, 214, 0.5);
+}
+
+/* Using CSS Variables */
+:root {
+  --font-primary: 'Poppins', Helvetica, Arial, sans-serif;
+  --font-weight-logo: 700;
+  --color-logo-gradient-from: #8A00C2;
+  --color-logo-gradient-to: #FF00D6;
+}
+
+.logo-var {
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-logo);
+  background: linear-gradient(
+    to right, 
+    var(--color-logo-gradient-from), 
+    var(--color-logo-gradient-to)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Dark mode adjustment */
+.dark .logo,
+.dark .logo-responsive,
+.dark .logo-interactive,
+.dark .logo-var {
+  filter: brightness(1.1);
+}
