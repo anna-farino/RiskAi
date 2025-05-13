@@ -1,4 +1,4 @@
-import Navbar from '../news-capsule/news-capsule-navbar';
+import Navbar from '../../pages/dashboard/news-capsule/components/news-capsule-navbar';
 import { useLocation } from 'react-router-dom';
 import { useNewsCapsuleStore } from '@/store/news-capsule-store';
 
