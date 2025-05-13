@@ -1,6 +1,5 @@
-import { newsCapsuleRouter } from './news-capsule/news-capsule.tsx'
-import { newsRadarRouter } from './news-radar/news-radar.tsx'
-import { vendorNewsRouter } from './vendor-news/vendor-news.tsx'
+import { newsCapsuleRouter } from '../../pages/dashboard/news-capsule/router/news-capsule.tsx'
+import { newsRadarRouter } from '../../pages/dashboard/news-radar/router/news-radar.tsx'
 import { dashboardRouter } from './dashboardRouter.tsx'
 
 
@@ -12,5 +11,4 @@ export const dashboardChildren = [
 
   newsRadarRouter,
 
-  vendorNewsRouter,
 ]
