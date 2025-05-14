@@ -13,18 +13,7 @@ export const permissions = pgTable("permissions", {
 export const roles = pgTable("roles", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull().unique()
-}, (_roles) => [
-    pgPolicy("roles_read_policy", {
-      as: "permissive",
-      to: "public",
-      for: "select",
-      using: sql`'roles:view' = ANY(
-        coalesce(
-          (current_setting('app.current_user_permissions',true))::text[],
-          '{}'::text[]
-        ))`
-    })
-]);
+})
 
 // Connecting table between roles and users
 export const rolesUsers = pgTable("roles_users", {

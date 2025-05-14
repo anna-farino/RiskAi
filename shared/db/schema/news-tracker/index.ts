@@ -1,7 +1,8 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, interval, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, interval, uuid, pgPolicy } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "../user";
+import { sql } from "drizzle-orm";
 
 
 export const sources = pgTable("sources", {
@@ -34,7 +35,44 @@ export const articles = pgTable("articles", {
   relevanceScore: integer("relevance_score"),
   detectedKeywords: jsonb("detected_keywords"),
   userId: uuid("user_id").references(() => users.id),
-});
+}, (t) => [
+  // 1) INSERT policy: only allow if current_user_id is set (i.e. logged in)
+  pgPolicy('articles_insert_policy', {
+    for: 'insert',
+    to: 'public',
+    withCheck: sql`
+      current_setting('app.current_user_id', true) <> ''
+    `,
+  }),
+  // 2) SELECT policy: only see rows you own
+  pgPolicy('articles_select_policy', {
+    for: 'select',
+    to: 'public',
+    using: sql`
+      ${t.userId}::text = current_setting('app.current_user_id', true)
+    `,
+  }),
+  // 3) UPDATE policy: only update rows you own
+  pgPolicy('articles_update_policy', {
+    for: 'update',
+    to: 'public',
+    using: sql`
+      ${t.userId}::text = current_setting('app.current_user_id', true)
+    `,
+    // you could also enforce WITH CHECK if you want to prevent changing userId on update
+    withCheck: sql`
+      ${t.userId}::text = current_setting('app.current_user_id', true)
+    `,
+  }),
+  // 4) DELETE policy: only delete rows you own
+  pgPolicy('articles_delete_policy', {
+    for: 'delete',
+    to: 'public',
+    using: sql`
+      ${t.userId}::text = current_setting('app.current_user_id', true)
+    `,
+  }),
+]);
 
 export const settings = pgTable("settings", {
   id: uuid("id").defaultRandom().primaryKey(),
