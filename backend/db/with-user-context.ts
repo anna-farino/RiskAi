@@ -18,10 +18,16 @@ export async function withUserContext<T>(
 
   try {
     await client.query('BEGIN');
-    await client.query(`SET LOCAL app.current_user_id = '{$userId}'`);
+    await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
+
+    req && reqLog('[🔒 WITH USER CONTEXT] 👤 app.current_user_id:', userId);
 
     const currentUser = await client.query(`SELECT current_user`);
     req && reqLog('[🔒 WITH USER CONTEXT] 👤 Current PostgreSQL user:', currentUser.rows[0].current_user);
+
+    const showDbUser = await client.query('SHOW app.current_user_id')
+    req && reqLog('[🔒 WITH USER CONTEXT] 👤 user id from db:', showDbUser);
+
 
 
     const db = drizzle(client);
