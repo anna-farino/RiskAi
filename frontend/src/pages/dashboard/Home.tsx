@@ -1,33 +1,8 @@
-import { useAuth } from "@/hooks/use-auth";
 import { useAuthCheck } from "@/hooks/use-auth-check";
-import { serverUrl } from "@/utils/server-url";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const { isLoading: authLoading, isError } = useAuthCheck();
-  const user = useAuth()
-
-  const testArticles = useQuery({
-    queryKey: ['test'],
-    queryFn: async () => {
-      const response = await fetch(serverUrl + '/api/test-articles', {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          user: user.data?.id 
-        })
-      })
-      const data = await response.json()
-      return data
-    },
-    enabled: !!user.data?.id
-  })
-
-  console.log(user.data?.id)
-
 
   if (authLoading) {
     return (
@@ -58,11 +33,6 @@ export default function Home() {
         ) :  
           <>
             <h1> Welcome Home! </h1>
-            {testArticles.data && testArticles.data.articles &&
-              testArticles.data.articles.map((article: any)=>(
-                <h1>{article.userId}</h1>
-              ))
-            }
           </>
         }
       </div>
