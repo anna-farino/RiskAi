@@ -32,9 +32,9 @@ export function RisqHeader() {
     restricted: false,
   },
   {
-    label: "Vendor Threat",
-    href: "/dashboard/vendor/home",
-    restricted: true,
+    label: "Threat Tracker",
+    href: "/dashboard/threat/home",
+    restricted: false,
   },
 ];
 
@@ -179,7 +179,7 @@ export function RisqHeader() {
                       : 'text-white hover:bg-slate-700/50 hover:text-white'
                   )}
                 >
-                  {item.name}
+                  {item.label}
                 </Link>
               ))}
               <Link

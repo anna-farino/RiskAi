@@ -12,6 +12,7 @@ import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
+import { threatRouter } from 'backend/apps/threat-tracker/router';
 
 const limiter = rateLimit(rateLimitConfig)
 
@@ -31,6 +32,7 @@ router.use('/users', usersRouter)
 //
 router.use('/news-tracker', newsRouter)
 router.use('/news-capsule', newsCapsuleRouter)
+router.use('/threat-tracker', threatRouter)
 
 router.post('/secrets', storeSecret)
 router.get('/secrets', getSecrets)
