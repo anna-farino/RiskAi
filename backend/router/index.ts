@@ -12,25 +12,36 @@ import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
+import { withDbContext } from 'backend/middleware/with-db-context';
+//import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
+import { threatRouter } from 'backend/apps/threat-tracker/router';
 
 const limiter = rateLimit(rateLimitConfig)
 
 const router = Router();
 
+// HELLO WORLD route
 router.get('/test', limiter, handleTest)
-//router.get('/hack-roles/:id', handleGetRoles)
 
+// TESTING RLS MIDDLEWARE
+//router.use(withDbContext)
+//router.get('/test-articles', testArticles)
+
+// AUTH
 router.use('/auth', limiter, authRouter)
+
+// PROTECTIONS
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
-//router.get('/test-simple-request', handleTest)
 router.use(verifyToken)
+router.use(withDbContext)
 
-// Protected routes
+// PROTECTED ROUTES
 router.use('/users', usersRouter)
-//
+
 router.use('/news-tracker', newsRouter)
 router.use('/news-capsule', newsCapsuleRouter)
+router.use('/threat-tracker', threatRouter)
 
 router.post('/secrets', storeSecret)
 router.get('/secrets', getSecrets)

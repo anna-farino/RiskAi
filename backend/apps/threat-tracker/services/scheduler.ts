@@ -1,0 +1,135 @@
+import { storage } from "../queries/threat-tracker";
+import { runGlobalScrapeJob } from "./background-jobs";
+import { log } from "backend/utils/log";
+import { setInterval } from "timers";
+
+// Define job intervals
+export enum JobInterval {
+  HOURLY = "HOURLY",
+  DAILY = "DAILY",
+  WEEKLY = "WEEKLY",
+  DISABLED = "DISABLED",
+}
+
+// Internally track the scheduled job timer
+let autoScrapeIntervalId: NodeJS.Timeout | null = null;
+
+/**
+ * Get the auto-scrape schedule from settings
+ */
+export async function getGlobalScrapeSchedule() {
+  try {
+    const setting = await storage.getSetting("auto-scrape");
+    
+    if (!setting || !setting.value) {
+      // Default settings if not found
+      return {
+        enabled: false,
+        interval: JobInterval.DAILY,
+      };
+    }
+    
+    return setting.value as {
+      enabled: boolean;
+      interval: JobInterval;
+    };
+  } catch (error: any) {
+    log(`[ThreatTracker] Error getting global scrape schedule: ${error.message}`, "scheduler-error");
+    console.error("Error getting global scrape schedule:", error);
+    
+    // Return default settings on error
+    return {
+      enabled: false,
+      interval: JobInterval.DAILY,
+    };
+  }
+}
+
+/**
+ * Update the auto-scrape schedule
+ */
+export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval) {
+  try {
+    // Save the new schedule to settings
+    await storage.upsertSetting("auto-scrape", {
+      enabled,
+      interval,
+    });
+    
+    // Re-initialize the scheduler with the new settings
+    await initializeScheduler();
+    
+    return {
+      enabled,
+      interval,
+    };
+  } catch (error: any) {
+    log(`[ThreatTracker] Error updating global scrape schedule: ${error.message}`, "scheduler-error");
+    console.error("Error updating global scrape schedule:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get the interval in milliseconds based on the JobInterval enum
+ */
+function getIntervalMs(interval: JobInterval): number {
+  switch (interval) {
+    case JobInterval.HOURLY:
+      return 60 * 60 * 1000; // 1 hour
+    case JobInterval.DAILY:
+      return 24 * 60 * 60 * 1000; // 24 hours
+    case JobInterval.WEEKLY:
+      return 7 * 24 * 60 * 60 * 1000; // 7 days
+    case JobInterval.DISABLED:
+    default:
+      return 0; // Disabled
+  }
+}
+
+/**
+ * Initialize the scheduler based on stored settings
+ */
+export async function initializeScheduler() {
+  try {
+    // Clear any existing scheduled job
+    if (autoScrapeIntervalId) {
+      clearInterval(autoScrapeIntervalId);
+      autoScrapeIntervalId = null;
+    }
+    
+    // Get the current schedule
+    const schedule = await getGlobalScrapeSchedule();
+    
+    // If auto-scrape is not enabled, do nothing
+    if (!schedule.enabled || schedule.interval === JobInterval.DISABLED) {
+      log("[ThreatTracker] Auto-scrape scheduler is disabled", "scheduler");
+      return false;
+    }
+    
+    // Calculate the interval in milliseconds
+    const intervalMs = getIntervalMs(schedule.interval);
+    
+    if (intervalMs <= 0) {
+      log("[ThreatTracker] Invalid scheduler interval, auto-scrape disabled", "scheduler");
+      return false;
+    }
+    
+    // Schedule the job
+    autoScrapeIntervalId = setInterval(async () => {
+      log(`[ThreatTracker] Running scheduled global scrape job (interval: ${schedule.interval})`, "scheduler");
+      try {
+        await runGlobalScrapeJob();
+      } catch (error: any) {
+        log(`[ThreatTracker] Error in scheduled scrape job: ${error.message}`, "scheduler-error");
+      }
+    }, intervalMs);
+    
+    log(`[ThreatTracker] Auto-scrape scheduler initialized with interval: ${schedule.interval}`, "scheduler");
+    return true;
+  } catch (error: any) {
+    log(`[ThreatTracker] Error initializing scheduler: ${error.message}`, "scheduler-error");
+    console.error("Error initializing scheduler:", error);
+    return false;
+  }
+}

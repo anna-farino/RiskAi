@@ -50,13 +50,13 @@ export function RisqFooter() {
                 </Link>
               </li>
               <li>
-                <Link to="/dashboard/news/sources" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                  Sources
+                <Link to="/dashboard/capsule/home" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                  News Capsule
                 </Link>
               </li>
               <li>
-                <Link to="/dashboard/news/keywords" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                  Keywords
+                <Link to="/dashboard/threat/home" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                  Threat Tracker
                 </Link>
               </li>
               <li>

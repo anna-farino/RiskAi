@@ -48,7 +48,8 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {userData?.role === 'admin' && 
+          {false && userData?.role === 'admin' && 
+
             <Link to='/dashboard/admin'
               className={cn("flex flex-row cursor-pointer w-full h-full")}
             >
@@ -64,13 +65,15 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
               Settings
             </DropdownMenuItem>
           </Link>
-          <Link to='/dashboard/secrets'
+
+          {false && <Link to='/dashboard/secrets'
             className={cn("flex flex-row cursor-pointer w-full h-full")}
           >
             <DropdownMenuItem className="flex flex-row w-full cursor-pointer">
               Secrets (test)
             </DropdownMenuItem>
-          </Link>
+          </Link>}
+
         <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={handleLogout}

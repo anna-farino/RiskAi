@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 export default function Home() {
   const { isLoading: authLoading, isError } = useAuthCheck();
 
-
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -16,6 +15,7 @@ export default function Home() {
   if (isError) {
     return null;
   }
+
 
   return (
     <div className="space-y-6">
@@ -31,7 +31,9 @@ export default function Home() {
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) :  
+          <>
             <h1> Welcome Home! </h1>
+          </>
         }
       </div>
     </div>

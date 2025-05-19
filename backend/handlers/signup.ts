@@ -74,12 +74,15 @@ export async function handleSignUp(req: Request, res: Response) {
       .where(eq(roles.name,"user"))
 
     if (userRole) {
+      console.log("[SIGNUP] role found:", userRole.name)
       await db
         .insert(rolesUsers)
         .values({
           roleId: userRole.id,
           userId: user.id
         })
+    } else {
+      console.log("[SIGNUP] role not found:")
     }
 
     generateOtpAndSendToUser({

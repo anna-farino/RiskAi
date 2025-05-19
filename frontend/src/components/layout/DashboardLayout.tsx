@@ -33,10 +33,10 @@ const buttons = [
     restricted: false,
   },
   {
-    label: "Vendor Threat",
-    path: "/dashboard/vendor/home",
-    icon: Home,
-    restricted: true,
+    label: "Threat Tracker",
+    path: "/dashboard/threat/home",
+    icon: Home, 
+    restricted: false,
   },
 ];
 

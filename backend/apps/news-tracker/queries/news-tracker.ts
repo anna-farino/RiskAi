@@ -14,7 +14,9 @@ import {
   settings, 
 } from "@shared/db/schema/news-tracker/index";
 import { db, pool } from "backend/db/db";
-import { eq, and, isNull, sql, SQL } from "drizzle-orm";
+import { withUserContext } from "backend/db/with-user-context";
+import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
+import { Request } from "express";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -46,12 +48,16 @@ export interface IStorage {
   deleteKeyword(id: string): Promise<void>;
 
   // Articles
-  getArticles(userId?: string, filters?: { 
-    search?: string, 
-    keywordIds?: string[],
-    startDate?: Date,
-    endDate?: Date
-  }): Promise<Article[]>;
+  getArticles(
+    req: Request,
+    userId?: string, 
+    filters?: { 
+      search?: string, 
+      keywordIds?: string[],
+      startDate?: Date,
+      endDate?: Date
+    },
+  ): Promise<Article[]>;
   getArticle(id: string): Promise<Article | undefined>;
   getArticleByUrl(url: string): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
@@ -140,7 +146,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getKeyword(id: string): Promise<Keyword | undefined> {
-    const [keyword] = await db.select().from(keywords).where(eq(keywords.id, id));
+    const [keyword] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.id, id));
     return keyword;
   }
   
@@ -183,72 +192,44 @@ export class DatabaseStorage implements IStorage {
 
   // Articles
   async getArticles(
+    req: Request,
     userId?: string, 
     filters?: { 
       search?: string, 
       keywordIds?: string[],
       startDate?: Date,
       endDate?: Date
-    }
+    },
   ): Promise<Article[]> {
-    // Build SQL parts separately
-    let sqlParts = ["SELECT * FROM articles WHERE 1=1"];
-    const params: any[] = [];
-    let paramIndex = 1;
-    
-    // Add user filter
-    if (userId) {
-      sqlParts.push(`AND user_id = $${paramIndex++}`);
-      params.push(userId);
-    }
-    
-    // Apply search filter if provided (case insensitive search in title and content)
-    if (filters?.search && filters.search.trim()) {
-      const searchTerm = `%${filters.search.trim()}%`;
-      sqlParts.push(`AND (title ILIKE $${paramIndex++} OR content ILIKE $${paramIndex++})`);
-      params.push(searchTerm, searchTerm);
-    }
-    
-    // Apply date range filter
-    if (filters?.startDate) {
-      sqlParts.push(`AND publish_date >= $${paramIndex++}`);
-      params.push(filters.startDate);
-    }
-    
-    if (filters?.endDate) {
-      sqlParts.push(`AND publish_date <= $${paramIndex++}`);
-      params.push(filters.endDate);
-    }
-    
-    // Apply keyword filter if provided
-    if (filters?.keywordIds && filters.keywordIds.length > 0) {
-      // First, get the keyword terms for the given IDs
-      const keywordTerms = await this.getKeywordTermsById(filters.keywordIds);
-      console.log("Found keyword terms for filtering:", keywordTerms);
-      
-      if (keywordTerms.length > 0) {
-        // Build conditions for each keyword term
-        const keywordConditions = keywordTerms.map((term: string) => {
-          // Add condition to check if JSON array contains the term (convert to text to ensure case-insensitive match)
-          const condition = `EXISTS (
-            SELECT 1 FROM jsonb_array_elements_text(detected_keywords) 
-            WHERE value ILIKE $${paramIndex++}
-          )`;
-          params.push(`%${term}%`);
-          return condition;
-        });
-        
-        // Combine all keyword conditions with OR
-        sqlParts.push(`AND (${keywordConditions.join(' OR ')})`);
-      }
-    }
-    
-    // Combine all SQL parts
-    const finalSql = sqlParts.join(' ');
-    
-    // Use helper function to execute the query
-    return await executeRawSql<Article>(finalSql, params);
+    const searchTerm = filters?.search?.trim() ?? null;
+    const startDate  = filters?.startDate   ?? null;
+    const endDate    = filters?.endDate     ?? null;
+
+    const rows = await req.db
+      .select()
+      .from(articles)
+      .where(
+        and(
+          eq(articles.userId, userId),
+          searchTerm
+            ? or(
+                ilike(articles.title, `%${searchTerm}%`),
+                ilike(articles.content, `%${searchTerm}%`)
+              )
+            : sql`TRUE`,
+          startDate
+            ? gte(articles.publishDate, startDate)
+            : sql`TRUE`,
+          endDate
+            ? lte(articles.publishDate, endDate)
+            : sql`TRUE`,
+        )
+      )
+      .orderBy(desc(articles.publishDate));
+
+    return rows;
   }
+
 
   async getArticle(id: string): Promise<Article | undefined> {
     // Use helper function to execute the query

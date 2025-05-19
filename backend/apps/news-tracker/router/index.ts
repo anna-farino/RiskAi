@@ -2,9 +2,7 @@ import { insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
-import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -166,7 +164,7 @@ newsRouter.get("/articles", async (req, res) => {
   console.log("Filter parameters:", filters);
   
   // Get filtered articles
-  const articles = await storage.getArticles(userId, filters);
+  const articles = await storage.getArticles(req, userId, filters);
   console.log("Received filtered articles:", articles.length);
   if (articles.length > 0) {
     console.log("Filtered articles:", articles.length);
@@ -289,7 +287,7 @@ newsRouter.post("/jobs/scrape", async (req, res) => {
   }
 });
 
-newsRouter.get("/jobs/status", async (req, res) => {
+newsRouter.get("/jobs/status", async (_req, res) => {
   try {
     const running = isGlobalJobRunning();
     res.json({
@@ -356,7 +354,7 @@ newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
 });
 
 // Scheduler Settings - Admin only
-newsRouter.get("/settings/auto-scrape", async (req, res) => {
+newsRouter.get("/settings/auto-scrape", async (_req, res) => {
   try {
     const settings = await getGlobalScrapeSchedule();
     res.json(settings);
