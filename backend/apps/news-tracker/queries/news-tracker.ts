@@ -16,6 +16,7 @@ import {
 import { db, pool } from "backend/db/db";
 import { withUserContext } from "backend/db/with-user-context";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
+import { Request } from "express";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -47,12 +48,16 @@ export interface IStorage {
   deleteKeyword(id: string): Promise<void>;
 
   // Articles
-  getArticles(userId?: string, filters?: { 
-    search?: string, 
-    keywordIds?: string[],
-    startDate?: Date,
-    endDate?: Date
-  }): Promise<Article[]>;
+  getArticles(
+    req: Request,
+    userId?: string, 
+    filters?: { 
+      search?: string, 
+      keywordIds?: string[],
+      startDate?: Date,
+      endDate?: Date
+    },
+  ): Promise<Article[]>;
   getArticle(id: string): Promise<Article | undefined>;
   getArticleByUrl(url: string): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
@@ -141,7 +146,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getKeyword(id: string): Promise<Keyword | undefined> {
-    const [keyword] = await db.select().from(keywords).where(eq(keywords.id, id));
+    const [keyword] = await db
+      .select()
+      .from(keywords)
+      .where(eq(keywords.id, id));
     return keyword;
   }
   
@@ -184,46 +192,42 @@ export class DatabaseStorage implements IStorage {
 
   // Articles
   async getArticles(
+    req: Request,
     userId?: string, 
     filters?: { 
       search?: string, 
       keywordIds?: string[],
       startDate?: Date,
       endDate?: Date
-    }
+    },
   ): Promise<Article[]> {
-    return withUserContext(
-      userId,
-      async (db) => {
-        const searchTerm = filters?.search?.trim() ?? null;
-        const startDate  = filters?.startDate   ?? null;
-        const endDate    = filters?.endDate     ?? null;
+    const searchTerm = filters?.search?.trim() ?? null;
+    const startDate  = filters?.startDate   ?? null;
+    const endDate    = filters?.endDate     ?? null;
 
-        const rows = await db
-          .select()
-          .from(articles)
-          .where(
-            and(
-              eq(articles.userId, userId),
-              searchTerm
-                ? or(
-                    ilike(articles.title, `%${searchTerm}%`),
-                    ilike(articles.content, `%${searchTerm}%`)
-                  )
-                : sql`TRUE`,
-              startDate
-                ? gte(articles.publishDate, startDate)
-                : sql`TRUE`,
-              endDate
-                ? lte(articles.publishDate, endDate)
-                : sql`TRUE`,
-            )
-          )
-          .orderBy(desc(articles.publishDate));
+    const rows = await req.db
+      .select()
+      .from(articles)
+      .where(
+        and(
+          eq(articles.userId, userId),
+          searchTerm
+            ? or(
+                ilike(articles.title, `%${searchTerm}%`),
+                ilike(articles.content, `%${searchTerm}%`)
+              )
+            : sql`TRUE`,
+          startDate
+            ? gte(articles.publishDate, startDate)
+            : sql`TRUE`,
+          endDate
+            ? lte(articles.publishDate, endDate)
+            : sql`TRUE`,
+        )
+      )
+      .orderBy(desc(articles.publishDate));
 
-        return rows;
-      }
-    )
+    return rows;
   }
 
 
