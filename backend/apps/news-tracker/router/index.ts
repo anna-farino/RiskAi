@@ -175,10 +175,13 @@ newsRouter.get("/articles", async (req, res) => {
 
 newsRouter.delete("/articles/:id", async (req, res) => {
   const userId = (req.user as User).id as string;
+  console.log("[DELETE article] user id", userId )
   const id = req.params.id;
+  console.log("[DELETE article] article id", id)
   
   // Check if article belongs to user
-  const article = await storage.getArticle(id);
+  const article = await storage.getArticle(req,id);
+  console.log("[DELETE article] article found", JSON.stringify(article))
   if (!article || article.userId !== userId) {
     return res.status(404).json({ message: "Article not found" });
   }

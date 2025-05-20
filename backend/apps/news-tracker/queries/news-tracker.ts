@@ -10,8 +10,8 @@ import type {
 import { 
   sources, 
   keywords, 
+  settings,
   articles, 
-  settings, 
 } from "@shared/db/schema/news-tracker/index";
 import { db, pool } from "backend/db/db";
 import { withUserContext } from "backend/db/with-user-context";
@@ -58,7 +58,7 @@ export interface IStorage {
       endDate?: Date
     },
   ): Promise<Article[]>;
-  getArticle(id: string): Promise<Article | undefined>;
+  getArticle(req: Request, id: string): Promise<Article | undefined>;
   getArticleByUrl(url: string): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
   deleteArticle(id: string): Promise<void>;
@@ -231,10 +231,14 @@ export class DatabaseStorage implements IStorage {
   }
 
 
-  async getArticle(id: string): Promise<Article | undefined> {
+  async getArticle(req: Request, id: string): Promise<Article | undefined> {
     // Use helper function to execute the query
-    const articles = await executeRawSql<Article>('SELECT * FROM articles WHERE id = $1 LIMIT 1', [id]);
-    return articles.length > 0 ? articles[0] : undefined;
+    const articlesData = await req.db
+      .select()
+      .from(articles)
+      .where(eq(articles.id,id))
+
+    return articlesData.length > 0 ? articlesData[0] : undefined;
   }
 
   async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
