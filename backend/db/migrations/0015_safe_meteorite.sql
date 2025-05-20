@@ -1,0 +1,1 @@
+ALTER TABLE "threat_articles" ADD COLUMN "security_score" text;

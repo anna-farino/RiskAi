@@ -35,6 +35,7 @@ export const threatArticles = pgTable("threat_articles", {
   publishDate: timestamp("publish_date"),
   summary: text("summary"),
   relevanceScore: text("relevance_score"),
+  securityScore: text("security_score"),
   // Detected keywords will be stored as JSON with category information
   detectedKeywords: jsonb("detected_keywords"), // { threats: [], vendors: [], clients: [], hardware: [] }
   scrapeDate: timestamp("scrape_date").defaultNow(),
