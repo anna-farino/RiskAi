@@ -14,7 +14,6 @@ import {
   articles, 
 } from "@shared/db/schema/news-tracker/index";
 import { db, pool } from "backend/db/db";
-import { withUserContext } from "backend/db/with-user-context";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
 import { Request } from "express";
 
@@ -59,10 +58,10 @@ export interface IStorage {
     },
   ): Promise<Article[]>;
   getArticle(req: Request, id: string): Promise<Article | undefined>;
-  getArticleByUrl(url: string): Promise<Article | undefined>;
-  createArticle(article: InsertArticle): Promise<Article>;
-  deleteArticle(id: string): Promise<void>;
-  deleteAllArticles(userId?: string): Promise<number>; // Returns count of deleted articles
+  getArticleByUrl(req: Request, url: string): Promise<Article | undefined>;
+  createArticle(req: Request, article: InsertArticle): Promise<Article>;
+  deleteArticle(req: Request, id: string): Promise<void>;
+  deleteAllArticles(req: Request, userId?: string): Promise<number>; // Returns count of deleted articles
   
   // Settings
   getSetting(key: string, userId?: string): Promise<Setting | undefined>;
@@ -241,21 +240,23 @@ export class DatabaseStorage implements IStorage {
     return articlesData.length > 0 ? articlesData[0] : undefined;
   }
 
-  async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
-    // Build query string
-    let sqlStr = "SELECT * FROM articles WHERE url = $1";
-    const params: any[] = [url];
+  async getArticleByUrl(req: Request, url: string, userId?: string): Promise<Article | undefined> {
+    let articlesData = await req.db
+      .select()
+      .from(articles)
+      .where(eq(articles.url,url))
     
     if (userId) {
-      sqlStr += " AND user_id = $2";
-      params.push(userId);
+      articlesData = await req.db
+        .select()
+        .from(articles)
+        .where(and(
+          eq(articles.url,url),
+          eq(articles.userId,userId)
+        ))
     }
     
-    sqlStr += " LIMIT 1";
-    
-    // Use helper function to execute the query
-    const articles = await executeRawSql<Article>(sqlStr, params);
-    return articles.length > 0 ? articles[0] : undefined;
+    return articlesData.length > 0 ? articlesData[0] : undefined;
   }
 
   async createArticle(article: InsertArticle): Promise<Article> {
@@ -266,17 +267,22 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async deleteArticle(id: string): Promise<void> {
-    await db.delete(articles).where(eq(articles.id, id));
+  async deleteArticle(req: Request, id: string): Promise<void> {
+    console.log("[...deleting article]", id)
+    const deletedArticle = await req.db
+      .delete(articles)
+      .where(eq(articles.id, id))
+      .returning()
+    console.log("[Article delelted]", deletedArticle)
   }
 
-  async deleteAllArticles(userId?: string): Promise<number> {
-    let query;
+  async deleteAllArticles(req: Request, userId?: string): Promise<number> {
+    let query: any;
     if (!userId) {
-      query = db
+      query = req.db
         .delete(articles);
     } else {
-      query = db
+      query = req.db
         .delete(articles)
         .where(eq(articles.userId, userId))
     }
