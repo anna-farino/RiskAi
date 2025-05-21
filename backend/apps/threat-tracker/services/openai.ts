@@ -202,18 +202,13 @@ export async function analyzeContent(
     const hardwareKeywordsText = hardwareKeywords.join(", ");
 
     const prompt = `
-<<<<<<< HEAD
 Analyze the following article text and identify cybersecurity threats mentioned. You will STRICTLY cross-reference with the provided keyword lists. 
-=======
-Analyze the following article text and identify any cybersecurity threats mentioned. Cross-reference with the provided lists of keywords.
->>>>>>> origin/dev
 
 THREAT KEYWORDS: ${threatKeywordsText}
 VENDOR KEYWORDS: ${vendorKeywordsText}
 CLIENT KEYWORDS: ${clientKeywordsText}
 HARDWARE/SOFTWARE KEYWORDS: ${hardwareKeywordsText}
 
-<<<<<<< HEAD
 CRITICAL INSTRUCTIONS:
 1. ONLY return keywords that EXACTLY match items in the lists above
 2. DO NOT include synonyms, related terms, or variations NOT in the lists
@@ -223,13 +218,10 @@ CRITICAL INSTRUCTIONS:
    - At least one exact match from the THREAT KEYWORDS list AND
    - At least one exact match from any of the other three keyword lists
 
-=======
->>>>>>> origin/dev
 Return your analysis in valid JSON format with the following structure:
 {
   "summary": "A concise 1-2 sentence summary of the article focusing on security threats",
   "detectedKeywords": {
-<<<<<<< HEAD
     "threats": ["only", "exact", "matches", "from", "threat", "keywords", "list"],
     "vendors": ["only", "exact", "matches", "from", "vendor", "keywords", "list"],
     "clients": ["only", "exact", "matches", "from", "client", "keywords", "list"],
@@ -241,21 +233,9 @@ Return your analysis in valid JSON format with the following structure:
 }
 
 Remember: If a keyword is not EXACTLY in the provided lists, DO NOT include it in the results - no exceptions.
-=======
-    "threats": ["list", "of", "detected", "threat", "keywords"],
-    "vendors": ["list", "of", "detected", "vendor", "keywords"],
-    "clients": ["list", "of", "detected", "client", "keywords"],
-    "hardware": ["list", "of", "detected", "hardware", "keywords"]
-  },
-  "relevanceScore": "A number between 0 and 10 indicating how relevant this article is to cybersecurity threats affecting the mentioned vendors, clients, or hardware"
-}
-
-Only include keywords from the provided lists that are actually mentioned in the article. If none are mentioned in a category, return an empty array for that category.
->>>>>>> origin/dev
 
 ARTICLE TITLE: ${articleTitle}
-ARTICLE CONTENT:
-${articleContent.substring(0, 8000)}
+ARTICLE CONTENT: ${articleContent.substring(0, 8000)}
 `;
 
     const completion = await openai.chat.completions.create({
