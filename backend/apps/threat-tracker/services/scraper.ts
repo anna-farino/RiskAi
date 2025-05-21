@@ -154,7 +154,7 @@ async function extractArticleLinksStructured(page: Page): Promise<string> {
   ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
   // Extract all links after ensuring content is loaded
-  const articleLinkData = await page.evaluate(() => {
+  let articleLinkData = await page.evaluate(() => {
     const links = Array.from(document.querySelectorAll('a'));
     return links.map(link => ({
       href: link.getAttribute('href'),
@@ -165,6 +165,41 @@ async function extractArticleLinksStructured(page: Page): Promise<string> {
   });
 
   log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
+
+  // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
+  if (articleLinkData.length < 20) {
+    log(`[ThreatTracker] Fewer than 20 links found, waiting for more content to load...`, "scraper");
+    
+    // Scroll through the page to trigger lazy loading
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    
+    // Wait for additional time to let dynamic content load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // Try extracting links again after waiting
+    articleLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href); // Only keep links with href attribute
+    });
+    
+    log(`[ThreatTracker] After additional wait: Extracted ${articleLinkData.length} potential article links`, "scraper");
+  }
 
   // Create a simplified HTML with just the extracted links
   return `
