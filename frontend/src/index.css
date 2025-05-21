@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Google Fonts - Space Grotesk for logo, Poppins as fallback */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+/* Import RisqAi utility styles */
+@import './styles/risqai-utils.css';
+@import './styles/logo.css';
+@import './styles/gradients.css';
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -16,76 +24,91 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* rgb(255, 255, 255) */
-    --foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
-    --card: 0 0% 100%; /* rgb(255, 255, 255) */
-    --card-foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
-    --popover: 0 0% 100%; /* rgb(255, 255, 255) */
-    --popover-foreground: 0 0% 3.9%; /* rgb(10, 10, 10) */
-    --primary: 0 0% 9%; /* rgb(23, 23, 23) */
-    --primary-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --secondary: 0 0% 96.1%; /* rgb(245, 245, 245) */
-    --secondary-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
-    --muted: 0 0% 96.1%; /* rgb(245, 245, 245) */
-    --muted-foreground: 0 0% 45.1%; /* rgb(115, 115, 115) */
-    --accent: 0 0% 96.1%; /* rgb(245, 245, 245) */
-    --accent-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
-    --destructive: 0 84.2% 60.2%; /* rgb(154, 0, 0) */
-    --destructive-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --border: 0 0% 89.8%; /* rgb(229, 229, 229) */
-    --input: 0 0% 89.8%; /* rgb(229, 229, 229) */
-    --ring: 0 0% 3.9%; /* rgb(10, 10, 10) */
+    /* Base color system */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    
+    /* RisqAi Brand Colors - Light Mode */
+    --primary: 285 100% 50%;        /* Primary Purple #BF00FF */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 180 100% 50%;      /* Neon Cyan #00FFFF */
+    --secondary-foreground: 0 0% 0%;
+    --accent: 326 100% 50%;         /* Magenta #FF00BF */
+    --accent-foreground: 0 0% 100%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --destructive: 0 100% 50%;      /* Error Red */
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 326 100% 50%;           /* Magenta for focus rings #FF00BF */
+    
+    /* Additional RisqAi Brand Colors */
+    --dark-blue: 222 78% 33%;       /* #1E3A8A */
+    --purple-blue: 265 70% 42%;     /* #5B21B6 */
+    
+    /* Transparency Variants */
+    --primary-30: 285 100% 50% / 0.3;
+    --primary-20: 285 100% 50% / 0.2;
+    --primary-10: 285 100% 50% / 0.1;
+    --secondary-30: 180 100% 50% / 0.3;
+    --dark-blue-30: 222 78% 33% / 0.3;
+    
+    /* Chart Colors */
+    --chart-1: 285 100% 50%;       /* Purple #BF00FF */
+    --chart-2: 326 100% 50%;       /* Magenta #FF00BF */
+    --chart-3: 180 100% 50%;       /* Cyan #00FFFF */
+    --chart-4: 265 70% 42%;        /* Purple/Blue #5B21B6 */ 
+    --chart-5: 222 78% 33%;        /* Dark Blue #1E3A8A */
+    
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%; /* rgb(219, 84, 46) */
-    --chart-2: 173 58% 39%; /* rgb(42, 159, 134) */
-    --chart-3: 197 37% 24%; /* rgb(39, 91, 122) */
-    --chart-4: 43 74% 66%; /* rgb(191, 186, 45) */
-    --chart-5: 27 87% 67%; /* rgb(234, 151, 33) */
-    /* Sidebar colors - light mode */
-    --sidebar-background: 0 0% 96%; /* rgb(245, 245, 245) */
-    --sidebar-foreground: 0 0% 10%; /* rgb(26, 26, 26) */
-    --sidebar-primary: 210 67% 42%; /* rgb(0, 108, 179) */
-    --sidebar-primary-foreground: 0 0% 100%; /* rgb(255, 255, 255) */
-    --sidebar-accent: 0 0% 92%; /* rgb(235, 235, 235) */
-    --sidebar-accent-foreground: 0 0% 10%; /* rgb(26, 26, 26) */
-    --sidebar-border: 0 0% 86%; /* rgb(219, 219, 219) */
-    --sidebar-ring: 210 67% 42%; /* rgb(0, 108, 179) */
   }
 
   .dark {
-    --background: 0 0% 3.9%; /* rgb(10, 10, 10) */
-    --foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --card: 0 0% 3.9%; /* rgb(10, 10, 10) */
-    --card-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --popover: 0 0% 3.9%; /* rgb(10, 10, 10) */
-    --popover-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --primary: 0 0% 98%; /* rgb(250, 250, 250) */
-    --primary-foreground: 0 0% 9%; /* rgb(23, 23, 23) */
-    --secondary: 0 0% 14.9%; /* rgb(38, 38, 38) */
-    --secondary-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --muted: 0 0% 14.9%; /* rgb(38, 38, 38) */
-    --muted-foreground: 0 0% 63.9%; /* rgb(163, 163, 163) */
-    --accent: 0 0% 14.9%; /* rgb(38, 38, 38) */
-    --accent-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --destructive: 0 62.8% 30.6%; /* rgb(78, 0, 0) */
-    --destructive-foreground: 0 0% 98%; /* rgb(250, 250, 250) */
-    --border: 0 0% 14.9%; /* rgb(38, 38, 38) */
-    --input: 0 0% 14.9%; /* rgb(38, 38, 38) */
-    --ring: 0 0% 83.1%; /* rgb(212, 212, 212) */
-    --chart-1: 220 70% 50%; /* rgb(38, 133, 224) */
-    --chart-2: 160 60% 45%; /* rgb(45, 179, 113) */
-    --chart-3: 30 80% 55%; /* rgb(224, 133, 38) */
-    --chart-4: 280 65% 60%; /* rgb(163, 38, 224) */
-    --chart-5: 340 75% 55%; /* rgb(224, 38, 133) */
-    /* Sidebar colors - dark mode */
-    --sidebar-background: 220 13% 8%; /* rgb(18, 20, 23) */
-    --sidebar-foreground: 180 2% 88%; /* rgb(224, 224, 224) */
-    --sidebar-primary: 210 67% 42%; /* rgb(0, 108, 179) */
-    --sidebar-primary-foreground: 0 0% 100%; /* rgb(255, 255, 255) */
-    --sidebar-accent: 180 2% 88%; /* rgb(224, 224, 224) */
-    --sidebar-accent-foreground: 180 2% 88%; /* rgb(224, 224, 224) */
-    --sidebar-border: 220 9% 20%; /* rgb(51, 56, 64) */
-    --sidebar-ring: 210 67% 42%; /* rgb(0, 108, 179) */
+    /* Dark mode base system - Updated to use true black background */
+    --background: 0 0% 0%;          /* True Black #000000 */
+    --foreground: 0 0% 98%;
+    --card: 222 47% 10%;            /* Dark blue tinted cards */
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 0%;             /* True Black #000000 */
+    --popover-foreground: 0 0% 98%;
+    
+    /* RisqAi Brand Colors - Dark Mode */
+    --primary: 285 100% 50%;        /* Primary Purple #BF00FF */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 180 100% 50%;      /* Neon Cyan #00FFFF */
+    --secondary-foreground: 0 0% 0%;
+    --accent: 326 100% 50%;         /* Magenta #FF00BF */
+    --accent-foreground: 0 0% 100%;
+    --muted: 222 47% 11%;
+    --muted-foreground: 0 0% 63.9%;
+    --destructive: 0 100% 50%;      /* Error Red */
+    --destructive-foreground: 0 0% 98%;
+    --border: 222 47% 20%;
+    --input: 222 47% 15%;
+    --ring: 326 100% 50%;           /* Magenta for focus rings #FF00BF */
+    
+    /* Additional RisqAi Brand Colors */
+    --dark-blue: 222 78% 33%;       /* #1E3A8A */
+    --purple-blue: 265 70% 42%;     /* #5B21B6 */
+    
+    /* Transparency Variants - Enhanced for dark mode */
+    --primary-30: 285 100% 50% / 0.4; /* Slightly more visible in dark mode */
+    --primary-20: 285 100% 50% / 0.25;
+    --primary-10: 285 100% 50% / 0.15;
+    --secondary-30: 180 100% 50% / 0.4;
+    --dark-blue-30: 222 78% 33% / 0.4;
+    
+    /* Chart Colors - Slightly brighter for dark mode */
+    --chart-1: 285 100% 60%;       /* Purple #BF00FF */
+    --chart-2: 326 100% 60%;       /* Magenta #FF00BF */
+    --chart-3: 180 100% 60%;       /* Cyan #00FFFF */
+    --chart-4: 265 70% 50%;        /* Purple/Blue #5B21B6 */ 
+    --chart-5: 222 78% 40%;        /* Dark Blue #1E3A8A */
   }
 }
 
@@ -94,7 +117,7 @@ body {
 }
 
 body {
-  @apply bg-background text-foreground;
+  @apply bg-background text-foreground dark:bg-black dark:text-white;
 }
 
 .App {
@@ -107,14 +130,76 @@ body {
 
 button {
   @apply rounded-lg border border-transparent px-4 py-2 text-base font-medium 
-         bg-gray-800 text-white cursor-pointer transition-colors
-         hover:border-blue-500;
+         bg-background text-foreground cursor-pointer transition-all duration-200
+         hover:bg-primary/10 hover:border-primary hover:text-primary;
 }
 
-/* Custom Scrollbar Styling */
+/* Primary RisqAi Button */
+.btn-risqai-primary {
+  @apply px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 
+         cursor-pointer border border-transparent;
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+  background-size: 200% auto;
+}
+
+.btn-risqai-primary:hover {
+  background-position: right center;
+  box-shadow: 0 0 10px rgba(191, 0, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-risqai-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 0 5px rgba(191, 0, 255, 0.3);
+}
+
+/* Secondary RisqAi Button */
+.btn-risqai-secondary {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 
+         cursor-pointer bg-transparent;
+  border: 1px solid #BF00FF;
+  color: #00FFFF;
+}
+
+.btn-risqai-secondary:hover {
+  background-color: rgba(191, 0, 255, 0.1);
+  box-shadow: 0 0 10px rgba(191, 0, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-risqai-secondary:active {
+  transform: translateY(0);
+}
+
+/* Ghost RisqAi Button */
+.btn-risqai-ghost {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 
+         cursor-pointer bg-transparent border-transparent;
+  color: white;
+}
+
+.btn-risqai-ghost:hover {
+  background-color: rgba(191, 0, 255, 0.1);
+  color: #00FFFF;
+}
+
+/* Dark theme variants */
+.dark .btn-risqai-primary {
+  box-shadow: 0 0 10px rgba(191, 0, 255, 0.2);
+}
+
+.dark .btn-risqai-primary:hover {
+  box-shadow: 0 0 15px rgba(191, 0, 255, 0.5);
+}
+
+.dark .btn-risqai-secondary {
+  border-color: rgba(191, 0, 255, 0.8);
+}
+
+/* Custom Scrollbar Styling - RisqAi Brand Theme */
 * {
   scrollbar-width: thin;
-  scrollbar-color: hsl(215 27.9% 16.9%) transparent;
+  scrollbar-color: rgba(191, 0, 255, 0.4) transparent; /* RisqAi Purple */
 }
 
 /* Webkit scrollbar styling */
@@ -128,32 +213,70 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: hsl(215 27.9% 16.9%);
+  background: linear-gradient(to bottom, rgba(191, 0, 255, 0.5), rgba(0, 255, 255, 0.5));
   border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(215 27.9% 25%);
+  background: linear-gradient(to bottom, rgba(191, 0, 255, 0.7), rgba(0, 255, 255, 0.7));
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background-color: hsl(215 27.9% 25%);
+  background: linear-gradient(to bottom, rgba(191, 0, 255, 0.6), rgba(0, 255, 255, 0.6));
+  box-shadow: 0 0 5px rgba(191, 0, 255, 0.3);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(215 27.9% 30%);
+  background: linear-gradient(to bottom, rgba(191, 0, 255, 0.8), rgba(0, 255, 255, 0.8));
+  box-shadow: 0 0 8px rgba(191, 0, 255, 0.4);
 }
 
 
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* Additional utility classes */
+.risqai-card {
+  @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm overflow-hidden;
+}
+
+.risqai-card-gradient {
+  @apply bg-black text-white rounded-lg shadow-sm overflow-hidden;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.risqai-card-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  margin: -1px;
+  border-radius: inherit;
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+}
+
+.risqai-input {
+  @apply bg-input text-foreground border border-border rounded-md p-2 focus:ring-2 focus:ring-primary focus:border-transparent;
+}
+
+.risqai-glassmorphism {
+  @apply rounded-lg;
+  background: rgba(30, 58, 138, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(191, 0, 255, 0.1);
+}
+
+.risqai-glassmorphism-dark {
+  @apply rounded-lg;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(191, 0, 255, 0.2);
 }
 
 /* Font styling for reports - using Arial or comparable sans-serif fonts */
@@ -224,5 +347,94 @@ button {
 
 .dark-theme .prose div:after {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Shadow glow effect for RisqAi brand elements */
+.shadow-glow {
+  box-shadow: 0 0 15px rgba(191, 0, 255, 0.5), 0 0 30px rgba(0, 255, 255, 0.3);
+}
+
+/* Logo container with proper sizing */
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px; /* Fixed height instead of max-height */
+  max-width: 100%; /* Ensure it doesn't overflow horizontally */
+  overflow: visible; /* Changed from hidden to avoid clipping on large screens */
+  position: relative;
+  transform-origin: left center; /* Ensure scaling from left side */
+}
+
+/* Responsive adjustments for logo container */
+/* Large desktop */
+@media (min-width: 1280px) {
+  .logo-container {
+    height: 48px;
+    transform: scale(0.95);
+  }
+}
+
+/* Standard desktop */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .logo-container {
+    height: 42px;
+    transform: scale(0.9);
+  }
+}
+
+/* Problematic mid-size range */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .logo-container {
+    height: 36px; /* Smaller for mid-size screens */
+    transform: scale(0.85); /* Reduced scale for mid-size screens */
+  }
+}
+
+/* Tablets */
+@media (min-width: 640px) and (max-width: 767px) {
+  .logo-container {
+    height: 38px;
+    transform: scale(0.9);
+  }
+}
+
+/* Mobile */
+@media (max-width: 639px) {
+  .logo-container {
+    height: 40px;
+    transform: scale(0.95);
+  }
+}
+
+/* Scanner effect animation */
+.scanner-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanner-effect::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  animation: scan 2s linear infinite;
+}
+
+@keyframes scan {
+  0% {
+    top: -100%;
+  }
+  100% {
+    top: 100%;
+  }
 }
 

@@ -1,20 +1,46 @@
 .logo {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Space Grotesk', 'Poppins', sans-serif;
   font-weight: 700;
   font-size: 2rem;
-  background: linear-gradient(to right, #8A00C2, #FF00D6);
+  display: inline-block;
+}
+
+/* Standard variant with separate colors */
+.logo-standard .risq {
+  color: #FFFFFF;
+}
+
+.logo-standard .ai {
+  color: #00FFFF;
+}
+
+.logo-standard .period {
+  color: #BF00FF;
+}
+
+/* Gradient variant */
+.logo-gradient {
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  text-shadow: 0 0 10px rgba(191, 0, 255, 0.2);
+}
+
+/* Monochrome variant */
+.logo-monochrome {
+  color: #FFFFFF;
+}
+
+/* Inverted variant */
+.logo-inverted {
+  color: #121212;
 }
 
 .logo-responsive {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Space Grotesk', 'Poppins', sans-serif;
   font-weight: 700;
-  background: linear-gradient(to right, #8A00C2, #FF00D6);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 /* Responsive sizes */
@@ -37,41 +63,59 @@
 }
 
 .logo-interactive {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 700;
-  font-size: 2rem;
-  background: linear-gradient(to right, #8A00C2, #FF00D6);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .logo-interactive:hover {
-  opacity: 0.8;
+  opacity: 0.9;
   transform: scale(1.05);
-  text-shadow: 0 0 15px rgba(255, 0, 214, 0.5);
+}
+
+/* Animation effects for the logo */
+@keyframes cyan-glow-pulse {
+  0% { text-shadow: none; }
+  50% { text-shadow: 0 0 15px rgba(0, 255, 255, 0.7); }
+  100% { text-shadow: none; }
+}
+
+@keyframes gradient-shift {
+  0% { 
+    background-position: 0% 50%;
+    filter: brightness(1); 
+  }
+  50% { 
+    filter: brightness(1.1); 
+  }
+  100% { 
+    background-position: 100% 50%;
+    filter: brightness(1); 
+  }
+}
+
+.logo-animated .ai {
+  animation: cyan-glow-pulse 2.5s infinite;
+}
+
+/* Animation for gradient logo */
+.logo-animated.logo-gradient {
+  animation: gradient-shift 3s infinite alternate;
 }
 
 /* Using CSS Variables */
 :root {
-  --font-primary: 'Poppins', Helvetica, Arial, sans-serif;
+  --font-logo: 'Space Grotesk', 'Poppins', sans-serif;
   --font-weight-logo: 700;
-  --color-logo-gradient-from: #8A00C2;
-  --color-logo-gradient-to: #FF00D6;
+  --color-risq: #FFFFFF;
+  --color-ai: #00FFFF;
+  --color-period: #BF00FF;
+  --color-logo-gradient-from: #BF00FF;
+  --color-logo-gradient-to: #00FFFF;
 }
 
 .logo-var {
-  font-family: var(--font-primary);
+  font-family: var(--font-logo);
   font-weight: var(--font-weight-logo);
-  background: linear-gradient(
-    to right, 
-    var(--color-logo-gradient-from), 
-    var(--color-logo-gradient-to)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 /* Dark mode adjustment */

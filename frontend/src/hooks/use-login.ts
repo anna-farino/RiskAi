@@ -37,7 +37,7 @@ export default function useLogin() {
           title: "Success",
           description: "Logged in successfully!",
         });
-        navigate('/dashboard/home');
+        navigate('/dashboard');
       }
     },
     onError: (error: Error) => {

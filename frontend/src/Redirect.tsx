@@ -11,7 +11,7 @@ export default function Redirect() {
 
     if (data) {
       console.log("Redirect: authenticated");
-      navigate("/dashboard/home");
+      navigate("/dashboard");
     } else {
       console.log("Redirect: NOT authenticated");
       navigate("/auth/login");

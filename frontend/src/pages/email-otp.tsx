@@ -57,10 +57,10 @@ export default function EmailOtp() {
 
   return (
     <AuthLayout>
-      <Card>
+      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl text-white">Reset Password</CardTitle>
+          <CardDescription className="text-slate-300">
             Enter your email below 
           </CardDescription>
         </CardHeader>
@@ -68,18 +68,19 @@ export default function EmailOtp() {
           <form onSubmit={onSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-300">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   disabled={mutation.isPending}
                   {...form.register("email")}
+                  className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
                 {form.formState.errors.email && (
                   <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
                 )}
               </div>
-              <Button type="submit" className="w-full" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={mutation.isPending}>
                 { mutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

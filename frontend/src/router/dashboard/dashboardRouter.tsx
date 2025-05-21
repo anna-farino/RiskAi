@@ -5,8 +5,13 @@ import Settings from '../../pages/dashboard/Settings.tsx'
 //import Secrets from '../../pages/dashboard/Secrets.tsx'
 import HackRoles from '../../pages/dashboard/hack-roles.tsx'
 import Home from '@/pages/dashboard/Home.tsx'
+import WidgetDashboard from '@/pages/Dashboard.tsx'
 
 export const dashboardRouter = [
+  {
+    index: true,
+    element: <WidgetDashboard/>,
+  },
   {
     path: "home",
     element: <Home/>,
