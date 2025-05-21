@@ -131,10 +131,10 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts about cybersecurity threats. Look for:
+          content: `You are an expert cyber security article analizer. You look for articles that are about cyber security, cyber threats, and data breaches. Analyze the list of links and identify URLs that are definitely news articles or blog posts about cybersecurity. Look for:
             1. Article-style titles (descriptive, security-focused)
             2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, CVE numbers)
-            3. Security-related keywords (threat, vulnerability, attack, breach, etc.)
+            3. Security-related keywords (threat, vulnerability, attack, breach, hack, 0-day, compromized, active exploit, etc.)
             4. Proper article context (not navigation/category pages)
 
             Return only links that are very likely to be actual security-related articles.
