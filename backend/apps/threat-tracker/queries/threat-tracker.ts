@@ -18,13 +18,17 @@ import { eq, and, isNull, sql, SQL, desc } from "drizzle-orm";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
+  const client = await pool.connect();
   try {
     // Direct execution with the pool instead of through drizzle
-    const result = await pool.query(sqlStr, params);
+    const result = await client.query(sqlStr, params);
     return result.rows as T[];
   } catch (error) {
     console.error("SQL execution error:", error);
     return [];
+  } finally {
+    // Always release client to pool
+    client.release();
   }
 }
 

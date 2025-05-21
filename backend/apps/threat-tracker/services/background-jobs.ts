@@ -150,10 +150,18 @@ export async function scrapeSource(source: ThreatSource) {
   
   try {
     // Get all threat-related keywords for analysis, filtered by the source's userId
-    const threatKeywords = await storage.getKeywordsByCategory('threat', source.userId || undefined);
-    const vendorKeywords = await storage.getKeywordsByCategory('vendor', source.userId || undefined);
-    const clientKeywords = await storage.getKeywordsByCategory('client', source.userId || undefined);
-    const hardwareKeywords = await storage.getKeywordsByCategory('hardware', source.userId || undefined);
+    // Gather all required data in parallel to reduce connection time
+    const [
+      threatKeywords, 
+      vendorKeywords, 
+      clientKeywords, 
+      hardwareKeywords
+    ] = await Promise.all([
+      storage.getKeywordsByCategory('threat', source.userId || undefined),
+      storage.getKeywordsByCategory('vendor', source.userId || undefined),
+      storage.getKeywordsByCategory('client', source.userId || undefined),
+      storage.getKeywordsByCategory('hardware', source.userId || undefined)
+    ]);
     
     // Extract keyword terms
     const threatTerms = threatKeywords.map(k => k.term);
@@ -195,6 +203,10 @@ export async function scrapeSource(source: ThreatSource) {
     
     if (processedLinks.length === 0) {
       log(`[ThreatTracker] No article links found for source: ${source.name}`, "scraper-error");
+      // Update the lastScraped timestamp even if no articles found
+      await storage.updateSource(source.id, {
+        lastScraped: new Date()
+      });
       return [];
     }
     
@@ -229,14 +241,15 @@ export async function scrapeSource(source: ThreatSource) {
       }
     }
     
+    // Verify we have user ID before proceeding
+    if (!source.userId) {
+      log(`[ThreatTracker] Error: No user ID found for source ${source.name}`, "scraper-error");
+      return [];
+    }
+    
     // 6-7. Process the first article (or skip if we've already used it for structure detection)
     const results = [];
     let firstArticleProcessed = false;
-
-    if (!source.userId) {
-      console.error("No source.userId")
-      return
-    }
     
     if (htmlStructure) {
       log(`[ThreatTracker] Step 8-9: Processing first article with detected structure`, "scraper");
@@ -258,29 +271,60 @@ export async function scrapeSource(source: ThreatSource) {
     log(`[ThreatTracker] Processing all remaining articles`, "scraper");
     const startIndex = firstArticleProcessed ? 1 : 0;
     
-    for (let i = startIndex; i < processedLinks.length; i++) {
-      const articleResult = await processArticle(
-        processedLinks[i], 
-        source.id, 
-        source.userId, 
-        htmlStructure,
-        keywords
+    // To prevent long-running transactions, process in smaller batches
+    const BATCH_SIZE = 5; // Process 5 articles at a time
+    const remainingLinks = processedLinks.slice(startIndex);
+    
+    for (let i = 0; i < remainingLinks.length; i += BATCH_SIZE) {
+      const batch = remainingLinks.slice(i, i + BATCH_SIZE);
+      log(`[ThreatTracker] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(remainingLinks.length/BATCH_SIZE)}`, "scraper");
+      
+      // Process each batch in parallel to improve speed
+      const batchResults = await Promise.allSettled(
+        batch.map(link => 
+          processArticle(
+            link, 
+            source.id, 
+            source.userId as string, // We checked above that userId exists
+            htmlStructure,
+            keywords
+          )
+        )
       );
       
-      if (articleResult) {
-        results.push(articleResult);
-      }
+      // Filter successful results and add to results array
+      batchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          results.push(result.value);
+        } else if (result.status === 'rejected') {
+          log(`[ThreatTracker] Failed to process article ${batch[index]}: ${(result as PromiseRejectedResult).reason}`, "scraper-error");
+        }
+      });
+      
+      // Update lastScraped after each batch to prevent transaction timeouts
+      await storage.updateSource(source.id, {
+        lastScraped: new Date()
+      });
+      
+      // Short pause between batches to allow other connections through
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
-    
-    // Update the lastScraped timestamp for this source
-    await storage.updateSource(source.id, {
-      lastScraped: new Date()
-    });
     
     log(`[ThreatTracker] Completed scrape job for source: ${source.name}. Found ${results.length} new articles.`, "scraper");
     return results;
   } catch (error: any) {
     log(`[ThreatTracker] Error in scrape job for source ${source.name}: ${error.message}`, "scraper-error");
+    
+    // Try to update the lastScraped timestamp even if there was an error
+    try {
+      await storage.updateSource(source.id, {
+        lastScraped: new Date()
+      });
+    } catch (updateError) {
+      // Just log the error, don't throw
+      log(`[ThreatTracker] Failed to update lastScraped after error: ${updateError}`, "scraper-error");
+    }
+    
     throw error;
   }
 }
@@ -300,21 +344,53 @@ export async function runGlobalScrapeJob(userId?: string) {
     const sources = await storage.getAutoScrapeSources(userId);
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
     
+    if (sources.length === 0) {
+      log("[ThreatTracker] No active sources found for scraping", "scraper");
+      globalScrapeJobRunning = false;
+      return { 
+        message: "No active sources found for scraping",
+        newArticles: []
+      };
+    }
+    
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];
     
-    // Process each source sequentially
-    for (const source of sources) {
-      try {
-        const newArticles = await scrapeSource(source);
-        if (!newArticles?.length) continue
-        if (newArticles.length > 0) {
+    // Process sources in smaller batches to prevent transaction timeouts
+    const BATCH_SIZE = 3; // Process 3 sources at a time
+    
+    for (let i = 0; i < sources.length; i += BATCH_SIZE) {
+      const batch = sources.slice(i, i + BATCH_SIZE);
+      log(`[ThreatTracker] Processing source batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(sources.length/BATCH_SIZE)}`, "scraper");
+      
+      // Process each source in the batch sequentially
+      for (const source of batch) {
+        try {
+          log(`[ThreatTracker] Scraping source: ${source.name}`, "scraper");
+          const newArticles = await scrapeSource(source);
+          
+          if (!newArticles?.length) {
+            log(`[ThreatTracker] No new articles found for source: ${source.name}`, "scraper");
+            continue;
+          }
+          
+          log(`[ThreatTracker] Found ${newArticles.length} new articles for source: ${source.name}`, "scraper");
           allNewArticles.push(...newArticles);
+          
+          // Short pause between sources to prevent resource exhaustion
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error: any) {
+          log(`[ThreatTracker] Error scraping source ${source.name}: ${error.message}`, "scraper-error");
+          // Continue with the next source
+          continue;
         }
-      } catch (error: any) {
-        log(`[ThreatTracker] Error scraping source ${source.name}: ${error.message}`, "scraper-error");
-        // Continue with the next source
-        continue;
+      }
+      
+      // Short pause between batches to allow database connections to reset
+      if (i + BATCH_SIZE < sources.length) {
+        log("[ThreatTracker] Pausing between source batches to prevent connection timeout", "scraper");
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
     
