@@ -131,24 +131,23 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `You are given a list of URLs. Analyze each URL and return only those that are very likely to be direct links to individual news articles or blog posts.
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts about cybersecurity threats. Look for:
+            1. Article-style titles (descriptive, security-focused)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, CVE numbers)
+            3. Security-related keywords (threat, vulnerability, attack, breach, etc.)
+            4. Proper article context (not navigation/category pages)
 
-          Identification criteria:
-            1. The URL contains patterns commonly found in article links, such as:
-               - Article-style or news-focused slugs/titles (descriptive, possibly containing names, events, or concise headlines).
-               - Path elements like /news/, /article/, /blog/, /stories/, /posts/, /2024/, /2023/, or date patterns (YYYY/MM/DD).
-               - CVE numbers or codes indicative of specific incidents (e.g., /CVE-2023-12345/).
-               - No additional path elements that indicate navigation, tags, categories, authors, searches, pagination, or corporate information.
-            2. The URL is not a homepage, navigation, landing, search results, tag, topic, category, author profile, archive, list/pagination, or general info page.
-            3. The link is for a single, self-contained article or blog post with unique content and a specific subject.
+            Return only links that are very likely to be actual security-related articles.
+            Exclude:
+            - Category pages
+            - Tag pages
+            - Author pages
+            - Navigation links
+            - Search results
+            - Pagination links
+            - General company information pages
 
-          Strict exclusions:
-            - Category, tag, topic, author, archive, list/pagination, search, 'about', or company information pages.
-            - URLs with query parameters related to navigation (e.g., ?page=, ?cat=, ?search=, ?author=).
-            - Homepages or landing pages.
-            - Any other link where it's not highly probable that it leads to a dedicated article.
-
-          Return JSON in format: { articleUrls: string[] }`,
+            Return JSON in format: { articleUrls: string[] }`,
         },
         {
           role: "user",
