@@ -31,33 +31,15 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
     
-    // Use a shorter timeout for database operations to prevent connection issues
-    const DB_TIMEOUT = 5000; // 5 seconds timeout
+    // Check if we already have this article FOR THIS USER
+    const existingArticles = await storage.getArticles({
+      search: articleUrl,
+      userId: userId
+    });
     
-    // Check if we already have this article FOR THIS USER - with timeout
-    let existingArticles: any[] = [];
-    try {
-      const checkPromise = storage.getArticles({
-        search: articleUrl,
-        userId: userId
-      });
-      
-      // Create a timeout promise
-      const timeoutPromise = new Promise<any[]>((_, reject) => {
-        setTimeout(() => reject(new Error("Database timeout checking article existence")), DB_TIMEOUT);
-      });
-      
-      // Race the database query against the timeout
-      existingArticles = await Promise.race([checkPromise, timeoutPromise]);
-      
-      if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
-        log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
-        return null;
-      }
-    } catch (dbError: any) {
-      // If the database check timed out, we'll continue with processing
-      // This might result in duplicate articles, but that's better than failing completely
-      log(`[ThreatTracker] Database check timed out, continuing with processing: ${dbError.message}`, "scraper-error");
+    if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
+      log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
+      return null;
     }
     
     // Scrape the article page with article-specific flag
@@ -139,8 +121,8 @@ async function processArticle(
       }
     }
     
-    // Prepare the article data object first
-    const articleToCreate = {
+    // Store the article in the database
+    const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
@@ -152,34 +134,9 @@ async function processArticle(
       securityScore: analysis.severityScore?.toString() || "0", // Add severity score
       detectedKeywords: analysis.detectedKeywords,
       userId,
-    };
+    });
     
-    // Store the article in the database with timeout handling
-    let newArticle;
-    try {
-      const createPromise = storage.createArticle(articleToCreate);
-      
-      // Create a timeout promise for database insert
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Database timeout storing article")), DB_TIMEOUT);
-      });
-      
-      // Race the database insert against the timeout
-      newArticle = await Promise.race([createPromise, timeoutPromise]);
-      log(`[ThreatTracker] Successfully processed and stored article: ${articleUrl}`, "scraper");
-    } catch (dbError: any) {
-      log(`[ThreatTracker] Database error storing article: ${dbError.message}`, "scraper-error");
-      
-      // Since we couldn't store the article in the database, we'll return the article data
-      // This way we don't lose the work we've already done
-      return {
-        ...articleToCreate,
-        id: 'temp-' + Date.now(), // Generate a temporary ID
-        scrapeDate: new Date(),
-        storageFailed: true // Flag to indicate storage failed
-      };
-    }
-    
+    log(`[ThreatTracker] Successfully processed and stored article: ${articleUrl}`, "scraper");
     return newArticle;
   } catch (error: any) {
     log(`[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`, "scraper-error");
@@ -192,8 +149,7 @@ export async function scrapeSource(source: ThreatSource) {
   log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
   
   try {
-    // Get all keywords upfront to avoid long-running transactions later
-    log(`[ThreatTracker] Fetching keywords for analysis`, "scraper");
+    // Get all threat-related keywords for analysis, filtered by the source's userId
     const threatKeywords = await storage.getKeywordsByCategory('threat', source.userId || undefined);
     const vendorKeywords = await storage.getKeywordsByCategory('vendor', source.userId || undefined);
     const clientKeywords = await storage.getKeywordsByCategory('client', source.userId || undefined);
@@ -257,15 +213,10 @@ export async function scrapeSource(source: ThreatSource) {
         
         log(`[ThreatTracker] Step 7: Detected HTML structure for articles`, "scraper");
         
-        // Save the detected structure for future use - wrap in try/catch to prevent transaction timeouts
-        try {
-          await storage.updateSource(source.id, {
-            scrapingConfig: htmlStructure
-          });
-        } catch (structureError: any) {
-          log(`[ThreatTracker] Error saving HTML structure, but continuing: ${structureError.message}`, "scraper-error");
-          // We'll continue with the detected structure even if we can't save it
-        }
+        // Save the detected structure for future use
+        await storage.updateSource(source.id, {
+          scrapingConfig: htmlStructure
+        });
       } catch (error: any) {
         log(`[ThreatTracker] Error detecting HTML structure from first article: ${error.message}`, "scraper-error");
         // Continue with a basic structure instead of failing
@@ -284,7 +235,7 @@ export async function scrapeSource(source: ThreatSource) {
 
     if (!source.userId) {
       console.error("No source.userId")
-      return []
+      return
     }
     
     if (htmlStructure) {
@@ -307,54 +258,24 @@ export async function scrapeSource(source: ThreatSource) {
     log(`[ThreatTracker] Processing all remaining articles`, "scraper");
     const startIndex = firstArticleProcessed ? 1 : 0;
     
-    // Process articles in smaller batches to avoid long transactions
-    const BATCH_SIZE = 3; // Process 3 articles at a time
-    
-    for (let i = startIndex; i < processedLinks.length; i += BATCH_SIZE) {
-      // Process a batch of articles
-      const batch = processedLinks.slice(i, i + BATCH_SIZE);
-      log(`[ThreatTracker] Processing batch ${Math.ceil(i/BATCH_SIZE)+1} of ${Math.ceil(processedLinks.length/BATCH_SIZE)}`, "scraper");
-      
-      // Process each article in the batch and collect results
-      const batchResults = await Promise.all(
-        batch.map(async (articleUrl) => {
-          try {
-            return await processArticle(
-              articleUrl, 
-              source.id, 
-              source.userId!, 
-              htmlStructure,
-              keywords
-            );
-          } catch (error: any) {
-            log(`[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`, "scraper-error");
-            return null;
-          }
-        })
+    for (let i = startIndex; i < processedLinks.length; i++) {
+      const articleResult = await processArticle(
+        processedLinks[i], 
+        source.id, 
+        source.userId, 
+        htmlStructure,
+        keywords
       );
       
-      // Add successful results to our collection
-      batchResults.forEach(result => {
-        if (result) {
-          results.push(result);
-        }
-      });
-      
-      // Add a small delay between batches to prevent database overload
-      if (i + BATCH_SIZE < processedLinks.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (articleResult) {
+        results.push(articleResult);
       }
     }
     
-    // Update the lastScraped timestamp for this source - wrap in try/catch to prevent failure
-    try {
-      await storage.updateSource(source.id, {
-        lastScraped: new Date()
-      });
-    } catch (updateError: any) {
-      log(`[ThreatTracker] Error updating lastScraped timestamp: ${updateError.message}`, "scraper-error");
-      // Continue despite the error - this is not critical
-    }
+    // Update the lastScraped timestamp for this source
+    await storage.updateSource(source.id, {
+      lastScraped: new Date()
+    });
     
     log(`[ThreatTracker] Completed scrape job for source: ${source.name}. Found ${results.length} new articles.`, "scraper");
     return results;
