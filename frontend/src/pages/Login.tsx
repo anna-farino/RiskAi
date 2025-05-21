@@ -102,7 +102,7 @@ export default function Login() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
+              {false && <div className="flex items-center space-x-2">
                 <Switch 
                   id="remember-me"
                   checked={form.watch("rememberMe")}
@@ -117,7 +117,7 @@ export default function Login() {
                 >
                   Remember me
                 </Label>
-              </div>
+              </div>}
               <Button 
                 type="submit" 
                 className="w-full text-white font-medium transition-all duration-300 bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] hover:opacity-90 h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none" 
