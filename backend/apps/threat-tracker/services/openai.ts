@@ -131,12 +131,13 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
-            1. Article-style titles (descriptive, security-focused or news-focused)
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts about cybersecurity threats. Look for:
+            1. Article-style titles (descriptive, security-focused)
             2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, CVE numbers)
-            3. Proper article context (not navigation/category pages)
+            3. Security-related keywords (threat, vulnerability, attack, breach, etc.)
+            4. Proper article context (not navigation/category pages)
 
-            Return only links that are very likely to be actual articles.
+            Return only links that are very likely to be actual security-related articles.
             Exclude:
             - Category pages
             - Tag pages
