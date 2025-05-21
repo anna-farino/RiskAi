@@ -90,7 +90,7 @@ Return your answer in valid JSON format like this:
 }
 
 /**
- * Uses a combination of pattern-matching and AI to identify article links from HTML content
+ * Uses OpenAI to identify article links from HTML content
  */
 export async function identifyArticleLinks(
   linksText: string,
@@ -106,108 +106,23 @@ export async function identifyArticleLinks(
     );
 
     // For simplified HTML, extract directly to a more processable format
-    let links = [];
-    let htmxLinks = [];
-    let potentialArticleUrls = [];
-    
     if (isSimplifiedHtml) {
-      // Extract all links
       const linkRegex = /<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
       let match;
-      
+      const links = [];
       while ((match = linkRegex.exec(linksText)) !== null) {
         links.push({
           href: match[1],
           text: match[2].replace(/<[^>]+>/g, "").trim(), // Strip HTML from link text
         });
       }
-      
-      // Look for HTMX patterns
-      const htmxPatterns = [
-        { pattern: /\/media\/items\/.*-\d+\/?$/i, type: 'foojobs-article' },
-        { pattern: /\/items\/[^/]+\/$/i, type: 'htmx-item' },
-        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' }
-      ];
-      
-      // Perform initial pattern matching to identify likely article links
-      links.forEach(link => {
-        const url = link.href;
-        const text = link.text;
-        
-        // Check for common article URL patterns
-        const isArticleByUrl = 
-          url.includes('/article/') || 
-          url.includes('/blog/') || 
-          url.includes('/news/') ||
-          url.match(/\/(posts?|stories?|updates?)\//) ||
-          url.match(/\d{4}\/\d{2}\//) || // Date pattern like /2023/05/
-          url.match(/\/(cve|security|vulnerability|threat)-/) ||
-          url.match(/\.com\/[^/]+\/[^/]+\/[^/]+/); // 3-level path like domain.com/section/topic/article-title
-        
-        // Check for article title patterns
-        const isArticleByTitle = 
-          text.length > 20 && // Longer titles are often articles
-          (
-            text.includes(': ') || // Title pattern with colon
-            text.match(/^(how|why|what|when)\s+/i) || // "How to..." titles
-            text.match(/[—\-\|]\s/) // Title with separator
-          );
-        
-        // Check for security keywords in title
-        const securityKeywords = ['security', 'cyber', 'hack', 'threat', 'vulnerability', 'breach', 'attack', 'malware', 'phishing', 'ransomware'];
-        const hasSecurityKeyword = securityKeywords.some(keyword => 
-          text.toLowerCase().includes(keyword)
-        );
-        
-        // Check if URL matches HTMX patterns
-        const htmxMatch = htmxPatterns.find(pattern => url.match(pattern.pattern));
-        if (htmxMatch) {
-          htmxLinks.push({
-            href: url,
-            text: text,
-            pattern: htmxMatch.type
-          });
-          
-          // Auto-include links that match specific HTMX patterns (like FooJobs)
-          if (htmxMatch.type === 'foojobs-article' || url.includes('/media/items/')) {
-            potentialArticleUrls.push(url);
-            log(`[ThreatTracker] Auto-detected HTMX article: ${url}`, "openai");
-          }
-        }
-        
-        // Include article-like links for AI processing
-        if (isArticleByUrl || isArticleByTitle || hasSecurityKeyword) {
-          // For article URLs that don't match specific patterns, we'll let the AI evaluate them
-          if (!potentialArticleUrls.includes(url)) {
-            potentialArticleUrls.push(url);
-          }
-        }
-      });
-      
-      // Log information about the processing
-      log(`[ThreatTracker] Extracted ${links.length} total links`, "openai");
-      log(`[ThreatTracker] Found ${htmxLinks.length} potential HTMX links`, "openai");
-      log(`[ThreatTracker] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`, "openai");
-      
-      // If we found HTMX article links, prioritize those and skip AI processing in some cases
-      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern === 'foojobs-article')) {
-        log(`[ThreatTracker] FooJobs article pattern detected, using HTMX-specific handling`, "openai");
-        
-        // Return immediately if we found enough HTMX articles
-        if (potentialArticleUrls.length >= 5) {
-          log(`[ThreatTracker] Found ${potentialArticleUrls.length} FooJobs articles via pattern matching`, "openai");
-          return potentialArticleUrls;
-        }
-      }
-      
-      // Convert links to format for AI processing
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
         .join("\n");
     }
 
     log(
-      `[ThreatTracker] Proceeding to AI analysis of ${linksText.split("\n").length} structured link entries`,
+      `[ThreatTracker] Analyzing ${linksText.split("\n").length} structured link entries`,
       "openai",
     );
 
@@ -216,35 +131,30 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `You are an expert cybersecurity article identifier. Analyze the list of links and identify URLs that could be news articles or blog posts related to cybersecurity, information security, or technology threats.
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts about cybersecurity threats. Look for:
+            1. Article-style titles (descriptive, security-focused)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, CVE numbers)
+            3. Security-related keywords (threat, vulnerability, attack, breach, etc.)
+            4. Proper article context (not navigation/category pages)
 
-IMPORTANT: be inclusive rather than exclusive. If a link looks like it might be a security article, include it.
+            Return only links that are very likely to be actual security-related articles.
+            Exclude:
+            - Category pages
+            - Tag pages
+            - Author pages
+            - Navigation links
+            - Search results
+            - Pagination links
+            - General company information pages
 
-Look for these indicators:
-1. Descriptive titles that mention security topics, technologies, or threats
-2. URLs containing patterns like /news/, /article/, /blog/, /item/, /media/, or numeric IDs
-3. Any keywords related to security (security, cyber, hack, threat, vulnerability, attack, etc.)
-4. Any specifics about companies, products, or technologies related to cybersecurity
-
-For specialized sites like foojobs.com, note that articles often have URLs like:
-- foojobs.com/media/items/[article-title]-[number]/
-- Other sites may use similar /items/ patterns
-
-Include these URLs even if their titles don't explicitly mention security.
-
-Only exclude clear non-articles like:
-- Root domain URLs (e.g., example.com/)
-- Obvious navigation links (/about, /contact, /login)
-- User profile pages or author listings
-
-Return JSON in format: { articleUrls: string[] }`,
+            Return JSON in format: { articleUrls: string[] }`,
         },
         {
           role: "user",
           content: `Here are the links with their titles and context:\n${linksText}`,
         },
       ],
-      temperature: 0.3,
+      temperature: 0.2,
       response_format: { type: "json_object" },
     });
 
@@ -254,31 +164,17 @@ Return JSON in format: { articleUrls: string[] }`,
     }
 
     const result = JSON.parse(responseText);
-    
-    // Combine AI results with pattern-matched results, removing duplicates
-    const combinedResults = [...new Set([...potentialArticleUrls, ...result.articleUrls])];
-    
     log(
-      `[ThreatTracker] AI identified ${result.articleUrls.length} article links, combined total: ${combinedResults.length}`,
+      `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
       "openai",
     );
-    return combinedResults;
+    return result.articleUrls;
   } catch (error: any) {
     log(
       `[ThreatTracker] Error identifying article links: ${error.message}`,
       "openai-error",
     );
     console.error("Error identifying article links:", error);
-    
-    // If OpenAI fails, still return any pattern-matched links we found
-    if (potentialArticleUrls && potentialArticleUrls.length > 0) {
-      log(
-        `[ThreatTracker] Falling back to ${potentialArticleUrls.length} pattern-matched article links after OpenAI error`,
-        "openai",
-      );
-      return potentialArticleUrls;
-    }
-    
     throw error;
   }
 }
