@@ -307,7 +307,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         let content = '';
         for (const selector of fallbackSelectors.content) {
           const element = document.querySelector(selector);
-          if (element && element.textContent?.trim().length > 100) {
+          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
             content = element.textContent?.trim() || '';
             break;
           }

@@ -22,7 +22,10 @@ export async function detectHtmlStructure(html: string, sourceUrl: string) {
     const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(html);
     if (bodyMatch && bodyMatch[1]) {
       processedHtml = bodyMatch[1];
-      log("[ThreatTracker] Successfully extracted body content for analysis", "openai");
+      log(
+        "[ThreatTracker] Successfully extracted body content for analysis",
+        "openai",
+      );
     }
 
     // If the content is still too large, limit it further
@@ -30,7 +33,7 @@ export async function detectHtmlStructure(html: string, sourceUrl: string) {
     if (processedHtml.length > MAX_LENGTH) {
       log(
         `[ThreatTracker] Truncating HTML from ${processedHtml.length} to ${MAX_LENGTH} characters`,
-        "openai"
+        "openai",
       );
       processedHtml =
         processedHtml.substring(0, MAX_LENGTH) +
@@ -89,7 +92,9 @@ Return your answer in valid JSON format like this:
 /**
  * Uses OpenAI to identify article links from HTML content
  */
-export async function identifyArticleLinks(linksText: string): Promise<string[]> {
+export async function identifyArticleLinks(
+  linksText: string,
+): Promise<string[]> {
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not configured");
@@ -97,7 +102,7 @@ export async function identifyArticleLinks(linksText: string): Promise<string[]>
 
     // Check if we're dealing with the simplified HTML from puppeteer
     const isSimplifiedHtml = linksText.includes(
-      '<div class="extracted-article-links">'
+      '<div class="extracted-article-links">',
     );
 
     // For simplified HTML, extract directly to a more processable format
@@ -118,7 +123,7 @@ export async function identifyArticleLinks(linksText: string): Promise<string[]>
 
     log(
       `[ThreatTracker] Analyzing ${linksText.split("\n").length} structured link entries`,
-      "openai"
+      "openai",
     );
 
     const response = await openai.chat.completions.create({
@@ -142,7 +147,7 @@ export async function identifyArticleLinks(linksText: string): Promise<string[]>
             - Pagination links
             - General company information pages
 
-            Return JSON in format: { articleUrls: string[] }`
+            Return JSON in format: { articleUrls: string[] }`,
         },
         {
           role: "user",
@@ -161,13 +166,13 @@ export async function identifyArticleLinks(linksText: string): Promise<string[]>
     const result = JSON.parse(responseText);
     log(
       `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
-      "openai"
+      "openai",
     );
     return result.articleUrls;
   } catch (error: any) {
     log(
       `[ThreatTracker] Error identifying article links: ${error.message}`,
-      "openai-error"
+      "openai-error",
     );
     console.error("Error identifying article links:", error);
     throw error;
@@ -197,17 +202,46 @@ export async function analyzeContent(
     const hardwareKeywordsText = hardwareKeywords.join(", ");
 
     const prompt = `
+<<<<<<< HEAD
+Analyze the following article text and identify cybersecurity threats mentioned. You will STRICTLY cross-reference with the provided keyword lists. 
+=======
 Analyze the following article text and identify any cybersecurity threats mentioned. Cross-reference with the provided lists of keywords.
+>>>>>>> origin/dev
 
 THREAT KEYWORDS: ${threatKeywordsText}
 VENDOR KEYWORDS: ${vendorKeywordsText}
 CLIENT KEYWORDS: ${clientKeywordsText}
 HARDWARE/SOFTWARE KEYWORDS: ${hardwareKeywordsText}
 
+<<<<<<< HEAD
+CRITICAL INSTRUCTIONS:
+1. ONLY return keywords that EXACTLY match items in the lists above
+2. DO NOT include synonyms, related terms, or variations NOT in the lists
+3. DO NOT include vendor/company names or products unless they EXACTLY match keywords in the lists
+4. If a category has no exact matches from its list, return an empty array
+5. The article is only relevant if it contains BOTH: 
+   - At least one exact match from the THREAT KEYWORDS list AND
+   - At least one exact match from any of the other three keyword lists
+
+=======
+>>>>>>> origin/dev
 Return your analysis in valid JSON format with the following structure:
 {
   "summary": "A concise 1-2 sentence summary of the article focusing on security threats",
   "detectedKeywords": {
+<<<<<<< HEAD
+    "threats": ["only", "exact", "matches", "from", "threat", "keywords", "list"],
+    "vendors": ["only", "exact", "matches", "from", "vendor", "keywords", "list"],
+    "clients": ["only", "exact", "matches", "from", "client", "keywords", "list"],
+    "hardware": ["only", "exact", "matches", "from", "hardware", "keywords", "list"]
+  },
+  "relevanceScore": "A number between 0 and 10 indicating how relevant this article is to cybersecurity threats affecting the mentioned vendors, clients, or hardware."
+  ,
+  "severityScore": "A number between 0 and 10 indicating how severe this threat is to an affected vendor, client, or hardware. Threat should be evaluated for impact likelihood, exploitability, and potential damage."
+}
+
+Remember: If a keyword is not EXACTLY in the provided lists, DO NOT include it in the results - no exceptions.
+=======
     "threats": ["list", "of", "detected", "threat", "keywords"],
     "vendors": ["list", "of", "detected", "vendor", "keywords"],
     "clients": ["list", "of", "detected", "client", "keywords"],
@@ -217,6 +251,7 @@ Return your analysis in valid JSON format with the following structure:
 }
 
 Only include keywords from the provided lists that are actually mentioned in the article. If none are mentioned in a category, return an empty array for that category.
+>>>>>>> origin/dev
 
 ARTICLE TITLE: ${articleTitle}
 ARTICLE CONTENT:

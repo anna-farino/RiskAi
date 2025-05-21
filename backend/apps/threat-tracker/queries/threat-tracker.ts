@@ -46,6 +46,7 @@ export interface IStorage {
   deleteKeyword(id: string): Promise<void>;
 
   // Articles
+  getArticle(id: string, userId?: string): Promise<ThreatArticle | undefined>;
   getArticles(
     options?: {
       search?: string;
@@ -55,10 +56,9 @@ export interface IStorage {
       userId?: string;
     }
   ): Promise<ThreatArticle[]>;
-  getArticle(id: string): Promise<ThreatArticle | undefined>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(id: string, article: Partial<ThreatArticle>): Promise<ThreatArticle>;
-  deleteArticle(id: string): Promise<void>;
+  deleteArticle(id: string, userId?: string): Promise<void>;
   deleteAllArticles(userId?: string): Promise<boolean>;
   toggleArticleForCapsule(id: string, marked: boolean): Promise<boolean>;
   getArticlesMarkedForCapsule(userId?: string): Promise<ThreatArticle[]>;
@@ -75,12 +75,15 @@ export const storage: IStorage = {
       const conditions = [];
       if (userId) conditions.push(eq(threatSources.userId, userId));
       
-      return await db
+      const query = db
         .select()
-        .from(threatSources)
-        .where(
-          conditions.length ? and(...conditions) : undefined
-        );
+        .from(threatSources);
+        
+      const finalQuery = conditions.length 
+        ? query.where(and(...conditions))
+        : query;
+      
+      return await finalQuery.execute();
     } catch (error) {
       console.error("Error fetching threat sources:", error);
       return [];
@@ -92,7 +95,8 @@ export const storage: IStorage = {
       const results = await db
         .select()
         .from(threatSources)
-        .where(eq(threatSources.id, id));
+        .where(eq(threatSources.id, id))
+        .execute();
       return results[0];
     } catch (error) {
       console.error("Error fetching threat source:", error);
@@ -108,7 +112,8 @@ export const storage: IStorage = {
       return await db
         .select()
         .from(threatSources)
-        .where(and(...conditions));
+        .where(and(...conditions))
+        .execute();
     } catch (error) {
       console.error("Error fetching auto-scrape threat sources:", error);
       return [];
@@ -117,9 +122,13 @@ export const storage: IStorage = {
 
   createSource: async (source: InsertThreatSource) => {
     try {
+      if (!source.name || !source.url) {
+        throw new Error("Source must have a name and URL");
+      }
+      
       const results = await db
         .insert(threatSources)
-        .values(source)
+        .values([source])
         .returning();
       return results[0];
     } catch (error) {
@@ -160,12 +169,15 @@ export const storage: IStorage = {
       if (category) conditions.push(eq(threatKeywords.category, category));
       if (userId) conditions.push(eq(threatKeywords.userId, userId));
       
-      return await db
+      const query = db
         .select()
-        .from(threatKeywords)
-        .where(
-          conditions.length ? and(...conditions) : undefined
-        );
+        .from(threatKeywords);
+        
+      const finalQuery = conditions.length 
+        ? query.where(and(...conditions))
+        : query;
+      
+      return await finalQuery.execute();
     } catch (error) {
       console.error("Error fetching threat keywords:", error);
       return [];
@@ -177,7 +189,8 @@ export const storage: IStorage = {
       const results = await db
         .select()
         .from(threatKeywords)
-        .where(eq(threatKeywords.id, id));
+        .where(eq(threatKeywords.id, id))
+        .execute();
       return results[0];
     } catch (error) {
       console.error("Error fetching threat keyword:", error);
@@ -193,7 +206,8 @@ export const storage: IStorage = {
       return await db
         .select()
         .from(threatKeywords)
-        .where(and(...conditions));
+        .where(and(...conditions))
+        .execute();
     } catch (error) {
       console.error(`Error fetching ${category} keywords:`, error);
       return [];
@@ -202,9 +216,13 @@ export const storage: IStorage = {
 
   createKeyword: async (keyword: InsertThreatKeyword) => {
     try {
+      if (!keyword.term || !keyword.category) {
+        throw new Error("Keyword must have a term and category");
+      }
+      
       const results = await db
         .insert(threatKeywords)
-        .values(keyword)
+        .values([keyword])
         .returning();
       return results[0];
     } catch (error) {
@@ -293,26 +311,33 @@ export const storage: IStorage = {
 
       // Apply conditions if any exist
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        (query as any) = query.where(and(...conditions));
       }
 
       // Order by most recent
-      query = query.orderBy(desc(threatArticles.scrapeDate));
+      const orderedQuery = query.orderBy(desc(threatArticles.scrapeDate));
 
       // Execute the query
-      return await query;
+      const result = await orderedQuery.execute();
+      return result;
     } catch (error) {
       console.error("Error fetching threat articles:", error);
       return [];
     }
   },
 
-  getArticle: async (id: string) => {
+  getArticle: async (id: string, userId?: string) => {
     try {
+      const conditions = [eq(threatArticles.id, id)];
+      if (userId) {
+        conditions.push(eq(threatArticles.userId, userId));
+      }
+      
       const results = await db
         .select()
         .from(threatArticles)
-        .where(eq(threatArticles.id, id));
+        .where(and(...conditions))
+        .execute();
       return results[0];
     } catch (error) {
       console.error("Error fetching threat article:", error);
@@ -324,7 +349,7 @@ export const storage: IStorage = {
     try {
       const results = await db
         .insert(threatArticles)
-        .values(article)
+        .values([article])
         .returning();
       return results[0];
     } catch (error) {
@@ -347,11 +372,18 @@ export const storage: IStorage = {
     }
   },
 
-  deleteArticle: async (id: string) => {
+  deleteArticle: async (id: string, userId?: string) => {
     try {
+      const conditions = [eq(threatArticles.id, id)];
+      
+      // If userId is provided, only delete the article if it belongs to that user
+      if (userId) {
+        conditions.push(eq(threatArticles.userId, userId));
+      }
+      
       await db
         .delete(threatArticles)
-        .where(eq(threatArticles.id, id));
+        .where(and(...conditions));
     } catch (error) {
       console.error("Error deleting threat article:", error);
       throw error;
@@ -361,13 +393,17 @@ export const storage: IStorage = {
   deleteAllArticles: async (userId?: string) => {
     try {
       if (userId) {
+        // Only delete articles for this specific user
         await db
           .delete(threatArticles)
           .where(eq(threatArticles.userId, userId));
+        return true;
       } else {
-        await db.delete(threatArticles);
+        // If no userId is provided, we shouldn't delete anything
+        // This protects against accidentally deleting all users' articles
+        console.error("Attempted to delete all articles without specifying userId");
+        return false;
       }
-      return true;
     } catch (error) {
       console.error("Error deleting all threat articles:", error);
       return false;
