@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 export default function CapsuleResearch() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [articleSummary, setArticleSummary] = useState<any>(null);
   const navigate = useNavigate();
 
@@ -12,41 +13,58 @@ export default function CapsuleResearch() {
     e.preventDefault();
     if (!url) return;
 
-    // Simplified version for basic working page
     setLoading(true);
+    setError(null);
+    
     try {
-      // Simulate API call with a timeout
-      setTimeout(() => {
-        const mockData = {
-          id: "mock-id-123",
-          title: "Recent Cybersecurity Vulnerability Discovered",
-          threatName: "Critical Remote Code Execution",
-          vulnerabilityId: "CVE-2023-12345",
-          summary: "Researchers have discovered a critical vulnerability affecting multiple systems. This vulnerability allows attackers to execute arbitrary code remotely, potentially leading to complete system compromise.",
-          impacts: "Affects systems across multiple industries. Organizations with exposed services are particularly vulnerable.",
-          attackVector: "Remote exploitation via specially crafted HTTP requests",
-          microsoftConnection: "Affects Microsoft Windows servers with specific configurations",
-          sourcePublication: "Security Research Blog",
-          originalUrl: url,
-          targetOS: "Microsoft / Windows",
-          createdAt: new Date().toISOString(),
-          userId: "user-123"
-        };
-        
-        setArticleSummary(mockData);
-        setLoading(false);
-      }, 1500);
+      // Call our backend API to scrape and analyze the article
+      const response = await fetch("/api/news-capsule/scrape-article", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to scrape article");
+      }
+
+      const data = await response.json();
+      setArticleSummary(data);
     } catch (error) {
-      console.error("Error in demo mode:", error);
+      console.error("Error scraping article:", error);
+      setError(error instanceof Error ? error.message : "Failed to scrape article. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
 
-  const addToReport = () => {
+  const addToReport = async () => {
     if (!articleSummary) return;
     
-    // In this basic implementation, we'll just navigate to reporting
-    navigate("/dashboard/capsule/reporting");
+    try {
+      // Call our backend API to save the article to the report
+      const response = await fetch("/api/news-capsule/add-to-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(articleSummary),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to add to report");
+      }
+
+      // Navigate to the reporting page to view the report
+      navigate("/dashboard/capsule/reporting");
+    } catch (error) {
+      console.error("Error adding to report:", error);
+      setError(error instanceof Error ? error.message : "Failed to add to report. Please try again.");
+    }
   };
 
   return (
@@ -57,6 +75,12 @@ export default function CapsuleResearch() {
           Enter a URL to scrape and summarize an article for your executive report.
         </p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 border border-red-500 bg-red-500/10 text-red-400 rounded-md">
+          {error}
+        </div>
+      )}
 
       <div className="grid gap-6">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,10 +119,20 @@ export default function CapsuleResearch() {
                 {loading ? "Processing..." : "Analyze"}
               </button>
             </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Example: https://cybersecuritynews.com/more_eggs-malware-exploits-job-application-emails/
+            </p>
           </div>
         </form>
 
-        {articleSummary && (
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+            <p className="ml-3 text-slate-300">Scraping and analyzing article...</p>
+          </div>
+        )}
+
+        {articleSummary && !loading && (
           <div className="mt-8 border border-slate-700 rounded-lg p-6 bg-slate-900 shadow-sm">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-2xl font-bold">{articleSummary.title}</h2>
