@@ -165,6 +165,25 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         >
           Threat Tracker
         </NavItem>
+        
+        {/* Threat Tracker children */}
+        <NavItem 
+          href="/dashboard/threat/sources" 
+          icon={<Search size={16} className="text-[#00FFFF]/80" />} 
+          active={isActive('/dashboard/threat/sources')}
+          isChild={true}
+        >
+          Sources
+        </NavItem>
+        
+        <NavItem 
+          href="/dashboard/threat/keywords" 
+          icon={<AlertTriangle size={16} className="text-[#00FFFF]/80" />} 
+          active={isActive('/dashboard/threat/keywords')}
+          isChild={true}
+        >
+          Keywords
+        </NavItem>
       </div>
 
       <div className="px-3 py-1 space-y-1">
@@ -285,6 +304,25 @@ export const MobileNavigation = () => {
                   active={location.pathname.startsWith('/dashboard/threat')}
                 >
                   Threat Tracker
+                </NavItem>
+                
+                {/* Threat Tracker children */}
+                <NavItem 
+                  href="/dashboard/threat/sources" 
+                  icon={<Search size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/threat/sources')}
+                  isChild={true}
+                >
+                  Sources
+                </NavItem>
+                
+                <NavItem 
+                  href="/dashboard/threat/keywords" 
+                  icon={<AlertTriangle size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/threat/keywords')}
+                  isChild={true}
+                >
+                  Keywords
                 </NavItem>
 
                 {/* News Capsule parent */}
