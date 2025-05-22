@@ -36,18 +36,22 @@ export default function Submit() {
       
       // Simulate a successful article submission
       // In a production environment, this would be a real API call
+      // Extract domain from URL for use in the summary
+      const hostname = new URL(processUrl).hostname.replace('www.', '');
+      
+      // Create a structured threat summary with proper template
       const mockArticleData = {
         id: crypto.randomUUID(),
-        title: `Security Alert: Vulnerability Found in ${new URL(processUrl).hostname}`,
-        threatName: "Critical Security Vulnerability",
+        title: `Security Alert: Critical Vulnerability in ${hostname}`,
+        threatName: "Remote Code Execution Vulnerability",
         vulnerabilityId: "CVE-2025-0001",
-        summary: `Security researchers have identified a new vulnerability affecting systems related to ${new URL(processUrl).hostname}. This could potentially allow attackers to gain unauthorized access.`,
-        impacts: "Potential data breach and unauthorized system access",
-        attackVector: "Remote code execution via unpatched systems",
-        microsoftConnection: "May affect Windows-based deployments",
-        sourcePublication: new URL(processUrl).hostname,
+        summary: `A new zero-day vulnerability has been discovered in systems used by ${hostname}. This critical flaw allows remote attackers to execute arbitrary code with elevated privileges. Security researchers have confirmed this vulnerability is being actively exploited in the wild.`,
+        impacts: "Complete system compromise, data theft, lateral movement within networks, and possible ransomware deployment",
+        attackVector: "Specially crafted HTTP requests targeting unpatched application endpoints",
+        microsoftConnection: "Affects Windows Server environments with specific configurations",
+        sourcePublication: hostname,
         originalUrl: processUrl,
-        targetOS: "Windows and Linux systems",
+        targetOS: "Windows Server 2019, Windows Server 2022, and certain Linux distributions",
         createdAt: new Date().toISOString(),
         markedForReporting: true,
         markedForDeletion: false
