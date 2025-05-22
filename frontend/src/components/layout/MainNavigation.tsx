@@ -112,7 +112,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
   const NavigationContent = () => (
     <div className="flex flex-col gap-2 py-2">
       <div className="px-3 py-2">
-        <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
+        <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
           Menu
         </h2>
         <p className="text-sm text-gray-400 leading-tight">
@@ -252,7 +252,7 @@ export const MobileNavigation = () => {
           <div className="pt-2"> {/* Add some top padding for better spacing */}
             <div className="flex flex-col gap-2 py-2">
               <div className="px-3 py-2">
-                <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
+                <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
                   Menu
                 </h2>
                 <p className="text-sm text-gray-400 leading-tight">
