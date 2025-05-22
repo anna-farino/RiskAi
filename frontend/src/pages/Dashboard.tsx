@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert } from 'lucide-react';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Timer } from 'lucide-react';
+import { NewsCapsuleWidget, NewsCapsuleStatsWidget } from '@/components/widgets/NewsCapsuleWidget';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -67,12 +68,14 @@ export default function Dashboard() {
             </div>
           </RisqWidget>
           
+          <NewsCapsuleWidget delay={0.2} />
+          
           <RisqWidget
             title="Threat Tracker"
             description="Critical security alerts requiring attention"
             icon={<AlertTriangle className="w-10 h-10" />}
             variant="interactive"
-            delay={0.2}
+            delay={0.3}
             onClick={() => navigate("/dashboard/threat/home")}
             footer={
               <div className="mt-auto">
