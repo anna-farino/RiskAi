@@ -39,29 +39,27 @@ export default function Submit() {
       // Extract domain from URL for use in the summary
       const hostname = new URL(processUrl).hostname.replace('www.', '');
       
-      // Create article data following the official format
+      // Create article data following the EXACT official format
       const mockArticleData = {
         id: crypto.randomUUID(),
-        // Use article title directly from source or generate a realistic one
-        title: `Critical Zero-Day Vulnerability Discovered in Enterprise Systems`,
-        // Identify the specific threat/vulnerability
-        threatName: "CVE-2025-0001: Remote Code Execution Vulnerability",
-        // No longer needed in official format, but keeping for compatibility
-        vulnerabilityId: "CVE-2025-0001",
-        // Summary limited to 80 words maximum
-        summary: `Security researchers have identified a critical zero-day vulnerability affecting enterprise systems. This flaw enables attackers to execute arbitrary code remotely with elevated privileges. The vulnerability exists in commonly used API endpoints and bypasses standard security controls. Active exploitation has been observed targeting financial and healthcare sectors.`,
-        // Both business and technical impacts
-        impacts: "Business: Service disruption, data theft, regulatory violations, reputational damage. Technical: System compromise, credential theft, lateral movement within networks, ransomware deployment.",
-        // No longer needed in official format, but keeping for compatibility
-        attackVector: "Specially crafted HTTP requests",
-        // No longer needed in official format, but keeping for compatibility
+        // Title (based on the article's actual title)
+        title: `Malware Campaign Targets Financial Institutions`,
+        // Threat Name(s) (identifying the vulnerability or exploit mentioned)
+        threatName: "BankingTrojan.Win32",
+        // Summary (80 words maximum)
+        summary: `A sophisticated malware campaign targeting financial institutions has been discovered. The malware uses social engineering tactics to trick employees into downloading malicious attachments. Once installed, it can steal banking credentials, access internal systems, and initiate fraudulent transactions. Security researchers note this campaign primarily targets North American and European banks.`,
+        // Impacts (business and technical impacts)
+        impacts: "Financial loss, data theft, regulatory compliance violations, reputational damage. Systems compromised include authentication servers and transaction processing systems.",
+        // Extra fields kept for compatibility but not displayed in reports
+        vulnerabilityId: "",
+        attackVector: "",
         microsoftConnection: "",
-        // Just the publication name, not full URL
+        // Source (publication name, not URL)
         sourcePublication: hostname.split('.')[0],
         // Keep the original URL for reference
         originalUrl: processUrl,
-        // Which operating systems are affected
-        targetOS: "Windows Server 2019, Windows 10, Ubuntu 20.04 LTS",
+        // OS Connection (which operating systems are affected)
+        targetOS: "Windows 10, Windows 11, Windows Server 2019",
         createdAt: new Date().toISOString(),
         markedForReporting: true,
         markedForDeletion: false
