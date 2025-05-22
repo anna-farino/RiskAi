@@ -38,15 +38,62 @@ interface ArticleAnalysis {
 export async function scrapeUrl(url: string): Promise<string> {
   log(`Scraping URL: ${url}`, "capsule-scraper");
   
+  // First try direct fetch for fast performance
+  try {
+    log(`Attempting direct fetch for ${url}`, "capsule-scraper");
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      }
+    });
+    
+    if (response.ok) {
+      const html = await response.text();
+      if (html && html.length > 0) {
+        log(`Successfully fetched ${url} using direct fetch`, "capsule-scraper");
+        return html;
+      }
+    }
+    
+    log(`Direct fetch failed, falling back to puppeteer for ${url}`, "capsule-scraper");
+  } catch (error) {
+    log(`Direct fetch error, falling back to puppeteer: ${error}`, "capsule-scraper");
+  }
+  
+  // Fall back to puppeteer if direct fetch fails
   let browser;
   try {
+    log(`Launching puppeteer for ${url}`, "capsule-scraper");
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
     });
     
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    // Set user agent and viewport
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    await page.setViewport({ width: 1280, height: 800 });
+    
+    // Set longer timeout and wait for network idle
+    log(`Navigating to ${url} with puppeteer`, "capsule-scraper");
+    await page.goto(url, { 
+      waitUntil: 'networkidle2', 
+      timeout: 60000 
+    });
+    
+    // Wait an extra second for dynamic content to load
+    await page.waitForTimeout(1000);
     
     // Get the page content
     const html = await page.content();
@@ -55,9 +102,10 @@ export async function scrapeUrl(url: string): Promise<string> {
       throw new Error("Empty HTML content received from URL");
     }
     
+    log(`Successfully scraped ${url} with puppeteer`, "capsule-scraper");
     return html;
   } catch (error) {
-    log(`Error scraping URL: ${error}`, "capsule-scraper-error");
+    log(`Error scraping URL with puppeteer: ${error}`, "capsule-scraper-error");
     throw new Error(`Failed to scrape URL: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     if (browser) {
@@ -72,46 +120,110 @@ export async function scrapeUrl(url: string): Promise<string> {
 export function extractArticleContentWithCheerio(html: string): { title: string, content: string, sourceName: string } {
   try {
     const $ = cheerio.load(html);
+    log("Loaded HTML with Cheerio", "capsule-scraper");
     
     // Extract title - try common patterns
-    let title = $('h1').first().text().trim();
-    if (!title) {
-      title = $('article h1').first().text().trim();
+    let title = '';
+    const titleSelectors = [
+      'h1.entry-title', 
+      'h1.post-title', 
+      'h1.article-title',
+      '.post-title h1',
+      '.article-title h1',
+      'article h1',
+      'main h1',
+      'h1'
+    ];
+    
+    for (const selector of titleSelectors) {
+      const element = $(selector).first();
+      if (element.length > 0) {
+        title = element.text().trim();
+        if (title) break;
+      }
     }
+    
+    // If still no title, try the document title
     if (!title) {
       title = $('title').text().trim();
+      // Clean up title - remove site name often included after pipes or dashes
+      title = title.split(' | ')[0].split(' - ')[0].trim();
     }
+    
+    log(`Extracted title: ${title || 'Not found'}`, "capsule-scraper");
     
     // Extract content - try common patterns for article content
     let content = '';
     
     // Try to find the main article content
     const articleSelectors = [
-      'article', 
+      'article .entry-content', 
       '.article-content', 
       '.post-content', 
       '.entry-content', 
-      '.content',
+      '.article-body',
+      '.post-body',
+      '.content-body',
+      '.story-body',
+      '.main-content',
+      '.article',
+      'article',
       'main'
     ];
     
     for (const selector of articleSelectors) {
       const element = $(selector);
       if (element.length > 0) {
-        content = element.text().trim();
-        break;
+        // Get all paragraphs within this element
+        const paragraphs = element.find('p').map((_, el) => $(el).text().trim()).get();
+        if (paragraphs.length > 0) {
+          content = paragraphs.join('\n\n');
+          break;
+        } else {
+          // If no paragraphs found, use the text content directly
+          content = element.text().trim();
+          break;
+        }
       }
     }
     
-    // If no content found, grab paragraphs
+    // If no content found using selectors, grab all paragraphs from the document
     if (!content) {
+      log("No content found in common selectors, trying all paragraphs", "capsule-scraper");
       content = $('p').map((_, el) => $(el).text().trim()).get().join('\n\n');
     }
     
-    // Extract source/domain
-    const sourceName = new URL(html.includes('<base href="') 
-      ? $(html).find('base').attr('href') || '' 
-      : 'https://example.com').hostname;
+    // Clean up the content
+    content = content.replace(/\s+/g, ' ').trim();
+    log(`Extracted content length: ${content.length} characters`, "capsule-scraper");
+    
+    // Try to extract the source name
+    let sourceName = "";
+    try {
+      // Try to extract from meta tags
+      sourceName = $('meta[property="og:site_name"]').attr('content') || 
+                  $('meta[name="application-name"]').attr('content') ||
+                  $('meta[name="publisher"]').attr('content');
+      
+      // If not found, try common elements
+      if (!sourceName) {
+        sourceName = $('.site-title').text().trim() || 
+                    $('.logo').text().trim() ||
+                    $('#logo').text().trim();
+      }
+      
+      // If still not found, extract from domain
+      if (!sourceName) {
+        const baseHref = $('base').attr('href');
+        const urlToUse = baseHref || 'https://example.com';
+        sourceName = new URL(urlToUse).hostname.replace('www.', '');
+      }
+    } catch (e) {
+      // If all fails, extract hostname from initial URL
+      sourceName = "Unknown Source";
+    }
+    
+    log(`Extracted source: ${sourceName}`, "capsule-scraper");
     
     return {
       title: title || "Unknown Title",
