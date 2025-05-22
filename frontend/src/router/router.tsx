@@ -5,6 +5,7 @@ import AuthLayout from '../pages/auth-layout.tsx'
 import NewsRadar from '../pages/NewsRadar'
 import ThreatAlerts from '../pages/ThreatAlerts'
 import TrendAnalysis from '../pages/TrendAnalysis'
+import SimpleScraper from '../pages/SimpleScraper'
 import { createBrowserRouter } from 'react-router-dom'
 import { authChildren } from './auth/auth-children.tsx'
 import { dashboardChildren } from './dashboard/dashboardChildren.tsx'
@@ -39,6 +40,12 @@ export const router = createBrowserRouter([
     path: "/trend-analysis",
     element: <ProtectedRoutesWrapper>
         <TrendAnalysis />
+      </ProtectedRoutesWrapper>,
+  },
+  {
+    path: "/simple-scraper",
+    element: <ProtectedRoutesWrapper>
+        <SimpleScraper />
       </ProtectedRoutesWrapper>,
   },
   {
