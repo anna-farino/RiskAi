@@ -2,7 +2,7 @@ import { Router } from "express";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/capsule";
 import { processArticle, queueArticleForProcessing, clearProcessingQueue, getQueueStatus } from "../services/article-processor";
-import { handleExtractHeadline } from "./headline-router";
+import { handleExtractHeadline, handleExtractArticleContent } from "./headline-router";
 import { z } from "zod";
 import { log } from "backend/utils/log";
 import { reqLog } from "backend/utils/req-log";
@@ -11,6 +11,9 @@ export const capsuleRouter = Router();
 
 // Extract headline from a URL
 capsuleRouter.post("/extract-headline", handleExtractHeadline);
+
+// Extract full article content and analysis
+capsuleRouter.post("/extract-article", handleExtractArticleContent);
 
 // Get all articles
 capsuleRouter.get("/articles", async (req, res) => {

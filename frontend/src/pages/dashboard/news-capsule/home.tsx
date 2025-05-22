@@ -102,11 +102,11 @@ export default function Dashboard() {
     }
   }
 
-  // Function to extract real headline from article URL
-  async function extractHeadline(url: string): Promise<string> {
+  // Function to extract real article content
+  async function extractArticleContent(url: string) {
     try {
-      // Try to use the backend API to extract the headline
-      const response = await fetch(`${serverUrl}/api/news-capsule/extract-headline`, {
+      // Try to use the backend API to extract the article content
+      const response = await fetch(`${serverUrl}/api/news-capsule/extract-article`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,26 +116,30 @@ export default function Dashboard() {
       
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.headline) {
-          return data.headline;
+        if (data.success && data.article) {
+          return data.article;
         }
       }
       
-      // If the API fails, extract from URL path
-      const urlObj = new URL(url);
-      const segments = urlObj.pathname.split('/').filter(s => s.length > 0);
-      const lastSegment = segments[segments.length - 1] || '';
-      
-      // Format the URL segment as a headline
-      return lastSegment
-        .replace(/[-_]/g, ' ')
-        .replace(/\.\w+$/, '')
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ') || 'Cybersecurity Article';
+      // If the API call fails, throw error to trigger fallback
+      throw new Error('Failed to extract article content');
     } catch (error) {
-      console.error('Error extracting headline:', error);
-      return 'Cybersecurity Article';
+      console.error('Error extracting article content:', error);
+      
+      // Extract domain from URL for fallback content
+      const hostname = new URL(url).hostname.replace('www.', '');
+      const sourceName = hostname.split('.')[0];
+      
+      // Provide fallback data when extraction fails
+      return {
+        title: 'Cybersecurity Alert',
+        threatName: 'Security Vulnerability',
+        summary: `A security article from ${sourceName} that may contain important information about recent vulnerabilities or threats. Please visit the original source for detailed information.`,
+        impacts: 'Potential security impacts for affected systems and organizations.',
+        targetOS: 'Multiple operating systems',
+        sourcePublication: sourceName.charAt(0).toUpperCase() + sourceName.slice(1),
+        originalUrl: url
+      };
     }
   }
 
@@ -171,65 +175,38 @@ export default function Dashboard() {
       const sourceName = hostname.split('.')[0];
       const urlPath = new URL(processUrl).pathname;
       
-      // Extract the actual headline from the article URL
-      const headline = await extractHeadline(processUrl);
+      // Extract the article content with real data
+      const articleContent = await extractArticleContent(processUrl);
       
-      // Get intelligence from the URL path
-      const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
-      const relevantKeywords = pathSegments
-        .flatMap(segment => segment.split('-'))
-        .filter(word => word.length > 3);
-      
-      // Determine a relevant threat name from the URL
-      let threatName = "Unknown Threat";
-      if (urlPath.includes("malware") || urlPath.includes("trojan")) {
-        threatName = "Malware: " + (urlPath.includes("eggs") ? "More_eggs Trojan" : "Advanced Persistent Threat");
-      } else if (urlPath.includes("vulnerability") || urlPath.includes("exploit")) {
-        threatName = "Zero-day Vulnerability";
-      } else if (urlPath.includes("ransomware")) {
-        threatName = "Ransomware Campaign";
-      } else if (urlPath.includes("phish")) {
-        threatName = "Phishing Campaign";
-      } else if (urlPath.includes("breach") || urlPath.includes("leak")) {
-        threatName = "Data Breach";
-      } else if (urlPath.includes("ddos")) {
-        threatName = "DDoS Attack";
-      } else if (urlPath.includes("mobile") || urlPath.includes("android") || urlPath.includes("ios")) {
-        threatName = "Mobile Security Threat";
-      }
-      
-      // Generate article data with the actual headline
-      const mockArticleData = {
+      // Generate article data with the actual article content
+      const articleData = {
         id: crypto.randomUUID(),
         
         // Use the actual headline from the article
-        title: headline,
+        title: articleContent.title,
         
-        // Threat name derived from URL
-        threatName: threatName,
+        // Threat name from article analysis
+        threatName: articleContent.threatName,
         
-        // Summary based on URL context (strictly limited to 80 words)
-        summary: `A new cybersecurity threat has been identified affecting enterprise systems. Security researchers at ${sourceName} have published details about this vulnerability that could allow attackers to compromise affected systems. The attack methodology involves sophisticated techniques that bypass traditional security controls. Organizations are advised to implement recommended mitigations immediately to protect their infrastructure and sensitive data from exploitation.`,
+        // Real summary from article (already limited to 80 words)
+        summary: articleContent.summary,
         
         // Fields kept for compatibility
         vulnerabilityId: "",
         attackVector: "",
         microsoftConnection: "",
         
-        // Source publication name
-        sourcePublication: sourceName,
+        // Source publication name from analysis
+        sourcePublication: articleContent.sourcePublication,
         
         // Original article URL
         originalUrl: processUrl,
         
-        // Impacts (business and technical)
-        impacts: "Business impacts include potential data exposure, service disruption, and compliance violations. Technical impacts include unauthorized system access, data exfiltration, and possible lateral movement through affected networks.",
+        // Real impacts from article analysis
+        impacts: articleContent.impacts,
         
-        // OS Connection based on URL hints
-        targetOS: urlPath.includes("windows") ? "Windows 10, Windows 11, Windows Server" : 
-                urlPath.includes("linux") ? "Various Linux distributions" :
-                urlPath.includes("mac") ? "macOS systems" :
-                urlPath.includes("mobile") ? "Android and iOS devices" : "Multiple operating systems",
+        // OS Connection from article analysis
+        targetOS: articleContent.targetOS,
         
         // Metadata
         createdAt: new Date().toISOString(),
@@ -239,7 +216,7 @@ export default function Dashboard() {
       
       // Store the article data in localStorage so we can display it
       const existingArticles = JSON.parse(localStorage.getItem('news-capsule-articles') || '[]');
-      existingArticles.push(mockArticleData);
+      existingArticles.push(articleData);
       localStorage.setItem('news-capsule-articles', JSON.stringify(existingArticles));
       
       // Update our state with newest articles first
