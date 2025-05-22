@@ -69,7 +69,6 @@ let browser: Browser | null = null;
 
 async function getBrowser() {
   log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, PUPPETEER_EXECUTABLE_PATH )
-  if (!browser) {
     try {
       // Use a more minimal configuration to avoid dependencies
       browser = await puppeteer.launch({
@@ -103,7 +102,6 @@ async function getBrowser() {
       console.error("[getBrowser] Failed to launch browser:", error);
       throw error;
     }
-  }
   console.log("[getBrowser] browser instance:", browser)
   return browser;
 }
