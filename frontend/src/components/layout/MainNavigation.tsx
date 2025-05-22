@@ -113,7 +113,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
     <div className="flex flex-col gap-2 py-2">
       <div className="px-3 py-2">
         <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
-          Menu
+          Control Panel
         </h2>
         <p className="text-sm text-gray-400 leading-tight">
           Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
@@ -253,7 +253,7 @@ export const MobileNavigation = () => {
             <div className="flex flex-col gap-2 py-2">
               <div className="px-3 py-2">
                 <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
-                  Menu
+                  Control Panel
                 </h2>
                 <p className="text-sm text-gray-400 leading-tight">
                   Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
