@@ -133,10 +133,8 @@ export default function Reports() {
             </CardHeader>
             <CardContent className="dark:bg-gray-900">
               <div className="space-y-4">
-                {/* Format Section: Title */}
-                {/* Title is displayed in the CardTitle component above */}
+                {/* Title is already displayed in the CardHeader above */}
                 
-                {/* Format Section: Threat Name(s) */}
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">Threat Name(s)</h4>
                   <p className="bg-red-50 dark:bg-red-900 inline-block px-3 py-1 rounded text-red-800 dark:text-red-200">
@@ -144,34 +142,26 @@ export default function Reports() {
                   </p>
                 </div>
                 
-                {/* Format Section: Summary (80 words maximum) */}
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">Summary</h4>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    {/* Limit summary to 80 words */}
-                    {article.summary.split(' ').length > 80 
-                      ? article.summary.split(' ').slice(0, 80).join(' ') + '...'
-                      : article.summary
-                    }
-                  </p>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Word count: {article.summary.split(' ').length}/80
+                  <div className="text-gray-700 dark:text-gray-300">
+                    <p>{article.summary}</p>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {article.summary.split(' ').length} words (max 80)
+                    </div>
                   </div>
                 </div>
                 
-                {/* Format Section: Impacts */}
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">Impacts</h4>
                   <p className="text-gray-700 dark:text-gray-300">{article.impacts}</p>
                 </div>
                 
-                {/* Format Section: OS Connection */}
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">OS Connection</h4>
                   <p className="text-gray-700 dark:text-gray-300">{article.targetOS}</p>
                 </div>
                 
-                {/* Format Section: Source */}
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">Source</h4>
                   <p className="text-gray-700 dark:text-gray-300">{article.sourcePublication}</p>
