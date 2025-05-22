@@ -115,7 +115,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
           Menu
         </h2>
-        <p className="text-xs text-gray-400">
+        <p className="text-sm text-gray-400 leading-tight">
           Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
         </p>
       </div>
@@ -255,7 +255,7 @@ export const MobileNavigation = () => {
                 <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
                   Menu
                 </h2>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm text-gray-400 leading-tight">
                   Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
                 </p>
               </div>
