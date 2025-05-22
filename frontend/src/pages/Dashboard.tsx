@@ -108,35 +108,24 @@ export default function Dashboard() {
           
           
           <RisqWidget
-            title="News Capsule Pro"
-            description="AI-powered cybersecurity threat intelligence"
+            title="News Capsule"
+            description="Configure and launch news scanning operations"
             icon={<Radar className="w-10 h-10" />}
             variant="interactive"
             delay={0.4}
-            onClick={() => navigate("/dashboard/news-capsule/home")}
+            onClick={() => navigate("/dashboard/capsule/home")}
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  Cybersecurity analysis powered by OpenAI
+                  Last scan completed 25 minutes ago
                 </div>
               </div>
             }
           >
-            <div className="space-y-3">
-              <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-1 rounded">CVE-2025-1234</span>
-                  <span className="text-xs text-gray-400">New</span>
-                </div>
-                <p className="text-sm text-gray-300">Critical vulnerability affecting major infrastructure...</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#5B21B6]/20 text-[#00FFFF] px-2 py-1 rounded">Threat Intel</span>
-                  <span className="text-xs text-gray-400">AI Analysis</span>
-                </div>
-                <p className="text-sm text-gray-300">Submit & analyze cybersecurity articles...</p>
+            <div className="relative h-[100px] w-full overflow-hidden rounded-lg mb-2 bg-radar-gradient flex items-center justify-center">
+              <div className="scanner-effect w-full h-full absolute"></div>
+              <div className="z-10 text-center">
+                <div className="text-lg font-bold">24/7 Monitoring</div>
               </div>
             </div>
           </RisqWidget>

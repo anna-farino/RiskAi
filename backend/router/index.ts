@@ -8,7 +8,6 @@ import { usersRouter } from './routes/users';
 import { noSimpleRequests } from '../middleware/no-simple-requests';
 import { doubleCsrfProtection } from '../middleware/csrf';
 import { newsRouter } from '../apps/news-radar/router';
-import { capsuleRouter } from '../apps/news-capsule/router';
 import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
@@ -41,7 +40,6 @@ router.use('/users', usersRouter)
 
 router.use('/news-tracker', newsRouter)
 router.use('/threat-tracker', threatRouter)
-router.use('/news-capsule', capsuleRouter)
 
 router.post('/secrets', storeSecret)
 router.get('/secrets', getSecrets)
