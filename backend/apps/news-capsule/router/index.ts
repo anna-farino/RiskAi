@@ -46,25 +46,53 @@ capsuleRouter.get("/articles/:id", async (req, res) => {
 capsuleRouter.post("/articles/submit", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
+    log(`Received article submission request from user ${userId}`, "news-capsule");
     
-    const schema = z.object({
-      url: z.string().url()
-    });
+    // Validate URL
+    let url = req.body.url;
     
-    const { url } = schema.parse(req.body);
+    if (!url) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "URL is required" 
+      });
+    }
     
-    // Queue for processing
-    const queueResult = queueArticleForProcessing(url, userId);
+    // Add protocol if missing
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
     
-    res.json({
-      success: true,
-      message: "Article URL submitted for processing",
-      queueInfo: queueResult
-    });
+    log(`Processing URL: ${url}`, "news-capsule");
+    
+    try {
+      // Process immediately instead of queuing
+      const article = await processArticle(url, userId);
+      
+      return res.status(200).json({
+        success: true,
+        message: "Article processed successfully",
+        article
+      });
+    } catch (processError) {
+      log(`Error processing article directly: ${processError}`, "news-capsule");
+      
+      // Fall back to queuing if direct processing fails
+      const queueResult = queueArticleForProcessing(url, userId, 1); // High priority
+      
+      return res.status(202).json({
+        success: true,
+        message: "Article queued for background processing",
+        queueInfo: queueResult
+      });
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     log(`Error submitting article URL: ${errorMessage}`, "news-capsule");
-    res.status(500).json({ message: errorMessage });
+    res.status(500).json({ 
+      success: false,
+      message: errorMessage 
+    });
   }
 });
 

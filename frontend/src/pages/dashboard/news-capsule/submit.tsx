@@ -5,6 +5,7 @@ import { ArrowRight, Link as LinkIcon, Globe, Loader2 } from 'lucide-react';
 import { serverUrl } from '@/lib/constants';
 import { csfrHeaderObject } from '@/lib/csrf';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +31,14 @@ export default function Submit() {
     try {
       setIsSubmitting(true);
       
+      // First, validate the URL format client-side
+      let processUrl = url;
+      if (!processUrl.startsWith('http')) {
+        processUrl = 'https://' + processUrl;
+      }
+      
+      console.log("Submitting URL for processing:", processUrl);
+      
       const response = await fetch(`${serverUrl}/api/news-capsule/articles/submit`, {
         method: 'POST',
         credentials: 'include',
@@ -37,32 +46,50 @@ export default function Submit() {
           'Content-Type': 'application/json',
           ...csfrHeaderObject()
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url: processUrl })
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to submit article');
-      }
       
       const data = await response.json();
       
-      toast({
-        title: "Article submitted",
-        description: "Your article is being processed and will appear on the dashboard soon",
-        variant: "default"
-      });
+      // Check response status
+      if (!response.ok || !data.success) {
+        const errorMsg = data.message || 'An unknown error occurred';
+        console.error("API error:", errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      // Success - show different messages based on if it was processed immediately or queued
+      if (response.status === 200) {
+        toast({
+          title: "Article processed",
+          description: "Your article has been processed and added to the dashboard",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Article submitted",
+          description: "Your article is being processed and will appear on the dashboard soon",
+          variant: "default"
+        });
+      }
       
       // Clear the input
       setUrl('');
       
       // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/news-capsule/articles'] });
       queryClient.invalidateQueries({ queryKey: ['/api/news-capsule/queue/status'] });
       
+      // Navigate to the dashboard after a short delay
+      setTimeout(() => {
+        navigate("/dashboard/news-capsule/home");
+      }, 1500);
+      
     } catch (error) {
-      console.error(error);
+      console.error("Submission error:", error);
       toast({
         title: "Error",
-        description: "Failed to submit the article. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to submit the article. Please try again.",
         variant: "destructive"
       });
     } finally {
