@@ -21,6 +21,7 @@ const loginSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/\d/, 'Password must contain at least one number')
     .regex(/[?!@#$%^&*()]/, 'Password must contain at least one special character (!?@#$%^&*())'),
+  rememberMe: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -34,6 +35,7 @@ export default function Login() {
     defaultValues: {
       email: "",
       password: "",
+      rememberMe: false,
     },
   });
 
@@ -43,34 +45,38 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
+      <Card className="bg-black/70 backdrop-blur-sm border border-[#BF00FF]/20 shadow-lg w-full mx-auto overflow-hidden">
+        <CardHeader className="pb-4 px-4 sm:px-6">
+          <CardTitle className="text-2xl text-white text-center">Login</CardTitle>
+          <CardDescription className="text-gray-300 text-center">
             Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <form onSubmit={onSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2 relative">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-white font-medium mb-1">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   disabled={loginIsPending}
                   {...form.register("email")}
+                  className="bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 h-11 px-4"
+                  placeholder="Enter your email"
                 />
                 {form.formState.errors.email && (
-                  <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                  <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md border border-red-500/20 mt-1">
+                    {form.formState.errors.email.message}
+                  </p>
                 )}
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <Label htmlFor="password" className="text-white font-medium">Password</Label>
                   <Link
                     to="/auth/email-otp"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                    className="sm:ml-auto inline-block text-sm text-[#00FFFF] underline-offset-4 hover:opacity-80 hover:underline transition-all mt-1 sm:mt-0"
                   >
                     Forgot your password?
                   </Link>
@@ -81,18 +87,42 @@ export default function Login() {
                     type={showPassword ? "text" : "password"}
                     disabled={loginIsPending}
                     {...form.register("password")}
+                    className="bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 h-11 px-4"
+                    placeholder="Enter your password"
                   />
                   <PasswordEye
                     state={showPassword}
                     setStateFn={setShowPassword}
-                    top={9}
+                    top={14}
                   />
                 </div>
                 {form.formState.errors.password && (
-                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                  <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md border border-red-500/20 mt-1">
+                    {form.formState.errors.password.message}
+                  </p>
                 )}
               </div>
-              <Button type="submit" className="w-full" disabled={loginIsPending}>
+              {false && <div className="flex items-center space-x-2">
+                <Switch 
+                  id="remember-me"
+                  checked={form.watch("rememberMe")}
+                  onCheckedChange={(checked) => form.setValue("rememberMe", checked)}
+                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-[#BF00FF] data-[state=checked]:to-[#00FFFF]"
+                  disabled={loginIsPending}
+                />
+                <Label 
+                  htmlFor="remember-me" 
+                  className="text-sm text-gray-200 hover:text-white cursor-pointer"
+                  onClick={() => form.setValue("rememberMe", !form.watch("rememberMe"))}
+                >
+                  Remember me
+                </Label>
+              </div>}
+              <Button 
+                type="submit" 
+                className="w-full text-white font-medium transition-all duration-300 bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] hover:opacity-90 h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none" 
+                disabled={loginIsPending}
+              >
                 {loginIsPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -103,9 +133,9 @@ export default function Login() {
                 )}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-6 text-center text-sm text-gray-300">
               Don&apos;t have an account?{" "}
-              <Link to="/auth/signup" className="underline underline-offset-4 hover:text-primary">
+              <Link to="/auth/signup" className="text-[#00FFFF] font-medium underline-offset-4 hover:opacity-80 hover:underline transition-all">
                 Sign up
               </Link>
             </div>

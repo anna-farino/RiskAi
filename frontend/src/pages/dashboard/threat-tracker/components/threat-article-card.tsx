@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Clock, User, Loader2, AlertTriangle, Shield, CheckCircle2 } from "lucide-react";
+import { Trash2, Clock, User, Loader2, AlertTriangle, Shield, CheckCircle2, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
 import { formatDistanceToNow } from "date-fns";
@@ -9,8 +9,13 @@ import { useState } from "react";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { Progress } from "@/components/ui/progress";
 
+// Extend the ThreatArticle type to include securityScore
+interface ExtendedThreatArticle extends ThreatArticle {
+  securityScore: string | null;
+}
+
 interface ThreatArticleCardProps {
-  article: ThreatArticle;
+  article: ExtendedThreatArticle;
   onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string, category: string) => void;
@@ -37,8 +42,14 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
     ? parseInt(article.relevanceScore, 10) 
     : (article.relevanceScore || 0);
   
-  // Safety check in case score is NaN
-  const normalizedScore = isNaN(relevanceScore) ? 0 : relevanceScore;
+  // Parse the security/severity score (either string or number)
+  const securityScore = typeof article.securityScore === 'string' 
+    ? parseInt(article.securityScore, 10) 
+    : (article.securityScore || 0);
+  
+  // Safety check in case scores are NaN
+  const normalizedRelevanceScore = isNaN(relevanceScore) ? 0 : relevanceScore;
+  const normalizedSecurityScore = isNaN(securityScore) ? 0 : securityScore;
   
   // Calculate color based on score (0-10 scale)
   const getScoreColor = (score: number) => {
@@ -88,9 +99,9 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
   
   // Get the accent color based on threat severity
   const getAccentColor = () => {
-    if (normalizedScore >= 8) return "from-red-500/30";
-    if (normalizedScore >= 6) return "from-orange-500/30";
-    if (normalizedScore >= 4) return "from-yellow-500/30";
+    if (normalizedSecurityScore >= 8) return "from-red-500/30";
+    if (normalizedSecurityScore >= 6) return "from-orange-500/30";
+    if (normalizedSecurityScore >= 4) return "from-yellow-500/30";
     return "from-green-500/30";
   };
   
@@ -115,28 +126,50 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
               {article.title}
             </h3>
             
-            {/* Threat score badge */}
+            {/* Threat severity score badge */}
             <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
-              <AlertTriangle className={cn("h-3.5 w-3.5", getScoreColor(normalizedScore))} />
-              <span className={cn("text-xs font-semibold", getScoreColor(normalizedScore))}>
-                {normalizedScore}/10
+              <Zap className={cn("h-3.5 w-3.5", getScoreColor(normalizedSecurityScore))} />
+              <span className={cn("text-xs font-semibold", getScoreColor(normalizedSecurityScore))}>
+                {normalizedSecurityScore}/10
               </span>
             </div>
           </div>
           
-          {/* Relevance score indicator */}
-          <div className="mb-3">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-400">Threat Relevance</span>
-              <span className={cn("text-xs font-medium", getScoreColor(normalizedScore))}>
-                {normalizedScore * 10}%
-              </span>
+          {/* Score indicators */}
+          <div className="space-y-3 mb-3">
+            {/* Severity score indicator */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Zap className="h-3 w-3" /> Threat Severity
+                </span>
+                <span className={cn("text-xs font-medium", getScoreColor(normalizedSecurityScore))}>
+                  {normalizedSecurityScore * 10}%
+                </span>
+              </div>
+              <Progress 
+                value={normalizedSecurityScore * 10} 
+                className="h-1.5 bg-slate-700/50" 
+                indicatorClassName={cn("transition-all", getProgressColor(normalizedSecurityScore))}
+              />
             </div>
-            <Progress 
-              value={normalizedScore * 10} 
-              className="h-1.5 bg-slate-700/50" 
-              indicatorClassName={cn("transition-all", getProgressColor(normalizedScore))}
-            />
+            
+            {/* Relevance score indicator */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Relevance Score
+                </span>
+                <span className={cn("text-xs font-medium", getScoreColor(normalizedRelevanceScore))}>
+                  {normalizedRelevanceScore * 10}%
+                </span>
+              </div>
+              <Progress 
+                value={normalizedRelevanceScore * 10} 
+                className="h-1.5 bg-slate-700/50" 
+                indicatorClassName={cn("transition-all", getProgressColor(normalizedRelevanceScore))}
+              />
+            </div>
           </div>
           
           <div className="flex items-center gap-3 mb-3">

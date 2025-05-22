@@ -1,0 +1,154 @@
+/* RisqAi Gradient Utilities
+   Based on official RisqAi brand guidelines 
+*/
+
+/* Primary Brand Gradient - Purple to Cyan */
+.bg-brand-gradient {
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+}
+
+/* Radar Background Gradient */
+.bg-radar-gradient {
+  background: radial-gradient(#1E3A8A 30%, #5B21B6 10%);
+}
+
+/* Scanner Element Gradient */
+.bg-scanner-gradient {
+  background: linear-gradient(90deg, 
+    rgba(0, 255, 255, 0.9) 0%, 
+    rgba(191, 0, 255, 0.3) 50%, 
+    rgba(0, 255, 255, 0) 100%
+  );
+}
+
+/* Animated gradient shift for interactive elements */
+.bg-brand-gradient-animated {
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+  background-size: 200% auto;
+  animation: gradient-shift 3s infinite alternate;
+}
+
+.text-brand-gradient-animated {
+  background: linear-gradient(to right, #BF00FF, #00FFFF);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 3s infinite alternate;
+}
+
+/* Purple to Magenta Gradient */
+.bg-purple-magenta-gradient {
+  background: linear-gradient(to right, #BF00FF, #FF00BF);
+}
+
+/* Dark Blue to Purple Blue Gradient */
+.bg-blue-purple-gradient {
+  background: linear-gradient(to right, #1E3A8A, #5B21B6);
+}
+
+/* Cyan to Blue Gradient - For buttons and actions */
+.bg-cyan-blue-gradient {
+  background: linear-gradient(to right, #00FFFF, #1E3A8A);
+}
+
+/* Glow effects for interactive elements */
+.glow-purple {
+  box-shadow: 0 0 15px rgba(191, 0, 255, 0.5);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.glow-magenta {
+  box-shadow: 0 0 15px rgba(255, 0, 191, 0.5);
+}
+
+/* Glassmorphism effects */
+.glass-panel {
+  background: rgba(30, 58, 138, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(191, 0, 255, 0.1);
+}
+
+.glass-panel-dark {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(191, 0, 255, 0.2);
+}
+
+/* Dark radar background with subtle purple tint */
+.bg-radar-dark {
+  background-color: #000000;
+  background-image: radial-gradient(
+    circle at center,
+    rgba(91, 33, 182, 0.15) 0%,
+    rgba(30, 58, 138, 0.05) 60%, 
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+/* Gradient animations */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Scanner animation - horizontal sweep */
+@keyframes scanner-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.scanner-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanner-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    rgba(0, 255, 255, 0) 0%,
+    rgba(0, 255, 255, 0.2) 10%,
+    rgba(191, 0, 255, 0.4) 50%,
+    rgba(0, 255, 255, 0.2) 90%,
+    rgba(0, 255, 255, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: scanner-sweep 2s ease-in-out infinite;
+}
+
+/* UI Card with gradient border */
+.gradient-border-card {
+  border: 1px solid transparent;
+  background: linear-gradient(#000, #000) padding-box,
+    linear-gradient(to right, #BF00FF, #00FFFF) border-box;
+  border-radius: 0.5rem;
+}

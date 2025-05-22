@@ -31,13 +31,14 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
     
-    // Check if we already have this article
+    // Check if we already have this article FOR THIS USER
     const existingArticles = await storage.getArticles({
-      search: articleUrl
+      search: articleUrl,
+      userId: userId
     });
     
-    if (existingArticles.some(a => a.url === articleUrl)) {
-      log(`[ThreatTracker] Article already exists in database: ${articleUrl}`, "scraper");
+    if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
+      log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
       return null;
     }
     
@@ -63,6 +64,49 @@ async function processArticle(
       keywords.hardware
     );
     
+    // Filter the keywords directly from what we have in our lists
+    const validThreatKeywords = analysis.detectedKeywords.threats.filter((keyword: any) => 
+      keywords.threats.includes(keyword)
+    );
+    
+    const validVendorKeywords = analysis.detectedKeywords.vendors.filter((keyword: any) => 
+      keywords.vendors.includes(keyword)
+    );
+    
+    const validClientKeywords = analysis.detectedKeywords.clients.filter((keyword: any) => 
+      keywords.clients.includes(keyword)
+    );
+    
+    const validHardwareKeywords = analysis.detectedKeywords.hardware.filter((keyword: any) => 
+      keywords.hardware.includes(keyword)
+    );
+    
+    // Update the analysis with only valid, verified keywords that match our lists exactly
+    analysis.detectedKeywords = {
+      threats: validThreatKeywords,
+      vendors: validVendorKeywords,
+      clients: validClientKeywords,
+      hardware: validHardwareKeywords
+    };
+    
+    // Check if the article has BOTH:
+    // 1. At least one threat keyword AND
+    // 2. At least one keyword from any other category
+    const hasValidThreatKeywords = validThreatKeywords.length > 0;
+    const hasValidOtherKeywords = 
+      validVendorKeywords.length > 0 || 
+      validClientKeywords.length > 0 || 
+      validHardwareKeywords.length > 0;
+    
+    // Only proceed if there are verified keywords in both threat and at least one other category
+    if (!hasValidThreatKeywords || !hasValidOtherKeywords) {
+      log(`[ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: ${articleUrl}`, "scraper");
+      log(`[ThreatTracker] Valid threats: ${validThreatKeywords.length}, Valid vendors: ${validVendorKeywords.length}, Valid clients: ${validClientKeywords.length}, Valid hardware: ${validHardwareKeywords.length}`, "scraper");
+      return null;
+    }
+    
+    log(`[ThreatTracker] Article meets criteria with ${validThreatKeywords.length} threats and ${validVendorKeywords.length + validClientKeywords.length + validHardwareKeywords.length} other keywords`, "scraper");
+    
     // Create a date object from the extracted date, if available
     let publishDate = null;
     if (articleData.date) {
@@ -87,6 +131,7 @@ async function processArticle(
       publishDate: publishDate,
       summary: analysis.summary,
       relevanceScore: analysis.relevanceScore.toString(),
+      securityScore: analysis.severityScore?.toString() || "0", // Add severity score
       detectedKeywords: analysis.detectedKeywords,
       userId,
     });
@@ -104,17 +149,20 @@ export async function scrapeSource(source: ThreatSource) {
   log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
   
   try {
-    // Get all threat-related keywords for analysis
-    const threatKeywords = await storage.getKeywordsByCategory('threat');
-    const vendorKeywords = await storage.getKeywordsByCategory('vendor');
-    const clientKeywords = await storage.getKeywordsByCategory('client');
-    const hardwareKeywords = await storage.getKeywordsByCategory('hardware');
+    // Get all threat-related keywords for analysis, filtered by the source's userId
+    const threatKeywords = await storage.getKeywordsByCategory('threat', source.userId || undefined);
+    const vendorKeywords = await storage.getKeywordsByCategory('vendor', source.userId || undefined);
+    const clientKeywords = await storage.getKeywordsByCategory('client', source.userId || undefined);
+    const hardwareKeywords = await storage.getKeywordsByCategory('hardware', source.userId || undefined);
     
     // Extract keyword terms
     const threatTerms = threatKeywords.map(k => k.term);
     const vendorTerms = vendorKeywords.map(k => k.term);
     const clientTerms = clientKeywords.map(k => k.term);
     const hardwareTerms = hardwareKeywords.map(k => k.term);
+    
+    // Log keywords for debugging
+    log(`[ThreatTracker] Using keyword lists - Threats: ${threatTerms.length}, Vendors: ${vendorTerms.length}, Clients: ${clientTerms.length}, Hardware: ${hardwareTerms.length}`, "scraper");
     
     // Organize keywords for easy passing
     const keywords = {
@@ -184,6 +232,11 @@ export async function scrapeSource(source: ThreatSource) {
     // 6-7. Process the first article (or skip if we've already used it for structure detection)
     const results = [];
     let firstArticleProcessed = false;
+
+    if (!source.userId) {
+      console.error("No source.userId")
+      return
+    }
     
     if (htmlStructure) {
       log(`[ThreatTracker] Step 8-9: Processing first article with detected structure`, "scraper");
@@ -201,12 +254,11 @@ export async function scrapeSource(source: ThreatSource) {
       }
     }
     
-    // 8-9. Process remaining articles using the established HTML structure
-    log(`[ThreatTracker] Processing remaining articles`, "scraper");
+    // 8-9. Process all remaining articles using the established HTML structure
+    log(`[ThreatTracker] Processing all remaining articles`, "scraper");
     const startIndex = firstArticleProcessed ? 1 : 0;
-    const maxArticlesToProcess = 5; // Limit to 5 articles per run for performance
     
-    for (let i = startIndex; i < Math.min(processedLinks.length, maxArticlesToProcess); i++) {
+    for (let i = startIndex; i < processedLinks.length; i++) {
       const articleResult = await processArticle(
         processedLinks[i], 
         source.id, 
@@ -255,6 +307,7 @@ export async function runGlobalScrapeJob(userId?: string) {
     for (const source of sources) {
       try {
         const newArticles = await scrapeSource(source);
+        if (!newArticles?.length) continue
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
         }

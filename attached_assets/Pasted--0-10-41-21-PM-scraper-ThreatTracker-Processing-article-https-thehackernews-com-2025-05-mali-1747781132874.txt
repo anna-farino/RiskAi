@@ -1,0 +1,30 @@
+[0] 10:41:21 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/05/malicious-pypi-package-posing-as-solana.html
+[0] 10:41:21 PM [scraper] [ThreatTracker] Article already exists in database: https://thehackernews.com/2025/05/malicious-pypi-package-posing-as-solana.html
+[0] 10:41:21 PM [scraper] [ThreatTracker] Processing remaining articles
+[0] 10:41:21 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/05/malicious-pypi-package-posing-as-solana.html
+[0] 10:41:21 PM [scraper] [ThreatTracker] Article already exists in database: https://thehackernews.com/2025/05/malicious-pypi-package-posing-as-solana.html
+[0] 10:41:21 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/05/new-chrome-vulnerability-enables-cross.html
+[0] 10:41:21 PM [scraper] [ThreatTracker] Starting to scrape https://thehackernews.com/2025/05/new-chrome-vulnerability-enables-cross.html as article page
+[0] 10:41:21 PM [scraper] [ThreatTracker][setupPage] Setting up new page
+[0] 10:41:23 PM [scraper] [ThreatTracker] Initial page load complete for https://thehackernews.com/2025/05/new-chrome-vulnerability-enables-cross.html. Status: 200
+[0] 10:41:23 PM [scraper] [ThreatTracker] Waiting for page to stabilize...
+[0] 10:41:26 PM [scraper] [ThreatTracker] Extracting article content
+[0] 10:41:29 PM [scraper] [ThreatTracker] Extraction results: title length=82, content length=2747
+[0] 10:41:29 PM [scraper] [ThreatTracker] Page closed successfully
+[0] 10:41:29 PM [scraper] [ThreatTracker] Extracting article content using HTML structure
+[0] 10:41:32 PM [scraper] [ThreatTracker] Successfully processed and stored article: https://thehackernews.com/2025/05/new-chrome-vulnerability-enables-cross.html
+[0] 10:41:32 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/05/weekly-recap-zero-day-exploits.html
+[0] 10:41:32 PM [scraper] [ThreatTracker] Article already exists in database: https://thehackernews.com/2025/05/weekly-recap-zero-day-exploits.html
+[0] 10:41:32 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/05/reevaluating-sses-technical-gap.html
+[0] 10:41:32 PM [scraper] [ThreatTracker] Starting to scrape https://thehackernews.com/2025/05/reevaluating-sses-technical-gap.html as article page
+[0] 10:41:32 PM [scraper] [ThreatTracker][setupPage] Setting up new page
+[0] 10:41:33 PM [scraper] [ThreatTracker] Initial page load complete for https://thehackernews.com/2025/05/reevaluating-sses-technical-gap.html. Status: 200
+[0] 10:41:33 PM [scraper] [ThreatTracker] Waiting for page to stabilize...
+[0] 10:41:36 PM [scraper] [ThreatTracker] Extracting article content
+[0] 10:41:39 PM [scraper] [ThreatTracker] Extraction results: title length=67, content length=5473
+[0] 10:41:39 PM [scraper] [ThreatTracker] Page closed successfully
+[0] 10:41:39 PM [scraper] [ThreatTracker] Extracting article content using HTML structure
+[0] 10:41:43 PM [scraper] [ThreatTracker] Successfully processed and stored article: https://thehackernews.com/2025/05/reevaluating-sses-technical-gap.html
+[0] 10:41:43 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/05/malicious-npm-package-leverages-unicode.html
+[0] 10:41:43 PM [scraper] [ThreatTracker] Article already exists in database: https://thehackernews.com/2025/05/malicious-npm-package-leverages-unicode.html
+[0] 10:41:43 PM [scraper] [ThreatTracker] Completed scrape job for source: Hacker News. Found 2 new articles.

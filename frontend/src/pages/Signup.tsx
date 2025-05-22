@@ -51,10 +51,10 @@ export default function Signup() {
 
   return (
     <AuthLayout>
-      <Card>
+      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-2xl">Create an account</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl text-white">Create an account</CardTitle>
+          <CardDescription className="text-slate-300">
             Enter your details below to create your account
           </CardDescription>
         </CardHeader>
@@ -62,25 +62,27 @@ export default function Signup() {
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-300">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   disabled={isPending}
                   {...form.register("email")}
+                  className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
                 {form.formState.errors.email && (
                   <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-slate-300">Password</Label>
                 <div className="flex relative">
                   <Input 
                     id="password" 
                     type={ showPassword ? "text" : "password"}
                     disabled={isPending}
                     {...form.register("password")}
+                    className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   />
                   <PasswordEye
                     state={showPassword}
@@ -112,7 +114,7 @@ export default function Signup() {
                 )}
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={isPending}>
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -122,9 +124,9 @@ export default function Signup() {
                 "Sign Up"
               )}
             </Button>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-4 text-center text-sm text-slate-300">
               Already have an account?{" "}
-              <Link to="/auth/login" className="underline underline-offset-4 hover:text-primary">
+              <Link to="/auth/login" className="text-primary underline underline-offset-4 hover:text-primary/80">
                 Login
               </Link>
             </div>

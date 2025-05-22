@@ -160,8 +160,8 @@ threatRouter.post("/keywords/bulk", async (req, res) => {
     
     const keywordsList = terms
       .split(',')
-      .map(term => term.trim())
-      .filter(term => term.length > 0);
+      .map((term: any) => term.trim())
+      .filter((term: any) => term.length > 0);
     
     if (keywordsList.length === 0) {
       return res.status(400).json({ error: "No valid keywords found" });
@@ -293,7 +293,8 @@ threatRouter.get("/articles/:id", async (req, res) => {
   reqLog(req, `GET /articles/${req.params.id}`);
   try {
     const articleId = req.params.id;
-    const article = await storage.getArticle(articleId);
+    const userId = getUserId(req);
+    const article = await storage.getArticle(articleId, userId);
     
     if (!article) {
       return res.status(404).json({ error: "Article not found" });
@@ -313,16 +314,12 @@ threatRouter.delete("/articles/:id", async (req, res) => {
     const userId = getUserId(req);
     
     // Check if the article exists and belongs to the user
-    const existingArticle = await storage.getArticle(articleId);
+    const existingArticle = await storage.getArticle(articleId, userId);
     if (!existingArticle) {
       return res.status(404).json({ error: "Article not found" });
     }
     
-    if (existingArticle.userId && existingArticle.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to delete this article" });
-    }
-    
-    await storage.deleteArticle(articleId);
+    await storage.deleteArticle(articleId, userId);
     res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting article:", error);
@@ -440,7 +437,7 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,
-      articleCount: newArticles.length,
+      articleCount: newArticles ? newArticles.length : 0,
       articles: newArticles
     });
   } catch (error: any) {
