@@ -46,10 +46,13 @@ export default function NewsCapsuleHome() {
   });
 
   // Fetch articles
-  const { data: articles, isLoading, isError } = useQuery({
+  const { data: articlesData, isLoading, isError } = useQuery({
     queryKey: ['/api/news-scraper/articles'],
     enabled: true
   });
+  
+  // Default empty array for articles if data is not available
+  const articles = articlesData?.articles || [];
 
   // Process article mutation
   const processArticleMutation = useMutation({
@@ -167,11 +170,11 @@ Source: ${selectedArticle.source}
               <div className="py-4 text-center text-gray-400">Loading articles...</div>
             ) : isError ? (
               <div className="py-4 text-center text-red-400">Error loading articles</div>
-            ) : !articles || articles.articles.length === 0 ? (
+            ) : !articles || articles.length === 0 ? (
               <div className="py-4 text-center text-gray-400">No articles yet. Process your first article!</div>
             ) : (
               <div className="space-y-3">
-                {articles.articles.map((article: Article) => (
+                {articles.map((article: Article) => (
                   <div 
                     key={article.id}
                     onClick={() => setSelectedArticle(article)}

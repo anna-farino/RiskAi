@@ -1,19 +1,8 @@
-import { RouteObject } from "react-router-dom";
-import NewsCapsuleLayout from "../layout";
-import NewsCapsuleHome from "../home";
-import Reports from "../reports";
+import { RouteObject } from 'react-router-dom';
+import NewsCapsuleHome from '../index';
 
 export const newsCapsuleRouter: RouteObject = {
-  path: "news-capsule",
-  element: <NewsCapsuleLayout />,
-  children: [
-    {
-      index: true,
-      element: <NewsCapsuleHome />,
-    },
-    {
-      path: "reports",
-      element: <Reports />,
-    },
-  ],
+  path: 'news-capsule',
+  element: <NewsCapsuleHome />,
+  children: []
 };
