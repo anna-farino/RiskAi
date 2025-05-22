@@ -113,8 +113,8 @@ export default function Dashboard() {
   if (articles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <h2 className="text-xl font-semibold mb-4">No Articles Found</h2>
-        <p className="text-gray-500 mb-6">Submit a new article to get started</p>
+        <h2 className="text-xl font-semibold mb-4 dark:text-white">No Articles Found</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">Submit a new article to get started</p>
         <Link to="/dashboard/news-capsule/submit">
           <Button>Submit Article</Button>
         </Link>
@@ -125,7 +125,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">News Capsule Dashboard</h1>
+        <h1 className="text-2xl font-bold dark:text-white">News Capsule Dashboard</h1>
         <Link to="/dashboard/news-capsule/submit">
           <Button>Submit New Article</Button>
         </Link>
@@ -133,36 +133,36 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {articles.map(article => (
-          <Card key={article.id} className="overflow-hidden">
-            <CardHeader className="bg-gray-50">
-              <CardTitle className="text-lg">{article.title}</CardTitle>
-              <CardDescription>
+          <Card key={article.id} className="overflow-hidden border dark:border-gray-700">
+            <CardHeader className="bg-gray-50 dark:bg-gray-800">
+              <CardTitle className="text-lg dark:text-white">{article.title}</CardTitle>
+              <CardDescription className="dark:text-gray-300">
                 {article.sourcePublication} • {new Date(article.createdAt).toLocaleDateString()}
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 dark:bg-gray-900">
               {article.vulnerabilityId && (
                 <div className="mb-2">
-                  <span className="font-semibold">Vulnerability: </span>
-                  <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                  <span className="font-semibold dark:text-gray-200">Vulnerability: </span>
+                  <span className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-1 rounded text-xs">
                     {article.vulnerabilityId}
                   </span>
                 </div>
               )}
-              <p className="text-sm mb-2">{article.summary}</p>
+              <p className="text-sm mb-2 dark:text-gray-300">{article.summary}</p>
               {article.impacts && (
                 <div className="mt-3">
-                  <span className="font-semibold">Impacts: </span>
-                  <span className="text-sm">{article.impacts}</span>
+                  <span className="font-semibold dark:text-gray-200">Impacts: </span>
+                  <span className="text-sm dark:text-gray-300">{article.impacts}</span>
                 </div>
               )}
             </CardContent>
-            <CardFooter className="bg-gray-50 flex justify-between">
+            <CardFooter className="bg-gray-50 dark:bg-gray-800 flex justify-between">
               <a 
                 href={article.originalUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline text-sm"
+                className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
               >
                 View Original
               </a>

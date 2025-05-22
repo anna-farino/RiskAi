@@ -100,8 +100,8 @@ export default function Reports() {
   if (articles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <h2 className="text-xl font-semibold mb-4">No Articles Marked for Reporting</h2>
-        <p className="text-gray-500 mb-6">Visit the dashboard to add articles to your report</p>
+        <h2 className="text-xl font-semibold mb-4 dark:text-white">No Articles Marked for Reporting</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">Visit the dashboard to add articles to your report</p>
         <Button
           onClick={() => window.location.href = '/dashboard/news-capsule'}
           variant="outline"
