@@ -39,19 +39,29 @@ export default function Submit() {
       // Extract domain from URL for use in the summary
       const hostname = new URL(processUrl).hostname.replace('www.', '');
       
-      // Create a structured threat summary with proper template
+      // Create article data following the official format
       const mockArticleData = {
         id: crypto.randomUUID(),
-        title: `Security Alert: Critical Vulnerability in ${hostname}`,
-        threatName: "Remote Code Execution Vulnerability",
+        // Use article title directly from source or generate a realistic one
+        title: `Critical Zero-Day Vulnerability Discovered in Enterprise Systems`,
+        // Identify the specific threat/vulnerability
+        threatName: "CVE-2025-0001: Remote Code Execution Vulnerability",
+        // No longer needed in official format, but keeping for compatibility
         vulnerabilityId: "CVE-2025-0001",
-        summary: `A new zero-day vulnerability has been discovered in systems used by ${hostname}. This critical flaw allows remote attackers to execute arbitrary code with elevated privileges. Security researchers have confirmed this vulnerability is being actively exploited in the wild.`,
-        impacts: "Complete system compromise, data theft, lateral movement within networks, and possible ransomware deployment",
-        attackVector: "Specially crafted HTTP requests targeting unpatched application endpoints",
-        microsoftConnection: "Affects Windows Server environments with specific configurations",
-        sourcePublication: hostname,
+        // Summary limited to 80 words maximum
+        summary: `Security researchers have identified a critical zero-day vulnerability affecting enterprise systems. This flaw enables attackers to execute arbitrary code remotely with elevated privileges. The vulnerability exists in commonly used API endpoints and bypasses standard security controls. Active exploitation has been observed targeting financial and healthcare sectors.`,
+        // Both business and technical impacts
+        impacts: "Business: Service disruption, data theft, regulatory violations, reputational damage. Technical: System compromise, credential theft, lateral movement within networks, ransomware deployment.",
+        // No longer needed in official format, but keeping for compatibility
+        attackVector: "Specially crafted HTTP requests",
+        // No longer needed in official format, but keeping for compatibility
+        microsoftConnection: "",
+        // Just the publication name, not full URL
+        sourcePublication: hostname.split('.')[0],
+        // Keep the original URL for reference
         originalUrl: processUrl,
-        targetOS: "Windows Server 2019, Windows Server 2022, and certain Linux distributions",
+        // Which operating systems are affected
+        targetOS: "Windows Server 2019, Windows 10, Ubuntu 20.04 LTS",
         createdAt: new Date().toISOString(),
         markedForReporting: true,
         markedForDeletion: false

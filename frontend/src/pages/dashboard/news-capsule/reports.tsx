@@ -133,40 +133,32 @@ export default function Reports() {
             </CardHeader>
             <CardContent className="dark:bg-gray-900">
               <div className="space-y-4">
-                {article.vulnerabilityId && (
-                  <div>
-                    <h4 className="font-semibold text-lg dark:text-gray-200">Vulnerability ID</h4>
-                    <p className="bg-red-50 dark:bg-red-900 inline-block px-3 py-1 rounded text-red-800 dark:text-red-200">
-                      {article.vulnerabilityId}
-                    </p>
-                  </div>
-                )}
+                <div>
+                  <h4 className="font-semibold text-lg dark:text-gray-200">Threat Name</h4>
+                  <p className="bg-red-50 dark:bg-red-900 inline-block px-3 py-1 rounded text-red-800 dark:text-red-200">
+                    {article.threatName}
+                  </p>
+                </div>
                 
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">Summary</h4>
                   <p className="text-gray-700 dark:text-gray-300">{article.summary}</p>
                 </div>
                 
-                {article.impacts && (
-                  <div>
-                    <h4 className="font-semibold text-lg dark:text-gray-200">Potential Impact</h4>
-                    <p className="text-gray-700 dark:text-gray-300">{article.impacts}</p>
-                  </div>
-                )}
+                <div>
+                  <h4 className="font-semibold text-lg dark:text-gray-200">Impacts</h4>
+                  <p className="text-gray-700 dark:text-gray-300">{article.impacts}</p>
+                </div>
                 
-                {article.attackVector && (
-                  <div>
-                    <h4 className="font-semibold text-lg dark:text-gray-200">Attack Vector</h4>
-                    <p className="text-gray-700 dark:text-gray-300">{article.attackVector}</p>
-                  </div>
-                )}
+                <div>
+                  <h4 className="font-semibold text-lg dark:text-gray-200">OS Connection</h4>
+                  <p className="text-gray-700 dark:text-gray-300">{article.targetOS}</p>
+                </div>
                 
-                {article.targetOS && (
-                  <div>
-                    <h4 className="font-semibold text-lg dark:text-gray-200">Affected Systems</h4>
-                    <p className="text-gray-700 dark:text-gray-300">{article.targetOS}</p>
-                  </div>
-                )}
+                <div>
+                  <h4 className="font-semibold text-lg dark:text-gray-200">Source</h4>
+                  <p className="text-gray-700 dark:text-gray-300">{article.sourcePublication}</p>
+                </div>
                 
                 <div className="pt-2">
                   <a 
