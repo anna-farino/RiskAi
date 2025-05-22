@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert } from 'lucide-react';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -48,21 +48,37 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-3">
-              <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
+            <div className="space-y-2">
+              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
                 <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-1 rounded">Alert</span>
+                  <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-0.5 rounded">Alert</span>
                   <span className="text-xs text-gray-400">2h ago</span>
                 </div>
-                <p className="text-sm text-gray-300">Critical vulnerability found in popular framework...</p>
+                <p className="text-xs text-gray-300">Critical vulnerability found in popular framework affecting cloud services</p>
               </div>
               
-              <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
+              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
                 <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#5B21B6]/20 text-[#00FFFF] px-2 py-1 rounded">News</span>
+                  <span className="text-xs bg-[#5B21B6]/20 text-[#00FFFF] px-2 py-0.5 rounded">News</span>
                   <span className="text-xs text-gray-400">5h ago</span>
                 </div>
-                <p className="text-sm text-gray-300">New ransomware targeting critical infrastructure...</p>
+                <p className="text-xs text-gray-300">New ransomware targeting critical infrastructure in energy sector</p>
+              </div>
+              
+              <div className="bg-black/30 rounded-lg p-2 border border-red-500/20">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">CVE</span>
+                  <span className="text-xs text-gray-400">30m ago</span>
+                </div>
+                <p className="text-xs text-gray-300">CVE-2025-0623 discovered in widely used authentication library</p>
+              </div>
+              
+              <div className="bg-black/30 rounded-lg p-2 border border-[#00FFFF]/20">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs bg-[#00FFFF]/20 text-[#00FFFF] px-2 py-0.5 rounded">Update</span>
+                  <span className="text-xs text-gray-400">Just now</span>
+                </div>
+                <p className="text-xs text-gray-300">Security patches released for three major operating systems</p>
               </div>
             </div>
           </RisqWidget>
@@ -82,24 +98,44 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
-                <div className="text-red-400">
-                  <AlertTriangle className="w-5 h-5" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 bg-red-500/10 p-2 rounded-lg border border-red-500/20">
+                <div className="text-red-400 flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-sm">Critical Ransomware Alert</h4>
-                  <p className="text-xs text-gray-400">Affecting financial systems</p>
+                  <h4 className="font-medium text-xs">Critical Ransomware Alert</h4>
+                  <p className="text-xs text-gray-400">Financial systems affected</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
-                <div className="text-yellow-400">
-                  <AlertTriangle className="w-5 h-5" />
+              <div className="flex items-center gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20">
+                <div className="text-yellow-400 flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-sm">Supply Chain Compromise</h4>
+                  <h4 className="font-medium text-xs">Supply Chain Compromise</h4>
                   <p className="text-xs text-gray-400">Multiple vendors affected</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 bg-purple-500/10 p-2 rounded-lg border border-purple-500/20">
+                <div className="text-purple-400 flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-xs">New Zero-Day Vulnerability</h4>
+                  <p className="text-xs text-gray-400">Remote execution risk</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20">
+                <div className="text-blue-400 flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-xs">Phishing Campaign Detected</h4>
+                  <p className="text-xs text-gray-400">Targeting healthcare sector</p>
                 </div>
               </div>
             </div>
@@ -122,10 +158,50 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="relative h-[100px] w-full overflow-hidden rounded-lg mb-2 bg-radar-gradient flex items-center justify-center">
-              <div className="scanner-effect w-full h-full absolute"></div>
-              <div className="z-10 text-center">
-                <div className="text-lg font-bold">24/7 Monitoring</div>
+            <div className="space-y-2">
+              <div className="bg-gradient-to-r from-[#BF00FF]/10 to-[#00FFFF]/10 rounded-lg p-2.5 border border-[#BF00FF]/20">
+                <div className="mb-1.5">
+                  <div className="flex items-center">
+                    <Radar className="w-4 h-4 text-[#00FFFF] mr-2" />
+                    <span className="font-semibold text-[#00FFFF]">Intelligence Feed</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-300 mb-1.5">
+                  Real-time monitoring of 140+ specialized security feeds and news sources
+                </div>
+                <div className="flex items-center">
+                  <span className="text-xs font-medium bg-[#BF00FF]/20 text-white px-2 py-0.5 rounded">Active</span>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-[#00FFFF]/10 to-[#BF00FF]/10 rounded-lg p-2.5 border border-[#00FFFF]/20">
+                <div className="mb-1.5">
+                  <div className="flex items-center">
+                    <Database className="w-4 h-4 text-[#BF00FF] mr-2" />
+                    <span className="font-semibold text-[#BF00FF]">Data Processing</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-300 mb-1.5">
+                  Advanced AI processing with threat detection and priority classification
+                </div>
+                <div className="flex items-center">
+                  <span className="text-xs font-medium bg-[#00FFFF]/20 text-white px-2 py-0.5 rounded">Operational</span>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg p-2.5 border border-[#BF00FF]/30">
+                <div className="mb-1.5">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-4 h-4 text-yellow-400 mr-2" />
+                    <span className="font-semibold text-yellow-400">Risk Assessment</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-300 mb-1.5">
+                  Categorized threat intelligence with impact metrics and prioritization
+                </div>
+                <div className="flex items-center">
+                  <span className="text-xs font-medium bg-yellow-500/20 text-white px-2 py-0.5 rounded">Ready</span>
+                </div>
               </div>
             </div>
           </RisqWidget>
@@ -166,18 +242,39 @@ export default function Dashboard() {
               onClick={() => navigate("/dashboard/settings")}
               className="col-span-1 md:col-span-1"
             >
-              <div className="space-y-3">
-                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
+              <div className="space-y-2">
+                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
                   <div className="flex items-center gap-2">
                     <Database className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-sm">Data Management</span>
+                    <span className="text-xs font-medium">Data Management</span>
                   </div>
                 </div>
                 
-                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
+                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-sm">Search Preferences</span>
+                    <span className="text-xs font-medium">Search Preferences</span>
+                  </div>
+                </div>
+                
+                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#00FFFF]" />
+                    <span className="text-xs font-medium">Notification Settings</span>
+                  </div>
+                </div>
+                
+                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-[#00FFFF]" />
+                    <span className="text-xs font-medium">Security & Privacy</span>
+                  </div>
+                </div>
+                
+                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                  <div className="flex items-center gap-2">
+                    <BarChart4 className="w-4 h-4 text-[#00FFFF]" />
+                    <span className="text-xs font-medium">Analytics Preferences</span>
                   </div>
                 </div>
               </div>

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Logo } from '@/components/ui/logo';
 import { ModeToggle } from '@/components/theme-toggle';
 import { useLogout } from '@/hooks/use-logout';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
-import { ChevronDown, LogOut } from 'lucide-react'
+import { ChevronDown, LogOut, Menu } from 'lucide-react';
+import { MobileNavigation } from './MainNavigation';
 
 export function RisqHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -23,11 +24,11 @@ export function RisqHeader() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Determine logo size based on screen width - adjusted for better quality
+  // Determine logo size based on screen width - increased for more prominence
   const getLogoSize = () => {
-    if (windowWidth < 640) return "sm";   // Mobile - smaller for better fit
-    if (windowWidth < 1024) return "sm";  // Tablet - smaller for problematic mid-sized screens
-    return "md";                          // Desktop - medium size for better quality/fit balance
+    if (windowWidth < 640) return "sm";   // Mobile - still using smaller size for better fit
+    if (windowWidth < 1024) return "md";  // Tablet - increased to medium for better visibility
+    return "lg";                          // Desktop - increased to large for more prominence
   };
 
   // Handle scroll events to add background when scrolled
@@ -44,7 +45,7 @@ export function RisqHeader() {
     <header 
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        'h-[72px] md:h-[76px] lg:h-[72px]', // Variable height based on screen size
+        'h-[76px] md:h-[84px] lg:h-[88px]', // Increased height to accommodate larger logo
         scrolled 
           ? 'bg-black/95 backdrop-blur border-b border-[#BF00FF]/20 shadow-sm' 
           : 'bg-black/90 backdrop-blur'
@@ -52,21 +53,27 @@ export function RisqHeader() {
     >
       <div className="container mx-auto px-4 flex items-center h-full">
         <div className="flex items-center justify-between gap-4 w-full">
-          {/* Logo and tagline */}
-          <div className="flex items-center">
-            <Link to="/dashboard" className="flex items-center overflow-hidden my-1">
-              <div className="logo-container">
+          {/* Logo and tagline as a cohesive unit */}
+          <div className="flex flex-col items-start justify-center">
+            <Link to="/dashboard" className="group">
+              <div className="logo-container relative">
                 <Logo interactive animated variant="gradient" size={getLogoSize()} />
               </div>
             </Link>
-            <div className="hidden md:block ml-3 h-6 border-l border-[#BF00FF]/20"></div>
-            <p className="hidden md:block ml-3 text-sm text-gray-400 italic">
-              Secure your tomorrow, today.
+            <div className="h-1"></div> {/* Spacer between logo and tagline */}
+            <p className="block text-[10px] sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
+              AI-Powered Risk Intelligence
             </p>
           </div>
 
           {/* Spacer for layout balance */}
           <div className="flex-1"></div>
+          
+          {/* Mobile navigation - only visible on mobile */}
+          <div className="flex items-center md:hidden mr-2">
+            <MobileNavigation />
+            {/* Smaller screens only show the icon, with proper brand styling */}
+          </div>
           
           {/* User account and theme toggle */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">

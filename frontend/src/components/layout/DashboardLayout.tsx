@@ -1,34 +1,24 @@
-import { useLoaderData } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
-import { RisqHeader } from "./RisqHeader";
-import { RisqFooter } from "./RisqFooter";
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import { RisqHeader } from './RisqHeader';
+import { MainNavigation } from './MainNavigation';
 
-// Import the navigation styles
-import "@/styles/navigation.css";
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const data = useLoaderData();
-  const { data: userData } = useAuth();
-  
-  //console.log("User data from dashboard layout", userData)
-
+export default function DashboardLayout() {
   return (
-    <div className="min-h-screen bg-background dark:bg-slate-900 overflow-x-hidden flex flex-col">
-      {/* Header with brand logo and tagline */}
+    <div className="min-h-screen bg-gradient-to-br from-black to-gray-900">
       <RisqHeader />
       
-      {/* Main content area */}
-      <main className="flex-1 mx-auto mt-[60px] w-full max-w-7xl px-4 py-4 pt-20 sm:py-6 pb-12">
-        {children}
-      </main>
-      
-      {/* Footer with brand logo and tagline */}
-      <RisqFooter />
+      <div className="flex pt-[88px]">
+        {/* Sidebar Navigation - hidden on mobile */}
+        <aside className="hidden md:block w-64 min-h-[calc(100vh-88px)] border-r border-[#BF00FF]/20 bg-black/80 backdrop-blur-sm fixed">
+          <MainNavigation className="py-4 px-2" />
+        </aside>
+        
+        {/* Main Content Area - with sidebar margin on desktop */}
+        <main className="flex-1 md:ml-64 p-4 md:p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
