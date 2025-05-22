@@ -115,8 +115,39 @@ export default function CapsuleResearch() {
       const processUrl = url.startsWith("http") ? url : `https://${url}`;
       console.log("Submitting URL for processing:", processUrl);
       
-      // For now, provide a more descriptive error message since the API integration is in progress
-      setError("The URL scraping functionality is currently experiencing issues. Please use the 'Enter article text' option to manually input the article content or try one of our demo URLs: bleepingcomputer.com or cyberpress.org.");
+      // Call our backend API to scrape and analyze the article
+      const response = await fetch("/api/news-capsule/scrape-article", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: processUrl }),
+      });
+
+      // If we got a non-ok response, try to parse error or throw a default message
+      if (!response.ok) {
+        let errorMessage = "Failed to analyze article";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Try to parse the response data
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error("Error parsing JSON response:", e);
+        throw new Error("Invalid response from server. Please try again.");
+      }
+
+      // Set the article summary from the response data
+      console.log("Article data received:", data);
+      setArticleSummary(data);
       setLoading(false);
       
     } catch (error) {
