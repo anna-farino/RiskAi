@@ -68,11 +68,33 @@ export default function Dashboard() {
           </RisqWidget>
           
           <RisqWidget
+            title="News Capsule"
+            description="Scrape and summarize cybersecurity articles"
+            icon={<FileText className="w-10 h-10" />}
+            variant="interactive"
+            delay={0.2}
+            onClick={() => navigate("/dashboard/news-capsule")}
+            footer={
+              <div className="mt-auto">
+                <div className="text-xs text-gray-400 mt-2 text-center">
+                  Generate executive reports from articles
+                </div>
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              <div className="text-xs text-gray-300">
+                Enter a URL to scrape and summarize
+              </div>
+            </div>
+          </RisqWidget>
+          
+          <RisqWidget
             title="Threat Tracker"
             description="Critical security alerts requiring attention"
             icon={<AlertTriangle className="w-10 h-10" />}
             variant="interactive"
-            delay={0.2}
+            delay={0.3}
             onClick={() => navigate("/dashboard/threat/home")}
             footer={
               <div className="mt-auto">
