@@ -13,6 +13,8 @@ if (!openaiApiKey) {
   log("WARNING: OPENAI_API_KEY is not set. OpenAI features will not work.", "capsule-scraper");
 }
 
+// Initialize OpenAI client
+log(`Initializing OpenAI client with API key ${openaiApiKey ? 'provided' : 'missing'}`, "capsule-scraper");
 const openai = new OpenAI({
   apiKey: openaiApiKey,
 });
@@ -182,7 +184,7 @@ export async function extractArticleContent(html: string): Promise<{ title: stri
 }
 
 /**
- * Analyze article content with OpenAI or fallback to simple summary
+ * Analyze article content with OpenAI
  */
 export async function analyzeArticleContent(
   title: string, 
@@ -191,27 +193,17 @@ export async function analyzeArticleContent(
   url: string
 ): Promise<ArticleAnalysis> {
   try {
+    // Ensure we have the OpenAI API key
     if (!openaiApiKey) {
-      // If no OpenAI API key, generate a simple analysis
-      log("No OpenAI API key found. Using simple analysis.", "capsule-scraper");
-      
-      // Create a summary by taking first 2-3 sentences
-      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
-      const summary = sentences.slice(0, 3).join('. ') + '.';
-      
-      return {
-        title,
-        threatName: "Unknown (Extraction Without AI)",
-        vulnerabilityId: "Unspecified",
-        summary: summary || "No summary available",
-        impacts: "Analysis requires OpenAI API access",
-        attackVector: "Unknown attack vector",
-        microsoftConnection: "Analysis requires OpenAI API access",
-        sourcePublication: sourceName,
-        originalUrl: url,
-        targetOS: "Microsoft / Windows",
-      };
+      throw new Error("OPENAI_API_KEY is not set. Please add this secret to use article summarization.");
     }
+    
+    log("Sending article to OpenAI for analysis...", "capsule-scraper");
+    
+    // Prepare a trimmed version of the content if it's too long
+    const trimmedContent = content.length > 4000 
+      ? content.substring(0, 4000) + "..." 
+      : content;
     
     // Using OpenAI to analyze the article content
     const response = await openai.chat.completions.create({
@@ -221,31 +213,35 @@ export async function analyzeArticleContent(
           role: "system",
           content: `You are an expert cybersecurity analyst who specializes in creating executive reports. 
           Analyze the provided content and extract structured information for an executive report.
-          Focus on cybersecurity implications, especially for Microsoft products.`
+          Focus on cybersecurity implications, especially for Microsoft products.
+          
+          Always respond in this exact format:
+          Threat name: [specific threat name from article]
+          Vulnerability ID: [CVE or similar if mentioned, otherwise "Unspecified"]
+          Summary: [2-3 sentences covering the key points]
+          Impacts: [who is affected and how]
+          Attack vector: [how the attack is carried out]
+          Microsoft connection: [how this relates to Microsoft products, if any]
+          Target OS: [operating system affected, default to "Microsoft / Windows" if unclear]`
         },
         {
           role: "user",
-          content: `Analyze this article and provide the following information in a structured format:
-          - Threat name (be specific, use the name mentioned in the article)
-          - Vulnerability ID (CVE or similar if mentioned, otherwise "Unspecified")
-          - Summary (2-3 sentences covering the key points)
-          - Impacts (who is affected and how)
-          - Attack vector (how the attack is carried out)
-          - Microsoft connection (how this relates to Microsoft products, if any)
-          - Target OS (if mentioned, default to "Microsoft / Windows" if unclear)
+          content: `Analyze this cybersecurity article and provide the structured information:
           
           Article Title: ${title}
           Source: ${sourceName}
-          Content: ${content}`
+          Content: ${trimmedContent}`
         }
       ],
       temperature: 0.3,
       max_tokens: 1000,
     });
 
+    // Get the analysis text from the response
     const analysisText = response.choices[0]?.message?.content || "";
+    log("Received analysis from OpenAI", "capsule-scraper");
     
-    // Parse the response
+    // Parse the response using more flexible regex patterns
     const threatMatch = analysisText.match(/Threat name:(.+?)(?=Vulnerability ID:|$)/s);
     const vulnMatch = analysisText.match(/Vulnerability ID:(.+?)(?=Summary:|$)/s);
     const summaryMatch = analysisText.match(/Summary:(.+?)(?=Impacts:|$)/s);
@@ -254,7 +250,8 @@ export async function analyzeArticleContent(
     const msMatch = analysisText.match(/Microsoft connection:(.+?)(?=Target OS:|$)/s);
     const osMatch = analysisText.match(/Target OS:(.+?)(?=$)/s);
     
-    return {
+    // Create the analysis result object
+    const result = {
       title: title,
       threatName: threatMatch ? threatMatch[1].trim() : "Unknown Threat",
       vulnerabilityId: vulnMatch ? vulnMatch[1].trim() : "Unspecified",
@@ -266,11 +263,12 @@ export async function analyzeArticleContent(
       originalUrl: url,
       targetOS: osMatch ? osMatch[1].trim() : "Microsoft / Windows",
     };
-  } catch (error) {
-    log(`Error analyzing article content: ${error}`, "capsule-scraper-error");
     
-    // Fall back to simple analysis on error
-    log("Falling back to simple analysis due to error.", "capsule-scraper");
+    log(`Successfully analyzed article: ${title}`, "capsule-scraper");
+    return result;
+  } catch (error) {
+    // Log the error details
+    log(`Error analyzing article content: ${error instanceof Error ? error.message : String(error)}`, "capsule-scraper-error");
     
     // Create a simple summary by taking first 2-3 sentences
     const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
@@ -278,12 +276,12 @@ export async function analyzeArticleContent(
     
     return {
       title,
-      threatName: "Error in AI Analysis",
+      threatName: "Analysis Error",
       vulnerabilityId: "Unspecified",
       summary: summary || "No summary available",
-      impacts: "Analysis error: " + (error instanceof Error ? error.message : String(error)),
+      impacts: "Error using OpenAI for analysis. Please check your API key and try again.",
       attackVector: "Unknown attack vector",
-      microsoftConnection: "Analysis error occurred",
+      microsoftConnection: "Error using OpenAI for analysis",
       sourcePublication: sourceName,
       originalUrl: url,
       targetOS: "Microsoft / Windows",
@@ -296,16 +294,51 @@ export async function analyzeArticleContent(
  */
 export async function scrapeAndAnalyzeArticle(url: string): Promise<ArticleAnalysis> {
   try {
+    // For demo mode - return predefined data
+    if (url.includes("demo")) {
+      log("Demo mode detected. Returning sample data.", "capsule-scraper");
+      return {
+        title: "Critical Vulnerability in Popular Software Discovered",
+        threatName: "Remote Code Execution Vulnerability",
+        vulnerabilityId: "CVE-2023-12345",
+        summary: "Security researchers have discovered a critical vulnerability in widely-used software that could allow attackers to execute arbitrary code remotely. The vulnerability affects multiple versions and could lead to complete system compromise if exploited.",
+        impacts: "The vulnerability affects all users of the software across multiple industries. Organizations with internet-exposed instances are particularly at risk of exploitation.",
+        attackVector: "The attack can be executed remotely by sending specially crafted packets to vulnerable systems, requiring no user interaction.",
+        microsoftConnection: "The vulnerability affects Microsoft Windows-based deployments of the software, with Windows Server installations being particularly vulnerable.",
+        sourcePublication: "Cybersecurity News",
+        originalUrl: url,
+        targetOS: "Microsoft / Windows",
+      };
+    }
+    
+    // Ensure we have a valid URL
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
+    
+    log(`Attempting to scrape URL: ${url}`, "capsule-scraper");
+    
     // Step 1: Scrape the URL
     const html = await scrapeUrl(url);
     
+    if (!html || html.trim().length === 0) {
+      throw new Error("Failed to retrieve content from URL");
+    }
+    
     // Step 2: Extract article content
+    log("Extracting article content...", "capsule-scraper");
     const { title, content, sourceName } = await extractArticleContent(html);
+    
+    if (!title || !content) {
+      throw new Error("Failed to extract article content");
+    }
     
     // Log successful extraction
     log(`Successfully extracted content from ${url}. Title: ${title}`, "capsule-scraper");
+    log(`Content length: ${content.length} characters`, "capsule-scraper");
     
-    // Step 3: Analyze the content
+    // Step 3: Analyze the content with OpenAI
+    log("Sending article to OpenAI for analysis...", "capsule-scraper");
     const analysis = await analyzeArticleContent(title, content, sourceName, url);
     
     // Log successful analysis

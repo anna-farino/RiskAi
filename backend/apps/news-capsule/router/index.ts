@@ -47,7 +47,18 @@ newsCapsuleRouter.post("/scrape-article", async (req, res) => {
     }
     
     // Attempt to scrape and analyze the article
+    log(`Calling scrapeAndAnalyzeArticle for URL: ${url}`, "capsule-router");
     const articleData = await scrapeAndAnalyzeArticle(url);
+    
+    // Check if we got a proper article or an error response
+    if (articleData.title === "Error Processing Article") {
+      // This is an error response from our scraper
+      return res.status(500).json({
+        success: false,
+        message: articleData.summary,
+        error: true
+      });
+    }
     
     // Log the result
     log(`Successfully scraped and analyzed article: ${articleData.title}`, "capsule-scraper");
