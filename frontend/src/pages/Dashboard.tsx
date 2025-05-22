@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, FileText, ExternalLink } from 'lucide-react';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -108,33 +108,11 @@ export default function Dashboard() {
           
           
           <RisqWidget
-            title="News Scraper"
-            description="Simple article scraper and summarizer"
-            icon={<FileText className="w-10 h-10" />}
-            variant="interactive"
-            delay={0.4}
-            onClick={() => navigate("/simple-scraper")}
-            footer={
-              <div className="mt-auto">
-                <div className="text-xs text-gray-400 mt-2 text-center">
-                  Extract insights from any article
-                </div>
-              </div>
-            }
-          >
-            <div className="space-y-3">
-              <div className="text-xs text-gray-300 text-center">
-                One-click cybersecurity article analysis
-              </div>
-            </div>
-          </RisqWidget>
-          
-          <RisqWidget
             title="News Capsule"
             description="Configure and launch news scanning operations"
             icon={<Radar className="w-10 h-10" />}
             variant="interactive"
-            delay={0.5}
+            delay={0.4}
             onClick={() => navigate("/dashboard/capsule/home")}
             footer={
               <div className="mt-auto">
