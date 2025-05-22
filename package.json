@@ -27,6 +27,7 @@
     "drizzle-zod": "^0.7.1",
     "esbuild": "^0.25.2",
     "framer-motion": "^12.11.3",
+    "node-fetch": "^2.6.7",
     "nodemon": "^3.1.9",
     "openai": "^4.98.0",
     "puppeteer": "^24.5.0",

@@ -11,6 +11,7 @@ import {
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { serverUrl } from '../../../lib/constants';
+import { csfrHeaderObject } from '../../../lib/csrf'
 
 // Article type definition
 type Article = {
@@ -110,6 +111,7 @@ export default function Dashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...csfrHeaderObject()
         },
         body: JSON.stringify({ url }),
       });
