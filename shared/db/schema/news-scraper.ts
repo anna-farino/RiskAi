@@ -1,33 +1,39 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { createId } from "@paralleldrive/cuid2";
+import { relations } from "drizzle-orm";
+import { pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users } from "./user";
+import { users } from "./auth";
 
+// Define the scraped articles table
 export const scrapedArticles = pgTable("scraped_articles", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: text("title").notNull(),
-  threatName: text("threat_name").notNull(),
+  id: varchar("id").primaryKey().$defaultFn(() => createId()),
+  title: varchar("title").notNull(),
+  threatName: varchar("threat_name").notNull(),
   summary: text("summary").notNull(),
   impacts: text("impacts").notNull(),
   osConnection: text("os_connection").notNull(),
-  source: text("source").notNull(),
-  originalUrl: text("original_url").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
+  source: varchar("source").notNull(),
+  originalUrl: varchar("original_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
 });
 
-// Create a manual insert schema to avoid issues with drizzle-zod's createInsertSchema
-export const insertScrapedArticleSchema = z.object({
-  id: z.string().uuid().optional(),
-  title: z.string(),
-  threatName: z.string(),
-  summary: z.string(),
-  impacts: z.string(),
-  osConnection: z.string(),
-  source: z.string(),
-  originalUrl: z.string(),
-  createdAt: z.date().optional(),
-  userId: z.string().uuid(),
-});
+// Define a relationship between users and scraped articles
+export const scrapedArticlesRelations = relations(scrapedArticles, ({ one }) => ({
+  user: one(users, {
+    fields: [scrapedArticles.userId],
+    references: [users.id],
+  }),
+}));
 
-export type InsertScrapedArticle = z.infer<typeof insertScrapedArticleSchema>;
+// Define the insert schema for new scraped articles
+export const insertScrapedArticleSchema = createInsertSchema(scrapedArticles)
+  .omit({
+    id: true,
+    createdAt: true,
+  });
+
+// Export types
 export type ScrapedArticle = typeof scrapedArticles.$inferSelect;
+export type InsertScrapedArticle = z.infer<typeof insertScrapedArticleSchema>;

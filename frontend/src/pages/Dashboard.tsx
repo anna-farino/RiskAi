@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert } from 'lucide-react';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, FileText } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
