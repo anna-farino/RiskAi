@@ -1,25 +1,17 @@
-import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, Printer, Clipboard, CheckCircle, AlignLeft, BarChart, Loader2 } from 'lucide-react';
-import { serverUrl } from '@/lib/constants';
-import { csfrHeaderObject } from '@/lib/csrf';
-import { useQuery } from '@tanstack/react-query';
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import React, { useEffect, useState } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { serverUrl } from '../../../lib/constants';
+import { csfrHeaderObject } from '../../../lib/csrf';
 
-// Article type
-interface Article {
+// Article type definition (same as in home.tsx)
+type Article = {
   id: string;
   title: string;
   threatName: string;
@@ -31,332 +23,154 @@ interface Article {
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
-  createdAt: string;
   markedForReporting: boolean;
-  markedForDeletion: boolean;
-  userId: string;
-}
+  createdAt: string;
+};
 
 export default function Reports() {
-  const { toast } = useToast();
-  const [reportTitle, setReportTitle] = useState('Cybersecurity Threat Intelligence Report');
-  const [reportIntroduction, setReportIntroduction] = useState('This report contains a summary of recent cybersecurity threats and vulnerabilities identified through our AI-powered analysis.');
-  const [exportFormat, setExportFormat] = useState('pdf');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch articles marked for reporting
-  const reportArticles = useQuery<Article[]>({
-    queryKey: ['/api/news-capsule/articles/for-reporting'],
-    queryFn: async () => {
+  useEffect(() => {
+    async function fetchReportArticles() {
       try {
+        setLoading(true);
         const response = await fetch(`${serverUrl}/api/news-capsule/articles/for-reporting`, {
-          method: 'GET',
           credentials: 'include',
           headers: {
-            ...csfrHeaderObject()
+            'Content-Type': 'application/json'
           }
         });
-        
-        if (!response.ok) throw new Error('Failed to fetch articles for reporting');
-        
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch reports');
+        }
+
         const data = await response.json();
-        return data || [];
-      } catch (error) {
-        console.error(error);
-        return [];
+        setArticles(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching report articles:', err);
+        setError('Failed to load reports. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     }
-  });
 
-  const handleExportReport = () => {
-    setIsGenerating(true);
-    
-    // In a real implementation, this would call a backend endpoint to generate 
-    // the report in the selected format. For now, we'll just simulate the process.
-    setTimeout(() => {
-      setIsGenerating(false);
-      
-      toast({
-        title: "Report generated",
-        description: `Your ${exportFormat.toUpperCase()} report has been generated and downloaded`,
-        variant: "default"
-      });
-    }, 2000);
-  };
+    fetchReportArticles();
+  }, []);
 
-  const handleCopyToClipboard = () => {
-    // Generate a text version of the report
-    const reportText = generateReportText();
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(reportText).then(() => {
-      setIsCopied(true);
-      
-      toast({
-        title: "Copied to clipboard",
-        description: "Report content has been copied to your clipboard",
-        variant: "default"
-      });
-      
-      setTimeout(() => setIsCopied(false), 2000);
-    }).catch(err => {
-      console.error('Failed to copy: ', err);
-      
-      toast({
-        title: "Copy failed",
-        description: "Could not copy to clipboard. Please try again.",
-        variant: "destructive"
-      });
-    });
-  };
+  function generateReportDate() {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    return `${year}-${month}-${day}`;
+  }
 
-  const generateReportText = () => {
-    let report = `${reportTitle.toUpperCase()}\n\n`;
-    report += `${reportIntroduction}\n\n`;
-    report += `Generated: ${new Date().toLocaleDateString()}\n\n`;
-    report += `THREATS IDENTIFIED: ${reportArticles.data?.length || 0}\n\n`;
-    
-    if (reportArticles.data?.length) {
-      reportArticles.data.forEach((article, index) => {
-        report += `THREAT #${index + 1}: ${article.title}\n`;
-        report += `CVE/ID: ${article.vulnerabilityId}\n`;
-        report += `Summary: ${article.summary}\n`;
-        report += `Impacts: ${article.impacts}\n`;
-        report += `Attack Vector: ${article.attackVector}\n`;
-        report += `Affected OS: ${article.targetOS}\n`;
-        report += `Source: ${article.sourcePublication}\n\n`;
-      });
-    }
-    
-    return report;
-  };
-
-  const reportPreviewContent = () => {
-    if (reportArticles.isLoading) {
-      return (
-        <div className="h-40 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-        </div>
-      );
-    }
-    
-    if (!reportArticles.data?.length) {
-      return (
-        <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-lg text-center">
-          <FileText className="h-10 w-10 text-slate-500 mx-auto mb-2" />
-          <h3 className="font-medium text-lg">No articles selected for reporting</h3>
-          <p className="text-slate-400 mt-1">
-            Mark articles for reporting from the dashboard to include them in your report
-          </p>
-        </div>
-      );
-    }
-    
+  if (loading) {
     return (
-      <div className="rounded-lg border border-slate-700 overflow-hidden">
-        <div className="p-4 bg-slate-800">
-          <h1 className="text-xl font-bold">{reportTitle}</h1>
-          <p className="text-slate-300 text-sm mt-1">{reportIntroduction}</p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            <Badge variant="outline" className="bg-blue-900/30 text-blue-300">
-              Generated: {new Date().toLocaleDateString()}
-            </Badge>
-            <Badge variant="outline" className="bg-purple-900/30 text-purple-300">
-              Threats: {reportArticles.data.length}
-            </Badge>
-          </div>
-        </div>
-        
-        <div className="p-4 bg-slate-900">
-          {reportArticles.data.map((article, index) => (
-            <div 
-              key={article.id} 
-              className="mb-4 p-3 bg-slate-800 rounded-lg border border-slate-700"
-            >
-              <div className="flex justify-between items-start">
-                <Badge>Threat #{index + 1}</Badge>
-                <Badge variant="outline" className="bg-purple-900/50 text-purple-300 border-purple-700">
-                  {article.vulnerabilityId !== 'Unspecified' 
-                    ? article.vulnerabilityId 
-                    : article.threatName.split(' ')[0]}
-                </Badge>
-              </div>
-              <h3 className="font-medium mt-2">{article.title}</h3>
-              <p className="text-sm text-slate-300 mt-1">{article.summary}</p>
-              
-              <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-                <div>
-                  <span className="text-slate-400">Impacts: </span>
-                  <span className="text-slate-300">{article.impacts}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">Attack Vector: </span>
-                  <span className="text-slate-300">{article.attackVector}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">OS: </span>
-                  <span className="text-slate-300">{article.targetOS}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">Source: </span>
-                  <span className="text-slate-300">{article.sourcePublication}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
+        <h3 className="font-bold">Error</h3>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (articles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <h2 className="text-xl font-semibold mb-4">No Articles Marked for Reporting</h2>
+        <p className="text-gray-500 mb-6">Visit the dashboard to add articles to your report</p>
+        <Button
+          onClick={() => window.location.href = '/dashboard/news-capsule'}
+          variant="outline"
+        >
+          Go to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Generate Reports</h2>
-        <p className="text-slate-400">
-          Create customized reports from your marked intelligence data
-        </p>
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Cybersecurity News Report</h1>
+          <p className="text-gray-500">Generated on {generateReportDate()}</p>
+        </div>
+        <Button>Export Report</Button>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="bg-slate-800 border-slate-700">
+
+      <div className="space-y-8">
+        {articles.map(article => (
+          <Card key={article.id} className="overflow-hidden">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <AlignLeft className="mr-2 h-5 w-5 text-purple-400" />
-                Report Options
-              </CardTitle>
+              <CardTitle>{article.title}</CardTitle>
+              <CardDescription>
+                Source: {article.sourcePublication} | Published: {new Date(article.createdAt).toLocaleDateString()}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="report-title">Report Title</Label>
-                <Input
-                  id="report-title"
-                  value={reportTitle}
-                  onChange={(e) => setReportTitle(e.target.value)}
-                  className="bg-slate-900 border-slate-700"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="report-intro">Introduction</Label>
-                <Textarea
-                  id="report-intro"
-                  value={reportIntroduction}
-                  onChange={(e) => setReportIntroduction(e.target.value)}
-                  rows={3}
-                  className="bg-slate-900 border-slate-700"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="export-format">Export Format</Label>
-                <Select value={exportFormat} onValueChange={setExportFormat}>
-                  <SelectTrigger className="bg-slate-900 border-slate-700">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pdf">PDF Document</SelectItem>
-                    <SelectItem value="docx">Word Document</SelectItem>
-                    <SelectItem value="json">JSON Data</SelectItem>
-                    <SelectItem value="md">Markdown</SelectItem>
-                  </SelectContent>
-                </Select>
+            <CardContent>
+              <div className="space-y-4">
+                {article.vulnerabilityId && (
+                  <div>
+                    <h4 className="font-semibold text-lg">Vulnerability ID</h4>
+                    <p className="bg-red-50 inline-block px-3 py-1 rounded text-red-800">
+                      {article.vulnerabilityId}
+                    </p>
+                  </div>
+                )}
+                
+                <div>
+                  <h4 className="font-semibold text-lg">Summary</h4>
+                  <p className="text-gray-700">{article.summary}</p>
+                </div>
+                
+                {article.impacts && (
+                  <div>
+                    <h4 className="font-semibold text-lg">Potential Impact</h4>
+                    <p className="text-gray-700">{article.impacts}</p>
+                  </div>
+                )}
+                
+                {article.attackVector && (
+                  <div>
+                    <h4 className="font-semibold text-lg">Attack Vector</h4>
+                    <p className="text-gray-700">{article.attackVector}</p>
+                  </div>
+                )}
+                
+                {article.targetOS && (
+                  <div>
+                    <h4 className="font-semibold text-lg">Affected Systems</h4>
+                    <p className="text-gray-700">{article.targetOS}</p>
+                  </div>
+                )}
+                
+                <div className="pt-2">
+                  <a 
+                    href={article.originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    View Original Article
+                  </a>
+                </div>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-2">
-              <Button
-                className="w-full bg-purple-700 hover:bg-purple-600"
-                onClick={handleExportReport}
-                disabled={reportArticles.isLoading || !reportArticles.data?.length || isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export Report
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleCopyToClipboard}
-                disabled={reportArticles.isLoading || !reportArticles.data?.length}
-              >
-                {isCopied ? (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Clipboard className="mr-2 h-4 w-4" />
-                    Copy to Clipboard
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={() => window.print()}
-                disabled={reportArticles.isLoading || !reportArticles.data?.length}
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Print Report
-              </Button>
-            </CardFooter>
           </Card>
-          
-          <div className="p-4 bg-slate-800 border border-slate-700 rounded-lg">
-            <div className="flex items-center">
-              <BarChart className="h-5 w-5 text-amber-400 mr-2" />
-              <h3 className="font-medium">Report Stats</h3>
-            </div>
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Threats included:</span>
-                <span className="font-medium">{reportArticles.data?.length || 0}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">CVEs identified:</span>
-                <span className="font-medium">
-                  {reportArticles.data?.filter(a => 
-                    a.vulnerabilityId !== 'Unspecified' && 
-                    a.vulnerabilityId.includes('CVE')
-                  ).length || 0}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Microsoft-related:</span>
-                <span className="font-medium">
-                  {reportArticles.data?.filter(a => 
-                    a.targetOS.toLowerCase().includes('windows') || 
-                    a.microsoftConnection.toLowerCase().includes('microsoft')
-                  ).length || 0}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="lg:col-span-2">
-          <div className="sticky top-4">
-            <h3 className="text-lg font-medium mb-3 flex items-center">
-              <FileText className="mr-2 h-5 w-5 text-purple-400" />
-              Report Preview
-            </h3>
-            
-            {reportPreviewContent()}
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

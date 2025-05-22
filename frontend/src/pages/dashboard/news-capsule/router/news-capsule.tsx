@@ -1,8 +1,8 @@
 import React from 'react';
-import NewsCapsuleLayout from "@/pages/dashboard/news-capsule/layout";
-import Dashboard from "@/pages/dashboard/news-capsule/home";
-import Submit from "@/pages/dashboard/news-capsule/submit";
-import Reports from "@/pages/dashboard/news-capsule/reports";
+import NewsCapsuleLayout from "../layout";
+import Dashboard from "../home";
+import Submit from "../submit";
+import Reports from "../reports";
 
 export const newsCapsuleRouter = {
   path: "news-capsule",

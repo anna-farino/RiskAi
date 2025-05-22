@@ -1,129 +1,81 @@
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Link as LinkIcon, Globe, Loader2 } from 'lucide-react';
-import { serverUrl } from '@/lib/constants';
-import { csfrHeaderObject } from '@/lib/csrf';
-import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { serverUrl } from '../../../lib/constants';
 
 export default function Submit() {
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Clear any existing messages
+    setMessage(null);
+    
     if (!url) {
-      toast({
-        title: "Input needed",
-        description: "Please enter a valid URL to process",
-        variant: "destructive"
+      setMessage({
+        type: 'error',
+        text: "Please enter a valid URL to process"
       });
       return;
     }
 
     try {
       setIsSubmitting(true);
+      console.log("Submitting URL for processing:", url);
       
-      // First, validate and clean the URL format client-side
+      // Clean the URL
       let processUrl = url.trim();
-      
-      // Fix double https:// if present
-      if (processUrl.startsWith('https://  https://')) {
-        processUrl = processUrl.replace('https://  https://', 'https://');
-      } else if (processUrl.startsWith('https:// https://')) {
-        processUrl = processUrl.replace('https:// https://', 'https://');
-      } else if (processUrl.startsWith('https://https://')) {
-        processUrl = processUrl.replace('https://https://', 'https://');
-      } else if (processUrl.startsWith('http:// http://')) {
-        processUrl = processUrl.replace('http:// http://', 'http://');
-      } else if (processUrl.startsWith('http://http://')) {
-        processUrl = processUrl.replace('http://http://', 'http://');
-      } else if (!processUrl.startsWith('http')) {
+      if (!processUrl.startsWith('http')) {
         processUrl = 'https://' + processUrl;
       }
       
-      // Remove any whitespace within the URL
-      processUrl = processUrl.replace(/\s+/g, '');
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ url: processUrl })
+      });
       
-      console.log("Submitting URL for processing:", processUrl);
-      
-      // First, test with a simple fetch to ensure connectivity
-      try {
-        const response = await fetch(`${serverUrl}/api/news-capsule/articles/submit`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...csfrHeaderObject()
-          },
-          body: JSON.stringify({ url: processUrl })
-        });
-        
-        // Read the response text first to help debug
-        const responseText = await response.text();
-        console.log("Raw API response:", responseText);
-        
-        // Then try to parse as JSON
-        let data;
+      if (!response.ok) {
+        // Get error details from response
+        let errorMessage = 'Failed to submit article';
         try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("JSON parse error:", parseError);
-          throw new Error("Server returned invalid JSON response");
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // If can't parse JSON, use status text
+          errorMessage = response.statusText || errorMessage;
         }
-        
-        // Check response status
-        if (!response.ok || (data && !data.success)) {
-          const errorMsg = data?.message || 'An unknown error occurred';
-          console.error("API error:", errorMsg);
-          throw new Error(errorMsg);
-        }
-      } catch (fetchError) {
-        console.error("Fetch error:", fetchError);
-        throw fetchError;
+        throw new Error(errorMessage);
       }
+
+      // Successfully submitted
+      setMessage({
+        type: 'success',
+        text: "Your article has been submitted for processing"
+      });
       
-      // Success - show different messages based on if it was processed immediately or queued
-      if (response.status === 200) {
-        toast({
-          title: "Article processed",
-          description: "Your article has been processed and added to the dashboard",
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Article submitted",
-          description: "Your article is being processed and will appear on the dashboard soon",
-          variant: "default"
-        });
-      }
-      
-      // Clear the input
+      // Clear the form
       setUrl('');
       
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: ['/api/news-capsule/articles'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/news-capsule/queue/status'] });
-      
-      // Navigate to the dashboard after a short delay
+      // Navigate to dashboard after short delay
       setTimeout(() => {
-        navigate("/dashboard/news-capsule/home");
+        navigate('/dashboard/news-capsule');
       }, 1500);
       
     } catch (error) {
-      console.error("Submission error:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit the article. Please try again.",
-        variant: "destructive"
+      console.error('Submission error:', error);
+      
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : "An unknown error occurred"
       });
     } finally {
       setIsSubmitting(false);
@@ -131,93 +83,62 @@ export default function Submit() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Submit Article</h2>
-        <p className="text-slate-400">
-          Enter the URL of a cybersecurity article to process with AI
+    <div className="max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Submit News Article</h1>
+      
+      {message && (
+        <div className={`p-4 mb-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+          {message.text}
+        </div>
+      )}
+      
+      <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
+        <p className="text-gray-600 mb-4">
+          Enter the URL of a cybersecurity news article to analyze and add to your dashboard.
         </p>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="url" className="block text-sm font-medium mb-1">
+              Article URL
+            </label>
+            <Input
+              id="url"
+              type="text"
+              placeholder="https://example.com/security-article"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="w-full"
+              disabled={isSubmitting}
+            />
+          </div>
+          
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </>
+            ) : "Submit Article"}
+          </Button>
+        </form>
       </div>
       
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle>Article URL Submission</CardTitle>
-          <CardDescription>
-            Our AI will automatically extract threat intelligence from the article
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="url">Article URL</Label>
-              <div className="flex">
-                <div className="relative flex-1">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <Input
-                    id="url"
-                    type="url"
-                    placeholder="https://example.com/security-article"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="ml-2 bg-purple-700 hover:bg-purple-600"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing
-                    </>
-                  ) : (
-                    <>
-                      Submit
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex flex-col items-start border-t border-slate-700 pt-4">
-          <h4 className="font-semibold mb-2 flex items-center">
-            <Globe className="mr-2 h-4 w-4 text-cyan-400" />
-            Supported Sources
-          </h4>
-          <p className="text-sm text-slate-400 leading-relaxed">
-            For best results, submit articles from established cybersecurity news sources such as:
-            The Hacker News, Krebs on Security, Ars Technica, Bleeping Computer, 
-            ZDNet Security, Dark Reading, Microsoft Security Blog, and similar publications.
-          </p>
-        </CardFooter>
-      </Card>
-      
-      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 space-y-3">
-        <h3 className="font-medium text-lg">How the Process Works</h3>
-        
-        <ol className="space-y-2 text-slate-300">
-          <li className="flex">
-            <span className="bg-purple-900/50 text-purple-300 rounded-full h-6 w-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">1</span>
-            <p>Submit the URL of a cybersecurity article.</p>
-          </li>
-          <li className="flex">
-            <span className="bg-purple-900/50 text-purple-300 rounded-full h-6 w-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">2</span>
-            <p>Our system extracts the article content and processes it with OpenAI's language model.</p>
-          </li>
-          <li className="flex">
-            <span className="bg-purple-900/50 text-purple-300 rounded-full h-6 w-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">3</span>
-            <p>The AI identifies key threat elements like CVEs, impacts, and attack vectors.</p>
-          </li>
-          <li className="flex">
-            <span className="bg-purple-900/50 text-purple-300 rounded-full h-6 w-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">4</span>
-            <p>Structured data is added to your dashboard for analysis.</p>
-          </li>
-        </ol>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-medium text-blue-800 mb-2">Tips for best results:</h3>
+        <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
+          <li>Submit articles from reputable cybersecurity news sources</li>
+          <li>Articles should focus on specific security vulnerabilities or threats</li>
+          <li>Make sure the URL is publicly accessible</li>
+          <li>Processing may take a few moments for detailed analysis</li>
+        </ul>
       </div>
     </div>
   );
