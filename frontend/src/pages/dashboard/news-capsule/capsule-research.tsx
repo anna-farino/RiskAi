@@ -100,19 +100,25 @@ export default function CapsuleResearch() {
   const handleDemoClick = () => {
     setUrl("demo");
     
-    // Directly set mock data for immediate demo
-    setArticleSummary({
-      title: "Critical Vulnerability in Popular Software Discovered",
-      threatName: "Remote Code Execution Vulnerability",
-      vulnerabilityId: "CVE-2023-12345",
-      summary: "Security researchers have discovered a critical vulnerability in widely-used software that could allow attackers to execute arbitrary code remotely. The vulnerability affects multiple versions and could lead to complete system compromise if exploited.",
-      impacts: "The vulnerability affects all users of the software across multiple industries. Organizations with internet-exposed instances are particularly at risk of exploitation.",
-      attackVector: "The attack can be executed remotely by sending specially crafted packets to vulnerable systems, requiring no user interaction.",
-      microsoftConnection: "The vulnerability affects Microsoft Windows-based deployments of the software, with Windows Server installations being particularly vulnerable.",
-      sourcePublication: "Cybersecurity News",
-      originalUrl: "https://demo.example.com/article",
-      targetOS: "Microsoft / Windows",
-    });
+    // Immediately show the demo data without making any API calls
+    setTimeout(() => {
+      setLoading(false);
+      setArticleSummary({
+        title: "more_eggs Malware Exploits Job Application Emails to Target Companies",
+        threatName: "more_eggs Malware Campaign",
+        vulnerabilityId: "Unspecified",
+        summary: "Cybercriminals are targeting companies with sophisticated phishing emails that appear to be job applications but actually deliver the more_eggs malware. This campaign particularly targets HR departments and hiring managers, using legitimate job application themes and professional-looking resumes as attachments.",
+        impacts: "Organizations with active hiring processes are at risk. Once infected, the malware provides attackers with backdoor access to company systems, potentially leading to data theft, financial fraud, or further network penetration.",
+        attackVector: "The attack begins with phishing emails containing malicious attachments disguised as resumes. When opened, the attachments execute JavaScript that downloads and installs the more_eggs backdoor malware.",
+        microsoftConnection: "The malware primarily targets Windows systems and can exploit Microsoft Office document vulnerabilities when executed.",
+        sourcePublication: "Cybersecurity News",
+        originalUrl: "https://cybersecuritynews.com/more_eggs-malware-exploits-job-application-emails/",
+        targetOS: "Microsoft Windows",
+      });
+    }, 500);
+    
+    // Show loading indicator briefly for better UX
+    setLoading(true);
   };
 
   return (
