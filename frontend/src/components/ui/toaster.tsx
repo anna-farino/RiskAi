@@ -1,25 +1,34 @@
+"use client"
+
+import {
+  Toast,
+  ToastClose,
+  ToastDescription,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+} from "@/components/ui/toast"
 import { useToast } from "@/hooks/use-toast"
 
-type ToastProps = {
-  title?: string
-  description?: string
-  variant?: "default" | "destructive"
-}
-
 export function Toaster() {
-  const { toast } = useToast()
-  
-  function showToast({ title, description, variant = "default" }: ToastProps) {
-    toast({
-      title,
-      description,
-      variant
-    })
-  }
+  const { toasts } = useToast()
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      {/* Toast container */}
-    </div>
+    <ToastProvider>
+        {toasts.map(function({ id, title, description, ...props }) {
+          return (
+            <Toast key={id} {...props} className="mb-2">
+              <div className="grid gap-1">
+                {title && <ToastTitle>{title}</ToastTitle>}
+                {description && (
+                  <ToastDescription>{description}</ToastDescription>
+                )}
+              </div>
+              <ToastClose />
+            </Toast>
+          )
+        })}
+      <ToastViewport />
+    </ToastProvider>
   )
 }

@@ -14,7 +14,7 @@ import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'bac
 import { withDbContext } from 'backend/middleware/with-db-context';
 //import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
-import scraperRouter from './scraper-router';
+import simpleScraperRouter from '../routes/simple-scraper-routes';
 
 const limiter = rateLimit(rateLimitConfig)
 
@@ -41,7 +41,7 @@ router.use('/users', usersRouter)
 
 router.use('/news-tracker', newsRouter)
 router.use('/threat-tracker', threatRouter)
-router.use('/news-scraper', scraperRouter)
+router.use('/simple-scraper', simpleScraperRouter)
 
 router.post('/secrets', storeSecret)
 router.get('/secrets', getSecrets)

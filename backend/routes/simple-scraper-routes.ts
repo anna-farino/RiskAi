@@ -1,26 +1,61 @@
+import express from 'express';
 import puppeteer from 'puppeteer';
 import OpenAI from 'openai';
-import dotenv from 'dotenv';
+import { z } from 'zod';
 
-// Load environment variables
-dotenv.config();
-
-// URL of a cybersecurity article to test
-const TEST_URL = 'https://thehackernews.com/2023/03/new-stealth-backdoor-malware-targeting.html';
+const router = express.Router();
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-async function scrapeArticle(url) {
+// Schema for URL validation
+const urlSchema = z.object({
+  url: z.string().url("Please provide a valid URL")
+});
+
+// Process a new article
+router.post('/process', async (req, res) => {
+  try {
+    // Validate the URL
+    const validationResult = urlSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Invalid URL format" 
+      });
+    }
+
+    const { url } = validationResult.data;
+    
+    // Scrape the article
+    const content = await scrapeArticle(url);
+    
+    // Process with OpenAI
+    const processedArticle = await processArticleWithAI(url, content);
+    
+    return res.status(200).json({
+      success: true,
+      article: processedArticle
+    });
+  } catch (error) {
+    console.error('Error processing article:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to process article"
+    });
+  }
+});
+
+// Scrape content from a URL using Puppeteer
+async function scrapeArticle(url: string): Promise<string> {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
   try {
-    console.log(`Navigating to ${url}...`);
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
     
@@ -53,12 +88,12 @@ async function scrapeArticle(url) {
   }
 }
 
-async function processArticleWithAI(url, content) {
+// Process article content with OpenAI
+async function processArticleWithAI(url: string, content: string): Promise<any> {
   // Extract domain for source
   const domain = new URL(url).hostname.replace('www.', '');
   const sourceName = formatSourceName(domain);
   
-  console.log('Processing with OpenAI...');
   // Create prompt for OpenAI
   const completion = await openai.chat.completions.create({
     model: "gpt-3.5-turbo",
@@ -86,16 +121,16 @@ Be factual and concise. Only include information that's explicitly mentioned in 
   });
   
   const aiResponse = completion.choices[0]?.message?.content || '';
-  console.log('OpenAI processing complete!');
   
   // Parse the AI response
-  const extractField = (text, field) => {
+  const extractField = (text: string, field: string): string => {
     const regex = new RegExp(`${field}:\\s*([^\\n]+(?:\\n(?!\\w+:)[^\\n]+)*)`, 'i');
     const match = text.match(regex);
     return match ? match[1].trim() : '';
   };
   
   return {
+    id: Date.now().toString(),
     title: extractField(aiResponse, 'Title') || 'Untitled Article',
     threatName: extractField(aiResponse, 'Threat Name') || extractField(aiResponse, 'Threat Name\\(s\\)') || 'Unknown',
     summary: extractField(aiResponse, 'Summary') || 'No summary available',
@@ -107,9 +142,9 @@ Be factual and concise. Only include information that's explicitly mentioned in 
 }
 
 // Format source name from domain
-function formatSourceName(domain) {
+function formatSourceName(domain: string): string {
   // Map of common cybersecurity domains to their proper names
-  const sourceNameMap = {
+  const sourceNameMap: Record<string, string> = {
     'thehackernews.com': 'The Hacker News',
     'krebsonsecurity.com': 'Krebs on Security',
     'bleepingcomputer.com': 'Bleeping Computer',
@@ -140,35 +175,4 @@ function formatSourceName(domain) {
     .join(' ');
 }
 
-async function testNewsScraper() {
-  try {
-    console.log(`Testing news scraper with URL: ${TEST_URL}`);
-    
-    // Step 1: Scrape the article content
-    console.log('Scraping article content...');
-    const content = await scrapeArticle(TEST_URL);
-    console.log(`Successfully scraped ${content.length} characters of content`);
-    
-    // Step 2: Process with OpenAI to extract information
-    console.log('Processing article with OpenAI...');
-    const processedArticle = await processArticleWithAI(TEST_URL, content);
-    
-    // Step 3: Display the processed article
-    console.log('\nProcessed Article Summary:');
-    console.log('==========================');
-    console.log(`Title: ${processedArticle.title}`);
-    console.log(`Threat Name: ${processedArticle.threatName}`);
-    console.log(`Summary: ${processedArticle.summary}`);
-    console.log(`Impacts: ${processedArticle.impacts}`);
-    console.log(`OS Connection: ${processedArticle.osConnection}`);
-    console.log(`Source: ${processedArticle.source}`);
-    console.log(`Original URL: ${processedArticle.originalUrl}`);
-    console.log('==========================');
-    
-    console.log('\nTest completed successfully!');
-  } catch (error) {
-    console.error('Error during test:', error);
-  }
-}
-
-testNewsScraper();
+export default router;
