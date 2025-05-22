@@ -34,69 +34,37 @@ export default function Submit() {
         processUrl = 'https://' + processUrl;
       }
       
-      // Simulate a successful article submission
-      // In a production environment, this would be a real API call
-      // Extract domain from URL for use in the summary
-      const hostname = new URL(processUrl).hostname.replace('www.', '');
-      
-      // Create article data following the EXACT official format
-      const mockArticleData = {
-        id: crypto.randomUUID(),
-        // Title (based on the article's actual title)
-        title: `Malware Campaign Targets Financial Institutions`,
-        // Threat Name(s) (identifying the vulnerability or exploit mentioned)
-        threatName: "BankingTrojan.Win32",
-        // Summary (80 words maximum)
-        summary: `A sophisticated malware campaign targeting financial institutions has been discovered. The malware uses social engineering tactics to trick employees into downloading malicious attachments. Once installed, it can steal banking credentials, access internal systems, and initiate fraudulent transactions. Security researchers note this campaign primarily targets North American and European banks.`,
-        // Impacts (business and technical impacts)
-        impacts: "Financial loss, data theft, regulatory compliance violations, reputational damage. Systems compromised include authentication servers and transaction processing systems.",
-        // Extra fields kept for compatibility but not displayed in reports
-        vulnerabilityId: "",
-        attackVector: "",
-        microsoftConnection: "",
-        // Source (publication name, not URL)
-        sourcePublication: hostname.split('.')[0],
-        // Keep the original URL for reference
-        originalUrl: processUrl,
-        // OS Connection (which operating systems are affected)
-        targetOS: "Windows 10, Windows 11, Windows Server 2019",
-        createdAt: new Date().toISOString(),
-        markedForReporting: true,
-        markedForDeletion: false
-      };
-      
-      // Store the mock article in localStorage so we can display it
-      const existingArticles = JSON.parse(localStorage.getItem('news-capsule-articles') || '[]');
-      existingArticles.push(mockArticleData);
-      localStorage.setItem('news-capsule-articles', JSON.stringify(existingArticles));
-      
-      // Create a mock response object
-      const response = {
-        ok: true,
-        status: 200,
-        json: async () => ({ 
-          success: true, 
-          message: "Article processed successfully",
-          article: mockArticleData
-        })
-      };
-      
-      // Our mock response is always successful
-      // but we'll keep this structure for future API integration
-
-      // Successfully submitted
-      setMessage({
-        type: 'success',
-        text: "Your article has been submitted for processing"
+      // Submit the article URL to the API for processing
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: processUrl }),
       });
       
-      // Clear the form
-      setUrl('');
+      const responseData = await response.json();
       
-      // Navigate to dashboard after short delay
-      setTimeout(() => {
-        navigate('/dashboard/news-capsule');
-      }, 1500);
+      // Handle the API response
+      if (response.ok && responseData.success) {
+        // Successfully submitted
+        setMessage({
+          type: 'success',
+          text: "Your article has been successfully processed"
+        });
+        
+        // Clear the form
+        setUrl('');
+        
+        // Navigate to dashboard after short delay
+        setTimeout(() => {
+          navigate('/dashboard/news-capsule');
+        }, 1500);
+      } else {
+        // API returned an error
+        const errorMsg = responseData.message || "Failed to process the article";
+        throw new Error(errorMsg);
+      }
       
     } catch (error) {
       console.error('Submission error:', error);
