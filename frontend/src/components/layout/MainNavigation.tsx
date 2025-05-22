@@ -116,7 +116,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           Menu
         </h2>
         <p className="text-xs text-gray-400">
-          Explore RisqAI platform features and tools
+          Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
         </p>
       </div>
 
@@ -256,7 +256,7 @@ export const MobileNavigation = () => {
                   Menu
                 </h2>
                 <p className="text-xs text-gray-400">
-                  Explore RisqAI platform features and tools
+                  Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
                 </p>
               </div>
 
