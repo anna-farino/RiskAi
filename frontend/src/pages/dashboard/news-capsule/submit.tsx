@@ -113,13 +113,17 @@ export default function Submit() {
       <h1 className="text-2xl font-bold mb-6">Submit News Article</h1>
       
       {message && (
-        <div className={`p-4 mb-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+        <div className={`p-4 mb-4 rounded-md ${
+        message.type === 'success' 
+          ? 'bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-100 border border-green-200 dark:border-green-800' 
+          : 'bg-red-50 dark:bg-red-900 text-red-800 dark:text-red-100 border border-red-200 dark:border-red-800'
+      }`}>
           {message.text}
         </div>
       )}
       
-      <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-        <p className="text-gray-600 mb-4">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm mb-8">
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
           Enter the URL of a cybersecurity news article to analyze and add to your dashboard.
         </p>
         
@@ -157,9 +161,9 @@ export default function Submit() {
         </form>
       </div>
       
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-medium text-blue-800 mb-2">Tips for best results:</h3>
-        <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
+      <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+        <h3 className="font-medium text-blue-800 dark:text-blue-100 mb-2">Tips for best results:</h3>
+        <ul className="list-disc list-inside text-sm text-blue-700 dark:text-blue-200 space-y-1">
           <li>Submit articles from reputable cybersecurity news sources</li>
           <li>Articles should focus on specific security vulnerabilities or threats</li>
           <li>Make sure the URL is publicly accessible</li>
