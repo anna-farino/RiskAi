@@ -83,42 +83,23 @@ capsuleRouter.post("/articles/submit", async (req, res) => {
       log(`Processing URL: ${url}`, "news-capsule");
       
       try {
-        // Extract domain for the source publication
-        let hostname;
-        try {
-          hostname = new URL(url).hostname.replace('www.', '');
-        } catch (urlError) {
-          hostname = url.split('/')[0];
+        // Queue the article for processing or process it immediately
+        const result = await processArticle(url, userId);
+        
+        if (!result) {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to process the article"
+          });
         }
-
-        // Create sample cybersecurity article data
-        const articleData = {
-          title: `Security Alert: New Vulnerability Discovered in ${hostname}`,
-          threatName: "Critical Security Vulnerability",
-          vulnerabilityId: "CVE-2025-0001",
-          summary: `Security researchers have identified a new vulnerability affecting systems related to ${hostname}. This could potentially allow attackers to gain unauthorized access.`,
-          impacts: "Potential data breach and unauthorized system access",
-          attackVector: "Remote code execution via unpatched systems",
-          microsoftConnection: "May affect Windows-based deployments",
-          sourcePublication: hostname,
-          originalUrl: url,
-          targetOS: "Windows and Linux systems",
-          userId: userId,
-          createdAt: new Date().toISOString(),
-          markedForReporting: true,
-          markedForDeletion: false
-        };
         
-        // Save to database
-        const savedArticle = await storage.createArticle(articleData);
-        
-        log(`Successfully created article in database with ID: ${savedArticle.id}`, "news-capsule");
+        log(`Successfully processed article with ID: ${result.id}`, "news-capsule");
         
         // Return success response
         return res.status(200).json({
           success: true,
           message: "Article successfully processed and saved",
-          article: savedArticle
+          article: result
         });
       } catch (dbError) {
         log(`Database error: ${dbError}`, "news-capsule");

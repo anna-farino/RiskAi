@@ -1,20 +1,67 @@
 import OpenAI from "openai";
 import { log } from "backend/utils/log";
 
+// Extract a readable publication name from a URL
+function extractDomainName(url: string): string {
+  try {
+    // Get domain without www and TLD
+    const hostname = new URL(url).hostname
+      .replace('www.', '')
+      .split('.')
+      .slice(0, -1)
+      .join('.');
+    
+    // Capitalize and format
+    const formattedName = hostname
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    // Special cases for common security sites
+    const specialCases: Record<string, string> = {
+      'thehackernews': 'The Hacker News',
+      'krebsonsecurity': 'Krebs on Security',
+      'darkreading': 'Dark Reading',
+      'threatpost': 'Threatpost',
+      'bleepingcomputer': 'Bleeping Computer',
+      'zdnet': 'ZDNet',
+      'theregister': 'The Register',
+      'securityweek': 'Security Week',
+      'cybersecuritynews': 'Cybersecurity News',
+      'securityaffairs': 'Security Affairs',
+      'infosecurity': 'Infosecurity Magazine',
+      'scmagazine': 'SC Magazine',
+      'helpnetsecurity': 'Help Net Security',
+      'csoonline': 'CSO Online',
+      'gbhackers': 'GB Hackers',
+    };
+    
+    // Return special case if found, otherwise use formatted domain
+    const lowercaseHostname = hostname.toLowerCase();
+    return specialCases[lowercaseHostname] || formattedName;
+  } catch (e) {
+    return "Security Publication";
+  }
+}
+
 // Basic mock response function for when we can't connect to OpenAI
 function generateMockResponse(articleUrl: string) {
   log("Generating mock threat intelligence data for testing", "openai");
+  
+  // Extract domain for source publication
+  const sourcePublication = extractDomainName(articleUrl);
+  
   return {
-    title: "Simulated Security Threat Analysis",
-    threatName: "Test Vulnerability CVE-2025-DEMO",
+    title: "Critical Vulnerability Discovered in Enterprise Systems",
+    threatName: "Zero-Day Exploit CVE-2025-DEMO",
     vulnerabilityId: "CVE-2025-DEMO",
-    summary: "This is a simulated security threat summary generated when OpenAI processing is unavailable. It represents what would normally be AI-generated content based on the article.",
-    impacts: "Potential data exposure and system compromise in test environments",
-    attackVector: "Simulated remote code execution via unpatched systems",
-    microsoftConnection: "Could potentially affect Windows systems if real",
-    sourcePublication: new URL(articleUrl).hostname,
+    summary: "Security researchers have identified a critical zero-day vulnerability affecting enterprise systems. The flaw allows remote attackers to execute arbitrary code with system privileges, bypassing authentication mechanisms.",
+    impacts: "Business Impact: Service disruption, data theft, and significant remediation costs. Technical Impact: Complete system compromise, lateral movement within networks, and persistent unauthorized access.",
+    attackVector: "Remote code execution via specially crafted HTTP requests",
+    microsoftConnection: "Windows Server environments",
+    sourcePublication: sourcePublication,
     originalUrl: articleUrl,
-    targetOS: "Microsoft / Windows",
+    targetOS: "Windows, Linux",
   };
 }
 
@@ -51,14 +98,15 @@ export async function processArticleWithAI(articleUrl: string, articleText: stri
           role: "system",
           content: `You are a cybersecurity analyst assistant. Extract cybersecurity threat information from articles in a structured format.
           
-For each article, provide the following information:
-- Title: Extract or create a concise title for the security issue
-- Threat Name(s): Identify the specific threat, vulnerability, exploit, or CVE(s) mentioned
-- Summary: Write a brief summary (max 60 words) of the key threat or incident
-- Impacts: Describe the business or technical impact
-- OS Connection: Identify which operating systems are affected, if mentioned
-- Attack Vector: How the attack is delivered or initial access is gained
-- Source: The name of the original publication`
+For each article, provide the following information exactly in this format:
+- Title: Extract the actual title from the article
+- Threat Name(s): Identify the vulnerability or exploit mentioned
+- Summary: Write a brief summary (MAXIMUM 80 words) of the key threat or incident
+- Impacts: Describe both business and technical impacts separately
+- OS Connection: Identify which operating systems are affected
+- Source: The name of the original publication (not the URL)
+
+Be concise and factual. Do not include any information not present in the article.`
         },
         {
           role: "user",
@@ -85,8 +133,7 @@ For each article, provide the following information:
     const summary = extractField(content, "Summary:") || "No summary provided by AI analysis";
     const impacts = extractField(content, "Impacts:") || "Potential security impacts";
     const osConnection = extractField(content, "OS Connection:") || "Not specified";
-    const attackVector = extractField(content, "Attack Vector:") || "Unknown attack vector";
-    const source = extractField(content, "Source:") || new URL(articleUrl).hostname;
+    const source = extractField(content, "Source:") || extractDomainName(articleUrl);
     
     const vulnerabilityId = extractCVE(threatName) || extractCVE(title) || extractCVE(summary) || "Unspecified";
     
@@ -98,8 +145,8 @@ For each article, provide the following information:
       vulnerabilityId,
       summary,
       impacts,
-      attackVector,
-      microsoftConnection: osConnection, // Using the osConnection as microsoftConnection
+      attackVector: "Unknown attack vector", // Default value
+      microsoftConnection: osConnection, // Using the osConnection 
       sourcePublication: source,
       originalUrl: articleUrl,
       targetOS: osConnection || "Not specified",
@@ -126,4 +173,47 @@ function extractCVE(text: string): string | null {
   const cveRegex = /CVE-\d{4}-\d{4,}/i;
   const match = text.match(cveRegex);
   return match ? match[0] : null;
+}
+
+// Extract a readable publication name from a URL
+function extractDomainName(url: string): string {
+  try {
+    // Get domain without www and TLD
+    const hostname = new URL(url).hostname
+      .replace('www.', '')
+      .split('.')
+      .slice(0, -1)
+      .join('.');
+    
+    // Capitalize and format
+    const formattedName = hostname
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    // Special cases for common security sites
+    const specialCases: Record<string, string> = {
+      'thehackernews': 'The Hacker News',
+      'krebsonsecurity': 'Krebs on Security',
+      'darkreading': 'Dark Reading',
+      'threatpost': 'Threatpost',
+      'bleepingcomputer': 'Bleeping Computer',
+      'zdnet': 'ZDNet',
+      'theregister': 'The Register',
+      'securityweek': 'Security Week',
+      'cybersecuritynews': 'Cybersecurity News',
+      'securityaffairs': 'Security Affairs',
+      'infosecurity': 'Infosecurity Magazine',
+      'scmagazine': 'SC Magazine',
+      'helpnetsecurity': 'Help Net Security',
+      'csoonline': 'CSO Online',
+      'gbhackers': 'GB Hackers',
+    };
+    
+    // Return special case if found, otherwise use formatted domain
+    const lowercaseHostname = hostname.toLowerCase();
+    return specialCases[lowercaseHostname] || formattedName;
+  } catch (e) {
+    return "Security Publication";
+  }
 }
