@@ -33,32 +33,43 @@ export default function Reports() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchReportArticles() {
+    function loadReportArticles() {
       try {
         setLoading(true);
-        const response = await fetch(`${serverUrl}/api/news-capsule/articles/for-reporting`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch reports');
+        
+        // Load articles from localStorage
+        const storedArticles = localStorage.getItem('news-capsule-articles');
+        
+        if (storedArticles) {
+          // Parse articles and filter only those marked for reporting
+          const parsedArticles = JSON.parse(storedArticles);
+          const reportArticles = parsedArticles.filter(
+            (article: Article) => article.markedForReporting === true
+          );
+          setArticles(reportArticles);
+        } else {
+          // If no articles exist yet, set empty array
+          setArticles([]);
         }
-
-        const data = await response.json();
-        setArticles(data);
+        
         setError(null);
       } catch (err) {
-        console.error('Error fetching report articles:', err);
+        console.error('Error loading report articles:', err);
         setError('Failed to load reports. Please try again later.');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchReportArticles();
+    loadReportArticles();
+    
+    // Refresh when localStorage changes
+    window.addEventListener('storage', loadReportArticles);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', loadReportArticles);
+    };
   }, []);
 
   function generateReportDate() {

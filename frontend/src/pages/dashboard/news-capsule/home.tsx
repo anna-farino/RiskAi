@@ -34,55 +34,59 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchArticles() {
+    function loadArticles() {
       try {
         setLoading(true);
-        const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch articles');
+        
+        // Load articles from localStorage
+        const storedArticles = localStorage.getItem('news-capsule-articles');
+        
+        if (storedArticles) {
+          const parsedArticles = JSON.parse(storedArticles);
+          setArticles(parsedArticles);
+        } else {
+          // If no articles exist yet, set empty array
+          setArticles([]);
         }
-
-        const data = await response.json();
-        setArticles(data);
+        
         setError(null);
       } catch (err) {
-        console.error('Error fetching articles:', err);
+        console.error('Error loading articles:', err);
         setError('Failed to load articles. Please try again later.');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchArticles();
+    loadArticles();
+    
+    // Add event listener to refresh articles when localStorage changes
+    window.addEventListener('storage', loadArticles);
+    
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('storage', loadArticles);
+    };
   }, []);
 
-  async function handleMarkForReporting(id: string, currentValue: boolean) {
+  function handleMarkForReporting(id: string, currentValue: boolean) {
     try {
-      const response = await fetch(`${serverUrl}/api/news-capsule/articles/${id}/reporting`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ markedForReporting: !currentValue })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update article');
-      }
-
-      // Update articles state
-      setArticles(articles.map(article => 
+      // Update the article directly in state
+      const updatedArticles = articles.map(article => 
         article.id === id 
           ? { ...article, markedForReporting: !currentValue } 
           : article
-      ));
+      );
+      
+      // Update state
+      setArticles(updatedArticles);
+      
+      // Also update in localStorage for persistence
+      localStorage.setItem('news-capsule-articles', JSON.stringify(updatedArticles));
+      
+      // Trigger storage event to update other components
+      window.dispatchEvent(new Event('storage'));
+      
     } catch (err) {
       console.error('Error updating article:', err);
       setError('Failed to update article. Please try again later.');

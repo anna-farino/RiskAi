@@ -1,5 +1,5 @@
-// Base URL for API requests
-export const serverUrl = 'http://localhost:3000';
+// Base URL for API requests - using the Replit URL
+export const serverUrl = window.location.origin;
 
 // Constants for News Capsule feature
 export const NEWS_CAPSULE = {
