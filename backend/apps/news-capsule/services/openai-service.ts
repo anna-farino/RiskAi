@@ -122,6 +122,7 @@ function extractField(content: string, fieldName: string): string {
 
 // Extract CVE ID if present
 function extractCVE(text: string): string | null {
+  if (!text) return null;
   const cveRegex = /CVE-\d{4}-\d{4,}/i;
   const match = text.match(cveRegex);
   return match ? match[0] : null;

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function Submit() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,31 +32,63 @@ export default function Submit() {
     try {
       setIsSubmitting(true);
       
-      // First, validate the URL format client-side
-      let processUrl = url;
-      if (!processUrl.startsWith('http')) {
+      // First, validate and clean the URL format client-side
+      let processUrl = url.trim();
+      
+      // Fix double https:// if present
+      if (processUrl.startsWith('https://  https://')) {
+        processUrl = processUrl.replace('https://  https://', 'https://');
+      } else if (processUrl.startsWith('https:// https://')) {
+        processUrl = processUrl.replace('https:// https://', 'https://');
+      } else if (processUrl.startsWith('https://https://')) {
+        processUrl = processUrl.replace('https://https://', 'https://');
+      } else if (processUrl.startsWith('http:// http://')) {
+        processUrl = processUrl.replace('http:// http://', 'http://');
+      } else if (processUrl.startsWith('http://http://')) {
+        processUrl = processUrl.replace('http://http://', 'http://');
+      } else if (!processUrl.startsWith('http')) {
         processUrl = 'https://' + processUrl;
       }
       
+      // Remove any whitespace within the URL
+      processUrl = processUrl.replace(/\s+/g, '');
+      
       console.log("Submitting URL for processing:", processUrl);
       
-      const response = await fetch(`${serverUrl}/api/news-capsule/articles/submit`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...csfrHeaderObject()
-        },
-        body: JSON.stringify({ url: processUrl })
-      });
-      
-      const data = await response.json();
-      
-      // Check response status
-      if (!response.ok || !data.success) {
-        const errorMsg = data.message || 'An unknown error occurred';
-        console.error("API error:", errorMsg);
-        throw new Error(errorMsg);
+      // First, test with a simple fetch to ensure connectivity
+      try {
+        const response = await fetch(`${serverUrl}/api/news-capsule/articles/submit`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify({ url: processUrl })
+        });
+        
+        // Read the response text first to help debug
+        const responseText = await response.text();
+        console.log("Raw API response:", responseText);
+        
+        // Then try to parse as JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("JSON parse error:", parseError);
+          throw new Error("Server returned invalid JSON response");
+        }
+        
+        // Check response status
+        if (!response.ok || (data && !data.success)) {
+          const errorMsg = data?.message || 'An unknown error occurred';
+          console.error("API error:", errorMsg);
+          throw new Error(errorMsg);
+        }
+      } catch (fetchError) {
+        console.error("Fetch error:", fetchError);
+        throw fetchError;
       }
       
       // Success - show different messages based on if it was processed immediately or queued
