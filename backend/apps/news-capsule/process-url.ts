@@ -72,7 +72,6 @@ let browser: Browser | null = null;
 
 async function getBrowser() {
   log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, PUPPETEER_EXECUTABLE_PATH )
-  if (!browser) {
     try {
       // Use a more minimal configuration to avoid dependencies
       browser = await puppeteer.launch({
@@ -106,7 +105,6 @@ async function getBrowser() {
       console.error("[getBrowser] Failed to launch browser:", error);
       throw error;
     }
-  }
   console.log("[getBrowser] browser instance:", browser)
   return browser;
 }
@@ -174,8 +172,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       const paragraphs = Array.from(document.querySelectorAll('p')).map(p => p.innerText).join(' ');
       
       // Get the publication name
-      const publication = document.querySelector('meta[property="og:site_name"]')?.getAttribute('content') || 
-                          new URL(window.location.href).hostname;
+      const publication = document.querySelector('meta[property="og:site_name"]')?.getAttribute('content') || new URL(window.location.href).hostname;
       
       return {
         title,
@@ -186,14 +183,16 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
     
     return JSON.stringify(content);
   } catch (error) {
+    browser = null
     console.error('Error scraping article:', error);
-    return null;
+    throw new Error('Failed to scrape article content')
   } finally {
     if (browser) {
       await browser.close();
     }
   }
 }
+
 
 async function generateArticleSummary(contentJson: string, url: string) {
   try {
