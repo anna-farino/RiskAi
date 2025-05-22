@@ -109,15 +109,15 @@ export default function Dashboard() {
           
           <RisqWidget
             title="News Capsule"
-            description="Configure and launch news scanning operations"
+            description="Research and analyze articles for executive reports"
             icon={<Radar className="w-10 h-10" />}
             variant="interactive"
             delay={0.4}
-            onClick={() => navigate("/dashboard/capsule/home")}
+            onClick={() => navigate("/dashboard/capsule/research")}
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  Last scan completed 25 minutes ago
+                  Scrape and summarize articles with AI
                 </div>
               </div>
             }

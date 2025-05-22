@@ -1,6 +1,6 @@
 import CapsuleResearch from "../capsule-research";
 import ExecutiveReporting from "../executive-reporting";
-import NewsCapsuleLayout from "@/components/layout/news-capsule-layout";
+import NewsCapsuleLayout from "../layout";
 
 export const newsCapsuleRouter = {
   path: "capsule",
