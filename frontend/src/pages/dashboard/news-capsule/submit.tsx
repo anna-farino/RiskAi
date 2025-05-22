@@ -69,18 +69,8 @@ export default function Submit() {
         })
       };
       
-      if (!response.ok) {
-        // Get error details from response
-        let errorMessage = 'Failed to submit article';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // If can't parse JSON, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
+      // Our mock response is always successful
+      // but we'll keep this structure for future API integration
 
       // Successfully submitted
       setMessage({

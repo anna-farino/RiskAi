@@ -116,55 +116,55 @@ export default function Reports() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Cybersecurity News Report</h1>
-          <p className="text-gray-500">Generated on {generateReportDate()}</p>
+          <h1 className="text-2xl font-bold dark:text-white">Cybersecurity News Report</h1>
+          <p className="text-gray-500 dark:text-gray-400">Generated on {generateReportDate()}</p>
         </div>
         <Button>Export Report</Button>
       </div>
 
       <div className="space-y-8">
         {articles.map(article => (
-          <Card key={article.id} className="overflow-hidden">
-            <CardHeader>
-              <CardTitle>{article.title}</CardTitle>
-              <CardDescription>
+          <Card key={article.id} className="overflow-hidden border dark:border-gray-700">
+            <CardHeader className="dark:bg-gray-800">
+              <CardTitle className="dark:text-white">{article.title}</CardTitle>
+              <CardDescription className="dark:text-gray-300">
                 Source: {article.sourcePublication} | Published: {new Date(article.createdAt).toLocaleDateString()}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="dark:bg-gray-900">
               <div className="space-y-4">
                 {article.vulnerabilityId && (
                   <div>
-                    <h4 className="font-semibold text-lg">Vulnerability ID</h4>
-                    <p className="bg-red-50 inline-block px-3 py-1 rounded text-red-800">
+                    <h4 className="font-semibold text-lg dark:text-gray-200">Vulnerability ID</h4>
+                    <p className="bg-red-50 dark:bg-red-900 inline-block px-3 py-1 rounded text-red-800 dark:text-red-200">
                       {article.vulnerabilityId}
                     </p>
                   </div>
                 )}
                 
                 <div>
-                  <h4 className="font-semibold text-lg">Summary</h4>
-                  <p className="text-gray-700">{article.summary}</p>
+                  <h4 className="font-semibold text-lg dark:text-gray-200">Summary</h4>
+                  <p className="text-gray-700 dark:text-gray-300">{article.summary}</p>
                 </div>
                 
                 {article.impacts && (
                   <div>
-                    <h4 className="font-semibold text-lg">Potential Impact</h4>
-                    <p className="text-gray-700">{article.impacts}</p>
+                    <h4 className="font-semibold text-lg dark:text-gray-200">Potential Impact</h4>
+                    <p className="text-gray-700 dark:text-gray-300">{article.impacts}</p>
                   </div>
                 )}
                 
                 {article.attackVector && (
                   <div>
-                    <h4 className="font-semibold text-lg">Attack Vector</h4>
-                    <p className="text-gray-700">{article.attackVector}</p>
+                    <h4 className="font-semibold text-lg dark:text-gray-200">Attack Vector</h4>
+                    <p className="text-gray-700 dark:text-gray-300">{article.attackVector}</p>
                   </div>
                 )}
                 
                 {article.targetOS && (
                   <div>
-                    <h4 className="font-semibold text-lg">Affected Systems</h4>
-                    <p className="text-gray-700">{article.targetOS}</p>
+                    <h4 className="font-semibold text-lg dark:text-gray-200">Affected Systems</h4>
+                    <p className="text-gray-700 dark:text-gray-300">{article.targetOS}</p>
                   </div>
                 )}
                 
@@ -173,7 +173,7 @@ export default function Reports() {
                     href={article.originalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     View Original Article
                   </a>
