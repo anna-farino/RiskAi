@@ -94,7 +94,7 @@ async function getBrowser() {
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled' // Avoid detection
         ],
-        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        //executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         // Set longer browser launch timeout
         timeout: 180000 // 3 minute timeout on browser launch
       });
