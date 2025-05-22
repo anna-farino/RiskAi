@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
 import dotenv from "dotenv";
+import { Request } from 'express';
 
 dotenvConfig(dotenv)
 // Track active scraping processes for all sources
@@ -27,6 +28,7 @@ let globalJobRunning = false;
  */
 export async function scrapeSource(
   sourceId: string,
+  req: Request
 ): Promise<{
   processedCount: number;
   savedCount: number;
@@ -193,7 +195,7 @@ export async function scrapeSource(
           );
 
           // Check if article with this URL already exists in the database for this user
-          const existingArticle = await storage.getArticleByUrl(link, userId);
+          const existingArticle = await storage.getArticleByUrl(req, link, userId);
 
           if (existingArticle) {
             log(
@@ -353,7 +355,11 @@ export async function sendNewArticlesEmail(
  * Run the global scraping job for all eligible sources
  * @param userId The ID of the user whose sources should be scraped
  */
-export async function runGlobalScrapeJob(userId: string): Promise<{
+export async function runGlobalScrapeJob(
+  userId: string,
+  req: Request
+)
+: Promise<{
   success: boolean;
   message: string;
   results?: {
@@ -406,6 +412,7 @@ export async function runGlobalScrapeJob(userId: string): Promise<{
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
+          req
         );
 
         // Add source information to each new article for email notification grouping
