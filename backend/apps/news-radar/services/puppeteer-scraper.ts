@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer-extra';
+import puppeteer from 'puppeteer';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, Page } from 'puppeteer';
 import { execSync } from 'child_process';
@@ -13,7 +13,7 @@ dotenvConfig(dotenv)
 const PUPPETEER_EXECUTABLE_PATH = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium'; // Use our installed Chromium unwrapped
 
 // Add stealth plugin to bypass bot detection
-puppeteer.use(StealthPlugin());
+//puppeteer.use(StealthPlugin());
 
 // Try to find the Chrome executable path
 function findChromePath() {
