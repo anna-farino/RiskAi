@@ -3,11 +3,18 @@ import { log } from "backend/utils/log";
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import dotenvConfig from "backend/utils/dotenv-config";
+import * as cheerio from 'cheerio';
 
 dotenvConfig(dotenv);
 
+// Check if OpenAI API key is set
+const openaiApiKey = process.env.OPENAI_API_KEY;
+if (!openaiApiKey) {
+  log("WARNING: OPENAI_API_KEY is not set. OpenAI features will not work.", "capsule-scraper");
+}
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: openaiApiKey,
 });
 
 interface ArticleAnalysis {
@@ -41,10 +48,15 @@ export async function scrapeUrl(url: string): Promise<string> {
     
     // Get the page content
     const html = await page.content();
+    
+    if (!html || html.trim().length === 0) {
+      throw new Error("Empty HTML content received from URL");
+    }
+    
     return html;
   } catch (error) {
     log(`Error scraping URL: ${error}`, "capsule-scraper-error");
-    throw new Error(`Failed to scrape URL: ${error}`);
+    throw new Error(`Failed to scrape URL: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     if (browser) {
       await browser.close();
@@ -53,10 +65,78 @@ export async function scrapeUrl(url: string): Promise<string> {
 }
 
 /**
+ * Extract article content using Cheerio as a fallback method
+ */
+export function extractArticleContentWithCheerio(html: string): { title: string, content: string, sourceName: string } {
+  try {
+    const $ = cheerio.load(html);
+    
+    // Extract title - try common patterns
+    let title = $('h1').first().text().trim();
+    if (!title) {
+      title = $('article h1').first().text().trim();
+    }
+    if (!title) {
+      title = $('title').text().trim();
+    }
+    
+    // Extract content - try common patterns for article content
+    let content = '';
+    
+    // Try to find the main article content
+    const articleSelectors = [
+      'article', 
+      '.article-content', 
+      '.post-content', 
+      '.entry-content', 
+      '.content',
+      'main'
+    ];
+    
+    for (const selector of articleSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        content = element.text().trim();
+        break;
+      }
+    }
+    
+    // If no content found, grab paragraphs
+    if (!content) {
+      content = $('p').map((_, el) => $(el).text().trim()).get().join('\n\n');
+    }
+    
+    // Extract source/domain
+    const sourceName = new URL(html.includes('<base href="') 
+      ? $(html).find('base').attr('href') || '' 
+      : 'https://example.com').hostname;
+    
+    return {
+      title: title || "Unknown Title",
+      content: content || "Could not extract content",
+      sourceName: sourceName || "Unknown Source"
+    };
+  } catch (error) {
+    log(`Error extracting content with Cheerio: ${error}`, "capsule-scraper-error");
+    return {
+      title: "Unknown Title",
+      content: "Could not extract content",
+      sourceName: "Unknown Source"
+    };
+  }
+}
+
+/**
  * Extract article content from HTML
  */
 export async function extractArticleContent(html: string): Promise<{ title: string, content: string, sourceName: string }> {
   try {
+    if (!openaiApiKey) {
+      // If no OpenAI API key, fall back to Cheerio extraction
+      log("No OpenAI API key found. Using Cheerio for extraction.", "capsule-scraper");
+      return extractArticleContentWithCheerio(html);
+    }
+    
     // Using OpenAI to extract content from HTML
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -81,6 +161,12 @@ export async function extractArticleContent(html: string): Promise<{ title: stri
     const contentMatch = extractionResult.match(/Content:(.+?)(?=Source:|$)/s);
     const sourceMatch = extractionResult.match(/Source:(.+?)(?=$)/s);
     
+    // If OpenAI extraction fails, fall back to Cheerio
+    if (!titleMatch && !contentMatch) {
+      log("OpenAI extraction failed. Falling back to Cheerio.", "capsule-scraper");
+      return extractArticleContentWithCheerio(html);
+    }
+    
     return {
       title: titleMatch ? titleMatch[1].trim() : "Unknown Title",
       content: contentMatch ? contentMatch[1].trim() : "Could not extract content",
@@ -88,12 +174,15 @@ export async function extractArticleContent(html: string): Promise<{ title: stri
     };
   } catch (error) {
     log(`Error extracting article content: ${error}`, "capsule-scraper-error");
-    throw new Error(`Failed to extract article content: ${error}`);
+    
+    // Fall back to Cheerio extraction on error
+    log("Falling back to Cheerio extraction due to error.", "capsule-scraper");
+    return extractArticleContentWithCheerio(html);
   }
 }
 
 /**
- * Analyze article content with OpenAI
+ * Analyze article content with OpenAI or fallback to simple summary
  */
 export async function analyzeArticleContent(
   title: string, 
@@ -102,6 +191,28 @@ export async function analyzeArticleContent(
   url: string
 ): Promise<ArticleAnalysis> {
   try {
+    if (!openaiApiKey) {
+      // If no OpenAI API key, generate a simple analysis
+      log("No OpenAI API key found. Using simple analysis.", "capsule-scraper");
+      
+      // Create a summary by taking first 2-3 sentences
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      const summary = sentences.slice(0, 3).join('. ') + '.';
+      
+      return {
+        title,
+        threatName: "Unknown (Extraction Without AI)",
+        vulnerabilityId: "Unspecified",
+        summary: summary || "No summary available",
+        impacts: "Analysis requires OpenAI API access",
+        attackVector: "Unknown attack vector",
+        microsoftConnection: "Analysis requires OpenAI API access",
+        sourcePublication: sourceName,
+        originalUrl: url,
+        targetOS: "Microsoft / Windows",
+      };
+    }
+    
     // Using OpenAI to analyze the article content
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -157,7 +268,26 @@ export async function analyzeArticleContent(
     };
   } catch (error) {
     log(`Error analyzing article content: ${error}`, "capsule-scraper-error");
-    throw new Error(`Failed to analyze article content: ${error}`);
+    
+    // Fall back to simple analysis on error
+    log("Falling back to simple analysis due to error.", "capsule-scraper");
+    
+    // Create a simple summary by taking first 2-3 sentences
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const summary = sentences.slice(0, 3).join('. ') + '.';
+    
+    return {
+      title,
+      threatName: "Error in AI Analysis",
+      vulnerabilityId: "Unspecified",
+      summary: summary || "No summary available",
+      impacts: "Analysis error: " + (error instanceof Error ? error.message : String(error)),
+      attackVector: "Unknown attack vector",
+      microsoftConnection: "Analysis error occurred",
+      sourcePublication: sourceName,
+      originalUrl: url,
+      targetOS: "Microsoft / Windows",
+    };
   }
 }
 
@@ -172,12 +302,31 @@ export async function scrapeAndAnalyzeArticle(url: string): Promise<ArticleAnaly
     // Step 2: Extract article content
     const { title, content, sourceName } = await extractArticleContent(html);
     
+    // Log successful extraction
+    log(`Successfully extracted content from ${url}. Title: ${title}`, "capsule-scraper");
+    
     // Step 3: Analyze the content
     const analysis = await analyzeArticleContent(title, content, sourceName, url);
+    
+    // Log successful analysis
+    log(`Successfully analyzed article: ${title}`, "capsule-scraper");
     
     return analysis;
   } catch (error) {
     log(`Error in article scraping and analysis pipeline: ${error}`, "capsule-scraper-error");
-    throw error;
+    
+    // Return a basic error result rather than throwing
+    return {
+      title: "Error Processing Article",
+      threatName: "Error in Processing",
+      vulnerabilityId: "Unspecified",
+      summary: `Failed to process article: ${error instanceof Error ? error.message : String(error)}`,
+      impacts: "Could not analyze impacts due to processing error",
+      attackVector: "Unknown",
+      microsoftConnection: "Unknown",
+      sourcePublication: "Unknown Source",
+      originalUrl: url,
+      targetOS: "Unknown",
+    };
   }
 }
