@@ -133,8 +133,10 @@ export default function Reports() {
             </CardHeader>
             <CardContent className="dark:bg-gray-900">
               <div className="space-y-4">
+                {/* Title is already displayed in the CardHeader above */}
+                
                 <div>
-                  <h4 className="font-semibold text-lg dark:text-gray-200">Threat Name</h4>
+                  <h4 className="font-semibold text-lg dark:text-gray-200">Threat Name(s)</h4>
                   <p className="bg-red-50 dark:bg-red-900 inline-block px-3 py-1 rounded text-red-800 dark:text-red-200">
                     {article.threatName}
                   </p>
@@ -142,7 +144,12 @@ export default function Reports() {
                 
                 <div>
                   <h4 className="font-semibold text-lg dark:text-gray-200">Summary</h4>
-                  <p className="text-gray-700 dark:text-gray-300">{article.summary}</p>
+                  <div className="text-gray-700 dark:text-gray-300">
+                    <p>{article.summary}</p>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {article.summary.split(' ').length} words (max 80)
+                    </div>
+                  </div>
                 </div>
                 
                 <div>
