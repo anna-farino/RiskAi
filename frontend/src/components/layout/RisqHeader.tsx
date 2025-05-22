@@ -61,7 +61,7 @@ export function RisqHeader() {
               </div>
             </Link>
             <div className="h-3"></div> {/* Spacer between logo and tagline - increased spacing */}
-            <p className="block text-[10px] sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
+            <p className="block text-xs sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
               AI-Powered Risk Intelligence
             </p>
           </div>
