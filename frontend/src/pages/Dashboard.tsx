@@ -187,6 +187,14 @@ export default function Dashboard() {
             </RisqWidget>
         </WidgetGrid>
         
+        {/* News Capsule Stats Row */}
+        <div className="mt-8">
+          <h2 className="text-xl font-bold mb-4 text-white/90">Current Stats</h2>
+          <WidgetGrid>
+            <NewsCapsuleStatsWidget delay={0.1} />
+          </WidgetGrid>
+        </div>
+        
         {/* Additional widgets row */}
         {false && <div className="mt-8">
           <WidgetGrid>
