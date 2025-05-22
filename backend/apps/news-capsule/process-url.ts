@@ -1,9 +1,115 @@
 import { Request, Response } from 'express';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
 import { db } from '../../db/db';
 import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
 import { openai } from '../../services/openai';
 import { FullRequest } from '../../middleware';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import type { Browser, Page } from 'puppeteer';
+import { execSync } from 'child_process';
+import { log } from 'console';
+import vanillaPuppeteer from 'puppeteer';
+import * as fs from 'fs';
+import { get } from 'http';
+
+
+const PUPPETEER_EXECUTABLE_PATH = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium'; // Use our installed Chromium unwrapped
+
+// Add stealth plugin to bypass bot detection
+puppeteer.use(StealthPlugin());
+
+// Try to find the Chrome executable path
+function findChromePath() {
+  console.log("Database URL", process.env.DATABASE_URL)
+  
+  try {
+    const chromePath = execSync('which chromium').toString().trim();
+    return chromePath;
+  } catch(e) {
+    // Then try to find Chrome using which command
+    try {
+      const chromePath = execSync('which chrome').toString().trim();
+      return chromePath;
+    } catch (e) {
+      console.log("[findChromePath] Using default path");
+    }
+  }
+  // First try the known Replit Chromium unwrapped path (most likely to work)
+  const replitChromiumUnwrapped = '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium';
+  try {
+    if (fs.existsSync(replitChromiumUnwrapped)) {
+      console.log(`[findChromePath] Using Replit's installed Chromium Unwrapped:`, replitChromiumUnwrapped);
+      return replitChromiumUnwrapped;
+    }
+  } catch (err) {
+    console.log(`[findChromePath] Error checking Replit Chromium Unwrapped:`, err);
+  }
+  
+  // Try the wrapper script as a fallback
+  const replitChromium = '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+  try {
+    if (fs.existsSync(replitChromium)) {
+      console.log(`[findChromePath] Using Replit's installed Chromium wrapper:`, replitChromium);
+      return replitChromium;
+    }
+  } catch (err) {
+    console.log(`[findChromePath] Error checking Replit Chromium wrapper:`, err);
+  }
+  try {
+    console.log("[Trying vanilla Puppeteer...]")
+    const chrome = vanillaPuppeteer.executablePath();
+    console.log(`[findChromePath] Puppeteer's bundled Chromium:`, chrome);
+    return chrome;
+  } catch (e) {
+    console.log(`[findChromePath] Error getting puppeteer path:`, e);
+  }
+}
+
+const CHROME_PATH = findChromePath();
+console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
+
+let browser: Browser | null = null;
+
+async function getBrowser() {
+  log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, PUPPETEER_EXECUTABLE_PATH )
+  if (!browser) {
+    try {
+      // Use a more minimal configuration to avoid dependencies
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess',  // For stability
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--disable-gl-drawing-for-tests',  // Disable GPU usage
+          '--mute-audio',  // No audio needed for scraping
+          '--no-zygote',   // Run without zygote process
+          '--no-first-run',  // Skip first run wizards
+          '--no-default-browser-check',
+          '--ignore-certificate-errors',
+          '--allow-running-insecure-content',
+          '--disable-web-security',
+          '--disable-blink-features=AutomationControlled' // Avoid detection
+        ],
+        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        // Set longer browser launch timeout
+        timeout: 180000 // 3 minute timeout on browser launch
+      });
+      console.log("[getBrowser] Browser launched successfully");
+    } catch (error) {
+      console.error("[getBrowser] Failed to launch browser:", error);
+      throw error;
+    }
+  }
+  console.log("[getBrowser] browser instance:", browser)
+  return browser;
+}
 
 export async function processUrl(req: Request, res: Response) {
   try {
@@ -48,16 +154,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
   
   try {
     // Launch Puppeteer with stealth plugin to avoid detection
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
-    });
+    browser = await getBrowser();
     
     const page = await browser.newPage();
     

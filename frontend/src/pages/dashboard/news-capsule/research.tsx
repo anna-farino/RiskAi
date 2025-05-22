@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
+import { serverUrl } from "@/utils/server-url";
 
 interface ArticleSummary {
   id: string;
@@ -36,8 +37,9 @@ export default function Research() {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch("/api/news-capsule/process-url", {
+      const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
         method: "POST",
+        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
           ...csfrHeaderObject(),
