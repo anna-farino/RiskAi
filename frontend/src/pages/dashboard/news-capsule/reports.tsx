@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { format } from "date-fns";
+import { serverUrl } from "@/utils/server-url";
 
 interface ArticleSummary {
   id: string;
@@ -39,8 +40,9 @@ export default function Reports() {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch("/api/news-capsule/reports", {
+      const response = await fetch(serverUrl + "/api/news-capsule/reports", {
         method: "GET",
+        credentials: 'include',
         headers: {
           ...csfrHeaderObject(),
         },

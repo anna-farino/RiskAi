@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router";
 
 export default function Home() {
   return (
@@ -24,12 +25,12 @@ export default function Home() {
             Analyze articles for meaningful insights by submitting URLs for AI-powered processing.
           </p>
           <div className="mt-auto">
-            <a 
-              href="/dashboard/news-capsule/research" 
+            <Link 
+              to="/dashboard/news-capsule/research" 
               className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md"
             >
               Begin Research
-            </a>
+            </Link>
           </div>
         </motion.div>
 
@@ -44,12 +45,12 @@ export default function Home() {
             Create comprehensive daily reports from analyzed articles for executive review.
           </p>
           <div className="mt-auto">
-            <a 
-              href="/dashboard/news-capsule/reports" 
+            <Link 
+              to="/dashboard/news-capsule/reports" 
               className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md"
             >
               View Reports
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>

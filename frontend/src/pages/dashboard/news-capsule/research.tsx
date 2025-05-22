@@ -78,8 +78,9 @@ export default function Research() {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch("/api/news-capsule/add-to-report", {
+      const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
         method: "POST",
+        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
           ...csfrHeaderObject(),
