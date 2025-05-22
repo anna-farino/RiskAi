@@ -1,0 +1,257 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { csfrHeaderObject } from "@/utils/csrf-header";
+
+interface ArticleSummary {
+  id: string;
+  title: string;
+  threatName: string;
+  vulnerabilityId: string;
+  summary: string;
+  impacts: string;
+  attackVector: string;
+  microsoftConnection: string;
+  sourcePublication: string;
+  originalUrl: string;
+  targetOS: string;
+  createdAt: string;
+  markedForReporting: boolean;
+  markedForDeletion: boolean;
+}
+
+export default function Research() {
+  const [url, setUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [articleSummary, setArticleSummary] = useState<ArticleSummary | null>(null);
+  const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
+  
+  const processUrl = async () => {
+    if (!url) {
+      setError("Please enter a URL");
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch("/api/news-capsule/process-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...csfrHeaderObject(),
+        },
+        body: JSON.stringify({ url }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to process article");
+      }
+      
+      const data = await response.json();
+      setArticleSummary(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const selectForReport = () => {
+    if (articleSummary) {
+      setSelectedArticles(prev => [...prev, articleSummary]);
+      setArticleSummary(null);
+      setUrl("");
+    }
+  };
+  
+  const sendToExecutiveReport = async () => {
+    if (selectedArticles.length === 0) {
+      setError("No articles selected for the report");
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch("/api/news-capsule/add-to-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...csfrHeaderObject(),
+        },
+        body: JSON.stringify({ 
+          articleIds: selectedArticles.map(article => article.id) 
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to add articles to report");
+      }
+      
+      setSelectedArticles([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const removeSelectedArticle = (id: string) => {
+    setSelectedArticles(prev => prev.filter(article => article.id !== id));
+  };
+  
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold">Capsule Research</h1>
+        <p className="text-slate-300">
+          Analyze articles for executive reporting by submitting URLs for processing.
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* URL Input Section */}
+        <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+          <h2 className="text-xl font-semibold mb-4">Submit Article URL</h2>
+          
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="url-input" className="text-sm text-slate-400">
+                Article URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="url-input"
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://example.com/article"
+                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
+                />
+                <button
+                  onClick={processUrl}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+                >
+                  {isLoading ? "Processing..." : "Process"}
+                </button>
+              </div>
+            </div>
+            
+            {error && (
+              <div className="p-3 bg-red-900/20 border border-red-700/50 rounded-md text-red-400">
+                {error}
+              </div>
+            )}
+          </div>
+          
+          {/* Article Summary Display */}
+          {articleSummary && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <h3 className="text-lg font-medium">{articleSummary.title}</h3>
+                <button
+                  onClick={selectForReport}
+                  className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                >
+                  Select for Report
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Threat Name</p>
+                  <p className="text-sm">{articleSummary.threatName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
+                  <p className="text-sm">{articleSummary.vulnerabilityId}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-xs text-slate-400 mb-1">Summary</p>
+                  <p className="text-sm">{articleSummary.summary}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-xs text-slate-400 mb-1">Impacts</p>
+                  <p className="text-sm">{articleSummary.impacts}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
+                  <p className="text-sm">{articleSummary.attackVector}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Microsoft Connection</p>
+                  <p className="text-sm">{articleSummary.microsoftConnection}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Source</p>
+                  <p className="text-sm">{articleSummary.sourcePublication}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Target OS</p>
+                  <p className="text-sm">{articleSummary.targetOS}</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+        
+        {/* Selected Articles Section */}
+        <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Selected Articles</h2>
+            <span className="text-sm text-slate-400">
+              {selectedArticles.length} selected
+            </span>
+          </div>
+          
+          <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto">
+            {selectedArticles.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">
+                No articles selected yet
+              </p>
+            ) : (
+              selectedArticles.map((article) => (
+                <div 
+                  key={article.id}
+                  className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                >
+                  <div className="flex justify-between items-start">
+                    <h4 className="text-sm font-medium mb-1">{article.title}</h4>
+                    <button
+                      onClick={() => removeSelectedArticle(article.id)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-2">
+                    {article.threatName}
+                  </p>
+                  <p className="text-xs line-clamp-2">
+                    {article.summary}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <button
+            onClick={sendToExecutiveReport}
+            disabled={selectedArticles.length === 0 || isLoading}
+            className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+          >
+            {isLoading ? "Processing..." : "Send to Executive Report"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
