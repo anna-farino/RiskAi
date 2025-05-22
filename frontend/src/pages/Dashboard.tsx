@@ -1,8 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Timer } from 'lucide-react';
-import { NewsCapsuleWidget, NewsCapsuleStatsWidget } from '@/components/widgets/NewsCapsuleWidget';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -68,14 +67,12 @@ export default function Dashboard() {
             </div>
           </RisqWidget>
           
-          <NewsCapsuleWidget delay={0.2} />
-          
           <RisqWidget
             title="Threat Tracker"
             description="Critical security alerts requiring attention"
             icon={<AlertTriangle className="w-10 h-10" />}
             variant="interactive"
-            delay={0.3}
+            delay={0.2}
             onClick={() => navigate("/dashboard/threat/home")}
             footer={
               <div className="mt-auto">
@@ -186,14 +183,6 @@ export default function Dashboard() {
               </div>
             </RisqWidget>
         </WidgetGrid>
-        
-        {/* News Capsule Stats Row */}
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4 text-white/90">Current Stats</h2>
-          <WidgetGrid>
-            <NewsCapsuleStatsWidget delay={0.1} />
-          </WidgetGrid>
-        </div>
         
         {/* Additional widgets row */}
         {false && <div className="mt-8">

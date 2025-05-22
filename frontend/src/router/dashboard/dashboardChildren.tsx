@@ -1,6 +1,5 @@
 import { newsRadarRouter } from '../../pages/dashboard/news-radar/router/news-radar.tsx'
 import { threatTrackerRouter } from '../../pages/dashboard/threat-tracker/router/threat-tracker.tsx'
-import { newsCapsuleRouter } from '../../pages/dashboard/news-capsule/router/news-capsule.tsx'
 import { dashboardRouter } from './dashboardRouter.tsx'
 
 
@@ -11,7 +10,5 @@ export const dashboardChildren = [
   newsRadarRouter,
   
   threatTrackerRouter,
-  
-  newsCapsuleRouter,
 
 ]
