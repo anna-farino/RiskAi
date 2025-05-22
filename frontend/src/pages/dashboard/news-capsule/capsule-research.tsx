@@ -17,21 +17,44 @@ export default function CapsuleResearch() {
     setError(null);
     
     try {
+      // For demo - add demo to URL to test with demo data
+      const useDemoData = url.includes("demo");
+      const targetUrl = useDemoData ? url : url;
+      
       // Call our backend API to scrape and analyze the article
+      console.log("Submitting URL for processing:", targetUrl);
+      
       const response = await fetch("/api/news-capsule/scrape-article", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: targetUrl }),
       });
 
+      // If we got a non-ok response, try to parse error or throw a default message
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to scrape article");
+        let errorMessage = "Failed to scrape article";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      // Try to parse the response data
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error("Error parsing JSON response:", e);
+        throw new Error("Invalid response from server. Please try again.");
+      }
+
+      // Set the article summary from the response data
+      console.log("Article data received:", data);
       setArticleSummary(data);
     } catch (error) {
       console.error("Error scraping article:", error);
@@ -54,9 +77,16 @@ export default function CapsuleResearch() {
         body: JSON.stringify(articleSummary),
       });
 
+      // Handle error response
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to add to report");
+        let errorMessage = "Failed to add to report";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
+        }
+        throw new Error(errorMessage);
       }
 
       // Navigate to the reporting page to view the report
@@ -65,6 +95,10 @@ export default function CapsuleResearch() {
       console.error("Error adding to report:", error);
       setError(error instanceof Error ? error.message : "Failed to add to report. Please try again.");
     }
+  };
+
+  const handleDemoClick = () => {
+    setUrl("https://demo.example.com/article");
   };
 
   return (
@@ -119,9 +153,18 @@ export default function CapsuleResearch() {
                 {loading ? "Processing..." : "Analyze"}
               </button>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Example: https://cybersecuritynews.com/more_eggs-malware-exploits-job-application-emails/
-            </p>
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-slate-400 mt-1">
+                Example: https://cybersecuritynews.com/more_eggs-malware-exploits-job-application-emails/
+              </p>
+              <button 
+                type="button" 
+                onClick={handleDemoClick}
+                className="text-xs text-purple-400 hover:text-purple-300"
+              >
+                Use demo URL
+              </button>
+            </div>
           </div>
         </form>
 
@@ -157,7 +200,7 @@ export default function CapsuleResearch() {
                 <p className="text-slate-300">{articleSummary.summary}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">Threat Name</h3>
                   <p className="text-slate-300">{articleSummary.threatName}</p>
@@ -173,7 +216,7 @@ export default function CapsuleResearch() {
                 <p className="text-slate-300">{articleSummary.impacts}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">Attack Vector</h3>
                   <p className="text-slate-300">{articleSummary.attackVector}</p>
