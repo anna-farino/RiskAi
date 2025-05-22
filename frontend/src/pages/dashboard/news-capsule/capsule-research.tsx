@@ -98,7 +98,21 @@ export default function CapsuleResearch() {
   };
 
   const handleDemoClick = () => {
-    setUrl("https://demo.example.com/article");
+    setUrl("demo");
+    
+    // Directly set mock data for immediate demo
+    setArticleSummary({
+      title: "Critical Vulnerability in Popular Software Discovered",
+      threatName: "Remote Code Execution Vulnerability",
+      vulnerabilityId: "CVE-2023-12345",
+      summary: "Security researchers have discovered a critical vulnerability in widely-used software that could allow attackers to execute arbitrary code remotely. The vulnerability affects multiple versions and could lead to complete system compromise if exploited.",
+      impacts: "The vulnerability affects all users of the software across multiple industries. Organizations with internet-exposed instances are particularly at risk of exploitation.",
+      attackVector: "The attack can be executed remotely by sending specially crafted packets to vulnerable systems, requiring no user interaction.",
+      microsoftConnection: "The vulnerability affects Microsoft Windows-based deployments of the software, with Windows Server installations being particularly vulnerable.",
+      sourcePublication: "Cybersecurity News",
+      originalUrl: "https://demo.example.com/article",
+      targetOS: "Microsoft / Windows",
+    });
   };
 
   return (
