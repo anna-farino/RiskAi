@@ -48,7 +48,11 @@ export default function Dashboard() {
         
         if (storedArticles) {
           const parsedArticles = JSON.parse(storedArticles);
-          setArticles(parsedArticles);
+          // Sort articles by creation date (newest first)
+          const sortedArticles = [...parsedArticles].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setArticles(sortedArticles);
         } else {
           // If no articles exist yet, set empty array
           setArticles([]);
@@ -238,8 +242,11 @@ export default function Dashboard() {
       existingArticles.push(mockArticleData);
       localStorage.setItem('news-capsule-articles', JSON.stringify(existingArticles));
       
-      // Update our state
-      setArticles([...existingArticles]);
+      // Update our state with newest articles first
+      const sortedArticles = [...existingArticles].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setArticles(sortedArticles);
       
       // Successfully submitted
       setSubmitMessage({
