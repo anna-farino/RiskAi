@@ -37,55 +37,28 @@ newsCapsuleRouter.post("/scrape-article", async (req, res) => {
 
     reqLog(req, `Scraping and analyzing article: ${url}`);
     
-    // For demo purposes - if URL contains "demo", return mock data
+    // For demo purposes - if URL contains "demo", return demo data
     if (url.includes("demo")) {
       log("Using demo article data", "capsule-scraper");
       return res.json({
-        ...demoArticle,
-        originalUrl: url
+        title: "Critical Zero-Day Vulnerability in Microsoft Exchange Server Under Active Exploitation",
+        threatName: "Microsoft Exchange Zero-Day Vulnerability",
+        vulnerabilityId: "CVE-2025-12345",
+        summary: "Security researchers have discovered a zero-day vulnerability in Microsoft Exchange Server that is being actively exploited in the wild. The vulnerability allows attackers to execute remote code without authentication, potentially leading to complete system compromise and data theft.",
+        impacts: "Organizations running on-premises Microsoft Exchange Server are at high risk. Successful exploitation enables attackers to gain domain administrator privileges, access sensitive emails, and potentially move laterally through the network.",
+        attackVector: "The attack begins with specially crafted HTTP requests to vulnerable Exchange servers. No user interaction is required, making this vulnerability particularly dangerous.",
+        microsoftConnection: "This is a critical vulnerability in Microsoft's Exchange Server product affecting all supported versions. Microsoft has released an emergency out-of-band patch that should be applied immediately.",
+        sourcePublication: "Security News Research",
+        originalUrl: url,
+        targetOS: "Microsoft Windows Server",
       });
     }
     
-    // Log the attempt
-    log(`Processing article URL: ${url}`, "capsule-router");
-    
     try {
-      // For cybersecuritynews.com, use a pre-made analysis (site has anti-scraping measures)
-      if (url.includes("cybersecuritynews.com/more_eggs-malware")) {
-        log("Using pre-analyzed data for more_eggs article", "capsule-router");
-        return res.json({
-          title: "more_eggs Malware Exploits Job Application Emails to Target Companies",
-          threatName: "more_eggs Malware Campaign",
-          vulnerabilityId: "Unspecified",
-          summary: "Cybercriminals are targeting companies with sophisticated phishing emails that appear to be job applications but actually deliver the more_eggs malware. This campaign particularly targets HR departments and hiring managers, using legitimate job application themes and professional-looking resumes as attachments.",
-          impacts: "Organizations with active hiring processes are at risk. Once infected, the malware provides attackers with backdoor access to company systems, potentially leading to data theft, financial fraud, or further network penetration.",
-          attackVector: "The attack begins with phishing emails containing malicious attachments disguised as resumes. When opened, the attachments execute JavaScript that downloads and installs the more_eggs backdoor malware.",
-          microsoftConnection: "The malware primarily targets Windows systems and can exploit Microsoft Office document vulnerabilities when executed.",
-          sourcePublication: "Cybersecurity News",
-          originalUrl: url,
-          targetOS: "Microsoft Windows",
-        });
-      }
+      // Attempt to scrape and analyze the article
+      log(`Scraping and analyzing article at URL: ${url}`, "capsule-router");
       
-      // For gbhackers.com articles, use a pre-made analysis
-      if (url.includes("gbhackers.com")) {
-        log("Using pre-analyzed data for gbhackers article", "capsule-router");
-        return res.json({
-          title: "Windows 10 KB5058379 Update Causes PCs to Crash with Blue Screen Errors",
-          threatName: "Windows Update KB5058379 Issue",
-          vulnerabilityId: "Unspecified",
-          summary: "The recent Windows 10 update KB5058379 is causing serious system stability issues for many users, with reports of Blue Screen of Death (BSOD) errors and system crashes after installation. Microsoft has acknowledged the problem and is investigating.",
-          impacts: "The issue affects Windows 10 users who have installed the latest security update. Organizations with mass-deployed updates are particularly at risk of widespread system disruptions.",
-          attackVector: "Not applicable - this is a system stability issue rather than a security attack.",
-          microsoftConnection: "This is a direct Microsoft Windows update issue affecting official Microsoft software.",
-          sourcePublication: "GBHackers",
-          originalUrl: url,
-          targetOS: "Microsoft Windows 10",
-        });
-      }
-      
-      // Attempt to scrape and analyze the article for other URLs
-      log(`Calling scrapeAndAnalyzeArticle for URL: ${url}`, "capsule-router");
+      // Use our enhanced scraper service
       const articleData = await scrapeAndAnalyzeArticle(url);
       
       // Check if we got a proper article or an error response

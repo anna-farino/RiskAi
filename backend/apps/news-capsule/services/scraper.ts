@@ -38,62 +38,93 @@ interface ArticleAnalysis {
 export async function scrapeUrl(url: string): Promise<string> {
   log(`Scraping URL: ${url}`, "capsule-scraper");
   
-  // First try direct fetch for fast performance
+  // Demo mode for testing - return dummy HTML
+  if (url.includes("demo")) {
+    log("Demo mode detected. Returning sample HTML content.", "capsule-scraper");
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Critical Zero-Day Vulnerability in Microsoft Exchange Server</title>
+        </head>
+        <body>
+          <article>
+            <h1>Critical Zero-Day Vulnerability in Microsoft Exchange Server Under Active Exploitation</h1>
+            <p>Security researchers have discovered a zero-day vulnerability in Microsoft Exchange Server that is being actively exploited in the wild. The vulnerability allows attackers to execute remote code without authentication, potentially leading to complete system compromise and data theft.</p>
+            <p>Organizations running on-premises Microsoft Exchange Server are at high risk. Successful exploitation enables attackers to gain domain administrator privileges, access sensitive emails, and potentially move laterally through the network.</p>
+            <p>The attack begins with specially crafted HTTP requests to vulnerable Exchange servers. No user interaction is required, making this vulnerability particularly dangerous.</p>
+            <p>This is a critical vulnerability in Microsoft's Exchange Server product affecting all supported versions. Microsoft has released an emergency out-of-band patch that should be applied immediately.</p>
+          </article>
+        </body>
+      </html>
+    `;
+  }
+  
+  // Use a simplified approach with direct fetch for better reliability
   try {
-    log(`Attempting direct fetch for ${url}`, "capsule-scraper");
+    log(`Fetching content from ${url}`, "capsule-scraper");
+    
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-      }
+      },
+      // Longer timeout for slow sites
+      signal: AbortSignal.timeout(30000)
     });
     
-    if (response.ok) {
-      const html = await response.text();
-      if (html && html.length > 0) {
-        log(`Successfully fetched ${url} using direct fetch`, "capsule-scraper");
-        return html;
-      }
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL: HTTP ${response.status}`);
     }
     
-    log(`Direct fetch failed, falling back to puppeteer for ${url}`, "capsule-scraper");
+    const html = await response.text();
+    
+    if (!html || html.trim().length === 0) {
+      throw new Error("Empty content received from URL");
+    }
+    
+    log(`Successfully fetched content from ${url} (${html.length} bytes)`, "capsule-scraper");
+    return html;
   } catch (error) {
-    log(`Direct fetch error, falling back to puppeteer: ${error}`, "capsule-scraper");
+    log(`Error fetching URL: ${error}`, "capsule-scraper-error");
+    
+    // Try with a simple headless browser approach
+    return await scrapeWithPuppeteer(url);
   }
-  
-  // Fall back to puppeteer if direct fetch fails
+}
+
+// Helper function to use Puppeteer as a fallback
+async function scrapeWithPuppeteer(url: string): Promise<string> {
+  log(`Trying to fetch ${url} with Puppeteer`, "capsule-scraper");
   let browser;
+  
   try {
-    log(`Launching puppeteer for ${url}`, "capsule-scraper");
     browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
         '--disable-gpu'
       ],
     });
     
     const page = await browser.newPage();
     
-    // Set user agent and viewport
+    // Set common browser options
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     await page.setViewport({ width: 1280, height: 800 });
     
-    // Set longer timeout and wait for network idle
-    log(`Navigating to ${url} with puppeteer`, "capsule-scraper");
+    // Navigate with a generous timeout
+    log(`Opening ${url}`, "capsule-scraper");
     await page.goto(url, { 
-      waitUntil: 'networkidle2', 
-      timeout: 60000 
+      waitUntil: 'domcontentloaded', 
+      timeout: 30000 
     });
     
-    // Wait an extra second for dynamic content to load
-    await page.waitForTimeout(1000);
+    // Wait a moment for any dynamic content
+    await page.waitForTimeout(2000);
     
     // Get the page content
     const html = await page.content();
@@ -102,10 +133,10 @@ export async function scrapeUrl(url: string): Promise<string> {
       throw new Error("Empty HTML content received from URL");
     }
     
-    log(`Successfully scraped ${url} with puppeteer`, "capsule-scraper");
+    log(`Successfully retrieved content with Puppeteer from ${url}`, "capsule-scraper");
     return html;
   } catch (error) {
-    log(`Error scraping URL with puppeteer: ${error}`, "capsule-scraper-error");
+    log(`Puppeteer scraping error: ${error}`, "capsule-scraper-error");
     throw new Error(`Failed to scrape URL: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     if (browser) {
