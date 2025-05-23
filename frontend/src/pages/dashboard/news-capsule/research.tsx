@@ -206,6 +206,7 @@ export default function Research() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://example.com/article"
+                  autoComplete="off"
                   className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
                 />
                 {url && (
