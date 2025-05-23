@@ -78,42 +78,42 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
     }
   }, [reports]);
 
-  // Calculate version numbers for reports from the same day
+  // Display reports with their version numbers
   const getReportsWithVersions = () => {
-    // Group reports by date (ignoring time)
-    const reportsByDate: Record<string, Report[]> = {};
-    
-    reports.forEach(report => {
-      const reportDate = new Date(report.createdAt);
-      const dateKey = reportDate.toDateString();
-      
-      if (!reportsByDate[dateKey]) {
-        reportsByDate[dateKey] = [];
+    // First, ensure all reports have a versionNumber field
+    const reportsWithVersions = reports.map(report => {
+      // If a report already has a versionNumber, preserve it
+      if (report.versionNumber) {
+        return report;
       }
       
-      reportsByDate[dateKey].push(report);
-    });
-    
-    // Sort each day's reports by creation time and assign version numbers
-    const reportsWithVersions = [...reports];
-    
-    Object.values(reportsByDate).forEach(dayReports => {
+      // For reports without a versionNumber, determine if we need to calculate one
+      // Group reports by date to find ones from the same day
+      const sameDay = reports.filter(r => {
+        const rDate = new Date(r.createdAt);
+        const reportDate = new Date(report.createdAt);
+        return rDate.toDateString() === reportDate.toDateString();
+      });
+      
+      // If this is the only report for this day, it's version 1
+      if (sameDay.length === 1) {
+        return { ...report, versionNumber: 1 };
+      }
+      
+      // Multiple reports on same day - need to assign version based on creation time
       // Sort by creation time (newest first)
-      dayReports.sort((a, b) => 
+      const sortedSameDay = [...sameDay].sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
-      // Assign version numbers
-      dayReports.forEach((report, index) => {
-        const version = dayReports.length - index;
-        const reportIndex = reportsWithVersions.findIndex(r => r.id === report.id);
-        if (reportIndex !== -1) {
-          reportsWithVersions[reportIndex] = {
-            ...reportsWithVersions[reportIndex], 
-            versionNumber: version
-          };
-        }
-      });
+      // Find position of current report in the sorted list
+      const position = sortedSameDay.findIndex(r => r.id === report.id);
+      
+      // Version is position + 1 (to start at 1 instead of 0)
+      // But we want newest to have highest version number
+      const version = sortedSameDay.length - position;
+      
+      return { ...report, versionNumber: version };
     });
     
     return reportsWithVersions;
