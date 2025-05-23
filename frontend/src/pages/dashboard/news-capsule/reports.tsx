@@ -1,30 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { csfrHeaderObject } from "@/utils/csrf-header";
 import { format } from "date-fns";
-import { serverUrl } from "@/utils/server-url";
-import { useNewsCapsule } from "@/context/NewsCapsuleContext";
-
-interface ArticleSummary {
-  id: string;
-  title: string;
-  threatName: string;
-  vulnerabilityId: string;
-  summary: string;
-  impacts: string;
-  attackVector: string;
-  microsoftConnection: string;
-  sourcePublication: string;
-  originalUrl: string;
-  targetOS: string;
-  createdAt: string;
-}
-
-interface Report {
-  id: string;
-  createdAt: string;
-  articles: ArticleSummary[];
-}
+import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 
 export default function Reports() {
   const [reports, setReports] = useState<Report[]>([]);
