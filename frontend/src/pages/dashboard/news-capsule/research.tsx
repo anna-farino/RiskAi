@@ -3,7 +3,9 @@ import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 
-// Store articles at module level so they persist between component mounts
+// Store real articles at module level, limiting to most recent ones
+// We'll limit to 10 recent articles to avoid memory issues
+const MAX_STORED_ARTICLES = 10;
 const storedArticles: ArticleSummary[] = [];
 const storedSelectedArticles: ArticleSummary[] = [];
 
@@ -62,11 +64,20 @@ export default function Research() {
       
       const data = await response.json();
       
-      // Update both state and module variables
-      const newProcessedArticles = [data, ...processedArticles];
-      setProcessedArticles(newProcessedArticles);
-      storedArticles.length = 0; // Clear array without creating a new one
-      storedArticles.push(...newProcessedArticles); // Update module variable
+      // Make sure we only store real articles by checking for required fields
+      if (data && data.id && data.title) {
+        // Update both state and module variables - add to front of array
+        const newProcessedArticles = [data, ...processedArticles];
+        
+        // Only keep the most recent articles (limited by MAX_STORED_ARTICLES)
+        const limitedArticles = newProcessedArticles.slice(0, MAX_STORED_ARTICLES);
+        
+        setProcessedArticles(limitedArticles);
+        
+        // Update module variable
+        storedArticles.length = 0; // Clear array without creating a new one
+        storedArticles.push(...limitedArticles); // Add only the limited set
+      }
       
       setUrl("");
     } catch (err) {
