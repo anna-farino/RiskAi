@@ -117,16 +117,20 @@ export default function Reports() {
       setIsLoading(true);
       setError(null);
       
+      // Simplified fetch approach to troubleshoot report loading issues
       const response = await fetch(serverUrl + "/api/news-capsule/reports", {
         method: "GET",
         credentials: 'include',
         headers: {
           ...csfrHeaderObject(),
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         },
       });
       
       if (!response.ok) {
-        throw new Error("Failed to fetch reports");
+        console.error("Report fetch failed with status:", response.status);
+        throw new Error("Failed to check for existing reports");
       }
       
       const data = await response.json();
