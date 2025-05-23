@@ -53,13 +53,15 @@ export function RisqHeader() {
     >
       <div className="container mx-auto px-4 flex items-center h-full">
         <div className="flex items-center justify-between gap-4 w-full">
-          {/* Logo and tagline as a cohesive unit */}
-          <div className="flex flex-col items-start justify-center">
-            <Link to="/dashboard" className="group">
-              <div className="logo-container relative">
-                <Logo interactive animated variant="gradient" size={getLogoSize()} />
-              </div>
-            </Link>
+          {/* Logo and tagline as a cohesive unit - positioned consistently at the left */}
+          <div className="flex flex-col items-start justify-start h-full">
+            <div className="mt-1">
+              <Link to="/dashboard" className="group block">
+                <div className="logo-container relative">
+                  <Logo interactive animated variant="gradient" size={getLogoSize()} />
+                </div>
+              </Link>
+            </div>
             <div className="h-3"></div> {/* Spacer between logo and tagline - increased spacing */}
             <p className="block text-xs sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
               AI-Powered Risk Intelligence
