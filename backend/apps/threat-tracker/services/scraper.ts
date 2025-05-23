@@ -371,12 +371,16 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
   <html>
     <body>
       <div class="extracted-article-links">
-        ${articleLinkData.map(link =>
-          `<div class="article-link-item">
-            <a href="${link.href}">${link.text}</a>
-            <div class="context">${link.parentText.substring(0, 100)}</div>
-          </div>`
-        ).join('\n')}
+        ${articleLinkData.map(link => {
+          // Clean HTML tags from link text to prevent malformed HTML
+          const cleanText = link.text.replace(/<[^>]+>/g, '').trim();
+          const cleanParentText = link.parentText.replace(/<[^>]+>/g, '').trim();
+          
+          return `<div class="article-link-item">
+            <a href="${link.href}">${cleanText}</a>
+            <div class="context">${cleanParentText.substring(0, 100)}</div>
+          </div>`;
+        }).join('\n')}
       </div>
     </body>
   </html>`;
