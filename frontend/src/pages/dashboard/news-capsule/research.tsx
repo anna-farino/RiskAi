@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
@@ -24,7 +24,7 @@ export default function Research() {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [articleSummary, setArticleSummary] = useState<ArticleSummary | null>(null);
+  const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
   
   const clearUrl = () => {
@@ -57,7 +57,8 @@ export default function Research() {
       }
       
       const data = await response.json();
-      setArticleSummary(data);
+      setProcessedArticles(prev => [data, ...prev]);
+      setUrl("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -65,12 +66,8 @@ export default function Research() {
     }
   };
   
-  const selectForReport = () => {
-    if (articleSummary) {
-      setSelectedArticles(prev => [...prev, articleSummary]);
-      setArticleSummary(null);
-      setUrl("");
-    }
+  const selectForReport = (article: ArticleSummary) => {
+    setSelectedArticles(prev => [...prev, article]);
   };
   
   const sendToExecutiveReport = async () => {
@@ -109,6 +106,10 @@ export default function Research() {
   
   const removeSelectedArticle = (id: string) => {
     setSelectedArticles(prev => prev.filter(article => article.id !== id));
+  };
+  
+  const removeProcessedArticle = (id: string) => {
+    setProcessedArticles(prev => prev.filter(article => article.id !== id));
   };
   
   return (
@@ -166,59 +167,72 @@ export default function Research() {
             )}
           </div>
           
-          {/* Article Summary Display */}
-          {articleSummary && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-6 p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="text-lg font-medium">{articleSummary.title}</h3>
-                <button
-                  onClick={selectForReport}
-                  className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                >
-                  Select for Report
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Threat Name</p>
-                  <p className="text-sm">{articleSummary.threatName}</p>
+          {/* Processed Articles Display */}
+          <div className="mt-6 flex flex-col gap-4">
+            {processedArticles.length > 0 && <h3 className="text-lg font-medium">Processed Articles</h3>}
+            
+            {processedArticles.map((article) => (
+              <motion.div
+                key={article.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="text-lg font-medium">{article.title}</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => selectForReport(article)}
+                      className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                    >
+                      Select for Report
+                    </button>
+                    <button
+                      onClick={() => removeProcessedArticle(article.id)}
+                      className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
-                  <p className="text-sm">{articleSummary.vulnerabilityId}</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Threat Name</p>
+                    <p className="text-sm">{article.threatName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
+                    <p className="text-sm">{article.vulnerabilityId}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-slate-400 mb-1">Summary</p>
+                    <p className="text-sm">{article.summary}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-slate-400 mb-1">Impacts</p>
+                    <p className="text-sm">{article.impacts}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
+                    <p className="text-sm">{article.attackVector}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Microsoft Connection</p>
+                    <p className="text-sm">{article.microsoftConnection}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Source</p>
+                    <p className="text-sm">{article.sourcePublication}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Target OS</p>
+                    <p className="text-sm">{article.targetOS}</p>
+                  </div>
                 </div>
-                <div className="md:col-span-2">
-                  <p className="text-xs text-slate-400 mb-1">Summary</p>
-                  <p className="text-sm">{articleSummary.summary}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <p className="text-xs text-slate-400 mb-1">Impacts</p>
-                  <p className="text-sm">{articleSummary.impacts}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
-                  <p className="text-sm">{articleSummary.attackVector}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Microsoft Connection</p>
-                  <p className="text-sm">{articleSummary.microsoftConnection}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Source</p>
-                  <p className="text-sm">{articleSummary.sourcePublication}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Target OS</p>
-                  <p className="text-sm">{articleSummary.targetOS}</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
+              </motion.div>
+            ))}
+          </div>
         </div>
         
         {/* Selected Articles Section */}
