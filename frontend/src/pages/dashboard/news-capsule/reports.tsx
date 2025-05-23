@@ -24,6 +24,7 @@ interface Report {
   createdAt: string;
   articles: ArticleSummary[];
   versionNumber?: number;
+  title?: string;
 }
 
 export default function Reports() {
