@@ -68,7 +68,7 @@ export function RisqHeader() {
         </div>
         
         {/* Rest of the header in a separate container */}
-        <div className="flex items-center justify-end gap-2 flex-1 pr-4 md:pr-6 lg:pr-8">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
           
           {/* User account and theme toggle */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
@@ -104,7 +104,7 @@ export function RisqHeader() {
           </div>
           
           {/* Mobile navigation - repositioned to far right */}
-          <div className="flex items-center md:hidden ml-2 pl-2 border-l border-[#BF00FF]/20">
+          <div className="flex items-center md:hidden ml-1.5 pl-1.5 border-l border-[#BF00FF]/20">
             <MobileNavigation />
           </div>
         </div>
