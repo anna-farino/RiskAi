@@ -126,6 +126,12 @@ export async function identifyArticleLinks(
       "openai",
     );
 
+    // Debug log: Print the structured HTML being sent to OpenAI
+    log(
+      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis:\n${linksText}`,
+      "openai-debug",
+    );
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
