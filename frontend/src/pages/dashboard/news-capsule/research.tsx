@@ -771,7 +771,7 @@ export default function Research() {
             }}
             className="mt-2 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
           >
-            Create New Empty Version
+            New Report
           </button>
         </div>
       </div>
