@@ -26,9 +26,9 @@ export function RisqHeader() {
   
   // Determine logo size based on screen width - increased for more prominence
   const getLogoSize = () => {
-    if (windowWidth < 640) return "sm";   // Mobile - still using smaller size for better fit
-    if (windowWidth < 1024) return "md";  // Tablet - increased to medium for better visibility
-    return "lg";                          // Desktop - increased to large for more prominence
+    if (windowWidth < 640) return "md";   // Mobile - increased to medium (32px) for better visibility
+    if (windowWidth < 1024) return "lg";  // Tablet - increased to large for better visibility
+    return "xl";                          // Desktop - increased to extra large for maximum prominence
   };
 
   // Handle scroll events to add background when scrolled
@@ -45,7 +45,7 @@ export function RisqHeader() {
     <header 
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        'h-[76px] md:h-[84px] lg:h-[88px]', // Increased height to accommodate larger logo
+        'h-[84px] md:h-[96px] lg:h-[100px]', // Increased height to accommodate our larger 32px logo
         scrolled 
           ? 'bg-black/95 backdrop-blur border-b border-[#BF00FF]/20 shadow-sm' 
           : 'bg-black/90 backdrop-blur'
@@ -61,7 +61,7 @@ export function RisqHeader() {
               </div>
             </Link>
           </div>
-          <div className="h-3"></div> {/* Spacer between logo and tagline - increased spacing */}
+          <div className="h-4"></div> {/* Spacer between logo and tagline - increased spacing for larger logo */}
           <p className="block text-xs sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
             AI-Powered Risk Intelligence
           </p>
