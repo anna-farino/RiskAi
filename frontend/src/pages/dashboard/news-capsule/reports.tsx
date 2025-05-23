@@ -87,6 +87,14 @@ export default function Reports() {
     }
   };
   
+  const formatTime = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "h:mm a");
+    } catch {
+      return "";
+    }
+  };
+  
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -130,6 +138,9 @@ export default function Reports() {
                   >
                     <p className="font-medium">
                       Report {formatDate(report.createdAt)}
+                    </p>
+                    <p className="text-xs text-blue-400">
+                      {formatTime(report.createdAt)}
                     </p>
                     <p className="text-xs text-slate-400">
                       {report.articles.length} articles

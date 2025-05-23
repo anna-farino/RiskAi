@@ -49,13 +49,12 @@ export async function addToReport(req: Request, res: Response) {
         version: reportVersion
       };
       
-      // Create a new report
+      // Create a new report (database schema doesn't have title field yet)
       const [newReport] = await db
         .insert(reports)
         .values({
           userId,
-          createdAt: currentDate,
-          title: reportVersion > 1 ? `Executive Report (Ver: ${reportVersion})` : 'Executive Report'
+          createdAt: currentDate
         })
         .returning();
       
