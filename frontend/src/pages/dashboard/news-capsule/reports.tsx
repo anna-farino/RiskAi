@@ -35,6 +35,47 @@ export default function Reports() {
     fetchReports();
   }, []);
   
+  // Calculate version numbers for reports from the same day
+  const getReportsWithVersions = () => {
+    // Group reports by date (ignoring time)
+    const reportsByDate = {};
+    
+    reports.forEach(report => {
+      const reportDate = new Date(report.createdAt);
+      const dateKey = reportDate.toDateString();
+      
+      if (!reportsByDate[dateKey]) {
+        reportsByDate[dateKey] = [];
+      }
+      
+      reportsByDate[dateKey].push(report);
+    });
+    
+    // Sort each day's reports by creation time and assign version numbers
+    const reportsWithVersions = [...reports];
+    
+    Object.values(reportsByDate).forEach(dayReports => {
+      // Sort by creation time (newest first)
+      dayReports.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      // Assign version numbers
+      dayReports.forEach((report, index) => {
+        const version = dayReports.length - index;
+        const reportIndex = reportsWithVersions.findIndex(r => r.id === report.id);
+        if (reportIndex !== -1) {
+          reportsWithVersions[reportIndex] = {
+            ...reportsWithVersions[reportIndex], 
+            versionNumber: version
+          };
+        }
+      });
+    });
+    
+    return reportsWithVersions;
+  };
+  
   const fetchReports = async () => {
     try {
       setIsLoading(true);
@@ -95,6 +136,9 @@ export default function Reports() {
     }
   };
   
+  // Create versioned reports
+  const reportsWithVersions = getReportsWithVersions();
+  
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -122,11 +166,11 @@ export default function Reports() {
           <div className="md:col-span-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
             <h2 className="text-xl font-semibold mb-4">Reports</h2>
             
-            {reports.length === 0 ? (
+            {reportsWithVersions.length === 0 ? (
               <p className="text-sm text-slate-400 italic">No reports available</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {reports.map((report) => (
+                {reportsWithVersions.map((report) => (
                   <button
                     key={report.id}
                     onClick={() => handleReportSelect(report)}
@@ -137,7 +181,7 @@ export default function Reports() {
                     }`}
                   >
                     <p className="font-medium">
-                      Report {formatDate(report.createdAt)}
+                      Report {formatDate(report.createdAt)} {report.versionNumber > 1 ? `(Version: ${report.versionNumber})` : ''}
                     </p>
                     <p className="text-xs text-blue-400">
                       {formatTime(report.createdAt)}
