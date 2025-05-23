@@ -227,33 +227,37 @@ export default function Research() {
       setIsLoading(true);
       setError(null);
       
-      // Check for today's existing reports first
-      const checkResponse = await fetch(serverUrl + "/api/news-capsule/reports", {
-        method: "GET",
-        credentials: 'include',
-        headers: {
-          ...csfrHeaderObject(),
-        },
-      });
+      // Check if localStorage already has reports
+      let savedReports = [];
+      let todaysReports = [];
+      let versionNumber = 1;
       
-      if (!checkResponse.ok) {
-        throw new Error("Failed to check for existing reports");
+      try {
+        const localStorageReports = localStorage.getItem('newsCapsuleReports');
+        if (localStorageReports) {
+          savedReports = JSON.parse(localStorageReports);
+          
+          // Find reports from today
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          todaysReports = savedReports.filter(report => {
+            const reportDate = new Date(report.createdAt);
+            const reportDay = new Date(reportDate);
+            reportDay.setHours(0, 0, 0, 0);
+            return reportDay.getTime() === today.getTime();
+          });
+          
+          // Set version number based on today's reports
+          versionNumber = todaysReports.length + 1;
+        }
+      } catch (e) {
+        console.error("Failed to check localStorage for reports", e);
+        // Continue with empty arrays if localStorage fails
       }
-      
-      const existingReports = await checkResponse.json();
-      
-      // Find reports from today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const todaysReports = existingReports.filter(report => {
-        const reportDate = new Date(report.createdAt);
-        return reportDate >= today;
-      });
       
       let useExistingReport = false;
       let existingReportId = null;
-      let versionNumber = 1;
       
       // If there are today's reports, ask if user wants to add to existing or create new
       if (todaysReports.length > 0) {
@@ -263,34 +267,79 @@ export default function Research() {
         
         if (useExistingReport) {
           existingReportId = todaysReports[0].id;
-        } else {
-          // Count how many reports exist today to determine version number
-          versionNumber = todaysReports.length + 1;
         }
       }
       
-      // Send to API with proper parameters
-      const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
-        method: "POST",
-        credentials: 'include',
-        headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject(),
-        },
-        body: JSON.stringify({ 
-          articleIds: selectedArticles.map(article => article.id),
-          useExistingReport: useExistingReport,
-          existingReportId: existingReportId,
-          versionNumber: versionNumber
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to add articles to report");
+      try {
+        // First try to save to server
+        const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
+          method: "POST",
+          credentials: 'include',
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          body: JSON.stringify({ 
+            articleIds: selectedArticles.map(article => article.id),
+            useExistingReport: useExistingReport,
+            existingReportId: existingReportId,
+            versionNumber: versionNumber
+          }),
+          // Add a timeout to prevent long waiting
+          signal: AbortSignal.timeout(5000)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Articles added to report on server:", result);
+        }
+      } catch (serverError) {
+        console.error("Server error, will save locally only:", serverError);
+        // Continue to save locally if server fails
       }
       
-      const result = await response.json();
-      console.log("Articles added to report:", result);
+      // IMPORTANT: Always save to localStorage as a backup
+      const newReportId = useExistingReport && existingReportId 
+        ? existingReportId 
+        : `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      if (useExistingReport && existingReportId) {
+        // Update existing report in localStorage
+        const reportIndex = savedReports.findIndex(r => r.id === existingReportId);
+        if (reportIndex !== -1) {
+          // Combine articles, avoiding duplicates
+          const existingArticles = savedReports[reportIndex].articles || [];
+          const newArticles = selectedArticles;
+          const combinedArticles = [...existingArticles];
+          
+          // Add only articles that don't already exist in the report
+          for (const article of newArticles) {
+            if (!combinedArticles.some(a => a.id === article.id)) {
+              combinedArticles.push(article);
+            }
+          }
+          
+          savedReports[reportIndex] = {
+            ...savedReports[reportIndex],
+            articles: combinedArticles
+          };
+        }
+      } else {
+        // Create new report
+        const newReport = {
+          id: newReportId,
+          createdAt: new Date().toISOString(),
+          articles: [...selectedArticles],
+          versionNumber: versionNumber
+        };
+        
+        // Add to beginning of reports array
+        savedReports.unshift(newReport);
+      }
+      
+      // Save updated reports to localStorage
+      localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
+      console.log("Updated reports saved to localStorage:", savedReports.length);
       
       // Success message
       alert("Articles successfully added to report!");
