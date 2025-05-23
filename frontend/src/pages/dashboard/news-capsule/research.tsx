@@ -96,6 +96,7 @@ export default function Research() {
         throw new Error("Failed to add articles to report");
       }
       
+      // Keep processed articles but clear selected ones
       setSelectedArticles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
