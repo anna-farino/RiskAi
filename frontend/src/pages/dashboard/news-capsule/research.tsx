@@ -417,15 +417,11 @@ export default function Research() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Target OS</p>
-                    <p className="text-sm">{article.microsoftConnection}</p>
+                    <p className="text-sm">{article.targetOS}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Source</p>
                     <p className="text-sm">{article.sourcePublication}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Target OS</p>
-                    <p className="text-sm">{article.targetOS}</p>
                   </div>
                 </div>
               </motion.div>
