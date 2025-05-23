@@ -6,7 +6,7 @@ import { FullRequest } from '../../middleware';
 
 export async function addToReport(req: Request, res: Response) {
   try {
-    const { articleIds, useExistingReport, existingReportId } = req.body;
+    const { articleIds, useExistingReport, existingReportId, versionNumber } = req.body;
     
     if (!articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
       return res.status(400).json({ error: 'Article IDs are required' });
@@ -15,6 +15,7 @@ export async function addToReport(req: Request, res: Response) {
     const userId = (req as FullRequest).user.id;
     
     let reportId;
+    let reportVersion = 1;
     
     // If user wants to use an existing report and provided a valid ID
     if (useExistingReport && existingReportId) {
@@ -35,15 +36,26 @@ export async function addToReport(req: Request, res: Response) {
       
       reportId = existingReportId;
     } else {
-      // Create a new report with current date
+      // Create a new report with current date and version info
       const currentDate = new Date();
+      
+      // Set version number if provided
+      if (versionNumber && versionNumber > 1) {
+        reportVersion = versionNumber;
+      }
+      
+      // Store version info in JSON metadata
+      const metadata = {
+        version: reportVersion
+      };
       
       // Create a new report
       const [newReport] = await db
         .insert(reports)
         .values({
           userId,
-          createdAt: currentDate
+          createdAt: currentDate,
+          title: reportVersion > 1 ? `Executive Report (Ver: ${reportVersion})` : 'Executive Report'
         })
         .returning();
       

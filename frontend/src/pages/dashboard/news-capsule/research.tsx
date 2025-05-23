@@ -253,6 +253,7 @@ export default function Research() {
       
       let useExistingReport = false;
       let existingReportId = null;
+      let versionNumber = 1;
       
       // If there are today's reports, ask if user wants to add to existing or create new
       if (todaysReports.length > 0) {
@@ -262,6 +263,9 @@ export default function Research() {
         
         if (useExistingReport) {
           existingReportId = todaysReports[0].id;
+        } else {
+          // Count how many reports exist today to determine version number
+          versionNumber = todaysReports.length + 1;
         }
       }
       
@@ -276,7 +280,8 @@ export default function Research() {
         body: JSON.stringify({ 
           articleIds: selectedArticles.map(article => article.id),
           useExistingReport: useExistingReport,
-          existingReportId: existingReportId
+          existingReportId: existingReportId,
+          versionNumber: versionNumber
         }),
       });
       
