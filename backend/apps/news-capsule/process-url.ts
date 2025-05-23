@@ -214,7 +214,8 @@ async function generateArticleSummary(contentJson: string, url: string) {
       4. Summary (a 2-3 sentence summary of the main points)
       5. Impacts (what are the potential impacts of this threat, 1-2 sentences)
       6. Attack Vector (how the attack is performed, 1 sentence)
-      7. Target OS (what operating systems are affected - identify all relevant OS platforms including Windows, macOS, Linux, Android, iOS, etc. If no specific OS is mentioned, state "Multiple operating systems" or "OS-independent")
+      7. Microsoft Connection (how this relates to Microsoft or Windows, if at all, 1 sentence)
+      8. Target OS (what operating systems are targeted, identify all operating systems mentioned including Windows, macOS, Linux, Android, iOS; don't default to Microsoft)
       
       Format your response as a JSON object with these exact field names.
     `;
@@ -238,7 +239,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: parsedResult.Summary || "No summary available.",
         impacts: parsedResult.Impacts || "No impacts specified.",
         attackVector: parsedResult.attackVector || parsedResult["Attack Vector"] || "Unknown attack vector",
-        microsoftConnection: null, // Field kept for backward compatibility with DB
+        microsoftConnection: parsedResult.microsoftConnection || parsedResult["Microsoft Connection"] || "No direct Microsoft connection identified.",
         sourcePublication: content.publication || new URL(url).hostname,
         targetOS: parsedResult.targetOS || parsedResult["Target OS"] || "Multiple operating systems"
       };
@@ -253,7 +254,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: "Failed to generate summary. Please review the original article.",
         impacts: "Impacts could not be determined.",
         attackVector: "Unknown attack vector",
-        microsoftConnection: null, // Field kept for backward compatibility with DB
+        microsoftConnection: "No direct Microsoft connection identified.",
         sourcePublication: content.publication || new URL(url).hostname,
         targetOS: "Multiple operating systems"
       };
