@@ -287,7 +287,7 @@ export default function Research() {
                     <p className="text-sm">{article.attackVector}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400 mb-1">Microsoft Connection</p>
+                    <p className="text-xs text-slate-400 mb-1">Target OS</p>
                     <p className="text-sm">{article.microsoftConnection}</p>
                   </div>
                   <div>

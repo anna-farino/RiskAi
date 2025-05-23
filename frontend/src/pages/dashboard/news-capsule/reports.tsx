@@ -191,7 +191,7 @@ export default function Reports() {
                             <p className="text-sm">{article.attackVector}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-400">Microsoft Connection</p>
+                            <p className="text-xs text-slate-400">Target OS</p>
                             <p className="text-sm">{article.microsoftConnection}</p>
                           </div>
                           <div>
