@@ -39,9 +39,12 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
   // Load reports from localStorage on component mount
   useEffect(() => {
     try {
+      setIsLoading(true);
+      // First check localStorage for saved reports
       const savedReports = localStorage.getItem('newsCapsuleReports');
       if (savedReports) {
         const parsedReports = JSON.parse(savedReports);
+        console.log("Loaded reports from localStorage:", parsedReports.length);
         setReports(parsedReports);
         
         // Auto-select first report if no report is selected
@@ -54,6 +57,11 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
             onReportSelect(selectedReport);
           }
         }
+      } else {
+        // If no reports in localStorage, initialize with an empty array
+        console.log("No reports found in localStorage, initializing empty array");
+        setReports([]);
+        localStorage.setItem('newsCapsuleReports', JSON.stringify([]));
       }
     } catch (err) {
       console.error("Error loading reports from localStorage:", err);
