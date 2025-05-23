@@ -43,11 +43,13 @@ export default function Reports() {
     try {
       setIsDeleting(true);
       
-      const response = await fetch(`/api/news-capsule/reports/${reportId}`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
         method: 'DELETE',
         headers: {
+          ...csfrHeaderObject(),
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -284,15 +286,51 @@ export default function Reports() {
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
                   </h2>
-                  <button
-                    className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
-                    onClick={() => {
-                      // Logic to export or print the report could go here
-                      window.print();
-                    }}
-                  >
-                    Export
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
+                      onClick={() => {
+                        // Print report
+                        window.print();
+                      }}
+                    >
+                      Print
+                    </button>
+                    <button
+                      className="px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded-md"
+                      onClick={() => {
+                        // Export as text
+                        const reportTitle = `Executive Report (${formatDate(selectedReport.createdAt)})`;
+                        let reportContent = `${reportTitle}\n\n`;
+                        
+                        selectedReport.articles.forEach(article => {
+                          reportContent += `TITLE: ${article.title}\n`;
+                          reportContent += `THREAT: ${article.threatName}\n`;
+                          reportContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n\n`;
+                          reportContent += `SUMMARY:\n${article.summary}\n\n`;
+                          reportContent += `IMPACTS:\n${article.impacts}\n\n`;
+                          reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
+                          reportContent += `TARGET OS: ${article.targetOS}\n`;
+                          reportContent += `SOURCE: ${article.sourcePublication}\n`;
+                          reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
+                          reportContent += `-------------------------------------------\n\n`;
+                        });
+                        
+                        // Create and download text file
+                        const blob = new Blob([reportContent], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${reportTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Export as Text
+                    </button>
+                  </div>
                 </div>
                 
                 {selectedReport.articles.length === 0 ? (
