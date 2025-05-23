@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { format } from "date-fns";
 import { serverUrl } from "@/utils/server-url";
+import { useToast } from "@/hooks/use-toast";
 
 interface ArticleSummary {
   id: string;
@@ -42,10 +43,12 @@ export default function Reports() {
     try {
       setIsDeleting(true);
       
-      const response = await fetch(`/api/news-capsule/reports/${reportId}`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...csfrHeaderObject()
         }
       });
       
@@ -69,45 +72,14 @@ export default function Reports() {
     }
   };
   
-  const getReportsWithVersions = () => {
-    // Group reports by date (ignoring time)
-    const reportsByDate: Record<string, Report[]> = {};
-    
-    reports.forEach(report => {
-      const reportDate = new Date(report.createdAt);
-      const dateKey = reportDate.toDateString();
-      
-      if (!reportsByDate[dateKey]) {
-        reportsByDate[dateKey] = [];
-      }
-      
-      reportsByDate[dateKey].push(report);
-    });
-    
-    // Sort each day's reports by creation time and assign version numbers
-    const reportsWithVersions = [...reports];
-    
-    Object.values(reportsByDate).forEach(dayReports => {
-      // Sort by creation time (newest first)
-      dayReports.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      // Assign version numbers
-      dayReports.forEach((report, index) => {
-        const version = dayReports.length - index;
-        const reportIndex = reportsWithVersions.findIndex(r => r.id === report.id);
-        if (reportIndex !== -1) {
-          reportsWithVersions[reportIndex] = {
-            ...reportsWithVersions[reportIndex], 
-            versionNumber: version
-          };
-        }
-      });
-    });
-    
-    return reportsWithVersions;
+  // Get sorted reports
+  const getSortedReports = () => {
+    return [...reports].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   };
+  
+  const { toast } = useToast();
   
   const fetchReports = async () => {
     try {
@@ -131,7 +103,11 @@ export default function Reports() {
       
       // Check if we got any reports
       if (data.length === 0) {
-        console.log("No reports found - please try sending articles from the Research page");
+        toast({
+          title: "No reports found",
+          description: "Create reports by sending articles from the Research page",
+          variant: "default",
+        });
       }
       
       setReports(data);
@@ -143,7 +119,7 @@ export default function Reports() {
       }
     } catch (err) {
       console.error("Error fetching reports:", err);
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError("Unable to load reports. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -169,32 +145,29 @@ export default function Reports() {
     }
   };
   
-  // Helper function to check if a report has same-day versions
-  const getVersionLabel = (report: Report) => {
-    // Find other reports from the same day
+  // Calculate version for a report
+  const getReportVersion = (report: Report) => {
     const reportDate = new Date(report.createdAt);
-    const sameDayReports = reports.filter(r => {
-      const compareDate = new Date(r.createdAt);
-      return compareDate.toDateString() === reportDate.toDateString();
+    const reportDateString = reportDate.toDateString();
+    
+    // Get all reports from the same day
+    const reportsFromSameDay = reports.filter(r => {
+      const date = new Date(r.createdAt);
+      return date.toDateString() === reportDateString;
     });
     
-    // If there are multiple reports from the same day
-    if (sameDayReports.length > 1) {
-      // Sort by creation time
-      sameDayReports.sort((a, b) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-      
-      // Find this report's position
-      const position = sameDayReports.findIndex(r => r.id === report.id);
-      
-      // Only add version label if this isn't the first report of the day
-      if (position > 0) {
-        return `(Version: ${position + 1})`;
-      }
+    if (reportsFromSameDay.length <= 1) {
+      return '';
     }
     
-    return '';
+    // Sort by creation time (oldest first)
+    reportsFromSameDay.sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    
+    const index = reportsFromSameDay.findIndex(r => r.id === report.id);
+    // Only show version for versions after the first
+    return index > 0 ? `(Version ${index + 1})` : '';
   };
   
   return (
@@ -239,7 +212,7 @@ export default function Reports() {
                       }`}
                     >
                       <p className="font-medium">
-                        Report {formatDate(report.createdAt)} {getVersionLabel(report)}
+                        Report {formatDate(report.createdAt)} {getReportVersion(report)}
                       </p>
                       <p className="text-xs text-blue-400">
                         {formatTime(report.createdAt)}
