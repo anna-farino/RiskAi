@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
+
+// Store articles at module level so they persist between component mounts
+const storedArticles: ArticleSummary[] = [];
+const storedSelectedArticles: ArticleSummary[] = [];
 
 interface ArticleSummary {
   id: string;
@@ -24,20 +28,8 @@ export default function Research() {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
-  const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
-  
-  // Load articles from localStorage when the component mounts
-  useEffect(() => {
-    const savedArticles = localStorage.getItem('newsCapsuledProcessedArticles');
-    if (savedArticles) {
-      try {
-        setProcessedArticles(JSON.parse(savedArticles));
-      } catch (err) {
-        console.error('Error loading saved articles:', err);
-      }
-    }
-  }, []);
+  const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>(storedArticles);
+  const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>(storedSelectedArticles);
   
   const clearUrl = () => {
     setUrl("");
@@ -69,7 +61,13 @@ export default function Research() {
       }
       
       const data = await response.json();
-      setProcessedArticles(prev => [data, ...prev]);
+      
+      // Update both state and module variables
+      const newProcessedArticles = [data, ...processedArticles];
+      setProcessedArticles(newProcessedArticles);
+      storedArticles.length = 0; // Clear array without creating a new one
+      storedArticles.push(...newProcessedArticles); // Update module variable
+      
       setUrl("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -79,7 +77,12 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
-    setSelectedArticles(prev => [...prev, article]);
+    const newSelectedArticles = [...selectedArticles, article];
+    setSelectedArticles(newSelectedArticles);
+    
+    // Update module variable
+    storedSelectedArticles.length = 0;
+    storedSelectedArticles.push(...newSelectedArticles);
   };
   
   const sendToExecutiveReport = async () => {
@@ -108,8 +111,9 @@ export default function Research() {
         throw new Error("Failed to add articles to report");
       }
       
-      // Keep processed articles but clear selected ones
+      // Clear selected articles but keep processed ones
       setSelectedArticles([]);
+      storedSelectedArticles.length = 0;
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -118,11 +122,21 @@ export default function Research() {
   };
   
   const removeSelectedArticle = (id: string) => {
-    setSelectedArticles(prev => prev.filter(article => article.id !== id));
+    const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
+    setSelectedArticles(newSelectedArticles);
+    
+    // Update module variable
+    storedSelectedArticles.length = 0;
+    storedSelectedArticles.push(...newSelectedArticles);
   };
   
   const removeProcessedArticle = (id: string) => {
-    setProcessedArticles(prev => prev.filter(article => article.id !== id));
+    const newProcessedArticles = processedArticles.filter(article => article.id !== id);
+    setProcessedArticles(newProcessedArticles);
+    
+    // Update module variable
+    storedArticles.length = 0;
+    storedArticles.push(...newProcessedArticles);
   };
   
   return (
