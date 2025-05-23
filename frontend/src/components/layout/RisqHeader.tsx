@@ -53,7 +53,7 @@ export function RisqHeader() {
     >
       <div className="w-full flex items-center h-full">
         {/* Logo and tagline as a fixed unit on the left side */}
-        <div className="flex flex-col items-start justify-start h-full pl-4 md:pl-6 lg:pl-[20px]">
+        <div className="flex flex-col items-start justify-start h-full pl-4 md:pl-6 lg:pl-[18px]">
           <div className="mt-1">
             <Link to="/dashboard" className="group block">
               <div className="logo-container relative">
