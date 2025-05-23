@@ -145,63 +145,44 @@ export default function Dashboard() {
           
           <RisqWidget
             title="News Capsule"
-            description="Configure and launch news scanning operations"
-            icon={<Radar className="w-10 h-10" />}
+            description="Process articles for executive reports"
+            icon={<Newspaper className="w-10 h-10" />}
             variant="interactive"
             delay={0.4}
-            onClick={() => navigate("/dashboard/capsule/home")}
+            onClick={() => navigate("/dashboard/news-capsule/home")}
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  Last scan completed 25 minutes ago
+                  Intelligent article analysis and reporting
                 </div>
               </div>
             }
           >
-            <div className="space-y-2">
-              <div className="bg-gradient-to-r from-[#BF00FF]/10 to-[#00FFFF]/10 rounded-lg p-2.5 border border-[#BF00FF]/20">
-                <div className="mb-1.5">
-                  <div className="flex items-center">
-                    <Radar className="w-4 h-4 text-[#00FFFF] mr-2" />
-                    <span className="font-semibold text-[#00FFFF]">Intelligence Feed</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
+                <div className="flex items-center">
+                  <Search className="w-5 h-5 mr-3 text-[#00FFFF]" />
+                  <div>
+                    <h4 className="text-sm font-medium">Article Research</h4>
+                    <p className="text-xs text-gray-400">Analyze and process articles</p>
                   </div>
                 </div>
-                <div className="text-xs text-gray-300 mb-1.5">
-                  Real-time monitoring of 140+ specialized security feeds and news sources
-                </div>
-                <div className="flex items-center">
-                  <span className="text-xs font-medium bg-[#BF00FF]/20 text-white px-2 py-0.5 rounded">Active</span>
-                </div>
+                <span className="text-xs px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
+                  Ready
+                </span>
               </div>
               
-              <div className="bg-gradient-to-r from-[#00FFFF]/10 to-[#BF00FF]/10 rounded-lg p-2.5 border border-[#00FFFF]/20">
-                <div className="mb-1.5">
-                  <div className="flex items-center">
-                    <Database className="w-4 h-4 text-[#BF00FF] mr-2" />
-                    <span className="font-semibold text-[#BF00FF]">Data Processing</span>
+              <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
+                <div className="flex items-center">
+                  <Database className="w-5 h-5 mr-3 text-[#00FFFF]" />
+                  <div>
+                    <h4 className="text-sm font-medium">Executive Reports</h4>
+                    <p className="text-xs text-gray-400">Daily compiled insights</p>
                   </div>
                 </div>
-                <div className="text-xs text-gray-300 mb-1.5">
-                  Advanced AI processing with threat detection and priority classification
-                </div>
-                <div className="flex items-center">
-                  <span className="text-xs font-medium bg-[#00FFFF]/20 text-white px-2 py-0.5 rounded">Operational</span>
-                </div>
-              </div>
-              
-              <div className="bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg p-2.5 border border-[#BF00FF]/30">
-                <div className="mb-1.5">
-                  <div className="flex items-center">
-                    <AlertTriangle className="w-4 h-4 text-yellow-400 mr-2" />
-                    <span className="font-semibold text-yellow-400">Risk Assessment</span>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-300 mb-1.5">
-                  Categorized threat intelligence with impact metrics and prioritization
-                </div>
-                <div className="flex items-center">
-                  <span className="text-xs font-medium bg-yellow-500/20 text-white px-2 py-0.5 rounded">Ready</span>
-                </div>
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-900/30 text-blue-400 border border-blue-500/20">
+                  Active
+                </span>
               </div>
             </div>
           </RisqWidget>
