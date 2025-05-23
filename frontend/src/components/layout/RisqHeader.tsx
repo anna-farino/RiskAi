@@ -61,7 +61,7 @@ export function RisqHeader() {
               </div>
             </Link>
           </div>
-          <div className="h-2 sm:h-4"></div> {/* Reduced spacer on mobile, normal on larger screens */}
+          <div className="h-3 sm:h-4"></div> {/* Increased spacer on mobile for better spacing */}
           <p className="block text-sm sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-tight sm:leading-normal opacity-90">
             AI-Powered Risk Intelligence
           </p>
