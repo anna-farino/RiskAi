@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '@backend/db/db';
 import { eq } from 'drizzle-orm';
-import { reports } from '@shared/db/schema/reports';
+import { reports, capsuleArticlesInReports } from '@shared/db/schema/reports';
 
 export async function deleteReport(req: Request, res: Response) {
   const reportId = req.params.reportId;
@@ -11,7 +11,12 @@ export async function deleteReport(req: Request, res: Response) {
   }
 
   try {
-    // Delete the report with the given ID
+    // First delete all relationships in the join table
+    await db.delete(capsuleArticlesInReports)
+      .where(eq(capsuleArticlesInReports.reportId, reportId))
+      .execute();
+      
+    // Then delete the report itself
     await db.delete(reports)
       .where(eq(reports.id, reportId))
       .execute();

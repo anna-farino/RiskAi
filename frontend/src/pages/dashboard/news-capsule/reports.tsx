@@ -31,55 +31,12 @@ export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const { toast } = useToast();
   
   useEffect(() => {
     fetchReports();
   }, []);
-  
-  // Calculate version numbers for reports from the same day
-  const deleteReport = async (reportId: string) => {
-    try {
-      setIsDeleting(true);
-      
-      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...csfrHeaderObject()
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete report');
-      }
-      
-      // Remove report from local state
-      setReports(reports.filter(report => report.id !== reportId));
-      
-      // If deleted report was selected, clear selection
-      if (selectedReport && selectedReport.id === reportId) {
-        setSelectedReport(null);
-      }
-      
-      setShowDeleteConfirm(null);
-    } catch (err) {
-      setError('Error deleting report: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-  
-  // Get sorted reports
-  const getSortedReports = () => {
-    return [...reports].sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  };
-  
-  const { toast } = useToast();
   
   const fetchReports = async () => {
     try {
@@ -145,31 +102,6 @@ export default function Reports() {
     }
   };
   
-  // Calculate version for a report
-  const getReportVersion = (report: Report) => {
-    const reportDate = new Date(report.createdAt);
-    const reportDateString = reportDate.toDateString();
-    
-    // Get all reports from the same day
-    const reportsFromSameDay = reports.filter(r => {
-      const date = new Date(r.createdAt);
-      return date.toDateString() === reportDateString;
-    });
-    
-    if (reportsFromSameDay.length <= 1) {
-      return '';
-    }
-    
-    // Sort by creation time (oldest first)
-    reportsFromSameDay.sort((a, b) => 
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-    
-    const index = reportsFromSameDay.findIndex(r => r.id === report.id);
-    // Only show version for versions after the first
-    return index > 0 ? `(Version ${index + 1})` : '';
-  };
-  
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -212,7 +144,7 @@ export default function Reports() {
                       }`}
                     >
                       <p className="font-medium">
-                        Report {formatDate(report.createdAt)} {getReportVersion(report)}
+                        Report {formatDate(report.createdAt)}
                       </p>
                       <p className="text-xs text-blue-400">
                         {formatTime(report.createdAt)}
@@ -221,52 +153,7 @@ export default function Reports() {
                         {report.articles.length} articles
                       </p>
                     </button>
-                    
-                    {/* Delete button */}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDeleteConfirm(report.id);
-                      }}
-                      className="absolute right-2 top-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-opacity"
-                      title="Delete report"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
-                    
-                    {/* Delete confirmation */}
-                    {showDeleteConfirm === report.id && (
-                      <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-slate-800/90 rounded-md z-10">
-                        <div className="p-3 flex flex-col gap-2">
-                          <p className="text-sm text-red-300">Delete this report?</p>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteReport(report.id);
-                              }}
-                              disabled={isDeleting}
-                              className="text-xs px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-white"
-                            >
-                              {isDeleting ? "Deleting..." : "Yes, Delete"}
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowDeleteConfirm(null);
-                              }}
-                              className="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {/* Delete functionality will be added back after fixing page loading */}
                   </div>
                 ))}
               </div>
