@@ -53,13 +53,22 @@ export default function Reports() {
       }
       
       const data = await response.json();
+      console.log("Reports data:", data);
+      
+      // Check if we got any reports
+      if (data.length === 0) {
+        console.log("No reports found - please try sending articles from the Research page");
+      }
+      
       setReports(data);
       
       // Auto-select the most recent report if it exists
       if (data.length > 0) {
         setSelectedReport(data[0]);
+        console.log("Selected report articles:", data[0].articles);
       }
     } catch (err) {
+      console.error("Error fetching reports:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
@@ -189,10 +198,6 @@ export default function Reports() {
                           <div>
                             <p className="text-xs text-slate-400">Attack Vector</p>
                             <p className="text-sm">{article.attackVector}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-400">Target OS</p>
-                            <p className="text-sm">{article.microsoftConnection}</p>
                           </div>
                           <div>
                             <p className="text-xs text-slate-400">Source</p>
