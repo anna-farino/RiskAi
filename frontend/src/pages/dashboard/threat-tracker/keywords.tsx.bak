@@ -369,6 +369,358 @@ export default function Keywords() {
     hardware: localKeywords.filter(k => k.category === 'hardware').length,
   };
 
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Keywords</h1>
+        <p className="text-muted-foreground">
+          Manage keywords used for threat monitoring and cross-referencing.
+        </p>
+      </div>
+
+      <Tabs 
+        defaultValue="threat" 
+        value={selectedCategory}
+        onValueChange={setSelectedCategory}
+        className="w-full"
+      >
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="w-full overflow-x-auto pb-2">
+            <TabsList className="w-full sm:w-auto flex">
+              <TabsTrigger value="threat" className="relative whitespace-nowrap">
+                <span className="sm:inline hidden">Threat Keywords</span>
+                <span className="sm:hidden inline">Threats</span>
+                {categoryCounts.threat > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.threat}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="vendor" className="relative whitespace-nowrap">
+                Vendors
+                {categoryCounts.vendor > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.vendor}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="client" className="relative whitespace-nowrap">
+                Clients
+                {categoryCounts.client > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.client}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="hardware" className="relative whitespace-nowrap">
+                <span className="sm:inline hidden">Hardware/Software</span>
+                <span className="sm:hidden inline">H/W S/W</span>
+                {categoryCounts.hardware > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.hardware}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <Button onClick={handleBulkKeywords} disabled={createBulkKeywords.isPending} variant="outline" className="h-9 px-2 sm:px-4">
+              {createBulkKeywords.isPending ? (
+                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="sm:mr-2 h-4 w-4" />
+              )}
+              <span className="sm:inline hidden">Bulk Import</span>
+              <span className="sm:hidden inline">Bulk</span>
+            </Button>
+            
+            <Button onClick={handleNewKeyword} disabled={createKeyword.isPending} className="h-9 px-2 sm:px-4">
+              {createKeyword.isPending ? (
+                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="sm:mr-2 h-4 w-4" />
+              )}
+              <span className="sm:inline hidden">
+                Add {selectedCategory === 'threat' ? 'Keyword' : 
+                    selectedCategory === 'vendor' ? 'Vendor' :
+                    selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
+              </span>
+              <span className="sm:hidden inline">Add</span>
+            </Button>
+          </div>
+        </div>
+
+        <TabsContent value="threat" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Threat Keywords</CardTitle>
+              <CardDescription>
+                Keywords related to cybersecurity threats (e.g., malware, breach, zero-day, etc.)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderKeywordTable(keywordsByCategory)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="vendor" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendors</CardTitle>
+              <CardDescription>
+                Technology vendors to monitor for security threats (e.g., Microsoft, Cisco, etc.)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderKeywordTable(keywordsByCategory)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="client" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Clients</CardTitle>
+              <CardDescription>
+                Your client organizations to monitor for security threats
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderKeywordTable(keywordsByCategory)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="hardware" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Hardware/Software</CardTitle>
+              <CardDescription>
+                Specific hardware or software to monitor for security threats
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderKeywordTable(keywordsByCategory)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add/Edit Keyword Dialog */}
+      <Dialog open={keywordDialogOpen} onOpenChange={setKeywordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingKeyword ? 'Edit Keyword' : 'Add New Keyword'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingKeyword
+                ? 'Update the keyword details below.'
+                : 'Enter the details for your new keyword.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="term"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Keyword Term</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter keyword..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="threat">Threat Keyword</SelectItem>
+                        <SelectItem value="vendor">Vendor</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="hardware">Hardware/Software</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Categorize this keyword for better organization
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Active Status</FormLabel>
+                      <FormDescription>
+                        Inactive keywords won't be used for threat monitoring
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setKeywordDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={createKeyword.isPending || updateKeyword.isPending}
+                >
+                  {(createKeyword.isPending || updateKeyword.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {editingKeyword ? 'Update' : 'Add'} Keyword
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Keywords Dialog */}
+      <Dialog open={bulkKeywordDialogOpen} onOpenChange={setBulkKeywordDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Bulk Import Keywords</DialogTitle>
+            <DialogDescription>
+              Add multiple keywords at once by separating them with commas.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...bulkForm}>
+            <form onSubmit={bulkForm.handleSubmit(onBulkSubmit)} className="space-y-4">
+              <FormField
+                control={bulkForm.control}
+                name="terms"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Keywords (comma-separated)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter keywords separated by commas (e.g., ransomware, malware, trojan)"
+                        className="min-h-[120px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Each keyword will be added as a separate entry
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bulkForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="threat">Threat Keyword</SelectItem>
+                        <SelectItem value="vendor">Vendor</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="hardware">Hardware/Software</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      All keywords will be assigned to this category
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bulkForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Active Status</FormLabel>
+                      <FormDescription>
+                        Set all imported keywords as active or inactive
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setBulkKeywordDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={createBulkKeywords.isPending}
+                >
+                  {createBulkKeywords.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Import Keywords
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
   // Helper function to render the keyword table
   function renderKeywordTable(keywords: ThreatKeyword[]) {
     if (keywords.length === 0 && keywordsByCategory.length === 0) {
@@ -384,7 +736,7 @@ export default function Keywords() {
         <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
           <h3 className="text-lg font-medium">No keywords found</h3>
-          <p className="text-sm text-muted-foreground mb-4 text-center px-4">
+          <p className="text-sm text-muted-foreground mb-4">
             {selectedCategory === 'threat' && "Add threat keywords to monitor for security issues."}
             {selectedCategory === 'vendor' && "Add vendors to monitor for security vulnerabilities."}
             {selectedCategory === 'client' && "Add clients to track security issues affecting them."}
@@ -485,357 +837,4 @@ export default function Keywords() {
       </div>
     );
   }
-
-  return (
-    <div className="flex flex-col gap-6 px-2 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Keywords</h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
-          Manage keywords used for threat monitoring and cross-referencing.
-        </p>
-      </div>
-
-      <Tabs 
-        defaultValue="threat" 
-        value={selectedCategory}
-        onValueChange={setSelectedCategory}
-        className="w-full"
-      >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="w-full overflow-x-auto pb-2">
-            <TabsList className="w-full sm:w-auto flex">
-              <TabsTrigger value="threat" className="relative whitespace-nowrap">
-                <span className="sm:inline hidden">Threat Keywords</span>
-                <span className="sm:hidden inline">Threats</span>
-                {categoryCounts.threat > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.threat}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="vendor" className="relative whitespace-nowrap">
-                Vendors
-                {categoryCounts.vendor > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.vendor}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="client" className="relative whitespace-nowrap">
-                Clients
-                {categoryCounts.client > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.client}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="hardware" className="relative whitespace-nowrap">
-                <span className="sm:inline hidden">Hardware/Software</span>
-                <span className="sm:hidden inline">H/W S/W</span>
-                {categoryCounts.hardware > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.hardware}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <div className="flex gap-2 w-full sm:w-auto justify-end">
-            <Button onClick={handleBulkKeywords} disabled={createBulkKeywords.isPending} variant="outline" className="h-9 px-2 sm:px-4">
-              {createBulkKeywords.isPending ? (
-                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="sm:mr-2 h-4 w-4" />
-              )}
-              <span className="sm:inline hidden">Bulk Import</span>
-              <span className="sm:hidden inline">Bulk</span>
-            </Button>
-            
-            <Button onClick={handleNewKeyword} disabled={createKeyword.isPending} className="h-9 px-2 sm:px-4">
-              {createKeyword.isPending ? (
-                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="sm:mr-2 h-4 w-4" />
-              )}
-              <span className="sm:inline hidden">
-                Add {selectedCategory === 'threat' ? 'Keyword' : 
-                    selectedCategory === 'vendor' ? 'Vendor' :
-                    selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
-              </span>
-              <span className="sm:hidden inline">Add</span>
-            </Button>
-          </div>
-        </div>
-
-        <TabsContent value="threat" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Threat Keywords</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Keywords related to cybersecurity threats (e.g., malware, breach, zero-day)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="vendor" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Vendors</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Technology vendors to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="client" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Clients</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Your client organizations to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="hardware" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Hardware/Software</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Specific hardware or software to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Single keyword dialog */}
-      <Dialog open={keywordDialogOpen} onOpenChange={setKeywordDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingKeyword ? "Edit Keyword" : "Add New Keyword"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingKeyword 
-                ? "Update this keyword's details."
-                : "Add a new keyword to monitor in threat analysis."}
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="term"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Keyword</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter keyword" />
-                    </FormControl>
-                    <FormDescription>
-                      Enter a single term to monitor
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="threat">Threat</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">Hardware/Software</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Categorize this keyword
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Active Status</FormLabel>
-                      <FormDescription>
-                        Toggle monitoring status
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setKeywordDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={createKeyword.isPending || updateKeyword.isPending}
-                >
-                  {(createKeyword.isPending || updateKeyword.isPending) && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {editingKeyword ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Bulk keyword import dialog */}
-      <Dialog open={bulkKeywordDialogOpen} onOpenChange={setBulkKeywordDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Bulk Import Keywords</DialogTitle>
-            <DialogDescription>
-              Add multiple keywords at once by separating them with commas.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...bulkForm}>
-            <form onSubmit={bulkForm.handleSubmit(onBulkSubmit)} className="space-y-4">
-              <FormField
-                control={bulkForm.control}
-                name="terms"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Keywords</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field} 
-                        placeholder="Enter keywords separated by commas" 
-                        className="min-h-[100px]"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Example: ransomware, malware, zero-day
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={bulkForm.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="threat">Threat</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">Hardware/Software</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      All imported keywords will use this category
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={bulkForm.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Active Status</FormLabel>
-                      <FormDescription>
-                        Set initial active status
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setBulkKeywordDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={createBulkKeywords.isPending}
-                >
-                  {createBulkKeywords.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Import
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
 }

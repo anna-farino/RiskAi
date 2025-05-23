@@ -19,12 +19,12 @@ export function Logo({
   // Determine font size based on size prop
   const getFontSize = () => {
     switch (size) {
-      case 'sm': return '1.5rem';
-      case 'md': return '2rem';
-      case 'lg': return '2.5rem';
-      case 'xl': return '3rem';
-      case 'responsive': return '2.5rem'; // Increased default size
-      default: return '2.5rem';
+      case 'sm': return '1.75rem';      // Increased from 1.5rem
+      case 'md': return '2.25rem';      // Increased from 2rem
+      case 'lg': return '2.75rem';      // Increased from 2.5rem
+      case 'xl': return '3.25rem';      // Increased from 3rem
+      case 'responsive': return '2.75rem'; // Increased default size
+      default: return '2.75rem';
     }
   };
   
@@ -37,7 +37,7 @@ export function Logo({
     letterSpacing: "0.02em",
   };
   
-  // Get variant-specific styles
+  // Get variant-specific styles - enhanced gradient effect
   const getVariantStyle = () => {
     switch (variant) {
       case 'gradient':
@@ -46,7 +46,8 @@ export function Logo({
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
           color: "transparent",
-          textShadow: animated ? '0 0 10px rgba(191, 0, 255, 0.3)' : 'none',
+          textShadow: animated ? '0 0 12px rgba(191, 0, 255, 0.4)' : 'none',
+          filter: "drop-shadow(0 0 2px rgba(0, 255, 255, 0.2))",
         };
       case 'standard':
         return {}; // Handled in JSX
@@ -96,19 +97,13 @@ export function Logo({
         ...getHoverStyles()
       }}
       onMouseOver={(e) => {
-        if (interactive) {
-          e.currentTarget.style.transform = 'scale(1.05)';
-          if (variant === 'gradient') {
-            e.currentTarget.style.filter = 'brightness(1.2)';
-          }
+        if (interactive && variant === 'gradient') {
+          e.currentTarget.style.filter = 'brightness(1.2)';
         }
       }}
       onMouseOut={(e) => {
-        if (interactive) {
-          e.currentTarget.style.transform = 'scale(1)';
-          if (variant === 'gradient') {
-            e.currentTarget.style.filter = 'brightness(1)';
-          }
+        if (interactive && variant === 'gradient') {
+          e.currentTarget.style.filter = 'brightness(1)';
         }
       }}
     >
@@ -119,7 +114,7 @@ export function Logo({
             color: "#00FFFF",
             textShadow: animated ? '0 0 15px rgba(0, 255, 255, 0.7)' : 'none',
           }}>Ai</span>
-          <span style={{ color: "#BF00FF" }}>.</span>
+          <span style={{ color: "#BF00FF" }}>.co</span>
         </span>
       ) : (
         <span 
@@ -129,7 +124,7 @@ export function Logo({
             ...animationStyle
           }}
         >
-          RisqAi.
+          RisqAi.co
         </span>
       )}
     </div>
