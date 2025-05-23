@@ -144,55 +144,96 @@ export default function Research() {
   
   const processUrl = async () => {
     if (!url) {
-      setError("Please enter a URL");
+      setError("Please enter a URL or multiple URLs separated by commas");
       return;
     }
-    
-    // Save this URL to our recent URLs
-    saveUrl(url);
     
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
-        method: "POST",
-        credentials: 'include',
-        headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject(),
-        },
-        body: JSON.stringify({ url }),
-      });
+      // Split the input by commas to get individual URLs
+      const urls = url.split(',').map(u => u.trim()).filter(u => u.length > 0);
       
-      if (!response.ok) {
-        throw new Error("Failed to process article");
+      if (urls.length === 0) {
+        setError("Please enter valid URLs");
+        setIsLoading(false);
+        return;
       }
       
-      const data = await response.json();
+      // Save each URL to our recent URLs list
+      urls.forEach(singleUrl => {
+        saveUrl(singleUrl);
+      });
       
-      // Make sure we only store real articles by checking for required fields
-      if (data && data.id && data.title) {
-        // Update both state and module variables - add to front of array
-        const newProcessedArticles = [data, ...processedArticles];
-        
-        // Only keep the most recent articles (limited by MAX_STORED_ARTICLES)
-        const limitedArticles = newProcessedArticles.slice(0, MAX_STORED_ARTICLES);
-        
-        setProcessedArticles(limitedArticles);
-        
-        // Update module variable
-        storedArticles.length = 0; // Clear array without creating a new one
-        storedArticles.push(...limitedArticles); // Add only the limited set
-        
-        // Save articles to localStorage so they persist between visits
+      // Create a counter for successful processing
+      let successCount = 0;
+      let errorCount = 0;
+      let errorMessage = "";
+      
+      // Process each URL sequentially
+      for (const singleUrl of urls) {
         try {
-          localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
-        } catch (e) {
-          console.error("Failed to save article summaries", e)
+          const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
+            method: "POST",
+            credentials: 'include',
+            headers: {
+              "Content-Type": "application/json",
+              ...csfrHeaderObject(),
+            },
+            body: JSON.stringify({ url: singleUrl }),
+          });
+          
+          if (!response.ok) {
+            errorCount++;
+            errorMessage = `Failed to process ${errorCount} URL(s)`;
+            continue; // Try the next URL
+          }
+          
+          const data = await response.json();
+          
+          // Make sure we only store real articles by checking for required fields
+          if (data && data.id && data.title) {
+            successCount++;
+            
+            // Update both state and module variables - add to front of array
+            const newProcessedArticles = [data, ...processedArticles];
+            
+            // Only keep the most recent articles (limited by MAX_STORED_ARTICLES)
+            const limitedArticles = newProcessedArticles.slice(0, MAX_STORED_ARTICLES);
+            
+            setProcessedArticles(limitedArticles);
+            
+            // Update module variable
+            storedArticles.length = 0; // Clear array without creating a new one
+            storedArticles.push(...limitedArticles); // Add only the limited set
+            
+            // Save articles to localStorage so they persist between visits
+            try {
+              localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
+            } catch (e) {
+              console.error("Failed to save article summaries", e)
+            }
+          }
+        } catch (err) {
+          errorCount++;
+          errorMessage = `Failed to process ${errorCount} URL(s)`;
         }
       }
       
+      // Set a success or partial success message
+      if (errorCount > 0) {
+        if (successCount > 0) {
+          setError(`Successfully processed ${successCount} URL(s). ${errorMessage}`);
+        } else {
+          setError(errorMessage);
+        }
+      } else if (successCount > 0) {
+        // Clear any previous errors if all URLs processed successfully
+        setError(null);
+      }
+      
+      // Clear the input field
       setUrl("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
