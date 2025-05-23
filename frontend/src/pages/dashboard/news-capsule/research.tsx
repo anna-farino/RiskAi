@@ -249,12 +249,8 @@ export default function Research() {
       // Success message
       alert("Articles successfully added to report!");
       
-      // Clear selected articles but keep processed ones
-      setSelectedArticles([]);
-      storedSelectedArticles.length = 0;
-      
-      // Clear localStorage selection
-      localStorage.removeItem('savedSelectedArticles');
+      // Don't clear selected articles - leave them in the selection column
+      // Just show a success message to confirm they were added to the report
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
