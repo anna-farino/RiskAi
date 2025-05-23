@@ -289,8 +289,16 @@ export default function Research() {
             return reportDay.getTime() === today.getTime();
           });
           
-          // Set version number based on today's reports
-          versionNumber = todaysReports.length + 1;
+          // Find the highest version number among today's reports
+          const highestVersion = todaysReports.reduce((max: number, report: any) => {
+            // Make sure to use the actual version number that was stored
+            const reportVersion = parseInt(report.versionNumber) || 0;
+            return reportVersion > max ? reportVersion : max;
+          }, 0);
+          
+          // Set the next version number as one higher than the highest existing version
+          versionNumber = highestVersion + 1;
+          console.log("Next version number will be:", versionNumber, "highest found was:", highestVersion);
         }
       } catch (e) {
         console.error("Failed to check localStorage for reports", e);
@@ -779,13 +787,15 @@ export default function Research() {
                     });
                     
                     // Find the highest version number among today's reports
-                    const highestVersion = todaysReports.reduce((max, report) => {
-                      const reportVersion = report.versionNumber || 0;
+                    const highestVersion = todaysReports.reduce((max: number, report: any) => {
+                      // Make sure to use the actual version number that was stored
+                      const reportVersion = parseInt(report.versionNumber) || 0;
                       return reportVersion > max ? reportVersion : max;
                     }, 0);
                     
                     // Set the next version number as one higher than the highest existing version
                     versionNumber = highestVersion + 1;
+                    console.log("Next version number will be:", versionNumber, "highest found was:", highestVersion);
                   }
                 } catch (e) {
                   console.error("Failed to check localStorage for reports", e);
