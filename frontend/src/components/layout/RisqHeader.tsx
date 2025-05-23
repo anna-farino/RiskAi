@@ -51,26 +51,25 @@ export function RisqHeader() {
           : 'bg-black/90 backdrop-blur'
       )}
     >
-      <div className="container mx-auto px-4 flex items-center h-full">
-        <div className="flex items-center justify-between gap-4 w-full">
-          {/* Logo and tagline as a cohesive unit - positioned consistently at the left */}
-          <div className="flex flex-col items-start justify-start h-full">
-            <div className="mt-1">
-              <Link to="/dashboard" className="group block">
-                <div className="logo-container relative">
-                  <Logo interactive animated variant="gradient" size={getLogoSize()} />
-                </div>
-              </Link>
-            </div>
-            <div className="h-3"></div> {/* Spacer between logo and tagline - increased spacing */}
-            <p className="block text-xs sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
-              AI-Powered Risk Intelligence
-            </p>
+      <div className="w-full flex items-center h-full">
+        {/* Logo and tagline as a fixed unit on the left side */}
+        <div className="flex flex-col items-start justify-start h-full pl-4 md:pl-6 lg:pl-8">
+          <div className="mt-1">
+            <Link to="/dashboard" className="group block">
+              <div className="logo-container relative">
+                <Logo interactive animated variant="gradient" size={getLogoSize()} />
+              </div>
+            </Link>
           </div>
+          <div className="h-3"></div> {/* Spacer between logo and tagline - increased spacing */}
+          <p className="block text-xs sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
+            AI-Powered Risk Intelligence
+          </p>
+        </div>
+        
+        {/* Rest of the header in a separate container */}
+        <div className="flex items-center justify-end gap-4 flex-1 pr-4 md:pr-6 lg:pr-8">
 
-          {/* Spacer for layout balance */}
-          <div className="flex-1"></div>
-          
           {/* Mobile navigation - only visible on mobile */}
           <div className="flex items-center md:hidden mr-2">
             <MobileNavigation />
