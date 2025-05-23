@@ -200,6 +200,12 @@ async function extractArticleLinksStructured(page: Page): Promise<string> {
 
   log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
 
+  // Debug log: Print the extracted links data
+  log(
+    `[ThreatTracker] Extracted links data:\n${JSON.stringify(articleLinkData, null, 2)}`,
+    "scraper-debug",
+  );
+
   // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
   if (articleLinkData.length < 20) {
     log(`[ThreatTracker] Fewer than 20 links found, trying additional techniques...`, "scraper");
