@@ -241,7 +241,7 @@ export default function Research() {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
-          todaysReports = savedReports.filter(report => {
+          todaysReports = savedReports.filter((report: any) => {
             const reportDate = new Date(report.createdAt);
             const reportDay = new Date(reportDate);
             reportDay.setHours(0, 0, 0, 0);
@@ -256,99 +256,232 @@ export default function Research() {
         // Continue with empty arrays if localStorage fails
       }
       
-      let useExistingReport = false;
-      let existingReportId = null;
+      // Function to handle the actual report creation/update process
+      const processReport = async (useExisting = false, reportId: string | null = null) => {
+        let useExistingReport = useExisting;
+        let existingReportId = reportId;
+        
+        try {
+          // First try to save to server
+          const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
+            method: "POST",
+            credentials: 'include',
+            headers: {
+              "Content-Type": "application/json",
+              ...csfrHeaderObject(),
+            },
+            body: JSON.stringify({ 
+              articleIds: selectedArticles.map(article => article.id),
+              useExistingReport: useExistingReport,
+              existingReportId: existingReportId,
+              versionNumber: versionNumber
+            }),
+            // Add a timeout to prevent long waiting
+            signal: AbortSignal.timeout(5000)
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log("Articles added to report on server:", result);
+          }
+        } catch (serverError) {
+          console.error("Server error, will save locally only:", serverError);
+          // Continue to save locally if server fails
+        }
+        
+        // IMPORTANT: Always save to localStorage as a backup
+        const newReportId = useExistingReport && existingReportId 
+          ? existingReportId 
+          : `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        
+        if (useExistingReport && existingReportId) {
+          // Update existing report in localStorage
+          const reportIndex = savedReports.findIndex((r: any) => r.id === existingReportId);
+          if (reportIndex !== -1) {
+            // Combine articles, avoiding duplicates
+            const existingArticles = savedReports[reportIndex].articles || [];
+            const newArticles = selectedArticles;
+            const combinedArticles = [...existingArticles];
+            
+            // Add only articles that don't already exist in the report
+            for (const article of newArticles) {
+              if (!combinedArticles.some((a: any) => a.id === article.id)) {
+                combinedArticles.push(article);
+              }
+            }
+            
+            savedReports[reportIndex] = {
+              ...savedReports[reportIndex],
+              articles: combinedArticles
+            };
+          }
+        } else {
+          // Create new report
+          const newReport = {
+            id: newReportId,
+            createdAt: new Date().toISOString(),
+            articles: [...selectedArticles],
+            versionNumber: versionNumber
+          };
+          
+          // Add to beginning of reports array
+          savedReports.unshift(newReport);
+        }
+        
+        // Save updated reports to localStorage
+        localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
+        console.log("Updated reports saved to localStorage:", savedReports.length);
+        
+        // Success message
+        alert("Articles successfully added to report!");
+        setIsLoading(false);
+      };
       
-      // If there are today's reports, ask if user wants to add to existing or create new
+      // If there are today's reports, show a dialog to select which report to add to
       if (todaysReports.length > 0) {
-        useExistingReport = window.confirm(
-          "There's already a report for today. Would you like to add these articles to the existing report? Click OK to add to existing report, or Cancel to create a new version."
+        // First ask if user wants to add to existing or create new
+        const useExistingReport = window.confirm(
+          "There are already reports for today. Would you like to add these articles to an existing report? Click OK to add to an existing report, or Cancel to create a new version."
         );
         
         if (useExistingReport) {
-          existingReportId = todaysReports[0].id;
-        }
-      }
-      
-      try {
-        // First try to save to server
-        const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
-          method: "POST",
-          credentials: 'include',
-          headers: {
-            "Content-Type": "application/json",
-            ...csfrHeaderObject(),
-          },
-          body: JSON.stringify({ 
-            articleIds: selectedArticles.map(article => article.id),
-            useExistingReport: useExistingReport,
-            existingReportId: existingReportId,
-            versionNumber: versionNumber
-          }),
-          // Add a timeout to prevent long waiting
-          signal: AbortSignal.timeout(5000)
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          console.log("Articles added to report on server:", result);
-        }
-      } catch (serverError) {
-        console.error("Server error, will save locally only:", serverError);
-        // Continue to save locally if server fails
-      }
-      
-      // IMPORTANT: Always save to localStorage as a backup
-      const newReportId = useExistingReport && existingReportId 
-        ? existingReportId 
-        : `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      
-      if (useExistingReport && existingReportId) {
-        // Update existing report in localStorage
-        const reportIndex = savedReports.findIndex(r => r.id === existingReportId);
-        if (reportIndex !== -1) {
-          // Combine articles, avoiding duplicates
-          const existingArticles = savedReports[reportIndex].articles || [];
-          const newArticles = selectedArticles;
-          const combinedArticles = [...existingArticles];
-          
-          // Add only articles that don't already exist in the report
-          for (const article of newArticles) {
-            if (!combinedArticles.some(a => a.id === article.id)) {
-              combinedArticles.push(article);
-            }
+          // If there's only one report today, use that
+          if (todaysReports.length === 1) {
+            await processReport(true, todaysReports[0].id);
+          } else {
+            // Multiple reports exist, create a selection dialog
+            return new Promise<void>((resolve) => {
+              const selectDialog = document.createElement('div');
+              selectDialog.style.position = 'fixed';
+              selectDialog.style.top = '0';
+              selectDialog.style.left = '0';
+              selectDialog.style.width = '100%';
+              selectDialog.style.height = '100%';
+              selectDialog.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+              selectDialog.style.zIndex = '9999';
+              selectDialog.style.display = 'flex';
+              selectDialog.style.alignItems = 'center';
+              selectDialog.style.justifyContent = 'center';
+              
+              // Create dialog content
+              const dialogContent = document.createElement('div');
+              dialogContent.style.backgroundColor = '#1e293b';
+              dialogContent.style.border = '1px solid #475569';
+              dialogContent.style.borderRadius = '8px';
+              dialogContent.style.padding = '24px';
+              dialogContent.style.width = '500px';
+              dialogContent.style.maxWidth = '90%';
+              
+              // Create dialog title
+              const title = document.createElement('h3');
+              title.textContent = 'Select a Report to Add Articles To';
+              title.style.fontSize = '18px';
+              title.style.fontWeight = 'bold';
+              title.style.marginBottom = '16px';
+              title.style.color = 'white';
+              
+              // Create description
+              const description = document.createElement('p');
+              description.textContent = 'Choose which report version you want to add these articles to:';
+              description.style.fontSize = '14px';
+              description.style.marginBottom = '16px';
+              description.style.color = '#e2e8f0';
+              
+              // Create select element
+              const select = document.createElement('select');
+              select.style.width = '100%';
+              select.style.padding = '8px 12px';
+              select.style.backgroundColor = '#0f172a';
+              select.style.color = 'white';
+              select.style.border = '1px solid #475569';
+              select.style.borderRadius = '4px';
+              select.style.marginBottom = '20px';
+              
+              // Sort reports with newest on top
+              const sortedReports = [...todaysReports].sort((a: any, b: any) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+              
+              // Add options for each report
+              sortedReports.forEach((report: any) => {
+                const option = document.createElement('option');
+                option.value = report.id;
+                
+                const createdDate = new Date(report.createdAt);
+                const time = `${createdDate.getHours().toString().padStart(2, '0')}:${createdDate.getMinutes().toString().padStart(2, '0')}`;
+                const versionText = report.versionNumber && report.versionNumber > 1 ? 
+                  `Version ${report.versionNumber}` : 'Version 1';
+                
+                option.textContent = `${time} - ${versionText} (${report.articles ? report.articles.length : 0} articles)`;
+                select.appendChild(option);
+              });
+              
+              // Create button container
+              const buttonContainer = document.createElement('div');
+              buttonContainer.style.display = 'flex';
+              buttonContainer.style.gap = '12px';
+              buttonContainer.style.justifyContent = 'flex-end';
+              
+              // Create cancel button (creates new report)
+              const cancelButton = document.createElement('button');
+              cancelButton.textContent = 'Create New Version';
+              cancelButton.style.padding = '8px 16px';
+              cancelButton.style.backgroundColor = '#334155';
+              cancelButton.style.color = 'white';
+              cancelButton.style.border = 'none';
+              cancelButton.style.borderRadius = '4px';
+              cancelButton.style.cursor = 'pointer';
+              
+              // Create select button
+              const selectButton = document.createElement('button');
+              selectButton.textContent = 'Add to Selected Report';
+              selectButton.style.padding = '8px 16px';
+              selectButton.style.backgroundColor = '#2563eb';
+              selectButton.style.color = 'white';
+              selectButton.style.border = 'none';
+              selectButton.style.borderRadius = '4px';
+              selectButton.style.cursor = 'pointer';
+              
+              // Add event listeners
+              cancelButton.addEventListener('click', async () => {
+                document.body.removeChild(selectDialog);
+                await processReport(false, null);
+                resolve();
+              });
+              
+              selectButton.addEventListener('click', async () => {
+                const selectedReportId = select.value;
+                document.body.removeChild(selectDialog);
+                
+                if (selectedReportId) {
+                  await processReport(true, selectedReportId);
+                  resolve();
+                }
+              });
+              
+              // Assemble dialog
+              buttonContainer.appendChild(cancelButton);
+              buttonContainer.appendChild(selectButton);
+              dialogContent.appendChild(title);
+              dialogContent.appendChild(description);
+              dialogContent.appendChild(select);
+              dialogContent.appendChild(buttonContainer);
+              selectDialog.appendChild(dialogContent);
+              
+              // Add dialog to document
+              document.body.appendChild(selectDialog);
+            });
           }
-          
-          savedReports[reportIndex] = {
-            ...savedReports[reportIndex],
-            articles: combinedArticles
-          };
+        } else {
+          // Create new report
+          await processReport(false, null);
         }
       } else {
-        // Create new report
-        const newReport = {
-          id: newReportId,
-          createdAt: new Date().toISOString(),
-          articles: [...selectedArticles],
-          versionNumber: versionNumber
-        };
-        
-        // Add to beginning of reports array
-        savedReports.unshift(newReport);
+        // No reports today, create a new one
+        await processReport(false, null);
       }
-      
-      // Save updated reports to localStorage
-      localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-      console.log("Updated reports saved to localStorage:", savedReports.length);
-      
-      // Success message
-      alert("Articles successfully added to report!");
-      
-      // Don't clear selected articles - leave them in the selection column
-      // Just show a success message to confirm they were added to the report
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -575,6 +708,70 @@ export default function Research() {
             className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
           >
             {isLoading ? "Processing..." : "Send to Executive Report"}
+          </button>
+          
+          <button
+            onClick={async () => {
+              // Create a new empty version of today's report
+              try {
+                setIsLoading(true);
+                setError(null);
+                
+                // Check if localStorage already has reports
+                let savedReports = [];
+                let versionNumber = 1;
+                
+                try {
+                  const localStorageReports = localStorage.getItem('newsCapsuleReports');
+                  if (localStorageReports) {
+                    savedReports = JSON.parse(localStorageReports);
+                    
+                    // Find reports from today
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    const todaysReports = savedReports.filter((report: any) => {
+                      const reportDate = new Date(report.createdAt);
+                      const reportDay = new Date(reportDate);
+                      reportDay.setHours(0, 0, 0, 0);
+                      return reportDay.getTime() === today.getTime();
+                    });
+                    
+                    // Set version number based on today's reports
+                    versionNumber = todaysReports.length + 1;
+                  }
+                } catch (e) {
+                  console.error("Failed to check localStorage for reports", e);
+                  // Continue with default values if localStorage fails
+                }
+                
+                // Create the new report
+                const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                const newReport = {
+                  id: newReportId,
+                  createdAt: new Date().toISOString(),
+                  articles: [], // Empty articles array
+                  versionNumber: versionNumber
+                };
+                
+                // Add to beginning of reports array
+                savedReports.unshift(newReport);
+                
+                // Save updated reports to localStorage
+                localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
+                console.log("Created new empty report version", versionNumber);
+                
+                // Success message
+                alert(`Successfully created new Executive Report (Version ${versionNumber})`);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "An error occurred");
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            className="mt-2 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
+          >
+            Create New Empty Version
           </button>
         </div>
       </div>
