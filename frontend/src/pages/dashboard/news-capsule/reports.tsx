@@ -284,7 +284,17 @@ export default function Reports() {
               </div>
               
               {selectedReport.articles.length === 0 ? (
-                <p className="text-sm text-slate-400 italic">This report contains no articles</p>
+                <div className="p-4 bg-blue-900/30 border border-blue-700/30 rounded-lg mb-6">
+                  <h3 className="text-blue-300 font-medium mb-2">Empty Report Created Successfully</h3>
+                  <p className="text-sm text-slate-300 mb-2">This is a new empty report that doesn't contain any articles yet.</p>
+                  <p className="text-sm text-slate-400">To add articles to this report:</p>
+                  <ol className="list-decimal list-inside text-sm text-slate-400 ml-2 mt-1 space-y-1">
+                    <li>Go to the Research page</li>
+                    <li>Process articles using the URL input</li>
+                    <li>Select articles to include</li>
+                    <li>Choose "Send to Executive Report" and select this report version when prompted</li>
+                  </ol>
+                </div>
               ) : (
                 <div className="space-y-6">
                   {selectedReport.articles.map((article, index) => (
