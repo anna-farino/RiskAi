@@ -23,8 +23,6 @@ interface Report {
   id: string;
   createdAt: string;
   articles: ArticleSummary[];
-  versionNumber?: number;
-  title?: string;
 }
 
 export default function Reports() {
@@ -171,8 +169,33 @@ export default function Reports() {
     }
   };
   
-  // Create versioned reports
-  const reportsWithVersions = getReportsWithVersions();
+  // Helper function to check if a report has same-day versions
+  const getVersionLabel = (report: Report) => {
+    // Find other reports from the same day
+    const reportDate = new Date(report.createdAt);
+    const sameDayReports = reports.filter(r => {
+      const compareDate = new Date(r.createdAt);
+      return compareDate.toDateString() === reportDate.toDateString();
+    });
+    
+    // If there are multiple reports from the same day
+    if (sameDayReports.length > 1) {
+      // Sort by creation time
+      sameDayReports.sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      
+      // Find this report's position
+      const position = sameDayReports.findIndex(r => r.id === report.id);
+      
+      // Only add version label if this isn't the first report of the day
+      if (position > 0) {
+        return `(Version: ${position + 1})`;
+      }
+    }
+    
+    return '';
+  };
   
   return (
     <div className="flex flex-col gap-6">
@@ -201,11 +224,11 @@ export default function Reports() {
           <div className="md:col-span-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
             <h2 className="text-xl font-semibold mb-4">Reports</h2>
             
-            {reportsWithVersions.length === 0 ? (
+            {reports.length === 0 ? (
               <p className="text-sm text-slate-400 italic">No reports available</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {reportsWithVersions.map((report) => (
+                {reports.map((report) => (
                   <div key={report.id} className="relative group">
                     <button
                       onClick={() => handleReportSelect(report)}
@@ -216,7 +239,7 @@ export default function Reports() {
                       }`}
                     >
                       <p className="font-medium">
-                        Report {formatDate(report.createdAt)} {report.versionNumber && report.versionNumber > 1 ? `(Version: ${report.versionNumber})` : ''}
+                        Report {formatDate(report.createdAt)} {getVersionLabel(report)}
                       </p>
                       <p className="text-xs text-blue-400">
                         {formatTime(report.createdAt)}
