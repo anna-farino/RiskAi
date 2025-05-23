@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
@@ -8,6 +8,16 @@ import { serverUrl } from "@/utils/server-url";
 const MAX_STORED_ARTICLES = 10;
 const storedArticles: ArticleSummary[] = [];
 const storedSelectedArticles: ArticleSummary[] = [];
+
+// List of demo URLs to ensure they're removed from storage
+const demoUrls = [
+  "https://thehackernews.com/2025/04/cisa-and-fbi-warn-fast-flux-is-powering.html",
+  "https://www.csoonline.com/article/3954647/big-hole-in-big-data-critical-deserialization-bug-in-apache-parquet-allows-rce.html",
+  "https://thehackernews.com/2025/04/malicious-python-packages-on-pypi.html",
+  "https://cyberpress.org/weaponized-pdfs-malicious-email-attacks/",
+  "https://cyberpress.org/apache-traffic-server-bug/#google_vignette",
+  "https://gbhackers.com/fortinet-zero-day-poc/"
+];
 
 interface ArticleSummary {
   id: string;
@@ -30,8 +40,28 @@ export default function Research() {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>(storedArticles);
-  const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>(storedSelectedArticles);
+  const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
+  const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
+  
+  // Clean up hardcoded URLs and initialize empty state on component mount
+  useEffect(() => {
+    // Clear all localStorage and sessionStorage to start fresh
+    try {
+      localStorage.removeItem('newsProcessedArticles');
+      localStorage.removeItem('processedArticles');
+      sessionStorage.removeItem('processedArticles');
+    } catch (e) {
+      console.error("Failed to clear storage", e);
+    }
+    
+    // Reset module-level arrays
+    storedArticles.length = 0;
+    storedSelectedArticles.length = 0;
+    
+    // Set initial empty state
+    setProcessedArticles([]);
+    setSelectedArticles([]);
+  }, []);
   
   const clearUrl = () => {
     setUrl("");
