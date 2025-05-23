@@ -49,7 +49,7 @@ export default function Research() {
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   
-  // Load saved URLs and clean up hardcoded ones
+  // Load saved URLs and article summaries from localStorage
   useEffect(() => {
     // Load saved URLs from localStorage
     try {
@@ -66,17 +66,43 @@ export default function Research() {
           recentUrls.push(...filteredUrls);
         }
       }
+      
+      // Load saved article summaries from localStorage
+      const savedArticlesStr = localStorage.getItem('savedArticleSummaries');
+      if (savedArticlesStr) {
+        try {
+          const parsed = JSON.parse(savedArticlesStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProcessedArticles(parsed);
+            
+            // Update module-level array
+            storedArticles.length = 0;
+            storedArticles.push(...parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved article summaries", e);
+        }
+      }
+      
+      // Load selected articles
+      const savedSelectedStr = localStorage.getItem('savedSelectedArticles');
+      if (savedSelectedStr) {
+        try {
+          const parsed = JSON.parse(savedSelectedStr);
+          if (Array.isArray(parsed)) {
+            setSelectedArticles(parsed);
+            
+            // Update module-level array
+            storedSelectedArticles.length = 0;
+            storedSelectedArticles.push(...parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved selected articles", e);
+        }
+      }
     } catch (e) {
-      console.error("Failed to load saved URLs", e);
+      console.error("Failed to load saved data", e);
     }
-    
-    // Reset module-level arrays
-    storedArticles.length = 0;
-    storedSelectedArticles.length = 0;
-    
-    // Set initial empty state for articles
-    setProcessedArticles([]);
-    setSelectedArticles([]);
   }, []);
   
   const clearUrl = () => {
@@ -158,6 +184,13 @@ export default function Research() {
         // Update module variable
         storedArticles.length = 0; // Clear array without creating a new one
         storedArticles.push(...limitedArticles); // Add only the limited set
+        
+        // Save articles to localStorage so they persist between visits
+        try {
+          localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
+        } catch (e) {
+          console.error("Failed to save article summaries", e)
+        }
       }
       
       setUrl("");
@@ -175,6 +208,13 @@ export default function Research() {
     // Update module variable
     storedSelectedArticles.length = 0;
     storedSelectedArticles.push(...newSelectedArticles);
+    
+    // Save selected articles to localStorage
+    try {
+      localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelectedArticles));
+    } catch (e) {
+      console.error("Failed to save selected articles", e);
+    }
   };
   
   const sendToExecutiveReport = async () => {
@@ -220,6 +260,13 @@ export default function Research() {
     // Update module variable
     storedSelectedArticles.length = 0;
     storedSelectedArticles.push(...newSelectedArticles);
+    
+    // Update localStorage to persist selection
+    try {
+      localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelectedArticles));
+    } catch (e) {
+      console.error("Failed to update selected articles in storage", e);
+    }
   };
   
   const removeProcessedArticle = (id: string) => {
@@ -229,6 +276,18 @@ export default function Research() {
     // Update module variable
     storedArticles.length = 0;
     storedArticles.push(...newProcessedArticles);
+    
+    // Update localStorage to persist article list
+    try {
+      localStorage.setItem('savedArticleSummaries', JSON.stringify(newProcessedArticles));
+    } catch (e) {
+      console.error("Failed to update article summaries in storage", e);
+    }
+    
+    // Also remove from selected if present
+    if (selectedArticles.some(article => article.id === id)) {
+      removeSelectedArticle(id);
+    }
   };
   
   return (
