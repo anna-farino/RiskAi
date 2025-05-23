@@ -14,40 +14,19 @@ export async function addToReport(req: Request, res: Response) {
     
     const userId = (req as FullRequest).user.id;
     
-    // Check if there's a report for today, or create a new one
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Create a new report for today with current date
+    const currentDate = new Date();
     
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Create a new report
+    const [newReport] = await db
+      .insert(reports)
+      .values({
+        userId,
+        createdAt: currentDate
+      })
+      .returning();
     
-    // Look for existing report for today - simplify by just looking for reports by this user
-    const existingReports = await db
-      .select()
-      .from(reports)
-      .where(
-        eq(reports.userId, userId)
-      )
-      .orderBy(desc(reports.createdAt))
-      .limit(1);
-    
-    let reportId;
-    
-    if (existingReports.length > 0) {
-      // Use the most recent report from today
-      reportId = existingReports[0].id;
-    } else {
-      // Create a new report for today
-      const [newReport] = await db
-        .insert(reports)
-        .values({
-          userId,
-          createdAt: new Date()
-        })
-        .returning();
-      
-      reportId = newReport.id;
-    }
+    const reportId = newReport.id;
     
     // Add articles to the report
     const articlesToAdd = articleIds.map(articleId => ({
