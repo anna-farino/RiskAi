@@ -132,8 +132,8 @@ export async function identifyArticleLinks(
         {
           role: "system",
           content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
-            1. Article-style titles (descriptive, security-focused or news-focused)
-            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, CVE numbers)
+            1. Article-style titles (descriptive)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
             3. Proper article context (not navigation/category pages)
 
             Return only links that are very likely to be actual articles.
