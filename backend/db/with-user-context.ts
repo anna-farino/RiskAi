@@ -6,19 +6,15 @@ import { Request } from 'express';
 
 
 export async function withUserContext<T>(
-  fn: ({ db, userId }: { db: ReturnType<typeof drizzle>, userId: string }) => Promise<T>,
+  userId: string,
+  fn: (db: ReturnType<typeof drizzle>) => Promise<T>,
   req?: Request,
-): Promise<T>
+)
+  : Promise<T> 
 {
   const client = await pool.connect();
   let reqLog: (...args: unknown[]) => void;
-  
-  // Get user ID from request
-  const userIdFromReq = req ? (req as any).user?.id : null;
-  
-  if (!userIdFromReq && req) {
-    throw new Error('User ID not found in request');
-  }
+  if (req) reqLog = (req as any).log
 
   try {
     await client.query('BEGIN');

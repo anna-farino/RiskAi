@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { format } from "date-fns";
 import { serverUrl } from "@/utils/server-url";
+import { useNewsCapsule } from "@/context/NewsCapsuleContext";
 
 interface ArticleSummary {
   id: string;
@@ -23,7 +24,6 @@ interface Report {
   id: string;
   createdAt: string;
   articles: ArticleSummary[];
-  versionNumber?: number;
 }
 
 export default function Reports() {
@@ -31,106 +31,26 @@ export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   
   useEffect(() => {
     fetchReports();
   }, []);
-  
-  // Calculate version numbers for reports from the same day
-  const deleteReport = async (reportId: string) => {
-    try {
-      setIsDeleting(true);
-      
-      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
-        method: 'DELETE',
-        headers: {
-          ...csfrHeaderObject(),
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete report');
-      }
-      
-      // Remove report from local state
-      setReports(reports.filter(report => report.id !== reportId));
-      
-      // If deleted report was selected, clear selection
-      if (selectedReport && selectedReport.id === reportId) {
-        setSelectedReport(null);
-      }
-      
-      setShowDeleteConfirm(null);
-    } catch (err) {
-      setError('Error deleting report: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-  
-  const getReportsWithVersions = () => {
-    // Group reports by date (ignoring time)
-    const reportsByDate: Record<string, Report[]> = {};
-    
-    reports.forEach(report => {
-      const reportDate = new Date(report.createdAt);
-      const dateKey = reportDate.toDateString();
-      
-      if (!reportsByDate[dateKey]) {
-        reportsByDate[dateKey] = [];
-      }
-      
-      reportsByDate[dateKey].push(report);
-    });
-    
-    // Sort each day's reports by creation time and assign version numbers
-    const reportsWithVersions = [...reports];
-    
-    Object.values(reportsByDate).forEach(dayReports => {
-      // Sort by creation time (newest first)
-      dayReports.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      // Assign version numbers
-      dayReports.forEach((report, index) => {
-        const version = dayReports.length - index;
-        const reportIndex = reportsWithVersions.findIndex(r => r.id === report.id);
-        if (reportIndex !== -1) {
-          reportsWithVersions[reportIndex] = {
-            ...reportsWithVersions[reportIndex], 
-            versionNumber: version
-          };
-        }
-      });
-    });
-    
-    return reportsWithVersions;
-  };
   
   const fetchReports = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Simplified fetch approach to troubleshoot report loading issues
       const response = await fetch(serverUrl + "/api/news-capsule/reports", {
         method: "GET",
         credentials: 'include',
         headers: {
           ...csfrHeaderObject(),
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
         },
       });
       
       if (!response.ok) {
-        console.error("Report fetch failed with status:", response.status);
-        throw new Error("Failed to check for existing reports");
+        throw new Error("Failed to fetch reports");
       }
       
       const data = await response.json();
@@ -176,9 +96,6 @@ export default function Reports() {
     }
   };
   
-  // Create versioned reports
-  const reportsWithVersions = getReportsWithVersions();
-  
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -206,77 +123,30 @@ export default function Reports() {
           <div className="md:col-span-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
             <h2 className="text-xl font-semibold mb-4">Reports</h2>
             
-            {reportsWithVersions.length === 0 ? (
+            {reports.length === 0 ? (
               <p className="text-sm text-slate-400 italic">No reports available</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {reportsWithVersions.map((report) => (
-                  <div key={report.id} className="relative group">
-                    <button
-                      onClick={() => handleReportSelect(report)}
-                      className={`text-left w-full p-3 rounded-md transition-colors ${
-                        selectedReport?.id === report.id
-                          ? "bg-primary/20 border border-primary/30"
-                          : "bg-slate-800/50 border border-slate-700/40 hover:bg-slate-800"
-                      }`}
-                    >
-                      <p className="font-medium">
-                        Report {formatDate(report.createdAt)} {report.versionNumber && report.versionNumber > 1 ? `(Version: ${report.versionNumber})` : ''}
-                      </p>
-                      <p className="text-xs text-blue-400">
-                        {formatTime(report.createdAt)}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {report.articles.length} articles
-                      </p>
-                    </button>
-                    
-                    {/* Delete button */}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDeleteConfirm(report.id);
-                      }}
-                      className="absolute right-2 top-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-opacity"
-                      title="Delete report"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
-                    
-                    {/* Delete confirmation */}
-                    {showDeleteConfirm === report.id && (
-                      <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-slate-800/90 rounded-md z-10">
-                        <div className="p-3 flex flex-col gap-2">
-                          <p className="text-sm text-red-300">Delete this report?</p>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteReport(report.id);
-                              }}
-                              disabled={isDeleting}
-                              className="text-xs px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-white"
-                            >
-                              {isDeleting ? "Deleting..." : "Yes, Delete"}
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowDeleteConfirm(null);
-                              }}
-                              className="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {reports.map((report) => (
+                  <button
+                    key={report.id}
+                    onClick={() => handleReportSelect(report)}
+                    className={`text-left p-3 rounded-md transition-colors ${
+                      selectedReport?.id === report.id
+                        ? "bg-primary/20 border border-primary/30"
+                        : "bg-slate-800/50 border border-slate-700/40 hover:bg-slate-800"
+                    }`}
+                  >
+                    <p className="font-medium">
+                      Report {formatDate(report.createdAt)}
+                    </p>
+                    <p className="text-xs text-blue-400">
+                      {formatTime(report.createdAt)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {report.articles.length} articles
+                    </p>
+                  </button>
                 ))}
               </div>
             )}
@@ -290,51 +160,15 @@ export default function Reports() {
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
                   </h2>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
-                      onClick={() => {
-                        // Print report
-                        window.print();
-                      }}
-                    >
-                      Print
-                    </button>
-                    <button
-                      className="px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded-md"
-                      onClick={() => {
-                        // Export as text
-                        const reportTitle = `Executive Report (${formatDate(selectedReport.createdAt)})`;
-                        let reportContent = `${reportTitle}\n\n`;
-                        
-                        selectedReport.articles.forEach(article => {
-                          reportContent += `TITLE: ${article.title}\n`;
-                          reportContent += `THREAT: ${article.threatName}\n`;
-                          reportContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n\n`;
-                          reportContent += `SUMMARY:\n${article.summary}\n\n`;
-                          reportContent += `IMPACTS:\n${article.impacts}\n\n`;
-                          reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
-                          reportContent += `TARGET OS: ${article.targetOS}\n`;
-                          reportContent += `SOURCE: ${article.sourcePublication}\n`;
-                          reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
-                          reportContent += `-------------------------------------------\n\n`;
-                        });
-                        
-                        // Create and download text file
-                        const blob = new Blob([reportContent], { type: 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${reportTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }}
-                    >
-                      Export as Text
-                    </button>
-                  </div>
+                  <button
+                    className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
+                    onClick={() => {
+                      // Logic to export or print the report could go here
+                      window.print();
+                    }}
+                  >
+                    Export
+                  </button>
                 </div>
                 
                 {selectedReport.articles.length === 0 ? (
