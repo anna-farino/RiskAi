@@ -14,3 +14,5 @@ backend/.env.local
 .opencode
 .opencode/*
 backend_security_report.md
+.cache/
+
