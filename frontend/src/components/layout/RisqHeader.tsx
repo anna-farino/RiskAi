@@ -26,9 +26,9 @@ export function RisqHeader() {
   
   // Determine logo size based on screen width - increased for more prominence
   const getLogoSize = () => {
-    if (windowWidth < 640) return "md";   // Mobile - increased to medium (32px) for better visibility
-    if (windowWidth < 1024) return "lg";  // Tablet - increased to large for better visibility
-    return "xl";                          // Desktop - increased to extra large for maximum prominence
+    if (windowWidth < 640) return "lg";   // Mobile - increased to large (40px) for better visibility
+    if (windowWidth < 1024) return "lg";  // Tablet - same large size for consistency
+    return "xl";                          // Desktop - extra large for maximum prominence
   };
 
   // Handle scroll events to add background when scrolled
@@ -45,7 +45,7 @@ export function RisqHeader() {
     <header 
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        'h-[84px] md:h-[96px] lg:h-[100px]', // Increased height to accommodate our larger 32px logo
+        'h-[88px] md:h-[96px] lg:h-[100px]', // Optimized height for mobile logo alignment
         scrolled 
           ? 'bg-black/95 backdrop-blur border-b border-[#BF00FF]/20 shadow-sm' 
           : 'bg-black/90 backdrop-blur'
@@ -53,16 +53,16 @@ export function RisqHeader() {
     >
       <div className="w-full flex items-center h-full">
         {/* Logo and tagline as a fixed unit on the left side */}
-        <div className="flex flex-col items-start justify-start h-full pl-4 md:pl-6 lg:pl-[18px]">
-          <div className="mt-1">
+        <div className="flex flex-col items-start justify-center h-full pl-4 md:pl-6 lg:pl-[18px]">
+          <div className="mt-0 sm:mt-1">
             <Link to="/dashboard" className="group block">
               <div className="logo-container relative">
                 <Logo interactive animated variant="gradient" size={getLogoSize()} />
               </div>
             </Link>
           </div>
-          <div className="h-4"></div> {/* Spacer between logo and tagline - increased spacing for larger logo */}
-          <p className="block text-xs sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
+          <div className="h-2 sm:h-4"></div> {/* Reduced spacer on mobile, normal on larger screens */}
+          <p className="block text-sm sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-tight sm:leading-normal opacity-90">
             AI-Powered Risk Intelligence
           </p>
         </div>
