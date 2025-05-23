@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
@@ -26,6 +26,23 @@ export default function Research() {
   const [error, setError] = useState<string | null>(null);
   const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
+  
+  // Load saved articles from localStorage when component mounts
+  useEffect(() => {
+    const savedArticles = localStorage.getItem('processedArticles');
+    if (savedArticles) {
+      try {
+        setProcessedArticles(JSON.parse(savedArticles));
+      } catch (err) {
+        console.error('Failed to parse saved articles', err);
+      }
+    }
+  }, []);
+  
+  // Save articles to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('processedArticles', JSON.stringify(processedArticles));
+  }, [processedArticles]);
   
   const clearUrl = () => {
     setUrl("");
