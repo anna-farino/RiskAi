@@ -243,9 +243,18 @@ export default function Research() {
         throw new Error("Failed to add articles to report");
       }
       
+      const result = await response.json();
+      console.log("Articles added to report:", result);
+      
+      // Success message
+      alert("Articles successfully added to report!");
+      
       // Clear selected articles but keep processed ones
       setSelectedArticles([]);
       storedSelectedArticles.length = 0;
+      
+      // Clear localStorage selection
+      localStorage.removeItem('savedSelectedArticles');
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

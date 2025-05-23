@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../db/db';
 import { reports, capsuleArticlesInReports } from '../../../shared/db/schema/reports';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 import { FullRequest } from '../../middleware';
 
 export async function addToReport(req: Request, res: Response) {
@@ -21,18 +21,15 @@ export async function addToReport(req: Request, res: Response) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Look for existing report for today
+    // Look for existing report for today - simplify by just looking for reports by this user
     const existingReports = await db
       .select()
       .from(reports)
       .where(
-        and(
-          eq(reports.userId, userId),
-          // Filter for reports created today
-          // Note: This checks if created_at is between today at 00:00:00 and tomorrow at 00:00:00
-          // You might need to adjust the timezone handling based on your requirements
-        )
-      );
+        eq(reports.userId, userId)
+      )
+      .orderBy(desc(reports.createdAt))
+      .limit(1);
     
     let reportId;
     
