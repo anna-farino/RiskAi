@@ -27,6 +27,11 @@ export default function Research() {
   const [articleSummary, setArticleSummary] = useState<ArticleSummary | null>(null);
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
   
+  const clearUrl = () => {
+    setUrl("");
+    setError(null);
+  };
+  
   const processUrl = async () => {
     if (!url) {
       setError("Please enter a URL");
@@ -126,14 +131,26 @@ export default function Research() {
                 Article URL
               </label>
               <div className="flex gap-2">
-                <input
-                  id="url-input"
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/article"
-                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
-                />
+                <div className="relative flex-1">
+                  <input
+                    id="url-input"
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://example.com/article"
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md pr-8"
+                  />
+                  {url && (
+                    <button
+                      type="button"
+                      onClick={clearUrl}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      aria-label="Clear input"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={processUrl}
                   disabled={isLoading}
