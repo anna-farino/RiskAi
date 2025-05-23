@@ -68,13 +68,7 @@ export function RisqHeader() {
         </div>
         
         {/* Rest of the header in a separate container */}
-        <div className="flex items-center justify-end gap-4 flex-1 pr-4 md:pr-6 lg:pr-8">
-
-          {/* Mobile navigation - only visible on mobile */}
-          <div className="flex items-center md:hidden mr-2">
-            <MobileNavigation />
-            {/* Smaller screens only show the icon, with proper brand styling */}
-          </div>
+        <div className="flex items-center justify-end gap-2 flex-1 pr-4 md:pr-6 lg:pr-8">
           
           {/* User account and theme toggle */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
@@ -107,6 +101,11 @@ export function RisqHeader() {
                 </div>
               </div>
             )}
+          </div>
+          
+          {/* Mobile navigation - repositioned to far right */}
+          <div className="flex items-center md:hidden ml-2 pl-2 border-l border-[#BF00FF]/20">
+            <MobileNavigation />
           </div>
         </div>
       </div>
