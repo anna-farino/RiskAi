@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { processUrl } from './process-url';
 import { addToReport } from './add-to-report';
-import { getReports } from './get-reports';
+import { getReports } from './get-reports-simplified';
 import { deleteReport } from './delete-report';
 
 const router = Router();
