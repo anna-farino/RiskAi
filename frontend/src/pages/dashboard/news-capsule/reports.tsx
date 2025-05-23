@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { format } from "date-fns";
 import { serverUrl } from "@/utils/server-url";
-import { useToast } from "@/hooks/use-toast";
 
 interface ArticleSummary {
   id: string;
@@ -24,6 +23,7 @@ interface Report {
   id: string;
   createdAt: string;
   articles: ArticleSummary[];
+  versionNumber?: number;
 }
 
 export default function Reports() {
@@ -31,12 +31,84 @@ export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   
   useEffect(() => {
     fetchReports();
   }, []);
+  
+  // Calculate version numbers for reports from the same day
+  const deleteReport = async (reportId: string) => {
+    try {
+      setIsDeleting(true);
+      
+      const response = await fetch(`/api/news-capsule/reports/${reportId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete report');
+      }
+      
+      // Remove report from local state
+      setReports(reports.filter(report => report.id !== reportId));
+      
+      // If deleted report was selected, clear selection
+      if (selectedReport && selectedReport.id === reportId) {
+        setSelectedReport(null);
+      }
+      
+      setShowDeleteConfirm(null);
+    } catch (err) {
+      setError('Error deleting report: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  const getReportsWithVersions = () => {
+    // Group reports by date (ignoring time)
+    const reportsByDate: Record<string, Report[]> = {};
+    
+    reports.forEach(report => {
+      const reportDate = new Date(report.createdAt);
+      const dateKey = reportDate.toDateString();
+      
+      if (!reportsByDate[dateKey]) {
+        reportsByDate[dateKey] = [];
+      }
+      
+      reportsByDate[dateKey].push(report);
+    });
+    
+    // Sort each day's reports by creation time and assign version numbers
+    const reportsWithVersions = [...reports];
+    
+    Object.values(reportsByDate).forEach(dayReports => {
+      // Sort by creation time (newest first)
+      dayReports.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      // Assign version numbers
+      dayReports.forEach((report, index) => {
+        const version = dayReports.length - index;
+        const reportIndex = reportsWithVersions.findIndex(r => r.id === report.id);
+        if (reportIndex !== -1) {
+          reportsWithVersions[reportIndex] = {
+            ...reportsWithVersions[reportIndex], 
+            versionNumber: version
+          };
+        }
+      });
+    });
+    
+    return reportsWithVersions;
+  };
   
   const fetchReports = async () => {
     try {
@@ -60,11 +132,7 @@ export default function Reports() {
       
       // Check if we got any reports
       if (data.length === 0) {
-        toast({
-          title: "No reports found",
-          description: "Create reports by sending articles from the Research page",
-          variant: "default",
-        });
+        console.log("No reports found - please try sending articles from the Research page");
       }
       
       setReports(data);
@@ -76,7 +144,7 @@ export default function Reports() {
       }
     } catch (err) {
       console.error("Error fetching reports:", err);
-      setError("Unable to load reports. Please try again later.");
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -101,6 +169,9 @@ export default function Reports() {
       return "";
     }
   };
+  
+  // Create versioned reports
+  const reportsWithVersions = getReportsWithVersions();
   
   return (
     <div className="flex flex-col gap-6">
@@ -129,11 +200,11 @@ export default function Reports() {
           <div className="md:col-span-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
             <h2 className="text-xl font-semibold mb-4">Reports</h2>
             
-            {reports.length === 0 ? (
+            {reportsWithVersions.length === 0 ? (
               <p className="text-sm text-slate-400 italic">No reports available</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {reports.map((report) => (
+                {reportsWithVersions.map((report) => (
                   <div key={report.id} className="relative group">
                     <button
                       onClick={() => handleReportSelect(report)}
@@ -144,7 +215,7 @@ export default function Reports() {
                       }`}
                     >
                       <p className="font-medium">
-                        Report {formatDate(report.createdAt)}
+                        Report {formatDate(report.createdAt)} {report.versionNumber && report.versionNumber > 1 ? `(Version: ${report.versionNumber})` : ''}
                       </p>
                       <p className="text-xs text-blue-400">
                         {formatTime(report.createdAt)}
@@ -153,7 +224,52 @@ export default function Reports() {
                         {report.articles.length} articles
                       </p>
                     </button>
-                    {/* Delete functionality will be added back after fixing page loading */}
+                    
+                    {/* Delete button */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeleteConfirm(report.id);
+                      }}
+                      className="absolute right-2 top-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-opacity"
+                      title="Delete report"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                    
+                    {/* Delete confirmation */}
+                    {showDeleteConfirm === report.id && (
+                      <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-slate-800/90 rounded-md z-10">
+                        <div className="p-3 flex flex-col gap-2">
+                          <p className="text-sm text-red-300">Delete this report?</p>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteReport(report.id);
+                              }}
+                              disabled={isDeleting}
+                              className="text-xs px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-white"
+                            >
+                              {isDeleting ? "Deleting..." : "Yes, Delete"}
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDeleteConfirm(null);
+                              }}
+                              className="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

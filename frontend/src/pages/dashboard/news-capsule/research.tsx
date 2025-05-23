@@ -246,7 +246,7 @@ export default function Research() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const todaysReports = existingReports.filter((report: any) => {
+      const todaysReports = existingReports.filter(report => {
         const reportDate = new Date(report.createdAt);
         return reportDate >= today;
       });

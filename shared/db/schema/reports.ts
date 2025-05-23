@@ -1,4 +1,4 @@
-import { pgTable, primaryKey, timestamp, uuid, text } from "drizzle-orm/pg-core";
+import { pgTable, primaryKey, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./user";
 import { capsuleArticles } from "./news-capsule";
 
@@ -6,7 +6,6 @@ import { capsuleArticles } from "./news-capsule";
 export const reports = pgTable('reports', {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  title: text("title").default("").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 })
 
