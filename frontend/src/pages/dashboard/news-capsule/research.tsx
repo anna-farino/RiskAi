@@ -9,8 +9,12 @@ const MAX_STORED_ARTICLES = 10;
 const storedArticles: ArticleSummary[] = [];
 const storedSelectedArticles: ArticleSummary[] = [];
 
-// List of demo URLs to ensure they're removed from storage
-const demoUrls = [
+// Store recent user-entered URLs (up to 10)
+const MAX_RECENT_URLS = 10;
+const recentUrls: string[] = [];
+
+// List of demo URLs to exclude from saved suggestions
+const excludedUrls = [
   "https://thehackernews.com/2025/04/cisa-and-fbi-warn-fast-flux-is-powering.html",
   "https://www.csoonline.com/article/3954647/big-hole-in-big-data-critical-deserialization-bug-in-apache-parquet-allows-rce.html",
   "https://thehackernews.com/2025/04/malicious-python-packages-on-pypi.html",
@@ -42,23 +46,35 @@ export default function Research() {
   const [error, setError] = useState<string | null>(null);
   const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
+  const [savedUrls, setSavedUrls] = useState<string[]>([]);
+  const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   
-  // Clean up hardcoded URLs and initialize empty state on component mount
+  // Load saved URLs and clean up hardcoded ones
   useEffect(() => {
-    // Clear all localStorage and sessionStorage to start fresh
+    // Load saved URLs from localStorage
     try {
-      localStorage.removeItem('newsProcessedArticles');
-      localStorage.removeItem('processedArticles');
-      sessionStorage.removeItem('processedArticles');
+      const savedUrlsStr = localStorage.getItem('userSavedUrls');
+      if (savedUrlsStr) {
+        const parsed = JSON.parse(savedUrlsStr);
+        if (Array.isArray(parsed)) {
+          // Filter out any excluded URLs
+          const filteredUrls = parsed.filter(url => !excludedUrls.includes(url));
+          setSavedUrls(filteredUrls);
+          
+          // Also update the module-level array
+          recentUrls.length = 0;
+          recentUrls.push(...filteredUrls);
+        }
+      }
     } catch (e) {
-      console.error("Failed to clear storage", e);
+      console.error("Failed to load saved URLs", e);
     }
     
     // Reset module-level arrays
     storedArticles.length = 0;
     storedSelectedArticles.length = 0;
     
-    // Set initial empty state
+    // Set initial empty state for articles
     setProcessedArticles([]);
     setSelectedArticles([]);
   }, []);
@@ -68,11 +84,46 @@ export default function Research() {
     setError(null);
   };
   
+  // Save URL to recent URLs list
+  const saveUrl = (urlToSave: string) => {
+    // Don't save empty URLs or excluded demo URLs
+    if (!urlToSave || excludedUrls.includes(urlToSave)) return;
+    
+    // Create new array without the URL (if it already exists)
+    const filteredUrls = savedUrls.filter(u => u !== urlToSave);
+    
+    // Add the URL to the beginning of the array
+    const newSavedUrls = [urlToSave, ...filteredUrls].slice(0, MAX_RECENT_URLS);
+    
+    // Update state and localStorage
+    setSavedUrls(newSavedUrls);
+    
+    // Update module level array
+    recentUrls.length = 0;
+    recentUrls.push(...newSavedUrls);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('userSavedUrls', JSON.stringify(newSavedUrls));
+    } catch (e) {
+      console.error("Failed to save URLs", e);
+    }
+  };
+  
+  // Handle selection from dropdown
+  const selectSavedUrl = (selectedUrl: string) => {
+    setUrl(selectedUrl);
+    setShowUrlDropdown(false);
+  };
+  
   const processUrl = async () => {
     if (!url) {
       setError("Please enter a URL");
       return;
     }
+    
+    // Save this URL to our recent URLs
+    saveUrl(url);
     
     try {
       setIsLoading(true);
@@ -200,15 +251,34 @@ export default function Research() {
                 Article URL
               </label>
               <div className="flex gap-2">
-                <input
-                  id="url-input"
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/article"
-                  autoComplete="off"
-                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
-                />
+                <div className="relative flex-1">
+                  <input
+                    id="url-input"
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onFocus={() => setShowUrlDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                    placeholder="https://example.com/article"
+                    autoComplete="off"
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
+                  />
+                  
+                  {/* Dropdown for saved URLs */}
+                  {showUrlDropdown && savedUrls.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-md overflow-hidden z-10 max-h-60 overflow-y-auto">
+                      {savedUrls.map((savedUrl, index) => (
+                        <button
+                          key={index}
+                          onClick={() => selectSavedUrl(savedUrl)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-700 truncate"
+                        >
+                          {savedUrl}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {url && (
                   <button
                     type="button"
