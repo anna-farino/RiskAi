@@ -27,17 +27,29 @@ export default function Research() {
   const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
   
-  // Load articles from localStorage when the component mounts
+  // Load articles from localStorage when component mounts
   useEffect(() => {
-    const savedArticles = localStorage.getItem('newsCapsuledProcessedArticles');
-    if (savedArticles) {
-      try {
-        setProcessedArticles(JSON.parse(savedArticles));
-      } catch (err) {
-        console.error('Error loading saved articles:', err);
+    try {
+      const savedArticles = localStorage.getItem('newsProcessedArticles');
+      if (savedArticles) {
+        const parsed = JSON.parse(savedArticles);
+        if (Array.isArray(parsed)) {
+          setProcessedArticles(parsed);
+        }
       }
+    } catch (err) {
+      console.error('Error loading saved articles:', err);
     }
   }, []);
+  
+  // Save articles to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('newsProcessedArticles', JSON.stringify(processedArticles));
+    } catch (err) {
+      console.error('Error saving articles:', err);
+    }
+  }, [processedArticles]);
   
   const clearUrl = () => {
     setUrl("");
@@ -108,7 +120,7 @@ export default function Research() {
         throw new Error("Failed to add articles to report");
       }
       
-      // Keep processed articles but clear selected ones
+      // Clear selected articles but keep processed ones
       setSelectedArticles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
