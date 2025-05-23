@@ -227,6 +227,45 @@ export default function Research() {
       setIsLoading(true);
       setError(null);
       
+      // Check for today's existing reports first
+      const checkResponse = await fetch(serverUrl + "/api/news-capsule/reports", {
+        method: "GET",
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      
+      if (!checkResponse.ok) {
+        throw new Error("Failed to check for existing reports");
+      }
+      
+      const existingReports = await checkResponse.json();
+      
+      // Find reports from today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todaysReports = existingReports.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate >= today;
+      });
+      
+      let useExistingReport = false;
+      let existingReportId = null;
+      
+      // If there are today's reports, ask if user wants to add to existing or create new
+      if (todaysReports.length > 0) {
+        useExistingReport = window.confirm(
+          "There's already a report for today. Would you like to add these articles to the existing report? Click OK to add to existing report, or Cancel to create a new version."
+        );
+        
+        if (useExistingReport) {
+          existingReportId = todaysReports[0].id;
+        }
+      }
+      
+      // Send to API with proper parameters
       const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
         method: "POST",
         credentials: 'include',
@@ -235,7 +274,9 @@ export default function Research() {
           ...csfrHeaderObject(),
         },
         body: JSON.stringify({ 
-          articleIds: selectedArticles.map(article => article.id) 
+          articleIds: selectedArticles.map(article => article.id),
+          useExistingReport: useExistingReport,
+          existingReportId: existingReportId
         }),
       });
       

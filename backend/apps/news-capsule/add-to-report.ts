@@ -6,7 +6,7 @@ import { FullRequest } from '../../middleware';
 
 export async function addToReport(req: Request, res: Response) {
   try {
-    const { articleIds } = req.body;
+    const { articleIds, useExistingReport, existingReportId } = req.body;
     
     if (!articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
       return res.status(400).json({ error: 'Article IDs are required' });
@@ -14,19 +14,41 @@ export async function addToReport(req: Request, res: Response) {
     
     const userId = (req as FullRequest).user.id;
     
-    // Create a new report for today with current date
-    const currentDate = new Date();
+    let reportId;
     
-    // Create a new report
-    const [newReport] = await db
-      .insert(reports)
-      .values({
-        userId,
-        createdAt: currentDate
-      })
-      .returning();
-    
-    const reportId = newReport.id;
+    // If user wants to use an existing report and provided a valid ID
+    if (useExistingReport && existingReportId) {
+      // Verify the report exists and belongs to this user
+      const existingReport = await db
+        .select()
+        .from(reports)
+        .where(
+          and(
+            eq(reports.id, existingReportId),
+            eq(reports.userId, userId)
+          )
+        );
+      
+      if (existingReport.length === 0) {
+        return res.status(404).json({ error: 'Report not found or access denied' });
+      }
+      
+      reportId = existingReportId;
+    } else {
+      // Create a new report with current date
+      const currentDate = new Date();
+      
+      // Create a new report
+      const [newReport] = await db
+        .insert(reports)
+        .values({
+          userId,
+          createdAt: currentDate
+        })
+        .returning();
+      
+      reportId = newReport.id;
+    }
     
     // Add articles to the report
     const articlesToAdd = articleIds.map(articleId => ({
