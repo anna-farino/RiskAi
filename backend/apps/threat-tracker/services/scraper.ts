@@ -147,6 +147,14 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
     articleLinkData = existingLinkData;
     
+    // Debug: Check if the specific TikTok link is in the provided data
+    const tiktokLink = existingLinkData.find(link => link.href.includes('hackers-use-tiktok-videos-to-distribute'));
+    if (tiktokLink) {
+      log(`[ThreatTracker] DEBUG: TikTok link found in provided data: ${tiktokLink.href}`, "scraper-debug");
+    } else {
+      log(`[ThreatTracker] DEBUG: TikTok link NOT found in provided data`, "scraper-debug");
+    }
+    
     // Debug log: Print the provided links data being used for structured HTML
     log(
       `[ThreatTracker] Using provided links data for structured HTML:\n${JSON.stringify(articleLinkData, null, 2)}`,
@@ -364,6 +372,15 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     
     log(`[ThreatTracker] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
     }
+  }
+
+  // Debug: Check if TikTok link is still present before creating structured HTML
+  const tiktokLinkFinal = articleLinkData.find(link => link.href.includes('hackers-use-tiktok-videos-to-distribute'));
+  if (tiktokLinkFinal) {
+    log(`[ThreatTracker] DEBUG: TikTok link present before structured HTML creation: ${tiktokLinkFinal.href}`, "scraper-debug");
+  } else {
+    log(`[ThreatTracker] DEBUG: TikTok link MISSING before structured HTML creation`, "scraper-debug");
+    log(`[ThreatTracker] DEBUG: Total links before HTML creation: ${articleLinkData.length}`, "scraper-debug");
   }
 
   // Create a simplified HTML with just the extracted links
@@ -606,6 +623,14 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     });
 
     log(`[ThreatTracker] Primary extraction: Found ${extractedLinkData.length} links`, "scraper");
+    
+    // Debug: Check if the specific TikTok link is in the extracted data
+    const tiktokLink = extractedLinkData.find(link => link.href.includes('hackers-use-tiktok-videos-to-distribute'));
+    if (tiktokLink) {
+      log(`[ThreatTracker] DEBUG: TikTok link found in primary extraction: ${tiktokLink.href}`, "scraper-debug");
+    } else {
+      log(`[ThreatTracker] DEBUG: TikTok link NOT found in primary extraction`, "scraper-debug");
+    }
     
     // Pass the extracted data to extractArticleLinksStructured to avoid duplicate extraction
     return await extractArticleLinksStructured(page, extractedLinkData);
