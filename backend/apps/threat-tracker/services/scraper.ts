@@ -384,7 +384,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
   }
 
   // Create a simplified HTML with just the extracted links
-  return `
+  const generatedHtml = `
   <html>
     <body>
       <div class="extracted-article-links">
@@ -444,6 +444,22 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
       </div>
     </body>
   </html>`;
+  
+  // Debug: Log the final generated HTML to see if TikTok link is actually included
+  const tiktokInHtml = generatedHtml.includes('hackers-use-tiktok-videos-to-distribute');
+  log(`[ThreatTracker] DEBUG: TikTok link present in final HTML: ${tiktokInHtml}`, "scraper-debug");
+  
+  if (!tiktokInHtml) {
+    log(`[ThreatTracker] DEBUG: TikTok link missing from final HTML! Checking generated HTML...`, "scraper-debug");
+    // Log a portion of the generated HTML to see what's actually there
+    const htmlLines = generatedHtml.split('\n');
+    const linkSection = htmlLines.slice(3, Math.min(htmlLines.length - 2, 20)); // Skip html/body tags, show first ~15 link entries
+    log(`[ThreatTracker] DEBUG: Generated HTML preview:\n${linkSection.join('\n')}`, "scraper-debug");
+  } else {
+    log(`[ThreatTracker] DEBUG: TikTok link successfully included in final HTML!`, "scraper-debug");
+  }
+  
+  return generatedHtml;
 }
 
 /**
