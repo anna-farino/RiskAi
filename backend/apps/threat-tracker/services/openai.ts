@@ -111,26 +111,38 @@ export async function identifyArticleLinks(
       const tiktokInInput = linksText.includes('hackers-use-tiktok-videos-to-distribute');
       log(`[ThreatTracker] DEBUG: TikTok link present in OpenAI input HTML: ${tiktokInInput}`, "openai-debug");
       
-      const linkRegex = /<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
-      let match;
+      // Instead of using regex (which is losing data), extract href and text using a more robust approach
+      const linkItems = linksText.split('<div class="article-link-item">').slice(1); // Skip first empty element
       const links = [];
-      while ((match = linkRegex.exec(linksText)) !== null) {
-        links.push({
-          href: match[1],
-          text: match[2].replace(/<[^>]+>/g, "").trim(), // Strip HTML from link text
-        });
+      
+      for (const item of linkItems) {
+        // Extract href from <a href="...">
+        const hrefMatch = item.match(/href="([^"]*)"/);
+        if (!hrefMatch) continue;
         
-        // Debug: Log when we find the TikTok link during regex extraction
-        if (match[1].includes('hackers-use-tiktok-videos-to-distribute')) {
-          log(`[ThreatTracker] DEBUG: TikTok link found during regex extraction: ${match[1]}`, "openai-debug");
-          log(`[ThreatTracker] DEBUG: TikTok link text: "${match[2]}"`, "openai-debug");
+        const href = hrefMatch[1];
+        
+        // Extract text content between <a> tags, handling potential nested HTML
+        const aTagMatch = item.match(/<a[^>]*>(.*?)<\/a>/s);
+        if (!aTagMatch) continue;
+        
+        let text = aTagMatch[1];
+        // Clean any remaining HTML tags from the text
+        text = text.replace(/<[^>]+>/g, '').trim();
+        
+        links.push({ href, text });
+        
+        // Debug: Log when we find the TikTok link during extraction
+        if (href.includes('hackers-use-tiktok-videos-to-distribute')) {
+          log(`[ThreatTracker] DEBUG: TikTok link found during robust extraction: ${href}`, "openai-debug");
+          log(`[ThreatTracker] DEBUG: TikTok link text: "${text}"`, "openai-debug");
         }
       }
       
-      // Debug: Check if TikTok link made it through regex extraction
+      // Debug: Check if TikTok link made it through extraction
       const tiktokInLinks = links.some(link => link.href.includes('hackers-use-tiktok-videos-to-distribute'));
-      log(`[ThreatTracker] DEBUG: TikTok link present after regex extraction: ${tiktokInLinks}`, "openai-debug");
-      log(`[ThreatTracker] DEBUG: Total links extracted by regex: ${links.length}`, "openai-debug");
+      log(`[ThreatTracker] DEBUG: TikTok link present after robust extraction: ${tiktokInLinks}`, "openai-debug");
+      log(`[ThreatTracker] DEBUG: Total links extracted: ${links.length}`, "openai-debug");
       
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
