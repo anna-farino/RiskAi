@@ -373,8 +373,24 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
       <div class="extracted-article-links">
         ${articleLinkData.map(link => {
           // Clean HTML tags from link text to prevent malformed HTML
-          const cleanText = link.text.replace(/<[^>]+>/g, '').trim();
+          let cleanText = link.text.replace(/<[^>]+>/g, '').trim();
           const cleanParentText = link.parentText.replace(/<[^>]+>/g, '').trim();
+          
+          // If cleaning the text results in empty or very short text, use the href as fallback
+          if (!cleanText || cleanText.length < 5) {
+            // Extract meaningful text from the URL path
+            try {
+              const url = new URL(link.href);
+              const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+              // Use the last meaningful part of the path or the domain
+              cleanText = pathParts.length > 0 ? pathParts[pathParts.length - 1] : url.hostname;
+              // Clean up common URL patterns
+              cleanText = cleanText.replace(/\.html?$/, '').replace(/-/g, ' ');
+            } catch {
+              // If URL parsing fails, just use the href
+              cleanText = link.href;
+            }
+          }
           
           return `<div class="article-link-item">
             <a href="${link.href}">${cleanText}</a>
