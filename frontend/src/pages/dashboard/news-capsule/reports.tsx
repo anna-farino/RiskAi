@@ -73,6 +73,10 @@ export default function Reports() {
                             background: white !important;
                             color: black !important;
                           }
+                          /* Update document title */
+                          title {
+                            content: "RisqAI News Capsule Reporting" !important;
+                          }
                           /* Hide navigation and controls */
                           nav, header, aside, .md\\:col-span-1, button, 
                           input, select, .flex.gap-2, .flex.justify-between {
@@ -159,15 +163,21 @@ export default function Reports() {
                       `;
                       document.head.appendChild(printStyle);
                       
+                      // Change the document title for printing
+                      const originalTitle = document.title;
+                      document.title = "RisqAI News Capsule Reporting";
+                      
                       // Print the report
                       window.print();
                       
-                      // Remove the print style after printing
+                      // Remove the print style after printing and restore title
                       setTimeout(() => {
                         const styleElement = document.getElementById('print-style');
                         if (styleElement) {
                           styleElement.remove();
                         }
+                        // Restore original title
+                        document.title = originalTitle;
                       }, 1000);
                     }}
                   >
