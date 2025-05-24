@@ -389,9 +389,22 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     <body>
       <div class="extracted-article-links">
         ${articleLinkData.map(link => {
+          // Debug: Log processing for the specific TikTok link
+          if (link.href.includes('hackers-use-tiktok-videos-to-distribute')) {
+            log(`[ThreatTracker] DEBUG: Processing TikTok link in HTML generation`, "scraper-debug");
+            log(`[ThreatTracker] DEBUG: Original text length: ${link.text.length}`, "scraper-debug");
+            log(`[ThreatTracker] DEBUG: Original text preview: ${link.text.substring(0, 100)}...`, "scraper-debug");
+          }
+          
           // Clean HTML tags from link text to prevent malformed HTML
           let cleanText = link.text.replace(/<[^>]+>/g, '').trim();
           const cleanParentText = link.parentText.replace(/<[^>]+>/g, '').trim();
+          
+          // Debug: Log cleaning results for TikTok link
+          if (link.href.includes('hackers-use-tiktok-videos-to-distribute')) {
+            log(`[ThreatTracker] DEBUG: Cleaned text length: ${cleanText.length}`, "scraper-debug");
+            log(`[ThreatTracker] DEBUG: Cleaned text: "${cleanText}"`, "scraper-debug");
+          }
           
           // If cleaning the text results in empty or very short text, use the href as fallback
           if (!cleanText || cleanText.length < 5) {
@@ -403,10 +416,24 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
               cleanText = pathParts.length > 0 ? pathParts[pathParts.length - 1] : url.hostname;
               // Clean up common URL patterns
               cleanText = cleanText.replace(/\.html?$/, '').replace(/-/g, ' ');
+              
+              // Debug: Log fallback text for TikTok link
+              if (link.href.includes('hackers-use-tiktok-videos-to-distribute')) {
+                log(`[ThreatTracker] DEBUG: Using fallback text: "${cleanText}"`, "scraper-debug");
+              }
             } catch {
               // If URL parsing fails, just use the href
               cleanText = link.href;
+              if (link.href.includes('hackers-use-tiktok-videos-to-distribute')) {
+                log(`[ThreatTracker] DEBUG: URL parsing failed, using href as text`, "scraper-debug");
+              }
             }
+          }
+          
+          // Debug: Log final HTML generation for TikTok link
+          if (link.href.includes('hackers-use-tiktok-videos-to-distribute')) {
+            log(`[ThreatTracker] DEBUG: Final text for HTML: "${cleanText}"`, "scraper-debug");
+            log(`[ThreatTracker] DEBUG: Generating HTML for TikTok link`, "scraper-debug");
           }
           
           return `<div class="article-link-item">
