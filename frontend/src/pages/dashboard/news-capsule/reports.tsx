@@ -59,8 +59,106 @@ export default function Reports() {
                   <button
                     className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
                     onClick={() => {
-                      // Print report
+                      // Add print-specific styling
+                      const printStyle = document.createElement('style');
+                      printStyle.id = 'print-style';
+                      printStyle.innerHTML = `
+                        @media print {
+                          @page {
+                            size: letter;
+                            margin: 0.75in 0.5in;
+                          }
+                          body {
+                            font-family: Arial, sans-serif;
+                            background: white !important;
+                            color: black !important;
+                          }
+                          /* Hide navigation and controls */
+                          nav, header, aside, .md\\:col-span-1, button, 
+                          input, select, .flex.gap-2, .flex.justify-between {
+                            display: none !important;
+                          }
+                          /* Make the report container full width */
+                          .md\\:col-span-4 {
+                            width: 100% !important;
+                            max-width: 100% !important;
+                          }
+                          .grid.grid-cols-1 {
+                            display: block !important;
+                          }
+                          /* Reset background and styling */
+                          .p-5, .backdrop-blur-sm, .bg-slate-900\\/50, .border, .rounded-xl {
+                            background: white !important;
+                            border: none !important;
+                            box-shadow: none !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                          }
+                          /* Format report header */
+                          h2 {
+                            font-size: 18pt !important;
+                            font-weight: bold !important;
+                            margin-bottom: 0.5in !important;
+                            text-align: center !important;
+                            border-bottom: 1pt solid #000 !important;
+                            padding-bottom: 0.2in !important;
+                            color: black !important;
+                          }
+                          h2 span {
+                            color: #444 !important;
+                          }
+                          /* Format articles */
+                          .space-y-6 > div {
+                            page-break-inside: avoid !important;
+                            margin-bottom: 0.4in !important;
+                            border: 1pt solid #ddd !important;
+                            padding: 0.25in !important;
+                          }
+                          /* Format article titles */
+                          .font-medium.text-lg {
+                            font-size: 14pt !important;
+                            font-weight: bold !important;
+                            margin-bottom: 0.15in !important;
+                            color: black !important;
+                          }
+                          /* Format section headings */
+                          .font-medium.text-sm {
+                            font-size: 11pt !important;
+                            font-weight: bold !important;
+                            margin-top: 0.15in !important;
+                            margin-bottom: 0.05in !important;
+                            color: black !important;
+                          }
+                          /* Format content text */
+                          p, .text-sm {
+                            font-size: 10pt !important;
+                            line-height: 1.4 !important;
+                            color: black !important;
+                          }
+                          /* Add report footer with date */
+                          .space-y-6:after {
+                            content: "Executive Report ${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? '(Version ' + selectedReport.versionNumber + ')' : ''} - Generated on ${new Date().toLocaleDateString()}";
+                            display: block;
+                            text-align: center;
+                            font-size: 9pt;
+                            margin-top: 0.5in;
+                            border-top: 1pt solid #ddd;
+                            padding-top: 0.15in;
+                          }
+                        }
+                      `;
+                      document.head.appendChild(printStyle);
+                      
+                      // Print the report
                       window.print();
+                      
+                      // Remove the print style after printing
+                      setTimeout(() => {
+                        const styleElement = document.getElementById('print-style');
+                        if (styleElement) {
+                          styleElement.remove();
+                        }
+                      }, 1000);
                     }}
                   >
                     Print
