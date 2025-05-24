@@ -103,9 +103,19 @@ export default function Reports() {
                             border-bottom: 1pt solid #000 !important;
                             padding-bottom: 0.2in !important;
                             color: black !important;
+                            position: relative !important;
                           }
                           h2 span {
                             color: #444 !important;
+                          }
+                          /* Add company header */
+                          h2:before {
+                            content: "RisqAI News Capsule Reporting" !important;
+                            display: block !important;
+                            font-size: 22pt !important;
+                            font-weight: bold !important;
+                            margin-bottom: 0.15in !important;
+                            color: #203864 !important;
                           }
                           /* Format articles */
                           .space-y-6 > div {
