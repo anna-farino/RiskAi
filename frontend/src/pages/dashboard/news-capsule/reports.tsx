@@ -149,15 +149,10 @@ export default function Reports() {
                             line-height: 1.4 !important;
                             color: black !important;
                           }
-                          /* Add report footer with date */
+                          /* Remove footer */
                           .space-y-6:after {
-                            content: "Executive Report ${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? '(Version ' + selectedReport.versionNumber + ')' : ''} - Generated on ${new Date().toLocaleDateString()}";
-                            display: block;
-                            text-align: center;
-                            font-size: 9pt;
-                            margin-top: 0.5in;
-                            border-top: 1pt solid #ddd;
-                            padding-top: 0.15in;
+                            content: none;
+                            display: none;
                           }
                         }
                       `;
