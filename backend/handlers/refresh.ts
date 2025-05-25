@@ -11,7 +11,7 @@ export async function handleRefreshToken(req: Request, res: Response) {
       return res.status(401).json({ error: 'Refresh token required' });
     }
 
-    const user = await verifyRefreshToken(refreshToken);
+    const { user } = await verifyRefreshToken(req,refreshToken);
 
     if (!user) {
       console.log('Invalid or expired refresh token');
@@ -19,7 +19,7 @@ export async function handleRefreshToken(req: Request, res: Response) {
     }
 
     // Revoke the old refresh token
-    await revokeRefreshToken(refreshToken);
+    await revokeRefreshToken(req,refreshToken);
 
     // Generate new tokens
     const newAccessToken = generateAccessToken(user);

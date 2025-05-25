@@ -69,7 +69,6 @@ let browser: Browser | null = null;
 
 async function getBrowser() {
   log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, PUPPETEER_EXECUTABLE_PATH )
-  if (!browser) {
     try {
       // Use a more minimal configuration to avoid dependencies
       browser = await puppeteer.launch({
@@ -94,7 +93,7 @@ async function getBrowser() {
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled' // Avoid detection
         ],
-        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        //executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         // Set longer browser launch timeout
         timeout: 180000 // 3 minute timeout on browser launch
       });
@@ -103,30 +102,34 @@ async function getBrowser() {
       console.error("[getBrowser] Failed to launch browser:", error);
       throw error;
     }
-  }
   console.log("[getBrowser] browser instance:", browser)
   return browser;
 }
 
-async function setupPage(): Promise<Page> {
-  log(`[setupPage] About to set browser... 😬🤞`)
-  const browser = await getBrowser();
-  log(`[setupPage] About to set page... 😬🤞`)
-  const page = await browser.newPage();
+async function setupPage(): Promise<Page> | null {
+  try {
+    log(`[setupPage] About to set browser... 😬🤞`)
+    const browser = await getBrowser();
+    log(`[setupPage] About to set page... 😬🤞`)
+    const page = await browser.newPage();
 
-  // Set viewport
-  await page.setViewport({ width: 1920, height: 1080 });
+    // Set viewport
+    await page.setViewport({ width: 1920, height: 1080 });
 
-  // Set user agent
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    // Set user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-  // Set extra headers
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-  });
+    // Set extra headers
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    });
 
-  return page;
+    return page;
+  } catch(error) {
+    console.error("An error occurred while trype to set up the page:", error)
+    return null
+  }
 }
 
 async function extractArticleLinks(page: Page): Promise<string> {
@@ -187,6 +190,7 @@ export async function scrapePuppeteer(url: string, isArticlePage: boolean = fals
   try {
     try {
       page = await setupPage();
+      if (!page) return new Promise(res => res(""))
       log(`[scrapePuppeteer] Page setup complete`);
     } catch (error: any) {
       console.error("[scrapePuppeteer] Error setting up page:", error);

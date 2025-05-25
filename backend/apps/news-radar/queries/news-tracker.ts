@@ -1,3 +1,4 @@
+import { withUserContext } from "@backend/db/with-user-context";
 import type { 
   Source, 
   InsertSource, 
@@ -10,11 +11,10 @@ import type {
 import { 
   sources, 
   keywords, 
+  settings,
   articles, 
-  settings, 
 } from "@shared/db/schema/news-tracker/index";
 import { db, pool } from "backend/db/db";
-import { withUserContext } from "backend/db/with-user-context";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
 import { Request } from "express";
 import { userInfo } from "os";

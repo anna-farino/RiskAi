@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { db } from '../../db/db';
 import { reports, capsuleArticlesInReports } from '../../../shared/db/schema/reports';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 import { FullRequest } from '../../middleware';
 
 export async function addToReport(req: Request, res: Response) {
   try {
-    const { articleIds } = req.body;
+    const { articleIds, useExistingReport, existingReportId, versionNumber } = req.body;
     
     if (!articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
       return res.status(400).json({ error: 'Article IDs are required' });
@@ -14,38 +14,47 @@ export async function addToReport(req: Request, res: Response) {
     
     const userId = (req as FullRequest).user.id;
     
-    // Check if there's a report for today, or create a new one
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    // Look for existing report for today
-    const existingReports = await db
-      .select()
-      .from(reports)
-      .where(
-        and(
-          eq(reports.userId, userId),
-          // Filter for reports created today
-          // Note: This checks if created_at is between today at 00:00:00 and tomorrow at 00:00:00
-          // You might need to adjust the timezone handling based on your requirements
-        )
-      );
-    
     let reportId;
+    let reportVersion = 1;
     
-    if (existingReports.length > 0) {
-      // Use the most recent report from today
-      reportId = existingReports[0].id;
+    // If user wants to use an existing report and provided a valid ID
+    if (useExistingReport && existingReportId) {
+      // Verify the report exists and belongs to this user
+      const existingReport = await db
+        .select()
+        .from(reports)
+        .where(
+          and(
+            eq(reports.id, existingReportId),
+            eq(reports.userId, userId)
+          )
+        );
+      
+      if (existingReport.length === 0) {
+        return res.status(404).json({ error: 'Report not found or access denied' });
+      }
+      
+      reportId = existingReportId;
     } else {
-      // Create a new report for today
+      // Create a new report with current date and version info
+      const currentDate = new Date();
+      
+      // Set version number if provided
+      if (versionNumber && versionNumber > 1) {
+        reportVersion = versionNumber;
+      }
+      
+      // Store version info in JSON metadata
+      const metadata = {
+        version: reportVersion
+      };
+      
+      // Create a new report (database schema doesn't have title field yet)
       const [newReport] = await db
         .insert(reports)
         .values({
           userId,
-          createdAt: new Date()
+          createdAt: currentDate
         })
         .returning();
       

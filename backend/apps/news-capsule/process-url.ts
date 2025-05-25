@@ -214,8 +214,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
       4. Summary (a 2-3 sentence summary of the main points)
       5. Impacts (what are the potential impacts of this threat, 1-2 sentences)
       6. Attack Vector (how the attack is performed, 1 sentence)
-      7. Microsoft Connection (how this relates to Microsoft or Windows, if at all, 1 sentence)
-      8. Target OS (what operating systems are targeted, default to "Microsoft / Windows" if unclear)
+      7. Target OS (identify all operating systems mentioned or affected, including Windows, macOS, Linux, Android, iOS; list ALL operating systems mentioned, or state "Multiple operating systems" or "OS-independent" if none specifically mentioned)
       
       Format your response as a JSON object with these exact field names.
     `;
@@ -239,9 +238,9 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: parsedResult.Summary || "No summary available.",
         impacts: parsedResult.Impacts || "No impacts specified.",
         attackVector: parsedResult.attackVector || parsedResult["Attack Vector"] || "Unknown attack vector",
-        microsoftConnection: parsedResult.microsoftConnection || parsedResult["Microsoft Connection"] || "No direct Microsoft connection identified.",
+        microsoftConnection: "Field deprecated", // Keep for DB compatibility
         sourcePublication: content.publication || new URL(url).hostname,
-        targetOS: parsedResult.targetOS || parsedResult["Target OS"] || "Microsoft / Windows"
+        targetOS: parsedResult["Target OS"] || "Multiple operating systems"
       };
     } catch (error) {
       console.error('Error parsing AI response:', error);
@@ -254,9 +253,9 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: "Failed to generate summary. Please review the original article.",
         impacts: "Impacts could not be determined.",
         attackVector: "Unknown attack vector",
-        microsoftConnection: "No direct Microsoft connection identified.",
+        microsoftConnection: "Field deprecated", // Keep for DB compatibility
         sourcePublication: content.publication || new URL(url).hostname,
-        targetOS: "Microsoft / Windows"
+        targetOS: "Multiple operating systems"
       };
     }
   } catch (error) {

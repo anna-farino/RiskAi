@@ -1,6 +1,7 @@
 import { runGlobalScrapeJob } from "./background-jobs";
 import { storage } from "../queries/news-tracker";
 import { log } from "console";
+import { Request } from "express";
 
 //test
 // Job intervals in milliseconds
@@ -22,7 +23,7 @@ const scheduledJobs = new Map<string, NodeJS.Timeout>();
 /**
  * Initialize scheduler and restore jobs from settings
  */
-export async function initializeScheduler(): Promise<void> {
+export async function initializeScheduler(req: Request): Promise<void> {
   log("[Scheduler] Initializing scheduler service", "scheduler");
 
   try {
@@ -44,7 +45,7 @@ export async function initializeScheduler(): Promise<void> {
       );
 
       if (frequencyValue.enabled) {
-        scheduleGlobalScrapeJob(frequencyValue.interval);
+        scheduleGlobalScrapeJob(req,frequencyValue.interval);
         log(
           `[Scheduler] Scheduled global scrape job with interval ${frequencyValue.interval}ms`,
           "scheduler",
@@ -78,7 +79,7 @@ export async function initializeScheduler(): Promise<void> {
 /**
  * Schedule the global scrape job with a given interval
  */
-export function scheduleGlobalScrapeJob(interval: JobInterval): void {
+export function scheduleGlobalScrapeJob(req: Request, interval: JobInterval): void {
   // Clear existing job if it exists
   if (scheduledJobs.has(AUTO_SCRAPE_FREQUENCY_KEY)) {
     clearInterval(scheduledJobs.get(AUTO_SCRAPE_FREQUENCY_KEY));
@@ -114,7 +115,7 @@ export function scheduleGlobalScrapeJob(interval: JobInterval): void {
           `[Scheduler] Running scheduled global scrape job for user ${userId}`,
           "scheduler",
         );
-        const result = await runGlobalScrapeJob(userId);
+        const result = await runGlobalScrapeJob(userId, req);
         log(
           `[Scheduler] Completed job for user ${userId}: ${result.message}`,
           "scheduler",
@@ -155,6 +156,7 @@ export function scheduleGlobalScrapeJob(interval: JobInterval): void {
  * Update the global scrape job schedule
  */
 export async function updateGlobalScrapeSchedule(
+  req: Request,
   enabled: boolean,
   interval: JobInterval,
 ): Promise<void> {
@@ -168,7 +170,7 @@ export async function updateGlobalScrapeSchedule(
 
     // Update schedule
     if (enabled) {
-      scheduleGlobalScrapeJob(interval);
+      scheduleGlobalScrapeJob(req,interval);
       log(
         `[Scheduler] Updated global scrape job: enabled with interval ${interval}ms`,
         "scheduler",
