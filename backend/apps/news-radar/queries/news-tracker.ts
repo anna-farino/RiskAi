@@ -17,6 +17,7 @@ import { db, pool } from "backend/db/db";
 import { withUserContext } from "backend/db/with-user-context";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
 import { Request } from "express";
+import { userInfo } from "os";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -58,11 +59,11 @@ export interface IStorage {
       endDate?: Date
     },
   ): Promise<Article[]>;
-  getArticle(id: string): Promise<Article | undefined>;
-  getArticleByUrl(url: string): Promise<Article | undefined>;
-  createArticle(article: InsertArticle): Promise<Article>;
-  deleteArticle(id: string): Promise<void>;
-  deleteAllArticles(userId?: string): Promise<number>; // Returns count of deleted articles
+  getArticle(id: string, userId: string): Promise<Article | undefined>;
+  getArticleByUrl(url: string, userId: string): Promise<Article | undefined>;
+  createArticle(article: InsertArticle, userId: string): Promise<Article>;
+  deleteArticle(id: string, userId: string): Promise<void>;
+  deleteAllArticles(userId: string): Promise<number>; // Returns count of deleted articles
   
   // Settings
   getSetting(key: string, userId?: string): Promise<Setting | undefined>;
@@ -205,79 +206,86 @@ export class DatabaseStorage implements IStorage {
     const startDate  = filters?.startDate   ?? null;
     const endDate    = filters?.endDate     ?? null;
 
-    const rows = await req.db
-      .select()
-      .from(articles)
-      .where(
-        and(
-          eq(articles.userId, userId),
-          searchTerm
-            ? or(
-                ilike(articles.title, `%${searchTerm}%`),
-                ilike(articles.content, `%${searchTerm}%`)
-              )
-            : sql`TRUE`,
-          startDate
-            ? gte(articles.publishDate, startDate)
-            : sql`TRUE`,
-          endDate
-            ? lte(articles.publishDate, endDate)
-            : sql`TRUE`,
+    const rows = await withUserContext(
+      userId,
+      async (db) => db
+        .select()
+        .from(articles)
+        .where(
+          and(
+            eq(articles.userId, userId),
+            searchTerm
+              ? or(
+                  ilike(articles.title, `%${searchTerm}%`),
+                  ilike(articles.content, `%${searchTerm}%`)
+                )
+              : sql`TRUE`,
+            startDate
+              ? gte(articles.publishDate, startDate)
+              : sql`TRUE`,
+            endDate
+              ? lte(articles.publishDate, endDate)
+              : sql`TRUE`,
+          )
         )
-      )
-      .orderBy(desc(articles.publishDate));
+        .orderBy(desc(articles.publishDate))
+    )
 
     return rows;
   }
 
 
-  async getArticle(id: string): Promise<Article | undefined> {
-    // Use helper function to execute the query
-    const articles = await executeRawSql<Article>('SELECT * FROM articles WHERE id = $1 LIMIT 1', [id]);
-    return articles.length > 0 ? articles[0] : undefined;
+  async getArticle(id: string, userId: string): Promise<Article | undefined> {
+    const data = await withUserContext(
+      userId,
+      async (db) => db
+        .select()
+        .from(articles)
+        .where(eq(articles.id,id))
+        .limit(1)
+    )
+    return data.length > 0 ? data[0] : undefined;
   }
 
-  async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
-    // Build query string
-    let sqlStr = "SELECT * FROM articles WHERE url = $1";
-    const params: any[] = [url];
-    
-    if (userId) {
-      sqlStr += " AND user_id = $2";
-      params.push(userId);
-    }
-    
-    sqlStr += " LIMIT 1";
-    
-    // Use helper function to execute the query
-    const articles = await executeRawSql<Article>(sqlStr, params);
-    return articles.length > 0 ? articles[0] : undefined;
+  async getArticleByUrl(url: string, userId: string): Promise<Article | undefined> {
+    const data = await withUserContext(
+      userId,
+      async (db) => db
+        .select()
+        .from(articles)
+        .where(eq(articles.url,url))
+        .limit(1)
+    )
+    return data.length > 0 ? data[0] : undefined;
   }
 
-  async createArticle(article: InsertArticle): Promise<Article> {
-    const [created] = await db
+  async createArticle(article: InsertArticle, userId: string): Promise<Article> {
+    const [created] = await withUserContext(
+      userId,
+      async (db) => db
       .insert(articles)
       .values(article as Required<InsertArticle>)
-      .returning();
+      .returning() )
     return created;
   }
 
-  async deleteArticle(id: string): Promise<void> {
-    await db.delete(articles).where(eq(articles.id, id));
+  async deleteArticle(id: string,userId: string): Promise<void> {
+    withUserContext(
+      userId,
+      async (db) => db
+        .delete(articles)
+        .where(eq(articles.id,id))
+    )
   }
 
-  async deleteAllArticles(userId?: string): Promise<number> {
-    let query;
-    if (!userId) {
-      query = db
-        .delete(articles);
-    } else {
-      query = db
+  async deleteAllArticles(userId: string): Promise<number> {
+    const result = await withUserContext(
+      userId,
+      async (db) => db
         .delete(articles)
-        .where(eq(articles.userId, userId))
-    }
-    
-    const result = await query.returning({ id: articles.id });
+        .where(eq(articles.userId,userId))
+        .returning()
+    )
     return result.length;
   }
   

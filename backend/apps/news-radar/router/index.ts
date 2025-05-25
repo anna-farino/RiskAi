@@ -178,12 +178,12 @@ newsRouter.delete("/articles/:id", async (req, res) => {
   const id = req.params.id;
   
   // Check if article belongs to user
-  const article = await storage.getArticle(id);
+  const article = await storage.getArticle(id, userId);
   if (!article || article.userId !== userId) {
     return res.status(404).json({ message: "Article not found" });
   }
   
-  await storage.deleteArticle(id);
+  await storage.deleteArticle(id, userId);
   // Return success object instead of empty response to better support optimistic UI updates
   res.status(200).json({ success: true, id, message: "Article deleted successfully" });
 });
