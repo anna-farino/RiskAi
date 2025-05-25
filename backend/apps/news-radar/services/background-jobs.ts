@@ -195,7 +195,7 @@ export async function scrapeSource(
           );
 
           // Check if article with this URL already exists in the database for this user
-          const existingArticle = await storage.getArticleByUrl(req, link, userId);
+          const existingArticle = await storage.getArticleByUrl(link, userId);
 
           if (existingArticle) {
             log(
