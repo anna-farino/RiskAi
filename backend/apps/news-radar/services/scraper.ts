@@ -335,7 +335,7 @@ export async function scrapeUrl(
             `[Scraping] Bot protection detected (${protection.type}): ${protection.details}`,
             "scraper",
           );
-          return //await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
+          return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
         }
 
         // Then independently check for React app and lazy loading
