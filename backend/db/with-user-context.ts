@@ -18,7 +18,7 @@ export async function withUserContext<T>(
 
   try {
     await client.query('BEGIN');
-    await client.query(`SET LOCAL app.current_user_id = $1`, [userId]);
+    await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
 
     req && reqLog('[🔒 WITH USER CONTEXT] 👤 app.current_user_id:', userId);
 
@@ -43,7 +43,7 @@ export async function withUserContext<T>(
       ? `{${permissionNames.map(p => `"${p}"`).join(',')}}`
       : '{}';
 
-    await client.query(`SET LOCAL app.current_user_permissions = $1`, [pgArrayString]);
+    await client.query(`SET LOCAL app.current_user_permissions = '${pgArrayString}'`);
 
     const result = await fn(db);
 
