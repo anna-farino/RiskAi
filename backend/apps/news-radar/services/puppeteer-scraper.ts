@@ -93,7 +93,7 @@ async function getBrowser() {
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled' // Avoid detection
         ],
-        //executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        executablePath: '/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome',
         // Set longer browser launch timeout
         timeout: 180000 // 3 minute timeout on browser launch
       });
