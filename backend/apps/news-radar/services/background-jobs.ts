@@ -28,7 +28,6 @@ let globalJobRunning = false;
  */
 export async function scrapeSource(
   sourceId: string,
-  req: Request
 ): Promise<{
   processedCount: number;
   savedCount: number;
@@ -363,7 +362,6 @@ export async function sendNewArticlesEmail(
  */
 export async function runGlobalScrapeJob(
   userId: string,
-  req: Request
 )
 : Promise<{
   success: boolean;
@@ -418,7 +416,6 @@ export async function runGlobalScrapeJob(
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
-          req
         );
 
         // Add source information to each new article for email notification grouping
