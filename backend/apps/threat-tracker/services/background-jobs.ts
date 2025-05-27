@@ -1,6 +1,7 @@
 import { storage } from "../queries/threat-tracker";
 import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./openai";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
+import { scrapingState } from "../scraping-status";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 
@@ -39,6 +40,7 @@ async function processArticle(
     
     if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
+      scrapingState.articleSkipped(articleUrl, sourceId, "Already exists");
       return null;
     }
     
@@ -102,6 +104,7 @@ async function processArticle(
     if (!hasValidThreatKeywords || !hasValidOtherKeywords) {
       log(`[ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: ${articleUrl}`, "scraper");
       log(`[ThreatTracker] Valid threats: ${validThreatKeywords.length}, Valid vendors: ${validVendorKeywords.length}, Valid clients: ${validClientKeywords.length}, Valid hardware: ${validHardwareKeywords.length}`, "scraper");
+      scrapingState.articleSkipped(articleUrl, sourceId, "Doesn't meet keyword criteria");
       return null;
     }
     
@@ -137,9 +140,11 @@ async function processArticle(
     });
     
     log(`[ThreatTracker] Successfully processed and stored article: ${articleUrl}`, "scraper");
+    scrapingState.articleAdded(articleUrl, sourceId);
     return newArticle;
   } catch (error: any) {
     log(`[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`, "scraper-error");
+    scrapingState.addError(`Error processing article: ${error.message}`, sourceId);
     return null;
   }
 }
@@ -147,6 +152,7 @@ async function processArticle(
 // Scrape a single source
 export async function scrapeSource(source: ThreatSource) {
   log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
+  scrapingState.setCurrentSource(source.name);
   
   try {
     // Get all threat-related keywords for analysis, filtered by the source's userId
@@ -240,6 +246,7 @@ export async function scrapeSource(source: ThreatSource) {
     
     if (htmlStructure) {
       log(`[ThreatTracker] Step 8-9: Processing first article with detected structure`, "scraper");
+      scrapingState.setCurrentArticle(firstArticleUrl);
       const firstArticleResult = await processArticle(
         firstArticleUrl, 
         source.id, 
