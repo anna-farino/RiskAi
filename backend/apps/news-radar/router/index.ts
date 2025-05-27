@@ -284,12 +284,23 @@ newsRouter.post("/send-to-capsule", async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': req.headers.authorization || '',
-        'Cookie': req.headers.cookie || ''
+        'Cookie': req.headers.cookie || '',
+        'x-csrf-token': req.headers['x-csrf-token'] || '',
+        'x-requested-with': 'XMLHttpRequest'
       },
       body: JSON.stringify({ url })
     });
     
-    const result = await response.json();
+    reqLog(req, `News Capsule response status: ${response.status}`);
+    
+    let result;
+    try {
+      result = await response.json();
+    } catch (parseError) {
+      const text = await response.text();
+      reqLog(req, `Failed to parse JSON. Response was: ${text.substring(0, 200)}...`);
+      throw new Error(`Invalid JSON response from News Capsule: ${text.substring(0, 100)}...`);
+    }
     
     if (!response.ok) {
       return res.status(response.status).json(result);
