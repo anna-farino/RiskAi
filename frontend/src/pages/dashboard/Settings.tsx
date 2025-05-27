@@ -349,12 +349,7 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Save Button Widget */}
-        <div className="lg:col-span-2 xl:col-span-3 flex justify-center">
-          <Button className="bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] text-white px-8 py-3 rounded-xl hover:opacity-90 transition-opacity">
-            Save All Preferences
-          </Button>
-        </div>
+
       </div>
     </div>
   );
