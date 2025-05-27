@@ -556,8 +556,18 @@ export default function Research() {
   };
   
   const removeProcessedArticle = async (id: string) => {
+    // Optimistic update - remove from UI immediately
+    const originalArticles = [...processedArticles];
+    const optimisticArticles = processedArticles.filter(article => article.id !== id);
+    setProcessedArticles(optimisticArticles);
+    
+    // Also remove from selected if present (optimistically)
+    if (selectedArticles.some(article => article.id === id)) {
+      removeSelectedArticle(id);
+    }
+
     try {
-      // Delete from database first
+      // Delete from database
       const response = await fetch(`${serverUrl}/api/news-capsule/articles/${id}`, {
         method: 'DELETE',
         credentials: 'include',
@@ -567,20 +577,22 @@ export default function Research() {
       });
 
       if (response.ok) {
-        // If database deletion was successful, refresh the articles list
-        await fetchArticlesFromDatabase();
-        
-        // Also remove from selected if present
-        if (selectedArticles.some(article => article.id === id)) {
-          removeSelectedArticle(id);
-        }
-        
         console.log('Article deleted successfully');
+        // Update localStorage with the optimistic state
+        try {
+          localStorage.setItem('savedArticleSummaries', JSON.stringify(optimisticArticles));
+        } catch (e) {
+          console.error("Failed to update article summaries in storage", e);
+        }
       } else {
+        // Revert optimistic update on failure
         console.error('Failed to delete article from database');
+        setProcessedArticles(originalArticles);
       }
     } catch (error) {
+      // Revert optimistic update on error
       console.error('Error deleting article:', error);
+      setProcessedArticles(originalArticles);
     }
   };
   
