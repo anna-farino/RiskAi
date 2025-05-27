@@ -49,7 +49,7 @@ export default function Research() {
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   
-  // Load saved URLs and article summaries from localStorage
+  // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
     // Load saved URLs from localStorage
     try {
@@ -67,24 +67,7 @@ export default function Research() {
         }
       }
       
-      // Load saved article summaries from localStorage
-      const savedArticlesStr = localStorage.getItem('savedArticleSummaries');
-      if (savedArticlesStr) {
-        try {
-          const parsed = JSON.parse(savedArticlesStr);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProcessedArticles(parsed);
-            
-            // Update module-level array
-            storedArticles.length = 0;
-            storedArticles.push(...parsed);
-          }
-        } catch (e) {
-          console.error("Failed to parse saved article summaries", e);
-        }
-      }
-      
-      // Load selected articles
+      // Load selected articles from localStorage
       const savedSelectedStr = localStorage.getItem('savedSelectedArticles');
       if (savedSelectedStr) {
         try {
@@ -103,7 +86,37 @@ export default function Research() {
     } catch (e) {
       console.error("Failed to load saved data", e);
     }
+    
+    // Fetch articles from database
+    fetchArticlesFromDatabase();
   }, []);
+
+  // Function to fetch articles from the database
+  const fetchArticlesFromDatabase = async () => {
+    try {
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+
+      if (response.ok) {
+        const articles = await response.json();
+        console.log('Fetched articles from database:', articles.length);
+        setProcessedArticles(articles);
+        
+        // Update module-level array
+        storedArticles.length = 0;
+        storedArticles.push(...articles);
+      } else {
+        console.error('Failed to fetch articles from database');
+      }
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+    }
+  };
   
   const clearUrl = () => {
     setUrl("");
@@ -196,13 +209,8 @@ export default function Research() {
           if (data && data.id && data.title) {
             successCount++;
             
-            // Update both state and module variables - add to front of array
-            const newProcessedArticles = [data, ...processedArticles];
-            
-            // Only keep the most recent articles (limited by MAX_STORED_ARTICLES)
-            const limitedArticles = newProcessedArticles.slice(0, MAX_STORED_ARTICLES);
-            
-            setProcessedArticles(limitedArticles);
+            // Refresh articles from database to get the latest data
+            await fetchArticlesFromDatabase();
             
             // Update module variable
             storedArticles.length = 0; // Clear array without creating a new one
