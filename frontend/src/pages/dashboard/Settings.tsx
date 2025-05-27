@@ -86,35 +86,35 @@ export default function Settings() {
         </h1>
       </div>
 
-      <div className="flex flex-col gap-y-8 w-full h-full">
+      {/* Widget-style grid layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
         
-        {/* Security Settings Section */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
-            <Bell className="h-5 w-5 text-[#BF00FF]" />
-            Security & Authentication
-          </h2>
+        {/* Security Widget */}
+        <div className="lg:col-span-2 xl:col-span-1 bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+              <Bell className="h-5 w-5 text-[#BF00FF]" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">Security</h2>
+          </div>
           
-          <div className="grid gap-6">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-base font-medium">Two-Factor Authentication</Label>
-                <p className="text-sm text-gray-400">Add an extra layer of security to your account</p>
+              <div className="flex-1">
+                <Label className="text-base font-medium text-white">Two-Factor Authentication</Label>
+                <p className="text-sm text-gray-400 mt-1">Extra security layer</p>
               </div>
               <Switch
                 id="two-factor-authentication"
                 checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
                 onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
               />
-              {error && 
-                <span className="text-destructive text-sm">An error occurred! Try again later</span>
-              }
             </div>
             
             <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-base font-medium">Reset Password</Label>
-                <p className="text-sm text-gray-400">Change your account password</p>
+              <div className="flex-1">
+                <Label className="text-base font-medium text-white">Reset Password</Label>
+                <p className="text-sm text-gray-400 mt-1">Change account password</p>
               </div>
               <CustomAlertDialog
                 title="Reset Password?"
@@ -125,199 +125,187 @@ export default function Settings() {
                 twGapClass="gap-8"
                 twMaxWidthClass="max-w-sm"
               >
-                <Button variant="outline">
-                  Reset Password
+                <Button variant="outline" size="sm">
+                  Reset
                 </Button>
               </CustomAlertDialog>
+            </div>
+            {error && 
+              <div className="text-destructive text-sm bg-red-500/10 p-2 rounded">
+                An error occurred! Try again later
+              </div>
+            }
+          </div>
+        </div>
+
+        {/* Notification Settings Widget */}
+        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+              <Mail className="h-5 w-5 text-[#00FFFF]" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">Notifications</h2>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium text-white">Email Alerts</Label>
+                <p className="text-xs text-gray-400">Threat notifications</p>
+              </div>
+              <Switch
+                checked={emailNotifications}
+                onCheckedChange={setEmailNotifications}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium text-white">SMS Alerts</Label>
+                <p className="text-xs text-gray-400">Critical alerts only</p>
+              </div>
+              <Switch
+                checked={smsNotifications}
+                onCheckedChange={setSmsNotifications}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Threat Threshold</Label>
+              <Select value={threatLevelThreshold} onValueChange={setThreatLevelThreshold}>
+                <SelectTrigger className="bg-black/50 border-[#BF00FF]/20 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-black border-[#BF00FF]/20">
+                  <SelectItem value="low">Low - All threats</SelectItem>
+                  <SelectItem value="medium">Medium - Moderate & High</SelectItem>
+                  <SelectItem value="high">High - Critical only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
 
-        <Separator className="bg-[#BF00FF]/20" />
-
-        {/* News Intelligence Preferences Section */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
-            <Globe className="h-5 w-5 text-[#00FFFF]" />
-            News Intelligence Preferences
-          </h2>
+        {/* Source Preferences Widget */}
+        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+              <Globe className="h-5 w-5 text-[#00FFFF]" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">Sources</h2>
+          </div>
           
-          <div className="grid gap-8">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Favorite Sources</Label>
+              <Input
+                placeholder="Reuters, BBC, CNN"
+                value={favoriteSource}
+                onChange={(e) => setFavoriteSource(e.target.value)}
+                className="bg-black/50 border-[#BF00FF]/20 text-sm"
+              />
+            </div>
             
-            {/* Notification Settings */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <Mail className="h-4 w-4 text-[#BF00FF]" />
-                Notification Settings
-              </h3>
-              <div className="grid gap-4 pl-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Email Alerts</Label>
-                    <p className="text-sm text-gray-400">Receive threat alerts via email</p>
-                  </div>
-                  <Switch
-                    checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">SMS Alerts</Label>
-                    <p className="text-sm text-gray-400">Receive critical alerts via SMS</p>
-                  </div>
-                  <Switch
-                    checked={smsNotifications}
-                    onCheckedChange={setSmsNotifications}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-base">Threat Level Threshold</Label>
-                  <Select value={threatLevelThreshold} onValueChange={setThreatLevelThreshold}>
-                    <SelectTrigger className="w-48 bg-black/50 border-[#BF00FF]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-[#BF00FF]/20">
-                      <SelectItem value="low">Low - All threats</SelectItem>
-                      <SelectItem value="medium">Medium - Moderate & High</SelectItem>
-                      <SelectItem value="high">High - Critical only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-gray-400">Only receive alerts for threats at or above this level</p>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Custom RSS Feed</Label>
+              <Input
+                placeholder="https://example.com/feed.xml"
+                value={customRssFeed}
+                onChange={(e) => setCustomRssFeed(e.target.value)}
+                className="bg-black/50 border-[#BF00FF]/20 text-sm"
+              />
             </div>
+          </div>
+        </div>
 
-            {/* Source Preferences */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <Globe className="h-4 w-4 text-[#00FFFF]" />
-                Source Preferences
-              </h3>
-              <div className="grid gap-4 pl-6">
-                <div className="space-y-2">
-                  <Label className="text-base">Favorite News Sources</Label>
-                  <Input
-                    placeholder="e.g., Reuters, BBC, CNN"
-                    value={favoriteSource}
-                    onChange={(e) => setFavoriteSource(e.target.value)}
-                    className="bg-black/50 border-[#BF00FF]/20"
-                  />
-                  <p className="text-sm text-gray-400">Prioritize content from these sources</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-base">Custom RSS Feeds</Label>
-                  <Input
-                    placeholder="https://example.com/feed.xml"
-                    value={customRssFeed}
-                    onChange={(e) => setCustomRssFeed(e.target.value)}
-                    className="bg-black/50 border-[#BF00FF]/20"
-                  />
-                  <p className="text-sm text-gray-400">Add custom RSS feeds to monitor</p>
-                </div>
-              </div>
+        {/* Keyword Alerts Widget */}
+        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-[#BF00FF]" />
             </div>
-
-            {/* Keyword Alerts */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-[#BF00FF]" />
-                Keyword Alerts
-              </h3>
-              <div className="grid gap-4 pl-6">
-                <div className="space-y-2">
-                  <Label className="text-base">Personal Watchlist</Label>
-                  <Input
-                    placeholder="cybersecurity, data breach, malware"
-                    value={keywordAlert}
-                    onChange={(e) => setKeywordAlert(e.target.value)}
-                    className="bg-black/50 border-[#BF00FF]/20"
-                  />
-                  <p className="text-sm text-gray-400">Comma-separated keywords to monitor</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-base">Alert Severity</Label>
-                  <Select value={keywordSeverity} onValueChange={setKeywordSeverity}>
-                    <SelectTrigger className="w-48 bg-black/50 border-[#BF00FF]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-[#BF00FF]/20">
-                      <SelectItem value="low">Low Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-gray-400">Priority level for keyword matches</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Report Frequency */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <Clock className="h-4 w-4 text-[#00FFFF]" />
-                Report Frequency
-              </h3>
-              <div className="grid gap-4 pl-6">
-                <div className="space-y-2">
-                  <Label className="text-base">Digest Preferences</Label>
-                  <Select value={reportFrequency} onValueChange={setReportFrequency}>
-                    <SelectTrigger className="w-48 bg-black/50 border-[#BF00FF]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-[#BF00FF]/20">
-                      <SelectItem value="realtime">Real-time</SelectItem>
-                      <SelectItem value="hourly">Hourly</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-gray-400">How often to receive digest reports</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Time Zone Settings */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <Clock className="h-4 w-4 text-[#BF00FF]" />
-                Time Zone Settings
-              </h3>
-              <div className="grid gap-4 pl-6">
-                <div className="space-y-2">
-                  <Label className="text-base">Display Time Zone</Label>
-                  <Select value={timeZone} onValueChange={setTimeZone}>
-                    <SelectTrigger className="w-64 bg-black/50 border-[#BF00FF]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-[#BF00FF]/20">
-                      <SelectItem value="UTC">UTC (Coordinated Universal Time)</SelectItem>
-                      <SelectItem value="EST">EST (Eastern Standard Time)</SelectItem>
-                      <SelectItem value="PST">PST (Pacific Standard Time)</SelectItem>
-                      <SelectItem value="GMT">GMT (Greenwich Mean Time)</SelectItem>
-                      <SelectItem value="CET">CET (Central European Time)</SelectItem>
-                      <SelectItem value="JST">JST (Japan Standard Time)</SelectItem>
-                      <SelectItem value="CST">CST (China Standard Time)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-gray-400">All timestamps will be displayed in this time zone</p>
-                </div>
-              </div>
-            </div>
-
+            <h2 className="text-xl font-semibold text-white">Keywords</h2>
           </div>
           
-          <div className="flex justify-end pt-4">
-            <Button className="bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] text-white">
-              Save Preferences
-            </Button>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Watchlist</Label>
+              <Input
+                placeholder="cybersecurity, breach, malware"
+                value={keywordAlert}
+                onChange={(e) => setKeywordAlert(e.target.value)}
+                className="bg-black/50 border-[#BF00FF]/20 text-sm"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Alert Priority</Label>
+              <Select value={keywordSeverity} onValueChange={setKeywordSeverity}>
+                <SelectTrigger className="bg-black/50 border-[#BF00FF]/20 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-black border-[#BF00FF]/20">
+                  <SelectItem value="low">Low Priority</SelectItem>
+                  <SelectItem value="medium">Medium Priority</SelectItem>
+                  <SelectItem value="high">High Priority</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+        </div>
+
+        {/* Report Frequency Widget */}
+        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+              <Clock className="h-5 w-5 text-[#00FFFF]" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">Reports</h2>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Digest Frequency</Label>
+              <Select value={reportFrequency} onValueChange={setReportFrequency}>
+                <SelectTrigger className="bg-black/50 border-[#BF00FF]/20 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-black border-[#BF00FF]/20">
+                  <SelectItem value="realtime">Real-time</SelectItem>
+                  <SelectItem value="hourly">Hourly</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-white">Time Zone</Label>
+              <Select value={timeZone} onValueChange={setTimeZone}>
+                <SelectTrigger className="bg-black/50 border-[#BF00FF]/20 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-black border-[#BF00FF]/20">
+                  <SelectItem value="UTC">UTC</SelectItem>
+                  <SelectItem value="EST">EST</SelectItem>
+                  <SelectItem value="PST">PST</SelectItem>
+                  <SelectItem value="GMT">GMT</SelectItem>
+                  <SelectItem value="CET">CET</SelectItem>
+                  <SelectItem value="JST">JST</SelectItem>
+                  <SelectItem value="CST">CST</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button Widget */}
+        <div className="lg:col-span-2 xl:col-span-3 flex justify-center">
+          <Button className="bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] text-white px-8 py-3 rounded-xl hover:opacity-90 transition-opacity">
+            Save All Preferences
+          </Button>
         </div>
       </div>
     </div>
