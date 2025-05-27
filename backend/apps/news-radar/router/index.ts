@@ -302,6 +302,16 @@ newsRouter.get("/jobs/status", async (_req, res) => {
   }
 });
 
+newsRouter.post("/jobs/stop", async (_req, res) => {
+  try {
+    const result = await stopGlobalScrapeJob();
+    res.json(result);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
 newsRouter.post("/jobs/stop", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;

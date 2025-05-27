@@ -743,6 +743,15 @@ export default function NewsHome() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Scraping Progress Dialog */}
+      <ScrapingProgressDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        progress={progress}
+        onStopScraping={stopScraping}
+      />
     </>
   );
 }
