@@ -281,46 +281,33 @@ newsRouter.post("/send-to-capsule", async (req, res) => {
     
     reqLog(req, `Sending article to News Capsule: ${url}`);
     
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Processing timeout - article analysis took too long'));
-      }, 60000); // 60 second timeout
-    });
-    
-    // Create a mock response object that matches Express.Response interface
-    const mockRes = {
+    // Start the processing in the background (fire and forget)
+    processUrl(req, {
       status: (code: number) => ({
         json: (data: any) => {
-          if (code >= 400) {
-            throw new Error(data.error || data.message || `HTTP ${code}`);
-          }
+          reqLog(req, `News Capsule processing ${code >= 400 ? 'failed' : 'completed'} for ${url}`);
           return data;
         }
       }),
-      json: (data: any) => data
-    };
+      json: (data: any) => {
+        reqLog(req, `News Capsule processing completed successfully for ${url}`);
+        return data;
+      }
+    } as any).catch(error => {
+      reqLog(req, `News Capsule background processing failed for ${url}: ${error.message}`);
+    });
     
-    // Race between the actual processing and timeout
-    const result = await Promise.race([
-      processUrl(req, mockRes as any),
-      timeoutPromise
-    ]);
+    // Return immediately with a success message
+    res.json({ 
+      success: true, 
+      message: 'Article has been queued for processing in News Capsule. Check your reports shortly.',
+      status: 'processing'
+    });
     
-    res.json({ success: true, message: 'Article sent to News Capsule successfully', data: result });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    reqLog(req, 'Error sending article to News Capsule:', errorMessage);
-    
-    // If it's a timeout error, provide a more helpful message
-    if (errorMessage.includes('timeout')) {
-      res.status(408).json({ 
-        success: false, 
-        message: 'Article processing is taking longer than expected. The article may still be processed in the background.' 
-      });
-    } else {
-      res.status(500).json({ success: false, message: errorMessage });
-    }
+    reqLog(req, 'Error queuing article for News Capsule:', errorMessage);
+    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 
