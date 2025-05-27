@@ -11,7 +11,7 @@ import { serverUrl } from "@/utils/server-url";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Globe, AlertTriangle, Clock, Mail, User, CreditCard, Shield, FileText } from "lucide-react";
+import { Bell, Globe, AlertTriangle, Clock, Mail, Shield } from "lucide-react";
 
 export default function Settings() {
   const [ resetOpen, setResetOpen ] = useState(false)
@@ -30,10 +30,6 @@ export default function Settings() {
   const [timeZone, setTimeZone] = useState("UTC")
   
   // Account Management state
-  const [profileName, setProfileName] = useState("")
-  const [organization, setOrganization] = useState("")
-  const [contactPhone, setContactPhone] = useState("")
-  const [currentPlan, setCurrentPlan] = useState("Professional")
   const [dataRetention, setDataRetention] = useState("12months")
 
   const twoFAmutation = useMutation({
@@ -308,116 +304,7 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Profile Information Widget */}
-        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-              <User className="h-5 w-5 text-[#BF00FF]" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Profile</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-white">Full Name</Label>
-              <Input
-                placeholder="John Doe"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                className="bg-black/50 border-[#BF00FF]/20 text-sm"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-white">Organization</Label>
-              <Input
-                placeholder="Company Name"
-                value={organization}
-                onChange={(e) => setOrganization(e.target.value)}
-                className="bg-black/50 border-[#BF00FF]/20 text-sm"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-white">Contact Phone</Label>
-              <Input
-                placeholder="+1 (555) 123-4567"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                className="bg-black/50 border-[#BF00FF]/20 text-sm"
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* Subscription Details Widget */}
-        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-              <FileText className="h-5 w-5 text-[#00FFFF]" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Subscription</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium text-white">Current Plan</Label>
-                <p className="text-xs text-gray-400">Professional Plan</p>
-              </div>
-              <span className="text-sm text-[#00FFFF] font-medium">Active</span>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-white">Usage Statistics</Label>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-black/30 p-2 rounded">
-                  <p className="text-gray-400">Articles Processed</p>
-                  <p className="text-white font-medium">2,847</p>
-                </div>
-                <div className="bg-black/30 p-2 rounded">
-                  <p className="text-gray-400">API Calls</p>
-                  <p className="text-white font-medium">15,230</p>
-                </div>
-              </div>
-            </div>
-            
-            <Button variant="outline" size="sm" className="w-full">
-              Upgrade Plan
-            </Button>
-          </div>
-        </div>
-
-        {/* Billing Information Widget */}
-        <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-              <CreditCard className="h-5 w-5 text-[#BF00FF]" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Billing</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium text-white">Payment Method</Label>
-                <p className="text-xs text-gray-400">•••• •••• •••• 4242</p>
-              </div>
-              <Button variant="ghost" size="sm" className="text-xs">
-                Update
-              </Button>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-white">Next Billing</Label>
-              <p className="text-sm text-gray-300">March 15, 2025 - $29.99</p>
-            </div>
-            
-            <Button variant="outline" size="sm" className="w-full">
-              View Invoices
-            </Button>
-          </div>
-        </div>
 
         {/* Data Privacy Controls Widget */}
         <div className="lg:col-span-2 xl:col-span-1 bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
