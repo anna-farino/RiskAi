@@ -7,6 +7,7 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
+import { processUrl } from "../../news-capsule/process-url";
 
 
 export const newsRouter = Router()
@@ -278,35 +279,23 @@ newsRouter.post("/send-to-capsule", async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
     
-    // Make request to News Capsule process-url endpoint
-    const response = await fetch(`${req.protocol}://${req.get('host')}/api/news-capsule/process-url`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-        'Cookie': req.headers.cookie || '',
-        'x-csrf-token': req.headers['x-csrf-token'] || '',
-        'x-requested-with': 'XMLHttpRequest'
-      },
-      body: JSON.stringify({ url })
-    });
+    reqLog(req, `Sending article to News Capsule: ${url}`);
     
-    reqLog(req, `News Capsule response status: ${response.status}`);
+    // Create a mock response object that matches Express.Response interface
+    const mockRes = {
+      status: (code: number) => ({
+        json: (data: any) => {
+          if (code >= 400) {
+            throw new Error(data.error || data.message || `HTTP ${code}`);
+          }
+          return data;
+        }
+      }),
+      json: (data: any) => data
+    };
     
-    // Read the response text first, then try to parse as JSON
-    const responseText = await response.text();
-    
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (parseError) {
-      reqLog(req, `Failed to parse JSON. Response was: ${responseText.substring(0, 200)}...`);
-      throw new Error(`Invalid JSON response from News Capsule: ${responseText.substring(0, 100)}...`);
-    }
-    
-    if (!response.ok) {
-      return res.status(response.status).json(result);
-    }
+    // Call News Capsule processUrl function directly
+    const result = await processUrl(req, mockRes as any);
     
     res.json({ success: true, message: 'Article sent to News Capsule successfully', data: result });
   } catch (error) {
