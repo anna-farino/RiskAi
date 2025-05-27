@@ -212,13 +212,9 @@ export default function Research() {
             // Refresh articles from database to get the latest data
             await fetchArticlesFromDatabase();
             
-            // Update module variable
-            storedArticles.length = 0; // Clear array without creating a new one
-            storedArticles.push(...limitedArticles); // Add only the limited set
-            
             // Save articles to localStorage so they persist between visits
             try {
-              localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
+              localStorage.setItem('savedArticleSummaries', JSON.stringify(processedArticles));
             } catch (e) {
               console.error("Failed to save article summaries", e)
             }
@@ -559,24 +555,32 @@ export default function Research() {
     }
   };
   
-  const removeProcessedArticle = (id: string) => {
-    const newProcessedArticles = processedArticles.filter(article => article.id !== id);
-    setProcessedArticles(newProcessedArticles);
-    
-    // Update module variable
-    storedArticles.length = 0;
-    storedArticles.push(...newProcessedArticles);
-    
-    // Update localStorage to persist article list
+  const removeProcessedArticle = async (id: string) => {
     try {
-      localStorage.setItem('savedArticleSummaries', JSON.stringify(newProcessedArticles));
-    } catch (e) {
-      console.error("Failed to update article summaries in storage", e);
-    }
-    
-    // Also remove from selected if present
-    if (selectedArticles.some(article => article.id === id)) {
-      removeSelectedArticle(id);
+      // Delete from database first
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+
+      if (response.ok) {
+        // If database deletion was successful, refresh the articles list
+        await fetchArticlesFromDatabase();
+        
+        // Also remove from selected if present
+        if (selectedArticles.some(article => article.id === id)) {
+          removeSelectedArticle(id);
+        }
+        
+        console.log('Article deleted successfully');
+      } else {
+        console.error('Failed to delete article from database');
+      }
+    } catch (error) {
+      console.error('Error deleting article:', error);
     }
   };
   
