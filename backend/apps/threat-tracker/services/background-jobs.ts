@@ -266,6 +266,7 @@ export async function scrapeSource(source: ThreatSource) {
     const startIndex = firstArticleProcessed ? 1 : 0;
     
     for (let i = startIndex; i < processedLinks.length; i++) {
+      scrapingState.setCurrentArticle(processedLinks[i]);
       const articleResult = await processArticle(
         processedLinks[i], 
         source.id, 
@@ -285,9 +286,12 @@ export async function scrapeSource(source: ThreatSource) {
     });
     
     log(`[ThreatTracker] Completed scrape job for source: ${source.name}. Found ${results.length} new articles.`, "scraper");
+    scrapingState.sourceCompleted();
     return results;
   } catch (error: any) {
     log(`[ThreatTracker] Error in scrape job for source ${source.name}: ${error.message}`, "scraper-error");
+    scrapingState.addError(`Error scraping source ${source.name}: ${error.message}`, source.name);
+    scrapingState.sourceCompleted();
     throw error;
   }
 }
@@ -306,6 +310,9 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Get all active sources for auto-scraping
     const sources = await storage.getAutoScrapeSources(userId);
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
+    
+    // Initialize scraping state
+    scrapingState.start(sources.length);
     
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];
@@ -327,6 +334,7 @@ export async function runGlobalScrapeJob(userId?: string) {
     
     log(`[ThreatTracker] Completed global scrape job. Found ${allNewArticles.length} new articles.`, "scraper");
     globalScrapeJobRunning = false;
+    scrapingState.finish();
     
     return {
       message: `Completed global scrape job. Found ${allNewArticles.length} new articles.`,
@@ -335,6 +343,8 @@ export async function runGlobalScrapeJob(userId?: string) {
   } catch (error: any) {
     log(`[ThreatTracker] Error in global scrape job: ${error.message}`, "scraper-error");
     globalScrapeJobRunning = false;
+    scrapingState.addError(`Global scrape job error: ${error.message}`);
+    scrapingState.finish();
     throw error;
   }
 }
