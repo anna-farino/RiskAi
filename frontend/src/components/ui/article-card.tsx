@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Clock, User, Loader2, Send } from "lucide-react";
+import { Trash2, Clock, User, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { formatDistanceToNow } from "date-fns";
@@ -18,11 +18,9 @@ interface ArticleCardProps {
   onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string) => void;
-  onSendToCapsule?: (url: string) => void;
-  isSending?: boolean;
 }
 
-export function ArticleCard({ article, onDelete, isPending = false, onKeywordClick, onSendToCapsule, isSending = false }: ArticleCardProps) {
+export function ArticleCard({ article, onDelete, isPending = false, onKeywordClick }: ArticleCardProps) {
   const [ openAlert, setOpenAlert ] = useState(false)
   // Generate a random color for the card accent (in a real app, this could be based on source or category)
   const getRandomAccent = () => {
@@ -35,14 +33,6 @@ export function ArticleCard({ article, onDelete, isPending = false, onKeywordCli
     e.preventDefault();
     e.stopPropagation();
     onDelete(article.id);
-  };
-
-  const handleSendToCapsule = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onSendToCapsule) {
-      onSendToCapsule(article.url);
-    }
   };
 
   // Get keywords from either detected_keywords or detectedKeywords
@@ -117,57 +107,33 @@ export function ArticleCard({ article, onDelete, isPending = false, onKeywordCli
               )}
             </div>
             
-            <div className="flex items-center gap-2">
-              {onSendToCapsule && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending || isSending}
-                  onClick={handleSendToCapsule}
-                  className={cn(
-                    "h-fit w-fit p-1.5 sm:p-2",
-                    "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-blue-400 hover:bg-blue-400/10",
-                    (isPending || isSending) && "cursor-not-allowed opacity-70"
-                  )}
-                  title="Send to News Capsule"
-                >
-                  {isSending ? (
-                    <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
-                  ) : (
-                    <Send className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  )}
-                </Button>
-              )}
-              
-              <DeleteAlertDialog
-                open={openAlert}
-                setOpen={setOpenAlert}
-                action={(e: React.MouseEvent) => handleDelete(e)}
+            <DeleteAlertDialog
+              open={openAlert}
+              setOpen={setOpenAlert}
+              action={(e: React.MouseEvent) => handleDelete(e)}
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={isPending}
+                onClick={(e)=> {
+                  e.preventDefault()
+                  setOpenAlert(true)
+                }}
+                className={cn(
+                  "h-fit w-fit p-1.5 sm:p-2",
+                  "border border-slate-700 rounded-full",
+                  "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
+                  isPending && "cursor-not-allowed opacity-70"
+                )}
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={(e)=> {
-                    e.preventDefault()
-                    setOpenAlert(true)
-                  }}
-                  className={cn(
-                    "h-fit w-fit p-1.5 sm:p-2",
-                    "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
-                    isPending && "cursor-not-allowed opacity-70"
-                  )}
-                >
-                  {isPending ? (
-                    <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  )}
-                </Button>
-              </DeleteAlertDialog>
-            </div>
+                {isPending ? (
+                  <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                )}
+              </Button>
+            </DeleteAlertDialog>
           </div>
         </div>
       </div>

@@ -7,7 +7,6 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
-import { processUrl } from "../../news-capsule/process-url";
 
 
 export const newsRouter = Router()
@@ -267,47 +266,6 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     log(`[Scraping] Fatal error: ${errorMessage}`, 'scraper');
     res.status(500).json({ message: errorMessage });
-  }
-});
-
-// Send article to News Capsule for processing
-newsRouter.post("/send-to-capsule", async (req, res) => {
-  try {
-    const { url } = req.body;
-    
-    if (!url) {
-      return res.status(400).json({ error: 'URL is required' });
-    }
-    
-    reqLog(req, `Sending article to News Capsule: ${url}`);
-    
-    // Start the processing in the background (fire and forget)
-    processUrl(req, {
-      status: (code: number) => ({
-        json: (data: any) => {
-          reqLog(req, `News Capsule processing ${code >= 400 ? 'failed' : 'completed'} for ${url}`);
-          return data;
-        }
-      }),
-      json: (data: any) => {
-        reqLog(req, `News Capsule processing completed successfully for ${url}`);
-        return data;
-      }
-    } as any).catch(error => {
-      reqLog(req, `News Capsule background processing failed for ${url}: ${error.message}`);
-    });
-    
-    // Return immediately with a success message
-    res.json({ 
-      success: true, 
-      message: 'Article has been queued for processing in News Capsule. Check your reports shortly.',
-      status: 'processing'
-    });
-    
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    reqLog(req, 'Error queuing article for News Capsule:', errorMessage);
-    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 
