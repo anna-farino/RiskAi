@@ -693,6 +693,7 @@ export default function NewsHome() {
                     onDelete={(id: any) => deleteArticle.mutate(id)}
                     isPending={pendingItems.has(article.id)}
                     onKeywordClick={handleKeywordClick}
+                    onSendToCapsule={sendToCapsule}
                   />
                 </a>
               ))}
