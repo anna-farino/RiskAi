@@ -50,6 +50,8 @@ export default function NewsHome() {
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  // Track articles being sent to capsule
+  const [sendingItems, setSendingItems] = useState<Set<string>>(new Set());
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({

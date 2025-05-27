@@ -269,6 +269,40 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
   }
 });
 
+// Send article to News Capsule for processing
+newsRouter.post("/send-to-capsule", async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    // Make request to News Capsule process-url endpoint
+    const response = await fetch(`${req.protocol}://${req.get('host')}/api/news-capsule/process-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization || '',
+        'Cookie': req.headers.cookie || ''
+      },
+      body: JSON.stringify({ url })
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return res.status(response.status).json(result);
+    }
+    
+    res.json({ success: true, message: 'Article sent to News Capsule successfully', data: result });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    reqLog(req, 'Error sending article to News Capsule:', errorMessage);
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
 // Background Jobs and Auto-Scraping
 newsRouter.post("/jobs/scrape", async (req, res) => {
   try {
