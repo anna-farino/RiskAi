@@ -12,7 +12,7 @@ import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 import { withDbContext } from 'backend/middleware/with-db-context';
-//import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
+import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
 
@@ -25,7 +25,7 @@ router.get('/test', limiter, handleTest)
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
-//router.get('/test-articles', testArticles)
+router.get('/test-articles', testArticles)
 
 // AUTH
 router.use('/auth', limiter, authRouter)
@@ -34,7 +34,6 @@ router.use('/auth', limiter, authRouter)
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 router.use(verifyToken)
-router.use(withDbContext)
 
 // PROTECTED ROUTES
 router.use('/users', usersRouter)

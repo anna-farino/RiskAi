@@ -155,7 +155,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
 
       <div className="px-3 py-1 space-y-1">
         <NavItem 
-          href="/dashboard/capsule/home" 
+          href="/dashboard/news-capsule/home" 
           icon={<Radar size={18} className="text-[#00FFFF]" />} 
           active={isActive('/dashboard/capsule/home')}
         >
@@ -163,7 +163,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         </NavItem>
         
         <NavItem 
-          href="/dashboard/capsule/reports" 
+          href="/dashboard/news-capsule/reports" 
           icon={<FileText size={18} className="text-[#BF00FF]" />} 
           active={isActive('/dashboard/capsule/reports')}
         >

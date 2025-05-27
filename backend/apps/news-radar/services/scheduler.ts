@@ -45,7 +45,7 @@ export async function initializeScheduler(req: Request): Promise<void> {
       );
 
       if (frequencyValue.enabled) {
-        scheduleGlobalScrapeJob(req,frequencyValue.interval);
+        scheduleGlobalScrapeJob(frequencyValue.interval);
         log(
           `[Scheduler] Scheduled global scrape job with interval ${frequencyValue.interval}ms`,
           "scheduler",
@@ -79,7 +79,7 @@ export async function initializeScheduler(req: Request): Promise<void> {
 /**
  * Schedule the global scrape job with a given interval
  */
-export function scheduleGlobalScrapeJob(req: Request, interval: JobInterval): void {
+export function scheduleGlobalScrapeJob(interval: JobInterval): void {
   // Clear existing job if it exists
   if (scheduledJobs.has(AUTO_SCRAPE_FREQUENCY_KEY)) {
     clearInterval(scheduledJobs.get(AUTO_SCRAPE_FREQUENCY_KEY));
@@ -115,7 +115,7 @@ export function scheduleGlobalScrapeJob(req: Request, interval: JobInterval): vo
           `[Scheduler] Running scheduled global scrape job for user ${userId}`,
           "scheduler",
         );
-        const result = await runGlobalScrapeJob(userId, req);
+        const result = await runGlobalScrapeJob(userId);
         log(
           `[Scheduler] Completed job for user ${userId}: ${result.message}`,
           "scheduler",
@@ -156,7 +156,6 @@ export function scheduleGlobalScrapeJob(req: Request, interval: JobInterval): vo
  * Update the global scrape job schedule
  */
 export async function updateGlobalScrapeSchedule(
-  req: Request,
   enabled: boolean,
   interval: JobInterval,
 ): Promise<void> {
@@ -170,7 +169,7 @@ export async function updateGlobalScrapeSchedule(
 
     // Update schedule
     if (enabled) {
-      scheduleGlobalScrapeJob(req,interval);
+      scheduleGlobalScrapeJob(interval);
       log(
         `[Scheduler] Updated global scrape job: enabled with interval ${interval}ms`,
         "scheduler",
