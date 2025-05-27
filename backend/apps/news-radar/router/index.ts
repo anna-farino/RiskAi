@@ -293,13 +293,15 @@ newsRouter.post("/send-to-capsule", async (req, res) => {
     
     reqLog(req, `News Capsule response status: ${response.status}`);
     
+    // Read the response text first, then try to parse as JSON
+    const responseText = await response.text();
+    
     let result;
     try {
-      result = await response.json();
+      result = JSON.parse(responseText);
     } catch (parseError) {
-      const text = await response.text();
-      reqLog(req, `Failed to parse JSON. Response was: ${text.substring(0, 200)}...`);
-      throw new Error(`Invalid JSON response from News Capsule: ${text.substring(0, 100)}...`);
+      reqLog(req, `Failed to parse JSON. Response was: ${responseText.substring(0, 200)}...`);
+      throw new Error(`Invalid JSON response from News Capsule: ${responseText.substring(0, 100)}...`);
     }
     
     if (!response.ok) {
