@@ -279,6 +279,64 @@ export default function NewsHome() {
     },
   });
 
+  const sendToCapsule = useMutation({
+    mutationFn: async (url: string) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/send-to-capsule`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          credentials: "include",
+          body: JSON.stringify({ url })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to send to News Capsule: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error("Send to capsule error:", error);
+        throw error;
+      }
+    },
+    onMutate: async (url) => {
+      // Add URL to sending items to show loading indicator
+      setSendingItems(prev => new Set(prev).add(url));
+      return { url };
+    },
+    onError: (err, url) => {
+      // Remove from sending items
+      setSendingItems(prev => {
+        const updated = new Set(prev);
+        updated.delete(url);
+        return updated;
+      });
+      
+      toast({
+        title: "Error sending to News Capsule",
+        description: "Failed to send article to News Capsule. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data, url) => {
+      // Remove from sending items
+      setSendingItems(prev => {
+        const updated = new Set(prev);
+        updated.delete(url);
+        return updated;
+      });
+      
+      toast({
+        title: "Article sent successfully",
+        description: "Article has been sent to News Capsule for processing.",
+      });
+    },
+  });
+
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
       try {
@@ -664,6 +722,8 @@ export default function NewsHome() {
                     onDelete={(id: any) => deleteArticle.mutate(id)}
                     isPending={pendingItems.has(article.id)}
                     onKeywordClick={handleKeywordClick}
+                    onSendToCapsule={(url: string) => sendToCapsule.mutate(url)}
+                    isSending={sendingItems.has(article.url)}
                   />
                 </a>
               ))}
