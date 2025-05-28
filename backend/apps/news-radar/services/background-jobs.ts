@@ -13,6 +13,7 @@ import { users } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
+import { updateNewsRadarProgress, resetNewsRadarProgress, getNewsRadarProgress } from "../../utils/scraping-progress";
 import dotenv from "dotenv";
 import { Request } from 'express';
 
@@ -397,8 +398,20 @@ export async function runGlobalScrapeJob(
       "scraper",
     );
 
+    // Initialize progress tracking
+    updateNewsRadarProgress({
+      isActive: true,
+      totalSources: sources.length,
+      currentSourceIndex: 0,
+      articlesAdded: 0,
+      articlesSkipped: 0,
+      errors: [],
+      startTime: new Date()
+    });
+
     if (sources.length === 0) {
       globalJobRunning = false;
+      resetNewsRadarProgress();
       return {
         success: true,
         message: "No sources found for auto-scraping",
@@ -410,13 +423,27 @@ export async function runGlobalScrapeJob(
     let allNewArticles: Article[] = [];
 
     // Process each source one by one
-    for (const source of sources) {
+    for (let i = 0; i < sources.length; i++) {
+      const source = sources[i];
       log(`[Background Job] Processing source: ${source.name}`, "scraper");
+
+      // Update progress with current source info
+      updateNewsRadarProgress({
+        currentSource: source.name,
+        currentSourceIndex: i + 1
+      });
 
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
         );
+
+        // Get current progress to update counts
+        const currentProgress = getNewsRadarProgress();
+        updateNewsRadarProgress({
+          articlesAdded: (currentProgress.articlesAdded || 0) + savedCount,
+          articlesSkipped: (currentProgress.articlesSkipped || 0) + (processedCount - savedCount)
+        });
 
         // Add source information to each new article for email notification grouping
         const sourcedArticles = newArticles.map((article) => ({
@@ -447,6 +474,13 @@ export async function runGlobalScrapeJob(
           `[Background Job] Error scraping source ${source.name}: ${errorMessage}`,
           "scraper",
         );
+        
+        // Update progress with error
+        const currentProgress = getNewsRadarProgress();
+        updateNewsRadarProgress({
+          errors: [...(currentProgress.errors || []), `${source.name}: ${errorMessage}`]
+        });
+        
         results.push({
           sourceId: source.id,
           sourceName: source.name,
@@ -472,6 +506,9 @@ export async function runGlobalScrapeJob(
       "scraper",
     );
     globalJobRunning = false;
+
+    // Reset progress tracking
+    resetNewsRadarProgress();
 
     return {
       success: true,
