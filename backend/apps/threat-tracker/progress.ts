@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
-import { getThreatTrackerProgress } from 'backend/utils/scraping-progress';
+import { getThreatTrackerProgress, updateThreatTrackerProgress, ScrapingProgress } from 'backend/utils/scraping-progress';
+
+export function updateProgress(update: Partial<ScrapingProgress>) {
+  updateThreatTrackerProgress(update);
+}
 
 export async function getProgress(_req: Request, res: Response) {
   try {

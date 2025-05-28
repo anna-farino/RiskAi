@@ -3,7 +3,7 @@ import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./ope
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
-import { updateThreatTrackerProgress, resetThreatTrackerProgress, getThreatTrackerProgress } from "backend/utils/scraping-progress";
+// Progress tracking will be imported dynamically to avoid import issues
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
@@ -297,15 +297,20 @@ export async function runGlobalScrapeJob(userId?: string) {
   log("[ThreatTracker] Starting global scrape job", "scraper");
   
   // Initialize progress tracking
-  updateThreatTrackerProgress({
-    isActive: true,
-    totalSources: 0,
-    currentSourceIndex: 0,
-    articlesAdded: 0,
-    articlesSkipped: 0,
-    errors: [],
-    startTime: new Date()
-  });
+  try {
+    const { updateProgress } = await import("../progress");
+    updateProgress({
+      isActive: true,
+      totalSources: 0,
+      currentSourceIndex: 0,
+      articlesAdded: 0,
+      articlesSkipped: 0,
+      errors: [],
+      startTime: new Date()
+    });
+  } catch (error) {
+    log(`[Progress] Error initializing Threat Tracker progress: ${error.message}`, "scraper");
+  }
   
   try {
     // Get all active sources for auto-scraping
@@ -313,9 +318,14 @@ export async function runGlobalScrapeJob(userId?: string) {
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
     
     // Update progress with total sources
-    updateThreatTrackerProgress({
-      totalSources: sources.length
-    });
+    try {
+      const { updateProgress } = await import("../progress");
+      updateProgress({
+        totalSources: sources.length
+      });
+    } catch (error) {
+      log(`[Progress] Error updating total sources: ${error.message}`, "scraper");
+    }
     
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];

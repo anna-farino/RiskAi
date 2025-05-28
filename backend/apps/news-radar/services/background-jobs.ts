@@ -584,6 +584,14 @@ export async function stopGlobalScrapeJob(): Promise<{
   // Set global job status to false
   globalJobRunning = false;
 
+  // Reset progress tracking when stopped
+  try {
+    const { updateProgress } = await import("../progress");
+    updateProgress({ isActive: false });
+  } catch (error) {
+    log(`[Progress] Error resetting progress on stop: ${error.message}`, "scraper");
+  }
+
   return {
     success: true,
     message: "Global scrape job stopped successfully"
