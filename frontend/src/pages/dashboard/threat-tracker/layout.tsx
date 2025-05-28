@@ -1,6 +1,9 @@
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { ScrapingProgressDialog } from "./components/scraping-progress-dialog";
+import { serverUrl } from "@/utils/server-url";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 
 const buttons = [
   {
@@ -20,6 +23,7 @@ const buttons = [
 export default function ThreatLayout() {
   const location = useLocation().pathname.split('/')[3];
   const [isMobile, setIsMobile] = useState(false);
+  const [isScrapingActive, setIsScrapingActive] = useState<boolean>(false);
 
   // Check if we're on mobile for responsive rendering
   useEffect(() => {
@@ -30,6 +34,36 @@ export default function ThreatLayout() {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Monitor scraping status to show progress dialog across all Threat Tracker pages
+  useEffect(() => {
+    const checkScrapingStatus = async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/threat-tracker/scraping-status`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...csfrHeaderObject(),
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setIsScrapingActive(data.isActive);
+        }
+      } catch (error) {
+        console.error('Error checking scraping status:', error);
+      }
+    };
+
+    // Check immediately
+    checkScrapingStatus();
+
+    // Then check every 2 seconds
+    const interval = setInterval(checkScrapingStatus, 2000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -61,6 +95,9 @@ export default function ThreatLayout() {
         })}
       </div>
       <Outlet/>
+      
+      {/* Progress dialog for scraping status - appears on all Threat Tracker pages */}
+      <ScrapingProgressDialog isVisible={isScrapingActive} />
     </div>
   );
 }

@@ -434,9 +434,9 @@ export default function Sources() {
   }
 
   return (
-    <ThreatTrackerLayout>
+    <>
       <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
         <p className="text-muted-foreground">
           Manage sources for threat monitoring and configure auto-scrape settings.
@@ -832,4 +832,8 @@ export default function Sources() {
       </Table>
     );
   }
+
+      </div>
+    </>
+  );
 }
