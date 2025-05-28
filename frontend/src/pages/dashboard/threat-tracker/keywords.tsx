@@ -434,12 +434,17 @@ export default function Keywords() {
       return (
         <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
-          <h3 className="text-lg font-medium">No custom keywords</h3>
+          <h3 className="text-lg font-medium">
+            {selectedCategory === 'threat' && "No custom keywords"}
+            {selectedCategory === 'vendor' && "No vendor keywords defined"}
+            {selectedCategory === 'client' && "No client keywords defined"}
+            {selectedCategory === 'hardware' && "No hardware keywords defined"}
+          </h3>
           <p className="text-sm text-muted-foreground mb-4 text-center px-4">
             {selectedCategory === 'threat' && "Add custom threat keywords to monitor for specific security issues."}
-            {selectedCategory === 'vendor' && "Add custom vendors to monitor for security vulnerabilities."}
-            {selectedCategory === 'client' && "Add custom clients to track security issues affecting them."}
-            {selectedCategory === 'hardware' && "Add custom hardware/software to monitor for security issues."}
+            {selectedCategory === 'vendor' && "Add custom vendor keywords to monitor for specific security issues."}
+            {selectedCategory === 'client' && "Add custom client keywords to monitor for specific security issues."}
+            {selectedCategory === 'hardware' && "Add custom hardware keywords to monitor for specific security issues."}
           </p>
           <Button onClick={handleNewKeyword}>
             <Plus className="mr-2 h-4 w-4" />
