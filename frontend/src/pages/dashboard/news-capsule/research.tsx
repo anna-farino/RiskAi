@@ -48,6 +48,7 @@ export default function Research() {
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
   
   // Load saved URLs and article summaries from localStorage
   useEffect(() => {
@@ -144,7 +145,7 @@ export default function Research() {
   
   const processUrl = async () => {
     if (!url) {
-      setError("Please enter a URL or multiple URLs separated by commas");
+      setError(bulkMode ? "Please enter URLs (one per line)" : "Please enter a URL");
       return;
     }
     
@@ -152,8 +153,10 @@ export default function Research() {
       setIsLoading(true);
       setError(null);
       
-      // Split the input by commas to get individual URLs
-      const urls = url.split(',').map(u => u.trim()).filter(u => u.length > 0);
+      // Split the input based on mode - by lines for bulk mode, by commas for single mode
+      const urls = bulkMode 
+        ? url.split('\n').map(u => u.trim()).filter(u => u.length > 0)
+        : url.split(',').map(u => u.trim()).filter(u => u.length > 0);
       
       if (urls.length === 0) {
         setError("Please enter valid URLs");
@@ -584,26 +587,61 @@ export default function Research() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* URL Input Section */}
         <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <h2 className="text-xl font-semibold mb-4">Submit Article URL</h2>
+          <h2 className="text-xl font-semibold mb-4">Submit Article URLs</h2>
           
           <div className="flex flex-col gap-4">
+            {/* Bulk URL Mode Toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setBulkMode(false)}
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  !bulkMode 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                Single URL
+              </button>
+              <button
+                onClick={() => setBulkMode(true)}
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  bulkMode 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                Bulk URLs
+              </button>
+            </div>
+
             <div className="flex flex-col gap-2">
               <label htmlFor="url-input" className="text-sm text-slate-400">
-                Article URL
+                {bulkMode ? 'Article URLs (one per line)' : 'Article URL'}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <input
-                    id="url-input"
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onFocus={() => setShowUrlDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                    placeholder="https://example.com/article"
-                    autoComplete="off"
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
-                  />
+                  {bulkMode ? (
+                    <textarea
+                      id="url-input"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                      rows={6}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md resize-vertical"
+                    />
+                  ) : (
+                    <input
+                      id="url-input"
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onFocus={() => setShowUrlDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                      placeholder="https://example.com/article"
+                      autoComplete="off"
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
+                    />
+                  )}
                   
                   {/* Dropdown for saved URLs */}
                   {showUrlDropdown && savedUrls.length > 0 && (
