@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getThreatTrackerProgress } from '../../utils/scraping-progress';
+import { getThreatTrackerProgress } from 'backend/utils/scraping-progress';
 
 export async function getProgress(_req: Request, res: Response) {
   try {

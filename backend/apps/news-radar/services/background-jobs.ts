@@ -13,7 +13,7 @@ import { users } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
-import { updateNewsRadarProgress, resetNewsRadarProgress, getNewsRadarProgress } from "../../utils/scraping-progress";
+import { updateNewsRadarProgress, resetNewsRadarProgress, getNewsRadarProgress } from "backend/utils/scraping-progress";
 import dotenv from "dotenv";
 import { Request } from 'express';
 

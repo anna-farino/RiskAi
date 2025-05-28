@@ -3,6 +3,7 @@ import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./ope
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
+import { updateThreatTrackerProgress, resetThreatTrackerProgress, getThreatTrackerProgress } from "backend/utils/scraping-progress";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
@@ -295,10 +296,26 @@ export async function runGlobalScrapeJob(userId?: string) {
   globalScrapeJobRunning = true;
   log("[ThreatTracker] Starting global scrape job", "scraper");
   
+  // Initialize progress tracking
+  updateThreatTrackerProgress({
+    isActive: true,
+    totalSources: 0,
+    currentSourceIndex: 0,
+    articlesAdded: 0,
+    articlesSkipped: 0,
+    errors: [],
+    startTime: new Date()
+  });
+  
   try {
     // Get all active sources for auto-scraping
     const sources = await storage.getAutoScrapeSources(userId);
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
+    
+    // Update progress with total sources
+    updateThreatTrackerProgress({
+      totalSources: sources.length
+    });
     
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];
