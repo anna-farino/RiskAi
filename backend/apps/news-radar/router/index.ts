@@ -7,6 +7,7 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
+import { getNewsRadarProgress } from "../../utils/scraping-progress";
 
 
 export const newsRouter = Router()
