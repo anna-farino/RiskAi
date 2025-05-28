@@ -422,7 +422,8 @@ export default function Keywords() {
 
   // Helper function to render the user keyword table
   function renderUserKeywordTable(keywords: ThreatKeyword[]) {
-    if (keywords.length === 0 && allKeywordsByCategory.length === 0) {
+    // Show spinner only if data is still loading
+    if (keywords.isLoading) {
       return (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
