@@ -26,10 +26,17 @@ async function processArticle(
     vendors: string[],
     clients: string[],
     hardware: string[]
-  }
+  },
+  jobId?: string
 ) {
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
+    
+    // Update progress with current article
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.updateCurrentArticle(jobId, { url: articleUrl });
+    }
     
     // Check if we already have this article FOR THIS USER
     const existingArticles = await storage.getArticles({
@@ -39,6 +46,17 @@ async function processArticle(
     
     if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
+      
+      // Track as skipped
+      if (jobId) {
+        const { ProgressManager } = await import("../../../services/progress-manager");
+        ProgressManager.addArticleResult(jobId, {
+          url: articleUrl,
+          action: 'skipped',
+          reason: 'Article already exists'
+        });
+      }
+      
       return null;
     }
     
@@ -51,6 +69,18 @@ async function processArticle(
     // If we couldn't extract content, skip this article
     if (!articleData.content || articleData.content.length < 100) {
       log(`[ThreatTracker] Could not extract sufficient content from ${articleUrl}`, "scraper");
+      
+      // Track as skipped
+      if (jobId) {
+        const { ProgressManager } = await import("../../../services/progress-manager");
+        ProgressManager.addArticleResult(jobId, {
+          url: articleUrl,
+          title: articleData.title,
+          action: 'skipped',
+          reason: 'Insufficient content extracted'
+        });
+      }
+      
       return null;
     }
     
@@ -102,6 +132,18 @@ async function processArticle(
     if (!hasValidThreatKeywords || !hasValidOtherKeywords) {
       log(`[ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: ${articleUrl}`, "scraper");
       log(`[ThreatTracker] Valid threats: ${validThreatKeywords.length}, Valid vendors: ${validVendorKeywords.length}, Valid clients: ${validClientKeywords.length}, Valid hardware: ${validHardwareKeywords.length}`, "scraper");
+      
+      // Track as skipped
+      if (jobId) {
+        const { ProgressManager } = await import("../../../services/progress-manager");
+        ProgressManager.addArticleResult(jobId, {
+          url: articleUrl,
+          title: articleData.title,
+          action: 'skipped',
+          reason: 'Does not match keyword criteria'
+        });
+      }
+      
       return null;
     }
     
@@ -137,9 +179,37 @@ async function processArticle(
     });
     
     log(`[ThreatTracker] Successfully processed and stored article: ${articleUrl}`, "scraper");
+    
+    // Track as saved
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.addArticleResult(jobId, {
+        url: articleUrl,
+        title: articleData.title,
+        action: 'saved',
+        reason: 'Article successfully processed and saved'
+      });
+    }
+    
     return newArticle;
   } catch (error: any) {
     log(`[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`, "scraper-error");
+    
+    // Track as error
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.addArticleResult(jobId, {
+        url: articleUrl,
+        action: 'error',
+        reason: error.message
+      });
+      ProgressManager.addError(jobId, {
+        type: 'article-error',
+        message: error.message,
+        articleUrl
+      });
+    }
+    
     return null;
   }
 }
@@ -189,13 +259,32 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     }
     
     // 3. Use OpenAI to identify article links
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.setPhase(jobId, 'extracting-links');
+    }
+    
     log(`[ThreatTracker] Step 4: Identifying article links with OpenAI`, "scraper");
     const processedLinks = await extractArticleLinks(html, source.url);
     log(`[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`, "scraper");
     
     if (processedLinks.length === 0) {
       log(`[ThreatTracker] No article links found for source: ${source.name}`, "scraper-error");
+      if (jobId) {
+        const { ProgressManager } = await import("../../../services/progress-manager");
+        ProgressManager.addError(jobId, {
+          type: 'source-error',
+          message: 'No article links found',
+          sourceId: source.id
+        });
+      }
       return [];
+    }
+    
+    // Update total articles count for progress tracking
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.updateTotalArticles(jobId, processedLinks.length);
     }
     
     // 4-5. Process the first article URL to detect HTML structure
@@ -204,6 +293,11 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
+      if (jobId) {
+        const { ProgressManager } = await import("../../../services/progress-manager");
+        ProgressManager.setPhase(jobId, 'detecting-structure');
+      }
+      
       try {
         // Scrape the first article to get its HTML
         const firstArticleHtml = await scrapeUrl(firstArticleUrl, true);
@@ -239,13 +333,19 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     }
     
     if (htmlStructure) {
+      if (jobId) {
+        const { ProgressManager } = await import("../../../services/progress-manager");
+        ProgressManager.setPhase(jobId, 'processing-articles');
+      }
+      
       log(`[ThreatTracker] Step 8-9: Processing first article with detected structure`, "scraper");
       const firstArticleResult = await processArticle(
         firstArticleUrl, 
         source.id, 
         source.userId, 
         htmlStructure,
-        keywords
+        keywords,
+        jobId
       );
       
       if (firstArticleResult) {
@@ -264,7 +364,8 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
         source.id, 
         source.userId, 
         htmlStructure,
-        keywords
+        keywords,
+        jobId
       );
       
       if (articleResult) {

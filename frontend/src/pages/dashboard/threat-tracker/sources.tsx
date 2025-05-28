@@ -6,6 +6,7 @@ import { serverUrl } from "@/utils/server-url";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { ThreatSource } from "@shared/db/schema/threat-tracker";
+import { ScrapingProgressDialog } from "@/components/scraping-progress-dialog";
 import {
   Table,
   TableBody,
