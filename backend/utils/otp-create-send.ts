@@ -50,7 +50,7 @@ export async function generateOtpAndSendToUser({
   try {
     //const template = process.env.EMAILJS_TEMPLATE_OTP_ID as string
     //sendEmailJs({ template, templateParams })
-    sendGrid({
+    await sendGrid({
       to: email,
       subject: "Your One-Time Password",
       text: `Your One-Time Password (OTP) is:

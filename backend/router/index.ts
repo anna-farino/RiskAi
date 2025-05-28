@@ -24,7 +24,7 @@ const router = Router();
 router.get('/test', limiter, handleTest)
 router.get('/test-email', (req: Request, res: Response)=>{
   sendGrid({
-    to: "rloss@altairtek.com",
+    to: "test-91gqwhqpp@srv1.mail-tester.com",
     subject: "Test",
     text: "This is 👍",
     //html: "<h1>Hello, sendGrid!</h1>"

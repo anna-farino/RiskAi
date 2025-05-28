@@ -23,7 +23,7 @@ const scheduledJobs = new Map<string, NodeJS.Timeout>();
 /**
  * Initialize scheduler and restore jobs from settings
  */
-export async function initializeScheduler(req: Request): Promise<void> {
+export async function initializeScheduler(): Promise<void> {
   log("[Scheduler] Initializing scheduler service", "scheduler");
 
   try {
