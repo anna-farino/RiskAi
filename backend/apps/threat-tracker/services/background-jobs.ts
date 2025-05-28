@@ -35,7 +35,11 @@ async function processArticle(
     // Update progress with current article
     if (jobId) {
       const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.updateCurrentArticle(jobId, { url: articleUrl });
+      ProgressManager.updateCurrentArticle(jobId, { 
+        url: articleUrl,
+        title: 'Analyzing article content...'
+      });
+      ProgressManager.setPhase(jobId, 'processing-articles');
     }
     
     // Check if we already have this article FOR THIS USER

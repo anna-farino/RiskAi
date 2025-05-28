@@ -62,6 +62,7 @@ export class ProgressManager {
       phase: 'scraping-source',
       status: 'running',
     });
+    console.log(`[ProgressManager] Updated current source for job ${jobId}:`, source.name);
   }
 
   // Update current article
