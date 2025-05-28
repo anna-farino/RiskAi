@@ -33,9 +33,20 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
+import { ScrapingProgressDialog } from "./components/scraping-progress-dialog";
+import { useScrapingProgress } from "./hooks/use-scraping-progress";
 
 export default function NewsHome() {
   const { toast } = useToast();
+  
+  // Scraping progress functionality
+  const {
+    progress,
+    isDialogOpen,
+    setIsDialogOpen,
+    startScraping,
+    stopScraping,
+  } = useScrapingProgress();
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -491,6 +502,38 @@ export default function NewsHome() {
                 )}
               </div>
               
+              {/* Scraping Controls */}
+              <Button
+                variant={progress.isRunning ? "destructive" : "default"}
+                size="sm"
+                onClick={progress.isRunning ? stopScraping : startScraping}
+                disabled={progress.isRunning}
+                className="h-9"
+              >
+                {progress.isRunning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    Start Scraping
+                  </>
+                )}
+              </Button>
+              
+              {progress.isRunning && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDialogOpen(true)}
+                  className="h-9 border-slate-600 hover:bg-white/10 text-white"
+                >
+                  View Progress
+                </Button>
+              )}
+              
               <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -700,6 +743,15 @@ export default function NewsHome() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Scraping Progress Dialog */}
+      <ScrapingProgressDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        progress={progress}
+        onStopScraping={stopScraping}
+      />
     </>
   );
 }

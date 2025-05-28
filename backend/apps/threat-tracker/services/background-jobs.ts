@@ -1,7 +1,6 @@
 import { storage } from "../queries/threat-tracker";
 import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./openai";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
-import { scrapingState } from "../scraping-status";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 
@@ -40,7 +39,6 @@ async function processArticle(
     
     if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
-      scrapingState.articleSkipped(articleUrl, sourceId, "Already exists");
       return null;
     }
     
@@ -104,7 +102,6 @@ async function processArticle(
     if (!hasValidThreatKeywords || !hasValidOtherKeywords) {
       log(`[ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: ${articleUrl}`, "scraper");
       log(`[ThreatTracker] Valid threats: ${validThreatKeywords.length}, Valid vendors: ${validVendorKeywords.length}, Valid clients: ${validClientKeywords.length}, Valid hardware: ${validHardwareKeywords.length}`, "scraper");
-      scrapingState.articleSkipped(articleUrl, sourceId, "Doesn't meet keyword criteria");
       return null;
     }
     
@@ -140,11 +137,9 @@ async function processArticle(
     });
     
     log(`[ThreatTracker] Successfully processed and stored article: ${articleUrl}`, "scraper");
-    scrapingState.articleAdded(articleUrl, sourceId);
     return newArticle;
   } catch (error: any) {
     log(`[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`, "scraper-error");
-    scrapingState.addError(`Error processing article: ${error.message}`, sourceId);
     return null;
   }
 }
@@ -152,7 +147,6 @@ async function processArticle(
 // Scrape a single source
 export async function scrapeSource(source: ThreatSource) {
   log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
-  scrapingState.setCurrentSource(source.name);
   
   try {
     // Get all threat-related keywords for analysis, filtered by the source's userId
@@ -246,7 +240,6 @@ export async function scrapeSource(source: ThreatSource) {
     
     if (htmlStructure) {
       log(`[ThreatTracker] Step 8-9: Processing first article with detected structure`, "scraper");
-      scrapingState.setCurrentArticle(firstArticleUrl);
       const firstArticleResult = await processArticle(
         firstArticleUrl, 
         source.id, 
@@ -266,7 +259,6 @@ export async function scrapeSource(source: ThreatSource) {
     const startIndex = firstArticleProcessed ? 1 : 0;
     
     for (let i = startIndex; i < processedLinks.length; i++) {
-      scrapingState.setCurrentArticle(processedLinks[i]);
       const articleResult = await processArticle(
         processedLinks[i], 
         source.id, 
@@ -286,12 +278,9 @@ export async function scrapeSource(source: ThreatSource) {
     });
     
     log(`[ThreatTracker] Completed scrape job for source: ${source.name}. Found ${results.length} new articles.`, "scraper");
-    scrapingState.sourceCompleted();
     return results;
   } catch (error: any) {
     log(`[ThreatTracker] Error in scrape job for source ${source.name}: ${error.message}`, "scraper-error");
-    scrapingState.addError(`Error scraping source ${source.name}: ${error.message}`, source.name);
-    scrapingState.sourceCompleted();
     throw error;
   }
 }
@@ -310,9 +299,6 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Get all active sources for auto-scraping
     const sources = await storage.getAutoScrapeSources(userId);
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
-    
-    // Initialize scraping state
-    scrapingState.start(sources.length);
     
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];
@@ -334,7 +320,6 @@ export async function runGlobalScrapeJob(userId?: string) {
     
     log(`[ThreatTracker] Completed global scrape job. Found ${allNewArticles.length} new articles.`, "scraper");
     globalScrapeJobRunning = false;
-    scrapingState.finish();
     
     return {
       message: `Completed global scrape job. Found ${allNewArticles.length} new articles.`,
@@ -343,8 +328,6 @@ export async function runGlobalScrapeJob(userId?: string) {
   } catch (error: any) {
     log(`[ThreatTracker] Error in global scrape job: ${error.message}`, "scraper-error");
     globalScrapeJobRunning = false;
-    scrapingState.addError(`Global scrape job error: ${error.message}`);
-    scrapingState.finish();
     throw error;
   }
 }

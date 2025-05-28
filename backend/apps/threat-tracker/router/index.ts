@@ -5,7 +5,6 @@ import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJ
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
-import { getScrapingStatus } from "../scraping-status";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -524,16 +523,5 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
   } catch (error: any) {
     console.error("Error updating auto-scrape settings:", error);
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
-  }
-});
-
-// Scraping status endpoint
-threatRouter.get("/scraping-status", async (req, res) => {
-  reqLog(req, "GET /scraping-status");
-  try {
-    await getScrapingStatus(req, res);
-  } catch (error: any) {
-    console.error("Error getting scraping status:", error);
-    res.status(500).json({ error: error.message || "Failed to get scraping status" });
   }
 });
