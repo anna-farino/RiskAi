@@ -498,9 +498,22 @@ threatRouter.get("/scrape/progress", async (req, res) => {
   reqLog(req, "GET /scrape/progress");
   try {
     const userId = getUserId(req);
+    console.log(`[ProgressAPI] Getting progress for user: ${userId}`);
     const { ProgressManager } = await import("../../../services/progress-manager");
     const userJobs = ProgressManager.getUserJobs(userId);
-    console.log(`[ProgressAPI] Found ${userJobs.length} jobs for user ${userId}:`, userJobs);
+    console.log(`[ProgressAPI] Found ${userJobs.length} jobs for user ${userId}`);
+    
+    if (userJobs.length > 0) {
+      console.log(`[ProgressAPI] Job details:`, userJobs.map(job => ({
+        jobId: job.jobId,
+        status: job.status,
+        phase: job.phase,
+        currentSource: job.currentSource?.name,
+        currentArticle: job.currentArticle?.title,
+        stats: job.stats
+      })));
+    }
+    
     res.json(userJobs);
   } catch (error: any) {
     console.error("Error fetching scrape progress:", error);

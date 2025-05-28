@@ -59,6 +59,10 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
       
       const data = await response.json();
       console.log('Progress data received:', data);
+      console.log('Data length:', data.length);
+      if (data.length > 0) {
+        console.log('First job details:', data[0]);
+      }
       return data;
     },
     enabled: isOpen,

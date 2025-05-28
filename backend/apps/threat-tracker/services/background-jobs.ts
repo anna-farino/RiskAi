@@ -417,16 +417,19 @@ export async function runGlobalScrapeJob(userId?: string) {
     if (userId) {
       const { ProgressManager } = await import("../../../services/progress-manager");
       jobId = ProgressManager.createJob(userId, 'threat-tracker', sources.length);
-      ProgressManager.setPhase(jobId, 'initializing');
       console.log(`[ProgressTracker] Created job ${jobId} for user ${userId} with ${sources.length} sources`);
       
-      // Immediately update with initial progress
+      // Immediately update with initial progress to verify connection
       ProgressManager.updateCurrentSource(jobId, {
         id: 'init',
         name: 'Starting threat scanner...',
         url: 'Initializing security feeds'
       });
       ProgressManager.setPhase(jobId, 'scraping-source');
+      
+      // Verify the job was created properly
+      const createdJob = ProgressManager.getProgress(jobId);
+      console.log(`[ProgressTracker] Verified job creation:`, createdJob);
     }
     
     // Array to store all new articles
