@@ -20,6 +20,7 @@
     "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-slot": "^1.2.3",
+    "@sendgrid/mail": "^8.1.5",
     "@tanstack/react-query-devtools": "^5.74.4",
     "@types/nodemon": "^1.19.6",
     "cheerio": "^1.0.0",

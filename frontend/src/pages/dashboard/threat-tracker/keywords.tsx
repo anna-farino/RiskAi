@@ -356,10 +356,13 @@ export default function Keywords() {
     toggleKeywordActive.mutate({ id, active: !currentStatus });
   }
 
-  // Filter keywords by category
-  const keywordsByCategory = localKeywords.filter(
+  // Filter keywords by category and separate defaults from user keywords
+  const allKeywordsByCategory = localKeywords.filter(
     keyword => keyword.category === selectedCategory
   );
+  
+  const defaultKeywords = allKeywordsByCategory.filter(keyword => keyword.isDefault);
+  const userKeywords = allKeywordsByCategory.filter(keyword => !keyword.isDefault);
 
   // Group keywords by category for counts
   const categoryCounts = {
@@ -369,9 +372,40 @@ export default function Keywords() {
     hardware: localKeywords.filter(k => k.category === 'hardware').length,
   };
 
-  // Helper function to render the keyword table
-  function renderKeywordTable(keywords: ThreatKeyword[]) {
-    if (keywords.length === 0 && keywordsByCategory.length === 0) {
+  // Helper function to render compact default keywords
+  function renderDefaultKeywords(keywords: ThreatKeyword[]) {
+    if (keywords.length === 0) return null;
+
+    return (
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="h-4 w-4 text-blue-600" />
+          <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
+          <Badge variant="outline" className="text-xs px-2 py-0">
+            {keywords.length}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {keywords.map((keyword: ThreatKeyword) => (
+            <Badge 
+              key={keyword.id} 
+              variant={keyword.active ? "default" : "outline"}
+              className={`text-xs ${keyword.active 
+                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
+                : 'bg-gray-50 text-gray-500 border-gray-200'
+              }`}
+            >
+              {keyword.term}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Helper function to render the user keyword table
+  function renderUserKeywordTable(keywords: ThreatKeyword[]) {
+    if (keywords.length === 0 && allKeywordsByCategory.length === 0) {
       return (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -379,16 +413,16 @@ export default function Keywords() {
       );
     }
 
-    if (keywordsByCategory.length === 0) {
+    if (keywords.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
-          <h3 className="text-lg font-medium">No keywords found</h3>
+          <h3 className="text-lg font-medium">No custom keywords</h3>
           <p className="text-sm text-muted-foreground mb-4 text-center px-4">
-            {selectedCategory === 'threat' && "Add threat keywords to monitor for security issues."}
-            {selectedCategory === 'vendor' && "Add vendors to monitor for security vulnerabilities."}
-            {selectedCategory === 'client' && "Add clients to track security issues affecting them."}
-            {selectedCategory === 'hardware' && "Add hardware/software to monitor for security issues."}
+            {selectedCategory === 'threat' && "Add custom threat keywords to monitor for specific security issues."}
+            {selectedCategory === 'vendor' && "Add custom vendors to monitor for security vulnerabilities."}
+            {selectedCategory === 'client' && "Add custom clients to track security issues affecting them."}
+            {selectedCategory === 'hardware' && "Add custom hardware/software to monitor for security issues."}
           </p>
           <Button onClick={handleNewKeyword}>
             <Plus className="mr-2 h-4 w-4" />
@@ -411,7 +445,7 @@ export default function Keywords() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {keywordsByCategory.map((keyword) => (
+            {keywords.map((keyword: ThreatKeyword) => (
               <TableRow key={keyword.id}>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
@@ -596,7 +630,15 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
+              {renderDefaultKeywords(defaultKeywords)}
+              <div className="space-y-4">
+                {userKeywords.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(userKeywords)}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -610,7 +652,15 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
+              {renderDefaultKeywords(defaultKeywords)}
+              <div className="space-y-4">
+                {userKeywords.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(userKeywords)}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -624,7 +674,15 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
+              {renderDefaultKeywords(defaultKeywords)}
+              <div className="space-y-4">
+                {userKeywords.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(userKeywords)}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -638,7 +696,15 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderKeywordTable(keywordsByCategory)}
+              {renderDefaultKeywords(defaultKeywords)}
+              <div className="space-y-4">
+                {userKeywords.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(userKeywords)}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
