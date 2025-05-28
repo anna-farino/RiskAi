@@ -63,7 +63,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -71,7 +71,18 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X, Shield, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  AlertCircle,
+  PencilLine,
+  Check,
+  X,
+  Shield,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 
 // Form schema for keyword creation/editing
 const keywordFormSchema = z.object({
@@ -95,14 +106,18 @@ export default function Keywords() {
   const { toast } = useToast();
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [bulkKeywordDialogOpen, setBulkKeywordDialogOpen] = useState(false);
-  const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(null);
+  const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(
+    null,
+  );
   const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("threat");
-  const [defaultKeywordsOpen, setDefaultKeywordsOpen] = useState<Record<string, boolean>>({
-    threat: false,
-    vendor: false,
-    client: false,
-    hardware: false,
+  const [isDefaultKeywordsCollapsed, setIsDefaultKeywordsCollapsed] = useState<
+    Record<string, boolean>
+  >({
+    threat: true,
+    vendor: true,
+    client: true,
+    hardware: true,
   });
 
   // Initialize the single keyword form
@@ -114,7 +129,7 @@ export default function Keywords() {
       active: true,
     },
   });
-  
+
   // Initialize the bulk keyword form
   const bulkForm = useForm<BulkKeywordFormValues>({
     resolver: zodResolver(bulkKeywordFormSchema),
@@ -130,24 +145,27 @@ export default function Keywords() {
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            ...csfrHeaderObject()
-          }
-        })
-        if (!response.ok) throw new Error('Failed to fetch keywords')
-        const data = await response.json()
-        return data || []
-      } catch(error) {
-        console.error(error)
-        return [] // Return empty array instead of undefined to prevent errors
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/keywords`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...csfrHeaderObject(),
+            },
+          },
+        );
+        if (!response.ok) throw new Error("Failed to fetch keywords");
+        const data = await response.json();
+        return data || [];
+      } catch (error) {
+        console.error(error);
+        return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 60000 // Reduce refetching frequency (1 minute)
+    staleTime: 60000, // Reduce refetching frequency (1 minute)
   });
-  
+
   // Update local state whenever query data changes
   useEffect(() => {
     if (keywords.data) {
@@ -159,26 +177,30 @@ export default function Keywords() {
   const createBulkKeywords = useMutation({
     mutationFn: async (values: BulkKeywordFormValues) => {
       console.log("Submitting bulk keywords:", values);
-      
+
       // Split the terms and create individual keywords
       const keywordTerms = values.terms
-        .split(',')
-        .map(term => term.trim())
-        .filter(term => term.length > 0);
-      
+        .split(",")
+        .map((term) => term.trim())
+        .filter((term) => term.length > 0);
+
       console.log("Processed terms:", keywordTerms);
-      
+
       // Create each keyword individually using the regular keywords endpoint
       const createdKeywords = [];
-      
+
       for (const term of keywordTerms) {
         try {
-          const result = await apiRequest("POST", `${serverUrl}/api/threat-tracker/keywords`, {
-            term,
-            category: values.category,
-            active: values.active
-          });
-          
+          const result = await apiRequest(
+            "POST",
+            `${serverUrl}/api/threat-tracker/keywords`,
+            {
+              term,
+              category: values.category,
+              active: values.active,
+            },
+          );
+
           console.log(`Created keyword: ${term}`, result);
           createdKeywords.push(result);
         } catch (error) {
@@ -186,10 +208,10 @@ export default function Keywords() {
           // Continue with other keywords even if one fails
         }
       }
-      
-      return { 
+
+      return {
         message: `Created ${createdKeywords.length} keywords`,
-        keywords: createdKeywords
+        keywords: createdKeywords,
       };
     },
     onSuccess: (data) => {
@@ -204,22 +226,29 @@ export default function Keywords() {
         category: selectedCategory,
         active: true,
       });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
     onError: (error) => {
       console.error("Error creating bulk keywords:", error);
       toast({
         title: "Error adding keywords",
-        description: "There was an error adding your keywords. Please try again.",
+        description:
+          "There was an error adding your keywords. Please try again.",
         variant: "destructive",
       });
     },
   });
-  
+
   // Create keyword mutation
   const createKeyword = useMutation({
     mutationFn: async (values: KeywordFormValues) => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/keywords`, values);
+      return apiRequest(
+        "POST",
+        `${serverUrl}/api/threat-tracker/keywords`,
+        values,
+      );
     },
     onSuccess: () => {
       toast({
@@ -228,13 +257,16 @@ export default function Keywords() {
       });
       setKeywordDialogOpen(false);
       form.reset();
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
     onError: (error) => {
       console.error("Error creating keyword:", error);
       toast({
         title: "Error creating keyword",
-        description: "There was an error creating your keyword. Please try again.",
+        description:
+          "There was an error creating your keyword. Please try again.",
         variant: "destructive",
       });
     },
@@ -242,8 +274,18 @@ export default function Keywords() {
 
   // Update keyword mutation
   const updateKeyword = useMutation({
-    mutationFn: async ({ id, values }: { id: string; values: KeywordFormValues }) => {
-      return apiRequest("PUT", `${serverUrl}/api/threat-tracker/keywords/${id}`, values);
+    mutationFn: async ({
+      id,
+      values,
+    }: {
+      id: string;
+      values: KeywordFormValues;
+    }) => {
+      return apiRequest(
+        "PUT",
+        `${serverUrl}/api/threat-tracker/keywords/${id}`,
+        values,
+      );
     },
     onSuccess: () => {
       toast({
@@ -253,13 +295,16 @@ export default function Keywords() {
       setKeywordDialogOpen(false);
       setEditingKeyword(null);
       form.reset();
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
     onError: (error) => {
       console.error("Error updating keyword:", error);
       toast({
         title: "Error updating keyword",
-        description: "There was an error updating your keyword. Please try again.",
+        description:
+          "There was an error updating your keyword. Please try again.",
         variant: "destructive",
       });
     },
@@ -268,20 +313,26 @@ export default function Keywords() {
   // Delete keyword mutation
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/keywords/${id}`);
+      return apiRequest(
+        "DELETE",
+        `${serverUrl}/api/threat-tracker/keywords/${id}`,
+      );
     },
     onSuccess: () => {
       toast({
         title: "Keyword deleted",
         description: "Your keyword has been deleted successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
     onError: (error) => {
       console.error("Error deleting keyword:", error);
       toast({
         title: "Error deleting keyword",
-        description: "There was an error deleting your keyword. Please try again.",
+        description:
+          "There was an error deleting your keyword. Please try again.",
         variant: "destructive",
       });
     },
@@ -290,29 +341,36 @@ export default function Keywords() {
   // Toggle keyword active status
   const toggleKeywordActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      return apiRequest("PUT", `${serverUrl}/api/threat-tracker/keywords/${id}`, { active });
+      return apiRequest(
+        "PUT",
+        `${serverUrl}/api/threat-tracker/keywords/${id}`,
+        { active },
+      );
     },
     onMutate: ({ id, active }) => {
       // Optimistic update
-      setLocalKeywords(prev => 
-        prev.map(keyword => 
-          keyword.id === id 
-            ? { ...keyword, active } 
-            : keyword
-        )
+      setLocalKeywords((prev) =>
+        prev.map((keyword) =>
+          keyword.id === id ? { ...keyword, active } : keyword,
+        ),
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
     onError: (error) => {
       console.error("Error toggling keyword active status:", error);
       toast({
         title: "Error updating keyword",
-        description: "There was an error updating the keyword status. Please try again.",
+        description:
+          "There was an error updating the keyword status. Please try again.",
         variant: "destructive",
       });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
   });
 
@@ -324,7 +382,7 @@ export default function Keywords() {
       createKeyword.mutate(values);
     }
   }
-  
+
   // Handle bulk keyword form submission
   function onBulkSubmit(values: BulkKeywordFormValues) {
     createBulkKeywords.mutate(values);
@@ -351,7 +409,7 @@ export default function Keywords() {
     });
     setKeywordDialogOpen(true);
   }
-  
+
   // Handle bulk keyword dialog open
   function handleBulkKeywords() {
     bulkForm.reset({
@@ -369,51 +427,60 @@ export default function Keywords() {
 
   // Filter keywords by category and separate defaults from user keywords
   const allKeywordsByCategory = localKeywords.filter(
-    keyword => keyword.category === selectedCategory
+    (keyword) => keyword.category === selectedCategory,
   );
-  
-  const defaultKeywords = allKeywordsByCategory.filter(keyword => keyword.isDefault);
-  const userKeywords = allKeywordsByCategory.filter(keyword => !keyword.isDefault);
+
+  const defaultKeywords = allKeywordsByCategory.filter(
+    (keyword) => keyword.isDefault,
+  );
+  const userKeywords = allKeywordsByCategory.filter(
+    (keyword) => !keyword.isDefault,
+  );
 
   // Group keywords by category for counts
   const categoryCounts = {
-    threat: localKeywords.filter(k => k.category === 'threat').length,
-    vendor: localKeywords.filter(k => k.category === 'vendor').length,
-    client: localKeywords.filter(k => k.category === 'client').length,
-    hardware: localKeywords.filter(k => k.category === 'hardware').length,
+    threat: localKeywords.filter((k) => k.category === "threat").length,
+    vendor: localKeywords.filter((k) => k.category === "vendor").length,
+    client: localKeywords.filter((k) => k.category === "client").length,
+    hardware: localKeywords.filter((k) => k.category === "hardware").length,
   };
 
   // Helper function to render compact default keywords
   function renderDefaultKeywords(keywords: ThreatKeyword[], category: string) {
     if (keywords.length === 0) return null;
 
-    const isOpen = defaultKeywordsOpen[category];
-
     return (
       <div className="mb-6">
-        <Collapsible 
-          open={isOpen} 
-          onOpenChange={(open) => 
-            setDefaultKeywordsOpen(prev => ({ ...prev, [category]: open }))
-          }
+        <Collapsible
+          open={!isDefaultKeywordsCollapsed}
+          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(!open)}
         >
-          <CollapsibleTrigger className="flex items-center gap-2 mb-3 hover:bg-gray-50 p-2 rounded-md transition-colors w-full">
-            <Shield className="h-4 w-4 text-blue-600" />
-            <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
-            <Badge variant="outline" className="text-xs px-2 py-0">
-              {keywords.length}
-            </Badge>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
+              {isDefaultKeywordsCollapsed ? (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <Shield className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Default Keywords
+              </h3>
+              <Badge variant="outline" className="text-xs px-2 py-0">
+                {keywords.length}
+              </Badge>
+            </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2">
             <div className="flex flex-wrap gap-2 pl-6">
               {keywords.map((keyword: ThreatKeyword) => (
-                <Badge 
-                  key={keyword.id} 
+                <Badge
+                  key={keyword.id}
                   variant={keyword.active ? "default" : "outline"}
-                  className={`text-xs ${keyword.active 
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
-                    : 'bg-gray-50 text-gray-500 border-gray-200'
+                  className={`text-xs ${
+                    keyword.active
+                      ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                      : "bg-gray-50 text-gray-500 border-gray-200"
                   }`}
                 >
                   {keyword.term}
@@ -442,16 +509,25 @@ export default function Keywords() {
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
           <h3 className="text-lg font-medium">No custom keywords</h3>
           <p className="text-sm text-muted-foreground mb-4 text-center px-4">
-            {selectedCategory === 'threat' && "Add custom threat keywords to monitor for specific security issues."}
-            {selectedCategory === 'vendor' && "Add custom vendors to monitor for security vulnerabilities."}
-            {selectedCategory === 'client' && "Add custom clients to track security issues affecting them."}
-            {selectedCategory === 'hardware' && "Add custom hardware/software to monitor for security issues."}
+            {selectedCategory === "threat" &&
+              "Add custom threat keywords to monitor for specific security issues."}
+            {selectedCategory === "vendor" &&
+              "Add custom vendors to monitor for security vulnerabilities."}
+            {selectedCategory === "client" &&
+              "Add custom clients to track security issues affecting them."}
+            {selectedCategory === "hardware" &&
+              "Add custom hardware/software to monitor for security issues."}
           </p>
           <Button onClick={handleNewKeyword}>
             <Plus className="mr-2 h-4 w-4" />
-            Add {selectedCategory === 'threat' ? 'Keyword' : 
-                 selectedCategory === 'vendor' ? 'Vendor' :
-                 selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
+            Add{" "}
+            {selectedCategory === "threat"
+              ? "Keyword"
+              : selectedCategory === "vendor"
+                ? "Vendor"
+                : selectedCategory === "client"
+                  ? "Client"
+                  : "Hardware/Software"}
           </Button>
         </div>
       );
@@ -474,7 +550,10 @@ export default function Keywords() {
                   <div className="flex items-center gap-2">
                     {keyword.term}
                     {keyword.isDefault && (
-                      <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-700 border-blue-200">
+                      <Badge
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-blue-100 text-blue-700 border-blue-200"
+                      >
                         <Shield className="h-3 w-3" />
                         <span className="text-xs">Default</span>
                       </Badge>
@@ -482,19 +561,32 @@ export default function Keywords() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div 
-                    className={`flex items-center ${keyword.isDefault ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    onClick={() => !keyword.isDefault && handleToggleActive(keyword.id, keyword.active)}
-                    title={keyword.isDefault ? 'Default keywords cannot be modified' : 'Click to toggle status'}
+                  <div
+                    className={`flex items-center ${keyword.isDefault ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    onClick={() =>
+                      !keyword.isDefault &&
+                      handleToggleActive(keyword.id, keyword.active)
+                    }
+                    title={
+                      keyword.isDefault
+                        ? "Default keywords cannot be modified"
+                        : "Click to toggle status"
+                    }
                   >
                     {keyword.active ? (
-                      <Badge variant="default" className="flex items-center gap-1 bg-green-500">
+                      <Badge
+                        variant="default"
+                        className="flex items-center gap-1 bg-green-500"
+                      >
                         <Check className="h-3 w-3" />
                         <span className="sm:inline hidden">Active</span>
                         <span className="sm:hidden inline">On</span>
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-muted-foreground"
+                      >
                         <X className="h-3 w-3" />
                         <span className="sm:inline hidden">Inactive</span>
                         <span className="sm:hidden inline">Off</span>
@@ -519,7 +611,7 @@ export default function Keywords() {
                           <PencilLine className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                        
+
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -535,8 +627,8 @@ export default function Keywords() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will permanently delete the keyword "{keyword.term}".
-                                This action cannot be undone.
+                                This will permanently delete the keyword "
+                                {keyword.term}". This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -565,14 +657,16 @@ export default function Keywords() {
   return (
     <div className="flex flex-col gap-6 px-2 sm:px-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Keywords</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          Keywords
+        </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
           Manage keywords used for threat monitoring and cross-referencing.
         </p>
       </div>
 
-      <Tabs 
-        defaultValue="threat" 
+      <Tabs
+        defaultValue="threat"
         value={selectedCategory}
         onValueChange={setSelectedCategory}
         className="w-full"
@@ -580,7 +674,10 @@ export default function Keywords() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="w-full overflow-x-auto pb-2">
             <TabsList className="w-full sm:w-auto flex">
-              <TabsTrigger value="threat" className="relative whitespace-nowrap">
+              <TabsTrigger
+                value="threat"
+                className="relative whitespace-nowrap"
+              >
                 <span className="sm:inline hidden">Threat Keywords</span>
                 <span className="sm:hidden inline">Threats</span>
                 {categoryCounts.threat > 0 && (
@@ -589,7 +686,10 @@ export default function Keywords() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="vendor" className="relative whitespace-nowrap">
+              <TabsTrigger
+                value="vendor"
+                className="relative whitespace-nowrap"
+              >
                 Vendors
                 {categoryCounts.vendor > 0 && (
                   <Badge variant="secondary" className="ml-1">
@@ -597,7 +697,10 @@ export default function Keywords() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="client" className="relative whitespace-nowrap">
+              <TabsTrigger
+                value="client"
+                className="relative whitespace-nowrap"
+              >
                 Clients
                 {categoryCounts.client > 0 && (
                   <Badge variant="secondary" className="ml-1">
@@ -605,7 +708,10 @@ export default function Keywords() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="hardware" className="relative whitespace-nowrap">
+              <TabsTrigger
+                value="hardware"
+                className="relative whitespace-nowrap"
+              >
                 <span className="sm:inline hidden">Hardware/Software</span>
                 <span className="sm:hidden inline">H/W S/W</span>
                 {categoryCounts.hardware > 0 && (
@@ -616,9 +722,14 @@ export default function Keywords() {
               </TabsTrigger>
             </TabsList>
           </div>
-          
+
           <div className="flex gap-2 w-full sm:w-auto justify-end">
-            <Button onClick={handleBulkKeywords} disabled={createBulkKeywords.isPending} variant="outline" className="h-9 px-2 sm:px-4">
+            <Button
+              onClick={handleBulkKeywords}
+              disabled={createBulkKeywords.isPending}
+              variant="outline"
+              className="h-9 px-2 sm:px-4"
+            >
               {createBulkKeywords.isPending ? (
                 <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -627,17 +738,26 @@ export default function Keywords() {
               <span className="sm:inline hidden">Bulk Import</span>
               <span className="sm:hidden inline">Bulk</span>
             </Button>
-            
-            <Button onClick={handleNewKeyword} disabled={createKeyword.isPending} className="h-9 px-2 sm:px-4">
+
+            <Button
+              onClick={handleNewKeyword}
+              disabled={createKeyword.isPending}
+              className="h-9 px-2 sm:px-4"
+            >
               {createKeyword.isPending ? (
                 <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Plus className="sm:mr-2 h-4 w-4" />
               )}
               <span className="sm:inline hidden">
-                Add {selectedCategory === 'threat' ? 'Keyword' : 
-                    selectedCategory === 'vendor' ? 'Vendor' :
-                    selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
+                Add{" "}
+                {selectedCategory === "threat"
+                  ? "Keyword"
+                  : selectedCategory === "vendor"
+                    ? "Vendor"
+                    : selectedCategory === "client"
+                      ? "Client"
+                      : "Hardware/Software"}
               </span>
               <span className="sm:hidden inline">Add</span>
             </Button>
@@ -647,20 +767,31 @@ export default function Keywords() {
         <TabsContent value="threat" className="mt-6">
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Threat Keywords</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
+                Threat Keywords
+              </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Keywords related to cybersecurity threats (e.g., malware, breach, zero-day)
+                Keywords related to cybersecurity threats (e.g., malware,
+                breach, zero-day)
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'threat'), 'threat')}
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "threat"),
+                "threat",
+              )}
               <div className="space-y-4">
-                {userKeywords.filter(k => k.category === 'threat').length > 0 && (
+                {userKeywords.filter((k) => k.category === "threat").length >
+                  0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'threat'))}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "threat"),
+                )}
               </div>
             </CardContent>
           </Card>
@@ -675,14 +806,22 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'vendor'), 'vendor')}
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "vendor"),
+                "vendor",
+              )}
               <div className="space-y-4">
-                {userKeywords.filter(k => k.category === 'vendor').length > 0 && (
+                {userKeywords.filter((k) => k.category === "vendor").length >
+                  0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'vendor'))}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "vendor"),
+                )}
               </div>
             </CardContent>
           </Card>
@@ -697,14 +836,22 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'client'), 'client')}
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "client"),
+                "client",
+              )}
               <div className="space-y-4">
-                {userKeywords.filter(k => k.category === 'client').length > 0 && (
+                {userKeywords.filter((k) => k.category === "client").length >
+                  0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'client'))}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "client"),
+                )}
               </div>
             </CardContent>
           </Card>
@@ -713,20 +860,30 @@ export default function Keywords() {
         <TabsContent value="hardware" className="mt-6">
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Hardware/Software</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
+                Hardware/Software
+              </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
                 Specific hardware or software to monitor for security threats
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'hardware'), 'hardware')}
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "hardware"),
+                "hardware",
+              )}
               <div className="space-y-4">
-                {userKeywords.filter(k => k.category === 'hardware').length > 0 && (
+                {userKeywords.filter((k) => k.category === "hardware").length >
+                  0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'hardware'))}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "hardware"),
+                )}
               </div>
             </CardContent>
           </Card>
@@ -741,7 +898,7 @@ export default function Keywords() {
               {editingKeyword ? "Edit Keyword" : "Add New Keyword"}
             </DialogTitle>
             <DialogDescription>
-              {editingKeyword 
+              {editingKeyword
                 ? "Update this keyword's details."
                 : "Add a new keyword to monitor in threat analysis."}
             </DialogDescription>
@@ -764,7 +921,7 @@ export default function Keywords() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="category"
@@ -784,17 +941,17 @@ export default function Keywords() {
                         <SelectItem value="threat">Threat</SelectItem>
                         <SelectItem value="vendor">Vendor</SelectItem>
                         <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">Hardware/Software</SelectItem>
+                        <SelectItem value="hardware">
+                          Hardware/Software
+                        </SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Categorize this keyword
-                    </FormDescription>
+                    <FormDescription>Categorize this keyword</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="active"
@@ -815,16 +972,16 @@ export default function Keywords() {
                   </FormItem>
                 )}
               />
-              
+
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setKeywordDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   disabled={createKeyword.isPending || updateKeyword.isPending}
                 >
@@ -838,9 +995,12 @@ export default function Keywords() {
           </Form>
         </DialogContent>
       </Dialog>
-      
+
       {/* Bulk keyword import dialog */}
-      <Dialog open={bulkKeywordDialogOpen} onOpenChange={setBulkKeywordDialogOpen}>
+      <Dialog
+        open={bulkKeywordDialogOpen}
+        onOpenChange={setBulkKeywordDialogOpen}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Bulk Import Keywords</DialogTitle>
@@ -849,7 +1009,10 @@ export default function Keywords() {
             </DialogDescription>
           </DialogHeader>
           <Form {...bulkForm}>
-            <form onSubmit={bulkForm.handleSubmit(onBulkSubmit)} className="space-y-4">
+            <form
+              onSubmit={bulkForm.handleSubmit(onBulkSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={bulkForm.control}
                 name="terms"
@@ -857,9 +1020,9 @@ export default function Keywords() {
                   <FormItem>
                     <FormLabel>Keywords</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
-                        placeholder="Enter keywords separated by commas" 
+                      <Textarea
+                        {...field}
+                        placeholder="Enter keywords separated by commas"
                         className="min-h-[100px]"
                       />
                     </FormControl>
@@ -870,7 +1033,7 @@ export default function Keywords() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={bulkForm.control}
                 name="category"
@@ -890,7 +1053,9 @@ export default function Keywords() {
                         <SelectItem value="threat">Threat</SelectItem>
                         <SelectItem value="vendor">Vendor</SelectItem>
                         <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">Hardware/Software</SelectItem>
+                        <SelectItem value="hardware">
+                          Hardware/Software
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
@@ -900,7 +1065,7 @@ export default function Keywords() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={bulkForm.control}
                 name="active"
@@ -921,19 +1086,16 @@ export default function Keywords() {
                   </FormItem>
                 )}
               />
-              
+
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setBulkKeywordDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={createBulkKeywords.isPending}
-                >
+                <Button type="submit" disabled={createBulkKeywords.isPending}>
                   {createBulkKeywords.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
