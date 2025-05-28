@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 
-// Store real articles at module level, limiting to most recent ones
-// We'll limit to 10 recent articles to avoid memory issues
-const MAX_STORED_ARTICLES = 10;
+// Store real articles at module level, allowing more articles for pagination
+// Increased limit to support pagination functionality
+const MAX_STORED_ARTICLES = 100;
 const storedArticles: ArticleSummary[] = [];
 const storedSelectedArticles: ArticleSummary[] = [];
 
@@ -772,55 +772,6 @@ export default function Research() {
           
         </div>
         
-        {/* Pagination Controls - Outside the main container for visibility */}
-        {processedArticles.length > articlesPerPage && (
-          <div className="flex items-center justify-center gap-4 mt-4 p-4 bg-slate-900/30 backdrop-blur-sm border border-slate-700/30 rounded-xl">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            
-            <div className="flex items-center gap-2">
-              {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
-                .filter(page => {
-                  const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
-                  return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2;
-                })
-                .map((page, index, visiblePages) => {
-                  const prevPage = visiblePages[index - 1];
-                  const showEllipsis = prevPage && page - prevPage > 1;
-                  
-                  return (
-                    <React.Fragment key={page}>
-                      {showEllipsis && <span className="text-slate-400">...</span>}
-                      <button
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-2 rounded-md ${
-                          currentPage === page
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-slate-700 text-white hover:bg-slate-600'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    </React.Fragment>
-                  );
-                })}
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
-              disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
-              className="px-3 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        )}
-        
         {/* Selected Articles Section */}
         <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <div className="flex justify-between items-center mb-4">
@@ -946,6 +897,58 @@ export default function Research() {
           </button>
         </div>
       </div>
+      
+      {/* Pagination Controls - At the bottom of the research page */}
+      {processedArticles.length > articlesPerPage && (
+        <div className="flex items-center justify-center gap-4 mt-6 p-4 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400 mr-2">
+              Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+            </span>
+            {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+              .filter(page => {
+                const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2;
+              })
+              .map((page, index, visiblePages) => {
+                const prevPage = visiblePages[index - 1];
+                const showEllipsis = prevPage && page - prevPage > 1;
+                
+                return (
+                  <React.Fragment key={page}>
+                    {showEllipsis && <span className="text-slate-400 px-2">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-2 rounded-md min-w-[40px] ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-white hover:bg-slate-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+          </div>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+            disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+            className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
