@@ -63,10 +63,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X, Shield } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X, Shield, ChevronDown } from "lucide-react";
 
 // Form schema for keyword creation/editing
 const keywordFormSchema = z.object({
@@ -93,6 +98,12 @@ export default function Keywords() {
   const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(null);
   const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("threat");
+  const [defaultKeywordsOpen, setDefaultKeywordsOpen] = useState<Record<string, boolean>>({
+    threat: false,
+    vendor: false,
+    client: false,
+    hardware: false,
+  });
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
@@ -373,32 +384,44 @@ export default function Keywords() {
   };
 
   // Helper function to render compact default keywords
-  function renderDefaultKeywords(keywords: ThreatKeyword[]) {
+  function renderDefaultKeywords(keywords: ThreatKeyword[], category: string) {
     if (keywords.length === 0) return null;
+
+    const isOpen = defaultKeywordsOpen[category];
 
     return (
       <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Shield className="h-4 w-4 text-blue-600" />
-          <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
-          <Badge variant="outline" className="text-xs px-2 py-0">
-            {keywords.length}
-          </Badge>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {keywords.map((keyword: ThreatKeyword) => (
-            <Badge 
-              key={keyword.id} 
-              variant={keyword.active ? "default" : "outline"}
-              className={`text-xs ${keyword.active 
-                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
-                : 'bg-gray-50 text-gray-500 border-gray-200'
-              }`}
-            >
-              {keyword.term}
+        <Collapsible 
+          open={isOpen} 
+          onOpenChange={(open) => 
+            setDefaultKeywordsOpen(prev => ({ ...prev, [category]: open }))
+          }
+        >
+          <CollapsibleTrigger className="flex items-center gap-2 mb-3 hover:bg-gray-50 p-2 rounded-md transition-colors w-full">
+            <Shield className="h-4 w-4 text-blue-600" />
+            <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
+            <Badge variant="outline" className="text-xs px-2 py-0">
+              {keywords.length}
             </Badge>
-          ))}
-        </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2">
+            <div className="flex flex-wrap gap-2 pl-6">
+              {keywords.map((keyword: ThreatKeyword) => (
+                <Badge 
+                  key={keyword.id} 
+                  variant={keyword.active ? "default" : "outline"}
+                  className={`text-xs ${keyword.active 
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
+                    : 'bg-gray-50 text-gray-500 border-gray-200'
+                  }`}
+                >
+                  {keyword.term}
+                </Badge>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     );
   }
@@ -630,7 +653,7 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'threat'))}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'threat'), 'threat')}
               <div className="space-y-4">
                 {userKeywords.filter(k => k.category === 'threat').length > 0 && (
                   <div>
@@ -652,7 +675,7 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'vendor'))}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'vendor'), 'vendor')}
               <div className="space-y-4">
                 {userKeywords.filter(k => k.category === 'vendor').length > 0 && (
                   <div>
@@ -674,7 +697,7 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'client'))}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'client'), 'client')}
               <div className="space-y-4">
                 {userKeywords.filter(k => k.category === 'client').length > 0 && (
                   <div>
@@ -696,7 +719,7 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'hardware'))}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'hardware'), 'hardware')}
               <div className="space-y-4">
                 {userKeywords.filter(k => k.category === 'hardware').length > 0 && (
                   <div>
