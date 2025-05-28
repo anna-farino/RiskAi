@@ -243,7 +243,13 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     };
     
     // 1. Load source URL via puppeteer and scrape HTML
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.setPhase(jobId, 'scraping-source');
+    }
+    
     log(`[ThreatTracker] Step 1-3: Scraping source URL: ${source.url}`, "scraper");
+    
     const html = await scrapeUrl(source.url);
     
     // 2. Get or detect HTML structure (scraping config)

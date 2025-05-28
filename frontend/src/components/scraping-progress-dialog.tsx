@@ -35,14 +35,15 @@ interface ScrapingProgressDialogProps {
 export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgressDialogProps) {
   const [activeJobs, setActiveJobs] = useState<ScrapeProgress[]>([]);
 
-  // Fetch progress data every 2 seconds while dialog is open
+  // Fetch progress data every 1 second while dialog is open for real-time updates
   const { data: progressData, refetch } = useQuery<ScrapeProgress[]>({
-    queryKey: [`${serverUrl}/api/${app === 'threat-tracker' ? 'threat-tracker' : 'news-tracker'}/jobs/progress`],
+    queryKey: [`${serverUrl}/api/${app === 'threat-tracker' ? 'threat-tracker' : 'news-tracker'}/scrape/progress`],
     queryFn: async () => {
       const endpoint = app === 'threat-tracker' 
         ? `${serverUrl}/api/threat-tracker/scrape/progress`
         : `${serverUrl}/api/news-tracker/jobs/progress`;
         
+      console.log('Fetching progress from:', endpoint);
       const response = await fetch(endpoint, {
         method: 'GET',
         credentials: 'include',
@@ -51,19 +52,30 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
         }
       });
       
-      if (!response.ok) throw new Error('Failed to fetch progress');
-      return response.json();
+      if (!response.ok) {
+        console.error('Progress fetch failed:', response.status, response.statusText);
+        throw new Error('Failed to fetch progress');
+      }
+      
+      const data = await response.json();
+      console.log('Progress data received:', data);
+      return data;
     },
     enabled: isOpen,
-    refetchInterval: 2000, // Refetch every 2 seconds
+    refetchInterval: 1000, // Refetch every 1 second for better real-time feel
+    retry: 3,
   });
 
   useEffect(() => {
     if (progressData) {
+      console.log('Processing progress data:', progressData);
+      
       // Filter for active jobs (not completed, error, or stopped)
       const active = progressData.filter(job => 
         job.status === 'starting' || job.status === 'running'
       );
+      
+      console.log('Active jobs:', active);
       setActiveJobs(active);
 
       // Close dialog if no active jobs
@@ -75,6 +87,7 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
         });
         
         if (!recentlyCompleted) {
+          console.log('No recent activity, closing dialog');
           setTimeout(() => onClose(), 2000); // Close after 2 seconds
         }
       }
@@ -140,7 +153,51 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
     }
   };
 
-  if (!isOpen || activeJobs.length === 0) return null;
+  if (!isOpen) return null;
+  
+  // Show dialog even if no active jobs yet - important for immediate feedback
+  if (activeJobs.length === 0) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Scraping Progress - {app === 'threat-tracker' ? 'Threat Tracker' : 'News Radar'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span className="font-medium">Starting</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm">
+                <Play className="h-4 w-4" />
+                <span>Initializing scrape job...</span>
+              </div>
+
+              <div className="text-center text-gray-500 py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <p>Connecting to scraping service...</p>
+                <p className="text-xs mt-1">This may take a few moments</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -166,10 +223,19 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
                 </Badge>
               </div>
 
-              {/* Current Phase */}
-              <div className="flex items-center gap-2 text-sm">
-                {getPhaseIcon(job.phase)}
-                <span>{getPhaseText(job.phase)}</span>
+              {/* Current Phase and Bot Protection Status */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  {getPhaseIcon(job.phase)}
+                  <span>{getPhaseText(job.phase)}</span>
+                </div>
+                
+                {job.phase === 'bypassing-protection' && (
+                  <div className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                    <Shield className="h-4 w-4" />
+                    <span>Bypassing bot protection systems...</span>
+                  </div>
+                )}
               </div>
 
               {/* Progress Bar */}
@@ -233,7 +299,7 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
               )}
 
               {/* Recent Article Activity */}
-              {job.articlesProcessed.length > 0 && (
+              {job.articlesProcessed && job.articlesProcessed.length > 0 ? (
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Recent Activity</div>
                   <div className="max-h-32 overflow-y-auto space-y-1">
@@ -254,6 +320,10 @@ export function ScrapingProgressDialog({ app, isOpen, onClose }: ScrapingProgres
                       </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 text-center py-4">
+                  Waiting for article processing to begin...
                 </div>
               )}
 
