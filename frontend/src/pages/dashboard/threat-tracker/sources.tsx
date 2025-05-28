@@ -1084,12 +1084,7 @@ export default function Sources() {
         </DialogContent>
       </Dialog>
 
-      {/* Scraping Progress Dialog */}
-      <ScrapingProgressDialog
-        app="threat-tracker"
-        isOpen={showProgressDialog}
-        onClose={() => setShowProgressDialog(false)}
-      />
+
     </div>
   );
 }
