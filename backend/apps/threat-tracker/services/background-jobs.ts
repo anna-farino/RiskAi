@@ -415,6 +415,14 @@ export async function runGlobalScrapeJob(userId?: string) {
       jobId = ProgressManager.createJob(userId, 'threat-tracker', sources.length);
       ProgressManager.setPhase(jobId, 'initializing');
       console.log(`[ProgressTracker] Created job ${jobId} for user ${userId} with ${sources.length} sources`);
+      
+      // Immediately update with initial progress
+      ProgressManager.updateCurrentSource(jobId, {
+        id: 'init',
+        name: 'Starting threat scanner...',
+        url: 'Initializing security feeds'
+      });
+      ProgressManager.setPhase(jobId, 'scraping-source');
     }
     
     // Array to store all new articles
@@ -431,6 +439,8 @@ export async function runGlobalScrapeJob(userId?: string) {
             name: source.name,
             url: source.url
           });
+          ProgressManager.setPhase(jobId, 'scraping-source');
+          console.log(`[ProgressTracker] Now processing source: ${source.name}`);
         }
         
         const newArticles = await scrapeSource(source, jobId);
