@@ -405,7 +405,7 @@ export default function Keywords() {
 
   // Helper function to render the user keyword table
   function renderUserKeywordTable(keywords: ThreatKeyword[]) {
-    if (keywords.length === 0 && allKeywordsByCategory.length === 0) {
+    if (localKeywords.length === 0) {
       return (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -630,14 +630,14 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords)}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'threat'))}
               <div className="space-y-4">
-                {userKeywords.length > 0 && (
+                {userKeywords.filter(k => k.category === 'threat').length > 0 && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords)}
+                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'threat'))}
               </div>
             </CardContent>
           </Card>
@@ -652,14 +652,14 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords)}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'vendor'))}
               <div className="space-y-4">
-                {userKeywords.length > 0 && (
+                {userKeywords.filter(k => k.category === 'vendor').length > 0 && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords)}
+                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'vendor'))}
               </div>
             </CardContent>
           </Card>
@@ -674,14 +674,14 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords)}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'client'))}
               <div className="space-y-4">
-                {userKeywords.length > 0 && (
+                {userKeywords.filter(k => k.category === 'client').length > 0 && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords)}
+                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'client'))}
               </div>
             </CardContent>
           </Card>
@@ -696,14 +696,14 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {renderDefaultKeywords(defaultKeywords)}
+              {renderDefaultKeywords(defaultKeywords.filter(k => k.category === 'hardware'))}
               <div className="space-y-4">
-                {userKeywords.length > 0 && (
+                {userKeywords.filter(k => k.category === 'hardware').length > 0 && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Keywords</h3>
                   </div>
                 )}
-                {renderUserKeywordTable(userKeywords)}
+                {renderUserKeywordTable(userKeywords.filter(k => k.category === 'hardware'))}
               </div>
             </CardContent>
           </Card>
