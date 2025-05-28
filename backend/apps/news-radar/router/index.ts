@@ -391,19 +391,22 @@ newsRouter.get("/scraping/progress", getProgress);
 // Test endpoint to activate progress (for testing the component)
 newsRouter.post("/scraping/test-progress", async (req, res) => {
   try {
-    const { updateNewsRadarProgress } = require("backend/utils/scraping-progress");
-    updateNewsRadarProgress({
+    // Import the progress module and activate it
+    const { updateProgress } = await import("../progress");
+    updateProgress({
       isActive: true,
-      currentSource: "Test News Source",
-      totalSources: 3,
-      currentSourceIndex: 1,
-      articlesAdded: 5,
-      articlesSkipped: 2,
+      currentSource: "CNN Breaking News",
+      currentArticle: "Major tech security vulnerability discovered",
+      totalSources: 5,
+      currentSourceIndex: 2,
+      articlesAdded: 8,
+      articlesSkipped: 3,
       errors: [],
       startTime: new Date()
     });
-    res.json({ success: true, message: "Progress activated for testing" });
+    res.json({ success: true, message: "Progress activated - check the component!" });
   } catch (error) {
+    console.error("Test progress error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ success: false, message: errorMessage });
   }

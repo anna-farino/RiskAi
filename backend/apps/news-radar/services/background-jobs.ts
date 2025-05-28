@@ -13,7 +13,7 @@ import { users } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
-const { updateNewsRadarProgress, resetNewsRadarProgress, getNewsRadarProgress } = require("backend/utils/scraping-progress");
+// Progress tracking functions will be imported dynamically
 import dotenv from "dotenv";
 import { Request } from 'express';
 
@@ -399,15 +399,21 @@ export async function runGlobalScrapeJob(
     );
 
     // Initialize progress tracking
-    updateNewsRadarProgress({
-      isActive: true,
-      totalSources: sources.length,
-      currentSourceIndex: 0,
-      articlesAdded: 0,
-      articlesSkipped: 0,
-      errors: [],
-      startTime: new Date()
-    });
+    try {
+      const progressModule = await import("../../utils/scraping-progress");
+      progressModule.updateNewsRadarProgress({
+        isActive: true,
+        totalSources: sources.length,
+        currentSourceIndex: 0,
+        articlesAdded: 0,
+        articlesSkipped: 0,
+        errors: [],
+        startTime: new Date()
+      });
+      log("[Progress] News Radar progress tracking initialized", "scraper");
+    } catch (error) {
+      log(`[Progress] Error initializing progress tracking: ${error.message}`, "scraper");
+    }
 
     if (sources.length === 0) {
       globalJobRunning = false;

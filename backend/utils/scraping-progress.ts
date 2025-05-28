@@ -40,6 +40,7 @@ export function getThreatTrackerProgress(): ScrapingProgress {
 
 export function updateNewsRadarProgress(update: Partial<ScrapingProgress>) {
   newsRadarProgress = { ...newsRadarProgress, ...update };
+  console.log('[Progress] News Radar progress updated:', newsRadarProgress);
 }
 
 export function updateThreatTrackerProgress(update: Partial<ScrapingProgress>) {
