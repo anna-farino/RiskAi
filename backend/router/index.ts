@@ -25,10 +25,9 @@ router.get('/test', limiter, handleTest)
 router.get('/test-email', (req: Request, res: Response)=>{
   sendGrid({
     to: "rloss@altairtek.com",
-    from: "no-reply@risqai.co",
-    subject: "this is the subject of the email",
-    text: "This is the text of the email",
-    html: "<h1>This is an h1 text lol</h1>", 
+    subject: "Test",
+    text: "This is 👍",
+    //html: "<h1>Hello, sendGrid!</h1>"
   })
   res.json({ response: "test email route hit!"})
 })
