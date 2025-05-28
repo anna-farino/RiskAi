@@ -387,3 +387,24 @@ newsRouter.post("/settings/auto-scrape", async (req, res) => {
 
 // Get scraping progress
 newsRouter.get("/scraping/progress", getProgress);
+
+// Test endpoint to activate progress (for testing the component)
+newsRouter.post("/scraping/test-progress", async (req, res) => {
+  try {
+    const { updateNewsRadarProgress } = require("backend/utils/scraping-progress");
+    updateNewsRadarProgress({
+      isActive: true,
+      currentSource: "Test News Source",
+      totalSources: 3,
+      currentSourceIndex: 1,
+      articlesAdded: 5,
+      articlesSkipped: 2,
+      errors: [],
+      startTime: new Date()
+    });
+    res.json({ success: true, message: "Progress activated for testing" });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});

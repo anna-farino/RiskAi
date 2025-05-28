@@ -40,8 +40,20 @@ export function ScrapingProgress({ apiEndpoint, title, className }: ScrapingProg
   const progress = progressData;
 
   // Don't show the component if scraping is not active
-  if (!progress?.isActive || isLoading) {
+  if (!progress?.isActive) {
     return null;
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card className={cn("w-full", className)}>
+        <CardContent className="flex items-center justify-center p-6">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+          <span className="ml-2">Loading progress...</span>
+        </CardContent>
+      </Card>
+    );
   }
 
   const progressPercentage = progress.totalSources > 0 
