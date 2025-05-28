@@ -105,6 +105,7 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -272,28 +273,33 @@ export default function Sources() {
     },
   });
 
-  // Scrape single source mutation
+  // Scrape single source mutation - now triggers progress tracking
   const scrapeSingleSource = useMutation({
     mutationFn: async (id: string) => {
       setScrapingSourceId(id);
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/source/${id}`);
+      setScrapeJobRunning(true);
+      setShowProgressDialog(true); // Show progress dialog for single source too
+      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
     },
     onSuccess: (data) => {
       toast({
-        title: "Source scraped",
-        description: `Found ${data.articleCount || 0} new articles.`,
+        title: "Scraping completed",
+        description: `Found ${data.newArticles?.length || 0} new articles.`,
       });
       setScrapingSourceId(null);
+      setScrapeJobRunning(false);
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
     onError: (error) => {
       console.error("Error scraping source:", error);
       toast({
-        title: "Error scraping source",
-        description: "There was an error scraping this source. Please try again.",
+        title: "Error during scraping",
+        description: "There was an error during the scraping process. Please check your connection and try again.",
         variant: "destructive",
       });
       setScrapingSourceId(null);
+      setScrapeJobRunning(false);
+      setShowProgressDialog(false);
     },
   });
 
@@ -308,6 +314,7 @@ export default function Sources() {
         description: "The system is now scraping all active sources for threats.",
       });
       setScrapeJobRunning(true);
+      setShowProgressDialog(true); // Show the progress dialog
       // Start polling for status updates
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
     },
@@ -831,4 +838,247 @@ export default function Sources() {
       </Table>
     );
   }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
+        <p className="text-muted-foreground">
+          Manage sources for threat monitoring and configure auto-scrape settings.
+        </p>
+      </div>
+      
+      {/* Auto-scrape settings card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            Auto-Scrape Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure automatic scraping of threat sources to stay updated on security vulnerabilities
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-scrape"
+                checked={autoScrapeSettings.data?.enabled || false}
+                onCheckedChange={handleToggleAutoScrape}
+                disabled={updateAutoScrapeSettings.isPending}
+              />
+              <div className="grid gap-0.5">
+                <label
+                  htmlFor="auto-scrape"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {autoScrapeSettings.data?.enabled ? 'Enabled' : 'Disabled'}
+                </label>
+                <div className="text-xs text-muted-foreground">
+                  Automatically scrape sources for new threats
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={autoScrapeSettings.data?.interval === JobInterval.DAILY ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleChangeAutoScrapeInterval(JobInterval.DAILY)}
+                disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
+              >
+                Daily
+              </Button>
+              <Button
+                variant={autoScrapeSettings.data?.interval === JobInterval.WEEKLY ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleChangeAutoScrapeInterval(JobInterval.WEEKLY)}
+                disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
+              >
+                Weekly
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <div className="text-sm text-muted-foreground">
+            {scrapeJobRunning ? (
+              <span className="flex items-center text-primary">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Scrape job is currently running...
+              </span>
+            ) : (
+              <span>
+                Manual scrape allows you to immediately check for new threats
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {scrapeJobRunning ? (
+              <Button 
+                variant="outline" 
+                onClick={() => stopScrapeJob.mutate()}
+                disabled={stopScrapeJob.isPending}
+              >
+                {stopScrapeJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Stop Scraping
+              </Button>
+            ) : (
+              <Button 
+                variant="default" 
+                onClick={() => scrapeAllSources.mutate()}
+                disabled={scrapeAllSources.isPending || localSources.length === 0}
+              >
+                {scrapeAllSources.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                )}
+                Scrape All Sources
+              </Button>
+            )}
+          </div>
+        </CardFooter>
+      </Card>
+      
+      {/* Sources card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Threat Sources</CardTitle>
+            <CardDescription>
+              Websites to monitor for security threat information
+            </CardDescription>
+          </div>
+          <Button onClick={handleNewSource} disabled={createSource.isPending}>
+            {createSource.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            Add Source
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {renderSourcesTable()}
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Source Dialog */}
+      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingSource ? 'Edit Source' : 'Add New Source'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSource
+                ? 'Update the source details below.'
+                : 'Enter the details for your new threat source.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter source name..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      The URL of the website to monitor for threats
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Active Source
+                      </FormLabel>
+                      <FormDescription>
+                        Enable this source for monitoring
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="includeInAutoScrape"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Include in Auto-Scrape
+                      </FormLabel>
+                      <FormDescription>
+                        Include this source in automatic scraping jobs
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createSource.isPending || updateSource.isPending}>
+                  {(createSource.isPending || updateSource.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {editingSource ? 'Update Source' : 'Add Source'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scraping Progress Dialog */}
+      <ScrapingProgressDialog
+        app="threat-tracker"
+        isOpen={showProgressDialog}
+        onClose={() => setShowProgressDialog(false)}
+      />
+    </div>
+  );
 }
