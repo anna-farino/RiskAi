@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
@@ -15,10 +15,25 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  Plus,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +61,8 @@ export default function ThreatHome() {
     endDate?: Date;
   }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] = useState<boolean>(false);
+  const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
   
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
@@ -335,6 +352,38 @@ export default function ThreatHome() {
     client: keywords.data?.filter(k => k.category === 'client') || [],
     hardware: keywords.data?.filter(k => k.category === 'hardware') || [],
   };
+
+  // Filter keywords for autocomplete based on search term
+  const filteredKeywords = useMemo(() => {
+    if (!keywords.data) return [];
+    
+    return keywords.data.filter((keyword) => {
+      const matchesSearch = keywordSearchTerm === "" || 
+        keyword.term.toLowerCase().includes(keywordSearchTerm.toLowerCase());
+      const notAlreadySelected = !selectedKeywordIds.includes(keyword.id);
+      return matchesSearch && notAlreadySelected && keyword.active;
+    });
+  }, [keywords.data, keywordSearchTerm, selectedKeywordIds]);
+
+  // Get selected keywords for display
+  const selectedKeywords = useMemo(() => {
+    if (!keywords.data) return [];
+    return keywords.data.filter(k => selectedKeywordIds.includes(k.id));
+  }, [keywords.data, selectedKeywordIds]);
+
+  // Add keyword to selection
+  const addKeywordToFilter = (keywordId: string) => {
+    if (!selectedKeywordIds.includes(keywordId)) {
+      setSelectedKeywordIds(prev => [...prev, keywordId]);
+    }
+    setKeywordSearchTerm("");
+    setKeywordAutocompleteOpen(false);
+  };
+
+  // Remove keyword from selection
+  const removeKeywordFromFilter = (keywordId: string) => {
+    setSelectedKeywordIds(prev => prev.filter(id => id !== keywordId));
+  };
   
   return (
     <>
@@ -416,8 +465,8 @@ export default function ThreatHome() {
         {/* Filters section */}
         {isFilterOpen && (
           <div className="p-4 border rounded-lg bg-card">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium">Filter by keywords</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-medium">Filter Options</h3>
               <div className="flex gap-2">
                 <Button 
                   variant="ghost" 
@@ -438,46 +487,116 @@ export default function ThreatHome() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Threat Keywords */}
+            <div className="space-y-4">
+              {/* Keyword Autocomplete Filter */}
               <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Threat Keywords</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.threat.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Add Keywords</h4>
+                <Popover open={keywordAutocompleteOpen} onOpenChange={setKeywordAutocompleteOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 justify-between"
+                      onClick={() => setKeywordAutocompleteOpen(true)}
                     >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.threat.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No threat keywords defined</span>
-                  )}
-                </div>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add keyword filter
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search keywords..."
+                        value={keywordSearchTerm}
+                        onValueChange={setKeywordSearchTerm}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No keywords found.</CommandEmpty>
+                        {filteredKeywords.length > 0 && (
+                          <>
+                            <CommandGroup heading="Threat Keywords">
+                              {filteredKeywords
+                                .filter(k => k.category === 'threat')
+                                .map((keyword) => (
+                                  <CommandItem
+                                    key={keyword.id}
+                                    value={keyword.term}
+                                    onSelect={() => addKeywordToFilter(keyword.id)}
+                                  >
+                                    <Shield className="h-4 w-4 mr-2 text-red-500" />
+                                    {keyword.term}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                            <CommandGroup heading="Vendors">
+                              {filteredKeywords
+                                .filter(k => k.category === 'vendor')
+                                .map((keyword) => (
+                                  <CommandItem
+                                    key={keyword.id}
+                                    value={keyword.term}
+                                    onSelect={() => addKeywordToFilter(keyword.id)}
+                                  >
+                                    <div className="h-4 w-4 mr-2 bg-blue-500 rounded-sm" />
+                                    {keyword.term}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                            <CommandGroup heading="Clients">
+                              {filteredKeywords
+                                .filter(k => k.category === 'client')
+                                .map((keyword) => (
+                                  <CommandItem
+                                    key={keyword.id}
+                                    value={keyword.term}
+                                    onSelect={() => addKeywordToFilter(keyword.id)}
+                                  >
+                                    <div className="h-4 w-4 mr-2 bg-green-500 rounded-sm" />
+                                    {keyword.term}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                            <CommandGroup heading="Hardware">
+                              {filteredKeywords
+                                .filter(k => k.category === 'hardware')
+                                .map((keyword) => (
+                                  <CommandItem
+                                    key={keyword.id}
+                                    value={keyword.term}
+                                    onSelect={() => addKeywordToFilter(keyword.id)}
+                                  >
+                                    <div className="h-4 w-4 mr-2 bg-orange-500 rounded-sm" />
+                                    {keyword.term}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
-              
-              {/* Vendor Keywords */}
-              <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vendors</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.vendor.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.vendor.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No vendors defined</span>
-                  )}
+
+              {/* Selected Keywords Display */}
+              {selectedKeywords.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">Active Filters</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedKeywords.map((keyword) => (
+                      <Badge
+                        key={keyword.id}
+                        variant="default"
+                        className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => removeKeywordFromFilter(keyword.id)}
+                      >
+                        {keyword.term}
+                        <X className="h-3 w-3 ml-1" />
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               
               {/* Client Keywords */}
               <div>
