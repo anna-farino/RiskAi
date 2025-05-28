@@ -19,12 +19,12 @@ export function Logo({
   // Determine font size based on size prop
   const getFontSize = () => {
     switch (size) {
-      case 'sm': return '1.75rem';      // 28px - Small size for tight spaces
-      case 'md': return '2rem';         // 32px - Medium size (our target size)
-      case 'lg': return '2.5rem';       // 40px - Large size for tablets
-      case 'xl': return '3rem';         // 48px - Extra large for desktop
-      case 'responsive': return 'clamp(2rem, 5vw, 3rem)'; // Responsive size that grows with viewport
-      default: return '2rem';           // Default to our 32px target
+      case 'sm': return '1.75rem';      // Increased from 1.5rem
+      case 'md': return '2.25rem';      // Increased from 2rem
+      case 'lg': return '2.75rem';      // Increased from 2.5rem
+      case 'xl': return '3.25rem';      // Increased from 3rem
+      case 'responsive': return '2.75rem'; // Increased default size
+      default: return '2.75rem';
     }
   };
   
