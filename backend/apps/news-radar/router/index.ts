@@ -302,6 +302,37 @@ newsRouter.get("/jobs/status", async (_req, res) => {
   }
 });
 
+// Progress tracking endpoints
+newsRouter.get("/jobs/progress", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    const { ProgressManager } = await import("../../../services/progress-manager");
+    const userJobs = ProgressManager.getUserJobs(userId);
+    res.json(userJobs);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+newsRouter.get("/jobs/progress/:jobId", async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const userId = (req.user as User).id as string;
+    const { ProgressManager } = await import("../../../services/progress-manager");
+    const progress = ProgressManager.getProgress(jobId);
+    
+    if (!progress || progress.userId !== userId) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    
+    res.json(progress);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
 newsRouter.post("/jobs/stop", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;

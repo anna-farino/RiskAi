@@ -491,6 +491,39 @@ threatRouter.get("/scrape/status", async (req, res) => {
   }
 });
 
+// Progress tracking endpoints
+threatRouter.get("/scrape/progress", async (req, res) => {
+  reqLog(req, "GET /scrape/progress");
+  try {
+    const userId = getUserId(req);
+    const { ProgressManager } = await import("../../../services/progress-manager");
+    const userJobs = ProgressManager.getUserJobs(userId);
+    res.json(userJobs);
+  } catch (error: any) {
+    console.error("Error fetching scrape progress:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch scrape progress" });
+  }
+});
+
+threatRouter.get("/scrape/progress/:jobId", async (req, res) => {
+  reqLog(req, "GET /scrape/progress/:jobId");
+  try {
+    const { jobId } = req.params;
+    const userId = getUserId(req);
+    const { ProgressManager } = await import("../../../services/progress-manager");
+    const progress = ProgressManager.getProgress(jobId);
+    
+    if (!progress || progress.userId !== userId) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    
+    res.json(progress);
+  } catch (error: any) {
+    console.error("Error fetching job progress:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch job progress" });
+  }
+});
+
 // Auto-scrape settings API
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");

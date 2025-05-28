@@ -145,7 +145,7 @@ async function processArticle(
 }
 
 // Scrape a single source
-export async function scrapeSource(source: ThreatSource) {
+export async function scrapeSource(source: ThreatSource, jobId?: string) {
   log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
   
   try {
@@ -295,10 +295,19 @@ export async function runGlobalScrapeJob(userId?: string) {
   globalScrapeJobRunning = true;
   log("[ThreatTracker] Starting global scrape job", "scraper");
   
+  let jobId: string | null = null;
+  
   try {
     // Get all active sources for auto-scraping
     const sources = await storage.getAutoScrapeSources(userId);
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
+    
+    // Initialize progress tracking
+    if (userId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      jobId = ProgressManager.createJob(userId, 'threat-tracker', sources.length);
+      ProgressManager.setPhase(jobId, 'initializing');
+    }
     
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];
@@ -306,13 +315,40 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
-        const newArticles = await scrapeSource(source);
+        // Update progress to show current source
+        if (jobId) {
+          const { ProgressManager } = await import("../../../services/progress-manager");
+          ProgressManager.updateCurrentSource(jobId, {
+            id: source.id,
+            name: source.name,
+            url: source.url
+          });
+        }
+        
+        const newArticles = await scrapeSource(source, jobId);
         if (!newArticles?.length) continue
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
         }
+        
+        // Mark source as completed
+        if (jobId) {
+          const { ProgressManager } = await import("../../../services/progress-manager");
+          ProgressManager.completeSource(jobId);
+        }
       } catch (error: any) {
         log(`[ThreatTracker] Error scraping source ${source.name}: ${error.message}`, "scraper-error");
+        
+        // Track the error
+        if (jobId) {
+          const { ProgressManager } = await import("../../../services/progress-manager");
+          ProgressManager.addError(jobId, {
+            type: 'source-error',
+            message: error.message,
+            sourceId: source.id
+          });
+        }
+        
         // Continue with the next source
         continue;
       }
@@ -321,13 +357,27 @@ export async function runGlobalScrapeJob(userId?: string) {
     log(`[ThreatTracker] Completed global scrape job. Found ${allNewArticles.length} new articles.`, "scraper");
     globalScrapeJobRunning = false;
     
+    // Complete the job
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.completeJob(jobId);
+    }
+    
     return {
       message: `Completed global scrape job. Found ${allNewArticles.length} new articles.`,
-      newArticles: allNewArticles
+      newArticles: allNewArticles,
+      jobId
     };
   } catch (error: any) {
     log(`[ThreatTracker] Error in global scrape job: ${error.message}`, "scraper-error");
     globalScrapeJobRunning = false;
+    
+    // Mark job as failed
+    if (jobId) {
+      const { ProgressManager } = await import("../../../services/progress-manager");
+      ProgressManager.setJobError(jobId, error.message);
+    }
+    
     throw error;
   }
 }
