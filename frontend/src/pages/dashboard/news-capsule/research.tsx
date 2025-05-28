@@ -804,7 +804,7 @@ export default function Research() {
           
           <button
             onClick={async () => {
-              // Create a new empty version of today's report
+              // Create a new report version - include selected articles if any exist
               try {
                 setIsLoading(true);
                 setError(null);
@@ -845,12 +845,12 @@ export default function Research() {
                   // Continue with default values if localStorage fails
                 }
                 
-                // Create the new report
+                // Create the new report - include selected articles if any exist
                 const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
                 const newReport = {
                   id: newReportId,
                   createdAt: new Date().toISOString(),
-                  articles: [], // Empty articles array
+                  articles: [...selectedArticles], // Include selected articles
                   versionNumber: versionNumber
                 };
                 
@@ -859,10 +859,14 @@ export default function Research() {
                 
                 // Save updated reports to localStorage
                 localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-                console.log("Created new empty report version", versionNumber);
+                console.log("Created new report version", versionNumber, "with", selectedArticles.length, "articles");
                 
                 // Success message
-                alert(`Successfully created new Executive Report (Version ${versionNumber})`);
+                if (selectedArticles.length > 0) {
+                  alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
+                } else {
+                  alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
+                }
               } catch (err) {
                 setError(err instanceof Error ? err.message : "An error occurred");
               } finally {
