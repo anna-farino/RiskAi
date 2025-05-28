@@ -265,6 +265,37 @@ export default function ThreatHome() {
       });
     },
   });
+
+  // Send article to News Capsule
+  const sendToCapsule = async (url: string) => {
+    try {
+      const response = await fetch(`${serverUrl}/api/news-capsule/process-url`, {
+        method: "POST",
+        credentials: 'include',
+        headers: {
+          "Content-Type": "application/json",
+          ...csfrHeaderObject(),
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send to capsule: ${response.statusText}`);
+      }
+
+      toast({
+        title: "Article sent to News Capsule",
+        description: "The article has been successfully sent for processing.",
+      });
+    } catch (error) {
+      console.error("Send to capsule error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send article to News Capsule. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
@@ -317,71 +348,7 @@ export default function ThreatHome() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-3">
-              <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Shield className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-white/10 px-2 py-0.5 rounded-full">
-                Automated
-              </span>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">
-              Threat Monitoring
-            </h3>
-            <p className="text-sm text-slate-400 flex-1">
-              Automatically extract and analyze security threats from multiple sources with cross-reference capabilities
-            </p>
-            <div className="mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/threat/sources"
-                  className="flex items-center gap-1"
-                >
-                  Manage Sources <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
 
-          <div className="bg-white/5 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-3">
-              <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-white/10 px-2 py-0.5 rounded-full">
-                Configurable
-              </span>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">
-              Cross-Reference Keywords
-            </h3>
-            <p className="text-sm text-slate-400 flex-1">
-              Track security concerns for your specific vendors, clients, and hardware/software
-            </p>
-            <div className="mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/threat/keywords"
-                  className="flex items-center gap-1"
-                >
-                  Manage Keywords <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-col w-full gap-4">
@@ -576,6 +543,7 @@ export default function ThreatHome() {
                       setSelectedKeywordIds(prev => [...prev, keywordObj.id]);
                     }
                   }}
+                  onSendToCapsule={sendToCapsule}
                 />
               ))}
             </div>

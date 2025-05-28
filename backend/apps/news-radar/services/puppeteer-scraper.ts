@@ -154,7 +154,7 @@ export async function scrapePuppeteer(
         '--disable-web-security',
         '--disable-blink-features=AutomationControlled',
       ],
-      //executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+      executablePath: CHROME_PATH || undefined,
       timeout: 180000, // 3 minute timeout
     });
     log('[scrapePuppeteer] ✅ Browser launched');

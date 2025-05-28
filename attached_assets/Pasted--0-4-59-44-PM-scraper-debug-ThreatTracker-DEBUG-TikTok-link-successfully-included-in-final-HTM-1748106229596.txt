@@ -1,0 +1,82 @@
+[0] 4:59:44 PM [scraper-debug] [ThreatTracker] DEBUG: TikTok link successfully included in final HTML!
+[0] 4:59:44 PM [scraper] [ThreatTracker] Page closed successfully
+[0] 4:59:44 PM [scraper] [ThreatTracker] Determining HTML structure for articles
+[0] 4:59:44 PM [scraper] [ThreatTracker] Using stored HTML structure for source
+[0] 4:59:44 PM [scraper] [ThreatTracker] Step 4: Identifying article links with OpenAI
+[0] 4:59:44 PM [scraper] [ThreatTracker] Starting article link extraction from HTML
+[0] 4:59:44 PM [scraper] [ThreatTracker] Using OpenAI to identify article links from structured HTML
+[0] 4:59:44 PM [openai] [ThreatTracker] Analyzing 73 structured link entries
+[0] 4:59:44 PM [openai-debug] [ThreatTracker] Structured HTML being sent to OpenAI for analysis:
+[0] URL: https://twitter.com/thehackersnews, Text: thehackersnews
+[0] URL: https://www.linkedin.com/company/thehackernews/, Text: thehackernews
+[0] URL: https://www.facebook.com/thehackernews, Text: thehackernews
+[0] URL: /, Text: /
+[0] URL: javascript:void(0), Text: void(0)
+[0] URL: #email-outer, Text:  Subscribe – Get Latest News
+[0] URL: /, Text:  Home
+[0] URL: #email-outer, Text:  Newsletter
+[0] URL: /p/upcoming-hacker-news-webinars.html, Text:  Webinars
+[0] URL: /, Text: /
+[0] URL: /search/label/data%20breach, Text: Data Breaches
+[0] URL: /search/label/Cyber%20Attack, Text: Cyber Attacks
+[0] URL: /search/label/Vulnerability, Text: Vulnerabilities
+[0] URL: /p/upcoming-hacker-news-webinars.html, Text: Webinars
+[0] URL: https://thehackernews.com/expert-insights/, Text: Expert Insights
+[0] URL: /p/submit-news.html, Text: Contact
+[0] URL: javascript:void(0), Text: void(0)
+[0] URL: javascript:void(0), Text: void(0)
+[0] URL: /p/upcoming-hacker-news-webinars.html, Text: Webinars
+[0] URL: https://thehackernews.tradepub.com, Text: Free eBooks
+[0] URL: /p/about-us.html, Text: About THN
+[0] URL: /p/careers-technical-writer-designer-and.html, Text: /p/careers-technical-writer-designer-and.html
+[0] URL: /p/advertising-with-hacker-news.html, Text: Advertise with us
+[0] URL: https://www.facebook.com/thehackernews, Text: thehackernews
+[0] URL: https://twitter.com/thehackersnews, Text: thehackersnews
+[0] URL: https://www.linkedin.com/company/thehackernews/, Text: thehackernews
+[0] URL: https://www.youtube.com/c/thehackernews?sub_confirmation=1, Text: thehackernews
+[0] URL: https://www.instagram.com/thehackernews/, Text: thehackernews
+[0] URL: https://feeds.feedburner.com/TheHackersNews, Text:  RSS Feeds
+[0] URL: #email-outer, Text:  Email Alerts
+[0] URL: https://t.me/+wKrQxniFO1Q1OTRk, Text:  Telegram Channel
+[0] URL: https://thehackernews.uk/training-d, Text: training d
+[0] URL: https://thehackernews.uk/genai-sec-cheat-wiz, Text: GenAI Security Best Practices Cheat SheetWizCybersecurity / GenAI SecuritySecure your GenAI systems fast with 7 must-know best practices to stop data poisoning, model theft, and more—plus ways AI can boost your defenses.
+[0] URL: https://thehackernews.uk/prelude-free-trial-thn, Text: Find the Coverage Gaps in Your Security ToolsPrelude SecurityContinuous Control MonitoringTry Prelude free for 14 days to find gaps in your security tools, maximizing the controls you already have.
+[0] URL: https://thehackernews.com/search?updated-max=2025-05-22T16:41:00%2B05:30&max-results=12, Text: Next Page 
+[0] URL: https://thehackernews.uk/wiz-side-1, Text: wiz side 1
+[0] URL: https://thehackernews.uk/cis-controls-rsrcs, Text: cis controls rsrcs
+[0] URL: https://thehackernews.com/2025/05/fortinet-patches-cve-2025-32756-zero.html, Text: Fortinet Patches CVE-2025-32756 Zero-Day RCE Flaw Exploited in FortiVoice Systems
+[0] URL: https://thehackernews.com/2025/05/weekly-recap-zero-day-exploits-insider.html, Text: ⚡ Weekly Recap: Zero-Day Exploits, Insider Threats, APT Targeting, Botnets and More
+[0] URL: https://thehackernews.com/2025/05/china-linked-apts-exploit-sap-cve-2025.html, Text: China-Linked APTs Exploit SAP CVE-2025-31324 to Breach 581 Critical Systems Worldwide
+[0] URL: https://thehackernews.com/2025/05/learning-how-to-hack-why-offensive.html, Text: Learning How to Hack: Why Offensive Security Training Benefits Your Entire Security Team
+[0] URL: https://thehackernews.com/2025/05/malicious-npm-package-leverages-unicode.html, Text: Malicious npm Package Leverages Unicode Steganography, Google Calendar as C2 Dropper
+[0] URL: https://thehackernews.com/2025/05/reevaluating-sses-technical-gap.html, Text: Reevaluating SSEs: A Technical Gap Analysis of Last-Mile Protection
+[0] URL: https://thehackernews.com/2025/05/coinbase-agents-bribed-data-of-1-users.html, Text: Coinbase Agents Bribed, Data of ~1% Users Leaked; $20M Extortion Attempt Fails
+[0] URL: https://thehackernews.com/2025/05/security-tools-alone-dont-protect-you.html, Text: Security Tools Alone Don't Protect You — Control Effectiveness Does
+[0] URL: https://thehackernews.com/2025/05/malicious-pypi-package-posing-as-solana.html, Text: Malicious PyPI Package Posing as Solana Tool Stole Source Code in 761 Downloads
+[0] URL: https://thehackernews.com/2025/05/microsoft-fixes-78-flaws-5-zero-days.html, Text: Microsoft Fixes 78 Flaws, 5 Zero-Days Exploited; CVSS 10 Bug Impacts Azure DevOps Server
+[0] URL: https://thehackernews.com/2025/05/researchers-expose-new-intel-cpu-flaws.html, Text: Researchers Expose New Intel CPU Flaws Enabling Memory Leaks and Spectre v2 Attacks
+[0] URL: https://thehackernews.com/2025/05/top-5-bcdr-capabilities-for-ransomware-defense.html, Text: 5 BCDR Essentials for Effective Ransomware Defense
+[0] URL: https://thehackernews.com/2025/05/new-chrome-vulnerability-enables-cross.html, Text: New Chrome Vulnerability Enables Cross-Origin Data Leak via Loader Referrer Policy
+[0] URL: https://thehackernews.uk/material-google-workspace-secops, Text: Secure Google Workspace Access with Intelligent, AI-Driven Protection
+[0] URL: https://thehackernews.uk/entraid-backup-reasons, Text: Worried About Identity Theft? 6 Simple Steps to Secure Microsoft Entra ID
+[0] URL: https://thehackernews.uk/managing-machine-identities, Text: Free Guide: Master the Essentials of Machine Identity Management
+[0] URL: https://thehackernews.uk/tines-security-advisories, Text: Get This Free Pre-Built Workflow to Instantly Automate CVE Alerts
+[0] URL: https://thehackernews.com/expert-insights/, Text: Articles
+[0] URL: https://thehackernews.com/videos/, Text: Videos
+[0] URL: https://thehackernews.uk/master-cyber-risk-1, Text: Want To Excel as a Cybersecurity Professional?Develop cybersecurity strategies that increase security with Georgetown.
+[0] URL: https://thehackernews.uk/wiz-devsec-aspm, Text: Unite Dev and Sec with ASPMRedefining Secure Development with Application Security Posture Management (ASPM). Unlock the tools and processes that will help developers ship fast and fix fast.
+[0] URL: https://thehackernews.uk/ciso-risk-board-native-2, Text: CISO, Enhance Your Cyber Risk Reporting to the BoardStruggling to convey cyber risks to your board? Get our CISO eBook with actionable insights for confident reporting. Download today.
+[0] URL: https://thehackernews.uk/appomni-saas-guide-dark, Text: [Download] SaaS Security Guide That Turns Blind Spots Into DefensesA clear, practical guide to help CISOs and IT teams secure SaaS apps, reduce risks, and protect data.
+[0] URL: https://twitter.com/thehackersnews, Text: 925,500 Followers
+[0] URL: https://www.linkedin.com/company/thehackernews/, Text: 636,000 Followers
+[0] URL: https://www.youtube.com/c/thehackernews?sub_confirmation=1, Text: 23,500 Subscribers
+[0] URL: https://www.instagram.com/thehackernews/, Text: 145,000 Followers
+[0] URL: https://www.facebook.com/thehackernews, Text: 1,890,500 Followers
+[0] URL: https://t.me/+wKrQxniFO1Q1OTRk, Text: 147,200 Subscribers
+[0] URL: /p/about-us.html, Text: About THN
+[0] URL: /p/advertising-with-hacker-news.html, Text: Advertise with us
+[0] URL: /p/submit-news.html, Text: Contact
+[0] URL: /p/upcoming-hacker-news-webinars.html, Text: Webinars
+[0] URL: /p/privacy-policy.html, Text: Privacy Policy
+[0] URL: https://feeds.feedburner.com/TheHackersNews, Text:  RSS Feeds
+[0] URL: /p/submit-news.html, Text:  Contact Us
