@@ -13,7 +13,6 @@ import { users } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
-// Progress tracking functions will be imported dynamically
 import dotenv from "dotenv";
 import { Request } from 'express';
 
@@ -398,31 +397,8 @@ export async function runGlobalScrapeJob(
       "scraper",
     );
 
-    // Initialize progress tracking
-    try {
-      const { updateProgress } = await import("../progress");
-      updateProgress({
-        isActive: true,
-        totalSources: sources.length,
-        currentSourceIndex: 0,
-        articlesAdded: 0,
-        articlesSkipped: 0,
-        errors: [],
-        startTime: new Date()
-      });
-      log("[Progress] News Radar progress tracking initialized", "scraper");
-    } catch (error) {
-      log(`[Progress] Error initializing progress tracking: ${error.message}`, "scraper");
-    }
-
     if (sources.length === 0) {
       globalJobRunning = false;
-      try {
-        const { updateProgress } = await import("../progress");
-        updateProgress({ isActive: false });
-      } catch (error) {
-        log(`[Progress] Error resetting progress: ${error.message}`, "scraper");
-      }
       return {
         success: true,
         message: "No sources found for auto-scraping",
@@ -434,36 +410,13 @@ export async function runGlobalScrapeJob(
     let allNewArticles: Article[] = [];
 
     // Process each source one by one
-    for (let i = 0; i < sources.length; i++) {
-      const source = sources[i];
+    for (const source of sources) {
       log(`[Background Job] Processing source: ${source.name}`, "scraper");
-
-      // Update progress with current source info
-      try {
-        const { updateProgress } = await import("../progress");
-        updateProgress({
-          currentSource: source.name,
-          currentSourceIndex: i + 1
-        });
-      } catch (error) {
-        log(`[Progress] Error updating current source: ${error.message}`, "scraper");
-      }
 
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
         );
-
-        // Update progress with article counts
-        try {
-          const { updateProgress } = await import("../progress");
-          updateProgress({
-            articlesAdded: savedCount,
-            articlesSkipped: processedCount - savedCount
-          });
-        } catch (error) {
-          log(`[Progress] Error updating article counts: ${error.message}`, "scraper");
-        }
 
         // Add source information to each new article for email notification grouping
         const sourcedArticles = newArticles.map((article) => ({
@@ -494,17 +447,6 @@ export async function runGlobalScrapeJob(
           `[Background Job] Error scraping source ${source.name}: ${errorMessage}`,
           "scraper",
         );
-        
-        // Update progress with error
-        try {
-          const { updateProgress } = await import("../progress");
-          updateProgress({
-            errors: [`${source.name}: ${errorMessage}`]
-          });
-        } catch (error) {
-          log(`[Progress] Error updating progress with error: ${error.message}`, "scraper");
-        }
-        
         results.push({
           sourceId: source.id,
           sourceName: source.name,
@@ -530,14 +472,6 @@ export async function runGlobalScrapeJob(
       "scraper",
     );
     globalJobRunning = false;
-
-    // Reset progress tracking
-    try {
-      const { updateProgress } = await import("../progress");
-      updateProgress({ isActive: false });
-    } catch (error) {
-      log(`[Progress] Error resetting progress: ${error.message}`, "scraper");
-    }
 
     return {
       success: true,
@@ -583,14 +517,6 @@ export async function stopGlobalScrapeJob(): Promise<{
   
   // Set global job status to false
   globalJobRunning = false;
-
-  // Reset progress tracking when stopped
-  try {
-    const { updateProgress } = await import("../progress");
-    updateProgress({ isActive: false });
-  } catch (error) {
-    log(`[Progress] Error resetting progress on stop: ${error.message}`, "scraper");
-  }
 
   return {
     success: true,

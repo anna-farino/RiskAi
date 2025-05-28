@@ -33,7 +33,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
-import { ScrapingProgress } from "@/components/scraping-progress";
 
 export default function NewsHome() {
   const { toast } = useToast();
@@ -379,13 +378,6 @@ export default function NewsHome() {
 
   return (
     <>
-      {/* Scraping Progress - only shows when active */}
-      <ScrapingProgress 
-        apiEndpoint={`${serverUrl}/api/news-radar/scraping/progress`}
-        title="News Radar Scraping Progress"
-        className="mb-6"
-      />
-      
       <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 py-4 sm:py-6 md:py-8">
         <div className="flex flex-col gap-3 sm:gap-4">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">

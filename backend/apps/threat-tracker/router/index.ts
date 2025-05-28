@@ -9,7 +9,6 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
-import { getProgress } from "../progress";
 
 export const threatRouter = Router();
 
@@ -526,6 +525,3 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
   }
 });
-
-// Get scraping progress
-threatRouter.get("/scraping/progress", getProgress);

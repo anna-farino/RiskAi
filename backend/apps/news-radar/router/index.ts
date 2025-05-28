@@ -7,7 +7,6 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
-import { getProgress } from "../progress";
 
 
 export const newsRouter = Router()
@@ -382,32 +381,5 @@ newsRouter.post("/settings/auto-scrape", async (req, res) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ message: errorMessage });
-  }
-});
-
-// Get scraping progress
-newsRouter.get("/scraping/progress", getProgress);
-
-// Test endpoint to activate progress (for testing the component)
-newsRouter.post("/scraping/test-progress", async (req, res) => {
-  try {
-    // Import the progress module and activate it
-    const { updateProgress } = await import("../progress");
-    updateProgress({
-      isActive: true,
-      currentSource: "CNN Breaking News",
-      currentArticle: "Major tech security vulnerability discovered",
-      totalSources: 5,
-      currentSourceIndex: 2,
-      articlesAdded: 8,
-      articlesSkipped: 3,
-      errors: [],
-      startTime: new Date()
-    });
-    res.json({ success: true, message: "Progress activated - check the component!" });
-  } catch (error) {
-    console.error("Test progress error:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    res.status(500).json({ success: false, message: errorMessage });
   }
 });
