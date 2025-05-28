@@ -128,7 +128,7 @@ export const storage: IStorage = {
       
       const results = await db
         .insert(threatSources)
-        .values([source])
+        .values(source)
         .returning();
       return results[0];
     } catch (error) {
@@ -165,19 +165,31 @@ export const storage: IStorage = {
   // KEYWORDS
   getKeywords: async (category?: string, userId?: string) => {
     try {
-      const conditions = [];
-      if (category) conditions.push(eq(threatKeywords.category, category));
-      if (userId) conditions.push(eq(threatKeywords.userId, userId));
+      // Get default keywords (isDefault = true, userId = null)
+      const defaultConditions = [eq(threatKeywords.isDefault, true), isNull(threatKeywords.userId)];
+      if (category) defaultConditions.push(eq(threatKeywords.category, category));
       
-      const query = db
+      const defaultKeywords = await db
         .select()
-        .from(threatKeywords);
-        
-      const finalQuery = conditions.length 
-        ? query.where(and(...conditions))
-        : query;
+        .from(threatKeywords)
+        .where(and(...defaultConditions))
+        .execute();
       
-      return await finalQuery.execute();
+      // Get user-specific keywords if userId is provided
+      let userKeywords: ThreatKeyword[] = [];
+      if (userId) {
+        const userConditions = [eq(threatKeywords.userId, userId), eq(threatKeywords.isDefault, false)];
+        if (category) userConditions.push(eq(threatKeywords.category, category));
+        
+        userKeywords = await db
+          .select()
+          .from(threatKeywords)
+          .where(and(...userConditions))
+          .execute();
+      }
+      
+      // Combine and return both default and user keywords
+      return [...defaultKeywords, ...userKeywords];
     } catch (error) {
       console.error("Error fetching threat keywords:", error);
       return [];
@@ -200,14 +212,37 @@ export const storage: IStorage = {
 
   getKeywordsByCategory: async (category: string, userId?: string) => {
     try {
-      const conditions = [eq(threatKeywords.category, category)];
-      if (userId) conditions.push(eq(threatKeywords.userId, userId));
+      // Get default keywords for this category
+      const defaultConditions = [
+        eq(threatKeywords.category, category),
+        eq(threatKeywords.isDefault, true),
+        isNull(threatKeywords.userId)
+      ];
       
-      return await db
+      const defaultKeywords = await db
         .select()
         .from(threatKeywords)
-        .where(and(...conditions))
+        .where(and(...defaultConditions))
         .execute();
+      
+      // Get user-specific keywords for this category if userId is provided
+      let userKeywords: ThreatKeyword[] = [];
+      if (userId) {
+        const userConditions = [
+          eq(threatKeywords.category, category),
+          eq(threatKeywords.userId, userId),
+          eq(threatKeywords.isDefault, false)
+        ];
+        
+        userKeywords = await db
+          .select()
+          .from(threatKeywords)
+          .where(and(...userConditions))
+          .execute();
+      }
+      
+      // Combine and return both default and user keywords
+      return [...defaultKeywords, ...userKeywords];
     } catch (error) {
       console.error(`Error fetching ${category} keywords:`, error);
       return [];
@@ -220,9 +255,20 @@ export const storage: IStorage = {
         throw new Error("Keyword must have a term and category");
       }
       
+      // Prevent creation of default keywords by regular users
+      if (keyword.isDefault === true) {
+        throw new Error("Cannot create default keywords through this endpoint");
+      }
+      
+      // Ensure isDefault is set to false for user keywords
+      const keywordToCreate: InsertThreatKeyword = {
+        ...keyword,
+        isDefault: false
+      };
+      
       const results = await db
         .insert(threatKeywords)
-        .values([keyword])
+        .values(keywordToCreate)
         .returning();
       return results[0];
     } catch (error) {
@@ -233,9 +279,28 @@ export const storage: IStorage = {
 
   updateKeyword: async (id: string, keyword: Partial<ThreatKeyword>) => {
     try {
+      // First check if this is a default keyword
+      const existingKeyword = await db
+        .select()
+        .from(threatKeywords)
+        .where(eq(threatKeywords.id, id))
+        .execute();
+      
+      if (existingKeyword.length === 0) {
+        throw new Error("Keyword not found");
+      }
+      
+      if (existingKeyword[0].isDefault === true) {
+        throw new Error("Cannot modify default keywords");
+      }
+      
+      // Prevent changing isDefault flag through this endpoint
+      const updateData = { ...keyword };
+      delete updateData.isDefault;
+      
       const results = await db
         .update(threatKeywords)
-        .set(keyword)
+        .set(updateData)
         .where(eq(threatKeywords.id, id))
         .returning();
       return results[0];
@@ -247,6 +312,21 @@ export const storage: IStorage = {
 
   deleteKeyword: async (id: string) => {
     try {
+      // First check if this is a default keyword
+      const existingKeyword = await db
+        .select()
+        .from(threatKeywords)
+        .where(eq(threatKeywords.id, id))
+        .execute();
+      
+      if (existingKeyword.length === 0) {
+        throw new Error("Keyword not found");
+      }
+      
+      if (existingKeyword[0].isDefault === true) {
+        throw new Error("Cannot delete default keywords");
+      }
+      
       await db
         .delete(threatKeywords)
         .where(eq(threatKeywords.id, id));
@@ -349,7 +429,7 @@ export const storage: IStorage = {
     try {
       const results = await db
         .insert(threatArticles)
-        .values([article])
+        .values(article)
         .returning();
       return results[0];
     } catch (error) {
