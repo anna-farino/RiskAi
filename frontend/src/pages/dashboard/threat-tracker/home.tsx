@@ -598,45 +598,6 @@ export default function ThreatHome() {
                 </div>
               )}
               
-              {/* Client Keywords */}
-              <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Clients</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.client.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.client.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No clients defined</span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Hardware/Software Keywords */}
-              <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Hardware/Software</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.hardware.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.hardware.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No hardware/software defined</span>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         )}
