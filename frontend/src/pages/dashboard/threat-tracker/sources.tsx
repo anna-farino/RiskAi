@@ -276,10 +276,13 @@ export default function Sources() {
   // Scrape single source mutation - now triggers progress tracking
   const scrapeSingleSource = useMutation({
     mutationFn: async (id: string) => {
+      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+    },
+    onMutate: (id: string) => {
+      // Show progress dialog immediately when mutation starts
       setScrapingSourceId(id);
       setScrapeJobRunning(true);
-      setShowProgressDialog(true); // Show progress dialog for single source too
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+      setShowProgressDialog(true);
     },
     onSuccess: (data) => {
       toast({
@@ -308,13 +311,16 @@ export default function Sources() {
     mutationFn: async () => {
       return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
     },
+    onMutate: () => {
+      // Show progress dialog immediately when mutation starts
+      setScrapeJobRunning(true);
+      setShowProgressDialog(true);
+    },
     onSuccess: () => {
       toast({
         title: "Scrape job started",
         description: "The system is now scraping all active sources for threats.",
       });
-      setScrapeJobRunning(true);
-      setShowProgressDialog(true); // Show the progress dialog
       // Start polling for status updates
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
     },
@@ -406,6 +412,12 @@ export default function Sources() {
       includeInAutoScrape: true,
     });
     setSourceDialogOpen(true);
+  }
+
+  function handleCancelEdit() {
+    setSourceDialogOpen(false);
+    setEditingSource(null);
+    form.reset();
   }
 
   // Handle toggle auto-scrape
