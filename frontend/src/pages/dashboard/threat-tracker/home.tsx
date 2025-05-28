@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
+import { ScrapingProgress } from "@/components/scraping-progress";
 
 export default function ThreatHome() {
   const { toast } = useToast();

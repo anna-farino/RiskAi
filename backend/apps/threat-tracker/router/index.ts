@@ -526,3 +526,6 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
   }
 });
+
+// Get scraping progress
+threatRouter.get("/scraping/progress", getProgress);
