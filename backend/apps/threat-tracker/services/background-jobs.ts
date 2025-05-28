@@ -414,6 +414,7 @@ export async function runGlobalScrapeJob(userId?: string) {
       const { ProgressManager } = await import("../../../services/progress-manager");
       jobId = ProgressManager.createJob(userId, 'threat-tracker', sources.length);
       ProgressManager.setPhase(jobId, 'initializing');
+      console.log(`[ProgressTracker] Created job ${jobId} for user ${userId} with ${sources.length} sources`);
     }
     
     // Array to store all new articles

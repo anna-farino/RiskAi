@@ -456,12 +456,14 @@ threatRouter.post("/scrape/all", async (req, res) => {
       return res.status(409).json({ error: "A global scrape job is already running" });
     }
     
-    // Start the global scrape job
-    const job = runGlobalScrapeJob(userId);
+    // Start the global scrape job (don't await - let it run in background)
+    runGlobalScrapeJob(userId).catch(error => {
+      console.error("Background scrape job error:", error);
+    });
     
     res.json({
       message: "Global scrape job started",
-      job
+      job: {}
     });
   } catch (error: any) {
     console.error("Error starting global scrape job:", error);
@@ -498,6 +500,7 @@ threatRouter.get("/scrape/progress", async (req, res) => {
     const userId = getUserId(req);
     const { ProgressManager } = await import("../../../services/progress-manager");
     const userJobs = ProgressManager.getUserJobs(userId);
+    console.log(`[ProgressAPI] Found ${userJobs.length} jobs for user ${userId}:`, userJobs);
     res.json(userJobs);
   } catch (error: any) {
     console.error("Error fetching scrape progress:", error);

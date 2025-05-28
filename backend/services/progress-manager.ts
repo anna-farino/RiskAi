@@ -15,7 +15,7 @@ export class ProgressManager {
       jobId,
       userId,
       app,
-      status: 'starting',
+      status: 'running', // Start as 'running' instead of 'starting'
       phase: 'initializing',
       stats: {
         totalSources,
@@ -38,7 +38,8 @@ export class ProgressManager {
       jobsByUser.set(userId, new Set());
     }
     jobsByUser.get(userId)!.add(jobId);
-
+    
+    console.log(`[ProgressManager] Created job ${jobId} for user ${userId}:`, progress);
     return jobId;
   }
 
@@ -170,11 +171,16 @@ export class ProgressManager {
   // Get all active jobs for a user
   static getUserJobs(userId: string): ScrapeProgress[] {
     const userJobIds = jobsByUser.get(userId);
+    console.log(`[ProgressManager] Getting jobs for user ${userId}, found job IDs:`, userJobIds);
+    
     if (!userJobIds) return [];
 
-    return Array.from(userJobIds)
+    const jobs = Array.from(userJobIds)
       .map(jobId => activeJobs.get(jobId))
       .filter((job): job is ScrapeProgress => job !== undefined);
+      
+    console.log(`[ProgressManager] Returning ${jobs.length} jobs:`, jobs);
+    return jobs;
   }
 
   // Clean up completed jobs (call this periodically)
