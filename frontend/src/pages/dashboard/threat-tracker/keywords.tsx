@@ -66,7 +66,7 @@ import { Badge } from "@/components/ui/badge";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X, Shield } from "lucide-react";
 
 // Form schema for keyword creation/editing
 const keywordFormSchema = z.object({
@@ -413,11 +413,22 @@ export default function Keywords() {
           <TableBody>
             {keywordsByCategory.map((keyword) => (
               <TableRow key={keyword.id}>
-                <TableCell className="font-medium">{keyword.term}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {keyword.term}
+                    {keyword.isDefault && (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-700 border-blue-200">
+                        <Shield className="h-3 w-3" />
+                        <span className="text-xs">Default</span>
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div 
-                    className="flex items-center cursor-pointer"
-                    onClick={() => handleToggleActive(keyword.id, keyword.active)}
+                    className={`flex items-center ${keyword.isDefault ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    onClick={() => !keyword.isDefault && handleToggleActive(keyword.id, keyword.active)}
+                    title={keyword.isDefault ? 'Default keywords cannot be modified' : 'Click to toggle status'}
                   >
                     {keyword.active ? (
                       <Badge variant="default" className="flex items-center gap-1 bg-green-500">
@@ -436,46 +447,54 @@ export default function Keywords() {
                 </TableCell>
                 <TableCell className="text-right p-2 sm:p-4">
                   <div className="flex justify-end gap-1 sm:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditKeyword(keyword)}
-                      className="h-8 w-8"
-                    >
-                      <PencilLine className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                    {keyword.isDefault ? (
+                      <div className="text-xs text-muted-foreground py-2">
+                        Default keyword
+                      </div>
+                    ) : (
+                      <>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive h-8 w-8"
+                          onClick={() => handleEditKeyword(keyword)}
+                          className="h-8 w-8"
                         >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
+                          <PencilLine className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete the keyword "{keyword.term}".
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteKeyword.mutate(keyword.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the keyword "{keyword.term}".
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteKeyword.mutate(keyword.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
