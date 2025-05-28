@@ -155,7 +155,7 @@ export default function Settings() {
         </div>
 
             {/* Data Privacy Widget */}
-            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+            {false && <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
                   <Shield className="h-5 w-5 text-[#00FFFF]" />
@@ -195,12 +195,12 @@ export default function Settings() {
                   <p>Contact support for privacy inquiries.</p>
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
         </div>
-
+        
         {/* Intelligence Preferences Section */}
-        <div className="space-y-6">
+        {false && <div className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
               <Globe className="h-6 w-6 text-[#00FFFF]" />
@@ -281,10 +281,10 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Notifications & Reports Section */}
-        <div className="space-y-6">
+        {false && <div className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
               <Mail className="h-6 w-6 text-[#00FFFF]" />
@@ -389,8 +389,11 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+
+            
           </div>
-        </div>
+        </div>}
+        
       </div>
     </div>
   );
