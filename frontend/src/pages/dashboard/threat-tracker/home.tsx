@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
+import { ThreatTrackerLayout } from "./components/threat-tracker-layout";
 
 export default function ThreatHome() {
   const { toast } = useToast();
@@ -140,35 +141,7 @@ export default function ThreatHome() {
     }
   }, [articles.data]);
 
-  // Monitor scraping status to show progress dialog
-  useEffect(() => {
-    const checkScrapingStatus = async () => {
-      try {
-        const response = await fetch(`${serverUrl}/api/threat-tracker/scraping-status`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            ...csfrHeaderObject(),
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setIsScrapingActive(data.isActive);
-        }
-      } catch (error) {
-        console.error('Error checking scraping status:', error);
-      }
-    };
 
-    // Check immediately
-    checkScrapingStatus();
-
-    // Then check every 2 seconds
-    const interval = setInterval(checkScrapingStatus, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
   
   // Delete article mutation
   const deleteArticle = useMutation({
@@ -367,7 +340,7 @@ export default function ThreatHome() {
   };
   
   return (
-    <>
+    <ThreatTrackerLayout>
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
@@ -595,9 +568,6 @@ export default function ThreatHome() {
           )}
         </div>
       </div>
-      
-      {/* Progress dialog for scraping status */}
-      <ScrapingProgressDialog isVisible={isScrapingActive} />
-    </>
+    </ThreatTrackerLayout>
   );
 }

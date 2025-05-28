@@ -72,6 +72,7 @@ import {
   Check,
   X
 } from "lucide-react";
+import { ThreatTrackerLayout } from "./components/threat-tracker-layout";
 
 // Enum for auto-scrape intervals
 export enum JobInterval {
@@ -433,7 +434,8 @@ export default function Sources() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <ThreatTrackerLayout>
+      <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
         <p className="text-muted-foreground">
