@@ -134,52 +134,268 @@ async function setupPage(): Promise<Page> {
 /**
  * Extract article links as a structured HTML
  */
-async function extractArticleLinksStructured(page: Page): Promise<string> {
+async function extractArticleLinksStructured(page: Page, existingLinkData?: Array<{href: string, text: string, parentText: string, parentClass: string}>): Promise<string> {
   // Wait for any links to appear
   await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
-  log('[ThreatTracker] Extracting links from page', "scraper");
+  // Use existing link data if provided, otherwise extract from page
+  let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
+  
+  if (existingLinkData && existingLinkData.length > 0) {
+    log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
+    articleLinkData = existingLinkData;
+  } else {
+    log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
 
-  // Wait for any remaining dynamic content to load
-  await page.waitForFunction(
-    () => {
-      const loadingElements = document.querySelectorAll(
-        '.loading, .spinner, [data-loading="true"], .skeleton'
+    // Check for HTMX usage on the page
+    const hasHtmx = await page.evaluate(() => {
+      return {
+        scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
+        hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
+        hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+          url: el.getAttribute('hx-get'),
+          trigger: el.getAttribute('hx-trigger') || 'click'
+        }))
+      };
+    });
+
+    if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
+      log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
+      
+      // Wait longer for initial HTMX content to load (some triggers on page load)
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // For HTMX elements with 'load' trigger, content should already be loaded
+      // But HTMX may use other triggers (click, etc.), so we'll need to check
+      
+      // Get all HTMX load endpoints that should have been triggered
+      const loadTriggers = hasHtmx.hxGetElements.filter(el => 
+        el.trigger === 'load' || el.trigger.includes('load')
       );
-      return loadingElements.length === 0;
-    },
-    { timeout: 10000 }
-  ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
+      
+      if (loadTriggers.length > 0) {
+        log(`[ThreatTracker] Found ${loadTriggers.length} HTMX endpoints triggered on load`, "scraper");
+        
+        // Wait a bit longer for these load-triggered requests to complete
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+    
+    // Wait for any remaining dynamic content to load
+    await page.waitForFunction(
+      () => {
+        const loadingElements = document.querySelectorAll(
+          '.loading, .spinner, [data-loading="true"], .skeleton'
+        );
+        return loadingElements.length === 0;
+      },
+      { timeout: 10000 }
+    ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
-  // Extract all links after ensuring content is loaded
-  const articleLinkData = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('a'));
-    return links.map(link => ({
-      href: link.getAttribute('href'),
-      text: link.textContent?.trim() || '',
-      parentText: link.parentElement?.textContent?.trim() || '',
-      parentClass: link.parentElement?.className || ''
-    })).filter(link => link.href); // Only keep links with href attribute
-  });
+    // Extract all links after ensuring content is loaded
+    articleLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href); // Only keep links with href attribute
+    });
 
-  log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
+    log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
+
+    // Debug log: Print the extracted links data
+    log(
+      `[ThreatTracker] Extracted links data:\n${JSON.stringify(articleLinkData, null, 2)}`,
+      "scraper-debug",
+    );
+
+    // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
+    if (articleLinkData.length < 20) {
+    log(`[ThreatTracker] Fewer than 20 links found, trying additional techniques...`, "scraper");
+    
+    // For HTMX pages: Special handling of dynamic content
+    if (hasHtmx.hasHxAttributes) {
+      log(`[ThreatTracker] Attempting to interact with HTMX elements to load more content`, "scraper");
+      
+      // First try: Click on any "load more" or pagination buttons that might trigger HTMX loading
+      const clickedButtons = await page.evaluate(() => {
+        const buttonSelectors = [
+          'button:not([disabled])', 
+          'a.more', 
+          'a.load-more', 
+          '[hx-get]:not([hx-trigger="load"])',
+          '.pagination a', 
+          '.load-more',
+          '[role="button"]'
+        ];
+        
+        let clicked = 0;
+        buttonSelectors.forEach(selector => {
+          document.querySelectorAll(selector).forEach(el => {
+            // Check if element is visible and might be a "load more" button
+            const text = el.textContent?.toLowerCase() || '';
+            const isLoadMoreButton = text.includes('more') || 
+                                     text.includes('load') || 
+                                     text.includes('next') ||
+                                     text.includes('pag');
+            
+            if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
+              console.log('Clicking element:', text);
+              (el as HTMLElement).click();
+              clicked++;
+            }
+          });
+        });
+        return clicked;
+      });
+      
+      if (clickedButtons > 0) {
+        log(`[ThreatTracker] Clicked ${clickedButtons} potential "load more" elements`, "scraper");
+        // Wait for HTMX to process the click and load content
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      
+      // Second try: Directly call HTMX endpoints if we see hx-get attributes
+      // that might be loading article content
+      if (hasHtmx.hxGetElements.length > 0) {
+        const filteredEndpoints = hasHtmx.hxGetElements.filter(el => 
+          el.url.includes('item') || 
+          el.url.includes('article') || 
+          el.url.includes('content') ||
+          el.url.includes('page') ||
+          el.url.includes('list')
+        );
+        
+        if (filteredEndpoints.length > 0) {
+          log(`[ThreatTracker] Monitoring network requests for HTMX endpoints...`, "scraper");
+          
+          // Setup request interception to see responses from HTMX requests
+          await page.setRequestInterception(true);
+          
+          // Keep track of intercepted responses
+          const interceptedResponses: Record<string, boolean> = {};
+          
+          // Track responses and gather content
+          page.on('response', async response => {
+            const url = response.url();
+            // Check if this response is for one of our HTMX endpoints
+            if (filteredEndpoints.some(ep => url.includes(ep.url))) {
+              interceptedResponses[url] = true;
+              log(`[ThreatTracker] Intercepted HTMX response from: ${url}`, "scraper");
+            }
+          });
+          
+          // Allow all requests to continue
+          page.on('request', request => request.continue());
+          
+          // Trigger HTMX requests directly via fetch
+          await page.evaluate((endpoints) => {
+            endpoints.forEach(async endpoint => {
+              try {
+                console.log(`Manually fetching HTMX endpoint: ${endpoint.url}`);
+                const response = await fetch(endpoint.url, {
+                  headers: {
+                    'HX-Request': 'true',
+                    'Accept': 'text/html, */*'
+                  }
+                });
+                if (response.ok) {
+                  const html = await response.text();
+                  console.log(`Fetched ${html.length} chars from ${endpoint.url}`);
+                  // Insert content into page
+                  const div = document.createElement('div');
+                  div.className = 'scraper-injected-content';
+                  div.innerHTML = html;
+                  document.body.appendChild(div);
+                }
+              } catch (e) {
+                console.error(`Error fetching ${endpoint.url}:`, e);
+              }
+            });
+          }, filteredEndpoints);
+          
+          // Wait for any HTMX requests to complete
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // Disable request interception
+          await page.setRequestInterception(false);
+        }
+      }
+    }
+    
+    // Standard approach: Scroll through the page to trigger lazy loading
+    log(`[ThreatTracker] Scrolling page to trigger lazy loading...`, "scraper");
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    
+    // Wait for additional time to let dynamic content load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // Try extracting links again after all our techniques
+    articleLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href); // Only keep links with href attribute
+    });
+    
+    log(`[ThreatTracker] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
+    }
+  }
 
   // Create a simplified HTML with just the extracted links
-  return `
+  const generatedHtml = `
   <html>
     <body>
       <div class="extracted-article-links">
-        ${articleLinkData.map(link =>
-          `<div class="article-link-item">
-            <a href="${link.href}">${link.text}</a>
-            <div class="context">${link.parentText.substring(0, 100)}</div>
-          </div>`
-        ).join('\n')}
+        ${articleLinkData.map(link => {
+          // Clean HTML tags from link text to prevent malformed HTML
+          let cleanText = link.text.replace(/<[^>]+>/g, '').trim();
+          const cleanParentText = link.parentText.replace(/<[^>]+>/g, '').trim();
+          
+          // If cleaning the text results in empty or very short text, use the href as fallback
+          if (!cleanText || cleanText.length < 5) {
+            // Extract meaningful text from the URL path
+            try {
+              const url = new URL(link.href);
+              const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+              // Use the last meaningful part of the path or the domain
+              cleanText = pathParts.length > 0 ? pathParts[pathParts.length - 1] : url.hostname;
+              // Clean up common URL patterns
+              cleanText = cleanText.replace(/\.html?$/, '').replace(/-/g, ' ');
+            } catch {
+              // If URL parsing fails, just use the href
+              cleanText = link.href;
+            }
+          }
+          
+          return `<div class="article-link-item">
+            <a href="${link.href}">${cleanText}</a>
+            <div class="context">${cleanParentText.substring(0, 100)}</div>
+          </div>`;
+        }).join('\n')}
       </div>
     </body>
   </html>`;
+  
+  return generatedHtml;
 }
 
 /**
@@ -370,7 +586,25 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     }
     
     // For source/listing pages, extract potential article links
-    return await extractArticleLinksStructured(page);
+    // First do our own extraction to get all links
+    await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
+      log('[ThreatTracker] Timeout waiting for links in scrapeUrl, continuing anyway', "scraper");
+    });
+    
+    const extractedLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href); // Only keep links with href attribute
+    });
+
+    log(`[ThreatTracker] Primary extraction: Found ${extractedLinkData.length} links`, "scraper");
+    
+    // Pass the extracted data to extractArticleLinksStructured to avoid duplicate extraction
+    return await extractArticleLinksStructured(page, extractedLinkData);
     
   } catch (error: any) {
     log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
