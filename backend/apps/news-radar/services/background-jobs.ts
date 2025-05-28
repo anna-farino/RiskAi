@@ -400,8 +400,8 @@ export async function runGlobalScrapeJob(
 
     // Initialize progress tracking
     try {
-      const progressModule = await import("../../utils/scraping-progress");
-      progressModule.updateNewsRadarProgress({
+      const { updateProgress } = await import("../progress");
+      updateProgress({
         isActive: true,
         totalSources: sources.length,
         currentSourceIndex: 0,
@@ -417,7 +417,12 @@ export async function runGlobalScrapeJob(
 
     if (sources.length === 0) {
       globalJobRunning = false;
-      resetNewsRadarProgress();
+      try {
+        const { updateProgress } = await import("../progress");
+        updateProgress({ isActive: false });
+      } catch (error) {
+        log(`[Progress] Error resetting progress: ${error.message}`, "scraper");
+      }
       return {
         success: true,
         message: "No sources found for auto-scraping",
@@ -434,22 +439,31 @@ export async function runGlobalScrapeJob(
       log(`[Background Job] Processing source: ${source.name}`, "scraper");
 
       // Update progress with current source info
-      updateNewsRadarProgress({
-        currentSource: source.name,
-        currentSourceIndex: i + 1
-      });
+      try {
+        const { updateProgress } = await import("../progress");
+        updateProgress({
+          currentSource: source.name,
+          currentSourceIndex: i + 1
+        });
+      } catch (error) {
+        log(`[Progress] Error updating current source: ${error.message}`, "scraper");
+      }
 
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
         );
 
-        // Get current progress to update counts
-        const currentProgress = getNewsRadarProgress();
-        updateNewsRadarProgress({
-          articlesAdded: (currentProgress.articlesAdded || 0) + savedCount,
-          articlesSkipped: (currentProgress.articlesSkipped || 0) + (processedCount - savedCount)
-        });
+        // Update progress with article counts
+        try {
+          const { updateProgress } = await import("../progress");
+          updateProgress({
+            articlesAdded: savedCount,
+            articlesSkipped: processedCount - savedCount
+          });
+        } catch (error) {
+          log(`[Progress] Error updating article counts: ${error.message}`, "scraper");
+        }
 
         // Add source information to each new article for email notification grouping
         const sourcedArticles = newArticles.map((article) => ({
@@ -482,10 +496,14 @@ export async function runGlobalScrapeJob(
         );
         
         // Update progress with error
-        const currentProgress = getNewsRadarProgress();
-        updateNewsRadarProgress({
-          errors: [...(currentProgress.errors || []), `${source.name}: ${errorMessage}`]
-        });
+        try {
+          const { updateProgress } = await import("../progress");
+          updateProgress({
+            errors: [`${source.name}: ${errorMessage}`]
+          });
+        } catch (error) {
+          log(`[Progress] Error updating progress with error: ${error.message}`, "scraper");
+        }
         
         results.push({
           sourceId: source.id,
@@ -514,7 +532,12 @@ export async function runGlobalScrapeJob(
     globalJobRunning = false;
 
     // Reset progress tracking
-    resetNewsRadarProgress();
+    try {
+      const { updateProgress } = await import("../progress");
+      updateProgress({ isActive: false });
+    } catch (error) {
+      log(`[Progress] Error resetting progress: ${error.message}`, "scraper");
+    }
 
     return {
       success: true,
