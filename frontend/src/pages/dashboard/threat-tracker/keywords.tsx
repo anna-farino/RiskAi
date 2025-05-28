@@ -57,11 +57,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -71,7 +66,7 @@ import { Badge } from "@/components/ui/badge";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X, Shield, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle, PencilLine, Check, X, Shield } from "lucide-react";
 
 // Form schema for keyword creation/editing
 const keywordFormSchema = z.object({
@@ -98,7 +93,6 @@ export default function Keywords() {
   const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(null);
   const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("threat");
-  const [isDefaultKeywordsCollapsed, setIsDefaultKeywordsCollapsed] = useState<boolean>(true);
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
@@ -384,46 +378,34 @@ export default function Keywords() {
 
     return (
       <div className="mb-6">
-        <Collapsible open={!isDefaultKeywordsCollapsed} onOpenChange={(open) => setIsDefaultKeywordsCollapsed(!open)}>
-          <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
-              {isDefaultKeywordsCollapsed ? (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <Shield className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
-              <Badge variant="outline" className="text-xs px-2 py-0">
-                {keywords.length}
-              </Badge>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="flex flex-wrap gap-2 ml-5">
-              {keywords.map((keyword: ThreatKeyword) => (
-                <Badge 
-                  key={keyword.id} 
-                  variant={keyword.active ? "default" : "outline"}
-                  className={`text-xs ${keyword.active 
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
-                    : 'bg-gray-50 text-gray-500 border-gray-200'
-                  }`}
-                >
-                  {keyword.term}
-                </Badge>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="h-4 w-4 text-blue-600" />
+          <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
+          <Badge variant="outline" className="text-xs px-2 py-0">
+            {keywords.length}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {keywords.map((keyword: ThreatKeyword) => (
+            <Badge 
+              key={keyword.id} 
+              variant={keyword.active ? "default" : "outline"}
+              className={`text-xs ${keyword.active 
+                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' 
+                : 'bg-gray-50 text-gray-500 border-gray-200'
+              }`}
+            >
+              {keyword.term}
+            </Badge>
+          ))}
+        </div>
       </div>
     );
   }
 
   // Helper function to render the user keyword table
   function renderUserKeywordTable(keywords: ThreatKeyword[]) {
-    // Show spinner only if initial data is still loading
-    if (keywords.isLoading && localKeywords.length === 0) {
+    if (keywords.length === 0 && allKeywordsByCategory.length === 0) {
       return (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
