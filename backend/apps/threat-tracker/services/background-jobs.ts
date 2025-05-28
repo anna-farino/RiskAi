@@ -26,21 +26,10 @@ async function processArticle(
     vendors: string[],
     clients: string[],
     hardware: string[]
-  },
-  jobId?: string
+  }
 ) {
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
-    
-    // Update progress with current article
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.updateCurrentArticle(jobId, { 
-        url: articleUrl,
-        title: 'Analyzing article content...'
-      });
-      ProgressManager.setPhase(jobId, 'processing-articles');
-    }
     
     // Check if we already have this article FOR THIS USER
     const existingArticles = await storage.getArticles({
@@ -50,17 +39,6 @@ async function processArticle(
     
     if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
-      
-      // Track as skipped
-      if (jobId) {
-        const { ProgressManager } = await import("../../../services/progress-manager");
-        ProgressManager.addArticleResult(jobId, {
-          url: articleUrl,
-          action: 'skipped',
-          reason: 'Article already exists'
-        });
-      }
-      
       return null;
     }
     
@@ -73,18 +51,6 @@ async function processArticle(
     // If we couldn't extract content, skip this article
     if (!articleData.content || articleData.content.length < 100) {
       log(`[ThreatTracker] Could not extract sufficient content from ${articleUrl}`, "scraper");
-      
-      // Track as skipped
-      if (jobId) {
-        const { ProgressManager } = await import("../../../services/progress-manager");
-        ProgressManager.addArticleResult(jobId, {
-          url: articleUrl,
-          title: articleData.title,
-          action: 'skipped',
-          reason: 'Insufficient content extracted'
-        });
-      }
-      
       return null;
     }
     
@@ -136,18 +102,6 @@ async function processArticle(
     if (!hasValidThreatKeywords || !hasValidOtherKeywords) {
       log(`[ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: ${articleUrl}`, "scraper");
       log(`[ThreatTracker] Valid threats: ${validThreatKeywords.length}, Valid vendors: ${validVendorKeywords.length}, Valid clients: ${validClientKeywords.length}, Valid hardware: ${validHardwareKeywords.length}`, "scraper");
-      
-      // Track as skipped
-      if (jobId) {
-        const { ProgressManager } = await import("../../../services/progress-manager");
-        ProgressManager.addArticleResult(jobId, {
-          url: articleUrl,
-          title: articleData.title,
-          action: 'skipped',
-          reason: 'Does not match keyword criteria'
-        });
-      }
-      
       return null;
     }
     
@@ -183,43 +137,15 @@ async function processArticle(
     });
     
     log(`[ThreatTracker] Successfully processed and stored article: ${articleUrl}`, "scraper");
-    
-    // Track as saved
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.addArticleResult(jobId, {
-        url: articleUrl,
-        title: articleData.title,
-        action: 'saved',
-        reason: 'Article successfully processed and saved'
-      });
-    }
-    
     return newArticle;
   } catch (error: any) {
     log(`[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`, "scraper-error");
-    
-    // Track as error
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.addArticleResult(jobId, {
-        url: articleUrl,
-        action: 'error',
-        reason: error.message
-      });
-      ProgressManager.addError(jobId, {
-        type: 'article-error',
-        message: error.message,
-        articleUrl
-      });
-    }
-    
     return null;
   }
 }
 
 // Scrape a single source
-export async function scrapeSource(source: ThreatSource, jobId?: string) {
+export async function scrapeSource(source: ThreatSource) {
   log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
   
   try {
@@ -247,13 +173,7 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     };
     
     // 1. Load source URL via puppeteer and scrape HTML
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.setPhase(jobId, 'scraping-source');
-    }
-    
     log(`[ThreatTracker] Step 1-3: Scraping source URL: ${source.url}`, "scraper");
-    
     const html = await scrapeUrl(source.url);
     
     // 2. Get or detect HTML structure (scraping config)
@@ -269,32 +189,13 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     }
     
     // 3. Use OpenAI to identify article links
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.setPhase(jobId, 'extracting-links');
-    }
-    
     log(`[ThreatTracker] Step 4: Identifying article links with OpenAI`, "scraper");
     const processedLinks = await extractArticleLinks(html, source.url);
     log(`[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`, "scraper");
     
     if (processedLinks.length === 0) {
       log(`[ThreatTracker] No article links found for source: ${source.name}`, "scraper-error");
-      if (jobId) {
-        const { ProgressManager } = await import("../../../services/progress-manager");
-        ProgressManager.addError(jobId, {
-          type: 'source-error',
-          message: 'No article links found',
-          sourceId: source.id
-        });
-      }
       return [];
-    }
-    
-    // Update total articles count for progress tracking
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.updateTotalArticles(jobId, processedLinks.length);
     }
     
     // 4-5. Process the first article URL to detect HTML structure
@@ -303,11 +204,6 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
-      if (jobId) {
-        const { ProgressManager } = await import("../../../services/progress-manager");
-        ProgressManager.setPhase(jobId, 'detecting-structure');
-      }
-      
       try {
         // Scrape the first article to get its HTML
         const firstArticleHtml = await scrapeUrl(firstArticleUrl, true);
@@ -343,19 +239,13 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
     }
     
     if (htmlStructure) {
-      if (jobId) {
-        const { ProgressManager } = await import("../../../services/progress-manager");
-        ProgressManager.setPhase(jobId, 'processing-articles');
-      }
-      
       log(`[ThreatTracker] Step 8-9: Processing first article with detected structure`, "scraper");
       const firstArticleResult = await processArticle(
         firstArticleUrl, 
         source.id, 
         source.userId, 
         htmlStructure,
-        keywords,
-        jobId
+        keywords
       );
       
       if (firstArticleResult) {
@@ -374,8 +264,7 @@ export async function scrapeSource(source: ThreatSource, jobId?: string) {
         source.id, 
         source.userId, 
         htmlStructure,
-        keywords,
-        jobId
+        keywords
       );
       
       if (articleResult) {
@@ -406,31 +295,10 @@ export async function runGlobalScrapeJob(userId?: string) {
   globalScrapeJobRunning = true;
   log("[ThreatTracker] Starting global scrape job", "scraper");
   
-  let jobId: string | null = null;
-  
   try {
     // Get all active sources for auto-scraping
     const sources = await storage.getAutoScrapeSources(userId);
     log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
-    
-    // Initialize progress tracking
-    if (userId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      jobId = ProgressManager.createJob(userId, 'threat-tracker', sources.length);
-      console.log(`[ProgressTracker] Created job ${jobId} for user ${userId} with ${sources.length} sources`);
-      
-      // Immediately update with initial progress to verify connection
-      ProgressManager.updateCurrentSource(jobId, {
-        id: 'init',
-        name: 'Starting threat scanner...',
-        url: 'Initializing security feeds'
-      });
-      ProgressManager.setPhase(jobId, 'scraping-source');
-      
-      // Verify the job was created properly
-      const createdJob = ProgressManager.getProgress(jobId);
-      console.log(`[ProgressTracker] Verified job creation:`, createdJob);
-    }
     
     // Array to store all new articles
     const allNewArticles: ThreatArticle[] = [];
@@ -438,42 +306,13 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
-        // Update progress to show current source
-        if (jobId) {
-          const { ProgressManager } = await import("../../../services/progress-manager");
-          ProgressManager.updateCurrentSource(jobId, {
-            id: source.id,
-            name: source.name,
-            url: source.url
-          });
-          ProgressManager.setPhase(jobId, 'scraping-source');
-          console.log(`[ProgressTracker] Now processing source: ${source.name}`);
-        }
-        
-        const newArticles = await scrapeSource(source, jobId);
+        const newArticles = await scrapeSource(source);
         if (!newArticles?.length) continue
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
         }
-        
-        // Mark source as completed
-        if (jobId) {
-          const { ProgressManager } = await import("../../../services/progress-manager");
-          ProgressManager.completeSource(jobId);
-        }
       } catch (error: any) {
         log(`[ThreatTracker] Error scraping source ${source.name}: ${error.message}`, "scraper-error");
-        
-        // Track the error
-        if (jobId) {
-          const { ProgressManager } = await import("../../../services/progress-manager");
-          ProgressManager.addError(jobId, {
-            type: 'source-error',
-            message: error.message,
-            sourceId: source.id
-          });
-        }
-        
         // Continue with the next source
         continue;
       }
@@ -482,27 +321,13 @@ export async function runGlobalScrapeJob(userId?: string) {
     log(`[ThreatTracker] Completed global scrape job. Found ${allNewArticles.length} new articles.`, "scraper");
     globalScrapeJobRunning = false;
     
-    // Complete the job
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.completeJob(jobId);
-    }
-    
     return {
       message: `Completed global scrape job. Found ${allNewArticles.length} new articles.`,
-      newArticles: allNewArticles,
-      jobId
+      newArticles: allNewArticles
     };
   } catch (error: any) {
     log(`[ThreatTracker] Error in global scrape job: ${error.message}`, "scraper-error");
     globalScrapeJobRunning = false;
-    
-    // Mark job as failed
-    if (jobId) {
-      const { ProgressManager } = await import("../../../services/progress-manager");
-      ProgressManager.setJobError(jobId, error.message);
-    }
-    
     throw error;
   }
 }

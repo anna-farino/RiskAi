@@ -456,14 +456,12 @@ threatRouter.post("/scrape/all", async (req, res) => {
       return res.status(409).json({ error: "A global scrape job is already running" });
     }
     
-    // Start the global scrape job (don't await - let it run in background)
-    runGlobalScrapeJob(userId).catch(error => {
-      console.error("Background scrape job error:", error);
-    });
+    // Start the global scrape job
+    const job = runGlobalScrapeJob(userId);
     
     res.json({
       message: "Global scrape job started",
-      job: {}
+      job
     });
   } catch (error: any) {
     console.error("Error starting global scrape job:", error);
@@ -490,53 +488,6 @@ threatRouter.get("/scrape/status", async (req, res) => {
   } catch (error: any) {
     console.error("Error checking scrape job status:", error);
     res.status(500).json({ error: error.message || "Failed to check scrape job status" });
-  }
-});
-
-// Progress tracking endpoints
-threatRouter.get("/scrape/progress", async (req, res) => {
-  reqLog(req, "GET /scrape/progress");
-  try {
-    const userId = getUserId(req);
-    console.log(`[ProgressAPI] Getting progress for user: ${userId}`);
-    const { ProgressManager } = await import("../../../services/progress-manager");
-    const userJobs = ProgressManager.getUserJobs(userId);
-    console.log(`[ProgressAPI] Found ${userJobs.length} jobs for user ${userId}`);
-    
-    if (userJobs.length > 0) {
-      console.log(`[ProgressAPI] Job details:`, userJobs.map(job => ({
-        jobId: job.jobId,
-        status: job.status,
-        phase: job.phase,
-        currentSource: job.currentSource?.name,
-        currentArticle: job.currentArticle?.title,
-        stats: job.stats
-      })));
-    }
-    
-    res.json(userJobs);
-  } catch (error: any) {
-    console.error("Error fetching scrape progress:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch scrape progress" });
-  }
-});
-
-threatRouter.get("/scrape/progress/:jobId", async (req, res) => {
-  reqLog(req, "GET /scrape/progress/:jobId");
-  try {
-    const { jobId } = req.params;
-    const userId = getUserId(req);
-    const { ProgressManager } = await import("../../../services/progress-manager");
-    const progress = ProgressManager.getProgress(jobId);
-    
-    if (!progress || progress.userId !== userId) {
-      return res.status(404).json({ error: "Job not found" });
-    }
-    
-    res.json(progress);
-  } catch (error: any) {
-    console.error("Error fetching job progress:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch job progress" });
   }
 });
 
