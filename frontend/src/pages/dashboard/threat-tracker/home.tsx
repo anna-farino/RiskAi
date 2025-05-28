@@ -139,6 +139,36 @@ export default function ThreatHome() {
       setLocalArticles(articles.data);
     }
   }, [articles.data]);
+
+  // Monitor scraping status to show progress dialog
+  useEffect(() => {
+    const checkScrapingStatus = async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/threat-tracker/scraping-status`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...csfrHeaderObject(),
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setIsScrapingActive(data.isActive);
+        }
+      } catch (error) {
+        console.error('Error checking scraping status:', error);
+      }
+    };
+
+    // Check immediately
+    checkScrapingStatus();
+
+    // Then check every 2 seconds
+    const interval = setInterval(checkScrapingStatus, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
   
   // Delete article mutation
   const deleteArticle = useMutation({
@@ -565,6 +595,9 @@ export default function ThreatHome() {
           )}
         </div>
       </div>
+      
+      {/* Progress dialog for scraping status */}
+      <ScrapingProgressDialog isVisible={isScrapingActive} />
     </>
   );
 }
