@@ -709,70 +709,65 @@ export default function Research() {
               </div>
             )}
             
-            {(() => {
-              // Calculate pagination
-              const startIndex = (currentPage - 1) * articlesPerPage;
-              const endIndex = startIndex + articlesPerPage;
-              const currentArticles = processedArticles.slice(startIndex, endIndex);
-              
-              return currentArticles.map((article) => (
-              <motion.div
-                key={article.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-medium">{article.title}</h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => selectForReport(article)}
-                      className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                    >
-                      Select for Report
-                    </button>
-                    <button
-                      onClick={() => removeProcessedArticle(article.id)}
-                      className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
-                    >
-                      Remove
-                    </button>
+            {processedArticles
+              .slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage)
+              .map((article) => (
+                <motion.div
+                  key={article.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-lg font-medium">{article.title}</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => selectForReport(article)}
+                        className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                      >
+                        Select for Report
+                      </button>
+                      <button
+                        onClick={() => removeProcessedArticle(article.id)}
+                        className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Threat Name</p>
-                    <p className="text-sm">{article.threatName}</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Threat Name</p>
+                      <p className="text-sm">{article.threatName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
+                      <p className="text-sm">{article.vulnerabilityId}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-xs text-slate-400 mb-1">Summary</p>
+                      <p className="text-sm">{article.summary}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-xs text-slate-400 mb-1">Impacts</p>
+                      <p className="text-sm">{article.impacts}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
+                      <p className="text-sm">{article.attackVector}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Target OS</p>
+                      <p className="text-sm">{article.targetOS}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Source</p>
+                      <p className="text-sm">{article.sourcePublication}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
-                    <p className="text-sm">{article.vulnerabilityId}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-slate-400 mb-1">Summary</p>
-                    <p className="text-sm">{article.summary}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-slate-400 mb-1">Impacts</p>
-                    <p className="text-sm">{article.impacts}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
-                    <p className="text-sm">{article.attackVector}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Target OS</p>
-                    <p className="text-sm">{article.targetOS}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Source</p>
-                    <p className="text-sm">{article.sourcePublication}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ));
-            })()}
+                </motion.div>
+              ))}
             
             {/* Pagination Controls */}
             {processedArticles.length > articlesPerPage && (
