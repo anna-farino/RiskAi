@@ -7,7 +7,7 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
-import { getNewsRadarProgress } from "../../utils/scraping-progress";
+import { getProgress } from "../progress";
 
 
 export const newsRouter = Router()
@@ -384,3 +384,6 @@ newsRouter.post("/settings/auto-scrape", async (req, res) => {
     res.status(500).json({ message: errorMessage });
   }
 });
+
+// Get scraping progress
+newsRouter.get("/scraping/progress", getProgress);
