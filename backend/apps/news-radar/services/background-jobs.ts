@@ -15,6 +15,7 @@ import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
 import dotenv from "dotenv";
 import { Request } from 'express';
+import sendGrid from "backend/utils/sendGrid";
 
 dotenvConfig(dotenv)
 // Track active scraping processes for all sources
@@ -334,14 +335,20 @@ export async function sendNewArticlesEmail(
         ${articleList}
       </table>
     `
-    // Send email using EmailJS
-    await sendEmailJs({
-      template: process.env.EMAILJS_TEMPLATE_OTP_ID as string,
-      templateParams: {
-        email: userEmail,
-        otp: fullArticleList
-      }
-    });
+    await sendGrid({
+      to: userEmail,
+      subject: "News Radar",
+      text: fullArticleList,
+      html: fullArticleList
+    })
+    // Old -- to be deleted later 
+    //await sendEmailJs({
+    //  template: process.env.EMAILJS_TEMPLATE_OTP_ID as string,
+    //  templateParams: {
+    //    email: userEmail,
+    //    otp: fullArticleList
+    //  }
+    //});
 
     log(
       `[Email] Successfully sent notification email to ${userEmail}`,

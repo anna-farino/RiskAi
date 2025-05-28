@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>news-radar Scrape Route Flow (with Chromium details)</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #fafbfc; color: #222; padding: 40px; line-height: 1.7; }
+    h1 { color: #1065c3; }
+    code, pre { background: #eef2fa; padding: 3px 6px; border-radius: 5px; }
+    pre { padding: 11px 18px; background: #dae6f9; border-radius: 6px; }
+    .diagram { margin: 2em 0 2em 0; font-family: monospace; color: #193458; background: #f6fafe; border-radius: 6px; padding: 10px; }
+    .highlight { background: #e2fae2; color: #105920; font-weight: bold; }
+    ul { margin-bottom: 1em; }
+    .chromium { background: #d5ecfa; padding: 1.2em; border-radius: 7px; margin: 1.5em 0; }
+  </style>
+</head>
+<body>
+  <h1>How <code>/sources/:id/scrape</code> Works in <strong>news-radar</strong>: Deep Dive</h1>
+
+  <h2>Step-by-Step Breakdown</h2>
+  <ol>
+    <li>
+      <strong>Route Handler:</strong><br>
+      <code>router/index.ts</code> for <code>/sources/:id/scrape</code> parses user/source info, loads from DB, and calls <code>scrapeSource(sourceId)</code>.
+    </li>
+    <li>
+      <strong>Main scraping coordination:</strong><br>
+      <code>background-jobs.ts → scrapeSource()</code>.<br/>
+      - Flags this source as actively scraping.<br/>
+      - Loads the source record.<br/>
+      - Calls <code>scrapeUrl()</code> to get HTML.<br/>
+      - Extracts article links.<br/>
+      - Builds/loads extraction config.<br/>
+      - Gets user keywords.<br/>
+      - Loops article links for deep extraction.
+    </li>
+    <li>
+      <strong>HTML Fetch/Detection:</strong><br>
+      <code>scraper.ts → scrapeUrl()</code>.<br/>
+      - Tries HTTP GET with random headers.<br>
+      - If bot protection (Cloudflare/Incapsula/CAPTCHA) or a dynamic frontend (React, lazy loading) is detected:<br>
+         <span class="highlight">Switches to <code>scrapePuppeteer()</code></span>.
+    </li>
+    <li>
+      <strong>If Puppeteer/Chromium scraping is Needed:</strong><br>
+      <code>puppeteer-scraper.ts → scrapePuppeteer()</code>
+      <div class="chromium">
+        <strong>Chromium/Memory Management Details:</strong><br>
+        - <b>Chromium is only launched when needed</b> (when static scraping fails or site is protected/dynamic).<br>
+        - <b>Browser is launched with low-memory/headless flags</b> (see: <code>--disable-gpu</code>, <code>--disable-dev-shm-usage</code>, <code>--headless</code>, etc).<br>
+        - <b>Page objects</b> are created for each scrape,<br>and are <b>explicitly closed in a <code>finally</code> block</b> to release resources immediately after use.<br>
+        - <b>Entire browser instance can be shut down at process exit</b> (SIGINT/SIGTERM cleanup listeners), ensuring no orphaned Chromium processes.<br>
+        - <b>This cycle prevents memory leaks</b>: without it, headless Chrome can hoard 100s of MBs per job.
+      </div>
+      Steps puppeteer follows:
+      <ul>
+        <li>Locates or installs a Chromium binary.</li>
+        <li>Launches browser <b>only once per scrape</b>.</li>
+        <li>Creates a <b>new page</b> (tab) for URL; sets realistic user-agent.</li>
+        <li>Loads page, waits for all JS (dynamic content) to load, bypasses most bot checks using stealth plugins.</li>
+        <li>Reads final "browser DOM" and returns HTML for further extraction.</li>
+        <li><strong>Immediately closes page (and browser when process exits), freeing memory.</strong></li>
+      </ul>
+    </li>
+    <li>
+      <strong>Finish:</strong><br>
+      - Articles are processed; a notification is sent if new content.<br>
+      - Responds to client with scrape results.
+    </li>
+  </ol>
+
+  <h2>Flow Diagram</h2>
+  <div class="diagram"><pre>
+[POST /sources/:id/scrape]
+         |
+         v
+[Express Route Handler]
+         |
+         v
+[Call scrapeSource(sourceId)]
+         |
+         v
+[Get Source, Flag 'scraping']
+         |
+         v
+[Call scrapeUrl(source.url)]
+         |
+         v
++-----------------------+
+| Bot check/dynamic?    |
++-----------------------+
+        |           |
+     no |          yes
+        |           |
+        v           v
+ [static HTML]   [scrapePuppeteer]
+    |                |
+ [Extract Links]   [Headless Chrome]
+    |                |
+ [Analyze/Store]    [Return JS HTML]
+    |                |
+    +--------[Merge Flow]----------+
+                      |
+                   [Email, Respond]
+  </pre></div>
+
+  <h2>Puppeteer/Chromium Memory Management Explained</h2>
+  <ul>
+    <li><b>On scrape start:</b> Chromium is opened <u>only if needed</u> (dynamic or protected content)</li>
+    <li><b>One page per scrape</b>: page is closed as soon as scrape is done.</li>
+    <li><b>Browser closes on process exit/signals</b> (so there are never zombie Chrome processes left eating RAM)</li>
+    <li><b>Flags used on browser</b>: <code>--headless</code>, <code>--disable-gpu</code>, <code>--disable-dev-shm-usage</code>, and more. These all reduce memory/CPU load and avoid graphical overhead completely.</li>
+    <li><b>No bulk persistent browser sessions</b>—Chromium only lives as long as needed for that page and is shut as soon as Chrome/puppeteer step is done.</li>
+  </ul>
+  <p><b>This makes scraping lightweight and avoids high memory use on the backend.</b></p>
+
+</body>
+</html>

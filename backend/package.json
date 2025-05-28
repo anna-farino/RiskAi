@@ -13,6 +13,7 @@
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
     "@replit/vite-plugin-shadcn-theme-json": "^0.0.4",
+    "@sendgrid/mail": "^8.1.5",
     "@types/cors": "^2.8.17",
     "@types/nodemon": "^1.19.6",
     "@types/on-finished": "^2.3.4",

@@ -22,6 +22,7 @@ export const threatKeywords = pgTable("threat_keywords", {
   category: text("category").notNull(), // 'threat', 'vendor', 'client', or 'hardware'
   active: boolean("active").notNull().default(true),
   userId: uuid("user_id").references(() => users.id),
+  isDefault: boolean("is_default").notNull().default(false),
 });
 
 // Identified threats from articles
