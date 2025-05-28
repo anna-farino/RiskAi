@@ -100,6 +100,118 @@ type SourceFormValues = z.infer<typeof sourceFormSchema>;
 
 export default function Sources() {
   const { toast } = useToast();
+  
+  // Helper function to render the sources table
+  const renderSourcesTable = () => {
+    if (sources.isLoading) {
+      return (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    if (localSources.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
+          <h3 className="text-lg font-medium">No sources found</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Add sources to start monitoring for security threats
+          </p>
+          <Button onClick={handleNewSource}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Source
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>URL</TableHead>
+            <TableHead>Last Scraped</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {localSources.map((source) => (
+            <TableRow key={source.id}>
+              <TableCell className="font-medium">{source.name}</TableCell>
+              <TableCell>
+                <a 
+                  href={source.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline flex items-center"
+                >
+                  {source.url}
+                  <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
+              </TableCell>
+              <TableCell>
+                {formatLastScraped(source.lastScraped)}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleManualScrape(source.id)}
+                    disabled={scrapeMutation.isPending}
+                  >
+                    {scrapeMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditSource(source)}
+                  >
+                    <PencilLine className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={deleteSourceMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Source</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{source.name}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteSource(source.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  };
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<ThreatSource | null>(null);
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
@@ -434,9 +546,8 @@ export default function Sources() {
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
         <p className="text-muted-foreground">
           Manage sources for threat monitoring and configure auto-scrape settings.
@@ -686,8 +797,7 @@ export default function Sources() {
     </div>
   );
 
-  // Helper function to render the sources table
-  function renderSourcesTable() {
+
     if (sources.isLoading) {
       return (
         <div className="flex justify-center py-8">
@@ -831,9 +941,5 @@ export default function Sources() {
         </TableBody>
       </Table>
     );
-  }
+  };
 
-      </div>
-    </>
-  );
-}
