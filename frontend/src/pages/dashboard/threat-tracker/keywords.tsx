@@ -397,16 +397,16 @@ export default function Keywords() {
             setDefaultKeywordsOpen(prev => ({ ...prev, [category]: open }))
           }
         >
-          <CollapsibleTrigger className="flex items-center gap-2 mb-3 hover:bg-gray-50 p-2 rounded-md transition-colors w-full">
-            <Shield className="h-4 w-4 text-blue-600" />
-            <h3 className="text-sm font-medium text-muted-foreground">Default Keywords</h3>
-            <Badge variant="outline" className="text-xs px-2 py-0">
+          <CollapsibleTrigger className="flex items-center gap-3 mb-3 hover:bg-black/10 p-3 rounded-lg transition-colors w-full bg-black/20 border border-gray-700">
+            <ChevronDown className={`h-4 w-4 text-gray-300 transition-transform ${isOpen ? 'rotate-180' : 'rotate-90'}`} />
+            <Shield className="h-4 w-4 text-blue-400" />
+            <span className="text-sm font-medium text-gray-200">Default Keywords</span>
+            <Badge variant="secondary" className="text-xs px-2 py-1 bg-gray-600 text-gray-200 border-gray-500">
               {keywords.length}
             </Badge>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2">
-            <div className="flex flex-wrap gap-2 pl-6">
+            <div className="flex flex-wrap gap-2 pl-6 pt-2">
               {keywords.map((keyword: ThreatKeyword) => (
                 <Badge 
                   key={keyword.id} 
