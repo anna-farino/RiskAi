@@ -24,7 +24,7 @@ interface ScrapingProgressProps {
 }
 
 export function ScrapingProgress({ apiEndpoint, title, className }: ScrapingProgressProps) {
-  const { data: progress, isLoading } = useQuery<ScrapingProgress>({
+  const { data: progressData, isLoading } = useQuery<ScrapingProgress>({
     queryKey: [apiEndpoint],
     queryFn: async () => {
       const response = await fetch(apiEndpoint);
@@ -33,9 +33,11 @@ export function ScrapingProgress({ apiEndpoint, title, className }: ScrapingProg
       }
       return response.json();
     },
-    refetchInterval: progress?.isActive ? 2000 : false, // Poll every 2 seconds when active
+    refetchInterval: (data) => data?.isActive ? 2000 : false, // Poll every 2 seconds when active
     enabled: true,
   });
+
+  const progress = progressData;
 
   // Don't show the component if scraping is not active
   if (!progress?.isActive || isLoading) {
