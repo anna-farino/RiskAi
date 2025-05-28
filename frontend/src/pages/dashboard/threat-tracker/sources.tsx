@@ -286,11 +286,10 @@ export default function Sources() {
     },
     onSuccess: (data) => {
       toast({
-        title: "Scraping completed",
-        description: `Found ${data.newArticles?.length || 0} new articles.`,
+        title: "Scraping started",
+        description: "The system is now processing sources for threats.",
       });
-      setScrapingSourceId(null);
-      setScrapeJobRunning(false);
+      // Don't reset scraping state here - let the progress dialog handle completion
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
     onError: (error) => {
