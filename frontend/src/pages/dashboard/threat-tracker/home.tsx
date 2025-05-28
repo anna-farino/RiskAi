@@ -339,6 +339,13 @@ export default function ThreatHome() {
   
   return (
     <>
+      {/* Scraping Progress - only shows when active */}
+      <ScrapingProgress 
+        apiEndpoint={`${serverUrl}/api/threat-tracker/scraping/progress`}
+        title="Threat Tracker Scraping Progress"
+        className="mb-6"
+      />
+      
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
