@@ -49,6 +49,8 @@ export default function Research() {
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [articlesPerPage] = useState(10);
   
   // Load saved URLs and article summaries from localStorage
   useEffect(() => {
@@ -692,9 +694,28 @@ export default function Research() {
           
           {/* Processed Articles Display */}
           <div className="mt-6 flex flex-col gap-4">
-            {processedArticles.length > 0 && <h3 className="text-lg font-medium">Processed Articles</h3>}
+            {processedArticles.length > 0 && (
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">
+                  Processed Articles ({processedArticles.length})
+                </h3>
+                {processedArticles.length > articlesPerPage && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">
+                      Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
             
-            {processedArticles.map((article) => (
+            {(() => {
+              // Calculate pagination
+              const startIndex = (currentPage - 1) * articlesPerPage;
+              const endIndex = startIndex + articlesPerPage;
+              const currentArticles = processedArticles.slice(startIndex, endIndex);
+              
+              return currentArticles.map((article) => (
               <motion.div
                 key={article.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -750,7 +771,57 @@ export default function Research() {
                   </div>
                 </div>
               </motion.div>
-            ))}
+            ));
+            })()}
+            
+            {/* Pagination Controls */}
+            {processedArticles.length > articlesPerPage && (
+              <div className="flex items-center justify-center gap-4 mt-6">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+                    .filter(page => {
+                      const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2;
+                    })
+                    .map((page, index, visiblePages) => {
+                      const prevPage = visiblePages[index - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+                      
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsis && <span className="text-slate-400">...</span>}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 rounded-md ${
+                              currentPage === page
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-slate-700 text-white hover:bg-slate-600'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+                  disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+                  className="px-3 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
         
