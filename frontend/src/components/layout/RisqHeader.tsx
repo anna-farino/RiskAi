@@ -26,9 +26,9 @@ export function RisqHeader() {
   
   // Determine logo size based on screen width - increased for more prominence
   const getLogoSize = () => {
-    if (windowWidth < 640) return "sm";   // Mobile - still using smaller size for better fit
-    if (windowWidth < 1024) return "md";  // Tablet - increased to medium for better visibility
-    return "lg";                          // Desktop - increased to large for more prominence
+    if (windowWidth < 640) return "lg";   // Mobile - increased to large (40px) for better visibility
+    if (windowWidth < 1024) return "lg";  // Tablet - same large size for consistency
+    return "xl";                          // Desktop - extra large for maximum prominence
   };
 
   // Handle scroll events to add background when scrolled
@@ -45,35 +45,30 @@ export function RisqHeader() {
     <header 
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        'h-[76px] md:h-[84px] lg:h-[88px]', // Increased height to accommodate larger logo
+        'h-[88px] md:h-[96px] lg:h-[100px]', // Optimized height for mobile logo alignment
         scrolled 
           ? 'bg-black/95 backdrop-blur border-b border-[#BF00FF]/20 shadow-sm' 
           : 'bg-black/90 backdrop-blur'
       )}
     >
-      <div className="container mx-auto px-4 flex items-center h-full">
-        <div className="flex items-center justify-between gap-4 w-full">
-          {/* Logo and tagline as a cohesive unit */}
-          <div className="flex flex-col items-start justify-center">
-            <Link to="/dashboard" className="group">
+      <div className="w-full flex items-center h-full">
+        {/* Logo and tagline as a fixed unit on the left side */}
+        <div className="flex flex-col items-start justify-center h-full pl-4 md:pl-6 lg:pl-[18px]">
+          <div className="mt-0 sm:mt-1">
+            <Link to="/dashboard" className="group block">
               <div className="logo-container relative">
                 <Logo interactive animated variant="gradient" size={getLogoSize()} />
               </div>
             </Link>
-            <div className="h-1"></div> {/* Spacer between logo and tagline */}
-            <p className="block text-[10px] sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-none sm:leading-normal opacity-80">
-              AI-Powered Risk Intelligence
-            </p>
           </div>
-
-          {/* Spacer for layout balance */}
-          <div className="flex-1"></div>
-          
-          {/* Mobile navigation - only visible on mobile */}
-          <div className="flex items-center md:hidden mr-2">
-            <MobileNavigation />
-            {/* Smaller screens only show the icon, with proper brand styling */}
-          </div>
+          <div className="h-3 sm:h-4"></div> {/* Increased spacer on mobile for better spacing */}
+          <p className="block text-sm sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-tight sm:leading-normal opacity-90">
+            AI-Powered Risk Intelligence
+          </p>
+        </div>
+        
+        {/* Rest of the header in a separate container */}
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
           
           {/* User account and theme toggle */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
@@ -106,6 +101,11 @@ export function RisqHeader() {
                 </div>
               </div>
             )}
+          </div>
+          
+          {/* Mobile navigation - repositioned to far right */}
+          <div className="flex items-center md:hidden ml-1.5 pl-1.5 border-l border-[#BF00FF]/20">
+            <MobileNavigation />
           </div>
         </div>
       </div>
