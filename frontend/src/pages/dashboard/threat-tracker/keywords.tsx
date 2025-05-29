@@ -271,8 +271,33 @@ export default function Keywords() {
       // Return a context object with the snapshotted value
       return { previousKeywords, optimisticKeywords };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables, context) => {
       const { message, keywords } = data;
+      
+      // Replace temporary optimistic items with real server data
+      if (context?.optimisticKeywords && keywords.length > 0) {
+        queryClient.setQueryData<ThreatKeyword[]>(
+          [`${serverUrl}/api/threat-tracker/keywords`],
+          (old) => {
+            if (!old) return keywords;
+            
+            // Create a map of temp IDs to real keywords for efficient lookup
+            const tempIds = context.optimisticKeywords.map(k => k.id);
+            
+            // Remove all temp items and add real ones
+            const withoutTempItems = old.filter(keyword => !tempIds.includes(keyword.id));
+            return [...withoutTempItems, ...keywords];
+          }
+        );
+
+        // Update local state to replace temporary items
+        setLocalKeywords((prev) => {
+          const tempIds = context.optimisticKeywords.map(k => k.id);
+          const withoutTempItems = prev.filter(keyword => !tempIds.includes(keyword.id));
+          return [...withoutTempItems, ...keywords];
+        });
+      }
+
       toast({
         title: "Keywords added in bulk",
         description: `Successfully created ${keywords.length} keywords.`,
@@ -282,9 +307,6 @@ export default function Keywords() {
         terms: "",
         category: selectedCategory,
         active: true,
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
     onError: (error, variables, context) => {
@@ -346,19 +368,36 @@ export default function Keywords() {
       // Update local state immediately
       setLocalKeywords((prev) => [...prev, optimisticKeyword]);
 
-      // Return a context object with the snapshotted value
-      return { previousKeywords };
+      // Return a context object with the snapshotted value and temp ID
+      return { previousKeywords, optimisticKeyword };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables, context) => {
+      // Replace the temporary optimistic item with real server data
+      if (context?.optimisticKeyword) {
+        queryClient.setQueryData<ThreatKeyword[]>(
+          [`${serverUrl}/api/threat-tracker/keywords`],
+          (old) => {
+            if (!old) return [data];
+            return old.map(keyword => 
+              keyword.id === context.optimisticKeyword.id ? data : keyword
+            );
+          }
+        );
+
+        // Update local state to replace temporary item
+        setLocalKeywords((prev) => 
+          prev.map(keyword => 
+            keyword.id === context.optimisticKeyword.id ? data : keyword
+          )
+        );
+      }
+
       toast({
         title: "Keyword created",
         description: "Your keyword has been added successfully.",
       });
       setKeywordDialogOpen(false);
       form.reset();
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
     },
     onError: (error, variables, context) => {
       console.error("Error creating keyword:", error);
