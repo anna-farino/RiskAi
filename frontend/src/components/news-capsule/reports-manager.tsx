@@ -10,7 +10,7 @@ interface ArticleSummary {
   summary: string;
   impacts: string;
   attackVector: string;
-  affectedOS: string;
+  microsoftConnection: string;
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
