@@ -707,26 +707,13 @@ export default function Research() {
                 <h3 className="text-lg font-medium">
                   Processed Articles ({processedArticles.length})
                 </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      setProcessedArticles([]);
-                      storedArticles.length = 0;
-                      localStorage.removeItem('savedArticleSummaries');
-                      setCurrentPage(1);
-                    }}
-                    className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
-                  >
-                    Clear All
-                  </button>
-                  {processedArticles.length > articlesPerPage && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-400">
-                        Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                {processedArticles.length > articlesPerPage && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">
+                      Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             
