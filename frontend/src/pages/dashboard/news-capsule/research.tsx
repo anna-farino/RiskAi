@@ -971,7 +971,8 @@ export default function Research() {
                   id: newReportId,
                   createdAt: new Date().toISOString(),
                   articles: [...selectedArticles], // Include selected articles
-                  versionNumber: versionNumber
+                  versionNumber: versionNumber,
+                  topic: reportTopic.trim() || undefined
                 };
                 
                 // Add to beginning of reports array
