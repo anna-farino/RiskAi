@@ -356,17 +356,38 @@ export default function ThreatHome() {
     hardware: keywords.data?.filter(k => k.category === 'hardware') || [],
   };
 
-  // Filter keywords for autocomplete based on search term
+  // Filter keywords for autocomplete based on search term and only show keywords detected in articles
   const filteredKeywords = useMemo(() => {
-    if (!keywords.data) return [];
+    if (!keywords.data || !articles.data) return [];
+    
+    // Get all detected keywords from articles
+    const detectedKeywordTerms = new Set<string>();
+    articles.data.forEach(article => {
+      if (article.detectedKeywords) {
+        const detected = article.detectedKeywords as any;
+        ['threats', 'vendors', 'clients', 'hardware'].forEach(category => {
+          if (detected[category] && Array.isArray(detected[category])) {
+            detected[category].forEach((term: string) => {
+              detectedKeywordTerms.add(term.toLowerCase());
+            });
+          } else if (detected[category] && typeof detected[category] === 'string') {
+            // Handle case where it's stored as a string
+            detected[category].split(',').forEach((term: string) => {
+              detectedKeywordTerms.add(term.trim().toLowerCase());
+            });
+          }
+        });
+      }
+    });
     
     return keywords.data.filter((keyword) => {
       const matchesSearch = keywordSearchTerm === "" || 
         keyword.term.toLowerCase().includes(keywordSearchTerm.toLowerCase());
       const notAlreadySelected = !selectedKeywordIds.includes(keyword.id);
-      return matchesSearch && notAlreadySelected && keyword.active;
+      const hasBeenDetected = detectedKeywordTerms.has(keyword.term.toLowerCase());
+      return matchesSearch && notAlreadySelected && keyword.active && hasBeenDetected;
     });
-  }, [keywords.data, keywordSearchTerm, selectedKeywordIds]);
+  }, [keywords.data, keywordSearchTerm, selectedKeywordIds, articles.data]);
 
   // Get selected keywords for display
   const selectedKeywords = useMemo(() => {

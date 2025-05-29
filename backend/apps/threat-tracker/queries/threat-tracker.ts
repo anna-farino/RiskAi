@@ -1,23 +1,26 @@
-import type { 
-  ThreatSource, 
-  InsertThreatSource, 
-  ThreatKeyword, 
-  InsertThreatKeyword, 
-  ThreatArticle, 
-  InsertThreatArticle, 
-  ThreatSetting, 
+import type {
+  ThreatSource,
+  InsertThreatSource,
+  ThreatKeyword,
+  InsertThreatKeyword,
+  ThreatArticle,
+  InsertThreatArticle,
+  ThreatSetting,
 } from "@shared/db/schema/threat-tracker/index";
-import { 
-  threatSources, 
-  threatKeywords, 
-  threatArticles, 
-  threatSettings, 
+import {
+  threatSources,
+  threatKeywords,
+  threatArticles,
+  threatSettings,
 } from "@shared/db/schema/threat-tracker/index";
 import { db, pool } from "backend/db/db";
 import { eq, and, isNull, sql, SQL, desc, inArray } from "drizzle-orm";
 
 // Helper function to execute SQL with parameters
-async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
+async function executeRawSql<T>(
+  sqlStr: string,
+  params: any[] = [],
+): Promise<T[]> {
   try {
     // Direct execution with the pool instead of through drizzle
     const result = await pool.query(sqlStr, params);
@@ -34,30 +37,40 @@ export interface IStorage {
   getSource(id: string): Promise<ThreatSource | undefined>;
   getAutoScrapeSources(userId?: string): Promise<ThreatSource[]>;
   createSource(source: InsertThreatSource): Promise<ThreatSource>;
-  updateSource(id: string, source: Partial<ThreatSource>): Promise<ThreatSource>;
+  updateSource(
+    id: string,
+    source: Partial<ThreatSource>,
+  ): Promise<ThreatSource>;
   deleteSource(id: string): Promise<void>;
 
-  // Keywords 
+  // Keywords
   getKeywords(category?: string, userId?: string): Promise<ThreatKeyword[]>;
   getKeyword(id: string): Promise<ThreatKeyword | undefined>;
-  getKeywordsByCategory(category: string, userId?: string): Promise<ThreatKeyword[]>;
+  getKeywordsByCategory(
+    category: string,
+    userId?: string,
+  ): Promise<ThreatKeyword[]>;
   createKeyword(keyword: InsertThreatKeyword): Promise<ThreatKeyword>;
-  updateKeyword(id: string, keyword: Partial<ThreatKeyword>): Promise<ThreatKeyword>;
+  updateKeyword(
+    id: string,
+    keyword: Partial<ThreatKeyword>,
+  ): Promise<ThreatKeyword>;
   deleteKeyword(id: string): Promise<void>;
 
   // Articles
   getArticle(id: string, userId?: string): Promise<ThreatArticle | undefined>;
-  getArticles(
-    options?: {
-      search?: string;
-      keywordIds?: string[];
-      startDate?: Date;
-      endDate?: Date;
-      userId?: string;
-    }
-  ): Promise<ThreatArticle[]>;
+  getArticles(options?: {
+    search?: string;
+    keywordIds?: string[];
+    startDate?: Date;
+    endDate?: Date;
+    userId?: string;
+  }): Promise<ThreatArticle[]>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
-  updateArticle(id: string, article: Partial<ThreatArticle>): Promise<ThreatArticle>;
+  updateArticle(
+    id: string,
+    article: Partial<ThreatArticle>,
+  ): Promise<ThreatArticle>;
   deleteArticle(id: string, userId?: string): Promise<void>;
   deleteAllArticles(userId?: string): Promise<boolean>;
   toggleArticleForCapsule(id: string, marked: boolean): Promise<boolean>;
@@ -65,7 +78,11 @@ export interface IStorage {
 
   // Settings
   getSetting(key: string, userId?: string): Promise<ThreatSetting | undefined>;
-  upsertSetting(key: string, value: any, userId?: string): Promise<ThreatSetting>;
+  upsertSetting(
+    key: string,
+    value: any,
+    userId?: string,
+  ): Promise<ThreatSetting>;
 }
 
 export const storage: IStorage = {
@@ -74,15 +91,13 @@ export const storage: IStorage = {
     try {
       const conditions = [];
       if (userId) conditions.push(eq(threatSources.userId, userId));
-      
-      const query = db
-        .select()
-        .from(threatSources);
-        
-      const finalQuery = conditions.length 
+
+      const query = db.select().from(threatSources);
+
+      const finalQuery = conditions.length
         ? query.where(and(...conditions))
         : query;
-      
+
       return await finalQuery.execute();
     } catch (error) {
       console.error("Error fetching threat sources:", error);
@@ -106,9 +121,12 @@ export const storage: IStorage = {
 
   getAutoScrapeSources: async (userId?: string) => {
     try {
-      const conditions = [eq(threatSources.active, true), eq(threatSources.includeInAutoScrape, true)];
+      const conditions = [
+        eq(threatSources.active, true),
+        eq(threatSources.includeInAutoScrape, true),
+      ];
       if (userId) conditions.push(eq(threatSources.userId, userId));
-      
+
       return await db
         .select()
         .from(threatSources)
@@ -125,11 +143,8 @@ export const storage: IStorage = {
       if (!source.name || !source.url) {
         throw new Error("Source must have a name and URL");
       }
-      
-      const results = await db
-        .insert(threatSources)
-        .values(source)
-        .returning();
+
+      const results = await db.insert(threatSources).values(source).returning();
       return results[0];
     } catch (error) {
       console.error("Error creating threat source:", error);
@@ -153,9 +168,7 @@ export const storage: IStorage = {
 
   deleteSource: async (id: string) => {
     try {
-      await db
-        .delete(threatSources)
-        .where(eq(threatSources.id, id));
+      await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
       console.error("Error deleting threat source:", error);
       throw error;
@@ -166,28 +179,36 @@ export const storage: IStorage = {
   getKeywords: async (category?: string, userId?: string) => {
     try {
       // Get default keywords (isDefault = true, userId = null)
-      const defaultConditions = [eq(threatKeywords.isDefault, true), isNull(threatKeywords.userId)];
-      if (category) defaultConditions.push(eq(threatKeywords.category, category));
-      
+      const defaultConditions = [
+        eq(threatKeywords.isDefault, true),
+        isNull(threatKeywords.userId),
+      ];
+      if (category)
+        defaultConditions.push(eq(threatKeywords.category, category));
+
       const defaultKeywords = await db
         .select()
         .from(threatKeywords)
         .where(and(...defaultConditions))
         .execute();
-      
+
       // Get user-specific keywords if userId is provided
       let userKeywords: ThreatKeyword[] = [];
       if (userId) {
-        const userConditions = [eq(threatKeywords.userId, userId), eq(threatKeywords.isDefault, false)];
-        if (category) userConditions.push(eq(threatKeywords.category, category));
-        
+        const userConditions = [
+          eq(threatKeywords.userId, userId),
+          eq(threatKeywords.isDefault, false),
+        ];
+        if (category)
+          userConditions.push(eq(threatKeywords.category, category));
+
         userKeywords = await db
           .select()
           .from(threatKeywords)
           .where(and(...userConditions))
           .execute();
       }
-      
+
       // Combine and return both default and user keywords
       return [...defaultKeywords, ...userKeywords];
     } catch (error) {
@@ -216,31 +237,31 @@ export const storage: IStorage = {
       const defaultConditions = [
         eq(threatKeywords.category, category),
         eq(threatKeywords.isDefault, true),
-        isNull(threatKeywords.userId)
+        isNull(threatKeywords.userId),
       ];
-      
+
       const defaultKeywords = await db
         .select()
         .from(threatKeywords)
         .where(and(...defaultConditions))
         .execute();
-      
+
       // Get user-specific keywords for this category if userId is provided
       let userKeywords: ThreatKeyword[] = [];
       if (userId) {
         const userConditions = [
           eq(threatKeywords.category, category),
           eq(threatKeywords.userId, userId),
-          eq(threatKeywords.isDefault, false)
+          eq(threatKeywords.isDefault, false),
         ];
-        
+
         userKeywords = await db
           .select()
           .from(threatKeywords)
           .where(and(...userConditions))
           .execute();
       }
-      
+
       // Combine and return both default and user keywords
       return [...defaultKeywords, ...userKeywords];
     } catch (error) {
@@ -254,18 +275,18 @@ export const storage: IStorage = {
       if (!keyword.term || !keyword.category) {
         throw new Error("Keyword must have a term and category");
       }
-      
+
       // Prevent creation of default keywords by regular users
       if (keyword.isDefault === true) {
         throw new Error("Cannot create default keywords through this endpoint");
       }
-      
+
       // Ensure isDefault is set to false for user keywords
       const keywordToCreate: InsertThreatKeyword = {
         ...keyword,
-        isDefault: false
+        isDefault: false,
       };
-      
+
       const results = await db
         .insert(threatKeywords)
         .values(keywordToCreate)
@@ -285,19 +306,19 @@ export const storage: IStorage = {
         .from(threatKeywords)
         .where(eq(threatKeywords.id, id))
         .execute();
-      
+
       if (existingKeyword.length === 0) {
         throw new Error("Keyword not found");
       }
-      
+
       if (existingKeyword[0].isDefault === true) {
         throw new Error("Cannot modify default keywords");
       }
-      
+
       // Prevent changing isDefault flag through this endpoint
       const updateData = { ...keyword };
       delete updateData.isDefault;
-      
+
       const results = await db
         .update(threatKeywords)
         .set(updateData)
@@ -318,18 +339,16 @@ export const storage: IStorage = {
         .from(threatKeywords)
         .where(eq(threatKeywords.id, id))
         .execute();
-      
+
       if (existingKeyword.length === 0) {
         throw new Error("Keyword not found");
       }
-      
+
       if (existingKeyword[0].isDefault === true) {
         throw new Error("Cannot delete default keywords");
       }
-      
-      await db
-        .delete(threatKeywords)
-        .where(eq(threatKeywords.id, id));
+
+      await db.delete(threatKeywords).where(eq(threatKeywords.id, id));
     } catch (error) {
       console.error("Error deleting threat keyword:", error);
       throw error;
@@ -344,7 +363,7 @@ export const storage: IStorage = {
 
       // Build WHERE clause based on search parameters
       const conditions = [];
-      
+
       // Add user filter if specified
       if (userId) {
         conditions.push(eq(threatArticles.userId, userId));
@@ -353,11 +372,11 @@ export const storage: IStorage = {
       // Add search term filter
       if (search && search.trim().length > 0) {
         const searchTerm = search.trim();
-        
-        // For short terms (< 4 characters), use exact word boundary matching
+
+        // For short terms (< 5 characters), use exact word boundary matching
         // For longer terms, use partial matching
         let searchCondition;
-        if (searchTerm.length < 4) {
+        if (searchTerm.length < 5) {
           // Exact word matching using regex word boundaries
           searchCondition = sql`(
             ${threatArticles.title} ~* ${`\\y${searchTerm}\\y`} OR 
@@ -370,12 +389,12 @@ export const storage: IStorage = {
         } else {
           // Partial matching for longer terms
           searchCondition = sql`(
-            ${threatArticles.title} ILIKE ${'%' + searchTerm + '%'} OR 
-            ${threatArticles.content} ILIKE ${'%' + searchTerm + '%'} OR
-            ${threatArticles.detectedKeywords}->>'threats' ILIKE ${'%' + searchTerm + '%'} OR
-            ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${'%' + searchTerm + '%'} OR
-            ${threatArticles.detectedKeywords}->>'clients' ILIKE ${'%' + searchTerm + '%'} OR
-            ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${'%' + searchTerm + '%'}
+            ${threatArticles.title} ILIKE ${"%" + searchTerm + "%"} OR 
+            ${threatArticles.content} ILIKE ${"%" + searchTerm + "%"} OR
+            ${threatArticles.detectedKeywords}->>'threats' ILIKE ${"%" + searchTerm + "%"} OR
+            ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + searchTerm + "%"} OR
+            ${threatArticles.detectedKeywords}->>'clients' ILIKE ${"%" + searchTerm + "%"} OR
+            ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + searchTerm + "%"}
           )`;
         }
         conditions.push(searchCondition);
@@ -390,18 +409,18 @@ export const storage: IStorage = {
           .where(inArray(threatKeywords.id, keywordIds));
 
         if (keywordResults.length) {
-          const keywordTerms = keywordResults.map(k => k.term.toLowerCase());
-          
+          const keywordTerms = keywordResults.map((k) => k.term.toLowerCase());
+
           // Search within the detectedKeywords JSON structure
-          const keywordConditions = keywordTerms.map(term => {
+          const keywordConditions = keywordTerms.map((term) => {
             return sql`(
-              ${threatArticles.detectedKeywords}->>'threats' ILIKE ${'%' + term + '%'} OR
-              ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${'%' + term + '%'} OR
-              ${threatArticles.detectedKeywords}->>'clients' ILIKE ${'%' + term + '%'} OR
-              ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${'%' + term + '%'}
+              ${threatArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
+              ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
+              ${threatArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
+              ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
             )`;
           });
-          
+
           // Combine all keyword conditions with OR (matches any selected keyword)
           const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
           conditions.push(combinedKeywordCondition);
@@ -439,7 +458,7 @@ export const storage: IStorage = {
       if (userId) {
         conditions.push(eq(threatArticles.userId, userId));
       }
-      
+
       const results = await db
         .select()
         .from(threatArticles)
@@ -482,15 +501,13 @@ export const storage: IStorage = {
   deleteArticle: async (id: string, userId?: string) => {
     try {
       const conditions = [eq(threatArticles.id, id)];
-      
+
       // If userId is provided, only delete the article if it belongs to that user
       if (userId) {
         conditions.push(eq(threatArticles.userId, userId));
       }
-      
-      await db
-        .delete(threatArticles)
-        .where(and(...conditions));
+
+      await db.delete(threatArticles).where(and(...conditions));
     } catch (error) {
       console.error("Error deleting threat article:", error);
       throw error;
@@ -508,7 +525,9 @@ export const storage: IStorage = {
       } else {
         // If no userId is provided, we shouldn't delete anything
         // This protects against accidentally deleting all users' articles
-        console.error("Attempted to delete all articles without specifying userId");
+        console.error(
+          "Attempted to delete all articles without specifying userId",
+        );
         return false;
       }
     } catch (error) {
@@ -534,14 +553,17 @@ export const storage: IStorage = {
     try {
       const conditions = [eq(threatArticles.markedForCapsule, true)];
       if (userId) conditions.push(eq(threatArticles.userId, userId));
-      
+
       return await db
         .select()
         .from(threatArticles)
         .where(and(...conditions))
         .orderBy(desc(threatArticles.scrapeDate));
     } catch (error) {
-      console.error("Error fetching threat articles marked for capsule:", error);
+      console.error(
+        "Error fetching threat articles marked for capsule:",
+        error,
+      );
       return [];
     }
   },
@@ -551,7 +573,7 @@ export const storage: IStorage = {
     try {
       const conditions = [eq(threatSettings.key, key)];
       if (userId) conditions.push(eq(threatSettings.userId, userId));
-      
+
       const results = await db
         .select()
         .from(threatSettings)
@@ -567,7 +589,7 @@ export const storage: IStorage = {
     try {
       // Check if the setting exists
       const existingSetting = await storage.getSetting(key, userId);
-      
+
       if (existingSetting) {
         // Update existing setting
         const results = await db
@@ -581,9 +603,9 @@ export const storage: IStorage = {
         const settingData = {
           key,
           value,
-          userId: userId || null
+          userId: userId || null,
         };
-        
+
         const results = await db
           .insert(threatSettings)
           .values(settingData)
