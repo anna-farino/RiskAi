@@ -283,6 +283,18 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
+    // Check if article is already selected
+    const isAlreadySelected = selectedArticles.some(selected => 
+      selected.id === article.id ||
+      selected.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
+      selected.originalUrl === article.originalUrl
+    );
+    
+    if (isAlreadySelected) {
+      alert("This article is already selected for the report.");
+      return;
+    }
+    
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
     
