@@ -704,7 +704,7 @@ export default function Sources() {
           <p className="text-sm text-muted-foreground mb-4">
             Add sources to start monitoring for security threats
           </p>
-          <Button onClick={handleNewSource}>
+          <Button onClick={handleNewSource} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
             <Plus className="mr-2 h-4 w-4" />
             Add Source
           </Button>
