@@ -109,14 +109,7 @@ export default function Keywords() {
   const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(
     null,
   );
-  
-  // Initialize local keywords from cache immediately on mount
-  const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>(() => {
-    const cachedData = queryClient.getQueryData<ThreatKeyword[]>([
-      `${serverUrl}/api/threat-tracker/keywords`,
-    ]);
-    return cachedData || [];
-  });
+  const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("threat");
   const [isDefaultKeywordsCollapsed, setIsDefaultKeywordsCollapsed] = useState<
     Record<string, boolean>
@@ -170,36 +163,15 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
-    gcTime: 10 * 60 * 1000, // 10 minutes - cache persists longer
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnMount: false, // Don't refetch on component mount if data exists
+    staleTime: 60000, // Reduce refetching frequency (1 minute)
   });
 
-  // Initialize and update local state whenever query data changes
+  // Update local state whenever query data changes
   useEffect(() => {
     if (keywords.data) {
       setLocalKeywords(keywords.data);
-    } else if (keywords.isLoading) {
-      // During loading, check if we have cached data to show immediately
-      const cachedData = queryClient.getQueryData<ThreatKeyword[]>([
-        `${serverUrl}/api/threat-tracker/keywords`,
-      ]);
-      if (cachedData) {
-        setLocalKeywords(cachedData);
-      }
     }
-  }, [keywords.data, keywords.isLoading]);
-
-  // Force refresh of local state when component mounts or route changes
-  useEffect(() => {
-    const cachedData = queryClient.getQueryData<ThreatKeyword[]>([
-      `${serverUrl}/api/threat-tracker/keywords`,
-    ]);
-    if (cachedData && cachedData.length > 0) {
-      setLocalKeywords(cachedData);
-    }
-  }, []); // Run only on mount
+  }, [keywords.data]);
 
   // Create bulk keywords mutation
   const createBulkKeywords = useMutation({

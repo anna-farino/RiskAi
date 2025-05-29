@@ -101,14 +101,7 @@ export default function Sources() {
   const { toast } = useToast();
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<ThreatSource | null>(null);
-  
-  // Initialize local sources from cache immediately on mount
-  const [localSources, setLocalSources] = useState<ThreatSource[]>(() => {
-    const cachedData = queryClient.getQueryData<ThreatSource[]>([
-      `${serverUrl}/api/threat-tracker/sources`,
-    ]);
-    return cachedData || [];
-  });
+  const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
 
@@ -143,37 +136,15 @@ export default function Sources() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
-    gcTime: 10 * 60 * 1000, // 10 minutes - cache persists longer
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnMount: false, // Don't refetch on component mount if data exists
+    }
   });
   
-  // Initialize and update local state whenever query data changes
+  // Sync local state with query data when it changes
   useEffect(() => {
     if (sources.data) {
       setLocalSources(sources.data);
-    } else if (sources.isLoading) {
-      // During loading, check if we have cached data to show immediately
-      const cachedData = queryClient.getQueryData<ThreatSource[]>([
-        `${serverUrl}/api/threat-tracker/sources`,
-      ]);
-      if (cachedData) {
-        setLocalSources(cachedData);
-      }
     }
-  }, [sources.data, sources.isLoading]);
-
-  // Force refresh of local state when component mounts or route changes
-  useEffect(() => {
-    const cachedData = queryClient.getQueryData<ThreatSource[]>([
-      `${serverUrl}/api/threat-tracker/sources`,
-    ]);
-    if (cachedData && cachedData.length > 0) {
-      setLocalSources(cachedData);
-    }
-  }, []); // Run only on mount
+  }, [sources.data]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
