@@ -214,6 +214,44 @@ export default function Keywords() {
         keywords: createdKeywords,
       };
     },
+    onMutate: async (values: BulkKeywordFormValues) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+
+      // Snapshot the previous value
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([
+        `${serverUrl}/api/threat-tracker/keywords`,
+      ]);
+
+      // Split the terms and create optimistic keywords
+      const keywordTerms = values.terms
+        .split(",")
+        .map((term) => term.trim())
+        .filter((term) => term.length > 0);
+
+      const optimisticKeywords: ThreatKeyword[] = keywordTerms.map((term, index) => ({
+        id: `temp-bulk-${Date.now()}-${index}`, // Temporary ID
+        term,
+        category: values.category,
+        active: values.active,
+        userId: "temp-user", // Will be replaced by server response
+        isDefault: false,
+      }));
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<ThreatKeyword[]>(
+        [`${serverUrl}/api/threat-tracker/keywords`],
+        (old) => [...(old || []), ...optimisticKeywords],
+      );
+
+      // Update local state immediately
+      setLocalKeywords((prev) => [...prev, ...optimisticKeywords]);
+
+      // Return a context object with the snapshotted value
+      return { previousKeywords, optimisticKeywords };
+    },
     onSuccess: (data) => {
       const { message, keywords } = data;
       toast({
@@ -230,8 +268,18 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
       console.error("Error creating bulk keywords:", error);
+      
+      // Revert the optimistic update
+      if (context?.previousKeywords) {
+        queryClient.setQueryData<ThreatKeyword[]>(
+          [`${serverUrl}/api/threat-tracker/keywords`],
+          context.previousKeywords,
+        );
+        setLocalKeywords(context.previousKeywords);
+      }
+      
       toast({
         title: "Error adding keywords",
         description:
@@ -250,7 +298,39 @@ export default function Keywords() {
         values,
       );
     },
-    onSuccess: () => {
+    onMutate: async (values: KeywordFormValues) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+
+      // Snapshot the previous value
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([
+        `${serverUrl}/api/threat-tracker/keywords`,
+      ]);
+
+      // Optimistically update to the new value
+      const optimisticKeyword: ThreatKeyword = {
+        id: `temp-${Date.now()}`, // Temporary ID
+        term: values.term,
+        category: values.category,
+        active: values.active,
+        userId: "temp-user", // Will be replaced by server response
+        isDefault: false,
+      };
+
+      queryClient.setQueryData<ThreatKeyword[]>(
+        [`${serverUrl}/api/threat-tracker/keywords`],
+        (old) => [...(old || []), optimisticKeyword],
+      );
+
+      // Update local state immediately
+      setLocalKeywords((prev) => [...prev, optimisticKeyword]);
+
+      // Return a context object with the snapshotted value
+      return { previousKeywords };
+    },
+    onSuccess: (data) => {
       toast({
         title: "Keyword created",
         description: "Your keyword has been added successfully.",
@@ -261,8 +341,18 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
       console.error("Error creating keyword:", error);
+      
+      // Revert the optimistic update
+      if (context?.previousKeywords) {
+        queryClient.setQueryData<ThreatKeyword[]>(
+          [`${serverUrl}/api/threat-tracker/keywords`],
+          context.previousKeywords,
+        );
+        setLocalKeywords(context.previousKeywords);
+      }
+      
       toast({
         title: "Error creating keyword",
         description:
@@ -452,12 +542,15 @@ export default function Keywords() {
     return (
       <div className="mb-6">
         <Collapsible
-          open={!isDefaultKeywordsCollapsed}
-          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(!open)}
+          open={!isDefaultKeywordsCollapsed[category]}
+          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({
+            ...prev,
+            [category]: !open
+          }))}
         >
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
-              {isDefaultKeywordsCollapsed ? (
+              {isDefaultKeywordsCollapsed[category] ? (
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
