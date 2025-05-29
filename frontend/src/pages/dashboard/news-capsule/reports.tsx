@@ -114,7 +114,7 @@ h2 {
 
 ${selectedReport.articles.map((article, index) => `
 <div class="article">
-<h2>Article ${index + 1}: ${article.title}</h2>
+<h2>${article.title}</h2>
 <p><span class="field-label">Threat Name:</span> ${article.threatName}</p>
 <p><span class="field-label">Vulnerability ID:</span> ${article.vulnerabilityId}</p>
 <p><span class="field-label">Attack Vector:</span> ${article.attackVector}</p>
