@@ -394,6 +394,9 @@ export default function Research() {
             const combinedArticles = [...existingArticles];
             
             // Add only articles that don't already exist in the report
+            const duplicatesFound = [];
+            const newlyAdded = [];
+            
             for (const article of newArticles) {
               const isDuplicate = combinedArticles.some((a: any) => 
                 a.id === article.id ||
@@ -403,7 +406,19 @@ export default function Research() {
               
               if (!isDuplicate) {
                 combinedArticles.push(article);
+                newlyAdded.push(article);
+              } else {
+                duplicatesFound.push(article);
               }
+            }
+            
+            // Show appropriate message based on what happened
+            if (duplicatesFound.length > 0 && newlyAdded.length === 0) {
+              alert(`All ${duplicatesFound.length} selected articles already exist in this report. No new articles were added.`);
+            } else if (duplicatesFound.length > 0 && newlyAdded.length > 0) {
+              alert(`${newlyAdded.length} new articles added to report. ${duplicatesFound.length} articles were already in the report and were skipped.`);
+            } else {
+              alert(`All ${newlyAdded.length} articles successfully added to report!`);
             }
             
             savedReports[reportIndex] = {
@@ -413,13 +428,25 @@ export default function Research() {
           }
         } else {
           // Create new report - remove duplicates based on title and URL
+          const duplicatesInSelection = [];
           const uniqueArticles = selectedArticles.filter((article, index, self) => {
             const firstIndex = self.findIndex(a => 
               a.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
               a.originalUrl === article.originalUrl
             );
-            return firstIndex === index;
+            const isUnique = firstIndex === index;
+            if (!isUnique) {
+              duplicatesInSelection.push(article);
+            }
+            return isUnique;
           });
+          
+          // Show message about duplicates in selection if any
+          if (duplicatesInSelection.length > 0) {
+            alert(`New report created with ${uniqueArticles.length} articles. ${duplicatesInSelection.length} duplicate articles were removed from your selection.`);
+          } else {
+            alert(`New report created successfully with ${uniqueArticles.length} articles!`);
+          }
           
           const newReport = {
             id: newReportId,
@@ -439,8 +466,6 @@ export default function Research() {
         localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
         console.log("Updated reports saved to localStorage:", savedReports.length);
         
-        // Success message
-        alert("Articles successfully added to report!");
         setIsLoading(false);
       };
       
