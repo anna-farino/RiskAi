@@ -353,15 +353,31 @@ export const storage: IStorage = {
       // Add search term filter
       if (search && search.trim().length > 0) {
         const searchTerm = search.trim();
-        // Search in title, content, and detected keywords
-        const searchCondition = sql`(
-          ${threatArticles.title} ILIKE ${'%' + searchTerm + '%'} OR 
-          ${threatArticles.content} ILIKE ${'%' + searchTerm + '%'} OR
-          ${threatArticles.detectedKeywords}->>'threats' ILIKE ${'%' + searchTerm + '%'} OR
-          ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${'%' + searchTerm + '%'} OR
-          ${threatArticles.detectedKeywords}->>'clients' ILIKE ${'%' + searchTerm + '%'} OR
-          ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${'%' + searchTerm + '%'}
-        )`;
+        
+        // For short terms (< 4 characters), use exact word boundary matching
+        // For longer terms, use partial matching
+        let searchCondition;
+        if (searchTerm.length < 4) {
+          // Exact word matching using regex word boundaries
+          searchCondition = sql`(
+            ${threatArticles.title} ~* ${`\\y${searchTerm}\\y`} OR 
+            ${threatArticles.content} ~* ${`\\y${searchTerm}\\y`} OR
+            ${threatArticles.detectedKeywords}->>'threats' ~* ${`\\y${searchTerm}\\y`} OR
+            ${threatArticles.detectedKeywords}->>'vendors' ~* ${`\\y${searchTerm}\\y`} OR
+            ${threatArticles.detectedKeywords}->>'clients' ~* ${`\\y${searchTerm}\\y`} OR
+            ${threatArticles.detectedKeywords}->>'hardware' ~* ${`\\y${searchTerm}\\y`}
+          )`;
+        } else {
+          // Partial matching for longer terms
+          searchCondition = sql`(
+            ${threatArticles.title} ILIKE ${'%' + searchTerm + '%'} OR 
+            ${threatArticles.content} ILIKE ${'%' + searchTerm + '%'} OR
+            ${threatArticles.detectedKeywords}->>'threats' ILIKE ${'%' + searchTerm + '%'} OR
+            ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${'%' + searchTerm + '%'} OR
+            ${threatArticles.detectedKeywords}->>'clients' ILIKE ${'%' + searchTerm + '%'} OR
+            ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${'%' + searchTerm + '%'}
+          )`;
+        }
         conditions.push(searchCondition);
       }
 
