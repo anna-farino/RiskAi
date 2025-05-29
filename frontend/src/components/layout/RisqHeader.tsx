@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Logo } from '@/components/ui/logo';
-
+import { ModeToggle } from '@/components/theme-toggle';
 import { useLogout } from '@/hooks/use-logout';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
@@ -70,8 +70,9 @@ export function RisqHeader() {
         {/* Rest of the header in a separate container */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
           
-          {/* User account section */}
+          {/* User account and theme toggle */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
+            <ModeToggle />
             {userData && (
               <div className="relative group">
                 <button className="flex items-center text-sm font-medium text-white rounded-full hover:bg-[#BF00FF]/10 p-1.5">
