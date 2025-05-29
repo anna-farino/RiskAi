@@ -606,9 +606,9 @@ export default function Keywords() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditKeyword(keyword)}
-                          className="h-8 w-8"
+                          className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-blue-400 hover:bg-blue-400/10"
                         >
-                          <PencilLine className="h-4 w-4" />
+                          <PencilLine className="h-3.5 w-3.5" />
                           <span className="sr-only">Edit</span>
                         </Button>
 
@@ -617,9 +617,9 @@ export default function Keywords() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-destructive hover:text-destructive h-8 w-8"
+                              className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                               <span className="sr-only">Delete</span>
                             </Button>
                           </AlertDialogTrigger>
