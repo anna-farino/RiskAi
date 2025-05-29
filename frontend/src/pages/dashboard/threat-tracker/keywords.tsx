@@ -504,41 +504,41 @@ export default function Keywords() {
         <div className="flex flex-col gap-4">
           {/* Tab navigation section */}
           <div className="w-full overflow-x-auto">
-            <TabsList className="w-full sm:w-auto flex min-w-max">
-              <TabsTrigger value="threat" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+            <TabsList className="w-full sm:w-auto flex min-w-max p-1 gap-1">
+              <TabsTrigger value="threat" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
                 <span className="lg:inline hidden">Threat Keywords</span>
                 <span className="md:inline hidden lg:hidden">Threats</span>
                 <span className="md:hidden inline">TH</span>
                 {categoryCounts.threat > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
+                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.threat}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="vendor" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+              <TabsTrigger value="vendor" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
                 <span className="md:inline hidden">Vendors</span>
                 <span className="md:hidden inline">VE</span>
                 {categoryCounts.vendor > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
+                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.vendor}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="client" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+              <TabsTrigger value="client" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
                 <span className="md:inline hidden">Clients</span>
                 <span className="md:hidden inline">CL</span>
                 {categoryCounts.client > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
+                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.client}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="hardware" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+              <TabsTrigger value="hardware" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
                 <span className="lg:inline hidden">Hardware/Software</span>
                 <span className="md:inline hidden lg:hidden">H/W S/W</span>
                 <span className="md:hidden inline">HW</span>
                 {categoryCounts.hardware > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
+                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.hardware}
                   </Badge>
                 )}
@@ -547,43 +547,47 @@ export default function Keywords() {
           </div>
           
           {/* Action buttons section */}
-          <div className="flex flex-col xs:flex-row gap-3 w-full">
+          <div className="flex flex-row gap-3 w-full">
             <Button 
               onClick={handleBulkKeywords} 
               disabled={createBulkKeywords.isPending} 
               variant="outline" 
-              className="h-11 px-4 flex-1 xs:flex-none xs:min-w-[120px] sm:min-w-[140px] touch-manipulation"
+              className="h-11 px-3 sm:px-4 flex-1 min-w-0 touch-manipulation"
             >
               {createBulkKeywords.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 sm:mr-2 h-4 w-4 animate-spin flex-shrink-0" />
               ) : (
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-1 sm:mr-2 h-4 w-4 flex-shrink-0" />
               )}
-              <span className="sm:inline hidden">Bulk Import</span>
-              <span className="sm:hidden inline">Bulk Import</span>
+              <span className="truncate">
+                <span className="sm:inline hidden">Bulk Import</span>
+                <span className="sm:hidden inline">Bulk</span>
+              </span>
             </Button>
             
             <Button 
               onClick={handleNewKeyword} 
               disabled={createKeyword.isPending} 
-              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-11 px-4 flex-1 xs:flex-none xs:min-w-[120px] sm:min-w-[140px] touch-manipulation"
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-11 px-3 sm:px-4 flex-1 min-w-0 touch-manipulation"
             >
               {createKeyword.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 sm:mr-2 h-4 w-4 animate-spin flex-shrink-0" />
               ) : (
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-1 sm:mr-2 h-4 w-4 flex-shrink-0" />
               )}
-              <span className="lg:inline hidden">
-                Add {selectedCategory === 'threat' ? 'Keyword' : 
-                    selectedCategory === 'vendor' ? 'Vendor' :
-                    selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
+              <span className="truncate">
+                <span className="lg:inline hidden">
+                  Add {selectedCategory === 'threat' ? 'Keyword' : 
+                      selectedCategory === 'vendor' ? 'Vendor' :
+                      selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
+                </span>
+                <span className="sm:inline hidden lg:hidden">
+                  Add {selectedCategory === 'threat' ? 'Keyword' : 
+                      selectedCategory === 'vendor' ? 'Vendor' :
+                      selectedCategory === 'client' ? 'Client' : 'H/W S/W'}
+                </span>
+                <span className="sm:hidden inline">Add</span>
               </span>
-              <span className="sm:inline hidden lg:hidden">
-                Add {selectedCategory === 'threat' ? 'Keyword' : 
-                    selectedCategory === 'vendor' ? 'Vendor' :
-                    selectedCategory === 'client' ? 'Client' : 'H/W S/W'}
-              </span>
-              <span className="sm:hidden inline">Add</span>
             </Button>
           </div>
         </div>
