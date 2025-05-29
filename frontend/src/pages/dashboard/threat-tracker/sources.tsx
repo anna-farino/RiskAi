@@ -101,7 +101,14 @@ export default function Sources() {
   const { toast } = useToast();
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<ThreatSource | null>(null);
-  const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
+  
+  // Initialize local sources from cache immediately on mount
+  const [localSources, setLocalSources] = useState<ThreatSource[]>(() => {
+    const cachedData = queryClient.getQueryData<ThreatSource[]>([
+      `${serverUrl}/api/threat-tracker/sources`,
+    ]);
+    return cachedData || [];
+  });
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
 
@@ -143,12 +150,20 @@ export default function Sources() {
     refetchOnMount: false, // Don't refetch on component mount if data exists
   });
   
-  // Sync local state with query data when it changes
+  // Initialize and update local state whenever query data changes
   useEffect(() => {
     if (sources.data) {
       setLocalSources(sources.data);
+    } else if (sources.isLoading) {
+      // During loading, check if we have cached data to show immediately
+      const cachedData = queryClient.getQueryData<ThreatSource[]>([
+        `${serverUrl}/api/threat-tracker/sources`,
+      ]);
+      if (cachedData) {
+        setLocalSources(cachedData);
+      }
     }
-  }, [sources.data]);
+  }, [sources.data, sources.isLoading]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({

@@ -109,7 +109,14 @@ export default function Keywords() {
   const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(
     null,
   );
-  const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>([]);
+  
+  // Initialize local keywords from cache immediately on mount
+  const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>(() => {
+    const cachedData = queryClient.getQueryData<ThreatKeyword[]>([
+      `${serverUrl}/api/threat-tracker/keywords`,
+    ]);
+    return cachedData || [];
+  });
   const [selectedCategory, setSelectedCategory] = useState<string>("threat");
   const [isDefaultKeywordsCollapsed, setIsDefaultKeywordsCollapsed] = useState<
     Record<string, boolean>
@@ -169,12 +176,20 @@ export default function Keywords() {
     refetchOnMount: false, // Don't refetch on component mount if data exists
   });
 
-  // Update local state whenever query data changes
+  // Initialize and update local state whenever query data changes
   useEffect(() => {
     if (keywords.data) {
       setLocalKeywords(keywords.data);
+    } else if (keywords.isLoading) {
+      // During loading, check if we have cached data to show immediately
+      const cachedData = queryClient.getQueryData<ThreatKeyword[]>([
+        `${serverUrl}/api/threat-tracker/keywords`,
+      ]);
+      if (cachedData) {
+        setLocalKeywords(cachedData);
+      }
     }
-  }, [keywords.data]);
+  }, [keywords.data, keywords.isLoading]);
 
   // Create bulk keywords mutation
   const createBulkKeywords = useMutation({
