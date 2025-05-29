@@ -856,8 +856,7 @@ export default function Sources() {
                 onClick={() => stopGlobalScrape.mutate()}
                 disabled={stopGlobalScrape.isPending}
                 size="sm"
-                variant="destructive"
-                className="h-9 px-2 sm:px-3"
+                className="bg-red-600 hover:bg-red-600/80 text-white h-9 px-2 sm:px-3"
               >
                 {stopGlobalScrape.isPending ? (
                   <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
@@ -872,7 +871,7 @@ export default function Sources() {
                 onClick={() => runGlobalScrape.mutate()}
                 disabled={runGlobalScrape.isPending}
                 size="sm"
-                className="bg-primary hover:bg-primary/90 h-9 px-2 sm:px-3"
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white h-9 px-2 sm:px-3"
               >
                 {runGlobalScrape.isPending ? (
                   <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
