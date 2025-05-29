@@ -26,6 +26,7 @@
     "class-variance-authority": "^0.7.1",
     "concurrently": "^9.1.2",
     "csrf-csrf": "^3.1.0",
+    "docx": "^9.5.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.43.1",
     "drizzle-zod": "^0.7.1",
