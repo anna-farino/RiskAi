@@ -7,7 +7,6 @@ import { serverUrl } from "@/utils/server-url";
 // Increased limit to support pagination functionality
 const MAX_STORED_ARTICLES = 100;
 const storedArticles: ArticleSummary[] = [];
-const storedSelectedArticles: ArticleSummary[] = [];
 
 // Store recent user-entered URLs (up to 10)
 const MAX_RECENT_URLS = 10;
@@ -78,10 +77,6 @@ export default function Research() {
           const parsed = JSON.parse(savedSelectedStr);
           if (Array.isArray(parsed)) {
             setSelectedArticles(parsed);
-            
-            // Update module-level array
-            storedSelectedArticles.length = 0;
-            storedSelectedArticles.push(...parsed);
           }
         } catch (e) {
           console.error("Failed to parse saved selected articles", e);
@@ -297,10 +292,6 @@ export default function Research() {
     
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
-    
-    // Update module variable
-    storedSelectedArticles.length = 0;
-    storedSelectedArticles.push(...newSelectedArticles);
     
     // Save selected articles to localStorage
     try {
@@ -631,16 +622,19 @@ export default function Research() {
   };
   
   const removeSelectedArticle = (id: string) => {
-    const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
-    setSelectedArticles(newSelectedArticles);
+    console.log("Removing article with ID:", id);
+    console.log("Current selected articles before removal:", selectedArticles.length);
     
-    // Update module variable
-    storedSelectedArticles.length = 0;
-    storedSelectedArticles.push(...newSelectedArticles);
+    const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
+    console.log("New selected articles after removal:", newSelectedArticles.length);
+    
+    // Force React to update by using functional state update
+    setSelectedArticles(() => newSelectedArticles);
     
     // Update localStorage to persist selection
     try {
       localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelectedArticles));
+      console.log("Saved to localStorage:", newSelectedArticles.length, "articles");
     } catch (e) {
       console.error("Failed to update selected articles in storage", e);
     }
