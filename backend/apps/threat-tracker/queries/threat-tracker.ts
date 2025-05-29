@@ -351,9 +351,17 @@ export const storage: IStorage = {
       }
 
       // Add search term filter
-      if (search) {
-        // Using ilike for case-insensitive search with PostgreSQL
-        const searchCondition = sql`(${threatArticles.title} ILIKE ${'%' + search + '%'} OR ${threatArticles.content} ILIKE ${'%' + search + '%'})`;
+      if (search && search.trim().length > 0) {
+        const searchTerm = search.trim();
+        // Search in title, content, and detected keywords
+        const searchCondition = sql`(
+          ${threatArticles.title} ILIKE ${'%' + searchTerm + '%'} OR 
+          ${threatArticles.content} ILIKE ${'%' + searchTerm + '%'} OR
+          ${threatArticles.detectedKeywords}->>'threats' ILIKE ${'%' + searchTerm + '%'} OR
+          ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${'%' + searchTerm + '%'} OR
+          ${threatArticles.detectedKeywords}->>'clients' ILIKE ${'%' + searchTerm + '%'} OR
+          ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${'%' + searchTerm + '%'}
+        )`;
         conditions.push(searchCondition);
       }
 
