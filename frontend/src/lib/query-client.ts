@@ -39,9 +39,21 @@ export async function apiRequest<T = any>(
       return null as T;
     }
     
-    const responseData = await res.json();
-    console.log("API Response data:", responseData);
-    return responseData;
+    // Try to get the response text first
+    const responseText = await res.text();
+    if (!responseText.trim()) {
+      console.log("API Response: Empty response body");
+      return null as T;
+    }
+    
+    try {
+      const responseData = JSON.parse(responseText);
+      console.log("API Response data:", responseData);
+      return responseData;
+    } catch (parseError) {
+      console.log("API Response: Non-JSON response", responseText);
+      return null as T;
+    }
   } catch (error) {
     console.error("API Request error:", error);
     throw error;
