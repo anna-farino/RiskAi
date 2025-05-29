@@ -212,6 +212,11 @@ threatRouter.put("/keywords/:id", async (req, res) => {
       return res.status(404).json({ error: "Keyword not found" });
     }
     
+    // Check if this is a default keyword
+    if (existingKeyword.isDefault === true) {
+      return res.status(403).json({ error: "Cannot modify default keywords" });
+    }
+    
     if (existingKeyword.userId && existingKeyword.userId !== userId) {
       return res.status(403).json({ error: "Not authorized to update this keyword" });
     }
@@ -234,6 +239,11 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
     const existingKeyword = await storage.getKeyword(keywordId);
     if (!existingKeyword) {
       return res.status(404).json({ error: "Keyword not found" });
+    }
+    
+    // Check if this is a default keyword
+    if (existingKeyword.isDefault === true) {
+      return res.status(403).json({ error: "Cannot delete default keywords" });
     }
     
     if (existingKeyword.userId && existingKeyword.userId !== userId) {

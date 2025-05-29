@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
@@ -15,10 +15,13 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  Plus,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +49,9 @@ export default function ThreatHome() {
     endDate?: Date;
   }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] = useState<boolean>(false);
+  const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
@@ -139,6 +145,20 @@ export default function ThreatHome() {
       setLocalArticles(articles.data);
     }
   }, [articles.data]);
+
+  // Click outside handler for autocomplete dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setKeywordAutocompleteOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Delete article mutation
   const deleteArticle = useMutation({
@@ -335,6 +355,59 @@ export default function ThreatHome() {
     client: keywords.data?.filter(k => k.category === 'client') || [],
     hardware: keywords.data?.filter(k => k.category === 'hardware') || [],
   };
+
+  // Filter keywords for autocomplete based on search term and only show keywords detected in articles
+  const filteredKeywords = useMemo(() => {
+    if (!keywords.data || !articles.data) return [];
+    
+    // Get all detected keywords from articles
+    const detectedKeywordTerms = new Set<string>();
+    articles.data.forEach(article => {
+      if (article.detectedKeywords) {
+        const detected = article.detectedKeywords as any;
+        ['threats', 'vendors', 'clients', 'hardware'].forEach(category => {
+          if (detected[category] && Array.isArray(detected[category])) {
+            detected[category].forEach((term: string) => {
+              detectedKeywordTerms.add(term.toLowerCase());
+            });
+          } else if (detected[category] && typeof detected[category] === 'string') {
+            // Handle case where it's stored as a string
+            detected[category].split(',').forEach((term: string) => {
+              detectedKeywordTerms.add(term.trim().toLowerCase());
+            });
+          }
+        });
+      }
+    });
+    
+    return keywords.data.filter((keyword) => {
+      const matchesSearch = keywordSearchTerm === "" || 
+        keyword.term.toLowerCase().includes(keywordSearchTerm.toLowerCase());
+      const notAlreadySelected = !selectedKeywordIds.includes(keyword.id);
+      const hasBeenDetected = detectedKeywordTerms.has(keyword.term.toLowerCase());
+      return matchesSearch && notAlreadySelected && keyword.active && hasBeenDetected;
+    });
+  }, [keywords.data, keywordSearchTerm, selectedKeywordIds, articles.data]);
+
+  // Get selected keywords for display
+  const selectedKeywords = useMemo(() => {
+    if (!keywords.data) return [];
+    return keywords.data.filter(k => selectedKeywordIds.includes(k.id));
+  }, [keywords.data, selectedKeywordIds]);
+
+  // Add keyword to selection
+  const addKeywordToFilter = (keywordId: string) => {
+    if (!selectedKeywordIds.includes(keywordId)) {
+      setSelectedKeywordIds(prev => [...prev, keywordId]);
+    }
+    setKeywordSearchTerm("");
+    setKeywordAutocompleteOpen(false);
+  };
+
+  // Remove keyword from selection
+  const removeKeywordFromFilter = (keywordId: string) => {
+    setSelectedKeywordIds(prev => prev.filter(id => id !== keywordId));
+  };
   
   return (
     <>
@@ -416,8 +489,8 @@ export default function ThreatHome() {
         {/* Filters section */}
         {isFilterOpen && (
           <div className="p-4 border rounded-lg bg-card">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium">Filter by keywords</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-medium">Filter Options</h3>
               <div className="flex gap-2">
                 <Button 
                   variant="ghost" 
@@ -438,86 +511,82 @@ export default function ThreatHome() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Threat Keywords */}
+            <div className="space-y-4">
+              {/* Simple Keyword Filter */}
               <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Threat Keywords</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.threat.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.threat.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No threat keywords defined</span>
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Filter by Keywords</h4>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Type keyword to filter (e.g., malware, vulnerability)..."
+                    className="pl-9"
+                    value={keywordSearchTerm}
+                    onChange={(e) => {
+                      setKeywordSearchTerm(e.target.value);
+                      // Auto-filter based on search term
+                      if (e.target.value.trim()) {
+                        const matchingKeywords = keywords.data?.filter(k => 
+                          k.term.toLowerCase().includes(e.target.value.toLowerCase()) && 
+                          k.active &&
+                          !selectedKeywordIds.includes(k.id)
+                        );
+                        if (matchingKeywords && matchingKeywords.length > 0) {
+                          setKeywordAutocompleteOpen(true);
+                        }
+                      } else {
+                        setKeywordAutocompleteOpen(false);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filteredKeywords.length > 0) {
+                        addKeywordToFilter(filteredKeywords[0].id);
+                      }
+                    }}
+                  />
+                  {/* Simple dropdown for matching keywords */}
+                  {keywordAutocompleteOpen && filteredKeywords.length > 0 && (
+                    <div ref={dropdownRef} className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                      {filteredKeywords.slice(0, 5).map((keyword) => (
+                        <div
+                          key={keyword.id}
+                          className="px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-2"
+                          onClick={() => addKeywordToFilter(keyword.id)}
+                        >
+                          <div className={`h-2 w-2 rounded-full ${
+                            keyword.category === 'threat' ? 'bg-red-500' :
+                            keyword.category === 'vendor' ? 'bg-blue-500' :
+                            keyword.category === 'client' ? 'bg-green-500' :
+                            'bg-orange-500'
+                          }`} />
+                          <span className="text-sm">{keyword.term}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">{keyword.category}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
+
+              {/* Selected Keywords Display */}
+              {selectedKeywords.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">Active Keyword Filters</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedKeywords.map((keyword) => (
+                      <Badge
+                        key={keyword.id}
+                        variant="default"
+                        className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                        onClick={() => removeKeywordFromFilter(keyword.id)}
+                      >
+                        {keyword.term}
+                        <X className="h-3 w-3 ml-1" />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
               
-              {/* Vendor Keywords */}
-              <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vendors</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.vendor.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.vendor.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No vendors defined</span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Client Keywords */}
-              <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Clients</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.client.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.client.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No clients defined</span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Hardware/Software Keywords */}
-              <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Hardware/Software</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywordsByCategory.hardware.map((keyword) => (
-                    <Badge
-                      key={keyword.id}
-                      variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleKeywordFilter(keyword.id)}
-                    >
-                      {keyword.term}
-                    </Badge>
-                  ))}
-                  {keywordsByCategory.hardware.length === 0 && (
-                    <span className="text-xs text-muted-foreground">No hardware/software defined</span>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         )}
