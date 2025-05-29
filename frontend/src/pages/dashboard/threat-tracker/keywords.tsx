@@ -408,6 +408,29 @@ export default function Keywords() {
         `${serverUrl}/api/threat-tracker/keywords/${id}`,
       );
     },
+    onMutate: async (id: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+
+      // Snapshot the previous value
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([
+        `${serverUrl}/api/threat-tracker/keywords`,
+      ]);
+
+      // Optimistically remove the keyword
+      queryClient.setQueryData<ThreatKeyword[]>(
+        [`${serverUrl}/api/threat-tracker/keywords`],
+        (old) => (old || []).filter(keyword => keyword.id !== id),
+      );
+
+      // Update local state immediately
+      setLocalKeywords((prev) => prev.filter(keyword => keyword.id !== id));
+
+      // Return a context object with the snapshotted value
+      return { previousKeywords };
+    },
     onSuccess: () => {
       toast({
         title: "Keyword deleted",
@@ -417,8 +440,18 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
       console.error("Error deleting keyword:", error);
+      
+      // Revert the optimistic update
+      if (context?.previousKeywords) {
+        queryClient.setQueryData<ThreatKeyword[]>(
+          [`${serverUrl}/api/threat-tracker/keywords`],
+          context.previousKeywords,
+        );
+        setLocalKeywords(context.previousKeywords);
+      }
+      
       toast({
         title: "Error deleting keyword",
         description:
