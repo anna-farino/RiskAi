@@ -828,12 +828,21 @@ export default function Research() {
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => selectForReport(article)}
-                        className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                      >
-                        Select for Report
-                      </button>
+                      {selectedArticles.some(selected => selected.id === article.id) ? (
+                        <button
+                          onClick={() => removeSelectedArticle(article.id)}
+                          className="px-3 py-1 text-sm bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 rounded-md border border-blue-700/30"
+                        >
+                          Article In Report
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => selectForReport(article)}
+                          className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                        >
+                          Add to Report
+                        </button>
+                      )}
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
                         className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
