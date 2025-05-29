@@ -39,15 +39,17 @@ router.get('/articles', async (req, res) => {
 router.delete('/articles', async (req, res) => {
   try {
     const userId = (req as FullRequest).user.id;
+    console.log('Attempting to delete all articles for user:', userId);
     
-    const result = await db
-      .delete(capsuleArticles)
-      .where(eq(capsuleArticles.userId, userId));
+    // Use raw SQL for more reliable deletion
+    const result = await db.execute(`DELETE FROM capsule_articles WHERE user_id = '${userId}'`);
     
+    console.log('Delete result:', result);
     res.json({ success: true, message: 'All articles deleted' });
   } catch (error) {
     console.error('Error deleting all capsule articles:', error);
-    res.status(500).json({ error: 'Failed to delete all articles' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Failed to delete all articles', details: error.message });
   }
 });
 
