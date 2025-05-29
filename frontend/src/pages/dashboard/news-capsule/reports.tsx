@@ -49,12 +49,19 @@ export default function Reports() {
           {selectedReport ? (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">
-                  Executive Report: {formatDate(selectedReport.createdAt)}
-                  {selectedReport.versionNumber && selectedReport.versionNumber > 1 && 
-                    <span className="ml-2 text-blue-400 text-sm">(Version: {selectedReport.versionNumber})</span>
-                  }
-                </h2>
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    Executive Report: {formatDate(selectedReport.createdAt)}
+                    {selectedReport.versionNumber && selectedReport.versionNumber > 1 && 
+                      <span className="ml-2 text-blue-400 text-sm">(Version: {selectedReport.versionNumber})</span>
+                    }
+                  </h2>
+                  {selectedReport.topic && (
+                    <p className="text-slate-300 text-sm mt-1">
+                      <span className="font-medium">Report Topic:</span> {selectedReport.topic}
+                    </p>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <button
                     className="px-3 py-1 text-sm bg-blue-700 hover:bg-blue-600 rounded-md"
@@ -109,6 +116,7 @@ h2 {
 <div class="header">
 <h1>RisqAI News Capsule Reporting</h1>
 <p>Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</p>
+${selectedReport.topic ? `<p><strong>Report Topic:</strong> ${selectedReport.topic}</p>` : ''}
 <p>Generated on: ${new Date().toLocaleDateString()}</p>
 </div>
 

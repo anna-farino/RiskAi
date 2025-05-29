@@ -51,6 +51,7 @@ export default function Research() {
   const [bulkMode, setBulkMode] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [articlesPerPage] = useState(10);
+  const [reportTopic, setReportTopic] = useState("");
   
   // Load saved URLs and article summaries from localStorage
   useEffect(() => {
@@ -102,6 +103,12 @@ export default function Research() {
         } catch (e) {
           console.error("Failed to parse saved selected articles", e);
         }
+      }
+      
+      // Load report topic
+      const savedTopic = localStorage.getItem('reportTopic');
+      if (savedTopic) {
+        setReportTopic(savedTopic);
       }
     } catch (e) {
       console.error("Failed to load saved data", e);
@@ -380,7 +387,8 @@ export default function Research() {
             id: newReportId,
             createdAt: new Date().toISOString(),
             articles: [...selectedArticles],
-            versionNumber: versionNumber
+            versionNumber: versionNumber,
+            topic: reportTopic.trim() || undefined
           };
           
           // Add to beginning of reports array
@@ -781,7 +789,28 @@ export default function Research() {
             </span>
           </div>
           
-          <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto">
+          {/* Report Topic Field */}
+          <div className="mb-4">
+            <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
+              Report Topic (Optional)
+            </label>
+            <input
+              id="reportTopic"
+              type="text"
+              value={reportTopic}
+              onChange={(e) => {
+                setReportTopic(e.target.value);
+                localStorage.setItem('reportTopic', e.target.value);
+              }}
+              placeholder="Enter a topic for this report..."
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              This topic will appear in the Executive Report below the title
+            </p>
+          </div>
+          
+          <div className="flex flex-col gap-3 max-h-[360px] overflow-y-auto">
             {selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic">
                 No articles selected yet

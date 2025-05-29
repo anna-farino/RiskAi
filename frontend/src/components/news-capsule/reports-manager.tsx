@@ -22,6 +22,7 @@ export interface Report {
   createdAt: string;
   articles: ArticleSummary[];
   versionNumber?: number;
+  topic?: string;
 }
 
 interface ReportsManagerProps {
