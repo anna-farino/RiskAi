@@ -120,6 +120,11 @@ ${selectedReport.topic ? `<p><strong>Report Topic:</strong> ${selectedReport.top
 <p>Generated on: ${new Date().toLocaleDateString()}</p>
 </div>
 
+<div style="margin-bottom: 12pt;">
+<h2 style="font-size: 12pt; font-weight: bold; margin-bottom: 6pt;">Articles in this Report:</h2>
+${selectedReport.articles.map((article, index) => `<p style="margin: 0; padding: 0;">• ${article.title}</p>`).join('')}
+</div>
+
 ${selectedReport.articles.map((article, index) => `
 <div class="article">
 <h2>${article.title}</h2>
@@ -519,6 +524,18 @@ ${selectedReport.articles.map((article, index) => `
                 </div>
               ) : (
                 <div className="space-y-6">
+                  {/* Articles Summary */}
+                  <div className="p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-6">
+                    <h3 className="text-blue-300 font-medium mb-3">Articles in this Report:</h3>
+                    <ul className="space-y-1">
+                      {selectedReport.articles.map((article, index) => (
+                        <li key={article.id} className="text-sm text-slate-300">
+                          • {article.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
                   {selectedReport.articles.map((article, index) => (
                     <motion.div
                       key={article.id}
