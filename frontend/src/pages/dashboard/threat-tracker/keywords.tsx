@@ -552,7 +552,7 @@ export default function Keywords() {
               <span className="sm:hidden inline">Bulk</span>
             </Button>
             
-            <Button onClick={handleNewKeyword} disabled={createKeyword.isPending} className="h-9 px-2 sm:px-4">
+            <Button onClick={handleNewKeyword} disabled={createKeyword.isPending} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-4">
               {createKeyword.isPending ? (
                 <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
               ) : (
