@@ -24,10 +24,10 @@ export function RisqHeader() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Determine logo size based on screen width - increased for more prominence
+  // Determine logo size based on screen width
   const getLogoSize = () => {
-    if (windowWidth < 640) return "lg";   // Mobile - increased to large (40px) for better visibility
-    if (windowWidth < 1024) return "lg";  // Tablet - same large size for consistency
+    if (windowWidth < 640) return "md";   // Mobile - medium size (32px)
+    if (windowWidth < 1024) return "lg";  // Tablet - large size for consistency
     return "xl";                          // Desktop - extra large for maximum prominence
   };
 
@@ -61,8 +61,8 @@ export function RisqHeader() {
               </div>
             </Link>
           </div>
-          <div className="h-3 sm:h-4"></div> {/* Increased spacer on mobile for better spacing */}
-          <p className="block text-sm sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-tight sm:leading-normal opacity-90">
+          <div className="h-3 sm:h-4"></div> {/* Spacer for desktop/tablet tagline */}
+          <p className="hidden sm:block text-xs text-white font-light italic tracking-wide ml-1 leading-normal opacity-90">
             AI-Powered Risk Intelligence
           </p>
         </div>
