@@ -119,6 +119,11 @@ export default function Keywords() {
     client: true,
     hardware: true,
   });
+  
+  // Optimistic update states
+  const [pendingOperations, setPendingOperations] = useState<Set<string>>(new Set());
+  const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
+  const [addingItem, setAddingItem] = useState(false);
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
@@ -140,7 +145,7 @@ export default function Keywords() {
     },
   });
 
-  // Fetch keywords
+  // Fetch keywords with refetch on window focus for navigation remounting
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
@@ -163,6 +168,8 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
+    refetchOnWindowFocus: true,
+    staleTime: 0 // Always consider data stale to ensure fresh data on navigation
     staleTime: 60000, // Reduce refetching frequency (1 minute)
   });
 

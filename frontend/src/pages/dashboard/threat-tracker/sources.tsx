@@ -925,9 +925,25 @@ export default function Sources() {
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+          );
+          })}
         </TableBody>
       </Table>
     );
   }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
+        <p className="text-muted-foreground">
+          Manage sources for threat monitoring and configure auto-scrape settings.
+        </p>
+      </div>
+      
+      {renderAutoScrapeCard()}
+      {renderSourcesCard()}
+      {renderAddSourceDialog()}
+    </div>
+  );
 }
