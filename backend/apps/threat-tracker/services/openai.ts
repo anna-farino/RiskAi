@@ -107,15 +107,28 @@ export async function identifyArticleLinks(
 
     // For simplified HTML, extract directly to a more processable format
     if (isSimplifiedHtml) {
-      const linkRegex = /<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
-      let match;
+      // Instead of using regex (which is losing data), extract href and text using a more robust approach
+      const linkItems = linksText.split('<div class="article-link-item">').slice(1); // Skip first empty element
       const links = [];
-      while ((match = linkRegex.exec(linksText)) !== null) {
-        links.push({
-          href: match[1],
-          text: match[2].replace(/<[^>]+>/g, "").trim(), // Strip HTML from link text
-        });
+      
+      for (const item of linkItems) {
+        // Extract href from <a href="...">
+        const hrefMatch = item.match(/href="([^"]*)"/);
+        if (!hrefMatch) continue;
+        
+        const href = hrefMatch[1];
+        
+        // Extract text content between <a> tags, handling potential nested HTML
+        const aTagMatch = item.match(/<a[^>]*>(.*?)<\/a>/s);
+        if (!aTagMatch) continue;
+        
+        let text = aTagMatch[1];
+        // Clean any remaining HTML tags from the text
+        text = text.replace(/<[^>]+>/g, '').trim();
+        
+        links.push({ href, text });
       }
+      
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
         .join("\n");
@@ -126,18 +139,23 @@ export async function identifyArticleLinks(
       "openai",
     );
 
+    // Debug log: Print the structured HTML being sent to OpenAI
+    log(
+      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis:\n${linksText}`,
+      "openai-debug",
+    );
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts about cybersecurity threats. Look for:
-            1. Article-style titles (descriptive, security-focused)
-            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, CVE numbers)
-            3. Security-related keywords (threat, vulnerability, attack, breach, etc.)
-            4. Proper article context (not navigation/category pages)
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
+            1. Article-style titles (descriptive)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
+            3. Proper article context (not navigation/category pages)
 
-            Return only links that are very likely to be actual security-related articles.
+            Return only links that are very likely to be actual articles.
             Exclude:
             - Category pages
             - Tag pages
@@ -202,18 +220,13 @@ export async function analyzeContent(
     const hardwareKeywordsText = hardwareKeywords.join(", ");
 
     const prompt = `
-<<<<<<< HEAD
 Analyze the following article text and identify cybersecurity threats mentioned. You will STRICTLY cross-reference with the provided keyword lists. 
-=======
-Analyze the following article text and identify any cybersecurity threats mentioned. Cross-reference with the provided lists of keywords.
->>>>>>> origin/dev
 
 THREAT KEYWORDS: ${threatKeywordsText}
 VENDOR KEYWORDS: ${vendorKeywordsText}
 CLIENT KEYWORDS: ${clientKeywordsText}
 HARDWARE/SOFTWARE KEYWORDS: ${hardwareKeywordsText}
 
-<<<<<<< HEAD
 CRITICAL INSTRUCTIONS:
 1. ONLY return keywords that EXACTLY match items in the lists above
 2. DO NOT include synonyms, related terms, or variations NOT in the lists
@@ -223,13 +236,10 @@ CRITICAL INSTRUCTIONS:
    - At least one exact match from the THREAT KEYWORDS list AND
    - At least one exact match from any of the other three keyword lists
 
-=======
->>>>>>> origin/dev
 Return your analysis in valid JSON format with the following structure:
 {
   "summary": "A concise 1-2 sentence summary of the article focusing on security threats",
   "detectedKeywords": {
-<<<<<<< HEAD
     "threats": ["only", "exact", "matches", "from", "threat", "keywords", "list"],
     "vendors": ["only", "exact", "matches", "from", "vendor", "keywords", "list"],
     "clients": ["only", "exact", "matches", "from", "client", "keywords", "list"],
@@ -241,21 +251,9 @@ Return your analysis in valid JSON format with the following structure:
 }
 
 Remember: If a keyword is not EXACTLY in the provided lists, DO NOT include it in the results - no exceptions.
-=======
-    "threats": ["list", "of", "detected", "threat", "keywords"],
-    "vendors": ["list", "of", "detected", "vendor", "keywords"],
-    "clients": ["list", "of", "detected", "client", "keywords"],
-    "hardware": ["list", "of", "detected", "hardware", "keywords"]
-  },
-  "relevanceScore": "A number between 0 and 10 indicating how relevant this article is to cybersecurity threats affecting the mentioned vendors, clients, or hardware"
-}
-
-Only include keywords from the provided lists that are actually mentioned in the article. If none are mentioned in a category, return an empty array for that category.
->>>>>>> origin/dev
 
 ARTICLE TITLE: ${articleTitle}
-ARTICLE CONTENT:
-${articleContent.substring(0, 8000)}
+ARTICLE CONTENT: ${articleContent.substring(0, 8000)}
 `;
 
     const completion = await openai.chat.completions.create({

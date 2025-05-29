@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Clock, User, Loader2, AlertTriangle, Shield, CheckCircle2, Zap } from "lucide-react";
+import { Trash2, Clock, User, Loader2, AlertTriangle, Shield, CheckCircle2, Zap, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
 import { formatDistanceToNow } from "date-fns";
@@ -19,6 +19,7 @@ interface ThreatArticleCardProps {
   onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string, category: string) => void;
+  onSendToCapsule?: (url: string) => void;
 }
 
 interface KeywordCategories {
@@ -28,13 +29,27 @@ interface KeywordCategories {
   hardware: string[];
 }
 
-export function ThreatArticleCard({ article, onDelete, isPending = false, onKeywordClick }: ThreatArticleCardProps) {
+export function ThreatArticleCard({ article, onDelete, isPending = false, onKeywordClick, onSendToCapsule }: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
+  const [sendingToCapsule, setSendingToCapsule] = useState(false);
   
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onDelete(article.id);
+  };
+
+  const handleSendToCapsule = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onSendToCapsule) {
+      setSendingToCapsule(true);
+      try {
+        await onSendToCapsule(article.url);
+      } finally {
+        setSendingToCapsule(false);
+      }
+    }
   };
 
   // Parse the relevance score (either string or number)
@@ -303,33 +318,57 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
               View Source
             </a>
             
-            <DeleteAlertDialog
-              open={openAlert}
-              setOpen={setOpenAlert}
-              action={(e: React.MouseEvent) => handleDelete(e)}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={isPending}
-                onClick={(e)=> {
-                  e.preventDefault();
-                  setOpenAlert(true);
-                }}
-                className={cn(
-                  "h-fit w-fit p-2",
-                  "border border-slate-700 rounded-full",
-                  "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
-                  isPending && "cursor-not-allowed opacity-70"
-                )}
+            <div className="flex items-center gap-2">
+              {onSendToCapsule && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending || sendingToCapsule}
+                  onClick={handleSendToCapsule}
+                  className={cn(
+                    "h-fit w-fit p-2",
+                    "border border-slate-700 rounded-full",
+                    "text-slate-400 hover:text-blue-400 hover:bg-blue-400/10",
+                    (isPending || sendingToCapsule) && "cursor-not-allowed opacity-70"
+                  )}
+                  title="Send to News Capsule"
+                >
+                  {sendingToCapsule ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              )}
+              
+              <DeleteAlertDialog
+                open={openAlert}
+                setOpen={setOpenAlert}
+                action={(e: React.MouseEvent) => handleDelete(e)}
               >
-                {isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </DeleteAlertDialog>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending}
+                  onClick={(e)=> {
+                    e.preventDefault();
+                    setOpenAlert(true);
+                  }}
+                  className={cn(
+                    "h-fit w-fit p-2",
+                    "border border-slate-700 rounded-full",
+                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
+                    isPending && "cursor-not-allowed opacity-70"
+                  )}
+                >
+                  {isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </DeleteAlertDialog>
+            </div>
           </div>
         </div>
       </div>

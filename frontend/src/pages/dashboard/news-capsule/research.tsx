@@ -53,7 +53,7 @@ export default function Research() {
   const [articlesPerPage] = useState(10);
   const [reportTopic, setReportTopic] = useState("");
   
-  // Load saved URLs and article summaries from localStorage
+  // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
     // Load saved URLs from localStorage
     try {
@@ -71,24 +71,7 @@ export default function Research() {
         }
       }
       
-      // Load saved article summaries from localStorage
-      const savedArticlesStr = localStorage.getItem('savedArticleSummaries');
-      if (savedArticlesStr) {
-        try {
-          const parsed = JSON.parse(savedArticlesStr);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProcessedArticles(parsed);
-            
-            // Update module-level array
-            storedArticles.length = 0;
-            storedArticles.push(...parsed);
-          }
-        } catch (e) {
-          console.error("Failed to parse saved article summaries", e);
-        }
-      }
-      
-      // Load selected articles
+      // Load selected articles from localStorage
       const savedSelectedStr = localStorage.getItem('savedSelectedArticles');
       if (savedSelectedStr) {
         try {
@@ -113,7 +96,37 @@ export default function Research() {
     } catch (e) {
       console.error("Failed to load saved data", e);
     }
+    
+    // Fetch articles from database
+    fetchArticlesFromDatabase();
   }, []);
+
+  // Function to fetch articles from the database
+  const fetchArticlesFromDatabase = async () => {
+    try {
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+
+      if (response.ok) {
+        const articles = await response.json();
+        console.log('Fetched articles from database:', articles.length);
+        setProcessedArticles(articles);
+        
+        // Update module-level array
+        storedArticles.length = 0;
+        storedArticles.push(...articles);
+      } else {
+        console.error('Failed to fetch articles from database');
+      }
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+    }
+  };
   
   const clearUrl = () => {
     setUrl("");
@@ -569,24 +582,44 @@ export default function Research() {
     }
   };
   
-  const removeProcessedArticle = (id: string) => {
-    const newProcessedArticles = processedArticles.filter(article => article.id !== id);
-    setProcessedArticles(newProcessedArticles);
+  const removeProcessedArticle = async (id: string) => {
+    // Optimistic update - remove from UI immediately
+    const originalArticles = [...processedArticles];
+    const optimisticArticles = processedArticles.filter(article => article.id !== id);
+    setProcessedArticles(optimisticArticles);
     
-    // Update module variable
-    storedArticles.length = 0;
-    storedArticles.push(...newProcessedArticles);
-    
-    // Update localStorage to persist article list
-    try {
-      localStorage.setItem('savedArticleSummaries', JSON.stringify(newProcessedArticles));
-    } catch (e) {
-      console.error("Failed to update article summaries in storage", e);
-    }
-    
-    // Also remove from selected if present
+    // Also remove from selected if present (optimistically)
     if (selectedArticles.some(article => article.id === id)) {
       removeSelectedArticle(id);
+    }
+
+    try {
+      // Delete from database
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+
+      if (response.ok) {
+        console.log('Article deleted successfully');
+        // Update localStorage with the optimistic state
+        try {
+          localStorage.setItem('savedArticleSummaries', JSON.stringify(optimisticArticles));
+        } catch (e) {
+          console.error("Failed to update article summaries in storage", e);
+        }
+      } else {
+        // Revert optimistic update on failure
+        console.error('Failed to delete article from database');
+        setProcessedArticles(originalArticles);
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      console.error('Error deleting article:', error);
+      setProcessedArticles(originalArticles);
     }
   };
   

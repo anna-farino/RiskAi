@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, Page } from 'puppeteer';
+// All explicit browser management in this file is now per-call only, for low-memory operation.
 import { execSync } from 'child_process';
 import { log } from 'console';
 import vanillaPuppeteer from 'puppeteer';
@@ -65,73 +66,9 @@ function findChromePath() {
 const CHROME_PATH = findChromePath();
 console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 
-let browser: Browser | null = null;
+// REMOVED global browser instance and getBrowser/setupPage for per-call browser model
 
-async function getBrowser() {
-  log(`[GET BROWSER] chrome_path, env_path`, CHROME_PATH, PUPPETEER_EXECUTABLE_PATH )
-    try {
-      // Use a more minimal configuration to avoid dependencies
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
-          '--window-size=1920x1080',
-          '--disable-features=site-per-process,AudioServiceOutOfProcess',  // For stability
-          '--disable-software-rasterizer',
-          '--disable-extensions',
-          '--disable-gl-drawing-for-tests',  // Disable GPU usage
-          '--mute-audio',  // No audio needed for scraping
-          '--no-zygote',   // Run without zygote process
-          '--no-first-run',  // Skip first run wizards
-          '--no-default-browser-check',
-          '--ignore-certificate-errors',
-          '--allow-running-insecure-content',
-          '--disable-web-security',
-          '--disable-blink-features=AutomationControlled' // Avoid detection
-        ],
-        //executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        // Set longer browser launch timeout
-        timeout: 180000 // 3 minute timeout on browser launch
-      });
-      console.log("[getBrowser] Browser launched successfully");
-    } catch (error) {
-      console.error("[getBrowser] Failed to launch browser:", error);
-      throw error;
-    }
-  console.log("[getBrowser] browser instance:", browser)
-  return browser;
-}
-
-async function setupPage(): Promise<Page> | null {
-  try {
-    log(`[setupPage] About to set browser... 😬🤞`)
-    const browser = await getBrowser();
-    log(`[setupPage] About to set page... 😬🤞`)
-    const page = await browser.newPage();
-
-    // Set viewport
-    await page.setViewport({ width: 1920, height: 1080 });
-
-    // Set user agent
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-
-    // Set extra headers
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    });
-
-    return page;
-  } catch(error) {
-    console.error("An error occurred while trype to set up the page:", error)
-    return null
-  }
-}
-
+// This function expects a fully prepared page and is safe.
 async function extractArticleLinks(page: Page): Promise<string> {
   // Wait for any links to appear
   await page.waitForSelector('a', { timeout: 5000 });
@@ -178,24 +115,60 @@ async function extractArticleLinks(page: Page): Promise<string> {
   </html>`;
 }
 
-export async function scrapePuppeteer(url: string, isArticlePage: boolean = false, scrapingConfig: any): Promise<string> {
+export async function scrapePuppeteer(
+  url: string,
+  isArticlePage: boolean = false,
+  scrapingConfig: any
+): Promise<string> {
+  let browser: Browser | null = null;
   let page: Page | null = null;
-  log(`[scrapePuppeteer] Function started with URL: ${url}`)
-  
+  log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
+
   // Simple URL validation
   if (!url || typeof url !== 'string' || !url.startsWith('http')) {
     throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
   }
-  
+
   try {
-    try {
-      page = await setupPage();
-      if (!page) return new Promise(res => res(""))
-      log(`[scrapePuppeteer] Page setup complete`);
-    } catch (error: any) {
-      console.error("[scrapePuppeteer] Error setting up page:", error);
-      throw new Error(`Failed to setup browser page: ${error?.message || String(error)}`);
-    }
+    // Launch the browser afresh for every call for lowest memory use
+    log('[scrapePuppeteer] 🟢 Launching new browser instance');
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1920x1080',
+        '--disable-features=site-per-process,AudioServiceOutOfProcess',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--disable-gl-drawing-for-tests',
+        '--mute-audio',
+        '--no-zygote',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--ignore-certificate-errors',
+        '--allow-running-insecure-content',
+        '--disable-web-security',
+        '--disable-blink-features=AutomationControlled',
+      ],
+      executablePath: CHROME_PATH || undefined,
+      timeout: 180000, // 3 minute timeout
+    });
+    log('[scrapePuppeteer] ✅ Browser launched');
+    page = await browser.newPage();
+    log('[scrapePuppeteer] ✅ New page opened');
+
+    // Set viewport
+    await page.setViewport({ width: 1920, height: 1080 });
+
+    // Set user agent
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
+    );
+    log('[scrapePuppeteer] Page setup complete');
 
     // Set a more realistic user agent
     try {
@@ -409,26 +382,20 @@ export async function scrapePuppeteer(url: string, isArticlePage: boolean = fals
     if (page) {
       try {
         await page.close();
-        console.log("[scrapePuppeteer] Page closed successfully");
+        console.log('[scrapePuppeteer] 🟡 Page closed successfully');
       } catch (closeError: any) {
-        console.error("[scrapePuppeteer] Error closing page:", closeError?.message || String(closeError));
-        // Don't rethrow as we're already in finally
+        console.error('[scrapePuppeteer] Error closing page:', closeError?.message || String(closeError));
+      }
+    }
+    if (browser) {
+      try {
+        await browser.close();
+        console.log('[scrapePuppeteer] 🔴 Browser closed successfully');
+      } catch (closeError: any) {
+        console.error('[scrapePuppeteer] Error closing browser:', closeError?.message || String(closeError));
       }
     }
   }
 }
 
-// Clean up browser on process exit and termination signals
-['exit', 'SIGINT', 'SIGTERM'].forEach(event => {
-  process.on(event, () => {
-    if (browser) {
-      try {
-        // Note: We can't use async/await in these handlers
-        console.log("[Puppeteer] Closing browser due to", event);
-        browser.close().catch(err => console.error("[Puppeteer] Error closing browser:", err));
-      } catch (err) {
-        console.error("[Puppeteer] Error during browser cleanup:", err);
-      }
-    }
-  });
-});
+

@@ -112,23 +112,30 @@ async function getBrowser() {
 export async function processUrl(req: Request, res: Response) {
   try {
     const { url } = req.body;
+    console.log('Processing URL:', url);
     
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
     }
     
     // Extract the content from the URL using Puppeteer
+    console.log('Starting content extraction...');
     const content = await scrapeArticleContent(url);
+    console.log('Content extracted successfully');
     
     if (!content) {
+      console.log('No content extracted from URL');
       return res.status(400).json({ error: 'Failed to extract content from URL' });
     }
     
     // Generate a summary using OpenAI
+    console.log('Starting AI summary generation...');
     const summary = await generateArticleSummary(content, url);
+    console.log('AI summary generated successfully');
     
     // Save to database
     const userId = (req as FullRequest).user.id;
+    console.log('Saving to database for user:', userId);
     const articleData = {
       ...summary,
       originalUrl: url,
@@ -139,11 +146,13 @@ export async function processUrl(req: Request, res: Response) {
     };
     
     const [result] = await db.insert(capsuleArticles).values(articleData).returning();
+    console.log('Article saved successfully with ID:', result.id);
     
     return res.status(200).json(result);
   } catch (error) {
     console.error('Error processing URL:', error);
-    return res.status(500).json({ error: 'Failed to process URL' });
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({ error: 'Failed to process URL', details: error.message });
   }
 }
 

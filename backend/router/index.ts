@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Request, Router, Response } from 'express';
 import { verifyToken } from '../middleware';
 import { verifyPermissions } from '../middleware/verify-permissions';
 import { handleTest } from '../handlers/test';
@@ -11,10 +11,10 @@ import { newsRouter } from '../apps/news-radar/router';
 import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
-import { withDbContext } from 'backend/middleware/with-db-context';
-//import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
+import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
+import sendGrid from 'backend/utils/sendGrid';
 
 const limiter = rateLimit(rateLimitConfig)
 
@@ -22,10 +22,19 @@ const router = Router();
 
 // HELLO WORLD route
 router.get('/test', limiter, handleTest)
+router.get('/test-email', (req: Request, res: Response)=>{
+  sendGrid({
+    to: "test-91gqwhqpp@srv1.mail-tester.com",
+    subject: "Test",
+    text: "This is 👍",
+    //html: "<h1>Hello, sendGrid!</h1>"
+  })
+  res.json({ response: "test email route hit!"})
+})
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
-//router.get('/test-articles', testArticles)
+router.get('/test-articles', testArticles)
 
 // AUTH
 router.use('/auth', limiter, authRouter)
@@ -34,7 +43,6 @@ router.use('/auth', limiter, authRouter)
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 router.use(verifyToken)
-router.use(withDbContext)
 
 // PROTECTED ROUTES
 router.use('/users', usersRouter)

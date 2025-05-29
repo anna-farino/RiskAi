@@ -15,6 +15,7 @@ import type { Article } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
 import dotenv from "dotenv";
 import { Request } from 'express';
+import sendGrid from "backend/utils/sendGrid";
 
 dotenvConfig(dotenv)
 // Track active scraping processes for all sources
@@ -28,7 +29,6 @@ let globalJobRunning = false;
  */
 export async function scrapeSource(
   sourceId: string,
-  req: Request
 ): Promise<{
   processedCount: number;
   savedCount: number;
@@ -195,7 +195,7 @@ export async function scrapeSource(
           );
 
           // Check if article with this URL already exists in the database for this user
-          const existingArticle = await storage.getArticleByUrl(req, link, userId);
+          const existingArticle = await storage.getArticleByUrl(link, userId);
 
           if (existingArticle) {
             log(
@@ -203,18 +203,24 @@ export async function scrapeSource(
               "scraper",
             );
           } else {
+            log(
+              "Article doesn't already exists",
+              "scraper"
+            )
             const newArticle = await storage.createArticle({
-              sourceId,
-              userId, // Include the userId from the source
-              title: article.title,
-              content: article.content,
-              url: link,
-              author: article.author || null,
-              publishDate: new Date(), // Always use current date
-              summary: analysis.summary,
-              relevanceScore: analysis.relevanceScore,
-              detectedKeywords: allKeywords,
-            });
+                sourceId,
+                userId, // Include the userId from the source
+                title: article.title,
+                content: article.content,
+                url: link,
+                author: article.author || null,
+                publishDate: new Date(), // Always use current date
+                summary: analysis.summary,
+                relevanceScore: analysis.relevanceScore,
+                detectedKeywords: allKeywords,
+              },
+              userId
+            );
 
             // Add the newly saved article to our collection for email notification
             newArticles.push(newArticle);
@@ -232,7 +238,7 @@ export async function scrapeSource(
           );
         }
       } catch (error) {
-        log(`[Scraping] Error processing article ${link}: ${error}`, "scraper");
+        log(`[Scraping] Error processing article ${link}: ERROR:${error}, ERROR STACK: ${error.stack}`, "scraper");
         continue;
       }
     }
@@ -329,14 +335,20 @@ export async function sendNewArticlesEmail(
         ${articleList}
       </table>
     `
-    // Send email using EmailJS
-    await sendEmailJs({
-      template: process.env.EMAILJS_TEMPLATE_OTP_ID as string,
-      templateParams: {
-        email: userEmail,
-        otp: fullArticleList
-      }
-    });
+    await sendGrid({
+      to: userEmail,
+      subject: "News Radar",
+      text: fullArticleList,
+      html: fullArticleList
+    })
+    // Old -- to be deleted later 
+    //await sendEmailJs({
+    //  template: process.env.EMAILJS_TEMPLATE_OTP_ID as string,
+    //  templateParams: {
+    //    email: userEmail,
+    //    otp: fullArticleList
+    //  }
+    //});
 
     log(
       `[Email] Successfully sent notification email to ${userEmail}`,
@@ -357,7 +369,6 @@ export async function sendNewArticlesEmail(
  */
 export async function runGlobalScrapeJob(
   userId: string,
-  req: Request
 )
 : Promise<{
   success: boolean;
@@ -412,7 +423,6 @@ export async function runGlobalScrapeJob(
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
-          req
         );
 
         // Add source information to each new article for email notification grouping

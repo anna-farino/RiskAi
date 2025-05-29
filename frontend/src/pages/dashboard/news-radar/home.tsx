@@ -345,6 +345,37 @@ export default function NewsHome() {
     },
   });
 
+  // Send article to News Capsule
+  const sendToCapsule = async (url: string) => {
+    try {
+      const response = await fetch(`${serverUrl}/api/news-capsule/process-url`, {
+        method: "POST",
+        credentials: 'include',
+        headers: {
+          "Content-Type": "application/json",
+          ...csfrHeaderObject(),
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send to capsule: ${response.statusText}`);
+      }
+
+      toast({
+        title: "Article sent to News Capsule",
+        description: "The article has been successfully sent for processing.",
+      });
+    } catch (error) {
+      console.error("Send to capsule error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send article to News Capsule. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 py-4 sm:py-6 md:py-8">
@@ -662,6 +693,7 @@ export default function NewsHome() {
                     onDelete={(id: any) => deleteArticle.mutate(id)}
                     isPending={pendingItems.has(article.id)}
                     onKeywordClick={handleKeywordClick}
+                    onSendToCapsule={sendToCapsule}
                   />
                 </a>
               ))}

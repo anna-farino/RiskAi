@@ -10,10 +10,10 @@ CREATE TABLE "reports" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-DROP TABLE "threat_articles" CASCADE;--> statement-breakpoint
-DROP TABLE "threat_keywords" CASCADE;--> statement-breakpoint
-DROP TABLE "threat_settings" CASCADE;--> statement-breakpoint
-DROP TABLE "threat_sources" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "threat_articles" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "threat_keywords" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "threat_settings" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "threat_sources" CASCADE;--> statement-breakpoint
 ALTER TABLE "capsule_articles_in_reports" ADD CONSTRAINT "capsule_articles_in_reports_article_id_capsule_articles_id_fk" FOREIGN KEY ("article_id") REFERENCES "public"."capsule_articles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "capsule_articles_in_reports" ADD CONSTRAINT "capsule_articles_in_reports_report_id_reports_id_fk" FOREIGN KEY ("report_id") REFERENCES "public"."reports"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reports" ADD CONSTRAINT "reports_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;

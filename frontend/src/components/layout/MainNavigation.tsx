@@ -37,6 +37,7 @@ type NavItemProps = {
   icon: React.ReactNode;
   children: React.ReactNode;
   active?: boolean;
+  isChild?: boolean;
 };
 
 type NavGroupProps = {
@@ -45,20 +46,28 @@ type NavGroupProps = {
   defaultOpen?: boolean;
 };
 
-const NavItem = ({ href, icon, children, active }: NavItemProps) => (
+const NavItem = ({ href, icon, children, active, isChild = false }: NavItemProps) => (
   <Link
     to={href}
     className={cn(
-      "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+      "flex items-center gap-3 rounded-md py-2.5 text-sm transition-colors",
+      isChild 
+        ? "ml-6 pl-4 border-l border-[#BF00FF]/20 relative" 
+        : "px-3",
       active 
-        ? "bg-gradient-to-r from-[#BF00FF]/30 to-[#00FFFF]/10 text-white shadow-inner" 
+        ? isChild
+          ? "bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/5 text-white shadow-inner" 
+          : "bg-gradient-to-r from-[#BF00FF]/30 to-[#00FFFF]/10 text-white shadow-inner"
         : "text-white hover:text-white hover:bg-gradient-to-r hover:from-[#BF00FF]/20 hover:to-[#00FFFF]/5"
     )}
   >
+    {isChild && (
+      <div className="absolute left-0 top-0 w-[1px] h-full bg-gradient-to-b from-[#BF00FF]/30 to-[#00FFFF]/30"></div>
+    )}
     <div className="relative">
       {icon}
     </div>
-    <span>{children}</span>
+    <span className={isChild ? "font-normal" : "font-medium"}>{children}</span>
   </Link>
 );
 
@@ -103,11 +112,11 @@ export const MainNavigation = ({ className }: { className?: string }) => {
   const NavigationContent = () => (
     <div className="flex flex-col gap-2 py-2">
       <div className="px-3 py-2">
-        <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
-          Menu
+        <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
+          Your RisqAi Toolkit
         </h2>
-        <p className="text-xs text-gray-400">
-          Explore RisqAI platform features and tools
+        <p className="text-sm text-gray-400 leading-tight">
+          Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
         </p>
       </div>
 
@@ -120,52 +129,79 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           Dashboard
         </NavItem>
         
+        {/* News Radar parent */}
         <NavItem 
           href="/dashboard/news/home" 
-          icon={<Newspaper size={18} className="text-[#BF00FF]" />} 
+          icon={<Newspaper size={20} className="text-[#BF00FF]" />} 
           active={isActive('/dashboard/news/home')}
         >
           News Radar
         </NavItem>
         
+        {/* News Radar children */}
         <NavItem 
           href="/dashboard/news/sources" 
-          icon={<Search size={18} className="text-[#00FFFF]" />} 
+          icon={<Search size={16} className="text-[#BF00FF]/80" />} 
           active={isActive('/dashboard/news/sources')}
+          isChild={true}
         >
           News Sources
         </NavItem>
         
         <NavItem 
           href="/dashboard/news/keywords" 
-          icon={<AlertTriangle size={18} className="text-[#BF00FF]" />} 
+          icon={<AlertTriangle size={16} className="text-[#BF00FF]/80" />} 
           active={isActive('/dashboard/news/keywords')}
+          isChild={true}
         >
           Keywords
         </NavItem>
         
+        {/* Threat Tracker parent */}
         <NavItem 
           href="/dashboard/threat/home" 
-          icon={<ShieldAlert size={18} className="text-[#00FFFF]" />}
+          icon={<ShieldAlert size={20} className="text-[#00FFFF]" />}
           active={isActive('/dashboard/threat/home')}
         >
           Threat Tracker
         </NavItem>
+        
+        {/* Threat Tracker children */}
+        <NavItem 
+          href="/dashboard/threat/sources" 
+          icon={<Search size={16} className="text-[#00FFFF]/80" />} 
+          active={isActive('/dashboard/threat/sources')}
+          isChild={true}
+        >
+          Sources
+        </NavItem>
+        
+        <NavItem 
+          href="/dashboard/threat/keywords" 
+          icon={<AlertTriangle size={16} className="text-[#00FFFF]/80" />} 
+          active={isActive('/dashboard/threat/keywords')}
+          isChild={true}
+        >
+          Keywords
+        </NavItem>
       </div>
 
       <div className="px-3 py-1 space-y-1">
+        {/* News Capsule parent */}
         <NavItem 
-          href="/dashboard/capsule/home" 
+          href="/dashboard/news-capsule/home" 
           icon={<Radar size={18} className="text-[#00FFFF]" />} 
           active={isActive('/dashboard/capsule/home')}
         >
           News Capsule
         </NavItem>
         
+        {/* News Capsule child */}
         <NavItem 
-          href="/dashboard/capsule/reports" 
+          href="/dashboard/news-capsule/reports" 
           icon={<FileText size={18} className="text-[#BF00FF]" />} 
           active={isActive('/dashboard/capsule/reports')}
+          isChild={true}
         >
           Reports
         </NavItem>
@@ -216,11 +252,11 @@ export const MobileNavigation = () => {
           <div className="pt-2"> {/* Add some top padding for better spacing */}
             <div className="flex flex-col gap-2 py-2">
               <div className="px-3 py-2">
-                <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
-                  Menu
+                <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
+                  Your RisqAi Toolkit
                 </h2>
-                <p className="text-xs text-gray-400">
-                  Explore RisqAI platform features and tools
+                <p className="text-sm text-gray-400 leading-tight">
+                  Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
                 </p>
               </div>
 
@@ -233,28 +269,79 @@ export const MobileNavigation = () => {
                   Dashboard
                 </NavItem>
                 
+                {/* News Radar parent */}
                 <NavItem 
                   href="/dashboard/news/home" 
-                  icon={<Newspaper size={18} className="text-[#BF00FF]" />} 
+                  icon={<Newspaper size={20} className="text-[#BF00FF]" />} 
                   active={location.pathname.startsWith('/dashboard/news')}
                 >
                   News Radar
                 </NavItem>
                 
+                {/* News Radar children */}
+                <NavItem 
+                  href="/dashboard/news/sources" 
+                  icon={<Search size={16} className="text-[#BF00FF]/80" />}
+                  active={location.pathname.includes('/dashboard/news/sources')}
+                  isChild={true}
+                >
+                  News Sources
+                </NavItem>
+                
+                <NavItem 
+                  href="/dashboard/news/keywords" 
+                  icon={<AlertTriangle size={16} className="text-[#BF00FF]/80" />}
+                  active={location.pathname.includes('/dashboard/news/keywords')}
+                  isChild={true}
+                >
+                  Keywords
+                </NavItem>
+                
+                {/* Threat Tracker parent */}
                 <NavItem 
                   href="/dashboard/threat/home" 
-                  icon={<ShieldAlert size={18} className="text-[#00FFFF]" />}
+                  icon={<ShieldAlert size={20} className="text-[#00FFFF]" />}
                   active={location.pathname.startsWith('/dashboard/threat')}
                 >
                   Threat Tracker
                 </NavItem>
+                
+                {/* Threat Tracker children */}
+                <NavItem 
+                  href="/dashboard/threat/sources" 
+                  icon={<Search size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/threat/sources')}
+                  isChild={true}
+                >
+                  Sources
+                </NavItem>
+                
+                <NavItem 
+                  href="/dashboard/threat/keywords" 
+                  icon={<AlertTriangle size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/threat/keywords')}
+                  isChild={true}
+                >
+                  Keywords
+                </NavItem>
 
+                {/* News Capsule parent */}
                 <NavItem 
                   href="/dashboard/capsule/home" 
-                  icon={<Radar size={18} className="text-[#00FFFF]" />} 
+                  icon={<Radar size={20} className="text-[#00FFFF]" />} 
                   active={location.pathname.startsWith('/dashboard/capsule')}
                 >
                   News Capsule
+                </NavItem>
+                
+                {/* News Capsule child */}
+                <NavItem 
+                  href="/dashboard/capsule/reports" 
+                  icon={<FileText size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/capsule/reports')}
+                  isChild={true}
+                >
+                  Reports
                 </NavItem>
                 
                 <NavItem 
