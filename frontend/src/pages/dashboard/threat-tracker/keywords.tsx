@@ -503,45 +503,51 @@ export default function Keywords() {
       >
         <div className="flex flex-col gap-4">
           {/* Tab navigation section */}
-          <div className="w-full overflow-x-auto">
-            <TabsList className="w-full sm:w-auto flex min-w-max p-1 gap-1">
-              <TabsTrigger value="threat" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
-                <span className="lg:inline hidden">Threat Keywords</span>
-                <span className="md:inline hidden lg:hidden">Threats</span>
-                <span className="md:hidden inline">TH</span>
-                {categoryCounts.threat > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
-                    {categoryCounts.threat}
-                  </Badge>
-                )}
+          <div className="w-full">
+            <TabsList className="w-full h-auto grid grid-cols-2 lg:grid-cols-4 p-2 gap-2">
+              <TabsTrigger value="threat" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-2">
+                  <span className="xl:inline hidden text-sm font-medium">Threat Keywords</span>
+                  <span className="lg:inline hidden xl:hidden text-sm font-medium">Threats</span>
+                  <span className="lg:hidden inline text-sm font-medium">Threats</span>
+                  {categoryCounts.threat > 0 && (
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
+                      {categoryCounts.threat}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="vendor" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
-                <span className="md:inline hidden">Vendors</span>
-                <span className="md:hidden inline">VE</span>
-                {categoryCounts.vendor > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
-                    {categoryCounts.vendor}
-                  </Badge>
-                )}
+              <TabsTrigger value="vendor" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Vendors</span>
+                  {categoryCounts.vendor > 0 && (
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
+                      {categoryCounts.vendor}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="client" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
-                <span className="md:inline hidden">Clients</span>
-                <span className="md:hidden inline">CL</span>
-                {categoryCounts.client > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
-                    {categoryCounts.client}
-                  </Badge>
-                )}
+              <TabsTrigger value="client" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Clients</span>
+                  {categoryCounts.client > 0 && (
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
+                      {categoryCounts.client}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="hardware" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none px-3 py-2">
-                <span className="lg:inline hidden">Hardware/Software</span>
-                <span className="md:inline hidden lg:hidden">H/W S/W</span>
-                <span className="md:hidden inline">HW</span>
-                {categoryCounts.hardware > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-xs px-1 py-0 min-w-[20px] h-4">
-                    {categoryCounts.hardware}
-                  </Badge>
-                )}
+              <TabsTrigger value="hardware" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-2">
+                  <span className="xl:inline hidden text-sm font-medium">Hardware/Software</span>
+                  <span className="lg:inline hidden xl:hidden text-sm font-medium">Hardware</span>
+                  <span className="lg:hidden inline text-sm font-medium">Hardware</span>
+                  {categoryCounts.hardware > 0 && (
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
+                      {categoryCounts.hardware}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
             </TabsList>
           </div>
