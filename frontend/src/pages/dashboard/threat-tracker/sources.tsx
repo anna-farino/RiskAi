@@ -164,6 +164,16 @@ export default function Sources() {
       }
     }
   }, [sources.data, sources.isLoading]);
+
+  // Force refresh of local state when component mounts or route changes
+  useEffect(() => {
+    const cachedData = queryClient.getQueryData<ThreatSource[]>([
+      `${serverUrl}/api/threat-tracker/sources`,
+    ]);
+    if (cachedData && cachedData.length > 0) {
+      setLocalSources(cachedData);
+    }
+  }, []); // Run only on mount
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({

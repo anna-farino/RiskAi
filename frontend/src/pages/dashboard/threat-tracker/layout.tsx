@@ -60,7 +60,7 @@ export default function ThreatLayout() {
           );
         })}
       </div>
-      <Outlet/>
+      <Outlet key={location}/>
     </div>
   );
 }

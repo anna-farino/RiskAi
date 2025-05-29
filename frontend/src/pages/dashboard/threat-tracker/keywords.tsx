@@ -191,6 +191,16 @@ export default function Keywords() {
     }
   }, [keywords.data, keywords.isLoading]);
 
+  // Force refresh of local state when component mounts or route changes
+  useEffect(() => {
+    const cachedData = queryClient.getQueryData<ThreatKeyword[]>([
+      `${serverUrl}/api/threat-tracker/keywords`,
+    ]);
+    if (cachedData && cachedData.length > 0) {
+      setLocalKeywords(cachedData);
+    }
+  }, []); // Run only on mount
+
   // Create bulk keywords mutation
   const createBulkKeywords = useMutation({
     mutationFn: async (values: BulkKeywordFormValues) => {
