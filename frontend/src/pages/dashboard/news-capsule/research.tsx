@@ -429,6 +429,8 @@ export default function Research() {
             topic: reportTopic.trim() || undefined
           };
           
+          console.log("Creating new report with topic:", reportTopic.trim() || "NO TOPIC");
+          
           // Add to beginning of reports array
           savedReports.unshift(newReport);
         }
