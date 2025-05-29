@@ -554,7 +554,7 @@ export default function ThreatHome() {
                 Start by adding sources and keywords to monitor for security threats, or adjust your search filters.
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
-                <Button asChild>
+                <Button asChild className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
                   <Link to="/dashboard/threat/sources">Add Sources</Link>
                 </Button>
                 <Button variant="outline" asChild>
