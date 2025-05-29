@@ -928,7 +928,7 @@ export default function Sources() {
               <Button 
                 type="submit" 
                 disabled={addSource.isPending}
-                className="bg-primary hover:bg-primary/90 h-9 sm:h-10 px-3 sm:px-4"
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 sm:h-10 px-3 sm:px-4"
               >
                 {addSource.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
