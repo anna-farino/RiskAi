@@ -993,7 +993,7 @@ export default function Sources() {
             </div>
             <h3 className="text-xl font-medium text-white mb-2">No sources added</h3>
             <Button 
-              className=""
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               onClick={() => sources.refetch()}
             >
                 Fetch Sources
