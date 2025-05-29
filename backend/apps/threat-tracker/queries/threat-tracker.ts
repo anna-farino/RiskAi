@@ -357,7 +357,7 @@ export const storage: IStorage = {
         conditions.push(searchCondition);
       }
 
-      // Add keyword filter using a simpler approach
+      // Add keyword filter using detected keywords JSON
       if (keywordIds && keywordIds.length > 0) {
         // Get the keywords terms for these IDs
         const keywordResults = await db
@@ -366,16 +366,20 @@ export const storage: IStorage = {
           .where(inArray(threatKeywords.id, keywordIds));
 
         if (keywordResults.length) {
-          // Use a simpler text search approach
-          const keywordTerms = keywordResults.map(k => k.term);
+          const keywordTerms = keywordResults.map(k => k.term.toLowerCase());
           
-          // Search for keyword terms in title and content fields
-          const keywordSearchConditions = keywordTerms.map(term => 
-            sql`(${threatArticles.title} ILIKE ${'%' + term + '%'} OR ${threatArticles.content} ILIKE ${'%' + term + '%'})`
-          );
+          // Search within the detectedKeywords JSON structure
+          const keywordConditions = keywordTerms.map(term => {
+            return sql`(
+              ${threatArticles.detectedKeywords}->>'threats' ILIKE ${'%' + term + '%'} OR
+              ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${'%' + term + '%'} OR
+              ${threatArticles.detectedKeywords}->>'clients' ILIKE ${'%' + term + '%'} OR
+              ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${'%' + term + '%'}
+            )`;
+          });
           
-          // Combine all keyword conditions with OR
-          const combinedKeywordCondition = sql`(${sql.join(keywordSearchConditions, sql` OR `)})`;
+          // Combine all keyword conditions with OR (matches any selected keyword)
+          const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
           conditions.push(combinedKeywordCondition);
         }
       }
