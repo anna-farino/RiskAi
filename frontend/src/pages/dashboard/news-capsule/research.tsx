@@ -363,7 +363,8 @@ export default function Research() {
               articleIds: selectedArticles.map(article => article.id),
               useExistingReport: useExistingReport,
               existingReportId: existingReportId,
-              versionNumber: versionNumber
+              versionNumber: versionNumber,
+              topic: reportTopic.trim() || undefined
             }),
             // Add a timeout to prevent long waiting
             signal: AbortSignal.timeout(5000)
