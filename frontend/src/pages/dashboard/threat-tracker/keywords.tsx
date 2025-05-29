@@ -405,42 +405,42 @@ export default function Keywords() {
         <Table className="min-w-full">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[120px]">Term</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
-              <TableHead className="text-right min-w-[80px]">Actions</TableHead>
+              <TableHead className="min-w-[120px] text-sm font-medium">Term</TableHead>
+              <TableHead className="min-w-[100px] text-sm font-medium">Status</TableHead>
+              <TableHead className="text-right min-w-[100px] text-sm font-medium">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {keywordsByCategory.map((keyword) => (
-              <TableRow key={keyword.id}>
-                <TableCell className="font-medium">{keyword.term}</TableCell>
-                <TableCell>
-                  <div 
-                    className="flex items-center cursor-pointer"
+              <TableRow key={keyword.id} className="hover:bg-muted/50">
+                <TableCell className="font-medium py-3 text-sm">{keyword.term}</TableCell>
+                <TableCell className="py-3">
+                  <button 
+                    className="flex items-center cursor-pointer touch-manipulation p-1 rounded-md hover:bg-muted/50 transition-colors"
                     onClick={() => handleToggleActive(keyword.id, keyword.active)}
                   >
                     {keyword.active ? (
-                      <Badge variant="default" className="flex items-center gap-1 bg-green-500">
+                      <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs h-6">
                         <Check className="h-3 w-3" />
-                        <span className="sm:inline hidden">Active</span>
-                        <span className="sm:hidden inline">On</span>
+                        <span className="md:inline hidden">Active</span>
+                        <span className="md:hidden inline">On</span>
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs h-6">
                         <X className="h-3 w-3" />
-                        <span className="sm:inline hidden">Inactive</span>
-                        <span className="sm:hidden inline">Off</span>
+                        <span className="md:inline hidden">Inactive</span>
+                        <span className="md:hidden inline">Off</span>
                       </Badge>
                     )}
-                  </div>
+                  </button>
                 </TableCell>
-                <TableCell className="text-right p-2 sm:p-4">
-                  <div className="flex justify-end gap-1 sm:gap-2">
+                <TableCell className="text-right py-3">
+                  <div className="flex justify-end gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleEditKeyword(keyword)}
-                      className="h-8 w-8"
+                      className="h-10 w-10 touch-manipulation hover:bg-muted"
                     >
                       <PencilLine className="h-4 w-4" />
                       <span className="sr-only">Edit</span>
@@ -451,13 +451,13 @@ export default function Keywords() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive h-8 w-8"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 touch-manipulation"
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent>
+                      <AlertDialogContent className="mx-4 max-w-md">
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
@@ -501,39 +501,44 @@ export default function Keywords() {
         onValueChange={setSelectedCategory}
         className="w-full"
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="w-full overflow-x-auto pb-2">
-            <TabsList className="w-full sm:w-auto flex">
-              <TabsTrigger value="threat" className="relative whitespace-nowrap">
-                <span className="sm:inline hidden">Threat Keywords</span>
-                <span className="sm:hidden inline">Threats</span>
+        <div className="flex flex-col gap-4">
+          {/* Tab navigation section */}
+          <div className="w-full overflow-x-auto">
+            <TabsList className="w-full sm:w-auto flex min-w-max">
+              <TabsTrigger value="threat" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+                <span className="lg:inline hidden">Threat Keywords</span>
+                <span className="md:inline hidden lg:hidden">Threats</span>
+                <span className="md:hidden inline">TH</span>
                 {categoryCounts.threat > 0 && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.threat}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="vendor" className="relative whitespace-nowrap">
-                Vendors
+              <TabsTrigger value="vendor" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+                <span className="md:inline hidden">Vendors</span>
+                <span className="md:hidden inline">VE</span>
                 {categoryCounts.vendor > 0 && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.vendor}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="client" className="relative whitespace-nowrap">
-                Clients
+              <TabsTrigger value="client" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+                <span className="md:inline hidden">Clients</span>
+                <span className="md:hidden inline">CL</span>
                 {categoryCounts.client > 0 && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.client}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="hardware" className="relative whitespace-nowrap">
-                <span className="sm:inline hidden">Hardware/Software</span>
-                <span className="sm:hidden inline">H/W S/W</span>
+              <TabsTrigger value="hardware" className="relative whitespace-nowrap min-w-[80px] flex-1 sm:flex-none">
+                <span className="lg:inline hidden">Hardware/Software</span>
+                <span className="md:inline hidden lg:hidden">H/W S/W</span>
+                <span className="md:hidden inline">HW</span>
                 {categoryCounts.hardware > 0 && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1 py-0 min-w-[20px] h-4">
                     {categoryCounts.hardware}
                   </Badge>
                 )}
@@ -541,27 +546,42 @@ export default function Keywords() {
             </TabsList>
           </div>
           
-          <div className="flex gap-2 w-full sm:w-auto justify-end">
-            <Button onClick={handleBulkKeywords} disabled={createBulkKeywords.isPending} variant="outline" className="h-9 px-2 sm:px-4">
+          {/* Action buttons section */}
+          <div className="flex flex-col xs:flex-row gap-3 w-full">
+            <Button 
+              onClick={handleBulkKeywords} 
+              disabled={createBulkKeywords.isPending} 
+              variant="outline" 
+              className="h-11 px-4 flex-1 xs:flex-none xs:min-w-[120px] sm:min-w-[140px] touch-manipulation"
+            >
               {createBulkKeywords.isPending ? (
-                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="sm:mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-4 w-4" />
               )}
               <span className="sm:inline hidden">Bulk Import</span>
-              <span className="sm:hidden inline">Bulk</span>
+              <span className="sm:hidden inline">Bulk Import</span>
             </Button>
             
-            <Button onClick={handleNewKeyword} disabled={createKeyword.isPending} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-4">
+            <Button 
+              onClick={handleNewKeyword} 
+              disabled={createKeyword.isPending} 
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-11 px-4 flex-1 xs:flex-none xs:min-w-[120px] sm:min-w-[140px] touch-manipulation"
+            >
               {createKeyword.isPending ? (
-                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="sm:mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-4 w-4" />
               )}
-              <span className="sm:inline hidden">
+              <span className="lg:inline hidden">
                 Add {selectedCategory === 'threat' ? 'Keyword' : 
                     selectedCategory === 'vendor' ? 'Vendor' :
                     selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
+              </span>
+              <span className="sm:inline hidden lg:hidden">
+                Add {selectedCategory === 'threat' ? 'Keyword' : 
+                    selectedCategory === 'vendor' ? 'Vendor' :
+                    selectedCategory === 'client' ? 'Client' : 'H/W S/W'}
               </span>
               <span className="sm:hidden inline">Add</span>
             </Button>
@@ -572,11 +592,11 @@ export default function Keywords() {
           <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-lg sm:text-xl">Threat Keywords</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+              <CardDescription className="text-sm leading-relaxed">
                 Keywords related to cybersecurity threats (e.g., malware, breach, zero-day)
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-6">
+            <CardContent className="p-0 sm:p-6 sm:pt-0">
               {renderKeywordTable(keywordsByCategory)}
             </CardContent>
           </Card>
@@ -586,11 +606,11 @@ export default function Keywords() {
           <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-lg sm:text-xl">Vendors</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+              <CardDescription className="text-sm leading-relaxed">
                 Technology vendors to monitor for security threats
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-6">
+            <CardContent className="p-0 sm:p-6 sm:pt-0">
               {renderKeywordTable(keywordsByCategory)}
             </CardContent>
           </Card>
