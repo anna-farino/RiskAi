@@ -793,7 +793,10 @@ export default function Research() {
                           });
                           
                           if (!response.ok) {
-                            console.error(`Failed to delete article ${article.id} from database`);
+                            const errorText = await response.text();
+                            console.error(`Failed to delete article ${article.id} from database. Status: ${response.status}, Error: ${errorText}`);
+                          } else {
+                            console.log(`Successfully deleted article ${article.id} from database`);
                           }
                         }
                         console.log('All articles cleared from database');
