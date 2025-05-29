@@ -195,12 +195,12 @@ export default function Settings() {
                   <p>Contact support for privacy inquiries.</p>
                 </div>
               </div>
-            </div>}
+            </div>
           </div>
         </div>
-        
+
         {/* Intelligence Preferences Section */}
-        {false && <div className="space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
               <Globe className="h-6 w-6 text-[#00FFFF]" />
