@@ -370,7 +370,7 @@ export default function Keywords() {
                 <Button 
                   type="submit" 
                   disabled={addKeyword.isPending}
-                  className="bg-primary hover:bg-primary/90"
+                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
                 >
                   {addKeyword.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
