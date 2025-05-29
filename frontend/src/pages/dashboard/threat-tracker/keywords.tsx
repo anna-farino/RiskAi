@@ -422,12 +422,22 @@ export default function Keywords() {
   // Delete keyword mutation
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
+      // Prevent deletion of temporary items (optimistic updates)
+      if (id.startsWith('temp-')) {
+        throw new Error('Cannot delete temporary item. Please wait for creation to complete.');
+      }
+      
       return apiRequest(
         "DELETE",
         `${serverUrl}/api/threat-tracker/keywords/${id}`,
       );
     },
     onMutate: async (id: string) => {
+      // Prevent optimistic deletion of temporary items
+      if (id.startsWith('temp-')) {
+        throw new Error('Cannot delete temporary item. Please wait for creation to complete.');
+      }
+
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
@@ -703,6 +713,15 @@ export default function Keywords() {
                         <span className="text-xs">Default</span>
                       </Badge>
                     )}
+                    {keyword.id.startsWith('temp-') && (
+                      <Badge
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-yellow-100 text-yellow-700 border-yellow-200"
+                      >
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-xs">Creating...</span>
+                      </Badge>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -752,6 +771,8 @@ export default function Keywords() {
                           size="icon"
                           onClick={() => handleEditKeyword(keyword)}
                           className="h-8 w-8"
+                          disabled={keyword.id.startsWith('temp-')}
+                          title={keyword.id.startsWith('temp-') ? "Please wait for creation to complete" : "Edit keyword"}
                         >
                           <PencilLine className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
@@ -763,6 +784,8 @@ export default function Keywords() {
                               variant="ghost"
                               size="icon"
                               className="text-destructive hover:text-destructive h-8 w-8"
+                              disabled={keyword.id.startsWith('temp-')}
+                              title={keyword.id.startsWith('temp-') ? "Please wait for creation to complete" : "Delete keyword"}
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Delete</span>
