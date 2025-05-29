@@ -31,29 +31,9 @@ export async function apiRequest<T = any>(
     console.log(`API Response status: ${res.status} ${res.statusText}`);
     
     await throwIfResNotOk(res);
-    
-    // Handle empty responses (like 204 No Content from DELETE requests)
-    const contentType = res.headers.get('content-type');
-    if (res.status === 204 || !contentType?.includes('application/json')) {
-      console.log("API Response: Empty response (no content)");
-      return null as T;
-    }
-    
-    // Try to get the response text first
-    const responseText = await res.text();
-    if (!responseText.trim()) {
-      console.log("API Response: Empty response body");
-      return null as T;
-    }
-    
-    try {
-      const responseData = JSON.parse(responseText);
-      console.log("API Response data:", responseData);
-      return responseData;
-    } catch (parseError) {
-      console.log("API Response: Non-JSON response", responseText);
-      return null as T;
-    }
+    const responseData = await res.json();
+    console.log("API Response data:", responseData);
+    return responseData;
   } catch (error) {
     console.error("API Request error:", error);
     throw error;

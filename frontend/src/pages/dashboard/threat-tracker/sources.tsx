@@ -145,25 +145,6 @@ export default function Sources() {
       setLocalSources(sources.data);
     }
   }, [sources.data]);
-
-  // Enhanced state initialization - ensure cached data loads on mount
-  useEffect(() => {
-    const cachedSources = queryClient.getQueryData<ThreatSource[]>([
-      `${serverUrl}/api/threat-tracker/sources`,
-    ]);
-    if (cachedSources && cachedSources.length > 0) {
-      setLocalSources(cachedSources);
-    }
-  }, [queryClient]);
-
-  // Force refetch on component mount to ensure fresh data
-  useEffect(() => {
-    if (!sources.isLoading && !sources.data) {
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
-      });
-    }
-  }, [sources.isLoading, sources.data, queryClient]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
@@ -224,40 +205,6 @@ export default function Sources() {
     mutationFn: async (values: SourceFormValues) => {
       return apiRequest("POST", `${serverUrl}/api/threat-tracker/sources`, values);
     },
-    onMutate: async (values: SourceFormValues) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
-      });
-
-      // Snapshot the previous value
-      const previousSources = queryClient.getQueryData<ThreatSource[]>([
-        `${serverUrl}/api/threat-tracker/sources`,
-      ]);
-
-      // Optimistically update to the new value
-      const optimisticSource: ThreatSource = {
-        id: `temp-${Date.now()}`, // Temporary ID
-        name: values.name,
-        url: values.url,
-        active: values.active,
-        includeInAutoScrape: values.includeInAutoScrape,
-        userId: "temp-user", // Will be replaced by server response
-        scrapingConfig: null,
-        lastScraped: null,
-      };
-
-      queryClient.setQueryData<ThreatSource[]>(
-        [`${serverUrl}/api/threat-tracker/sources`],
-        (old) => [...(old || []), optimisticSource],
-      );
-
-      // Update local state immediately
-      setLocalSources((prev) => [...prev, optimisticSource]);
-
-      // Return a context object with the snapshotted value
-      return { previousSources };
-    },
     onSuccess: () => {
       toast({
         title: "Source created",
@@ -267,18 +214,8 @@ export default function Sources() {
       form.reset();
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error, variables, context) => {
+    onError: (error) => {
       console.error("Error creating source:", error);
-      
-      // Revert the optimistic update
-      if (context?.previousSources) {
-        queryClient.setQueryData<ThreatSource[]>(
-          [`${serverUrl}/api/threat-tracker/sources`],
-          context.previousSources,
-        );
-        setLocalSources(context.previousSources);
-      }
-      
       toast({
         title: "Error creating source",
         description: "There was an error creating your source. Please try again.",

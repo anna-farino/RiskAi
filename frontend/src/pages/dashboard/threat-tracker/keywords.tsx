@@ -173,25 +173,6 @@ export default function Keywords() {
     }
   }, [keywords.data]);
 
-  // Enhanced state initialization - ensure cached data loads on mount
-  useEffect(() => {
-    const cachedKeywords = queryClient.getQueryData<ThreatKeyword[]>([
-      `${serverUrl}/api/threat-tracker/keywords`,
-    ]);
-    if (cachedKeywords && cachedKeywords.length > 0) {
-      setLocalKeywords(cachedKeywords);
-    }
-  }, [queryClient]);
-
-  // Force refetch on component mount to ensure fresh data
-  useEffect(() => {
-    if (!keywords.isLoading && !keywords.data) {
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-    }
-  }, [keywords.isLoading, keywords.data, queryClient]);
-
   // Create bulk keywords mutation
   const createBulkKeywords = useMutation({
     mutationFn: async (values: BulkKeywordFormValues) => {
@@ -233,71 +214,8 @@ export default function Keywords() {
         keywords: createdKeywords,
       };
     },
-    onMutate: async (values: BulkKeywordFormValues) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-
-      // Snapshot the previous value
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([
-        `${serverUrl}/api/threat-tracker/keywords`,
-      ]);
-
-      // Split the terms and create optimistic keywords
-      const keywordTerms = values.terms
-        .split(",")
-        .map((term) => term.trim())
-        .filter((term) => term.length > 0);
-
-      const optimisticKeywords: ThreatKeyword[] = keywordTerms.map((term, index) => ({
-        id: `temp-bulk-${Date.now()}-${index}`, // Temporary ID
-        term,
-        category: values.category,
-        active: values.active,
-        userId: "temp-user", // Will be replaced by server response
-        isDefault: false,
-      }));
-
-      // Optimistically update to the new value
-      queryClient.setQueryData<ThreatKeyword[]>(
-        [`${serverUrl}/api/threat-tracker/keywords`],
-        (old) => [...(old || []), ...optimisticKeywords],
-      );
-
-      // Update local state immediately
-      setLocalKeywords((prev) => [...prev, ...optimisticKeywords]);
-
-      // Return a context object with the snapshotted value
-      return { previousKeywords, optimisticKeywords };
-    },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data) => {
       const { message, keywords } = data;
-      
-      // Replace temporary optimistic items with real server data
-      if (context?.optimisticKeywords && keywords.length > 0) {
-        queryClient.setQueryData<ThreatKeyword[]>(
-          [`${serverUrl}/api/threat-tracker/keywords`],
-          (old) => {
-            if (!old) return keywords;
-            
-            // Create a map of temp IDs to real keywords for efficient lookup
-            const tempIds = context.optimisticKeywords.map(k => k.id);
-            
-            // Remove all temp items and add real ones
-            const withoutTempItems = old.filter(keyword => !tempIds.includes(keyword.id));
-            return [...withoutTempItems, ...keywords];
-          }
-        );
-
-        // Update local state to replace temporary items
-        setLocalKeywords((prev) => {
-          const tempIds = context.optimisticKeywords.map(k => k.id);
-          const withoutTempItems = prev.filter(keyword => !tempIds.includes(keyword.id));
-          return [...withoutTempItems, ...keywords];
-        });
-      }
-
       toast({
         title: "Keywords added in bulk",
         description: `Successfully created ${keywords.length} keywords.`,
@@ -308,19 +226,12 @@ export default function Keywords() {
         category: selectedCategory,
         active: true,
       });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
-    onError: (error, variables, context) => {
+    onError: (error) => {
       console.error("Error creating bulk keywords:", error);
-      
-      // Revert the optimistic update
-      if (context?.previousKeywords) {
-        queryClient.setQueryData<ThreatKeyword[]>(
-          [`${serverUrl}/api/threat-tracker/keywords`],
-          context.previousKeywords,
-        );
-        setLocalKeywords(context.previousKeywords);
-      }
-      
       toast({
         title: "Error adding keywords",
         description:
@@ -339,78 +250,19 @@ export default function Keywords() {
         values,
       );
     },
-    onMutate: async (values: KeywordFormValues) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-
-      // Snapshot the previous value
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([
-        `${serverUrl}/api/threat-tracker/keywords`,
-      ]);
-
-      // Optimistically update to the new value
-      const optimisticKeyword: ThreatKeyword = {
-        id: `temp-${Date.now()}`, // Temporary ID
-        term: values.term,
-        category: values.category,
-        active: values.active,
-        userId: "temp-user", // Will be replaced by server response
-        isDefault: false,
-      };
-
-      queryClient.setQueryData<ThreatKeyword[]>(
-        [`${serverUrl}/api/threat-tracker/keywords`],
-        (old) => [...(old || []), optimisticKeyword],
-      );
-
-      // Update local state immediately
-      setLocalKeywords((prev) => [...prev, optimisticKeyword]);
-
-      // Return a context object with the snapshotted value and temp ID
-      return { previousKeywords, optimisticKeyword };
-    },
-    onSuccess: (data, variables, context) => {
-      // Replace the temporary optimistic item with real server data
-      if (context?.optimisticKeyword) {
-        queryClient.setQueryData<ThreatKeyword[]>(
-          [`${serverUrl}/api/threat-tracker/keywords`],
-          (old) => {
-            if (!old) return [data];
-            return old.map(keyword => 
-              keyword.id === context.optimisticKeyword.id ? data : keyword
-            );
-          }
-        );
-
-        // Update local state to replace temporary item
-        setLocalKeywords((prev) => 
-          prev.map(keyword => 
-            keyword.id === context.optimisticKeyword.id ? data : keyword
-          )
-        );
-      }
-
+    onSuccess: () => {
       toast({
         title: "Keyword created",
         description: "Your keyword has been added successfully.",
       });
       setKeywordDialogOpen(false);
       form.reset();
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
     },
-    onError: (error, variables, context) => {
+    onError: (error) => {
       console.error("Error creating keyword:", error);
-      
-      // Revert the optimistic update
-      if (context?.previousKeywords) {
-        queryClient.setQueryData<ThreatKeyword[]>(
-          [`${serverUrl}/api/threat-tracker/keywords`],
-          context.previousKeywords,
-        );
-        setLocalKeywords(context.previousKeywords);
-      }
-      
       toast({
         title: "Error creating keyword",
         description:
@@ -461,43 +313,10 @@ export default function Keywords() {
   // Delete keyword mutation
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
-      // Prevent deletion of temporary items (optimistic updates)
-      if (id.startsWith('temp-')) {
-        throw new Error('Cannot delete temporary item. Please wait for creation to complete.');
-      }
-      
       return apiRequest(
         "DELETE",
         `${serverUrl}/api/threat-tracker/keywords/${id}`,
       );
-    },
-    onMutate: async (id: string) => {
-      // Prevent optimistic deletion of temporary items
-      if (id.startsWith('temp-')) {
-        throw new Error('Cannot delete temporary item. Please wait for creation to complete.');
-      }
-
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-
-      // Snapshot the previous value
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([
-        `${serverUrl}/api/threat-tracker/keywords`,
-      ]);
-
-      // Optimistically remove the keyword
-      queryClient.setQueryData<ThreatKeyword[]>(
-        [`${serverUrl}/api/threat-tracker/keywords`],
-        (old) => (old || []).filter(keyword => keyword.id !== id),
-      );
-
-      // Update local state immediately
-      setLocalKeywords((prev) => prev.filter(keyword => keyword.id !== id));
-
-      // Return a context object with the snapshotted value
-      return { previousKeywords };
     },
     onSuccess: () => {
       toast({
@@ -508,18 +327,8 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error, variables, context) => {
+    onError: (error) => {
       console.error("Error deleting keyword:", error);
-      
-      // Revert the optimistic update
-      if (context?.previousKeywords) {
-        queryClient.setQueryData<ThreatKeyword[]>(
-          [`${serverUrl}/api/threat-tracker/keywords`],
-          context.previousKeywords,
-        );
-        setLocalKeywords(context.previousKeywords);
-      }
-      
       toast({
         title: "Error deleting keyword",
         description:
@@ -643,15 +452,12 @@ export default function Keywords() {
     return (
       <div className="mb-6">
         <Collapsible
-          open={!isDefaultKeywordsCollapsed[category]}
-          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({
-            ...prev,
-            [category]: !open
-          }))}
+          open={!isDefaultKeywordsCollapsed}
+          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(!open)}
         >
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
-              {isDefaultKeywordsCollapsed[category] ? (
+              {isDefaultKeywordsCollapsed ? (
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -752,15 +558,6 @@ export default function Keywords() {
                         <span className="text-xs">Default</span>
                       </Badge>
                     )}
-                    {keyword.id.startsWith('temp-') && (
-                      <Badge
-                        variant="secondary"
-                        className="flex items-center gap-1 bg-yellow-100 text-yellow-700 border-yellow-200"
-                      >
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span className="text-xs">Creating...</span>
-                      </Badge>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -810,8 +607,6 @@ export default function Keywords() {
                           size="icon"
                           onClick={() => handleEditKeyword(keyword)}
                           className="h-8 w-8"
-                          disabled={keyword.id.startsWith('temp-')}
-                          title={keyword.id.startsWith('temp-') ? "Please wait for creation to complete" : "Edit keyword"}
                         >
                           <PencilLine className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
@@ -823,8 +618,6 @@ export default function Keywords() {
                               variant="ghost"
                               size="icon"
                               className="text-destructive hover:text-destructive h-8 w-8"
-                              disabled={keyword.id.startsWith('temp-')}
-                              title={keyword.id.startsWith('temp-') ? "Please wait for creation to complete" : "Delete keyword"}
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Delete</span>
