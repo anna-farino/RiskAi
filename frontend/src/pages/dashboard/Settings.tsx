@@ -11,12 +11,14 @@ import { serverUrl } from "@/utils/server-url";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Globe, AlertTriangle, Clock, Mail, Shield } from "lucide-react";
+import { Bell, Globe, AlertTriangle, Clock, Mail, Shield, Palette } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 
 export default function Settings() {
   const [ resetOpen, setResetOpen ] = useState(false)
   const [ error, setError ] = useState(false)
   const userData = useAuth()
+  const { theme, setTheme } = useTheme()
   
   // News Intelligence Preferences state
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -195,7 +197,59 @@ export default function Settings() {
                   <p>Contact support for privacy inquiries.</p>
                 </div>
               </div>
-            </div>}
+            </div>
+
+            {/* Appearance Widget */}
+            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                  <Palette className="h-5 w-5 text-[#BF00FF]" />
+                </div>
+                <h2 className="text-xl font-semibold text-white">Appearance</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-white">Theme</Label>
+                  <p className="text-xs text-gray-400 mb-3">Choose your preferred interface theme</p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-sm font-medium text-white">Light Mode</Label>
+                        <p className="text-xs text-gray-400">Bright interface theme</p>
+                      </div>
+                      <Switch
+                        checked={theme === "light"}
+                        onCheckedChange={(checked) => setTheme(checked ? "light" : "dark")}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-sm font-medium text-white">Dark Mode</Label>
+                        <p className="text-xs text-gray-400">Dark interface theme</p>
+                      </div>
+                      <Switch
+                        checked={theme === "dark"}
+                        onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-sm font-medium text-white">System Theme</Label>
+                        <p className="text-xs text-gray-400">Follow system preference</p>
+                      </div>
+                      <Switch
+                        checked={theme === "system"}
+                        onCheckedChange={(checked) => setTheme(checked ? "system" : "dark")}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
