@@ -657,7 +657,7 @@ export default function Research() {
                 <button
                   onClick={processUrl}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+                  className="px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50"
                 >
                   {isLoading ? "Processing..." : "Process"}
                 </button>
@@ -778,7 +778,7 @@ export default function Research() {
           <button
             onClick={sendToExecutiveReport}
             disabled={selectedArticles.length === 0 || isLoading}
-            className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+            className="mt-4 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50"
           >
             {isLoading ? "Processing..." : "Send to Executive Report"}
           </button>
