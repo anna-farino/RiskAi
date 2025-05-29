@@ -145,6 +145,25 @@ export default function Sources() {
       setLocalSources(sources.data);
     }
   }, [sources.data]);
+
+  // Enhanced state initialization - ensure cached data loads on mount
+  useEffect(() => {
+    const cachedSources = queryClient.getQueryData<ThreatSource[]>([
+      `${serverUrl}/api/threat-tracker/sources`,
+    ]);
+    if (cachedSources && cachedSources.length > 0) {
+      setLocalSources(cachedSources);
+    }
+  }, [queryClient]);
+
+  // Force refetch on component mount to ensure fresh data
+  useEffect(() => {
+    if (!sources.isLoading && !sources.data) {
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+    }
+  }, [sources.isLoading, sources.data, queryClient]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({

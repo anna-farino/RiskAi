@@ -173,6 +173,25 @@ export default function Keywords() {
     }
   }, [keywords.data]);
 
+  // Enhanced state initialization - ensure cached data loads on mount
+  useEffect(() => {
+    const cachedKeywords = queryClient.getQueryData<ThreatKeyword[]>([
+      `${serverUrl}/api/threat-tracker/keywords`,
+    ]);
+    if (cachedKeywords && cachedKeywords.length > 0) {
+      setLocalKeywords(cachedKeywords);
+    }
+  }, [queryClient]);
+
+  // Force refetch on component mount to ensure fresh data
+  useEffect(() => {
+    if (!keywords.isLoading && !keywords.data) {
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+    }
+  }, [keywords.isLoading, keywords.data, queryClient]);
+
   // Create bulk keywords mutation
   const createBulkKeywords = useMutation({
     mutationFn: async (values: BulkKeywordFormValues) => {

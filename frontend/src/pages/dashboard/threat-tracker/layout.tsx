@@ -18,7 +18,8 @@ const buttons = [
 ]
 
 export default function ThreatLayout() {
-  const location = useLocation().pathname.split('/')[3];
+  const location = useLocation();
+  const currentPath = location.pathname.split('/')[3];
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if we're on mobile for responsive rendering
@@ -41,7 +42,7 @@ export default function ThreatLayout() {
           : "p-4 min-h-[40px] items-center gap-x-10"
       )}>
         {buttons.map(button => {
-          const selected = location === button.label.toLowerCase();
+          const selected = currentPath === button.label.toLowerCase();
 
           return (
             <Link
@@ -60,7 +61,7 @@ export default function ThreatLayout() {
           );
         })}
       </div>
-      <Outlet/>
+      <Outlet key={location.pathname}/>
     </div>
   );
 }
