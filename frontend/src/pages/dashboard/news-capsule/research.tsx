@@ -115,7 +115,17 @@ export default function Research() {
       if (response.ok) {
         const articles = await response.json();
         console.log('Fetched articles from database:', articles.length);
-        setProcessedArticles(articles);
+        
+        // Remove duplicates based on ID, title, and URL
+        const uniqueArticles = articles.filter((article: any, index: number, self: any[]) => {
+          const firstIndex = self.findIndex((a: any) => 
+            a.id === article.id ||
+            (a.title.toLowerCase().trim() === article.title.toLowerCase().trim() && a.originalUrl === article.originalUrl)
+          );
+          return firstIndex === index;
+        });
+        
+        setProcessedArticles(uniqueArticles);
         
         // Update module-level array
         storedArticles.length = 0;
@@ -377,14 +387,20 @@ export default function Research() {
           // Update existing report in localStorage
           const reportIndex = savedReports.findIndex((r: any) => r.id === existingReportId);
           if (reportIndex !== -1) {
-            // Combine articles, avoiding duplicates
+            // Combine articles, avoiding duplicates based on title and URL
             const existingArticles = savedReports[reportIndex].articles || [];
             const newArticles = selectedArticles;
             const combinedArticles = [...existingArticles];
             
             // Add only articles that don't already exist in the report
             for (const article of newArticles) {
-              if (!combinedArticles.some((a: any) => a.id === article.id)) {
+              const isDuplicate = combinedArticles.some((a: any) => 
+                a.id === article.id ||
+                a.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
+                a.originalUrl === article.originalUrl
+              );
+              
+              if (!isDuplicate) {
                 combinedArticles.push(article);
               }
             }
@@ -395,11 +411,19 @@ export default function Research() {
             };
           }
         } else {
-          // Create new report
+          // Create new report - remove duplicates based on title and URL
+          const uniqueArticles = selectedArticles.filter((article, index, self) => {
+            const firstIndex = self.findIndex(a => 
+              a.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
+              a.originalUrl === article.originalUrl
+            );
+            return firstIndex === index;
+          });
+          
           const newReport = {
             id: newReportId,
             createdAt: new Date().toISOString(),
-            articles: [...selectedArticles],
+            articles: uniqueArticles,
             versionNumber: versionNumber,
             topic: reportTopic.trim() || undefined
           };
