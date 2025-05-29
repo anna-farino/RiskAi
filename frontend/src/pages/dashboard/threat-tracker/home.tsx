@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
@@ -21,19 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +51,7 @@ export default function ThreatHome() {
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] = useState<boolean>(false);
   const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
@@ -156,6 +145,20 @@ export default function ThreatHome() {
       setLocalArticles(articles.data);
     }
   }, [articles.data]);
+
+  // Click outside handler for autocomplete dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setKeywordAutocompleteOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Delete article mutation
   const deleteArticle = useMutation({
@@ -488,106 +491,71 @@ export default function ThreatHome() {
             </div>
             
             <div className="space-y-4">
-              {/* Keyword Autocomplete Filter */}
+              {/* Simple Keyword Filter */}
               <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Add Keywords</h4>
-                <Popover open={keywordAutocompleteOpen} onOpenChange={setKeywordAutocompleteOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 justify-between"
-                      onClick={() => setKeywordAutocompleteOpen(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add keyword filter
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-0" align="start">
-                    <Command>
-                      <CommandInput
-                        placeholder="Search keywords..."
-                        value={keywordSearchTerm}
-                        onValueChange={setKeywordSearchTerm}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No keywords found.</CommandEmpty>
-                        {filteredKeywords.length > 0 && (
-                          <>
-                            <CommandGroup heading="Threat Keywords">
-                              {filteredKeywords
-                                .filter(k => k.category === 'threat')
-                                .map((keyword) => (
-                                  <CommandItem
-                                    key={keyword.id}
-                                    value={keyword.term}
-                                    onSelect={() => addKeywordToFilter(keyword.id)}
-                                  >
-                                    <Shield className="h-4 w-4 mr-2 text-red-500" />
-                                    {keyword.term}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                            <CommandGroup heading="Vendors">
-                              {filteredKeywords
-                                .filter(k => k.category === 'vendor')
-                                .map((keyword) => (
-                                  <CommandItem
-                                    key={keyword.id}
-                                    value={keyword.term}
-                                    onSelect={() => addKeywordToFilter(keyword.id)}
-                                  >
-                                    <div className="h-4 w-4 mr-2 bg-blue-500 rounded-sm" />
-                                    {keyword.term}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                            <CommandGroup heading="Clients">
-                              {filteredKeywords
-                                .filter(k => k.category === 'client')
-                                .map((keyword) => (
-                                  <CommandItem
-                                    key={keyword.id}
-                                    value={keyword.term}
-                                    onSelect={() => addKeywordToFilter(keyword.id)}
-                                  >
-                                    <div className="h-4 w-4 mr-2 bg-green-500 rounded-sm" />
-                                    {keyword.term}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                            <CommandGroup heading="Hardware">
-                              {filteredKeywords
-                                .filter(k => k.category === 'hardware')
-                                .map((keyword) => (
-                                  <CommandItem
-                                    key={keyword.id}
-                                    value={keyword.term}
-                                    onSelect={() => addKeywordToFilter(keyword.id)}
-                                  >
-                                    <div className="h-4 w-4 mr-2 bg-orange-500 rounded-sm" />
-                                    {keyword.term}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </>
-                        )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Filter by Keywords</h4>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Type keyword to filter (e.g., malware, vulnerability)..."
+                    className="pl-9"
+                    value={keywordSearchTerm}
+                    onChange={(e) => {
+                      setKeywordSearchTerm(e.target.value);
+                      // Auto-filter based on search term
+                      if (e.target.value.trim()) {
+                        const matchingKeywords = keywords.data?.filter(k => 
+                          k.term.toLowerCase().includes(e.target.value.toLowerCase()) && 
+                          k.active &&
+                          !selectedKeywordIds.includes(k.id)
+                        );
+                        if (matchingKeywords && matchingKeywords.length > 0) {
+                          setKeywordAutocompleteOpen(true);
+                        }
+                      } else {
+                        setKeywordAutocompleteOpen(false);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filteredKeywords.length > 0) {
+                        addKeywordToFilter(filteredKeywords[0].id);
+                      }
+                    }}
+                  />
+                  {/* Simple dropdown for matching keywords */}
+                  {keywordAutocompleteOpen && filteredKeywords.length > 0 && (
+                    <div ref={dropdownRef} className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                      {filteredKeywords.slice(0, 5).map((keyword) => (
+                        <div
+                          key={keyword.id}
+                          className="px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-2"
+                          onClick={() => addKeywordToFilter(keyword.id)}
+                        >
+                          <div className={`h-2 w-2 rounded-full ${
+                            keyword.category === 'threat' ? 'bg-red-500' :
+                            keyword.category === 'vendor' ? 'bg-blue-500' :
+                            keyword.category === 'client' ? 'bg-green-500' :
+                            'bg-orange-500'
+                          }`} />
+                          <span className="text-sm">{keyword.term}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">{keyword.category}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Selected Keywords Display */}
               {selectedKeywords.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">Active Filters</h4>
+                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">Active Keyword Filters</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedKeywords.map((keyword) => (
                       <Badge
                         key={keyword.id}
                         variant="default"
-                        className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                        className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
                         onClick={() => removeKeywordFromFilter(keyword.id)}
                       >
                         {keyword.term}

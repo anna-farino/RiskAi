@@ -14,7 +14,7 @@ import {
   threatSettings, 
 } from "@shared/db/schema/threat-tracker/index";
 import { db, pool } from "backend/db/db";
-import { eq, and, isNull, sql, SQL, desc } from "drizzle-orm";
+import { eq, and, isNull, sql, SQL, desc, inArray } from "drizzle-orm";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -357,27 +357,26 @@ export const storage: IStorage = {
         conditions.push(searchCondition);
       }
 
-      // Add keyword filter (this is more complex as we need to search in JSON)
+      // Add keyword filter using a simpler approach
       if (keywordIds && keywordIds.length > 0) {
         // Get the keywords terms for these IDs
         const keywordResults = await db
           .select()
           .from(threatKeywords)
-          .where(sql`${threatKeywords.id} = ANY(${keywordIds})`);
+          .where(inArray(threatKeywords.id, keywordIds));
 
         if (keywordResults.length) {
-          // This is a complex condition because we're searching inside JSON arrays
-          // We'll use raw SQL for this
+          // Use a simpler text search approach
           const keywordTerms = keywordResults.map(k => k.term);
           
-          // Create a condition that checks if any of the keyword terms are in any of the JSON arrays
-          const keywordCondition = sql`
-            ${threatArticles.detectedKeywords}->>'threats' ? ANY(${keywordTerms}) OR
-            ${threatArticles.detectedKeywords}->>'vendors' ? ANY(${keywordTerms}) OR
-            ${threatArticles.detectedKeywords}->>'clients' ? ANY(${keywordTerms}) OR
-            ${threatArticles.detectedKeywords}->>'hardware' ? ANY(${keywordTerms})
-          `;
-          conditions.push(keywordCondition);
+          // Search for keyword terms in title and content fields
+          const keywordSearchConditions = keywordTerms.map(term => 
+            sql`(${threatArticles.title} ILIKE ${'%' + term + '%'} OR ${threatArticles.content} ILIKE ${'%' + term + '%'})`
+          );
+          
+          // Combine all keyword conditions with OR
+          const combinedKeywordCondition = sql`(${sql.join(keywordSearchConditions, sql` OR `)})`;
+          conditions.push(combinedKeywordCondition);
         }
       }
 
