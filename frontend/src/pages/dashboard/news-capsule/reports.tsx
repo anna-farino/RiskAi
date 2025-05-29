@@ -162,8 +162,15 @@ export default function Reports() {
                         selectedReport.articles.forEach((article, index) => {
                           sections.push(
                             new Paragraph({
-                              text: article.title,
-                              heading: HeadingLevel.HEADING_2,
+                              children: [
+                                new TextRun({
+                                  text: article.title,
+                                  font: "Cambria",
+                                  size: 24,
+                                  bold: true,
+                                  color: "000000"
+                                })
+                              ],
                               spacing: { before: 240, after: 120 }
                             })
                           );
@@ -418,10 +425,11 @@ export default function Reports() {
                             padding: 0.25in !important;
                           }
                           /* Format article titles */
-                          .font-medium.text-lg {
-                            font-size: 14pt !important;
+                          .font-medium.text-lg, h3 {
+                            font-family: Cambria, serif !important;
+                            font-size: 12pt !important;
                             font-weight: bold !important;
-                            margin-bottom: 0.15in !important;
+                            margin-bottom: 6pt !important;
                             color: black !important;
                           }
                           /* Format section headings */
