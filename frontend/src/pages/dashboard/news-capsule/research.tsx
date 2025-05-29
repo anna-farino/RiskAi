@@ -781,25 +781,22 @@ export default function Research() {
                       localStorage.removeItem('savedArticleSummaries');
                       setCurrentPage(1);
                       
-                      // Delete all articles from database
+                      // Delete all articles from database using bulk delete
                       try {
-                        for (const article of processedArticles) {
-                          const response = await fetch(`${serverUrl}/api/news-capsule/articles/${article.id}`, {
-                            method: 'DELETE',
-                            credentials: 'include',
-                            headers: {
-                              ...csfrHeaderObject(),
-                            },
-                          });
-                          
-                          if (!response.ok) {
-                            const errorText = await response.text();
-                            console.error(`Failed to delete article ${article.id} from database. Status: ${response.status}, Error: ${errorText}`);
-                          } else {
-                            console.log(`Successfully deleted article ${article.id} from database`);
-                          }
+                        const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
+                          method: 'DELETE',
+                          credentials: 'include',
+                          headers: {
+                            ...csfrHeaderObject(),
+                          },
+                        });
+                        
+                        if (!response.ok) {
+                          const errorText = await response.text();
+                          console.error(`Failed to delete all articles from database. Status: ${response.status}, Error: ${errorText}`);
+                        } else {
+                          console.log('All articles successfully deleted from database');
                         }
-                        console.log('All articles cleared from database');
                       } catch (error) {
                         console.error('Error clearing articles from database:', error);
                       }

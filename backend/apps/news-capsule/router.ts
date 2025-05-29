@@ -35,6 +35,22 @@ router.get('/articles', async (req, res) => {
   }
 });
 
+// Delete all capsule articles for the current user
+router.delete('/articles', async (req, res) => {
+  try {
+    const userId = (req as FullRequest).user.id;
+    
+    const result = await db
+      .delete(capsuleArticles)
+      .where(eq(capsuleArticles.userId, userId));
+    
+    res.json({ success: true, message: 'All articles deleted' });
+  } catch (error) {
+    console.error('Error deleting all capsule articles:', error);
+    res.status(500).json({ error: 'Failed to delete all articles' });
+  }
+});
+
 // Delete a capsule article
 router.delete('/articles/:id', async (req, res) => {
   try {
