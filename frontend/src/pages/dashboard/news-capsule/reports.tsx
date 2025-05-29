@@ -279,7 +279,7 @@ export default function Reports() {
                             new Paragraph({
                               children: [
                                 new TextRun({
-                                  text: "Microsoft Connection:",
+                                  text: "Affected OS:",
                                   font: "Cambria",
                                   size: 22,
                                   bold: true
@@ -293,7 +293,7 @@ export default function Reports() {
                             new Paragraph({
                               children: [
                                 new TextRun({
-                                  text: article.microsoftConnection,
+                                  text: article.affectedOS,
                                   font: "Cambria",
                                   size: 22
                                 })

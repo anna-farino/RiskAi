@@ -215,6 +215,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
       5. Impacts (what are the potential impacts of this threat, 1-2 sentences)
       6. Attack Vector (how the attack is performed, 1 sentence)
       7. Target OS (identify all operating systems mentioned or affected, including Windows, macOS, Linux, Android, iOS; list ALL operating systems mentioned, or state "Multiple operating systems" or "OS-independent" if none specifically mentioned)
+      8. Affected OS (extract the vulnerable/affected operating systems from the article. If the article mentions specific OS vulnerabilities like "Windows 10", "Ubuntu Linux", "macOS Monterey", list them. If no specific OS is mentioned, put "Unknown")
       
       Format your response as a JSON object with these exact field names.
     `;
@@ -238,7 +239,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: parsedResult.Summary || "No summary available.",
         impacts: parsedResult.Impacts || "No impacts specified.",
         attackVector: parsedResult.attackVector || parsedResult["Attack Vector"] || "Unknown attack vector",
-        microsoftConnection: "Field deprecated", // Keep for DB compatibility
+        affectedOS: parsedResult["Affected OS"] || "Unknown",
         sourcePublication: content.publication || new URL(url).hostname,
         targetOS: parsedResult["Target OS"] || "Multiple operating systems"
       };
@@ -253,7 +254,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: "Failed to generate summary. Please review the original article.",
         impacts: "Impacts could not be determined.",
         attackVector: "Unknown attack vector",
-        microsoftConnection: "Field deprecated", // Keep for DB compatibility
+        affectedOS: "Unknown",
         sourcePublication: content.publication || new URL(url).hostname,
         targetOS: "Multiple operating systems"
       };

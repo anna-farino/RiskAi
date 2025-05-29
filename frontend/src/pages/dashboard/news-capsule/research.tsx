@@ -31,7 +31,7 @@ interface ArticleSummary {
   summary: string;
   impacts: string;
   attackVector: string;
-  microsoftConnection: string;
+  affectedOS: string;
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
