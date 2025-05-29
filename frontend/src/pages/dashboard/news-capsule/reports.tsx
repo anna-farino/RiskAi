@@ -74,8 +74,15 @@ export default function Reports() {
                         // Header
                         sections.push(
                           new Paragraph({
-                            text: "RisqAI News Capsule Reporting",
-                            heading: HeadingLevel.HEADING_1,
+                            children: [
+                              new TextRun({
+                                text: "RisqAI News Capsule Reporting",
+                                font: "Cambria",
+                                size: 28,
+                                bold: true,
+                                color: "000000"
+                              })
+                            ],
                             alignment: AlignmentType.CENTER,
                             spacing: { after: 240 }
                           })
@@ -135,8 +142,15 @@ export default function Reports() {
                         // Articles summary
                         sections.push(
                           new Paragraph({
-                            text: "Articles in this Report:",
-                            heading: HeadingLevel.HEADING_2,
+                            children: [
+                              new TextRun({
+                                text: "Articles in this Report:",
+                                font: "Cambria",
+                                size: 24,
+                                bold: true,
+                                color: "000000"
+                              })
+                            ],
                             spacing: { after: 120 }
                           })
                         );
@@ -160,6 +174,9 @@ export default function Reports() {
                         
                         // Article details
                         selectedReport.articles.forEach((article, index) => {
+                          // Add extra line break before article title
+                          sections.push(new Paragraph({ text: "", spacing: { after: 120 } }));
+                          
                           sections.push(
                             new Paragraph({
                               children: [
@@ -171,7 +188,7 @@ export default function Reports() {
                                   color: "000000"
                                 })
                               ],
-                              spacing: { before: 240, after: 120 }
+                              spacing: { before: 120, after: 120 }
                             })
                           );
                           
@@ -412,10 +429,11 @@ export default function Reports() {
                           h2:before {
                             content: "RisqAI News Capsule Reporting" !important;
                             display: block !important;
-                            font-size: 22pt !important;
+                            font-family: Cambria, serif !important;
+                            font-size: 14pt !important;
                             font-weight: bold !important;
-                            margin-bottom: 0.15in !important;
-                            color: #203864 !important;
+                            margin-bottom: 12pt !important;
+                            color: black !important;
                           }
                           /* Format articles */
                           .space-y-6 > div {
@@ -429,6 +447,7 @@ export default function Reports() {
                             font-family: Cambria, serif !important;
                             font-size: 12pt !important;
                             font-weight: bold !important;
+                            margin-top: 12pt !important;
                             margin-bottom: 6pt !important;
                             color: black !important;
                           }
