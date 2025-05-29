@@ -769,11 +769,37 @@ export default function Research() {
                 </h3>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      // Confirm before clearing all
+                      if (!window.confirm('This will delete all processed articles from the database. Are you sure?')) {
+                        return;
+                      }
+                      
+                      // Clear UI immediately
                       setProcessedArticles([]);
                       storedArticles.length = 0;
                       localStorage.removeItem('savedArticleSummaries');
                       setCurrentPage(1);
+                      
+                      // Delete all articles from database
+                      try {
+                        for (const article of processedArticles) {
+                          const response = await fetch(`${serverUrl}/api/news-capsule/articles/${article.id}`, {
+                            method: 'DELETE',
+                            credentials: 'include',
+                            headers: {
+                              ...csfrHeaderObject(),
+                            },
+                          });
+                          
+                          if (!response.ok) {
+                            console.error(`Failed to delete article ${article.id} from database`);
+                          }
+                        }
+                        console.log('All articles cleared from database');
+                      } catch (error) {
+                        console.error('Error clearing articles from database:', error);
+                      }
                     }}
                     className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
                   >
