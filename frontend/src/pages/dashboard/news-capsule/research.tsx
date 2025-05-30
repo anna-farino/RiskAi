@@ -923,15 +923,8 @@ export default function Research() {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     
-                    const todaysReports = savedReports.filter((report: any) => {
-                      const reportDate = new Date(report.createdAt);
-                      const reportDay = new Date(reportDate);
-                      reportDay.setHours(0, 0, 0, 0);
-                      return reportDay.getTime() === today.getTime();
-                    });
-                    
-                    // Find the highest version number among today's reports
-                    const highestVersion = todaysReports.reduce((max: number, report: any) => {
+                      // Find the highest version number among ALL reports (not just today's)
+                    const highestVersion = savedReports.reduce((max: number, report: any) => {
                       // Make sure to use the actual version number that was stored
                       const reportVersion = parseInt(report.versionNumber) || 0;
                       return reportVersion > max ? reportVersion : max;
