@@ -771,31 +771,7 @@ export default function Research() {
                         {selectedArticles.some(selected => selected.id === article.id) ? "Entered in Report" : "Select for Report"}
                       </button>
                       <button
-                        onClick={() => {
-                          // Remove by filtering out articles with this specific ID and URL combination
-                          // This handles duplicates properly by removing ALL instances
-                          const newProcessed = processedArticles.filter(a => 
-                            !(a.id === article.id && a.url === article.url)
-                          );
-                          setProcessedArticles(newProcessed);
-                          
-                          // Also remove from selected if it exists there
-                          const newSelected = selectedArticles.filter(a => 
-                            !(a.id === article.id && a.url === article.url)
-                          );
-                          setSelectedArticles(newSelected);
-                          
-                          // Update storage
-                          storedArticles.length = 0;
-                          storedArticles.push(...newProcessed);
-                          localStorage.setItem('savedArticleSummaries', JSON.stringify(newProcessed));
-                          
-                          storedSelectedArticles.length = 0;
-                          storedSelectedArticles.push(...newSelected);
-                          localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
-                          
-                          console.log("Removed article:", article.title);
-                        }}
+                        onClick={() => removeProcessedArticle(article.id)}
                         className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
                       >
                         Remove
@@ -883,15 +859,7 @@ export default function Research() {
                   <div className="flex justify-between items-start">
                     <h4 className="text-sm font-medium mb-1">{article.title}</h4>
                     <button
-                      onClick={() => {
-                        // Direct removal by filtering out this specific index
-                        const newSelected = selectedArticles.filter((_, i) => i !== index);
-                        setSelectedArticles(newSelected);
-                        storedSelectedArticles.length = 0;
-                        storedSelectedArticles.push(...newSelected);
-                        localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
-                        console.log("Removed article at index:", index);
-                      }}
+                      onClick={() => removeSelectedArticle(article.id)}
                       className="text-red-400 hover:text-red-300"
                     >
                       ✕
