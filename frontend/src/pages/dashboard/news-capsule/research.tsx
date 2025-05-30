@@ -661,14 +661,14 @@ export default function Research() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* URL Input Section */}
         <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <h2 className="text-xl font-semibold mb-4">Submit Article URLs</h2>
+          <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
           
           <div className="flex flex-col gap-4">
 
 
             <div className="flex flex-col gap-2">
               <label htmlFor="url-input" className="text-sm text-slate-400">
-                Article URLs (one per line)
+                {bulkMode ? 'Article URLs (one per line)' : 'Article URL'}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
