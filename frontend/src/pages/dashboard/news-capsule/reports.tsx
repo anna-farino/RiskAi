@@ -1004,16 +1004,21 @@ export default function Reports() {
                         <p className="text-sm">{article.impacts}</p>
                       </div>
                       
-                      {/* Notes Section */}
-                      <div className="mb-4">
-                        <p className="text-xs text-slate-400 mb-1">Executive Notes</p>
-                        <textarea
-                          value={getArticleNote(selectedReport.id, article.id)}
-                          onChange={(e) => updateArticleNote(selectedReport.id, article.id, e.target.value)}
-                          placeholder="Add executive notes for this story..."
-                          className="w-full p-2 text-sm bg-slate-700/50 border border-slate-600/50 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical min-h-[80px]"
-                        />
-                      </div>
+                      {/* Notes Section - Only show if notes exist */}
+                      {(() => {
+                        const noteValue = getArticleNote(selectedReport.id, article.id);
+                        if (noteValue.trim()) {
+                          return (
+                            <div className="mb-4">
+                              <p className="text-xs text-slate-400 mb-1">Executive Notes</p>
+                              <div className="p-3 bg-slate-700/30 border border-slate-600/30 rounded-md">
+                                <p className="text-sm text-slate-200 whitespace-pre-wrap">{noteValue}</p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
