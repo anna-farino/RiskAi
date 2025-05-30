@@ -77,11 +77,16 @@ export default function Research() {
         try {
           const parsed = JSON.parse(savedSelectedStr);
           if (Array.isArray(parsed)) {
-            setSelectedArticles(parsed);
+            // Remove duplicates before setting
+            const uniqueSelected = parsed.filter((article, index, self) => 
+              index === self.findIndex(a => a.id === article.id)
+            );
+            setSelectedArticles(uniqueSelected);
             
-            // Update module-level array
+            // Update module-level array and save cleaned data
             storedSelectedArticles.length = 0;
-            storedSelectedArticles.push(...parsed);
+            storedSelectedArticles.push(...uniqueSelected);
+            localStorage.setItem('savedSelectedArticles', JSON.stringify(uniqueSelected));
           }
         } catch (e) {
           console.error("Failed to parse saved selected articles", e);
@@ -115,11 +120,22 @@ export default function Research() {
       if (response.ok) {
         const articles = await response.json();
         console.log('Fetched articles from database:', articles.length);
-        setProcessedArticles(articles);
         
-        // Update module-level array
+        // Remove duplicates automatically
+        const uniqueArticles = articles.filter((article, index, self) => 
+          index === self.findIndex(a => a.id === article.id)
+        );
+        
+        setProcessedArticles(uniqueArticles);
+        
+        // Update module-level array and save cleaned data
         storedArticles.length = 0;
-        storedArticles.push(...articles);
+        storedArticles.push(...uniqueArticles);
+        localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueArticles));
+        
+        if (uniqueArticles.length !== articles.length) {
+          console.log('Automatically removed duplicates:', articles.length - uniqueArticles.length);
+        }
       } else {
         console.error('Failed to fetch articles from database');
       }
