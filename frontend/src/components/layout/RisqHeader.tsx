@@ -71,9 +71,9 @@ export function RisqHeader() {
         {/* Rest of the header in a separate container */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
           
-          {/* Search bar for tablet and desktop only */}
-          <div className="hidden sm:flex items-center mr-3 sm:mr-4 md:mr-6">
-            <div className="relative w-64 sm:w-72 md:w-80">
+          {/* Search bar for desktop only */}
+          <div className="hidden lg:flex items-center mr-6">
+            <div className="relative w-80">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <Search className="h-4 w-4" />
               </div>
