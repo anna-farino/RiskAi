@@ -181,46 +181,39 @@ export default function Reports() {
                 <div className="flex gap-2">
                   <button
                     className="px-3 py-1 text-sm bg-blue-700 hover:bg-blue-600 rounded-md"
-                    onClick={() => {
-                      const reportContent = selectedReport.articles.map((article, index) => {
-                        const execNotes = getArticleNote(selectedReport.id, article.id);
-                        return `
-ARTICLE ${index + 1}
-Title: ${article.title}
-Threat Name: ${article.threatName}
-Vulnerability ID: ${article.vulnerabilityId}
-Attack Vector: ${article.attackVector}
-Target OS: ${article.targetOS}
-${execNotes.trim() ? `Executive Notes: ${execNotes}` : ''}
-Source: ${cleanPublicationName(article.sourcePublication)}
-
-Summary:
-${article.summary}
-
-Impacts:
-${article.impacts}
-
-Original URL: ${article.originalUrl}
-
--------------------------------------------
-`;
-                      }).join('\n');
-
-                      const fullContent = `RisqAI News Capsule Reporting
-Executive Report: ${formatDate(selectedReport.createdAt)}
-Generated: ${new Date().toLocaleDateString()}
-
-${reportContent}`;
-
-                      const blob = new Blob([fullContent], { type: 'application/msword' });
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}.doc`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      URL.revokeObjectURL(url);
+                    onClick={(e) => {
+                      e.preventDefault();
+                      
+                      // Build Word document content
+                      let wordContent = "RisqAI News Capsule Reporting\n";
+                      wordContent += `Executive Report: ${formatDate(selectedReport.createdAt)}\n`;
+                      wordContent += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+                      
+                      selectedReport.articles.forEach((article, index) => {
+                        const notes = getArticleNote(selectedReport.id, article.id);
+                        wordContent += `ARTICLE ${index + 1}\n`;
+                        wordContent += `Title: ${article.title}\n`;
+                        wordContent += `Threat Name: ${article.threatName}\n`;
+                        wordContent += `Vulnerability ID: ${article.vulnerabilityId}\n`;
+                        wordContent += `Attack Vector: ${article.attackVector}\n`;
+                        wordContent += `Target OS: ${article.targetOS}\n`;
+                        if (notes.trim()) {
+                          wordContent += `Executive Notes: ${notes}\n`;
+                        }
+                        wordContent += `Source: ${cleanPublicationName(article.sourcePublication)}\n\n`;
+                        wordContent += `Summary:\n${article.summary}\n\n`;
+                        wordContent += `Impacts:\n${article.impacts}\n\n`;
+                        wordContent += `Original URL: ${article.originalUrl}\n`;
+                        wordContent += `-------------------------------------------\n\n`;
+                      });
+                      
+                      // Create and download file
+                      const element = document.createElement('a');
+                      const file = new Blob([wordContent], {type: 'application/msword'});
+                      element.href = URL.createObjectURL(file);
+                      element.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}.doc`;
+                      element.click();
+                      URL.revokeObjectURL(element.href);
                     }}
                   >
                     Export to Word
@@ -228,69 +221,22 @@ ${reportContent}`;
                   
                   <button
                     className="px-3 py-1 text-sm bg-green-700 hover:bg-green-600 rounded-md"
-                    onClick={() => {
-                      // Print function
+                    onClick={(e) => {
+                      e.preventDefault();
+                      
                       const versionText = selectedReport.versionNumber && selectedReport.versionNumber > 1 ? 
                         ` (Version: ${selectedReport.versionNumber})` : '';
                       
                       const printWindow = window.open('', '_blank');
                       if (printWindow) {
-                        let printContent = `
-                          <!DOCTYPE html>
-                          <html>
-                          <head>
-                            <title>Executive Report - ${formatDate(selectedReport.createdAt)}</title>
-                            <style>
-                              body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 0.5in; }
-                              h1 { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 20pt; }
-                              h2 { text-align: center; font-size: 16pt; margin-bottom: 15pt; }
-                              h3 { font-size: 14pt; font-weight: bold; margin-top: 15pt; margin-bottom: 8pt; }
-                              .field { margin-bottom: 8pt; }
-                              .field-label { font-weight: bold; }
-                              .section { margin-bottom: 15pt; }
-                              .article { margin-bottom: 30pt; border-bottom: 1px solid #ccc; padding-bottom: 15pt; page-break-inside: avoid; }
-                              @media print { body { margin: 0.5in; } }
-                            </style>
-                          </head>
-                          <body>
-                            <h1>RisqAI News Capsule Reporting</h1>
-                            <h2>Executive Report: ${formatDate(selectedReport.createdAt)}${versionText}</h2>
-                            <p style="text-align: center; margin-bottom: 30pt;">Generated on: ${new Date().toLocaleDateString()}</p>
-                        `;
+                        let printContent = `<!DOCTYPE html><html><head><title>Executive Report</title><style>body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 0.5in; } h1 { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 20pt; } h2 { text-align: center; font-size: 16pt; margin-bottom: 15pt; } h3 { font-size: 14pt; font-weight: bold; margin-top: 15pt; margin-bottom: 8pt; } .field { margin-bottom: 8pt; } .field-label { font-weight: bold; } .section { margin-bottom: 15pt; } .article { margin-bottom: 30pt; border-bottom: 1px solid #ccc; padding-bottom: 15pt; page-break-inside: avoid; } @media print { body { margin: 0.5in; } }</style></head><body><h1>RisqAI News Capsule Reporting</h1><h2>Executive Report: ${formatDate(selectedReport.createdAt)}${versionText}</h2><p style="text-align: center; margin-bottom: 30pt;">Generated on: ${new Date().toLocaleDateString()}</p>`;
                         
                         selectedReport.articles.forEach((article) => {
                           const execNotes = getArticleNote(selectedReport.id, article.id);
-                          
-                          printContent += `
-                            <div class="article">
-                              <h3>${article.title}</h3>
-                              <div class="field"><span class="field-label">Threat Name:</span> ${article.threatName}</div>
-                              <div class="field"><span class="field-label">Vulnerability ID:</span> ${article.vulnerabilityId}</div>
-                              <div class="field"><span class="field-label">Attack Vector:</span> ${article.attackVector}</div>
-                              <div class="field"><span class="field-label">Target OS:</span> ${article.targetOS}</div>
-                              ${execNotes.trim() ? `<div class="field"><span class="field-label">Executive Notes:</span> ${execNotes}</div>` : ''}
-                              <div class="field"><span class="field-label">Source:</span> ${cleanPublicationName(article.sourcePublication)}</div>
-                              
-                              <div class="section">
-                                <div class="field-label">Summary:</div>
-                                <p>${article.summary}</p>
-                              </div>
-                              
-                              <div class="section">
-                                <div class="field-label">Impacts:</div>
-                                <p>${article.impacts}</p>
-                              </div>
-                              
-                              <div class="field"><span class="field-label">Original URL:</span> ${article.originalUrl}</div>
-                            </div>
-                          `;
+                          printContent += `<div class="article"><h3>${article.title}</h3><div class="field"><span class="field-label">Threat Name:</span> ${article.threatName}</div><div class="field"><span class="field-label">Vulnerability ID:</span> ${article.vulnerabilityId}</div><div class="field"><span class="field-label">Attack Vector:</span> ${article.attackVector}</div><div class="field"><span class="field-label">Target OS:</span> ${article.targetOS}</div>${execNotes.trim() ? `<div class="field"><span class="field-label">Executive Notes:</span> ${execNotes}</div>` : ''}<div class="field"><span class="field-label">Source:</span> ${cleanPublicationName(article.sourcePublication)}</div><div class="section"><div class="field-label">Summary:</div><p>${article.summary}</p></div><div class="section"><div class="field-label">Impacts:</div><p>${article.impacts}</p></div><div class="field"><span class="field-label">Original URL:</span> ${article.originalUrl}</div></div>`;
                         });
                         
-                        printContent += `
-                            <p style="text-align: center; margin-top: 30pt; font-style: italic;">Report Generated by RisqAI News Capsule</p>
-                          </body>
-                          </html>
-                        `;
+                        printContent += `<p style="text-align: center; margin-top: 30pt; font-style: italic;">Report Generated by RisqAI News Capsule</p></body></html>`;
                         
                         printWindow.document.write(printContent);
                         printWindow.document.close();
@@ -304,43 +250,38 @@ ${reportContent}`;
                   
                   <button
                     className="px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded-md"
-                    onClick={() => {
-                      const reportContent = selectedReport.articles.map((article, index) => {
-                        const execNotes = getArticleNote(selectedReport.id, article.id);
-                        return `ARTICLE ${index + 1}
-TITLE: ${article.title}
-THREAT: ${article.threatName}
-VULNERABILITY ID: ${article.vulnerabilityId}
-ATTACK VECTOR: ${article.attackVector}
-TARGET OS: ${article.targetOS}
-${execNotes.trim() ? `EXECUTIVE NOTES: ${execNotes}` : ''}
-SOURCE: ${cleanPublicationName(article.sourcePublication)}
-
-SUMMARY:
-${article.summary}
-
-IMPACTS:
-${article.impacts}
-
-ORIGINAL URL: ${article.originalUrl}
-
--------------------------------------------`;
-                      }).join('\n\n');
-
-                      const fullContent = `EXECUTIVE REPORT: ${formatDate(selectedReport.createdAt)}
-Generated: ${new Date().toLocaleDateString()}
-
-${reportContent}`;
-
-                      const blob = new Blob([fullContent], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}.txt`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
+                    onClick={(e) => {
+                      e.preventDefault();
+                      
+                      // Build text content
+                      let textContent = `EXECUTIVE REPORT: ${formatDate(selectedReport.createdAt)}\n`;
+                      textContent += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+                      
+                      selectedReport.articles.forEach((article, index) => {
+                        const notes = getArticleNote(selectedReport.id, article.id);
+                        textContent += `ARTICLE ${index + 1}\n`;
+                        textContent += `TITLE: ${article.title}\n`;
+                        textContent += `THREAT: ${article.threatName}\n`;
+                        textContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n`;
+                        textContent += `ATTACK VECTOR: ${article.attackVector}\n`;
+                        textContent += `TARGET OS: ${article.targetOS}\n`;
+                        if (notes.trim()) {
+                          textContent += `EXECUTIVE NOTES: ${notes}\n`;
+                        }
+                        textContent += `SOURCE: ${cleanPublicationName(article.sourcePublication)}\n\n`;
+                        textContent += `SUMMARY:\n${article.summary}\n\n`;
+                        textContent += `IMPACTS:\n${article.impacts}\n\n`;
+                        textContent += `ORIGINAL URL: ${article.originalUrl}\n`;
+                        textContent += `-------------------------------------------\n\n`;
+                      });
+                      
+                      // Create and download file
+                      const element = document.createElement('a');
+                      const file = new Blob([textContent], {type: 'text/plain'});
+                      element.href = URL.createObjectURL(file);
+                      element.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}.txt`;
+                      element.click();
+                      URL.revokeObjectURL(element.href);
                     }}
                   >
                     Export as Text
