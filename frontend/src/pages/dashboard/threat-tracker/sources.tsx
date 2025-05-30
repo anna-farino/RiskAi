@@ -414,6 +414,10 @@ export default function Sources() {
       
       // Get snapshot of current data
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`]);
+      const previousLocalEnabled = localAutoScrapeEnabled;
+      
+      // Immediately update local state for instant UI feedback
+      setLocalAutoScrapeEnabled(enabled);
       
       // Optimistically update the cache
       queryClient.setQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`], {
@@ -421,12 +425,15 @@ export default function Sources() {
         interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
       });
       
-      return { previousSettings };
+      return { previousSettings, previousLocalEnabled };
     },
     onError: (err, variables, context) => {
       // If the mutation fails, use the context to roll back
       if (context?.previousSettings) {
         queryClient.setQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`], context.previousSettings);
+      }
+      if (context?.previousLocalEnabled !== undefined) {
+        setLocalAutoScrapeEnabled(context.previousLocalEnabled);
       }
       toast({
         title: "Error updating settings",
@@ -435,7 +442,8 @@ export default function Sources() {
       });
     },
     onSuccess: (data) => {
-      // Don't invalidate - rely on optimistic updates
+      // Sync local state with server response
+      setLocalAutoScrapeEnabled(data.enabled);
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
@@ -535,7 +543,7 @@ export default function Sources() {
             <div className="flex items-center gap-2">
               <Switch
                 id="auto-scrape"
-                checked={autoScrapeSettings.data?.enabled || false}
+                checked={localAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled ?? false}
                 onCheckedChange={handleToggleAutoScrape}
                 disabled={updateAutoScrapeSettings.isPending}
               />
@@ -544,7 +552,7 @@ export default function Sources() {
                   htmlFor="auto-scrape"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  {autoScrapeSettings.data?.enabled ? 'Enabled' : 'Disabled'}
+                  {(localAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled) ? 'Enabled' : 'Disabled'}
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {autoScrapeSettings.data?.enabled
