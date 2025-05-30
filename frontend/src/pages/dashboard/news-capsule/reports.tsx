@@ -354,32 +354,7 @@ export default function Reports() {
                             );
                           }
                           
-                          sections.push(
-                            new Paragraph({
-                              children: [
-                                new TextRun({
-                                  text: "Microsoft Connection:",
-                                  font: "Cambria",
-                                  size: 22,
-                                  bold: true
-                                })
-                              ],
-                              spacing: { after: 0 }
-                            })
-                          );
-                          
-                          sections.push(
-                            new Paragraph({
-                              children: [
-                                new TextRun({
-                                  text: article.microsoftConnection,
-                                  font: "Cambria",
-                                  size: 22
-                                })
-                              ],
-                              spacing: { after: 120 }
-                            })
-                          );
+
                           
                           sections.push(
                             new Paragraph({
