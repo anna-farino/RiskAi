@@ -416,6 +416,15 @@ export default function Research() {
         
         // Success message
         alert("Articles successfully added to report!");
+        
+        // Clear selected articles since they've been added to report
+        setSelectedArticles([]);
+        storedSelectedArticles.length = 0;
+        localStorage.removeItem('savedSelectedArticles');
+        
+        // Force re-render to update button states
+        setProcessedArticles([...processedArticles]);
+        
         setIsLoading(false);
       };
       
@@ -974,6 +983,14 @@ export default function Research() {
                 // Success message
                 if (selectedArticles.length > 0) {
                   alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
+                  
+                  // Clear selected articles since they've been added to report
+                  setSelectedArticles([]);
+                  storedSelectedArticles.length = 0;
+                  localStorage.removeItem('savedSelectedArticles');
+                  
+                  // Force re-render to update button states
+                  setProcessedArticles([...processedArticles]);
                 } else {
                   alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
                 }
