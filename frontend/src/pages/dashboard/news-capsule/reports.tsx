@@ -120,10 +120,180 @@ export default function Reports() {
                     <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
                       <button
                         className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md"
-                        onClick={() => {
+                        onClick={async () => {
                           setShowExportDropdown(false);
-                          // Export to Word functionality would go here
-                          console.log("Export to Word clicked");
+                          try {
+                            // Create document sections
+                            const sections = [];
+                            
+                            // Header
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "RisqAI News Capsule Reporting",
+                                    font: "Cambria",
+                                    size: 28,
+                                    bold: true,
+                                    color: "000000"
+                                  })
+                                ],
+                                alignment: AlignmentType.CENTER,
+                                spacing: { after: 240 }
+                              })
+                            );
+                            
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: `Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}`,
+                                    font: "Cambria",
+                                    size: 22
+                                  })
+                                ],
+                                alignment: AlignmentType.CENTER,
+                                spacing: { after: 120 }
+                              })
+                            );
+                            
+                            // Topic if present
+                            if (selectedReport.topic) {
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Report Topic: ",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    }),
+                                    new TextRun({
+                                      text: selectedReport.topic,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  alignment: AlignmentType.CENTER,
+                                  spacing: { after: 120 }
+                                })
+                              );
+                            }
+                            
+                            // Articles
+                            selectedReport.articles.forEach((article, index) => {
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: `Article ${index + 1}: ${article.title}`,
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    })
+                                  ],
+                                  spacing: { after: 120 }
+                                })
+                              );
+                              
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Summary:",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    })
+                                  ],
+                                  spacing: { after: 0 }
+                                })
+                              );
+                              
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: article.summary,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 120 }
+                                })
+                              );
+                              
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Impacts:",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    })
+                                  ],
+                                  spacing: { after: 0 }
+                                })
+                              );
+                              
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: article.impacts,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 120 }
+                                })
+                              );
+                              
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Original URL: ",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    }),
+                                    new TextRun({
+                                      text: article.originalUrl,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 240 }
+                                })
+                              );
+                            });
+                            
+                            // Create document
+                            const doc = new Document({
+                              sections: [
+                                {
+                                  properties: {},
+                                  children: sections
+                                }
+                              ]
+                            });
+                            
+                            // Generate and download
+                            const blob = await Packer.toBlob(doc);
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.docx`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('Error creating Word document:', error);
+                            alert('Error creating Word document. Please try again.');
+                          }
                         }}
                       >
                         Export to Word
@@ -133,7 +303,90 @@ export default function Reports() {
                         className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
                         onClick={() => {
                           setShowExportDropdown(false);
+                          // Add print-specific styling
+                          const printStyle = document.createElement('style');
+                          printStyle.id = 'print-style';
+                          printStyle.innerHTML = `
+                            @media print {
+                              @page {
+                                size: letter;
+                                margin: 0.75in 0.5in;
+                              }
+                              body {
+                                font-family: Cambria, serif !important;
+                                font-size: 11pt !important;
+                                line-height: 1.15 !important;
+                                background: white !important;
+                                color: black !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                              }
+                              /* Hide navigation and controls */
+                              nav, header, aside, .md\\:col-span-1, button, 
+                              input, select, .flex.gap-2, .flex.justify-between {
+                                display: none !important;
+                              }
+                              /* Make the report container full width */
+                              .md\\:col-span-4 {
+                                width: 100% !important;
+                                max-width: 100% !important;
+                              }
+                              .grid.grid-cols-1 {
+                                display: block !important;
+                              }
+                              /* Reset background and styling */
+                              .p-5, .backdrop-blur-sm, .bg-slate-900\\/50, .border, .rounded-xl {
+                                background: white !important;
+                                border: none !important;
+                                border-radius: 0 !important;
+                                box-shadow: none !important;
+                              }
+                              /* Format headings */
+                              h1, h2, h3 {
+                                font-family: Cambria, serif !important;
+                                font-size: 12pt !important;
+                                font-weight: bold !important;
+                                margin-top: 12pt !important;
+                                margin-bottom: 6pt !important;
+                                color: black !important;
+                              }
+                              /* Format text */
+                              p, .text-sm {
+                                font-size: 10pt !important;
+                                line-height: 1.4 !important;
+                                color: black !important;
+                              }
+                              /* Format grid layouts */
+                              .grid-cols-2 {
+                                display: grid !important;
+                                grid-template-columns: 1fr 1fr !important;
+                                gap: 0.2in !important;
+                              }
+                              /* Hide interactive elements */
+                              .group, .absolute, .cursor-grab, .opacity-0, 
+                              .hover\\:opacity-100, .ring-2, .ring-blue-500,
+                              button, textarea, .bg-blue-600 {
+                                display: none !important;
+                              }
+                            }
+                          `;
+                          document.head.appendChild(printStyle);
+                          
+                          // Change the document title for printing
+                          const originalTitle = document.title;
+                          document.title = "RisqAI News Capsule Reporting";
+                          
+                          // Print the report
                           window.print();
+                          
+                          // Remove the print style after printing and restore title
+                          setTimeout(() => {
+                            const styleElement = document.getElementById('print-style');
+                            if (styleElement) {
+                              styleElement.remove();
+                            }
+                            document.title = originalTitle;
+                          }, 1000);
                         }}
                       >
                         Print
@@ -143,8 +396,55 @@ export default function Reports() {
                         className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
                         onClick={() => {
                           setShowExportDropdown(false);
-                          // Export as Text functionality would go here
-                          console.log("Export as Text clicked");
+                          // Generate text content
+                          let textContent = "RisqAI News Capsule Reporting\n";
+                          textContent += "=".repeat(50) + "\n\n";
+                          
+                          textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}`;
+                          if (selectedReport.versionNumber && selectedReport.versionNumber > 1) {
+                            textContent += ` (Version: ${selectedReport.versionNumber})`;
+                          }
+                          textContent += "\n\n";
+                          
+                          if (selectedReport.topic) {
+                            textContent += `Report Topic: ${selectedReport.topic}\n\n`;
+                          }
+                          
+                          textContent += "Articles:\n";
+                          textContent += "-".repeat(30) + "\n\n";
+                          
+                          selectedReport.articles.forEach((article, index) => {
+                            textContent += `Article ${index + 1}: ${article.title}\n`;
+                            textContent += "=".repeat(article.title.length + 12) + "\n\n";
+                            
+                            textContent += `Threat Name: ${article.threatName}\n`;
+                            textContent += `Vulnerability ID: ${article.vulnerabilityId}\n`;
+                            textContent += `Target OS: ${article.targetOS}\n`;
+                            textContent += `Source: ${article.sourcePublication}\n\n`;
+                            
+                            textContent += "Summary:\n";
+                            textContent += article.summary + "\n\n";
+                            
+                            textContent += "Impacts:\n";
+                            textContent += article.impacts + "\n\n";
+                            
+                            textContent += "Attack Vector:\n";
+                            textContent += article.attackVector + "\n\n";
+                            
+                            textContent += `Original URL: ${article.originalUrl}\n\n`;
+                            textContent += "-".repeat(50) + "\n\n";
+                          });
+                          
+                          // Create and download text file
+                          const blob = new Blob([textContent], { type: 'text/plain' });
+                          const url = URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.txt`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          URL.revokeObjectURL(url);
                         }}
                       >
                         Export as Text
