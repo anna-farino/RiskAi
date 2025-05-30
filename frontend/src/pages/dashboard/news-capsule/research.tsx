@@ -791,9 +791,9 @@ export default function Research() {
                       </button>
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
-                        className="w-32 px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                        className="w-8 h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
                       >
-                        Remove
+                        ×
                       </button>
                     </div>
                   </div>
