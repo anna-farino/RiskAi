@@ -456,6 +456,54 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
   }
 });
 
+// Duplicate management API
+threatRouter.get("/duplicates", async (req, res) => {
+  reqLog(req, "GET /duplicates");
+  try {
+    const userId = getUserId(req);
+    const { findDuplicatesForUser } = await import("../services/duplicate-cleanup");
+    
+    const result = await findDuplicatesForUser(userId);
+    
+    res.json({
+      duplicateGroups: result.duplicateGroups,
+      totalDuplicates: result.totalDuplicates,
+      message: `Found ${result.totalDuplicates} duplicate articles in ${result.duplicateGroups.length} groups`
+    });
+  } catch (error: any) {
+    console.error("Error finding duplicates:", error);
+    res.status(500).json({ error: error.message || "Failed to find duplicates" });
+  }
+});
+
+threatRouter.post("/duplicates/remove", async (req, res) => {
+  reqLog(req, "POST /duplicates/remove");
+  try {
+    const userId = getUserId(req);
+    const { removeDuplicatesForUser } = await import("../services/duplicate-cleanup");
+    
+    const result = await removeDuplicatesForUser(userId);
+    
+    if (result.errors.length > 0) {
+      res.status(207).json({
+        message: `Removed ${result.duplicatesRemoved} duplicates with ${result.errors.length} errors`,
+        duplicatesFound: result.duplicatesFound,
+        duplicatesRemoved: result.duplicatesRemoved,
+        errors: result.errors
+      });
+    } else {
+      res.json({
+        message: `Successfully removed ${result.duplicatesRemoved} duplicate articles`,
+        duplicatesFound: result.duplicatesFound,
+        duplicatesRemoved: result.duplicatesRemoved
+      });
+    }
+  } catch (error: any) {
+    console.error("Error removing duplicates:", error);
+    res.status(500).json({ error: error.message || "Failed to remove duplicates" });
+  }
+});
+
 threatRouter.post("/scrape/all", async (req, res) => {
   reqLog(req, "POST /scrape/all");
   try {
