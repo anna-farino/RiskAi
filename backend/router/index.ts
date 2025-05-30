@@ -14,27 +14,14 @@ import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'bac
 import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
-import sendGrid from 'backend/utils/sendGrid';
+import { auth0 } from 'backend/middleware/auth0';
 
 const limiter = rateLimit(rateLimitConfig)
-
 const router = Router();
 
 // HELLO WORLD route
-router.get('/test', limiter, handleTest)
-router.get('/test-email', (req: Request, res: Response)=>{
-  sendGrid({
-    to: "test-91gqwhqpp@srv1.mail-tester.com",
-    subject: "Test",
-    text: "This is 👍",
-    //html: "<h1>Hello, sendGrid!</h1>"
-  })
-  res.json({ response: "test email route hit!"})
-})
-
-// TESTING RLS MIDDLEWARE
-//router.use(withDbContext)
-router.get('/test-articles', testArticles)
+//router.get('/test', limiter, handleTest)
+//router.get('/test-articles', testArticles)
 
 // AUTH
 router.use('/auth', limiter, authRouter)
@@ -42,7 +29,8 @@ router.use('/auth', limiter, authRouter)
 // PROTECTIONS
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
-router.use(verifyToken)
+//router.use(verifyToken)
+router.use(auth0)
 
 // PROTECTED ROUTES
 router.use('/users', usersRouter)

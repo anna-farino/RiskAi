@@ -15,7 +15,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
         <RouterProvider router={router} />
-        <Toaster />
+        <Toaster/>
       </ThemeProvider>
       {
         true && <ReactQueryDevtools position='right'/> // change to "false" to hide//
