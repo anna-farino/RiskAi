@@ -7,6 +7,8 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } fro
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [draggedArticle, setDraggedArticle] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState<string>('');
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
@@ -86,6 +88,39 @@ export default function Reports() {
       .trim();
     
     return cleanedName || publication;
+  };
+
+  // Executive notes functions
+  const getArticleNote = (reportId: string, articleId: string) => {
+    const noteKey = `executive_note_${reportId}_${articleId}`;
+    return localStorage.getItem(noteKey) || '';
+  };
+
+  const saveArticleNote = (reportId: string, articleId: string, note: string) => {
+    const noteKey = `executive_note_${reportId}_${articleId}`;
+    if (note.trim()) {
+      localStorage.setItem(noteKey, note.trim());
+    } else {
+      localStorage.removeItem(noteKey);
+    }
+  };
+
+  const startEditingNote = (articleId: string) => {
+    if (!selectedReport) return;
+    setEditingNote(articleId);
+    setNoteText(getArticleNote(selectedReport.id, articleId));
+  };
+
+  const saveNote = (articleId: string) => {
+    if (!selectedReport) return;
+    saveArticleNote(selectedReport.id, articleId, noteText);
+    setEditingNote(null);
+    setNoteText('');
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNote(null);
+    setNoteText('');
   };
   
   return (
@@ -873,13 +908,60 @@ export default function Reports() {
                           <p className="text-sm">{article.attackVector}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-slate-400">Source</p>
-                          <p className="text-sm">{cleanPublicationName(article.sourcePublication)}</p>
-                        </div>
-                        <div>
                           <p className="text-xs text-slate-400">Target OS</p>
                           <p className="text-sm">{article.targetOS}</p>
                         </div>
+                        <div>
+                          <p className="text-xs text-slate-400">Source</p>
+                          <p className="text-sm">{cleanPublicationName(article.sourcePublication)}</p>
+                        </div>
+                      </div>
+
+                      {/* Executive Notes Section */}
+                      <div className="mt-4 pt-4 border-t border-slate-700/40">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-slate-400">Executive Notes</p>
+                          {editingNote !== article.id && (
+                            <button
+                              onClick={() => startEditingNote(article.id)}
+                              className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                            >
+                              {getArticleNote(selectedReport.id, article.id) ? 'Edit Note' : 'Add Executive Note'}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {editingNote === article.id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={noteText}
+                              onChange={(e) => setNoteText(e.target.value)}
+                              placeholder="Add your executive notes about this article..."
+                              className="w-full p-2 bg-slate-800/50 border border-slate-700/40 rounded text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                              rows={3}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => saveNote(article.id)}
+                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                              >
+                                Save Note
+                              </button>
+                              <button
+                                onClick={cancelEditingNote}
+                                className="px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-300">
+                            {getArticleNote(selectedReport.id, article.id) || (
+                              <span className="text-slate-500 italic">No executive notes added yet</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="mt-3 pt-3 border-t border-slate-700/40">
