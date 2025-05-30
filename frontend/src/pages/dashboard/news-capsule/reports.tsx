@@ -178,27 +178,6 @@ export default function Reports() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  {/* Print Header (only visible during print) */}
-                  <div className="print-header" style={{ display: 'none' }}>
-                    <div style={{ textAlign: 'center', marginBottom: '24pt' }}>
-                      <h1 style={{ fontSize: '18pt', fontWeight: 'bold', margin: '0 0 12pt 0', color: 'black' }}>
-                        RisqAI News Capsule Reporting
-                      </h1>
-                      <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 8pt 0', color: 'black' }}>
-                        Executive Report: {formatDate(selectedReport.createdAt)}{selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}
-                      </h2>
-                      {selectedReport.topic && (
-                        <h3 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0 0 8pt 0', color: 'black' }}>
-                          Report Topic: {selectedReport.topic}
-                        </h3>
-                      )}
-                      <h4 style={{ fontSize: '12pt', fontWeight: 'normal', margin: '0', color: 'black' }}>
-                        Generated on: {format(new Date(), 'M/d/yyyy')}
-                      </h4>
-                    </div>
-                  </div>
-
-                  {/* Screen Header */}
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
                     {selectedReport.versionNumber && selectedReport.versionNumber > 1 && 
@@ -609,21 +588,15 @@ export default function Reports() {
                           h2 span {
                             color: #444 !important;
                           }
-                          /* Hide screen headers during print */
-                          .flex.justify-between.items-center {
-                            display: none !important;
-                          }
-                          /* Show print header during print */
-                          .print-header {
+                          /* Add company header */
+                          h2:before {
+                            content: "RisqAI News Capsule Reporting" !important;
                             display: block !important;
-                            text-align: center !important;
-                            margin-bottom: 0.75in !important;
-                            page-break-after: avoid !important;
-                          }
-                          .print-header h1, .print-header h2, .print-header h3, .print-header h4 {
                             font-family: Cambria, serif !important;
+                            font-size: 14pt !important;
+                            font-weight: bold !important;
+                            margin-bottom: 12pt !important;
                             color: black !important;
-                            text-align: center !important;
                           }
                           /* Format articles */
                           .space-y-6 > div {
