@@ -228,8 +228,10 @@ export default function Research() {
             successCount++;
             newArticles.push(data);
             
-            // Add article immediately to provide instant feedback
-            const updatedArticles = [data, ...processedArticles];
+            // Add article immediately to provide instant feedback (with deduplication)
+            const updatedArticles = [data, ...processedArticles].filter(
+              (article, index, self) => index === self.findIndex(a => a.id === article.id)
+            );
             const limitedArticles = updatedArticles.slice(0, MAX_STORED_ARTICLES);
             setProcessedArticles(limitedArticles);
             
@@ -792,12 +794,12 @@ export default function Research() {
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
-                      {isArticleInReport(article.id) ? (
+                      {selectedArticles.some(selected => selected.id === article.id) ? (
                         <button
                           disabled
                           className="px-3 py-1 text-sm bg-blue-900/30 text-blue-400 rounded-md border border-blue-700/30 cursor-not-allowed"
                         >
-                          Entered in Report
+                          Entered into Report
                         </button>
                       ) : (
                         <button
