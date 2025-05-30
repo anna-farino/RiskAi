@@ -5,6 +5,7 @@ import { getReports } from './get-reports';
 import { db } from '../../db/db';
 import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
 import { eq, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { FullRequest } from '../../middleware';
 
 const router = Router();
@@ -56,6 +57,15 @@ router.delete('/articles/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
+    // Check if article is in any reports
+    const reportsWithArticle = await db.execute(sql`SELECT COUNT(*) as count FROM capsule_articles_in_reports WHERE article_id = ${articleId}`);
+    const isInReports = reportsWithArticle[0]?.count > 0;
+    
+    if (isInReports) {
+      return res.status(400).json({ error: 'Cannot delete article that is already in reports' });
+    }
+    
+    // Delete the article itself
     await db
       .delete(capsuleArticles)
       .where(eq(capsuleArticles.id, articleId));
