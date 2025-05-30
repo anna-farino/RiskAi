@@ -13,7 +13,7 @@ export default function OtpPage({ twHeight='h-full' }: Props) {
 
   return (
     <div className="min-h-screen w-full bg-black flex flex-col">
-      <div className="flex-1 flex items-center justify-center py-12 px-6 sm:px-8 lg:px-0">
+      <div className="flex-1 flex items-center justify-center pt-6 pb-12 px-6 sm:px-8 lg:px-0">
         <div className="w-full max-w-lg space-y-8">
           {/* Page Title */}
           <div className="text-center space-y-4">
