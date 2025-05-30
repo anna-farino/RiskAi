@@ -10,7 +10,7 @@ interface ArticleSummary {
   summary: string;
   impacts: string;
   attackVector: string;
-  affectedOS: string;
+  microsoftConnection: string;
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
@@ -201,11 +201,6 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
                 <p className="text-xs text-blue-400">
                   {formatTime(report.createdAt)}
                 </p>
-                {report.topic && (
-                  <p className="text-xs text-slate-300 font-medium mt-1">
-                    {report.topic}
-                  </p>
-                )}
                 <p className="text-xs text-slate-400">
                   {report.articles.length} articles
                 </p>

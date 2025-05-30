@@ -7,6 +7,7 @@ import { serverUrl } from "@/utils/server-url";
 // Increased limit to support pagination functionality
 const MAX_STORED_ARTICLES = 100;
 const storedArticles: ArticleSummary[] = [];
+const storedSelectedArticles: ArticleSummary[] = [];
 
 // Store recent user-entered URLs (up to 10)
 const MAX_RECENT_URLS = 10;
@@ -30,6 +31,7 @@ interface ArticleSummary {
   summary: string;
   impacts: string;
   attackVector: string;
+  microsoftConnection: string;
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
@@ -50,16 +52,6 @@ export default function Research() {
   const [currentPage, setCurrentPage] = useState(1);
   const [articlesPerPage] = useState(10);
   const [reportTopic, setReportTopic] = useState("");
-
-  const cleanPublicationName = (publication: string): string => {
-    // Remove common slogans and taglines
-    return publication
-      .replace(/\s*-\s*.*$/, '') // Remove everything after dash
-      .replace(/\s*\|\s*.*$/, '') // Remove everything after pipe
-      .replace(/\s*:\s*.*$/, '') // Remove everything after colon
-      .replace(/\s*–\s*.*$/, '') // Remove everything after em dash
-      .trim();
-  };
   
   // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
@@ -86,6 +78,10 @@ export default function Research() {
           const parsed = JSON.parse(savedSelectedStr);
           if (Array.isArray(parsed)) {
             setSelectedArticles(parsed);
+            
+            // Update module-level array
+            storedSelectedArticles.length = 0;
+            storedSelectedArticles.push(...parsed);
           }
         } catch (e) {
           console.error("Failed to parse saved selected articles", e);
@@ -119,17 +115,7 @@ export default function Research() {
       if (response.ok) {
         const articles = await response.json();
         console.log('Fetched articles from database:', articles.length);
-        
-        // Remove duplicates based on ID, title, and URL
-        const uniqueArticles = articles.filter((article: any, index: number, self: any[]) => {
-          const firstIndex = self.findIndex((a: any) => 
-            a.id === article.id ||
-            (a.title.toLowerCase().trim() === article.title.toLowerCase().trim() && a.originalUrl === article.originalUrl)
-          );
-          return firstIndex === index;
-        });
-        
-        setProcessedArticles(uniqueArticles);
+        setProcessedArticles(articles);
         
         // Update module-level array
         storedArticles.length = 0;
@@ -287,20 +273,12 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
-    // Check if article is already selected
-    const isAlreadySelected = selectedArticles.some(selected => 
-      selected.id === article.id ||
-      selected.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
-      selected.originalUrl === article.originalUrl
-    );
-    
-    if (isAlreadySelected) {
-      alert("This article is already selected for the report.");
-      return;
-    }
-    
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
+    
+    // Update module variable
+    storedSelectedArticles.length = 0;
+    storedSelectedArticles.push(...newSelectedArticles);
     
     // Save selected articles to localStorage
     try {
@@ -375,8 +353,7 @@ export default function Research() {
               articleIds: selectedArticles.map(article => article.id),
               useExistingReport: useExistingReport,
               existingReportId: existingReportId,
-              versionNumber: versionNumber,
-              topic: reportTopic.trim() || undefined
+              versionNumber: versionNumber
             }),
             // Add a timeout to prevent long waiting
             signal: AbortSignal.timeout(5000)
@@ -400,37 +377,16 @@ export default function Research() {
           // Update existing report in localStorage
           const reportIndex = savedReports.findIndex((r: any) => r.id === existingReportId);
           if (reportIndex !== -1) {
-            // Combine articles, avoiding duplicates based on title and URL
+            // Combine articles, avoiding duplicates
             const existingArticles = savedReports[reportIndex].articles || [];
             const newArticles = selectedArticles;
             const combinedArticles = [...existingArticles];
             
             // Add only articles that don't already exist in the report
-            const duplicatesFound = [];
-            const newlyAdded = [];
-            
             for (const article of newArticles) {
-              const isDuplicate = combinedArticles.some((a: any) => 
-                a.id === article.id ||
-                a.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
-                a.originalUrl === article.originalUrl
-              );
-              
-              if (!isDuplicate) {
+              if (!combinedArticles.some((a: any) => a.id === article.id)) {
                 combinedArticles.push(article);
-                newlyAdded.push(article);
-              } else {
-                duplicatesFound.push(article);
               }
-            }
-            
-            // Show appropriate message based on what happened
-            if (duplicatesFound.length > 0 && newlyAdded.length === 0) {
-              alert(`All ${duplicatesFound.length} selected articles already exist in this report. No new articles were added.`);
-            } else if (duplicatesFound.length > 0 && newlyAdded.length > 0) {
-              alert(`${newlyAdded.length} new articles added to report. ${duplicatesFound.length} articles were already in the report and were skipped.`);
-            } else {
-              alert(`All ${newlyAdded.length} articles successfully added to report!`);
             }
             
             savedReports[reportIndex] = {
@@ -439,36 +395,14 @@ export default function Research() {
             };
           }
         } else {
-          // Create new report - remove duplicates based on title and URL
-          const duplicatesInSelection = [];
-          const uniqueArticles = selectedArticles.filter((article, index, self) => {
-            const firstIndex = self.findIndex(a => 
-              a.title.toLowerCase().trim() === article.title.toLowerCase().trim() ||
-              a.originalUrl === article.originalUrl
-            );
-            const isUnique = firstIndex === index;
-            if (!isUnique) {
-              duplicatesInSelection.push(article);
-            }
-            return isUnique;
-          });
-          
-          // Show message about duplicates in selection if any
-          if (duplicatesInSelection.length > 0) {
-            alert(`New report created with ${uniqueArticles.length} articles. ${duplicatesInSelection.length} duplicate articles were removed from your selection.`);
-          } else {
-            alert(`New report created successfully with ${uniqueArticles.length} articles!`);
-          }
-          
+          // Create new report
           const newReport = {
             id: newReportId,
             createdAt: new Date().toISOString(),
-            articles: uniqueArticles,
+            articles: [...selectedArticles],
             versionNumber: versionNumber,
             topic: reportTopic.trim() || undefined
           };
-          
-          console.log("Creating new report with topic:", reportTopic.trim() || "NO TOPIC");
           
           // Add to beginning of reports array
           savedReports.unshift(newReport);
@@ -478,6 +412,8 @@ export default function Research() {
         localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
         console.log("Updated reports saved to localStorage:", savedReports.length);
         
+        // Success message
+        alert("Articles successfully added to report!");
         setIsLoading(false);
       };
       
@@ -631,19 +567,16 @@ export default function Research() {
   };
   
   const removeSelectedArticle = (id: string) => {
-    console.log("Removing article with ID:", id);
-    console.log("Current selected articles before removal:", selectedArticles.length);
-    
     const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
-    console.log("New selected articles after removal:", newSelectedArticles.length);
+    setSelectedArticles(newSelectedArticles);
     
-    // Force React to update by using functional state update
-    setSelectedArticles(() => newSelectedArticles);
+    // Update module variable
+    storedSelectedArticles.length = 0;
+    storedSelectedArticles.push(...newSelectedArticles);
     
     // Update localStorage to persist selection
     try {
       localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelectedArticles));
-      console.log("Saved to localStorage:", newSelectedArticles.length, "articles");
     } catch (e) {
       console.error("Failed to update selected articles in storage", e);
     }
@@ -679,15 +612,9 @@ export default function Research() {
           console.error("Failed to update article summaries in storage", e);
         }
       } else {
-        // Get error details and revert optimistic update
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to delete article from database:', errorData);
+        // Revert optimistic update on failure
+        console.error('Failed to delete article from database');
         setProcessedArticles(originalArticles);
-        // Restore selected article if it was removed
-        if (originalArticles.some(article => article.id === id) && 
-            selectedArticles.some(article => article.id === id)) {
-          // Article should still be selected since deletion failed
-        }
       }
     } catch (error) {
       // Revert optimistic update on error
@@ -813,52 +740,13 @@ export default function Research() {
                 <h3 className="text-lg font-medium">
                   Processed Articles ({processedArticles.length})
                 </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async () => {
-                      // Confirm before clearing all
-                      if (!window.confirm('This will delete all processed articles from the database. Are you sure?')) {
-                        return;
-                      }
-                      
-                      // Clear UI immediately
-                      setProcessedArticles([]);
-                      storedArticles.length = 0;
-                      localStorage.removeItem('savedArticleSummaries');
-                      setCurrentPage(1);
-                      
-                      // Delete all articles from database using bulk delete
-                      try {
-                        const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
-                          method: 'DELETE',
-                          credentials: 'include',
-                          headers: {
-                            ...csfrHeaderObject(),
-                          },
-                        });
-                        
-                        if (!response.ok) {
-                          const errorText = await response.text();
-                          console.error(`Failed to delete all articles from database. Status: ${response.status}, Error: ${errorText}`);
-                        } else {
-                          console.log('All articles successfully deleted from database');
-                        }
-                      } catch (error) {
-                        console.error('Error clearing articles from database:', error);
-                      }
-                    }}
-                    className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
-                  >
-                    Clear All
-                  </button>
-                  {processedArticles.length > articlesPerPage && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-400">
-                        Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                {processedArticles.length > articlesPerPage && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">
+                      Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             
@@ -874,21 +762,12 @@ export default function Research() {
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
-                      {selectedArticles.some(selected => selected.id === article.id) ? (
-                        <button
-                          onClick={() => removeSelectedArticle(article.id)}
-                          className="px-3 py-1 text-sm bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 rounded-md border border-blue-700/30"
-                        >
-                          Article In Report
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => selectForReport(article)}
-                          className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                        >
-                          Add to Report
-                        </button>
-                      )}
+                      <button
+                        onClick={() => selectForReport(article)}
+                        className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                      >
+                        Select for Report
+                      </button>
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
                         className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
@@ -925,7 +804,7 @@ export default function Research() {
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Source</p>
-                      <p className="text-sm">{cleanPublicationName(article.sourcePublication)}</p>
+                      <p className="text-sm">{article.sourcePublication}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -1052,8 +931,7 @@ export default function Research() {
                   id: newReportId,
                   createdAt: new Date().toISOString(),
                   articles: [...selectedArticles], // Include selected articles
-                  versionNumber: versionNumber,
-                  topic: reportTopic.trim() || undefined
+                  versionNumber: versionNumber
                 };
                 
                 // Add to beginning of reports array

@@ -35,39 +35,11 @@ router.get('/articles', async (req, res) => {
   }
 });
 
-// Delete all capsule articles for the current user
-router.delete('/articles', async (req, res) => {
-  try {
-    const userId = (req as FullRequest).user.id;
-    console.log('Attempting to delete all articles for user:', userId);
-    
-    // First, delete all article references from reports for this user
-    await db.execute(`
-      DELETE FROM capsule_articles_in_reports 
-      WHERE article_id IN (
-        SELECT id FROM capsule_articles WHERE user_id = '${userId}'
-      )
-    `);
-    
-    // Then delete the articles themselves
-    const result = await db.execute(`DELETE FROM capsule_articles WHERE user_id = '${userId}'`);
-    
-    console.log('Delete result:', result);
-    res.json({ success: true, message: 'All articles and their references deleted' });
-  } catch (error) {
-    console.error('Error deleting all capsule articles:', error);
-    console.error('Error details:', error.message);
-    res.status(500).json({ error: 'Failed to delete all articles', details: error.message });
-  }
-});
-
 // Delete a capsule article
 router.delete('/articles/:id', async (req, res) => {
   try {
     const userId = (req as FullRequest).user.id;
     const articleId = req.params.id;
-    
-    console.log(`Attempting to delete article ${articleId} for user ${userId}`);
     
     // Verify the article belongs to the user before deleting
     const existingArticle = await db
@@ -77,34 +49,21 @@ router.delete('/articles/:id', async (req, res) => {
       .limit(1);
     
     if (existingArticle.length === 0) {
-      console.log(`Article ${articleId} not found`);
       return res.status(404).json({ error: 'Article not found' });
     }
     
-    console.log(`Found article: userId=${existingArticle[0].userId}, requestUserId=${userId}`);
-    
     if (existingArticle[0].userId !== userId) {
-      console.log(`User ${userId} not authorized to delete article ${articleId}`);
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
-    // First delete any references in reports
-    console.log(`Deleting references for article ${articleId}`);
-    await db.execute(`DELETE FROM capsule_articles_in_reports WHERE article_id = '${articleId}'`);
-    
-    // Then delete the article itself
-    console.log(`Deleting article ${articleId}`);
-    const deleteResult = await db
+    await db
       .delete(capsuleArticles)
       .where(eq(capsuleArticles.id, articleId));
-    
-    console.log(`Delete result for article ${articleId}:`, deleteResult);
     
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting capsule article:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ error: 'Failed to delete article', details: error.message });
+    res.status(500).json({ error: 'Failed to delete article' });
   }
 });
 
