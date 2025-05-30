@@ -12,21 +12,23 @@ export default function OtpPage({ twHeight='h-full' }: Props) {
   const pParam = params.get('p') as 'login' | 'pw' | 'signup'
 
   return (
-    <AuthLayout twHeight={twHeight}>
-      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
-        <CardHeader>
-          <CardTitle className="text-2xl text-white">
-            Verify Code
-          </CardTitle>
-          <CardDescription className="text-slate-300">
-            Enter the code we sent to your email below:
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <InputOTPForm pParam={pParam}/>
-        </CardContent>
-      </Card>
-    </AuthLayout>
+    <div className={`flex ${twHeight} items-center justify-center bg-black`}>
+      <div className="w-full max-w-md flex flex-col items-center px-4 sm:px-0">
+        <Card className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl hover:border-[#BF00FF]/40 transition-all duration-300 w-full">
+          <CardHeader className="p-6">
+            <CardTitle className="text-2xl font-bold text-white">
+              Verify Code
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Enter the code we sent to your email below:
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 pt-0">
+            <InputOTPForm pParam={pParam}/>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 
