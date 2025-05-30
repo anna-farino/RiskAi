@@ -15,6 +15,7 @@ interface ReportNotes {
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [articleNotes, setArticleNotes] = useState<ReportNotes>({});
+  const [draggedArticle, setDraggedArticle] = useState<string | null>(null);
   
   // Load notes from localStorage on component mount
   useEffect(() => {
@@ -67,6 +68,60 @@ export default function Reports() {
       .replace(/\s*:\s*.*$/, '') // Remove everything after colon
       .replace(/\s*–\s*.*$/, '') // Remove everything after em dash
       .trim();
+  };
+
+  const reorderArticles = (reportId: string, sourceIndex: number, destinationIndex: number) => {
+    if (!selectedReport || selectedReport.id !== reportId) return;
+    
+    const newArticles = [...selectedReport.articles];
+    const [movedArticle] = newArticles.splice(sourceIndex, 1);
+    newArticles.splice(destinationIndex, 0, movedArticle);
+    
+    const updatedReport = { ...selectedReport, articles: newArticles };
+    setSelectedReport(updatedReport);
+    
+    // Update localStorage
+    try {
+      const savedReports = localStorage.getItem('newsCapsuleReports');
+      if (savedReports) {
+        const reports = JSON.parse(savedReports);
+        const reportIndex = reports.findIndex((r: any) => r.id === reportId);
+        if (reportIndex !== -1) {
+          reports[reportIndex] = updatedReport;
+          localStorage.setItem('newsCapsuleReports', JSON.stringify(reports));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to save reordered articles:", e);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, articleId: string) => {
+    setDraggedArticle(articleId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetArticleId: string) => {
+    e.preventDefault();
+    
+    if (!draggedArticle || !selectedReport || draggedArticle === targetArticleId) {
+      setDraggedArticle(null);
+      return;
+    }
+    
+    const sourceIndex = selectedReport.articles.findIndex(a => a.id === draggedArticle);
+    const targetIndex = selectedReport.articles.findIndex(a => a.id === targetArticleId);
+    
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      reorderArticles(selectedReport.id, sourceIndex, targetIndex);
+    }
+    
+    setDraggedArticle(null);
   };
   
   const formatDate = (dateString: string) => {
@@ -851,8 +906,26 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative"
+                      className={`p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative cursor-move ${
+                        draggedArticle === article.id ? 'opacity-50' : ''
+                      }`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e as React.DragEvent, article.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, article.id)}
                     >
+                      {/* Drag Handle */}
+                      <div className="absolute top-2 left-2 text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing" title="Drag to reorder">
+                        <svg width="16" height="16" viewBox="0 0 16 16" className="fill-current">
+                          <circle cx="4" cy="4" r="1"/>
+                          <circle cx="4" cy="8" r="1"/>
+                          <circle cx="4" cy="12" r="1"/>
+                          <circle cx="8" cy="4" r="1"/>
+                          <circle cx="8" cy="8" r="1"/>
+                          <circle cx="8" cy="12" r="1"/>
+                        </svg>
+                      </div>
+                      
                       <button
                         onClick={() => {
                           // Remove article from report
