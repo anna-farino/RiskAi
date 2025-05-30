@@ -180,11 +180,22 @@ export default function Reports() {
                 <div>
                   {/* Print Header (only visible during print) */}
                   <div className="print-header" style={{ display: 'none' }}>
-                    <h1>Executive Report: {formatDate(selectedReport.createdAt)}{selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version ${selectedReport.versionNumber})` : ''}</h1>
-                    {selectedReport.topic && (
-                      <h2>Report Topic: {selectedReport.topic}</h2>
-                    )}
-                    <h3>Generated on {formatDate(new Date().toString())}</h3>
+                    <div style={{ textAlign: 'center', marginBottom: '24pt' }}>
+                      <h1 style={{ fontSize: '18pt', fontWeight: 'bold', margin: '0 0 12pt 0', color: 'black' }}>
+                        RisqAI News Capsule Reporting
+                      </h1>
+                      <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 8pt 0', color: 'black' }}>
+                        Executive Report: {formatDate(selectedReport.createdAt)}{selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}
+                      </h2>
+                      {selectedReport.topic && (
+                        <h3 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0 0 8pt 0', color: 'black' }}>
+                          Report Topic: {selectedReport.topic}
+                        </h3>
+                      )}
+                      <h4 style={{ fontSize: '12pt', fontWeight: 'normal', margin: '0', color: 'black' }}>
+                        Generated on: {format(new Date(), 'M/d/yyyy')}
+                      </h4>
+                    </div>
                   </div>
 
                   {/* Screen Header */}
@@ -598,42 +609,21 @@ export default function Reports() {
                           h2 span {
                             color: #444 !important;
                           }
-                          /* Hide original header content during print */
-                          h2 {
-                            visibility: hidden !important;
-                            height: 0 !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
+                          /* Hide screen headers during print */
+                          .flex.justify-between.items-center {
+                            display: none !important;
                           }
-                          /* Add print header */
+                          /* Show print header during print */
                           .print-header {
                             display: block !important;
                             text-align: center !important;
                             margin-bottom: 0.75in !important;
                             page-break-after: avoid !important;
                           }
-                          .print-header h1 {
+                          .print-header h1, .print-header h2, .print-header h3, .print-header h4 {
                             font-family: Cambria, serif !important;
-                            font-size: 16pt !important;
-                            font-weight: bold !important;
-                            margin-bottom: 8pt !important;
                             color: black !important;
-                          }
-                          .print-header h2 {
-                            font-family: Cambria, serif !important;
-                            font-size: 12pt !important;
-                            font-weight: normal !important;
-                            margin-bottom: 6pt !important;
-                            color: black !important;
-                            visibility: visible !important;
-                            height: auto !important;
-                          }
-                          .print-header h3 {
-                            font-family: Cambria, serif !important;
-                            font-size: 12pt !important;
-                            font-weight: normal !important;
-                            margin-bottom: 24pt !important;
-                            color: black !important;
+                            text-align: center !important;
                           }
                           /* Format articles */
                           .space-y-6 > div {
