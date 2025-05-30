@@ -392,35 +392,7 @@ export default function Reports() {
                             })
                           );
                           
-                          // Add executive notes if they exist (already declared above)
-                          if (articleNote.trim()) {
-                            sections.push(
-                              new Paragraph({
-                                children: [
-                                  new TextRun({
-                                    text: "Executive Notes:",
-                                    font: "Cambria",
-                                    size: 22,
-                                    bold: true
-                                  })
-                                ],
-                                spacing: { after: 0 }
-                              })
-                            );
-                            
-                            sections.push(
-                              new Paragraph({
-                                children: [
-                                  new TextRun({
-                                    text: articleNote,
-                                    font: "Cambria",
-                                    size: 22
-                                  })
-                                ],
-                                spacing: { after: 120 }
-                              })
-                            );
-                          }
+
                           
 
                           
