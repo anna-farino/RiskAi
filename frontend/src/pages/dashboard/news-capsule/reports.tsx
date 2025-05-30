@@ -713,6 +713,13 @@ export default function Reports() {
                                 reportContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n\n`;
                                 reportContent += `SUMMARY:\n${article.summary}\n\n`;
                                 reportContent += `IMPACTS:\n${article.impacts}\n\n`;
+                                
+                                // Add executive notes if they exist
+                                const articleNote = getArticleNote(reportToExport.id, article.id);
+                                if (articleNote.trim()) {
+                                  reportContent += `EXECUTIVE NOTES:\n${articleNote}\n\n`;
+                                }
+                                
                                 reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
                                 reportContent += `TARGET OS: ${article.targetOS}\n`;
                                 reportContent += `SOURCE: ${article.sourcePublication}\n`;
@@ -767,6 +774,13 @@ export default function Reports() {
                         reportContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n\n`;
                         reportContent += `SUMMARY:\n${article.summary}\n\n`;
                         reportContent += `IMPACTS:\n${article.impacts}\n\n`;
+                        
+                        // Add executive notes if they exist
+                        const articleNote = getArticleNote(selectedReport.id, article.id);
+                        if (articleNote.trim()) {
+                          reportContent += `EXECUTIVE NOTES:\n${articleNote}\n\n`;
+                        }
+                        
                         reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
                         reportContent += `TARGET OS: ${article.targetOS}\n`;
                         reportContent += `SOURCE: ${article.sourcePublication}\n`;
