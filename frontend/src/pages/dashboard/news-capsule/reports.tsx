@@ -71,6 +71,22 @@ export default function Reports() {
   const handleDragEnd = () => {
     setDraggedArticle(null);
   };
+
+  // Function to clean publication names
+  const cleanPublicationName = (publication: string) => {
+    if (!publication) return 'Unknown';
+    
+    // Remove content after common delimiters that indicate slogans/taglines
+    const cleanedName = publication
+      .split(' - ')[0]        // Remove after dash
+      .split(' | ')[0]        // Remove after pipe
+      .split(': ')[0]         // Remove after colon
+      .split(' — ')[0]        // Remove after em dash
+      .split(' – ')[0]        // Remove after en dash
+      .trim();
+    
+    return cleanedName || publication;
+  };
   
   return (
     <div className="flex flex-col gap-6">
@@ -735,7 +751,7 @@ export default function Reports() {
                         reportContent += `IMPACTS:\n${article.impacts}\n\n`;
                         reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
                         reportContent += `TARGET OS: ${article.targetOS}\n`;
-                        reportContent += `SOURCE: ${article.sourcePublication}\n`;
+                        reportContent += `SOURCE: ${cleanPublicationName(article.sourcePublication)}\n`;
                         reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
                         reportContent += `-------------------------------------------\n\n`;
                       });
@@ -858,7 +874,7 @@ export default function Reports() {
                         </div>
                         <div>
                           <p className="text-xs text-slate-400">Source</p>
-                          <p className="text-sm">{article.sourcePublication}</p>
+                          <p className="text-sm">{cleanPublicationName(article.sourcePublication)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-slate-400">Target OS</p>
