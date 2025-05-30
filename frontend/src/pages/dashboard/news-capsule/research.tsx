@@ -754,9 +754,9 @@ export default function Research() {
             
             {processedArticles
               .slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage)
-              .map((article) => (
+              .map((article, index) => (
                 <motion.div
-                  key={article.id}
+                  key={`article-${article.id}-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
@@ -768,10 +768,30 @@ export default function Research() {
                         onClick={() => selectForReport(article)}
                         className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
                       >
-                        Select for Report
+                        {selectedArticles.some(selected => selected.id === article.id) ? "Entered in Report" : "Select for Report"}
                       </button>
                       <button
-                        onClick={() => removeProcessedArticle(article.id)}
+                        onClick={() => {
+                          // Direct removal by filtering out this article ID from all lists
+                          const actualIndex = (currentPage - 1) * articlesPerPage + index;
+                          const newProcessed = processedArticles.filter((_, i) => i !== actualIndex);
+                          setProcessedArticles(newProcessed);
+                          
+                          // Also remove from selected if it exists there
+                          const newSelected = selectedArticles.filter(a => a.id !== article.id);
+                          setSelectedArticles(newSelected);
+                          
+                          // Update storage
+                          storedArticles.length = 0;
+                          storedArticles.push(...newProcessed);
+                          localStorage.setItem('savedArticleSummaries', JSON.stringify(newProcessed));
+                          
+                          storedSelectedArticles.length = 0;
+                          storedSelectedArticles.push(...newSelected);
+                          localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
+                          
+                          console.log("Removed article:", article.title);
+                        }}
                         className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
                       >
                         Remove
