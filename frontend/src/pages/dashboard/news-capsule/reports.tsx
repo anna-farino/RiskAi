@@ -97,27 +97,41 @@ export default function Reports() {
   };
 
   const handleDragStart = (e: React.DragEvent, articleId: string) => {
+    console.log('Drag started for article:', articleId);
     setDraggedArticle(articleId);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', articleId);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnd = () => {
+    console.log('Drag ended');
+    setDraggedArticle(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetArticleId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     
-    if (!draggedArticle || !selectedReport || draggedArticle === targetArticleId) {
+    const draggedId = e.dataTransfer.getData('text/plain') || draggedArticle;
+    console.log('Drop event - dragged:', draggedId, 'target:', targetArticleId);
+    
+    if (!draggedId || !selectedReport || draggedId === targetArticleId) {
       setDraggedArticle(null);
       return;
     }
     
-    const sourceIndex = selectedReport.articles.findIndex(a => a.id === draggedArticle);
+    const sourceIndex = selectedReport.articles.findIndex(a => a.id === draggedId);
     const targetIndex = selectedReport.articles.findIndex(a => a.id === targetArticleId);
     
-    if (sourceIndex !== -1 && targetIndex !== -1) {
+    console.log('Reordering from index', sourceIndex, 'to', targetIndex);
+    
+    if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
       reorderArticles(selectedReport.id, sourceIndex, targetIndex);
     }
     
@@ -901,28 +915,46 @@ export default function Reports() {
                   </div>
                   
                   {selectedReport.articles.map((article, index) => (
-                    <motion.div
+                    <div
                       key={article.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className={`p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative cursor-move ${
-                        draggedArticle === article.id ? 'opacity-50' : ''
+                      className={`p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative group ${
+                        draggedArticle === article.id ? 'opacity-50 ring-2 ring-blue-500' : ''
                       }`}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e as React.DragEvent, article.id)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, article.id)}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        console.log('Starting drag for:', article.id);
+                        setDraggedArticle(article.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', article.id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDragEnd={() => {
+                        console.log('Drag ended');
+                        setDraggedArticle(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const draggedId = e.dataTransfer.getData('text/plain');
+                        console.log('Dropped:', draggedId, 'on:', article.id);
+                        
+                        if (draggedId && draggedId !== article.id && selectedReport) {
+                          const sourceIndex = selectedReport.articles.findIndex(a => a.id === draggedId);
+                          const targetIndex = selectedReport.articles.findIndex(a => a.id === article.id);
+                          
+                          if (sourceIndex !== -1 && targetIndex !== -1) {
+                            reorderArticles(selectedReport.id, sourceIndex, targetIndex);
+                          }
+                        }
+                        setDraggedArticle(null);
+                      }}
                     >
                       {/* Drag Handle */}
-                      <div className="absolute top-2 left-2 text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing" title="Drag to reorder">
-                        <svg width="16" height="16" viewBox="0 0 16 16" className="fill-current">
-                          <circle cx="4" cy="4" r="1"/>
-                          <circle cx="4" cy="8" r="1"/>
-                          <circle cx="4" cy="12" r="1"/>
-                          <circle cx="8" cy="4" r="1"/>
-                          <circle cx="8" cy="8" r="1"/>
-                          <circle cx="8" cy="12" r="1"/>
+                      <div className="absolute top-3 left-3 text-slate-400 hover:text-slate-200 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" title="Drag to reorder">
+                        <svg width="18" height="18" viewBox="0 0 24 24" className="fill-current">
+                          <path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM20 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM20 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM20 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/>
                         </svg>
                       </div>
                       
@@ -1008,7 +1040,7 @@ export default function Reports() {
                           View original article
                         </a>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
