@@ -178,6 +178,16 @@ export default function Reports() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
+                  {/* Print Header (only visible during print) */}
+                  <div className="print-header" style={{ display: 'none' }}>
+                    <h1>Executive Report: {formatDate(selectedReport.createdAt)}{selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version ${selectedReport.versionNumber})` : ''}</h1>
+                    {selectedReport.topic && (
+                      <h2>Report Topic: {selectedReport.topic}</h2>
+                    )}
+                    <h3>Generated on {formatDate(new Date().toString())}</h3>
+                  </div>
+
+                  {/* Screen Header */}
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
                     {selectedReport.versionNumber && selectedReport.versionNumber > 1 && 
@@ -588,14 +598,41 @@ export default function Reports() {
                           h2 span {
                             color: #444 !important;
                           }
-                          /* Add company header */
-                          h2:before {
-                            content: "RisqAI News Capsule Reporting" !important;
+                          /* Hide original header content during print */
+                          h2 {
+                            visibility: hidden !important;
+                            height: 0 !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                          }
+                          /* Add print header */
+                          .print-header {
                             display: block !important;
+                            text-align: center !important;
+                            margin-bottom: 0.75in !important;
+                            page-break-after: avoid !important;
+                          }
+                          .print-header h1 {
                             font-family: Cambria, serif !important;
-                            font-size: 14pt !important;
+                            font-size: 16pt !important;
                             font-weight: bold !important;
-                            margin-bottom: 12pt !important;
+                            margin-bottom: 8pt !important;
+                            color: black !important;
+                          }
+                          .print-header h2 {
+                            font-family: Cambria, serif !important;
+                            font-size: 12pt !important;
+                            font-weight: normal !important;
+                            margin-bottom: 6pt !important;
+                            color: black !important;
+                            visibility: visible !important;
+                            height: auto !important;
+                          }
+                          .print-header h3 {
+                            font-family: Cambria, serif !important;
+                            font-size: 12pt !important;
+                            font-weight: normal !important;
+                            margin-bottom: 24pt !important;
                             color: black !important;
                           }
                           /* Format articles */
