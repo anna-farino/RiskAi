@@ -3,7 +3,7 @@ import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
+import { getUserScrapeSchedule, JobInterval, updateUserScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
@@ -553,7 +553,8 @@ threatRouter.get("/scrape/status", async (req, res) => {
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");
   try {
-    const settings = await getGlobalScrapeSchedule();
+    const userId = getUserId(req);
+    const settings = await getUserScrapeSchedule(userId);
     res.json(settings);
   } catch (error: any) {
     console.error("Error fetching auto-scrape settings:", error);
@@ -564,6 +565,7 @@ threatRouter.get("/settings/auto-scrape", async (req, res) => {
 threatRouter.put("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "PUT /settings/auto-scrape");
   try {
+    const userId = getUserId(req);
     const { enabled, interval } = req.body;
     
     // Validate the interval
@@ -571,8 +573,9 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
       return res.status(400).json({ error: "Invalid interval value" });
     }
     
-    // Update the schedule
-    const settings = await updateGlobalScrapeSchedule(
+    // Update the user's schedule
+    const settings = await updateUserScrapeSchedule(
+      userId,
       Boolean(enabled), 
       interval || JobInterval.DAILY
     );

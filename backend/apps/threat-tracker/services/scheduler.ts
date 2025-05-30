@@ -133,8 +133,8 @@ function getIntervalMs(interval: JobInterval): number {
 export async function initializeScheduler() {
   try {
     // Get all threat sources to find all users who have sources
-    const allSources = await storage.getThreatSources();
-    const userIds = [...new Set(allSources.map(s => s.userId).filter(Boolean))];
+    const allSources = await storage.getSources();
+    const userIds = [...new Set(allSources.map(s => s.userId).filter(Boolean))] as string[];
 
     log(`[ThreatTracker] Found ${userIds.length} users with sources`, "scheduler");
 
