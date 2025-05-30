@@ -297,12 +297,12 @@ export default function Reports() {
                           );
                         });
                         
-                        sections.push(new Paragraph({ text: "", spacing: { after: 240 } }));
+                        sections.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { after: 240 } }));
                         
                         // Article details
                         selectedReport.articles.forEach((article, index) => {
                           // Add extra line break before article title
-                          sections.push(new Paragraph({ text: "", spacing: { after: 120 } }));
+                          sections.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { after: 120 } }));
                           
                           sections.push(
                             new Paragraph({
