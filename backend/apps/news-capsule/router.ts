@@ -81,12 +81,19 @@ router.delete('/articles/:id', async (req, res) => {
       return res.status(404).json({ error: 'Article not found' });
     }
     
+    console.log(`Found article: userId=${existingArticle[0].userId}, requestUserId=${userId}`);
+    
     if (existingArticle[0].userId !== userId) {
       console.log(`User ${userId} not authorized to delete article ${articleId}`);
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
-    // Hard delete the article from the database
+    // First delete any references in reports
+    console.log(`Deleting references for article ${articleId}`);
+    await db.execute(`DELETE FROM capsule_articles_in_reports WHERE article_id = '${articleId}'`);
+    
+    // Then delete the article itself
+    console.log(`Deleting article ${articleId}`);
     const deleteResult = await db
       .delete(capsuleArticles)
       .where(eq(capsuleArticles.id, articleId));

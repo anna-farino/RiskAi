@@ -669,9 +669,15 @@ export default function Research() {
           console.error("Failed to update article summaries in storage", e);
         }
       } else {
-        // Revert optimistic update on failure
-        console.error('Failed to delete article from database');
+        // Get error details and revert optimistic update
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to delete article from database:', errorData);
         setProcessedArticles(originalArticles);
+        // Restore selected article if it was removed
+        if (originalArticles.some(article => article.id === id) && 
+            selectedArticles.some(article => article.id === id)) {
+          // Article should still be selected since deletion failed
+        }
       }
     } catch (error) {
       // Revert optimistic update on error
