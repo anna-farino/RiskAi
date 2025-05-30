@@ -84,9 +84,8 @@ export function RisqHeader() {
             </div>
           </div>
           
-          {/* User account and theme toggle */}
+          {/* User account section */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
-            <ModeToggle />
             {userData && (
               <div className="relative group">
                 <button className="flex items-center text-sm font-medium text-white rounded-full hover:bg-[#BF00FF]/10 p-1.5">
