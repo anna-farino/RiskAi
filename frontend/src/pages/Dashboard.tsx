@@ -153,62 +153,42 @@ export default function Dashboard() {
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  Intelligent article analysis and reporting
+                  4 articles processed today
                 </div>
               </div>
             }
           >
             <div className="space-y-2">
-              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <Search className="w-4 h-4 mr-2 text-[#00FFFF]" />
-                    <h4 className="text-sm font-medium">Article Research</h4>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
-                    Ready
-                  </span>
+              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">Processed</span>
+                  <span className="text-xs text-gray-400">15m ago</span>
                 </div>
-                <p className="text-xs text-gray-400">AI-powered article analysis and processing</p>
+                <p className="text-xs text-gray-300">Critical infrastructure security analysis from federal advisory report</p>
               </div>
               
-              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <Database className="w-4 h-4 mr-2 text-[#00FFFF]" />
-                    <h4 className="text-sm font-medium">Executive Reports</h4>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-blue-900/30 text-blue-400 border border-blue-500/20">
-                    Active
-                  </span>
+              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Analyzing</span>
+                  <span className="text-xs text-gray-400">45m ago</span>
                 </div>
-                <p className="text-xs text-gray-400">Daily compiled insights for leadership</p>
+                <p className="text-xs text-gray-300">Enterprise ransomware trends and mitigation strategies study</p>
               </div>
-
-              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <AlertTriangle className="w-4 h-4 mr-2 text-[#BF00FF]" />
-                    <h4 className="text-sm font-medium">Threat Intelligence</h4>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-orange-900/30 text-orange-400 border border-orange-500/20">
-                    Processing
-                  </span>
+              
+              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-0.5 rounded">Processed</span>
+                  <span className="text-xs text-gray-400">1h ago</span>
                 </div>
-                <p className="text-xs text-gray-400">Security-focused article categorization</p>
+                <p className="text-xs text-gray-300">Zero-day vulnerability disclosure impact on supply chain security</p>
               </div>
-
-              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-2 text-[#00FFFF]" />
-                    <h4 className="text-sm font-medium">Trend Analysis</h4>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-purple-900/30 text-purple-400 border border-purple-500/20">
-                    Scheduled
-                  </span>
+              
+              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded">Queued</span>
+                  <span className="text-xs text-gray-400">2h ago</span>
                 </div>
-                <p className="text-xs text-gray-400">Pattern recognition across news sources</p>
+                <p className="text-xs text-gray-300">Financial sector cybersecurity regulatory compliance framework analysis</p>
               </div>
             </div>
           </RisqWidget>
