@@ -782,13 +782,13 @@ export default function Research() {
                             selectForReport(article);
                           }
                         }}
-                        className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                        className="w-32 px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
                       >
                         {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
                       </button>
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
-                        className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                        className="w-32 px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
                       >
                         Remove
                       </button>
