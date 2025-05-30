@@ -12,9 +12,9 @@ export default function OtpPage({ twHeight='h-full' }: Props) {
   const pParam = params.get('p') as 'login' | 'pw' | 'signup'
 
   return (
-    <div className={`flex ${twHeight} items-center justify-center bg-black`}>
-      <div className="w-full max-w-lg flex flex-col items-center px-6 sm:px-8 lg:px-0">
-        <div className="w-full space-y-8">
+    <div className="min-h-screen w-full bg-black flex flex-col">
+      <div className="flex-1 flex items-center justify-center py-12 px-6 sm:px-8 lg:px-0">
+        <div className="w-full max-w-lg space-y-8">
           {/* Page Title */}
           <div className="text-center space-y-4">
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
@@ -26,11 +26,11 @@ export default function OtpPage({ twHeight='h-full' }: Props) {
           </div>
 
           {/* OTP Widget Card */}
-          <Card className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300 shadow-2xl">
-            <CardHeader className="p-0 mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-                  <svg className="h-5 w-5 text-[#BF00FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Card className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-8 hover:border-[#BF00FF]/40 transition-all duration-300 shadow-2xl">
+            <CardHeader className="p-0 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                  <svg className="h-6 w-6 text-[#BF00FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
@@ -38,7 +38,7 @@ export default function OtpPage({ twHeight='h-full' }: Props) {
                   Verify Code
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-400 text-sm leading-relaxed">
+              <CardDescription className="text-gray-400 text-base leading-relaxed">
                 Enter the verification code we sent to your email address to proceed with your account security update.
               </CardDescription>
             </CardHeader>
