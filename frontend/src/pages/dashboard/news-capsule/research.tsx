@@ -915,9 +915,14 @@ export default function Research() {
                 No articles selected yet
               </p>
             ) : (
-              selectedArticles.map((article) => (
+              selectedArticles
+                .filter((article, index, self) => 
+                  // Remove duplicates by checking if current index is first occurrence of this ID
+                  index === self.findIndex(a => a.id === article.id)
+                )
+                .map((article, index) => (
                 <div 
-                  key={article.id}
+                  key={`${article.id}-${index}`}
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
