@@ -6,6 +6,7 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } fro
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [draggedArticle, setDraggedArticle] = useState<string | null>(null);
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
@@ -25,6 +26,50 @@ export default function Reports() {
     } catch {
       return "";
     }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, articleId: string) => {
+    setDraggedArticle(articleId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetArticleId: string) => {
+    e.preventDefault();
+    
+    if (!draggedArticle || !selectedReport || draggedArticle === targetArticleId) {
+      return;
+    }
+
+    const articles = [...selectedReport.articles];
+    const draggedIndex = articles.findIndex(a => a.id === draggedArticle);
+    const targetIndex = articles.findIndex(a => a.id === targetArticleId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Remove dragged article and insert at target position
+    const [draggedItem] = articles.splice(draggedIndex, 1);
+    articles.splice(targetIndex, 0, draggedItem);
+
+    const updatedReport = { ...selectedReport, articles };
+    
+    // Update localStorage
+    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
+    const updatedReports = savedReports.map((r: any) => 
+      r.id === selectedReport.id ? updatedReport : r
+    );
+    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+    
+    setSelectedReport(updatedReport);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedArticle(null);
   };
   
   return (
@@ -744,8 +789,22 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative"
+                      className={`p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative group ${
+                        draggedArticle === article.id ? 'opacity-50 ring-2 ring-blue-500' : ''
+                      }`}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, article.id)}
+                      onDragOver={handleDragOver}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, article.id)}
                     >
+                      {/* Drag Handle */}
+                      <div className="absolute top-3 left-3 text-slate-400 hover:text-slate-200 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" title="Drag to reorder">
+                        <svg width="18" height="18" viewBox="0 0 24 24" className="fill-current">
+                          <path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM20 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM20 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM20 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/>
+                        </svg>
+                      </div>
+                      
                       <button
                         onClick={() => {
                           // Remove article from report
@@ -769,7 +828,7 @@ export default function Reports() {
                       >
                         ×
                       </button>
-                      <h3 className="text-lg font-medium mb-2 pr-8">{article.title}</h3>
+                      <h3 className="text-lg font-medium mb-2 pr-8 pl-6">{article.title}</h3>
                       
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
