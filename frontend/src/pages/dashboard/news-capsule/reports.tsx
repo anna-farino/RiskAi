@@ -258,7 +258,15 @@ export default function Reports() {
                             { label: "Source:", value: cleanPublicationName(article.sourcePublication) }
                           ];
                           
-                          fields.forEach(field => {
+                          // Add fields up to Target OS
+                          const fieldsBeforeNotes = [
+                            { label: "Threat Name:", value: article.threatName },
+                            { label: "Vulnerability ID:", value: article.vulnerabilityId },
+                            { label: "Attack Vector:", value: article.attackVector },
+                            { label: "Target OS:", value: article.targetOS }
+                          ];
+                          
+                          fieldsBeforeNotes.forEach(field => {
                             sections.push(
                               new Paragraph({
                                 children: [
@@ -278,6 +286,57 @@ export default function Reports() {
                               })
                             );
                           });
+                          
+                          // Add Executive Notes after Target OS
+                          const execNotes = getArticleNote(selectedReport.id, article.id);
+                          if (execNotes.trim()) {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "Executive Notes:",
+                                    font: "Cambria",
+                                    size: 22,
+                                    bold: true
+                                  })
+                                ],
+                                spacing: { after: 0 }
+                              })
+                            );
+                            
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: execNotes,
+                                    font: "Cambria",
+                                    size: 22
+                                  })
+                                ],
+                                spacing: { after: 0 }
+                              })
+                            );
+                          }
+                          
+                          // Add Source field
+                          sections.push(
+                            new Paragraph({
+                              children: [
+                                new TextRun({
+                                  text: "Source: ",
+                                  font: "Cambria",
+                                  size: 22,
+                                  bold: true
+                                }),
+                                new TextRun({
+                                  text: cleanPublicationName(article.sourcePublication),
+                                  font: "Cambria",
+                                  size: 22
+                                })
+                              ],
+                              spacing: { after: 0 }
+                            })
+                          );
                           
                           sections.push(
                             new Paragraph({
@@ -333,8 +392,7 @@ export default function Reports() {
                             })
                           );
                           
-                          // Add executive notes if they exist
-                          const articleNote = getArticleNote(selectedReport.id, article.id);
+                          // Add executive notes if they exist (already declared above)
                           if (articleNote.trim()) {
                             sections.push(
                               new Paragraph({
@@ -698,15 +756,14 @@ export default function Reports() {
                                 reportContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n\n`;
                                 reportContent += `SUMMARY:\n${article.summary}\n\n`;
                                 reportContent += `IMPACTS:\n${article.impacts}\n\n`;
+                                reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
+                                reportContent += `TARGET OS: ${article.targetOS}\n`;
                                 
                                 // Add executive notes if they exist
                                 const articleNote = getArticleNote(reportToExport.id, article.id);
                                 if (articleNote.trim()) {
-                                  reportContent += `EXECUTIVE NOTES:\n${articleNote}\n\n`;
+                                  reportContent += `EXECUTIVE NOTES:\n${articleNote}\n`;
                                 }
-                                
-                                reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
-                                reportContent += `TARGET OS: ${article.targetOS}\n`;
                                 reportContent += `SOURCE: ${cleanPublicationName(article.sourcePublication)}\n`;
                                 reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
                                 reportContent += `-------------------------------------------\n\n`;
