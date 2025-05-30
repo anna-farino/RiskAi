@@ -36,7 +36,7 @@ export default function Dashboard() {
           <RisqWidget
             title="News Radar"
             description="Latest security news from across the web"
-            icon={<Newspaper className="w-10 h-10" />}
+            icon={<Newspaper className="w-10 h-10 text-[#BF00FF]" />}
             variant="interactive"
             delay={0.1}
             onClick={() => navigate("/dashboard/news/home")}
@@ -86,7 +86,7 @@ export default function Dashboard() {
           <RisqWidget
             title="Threat Tracker"
             description="Critical security alerts requiring attention"
-            icon={<AlertTriangle className="w-10 h-10" />}
+            icon={<AlertTriangle className="w-10 h-10 text-[#00FFFF]" />}
             variant="interactive"
             delay={0.2}
             onClick={() => navigate("/dashboard/threat/home")}
@@ -146,7 +146,7 @@ export default function Dashboard() {
           <RisqWidget
             title="News Capsule"
             description="Process articles for executive reports"
-            icon={<Newspaper className="w-10 h-10" />}
+            icon={<Radar className="w-10 h-10 text-[#BF00FF]" />}
             variant="interactive"
             delay={0.4}
             onClick={() => navigate("/dashboard/news-capsule/home")}
@@ -223,7 +223,7 @@ export default function Dashboard() {
           <RisqWidget
               title="Settings & Preferences"
               description="Configure your News Radar experience"
-              icon={<Settings className="w-10 h-10" />}
+              icon={<Settings className="w-10 h-10 text-gray-300" />}
               variant="interactive"
               delay={0.6}
               onClick={() => navigate("/dashboard/settings")}
