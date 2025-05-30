@@ -453,7 +453,7 @@ export default function Keywords() {
       <div className="mb-6">
         <Collapsible
           open={!isDefaultKeywordsCollapsed}
-          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({ ...prev, [category]: !open }))}
+          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(!open)}
         >
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
@@ -538,77 +538,112 @@ export default function Keywords() {
         <Table className="min-w-full">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[120px] text-sm font-medium">Term</TableHead>
-              <TableHead className="min-w-[100px] text-sm font-medium">Status</TableHead>
-              <TableHead className="text-right min-w-[100px] text-sm font-medium">Actions</TableHead>
+              <TableHead className="min-w-[120px]">Term</TableHead>
+              <TableHead className="min-w-[100px]">Status</TableHead>
+              <TableHead className="text-right min-w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allKeywordsByCategory.map((keyword) => (
-              <TableRow key={keyword.id} className="hover:bg-muted/50">
-                <TableCell className="font-medium py-3 text-sm">{keyword.term}</TableCell>
-                <TableCell className="py-3">
-                  <button 
-                    className="flex items-center cursor-pointer touch-manipulation p-1 rounded-md hover:bg-muted/50 transition-colors"
-                    onClick={() => handleToggleActive(keyword.id, keyword.active)}
-                  >
-                    {keyword.active ? (
-                      <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs h-6">
-                        <Check className="h-3 w-3" />
-                        <span className="md:inline hidden">Active</span>
-                        <span className="md:hidden inline">On</span>
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs h-6">
-                        <X className="h-3 w-3" />
-                        <span className="md:inline hidden">Inactive</span>
-                        <span className="md:hidden inline">Off</span>
+            {keywords.map((keyword: ThreatKeyword) => (
+              <TableRow key={keyword.id}>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {keyword.term}
+                    {keyword.isDefault && (
+                      <Badge
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-blue-100 text-blue-700 border-blue-200"
+                      >
+                        <Shield className="h-3 w-3" />
+                        <span className="text-xs">Default</span>
                       </Badge>
                     )}
-                  </button>
+                  </div>
                 </TableCell>
-                <TableCell className="text-right py-3">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditKeyword(keyword)}
-                      className="h-10 w-10 touch-manipulation hover:bg-muted"
-                    >
-                      <PencilLine className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                <TableCell>
+                  <div
+                    className={`flex items-center ${keyword.isDefault ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    onClick={() =>
+                      !keyword.isDefault &&
+                      handleToggleActive(keyword.id, keyword.active)
+                    }
+                    title={
+                      keyword.isDefault
+                        ? "Default keywords cannot be modified"
+                        : "Click to toggle status"
+                    }
+                  >
+                    {keyword.active ? (
+                      <Badge
+                        variant="default"
+                        className="flex items-center gap-1 bg-green-500"
+                      >
+                        <Check className="h-3 w-3" />
+                        <span className="sm:inline hidden">Active</span>
+                        <span className="sm:hidden inline">On</span>
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-muted-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                        <span className="sm:inline hidden">Inactive</span>
+                        <span className="sm:hidden inline">Off</span>
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right p-2 sm:p-4">
+                  <div className="flex justify-end gap-1 sm:gap-2">
+                    {keyword.isDefault ? (
+                      <div className="text-xs text-muted-foreground py-2">
+                        Default keyword
+                      </div>
+                    ) : (
+                      <>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 touch-manipulation"
+                          onClick={() => handleEditKeyword(keyword)}
+                          className="h-8 w-8"
                         >
                           <PencilLine className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="mx-4 max-w-md">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete the keyword "{keyword.term}".
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteKeyword.mutate(keyword.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the keyword "
+                                {keyword.term}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteKeyword.mutate(keyword.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -636,99 +671,95 @@ export default function Keywords() {
         onValueChange={setSelectedCategory}
         className="w-full"
       >
-        <div className="flex flex-col gap-4">
-          {/* Tab navigation section */}
-          <div className="w-full">
-            <TabsList className="w-full h-auto grid grid-cols-2 lg:grid-cols-4 p-2 gap-2">
-              <TabsTrigger value="threat" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
-                <div className="flex items-center gap-2">
-                  <span className="xl:inline hidden text-sm font-medium">Threat Keywords</span>
-                  <span className="lg:inline hidden xl:hidden text-sm font-medium">Threats</span>
-                  <span className="lg:hidden inline text-sm font-medium">Threats</span>
-                  {categoryCounts.threat > 0 && (
-                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
-                      {categoryCounts.threat}
-                    </Badge>
-                  )}
-                </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="w-full overflow-x-auto pb-2">
+            <TabsList className="w-full sm:w-auto flex">
+              <TabsTrigger
+                value="threat"
+                className="relative whitespace-nowrap"
+              >
+                <span className="sm:inline hidden">Threat Keywords</span>
+                <span className="sm:hidden inline">Threats</span>
+                {categoryCounts.threat > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.threat}
+                  </Badge>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="vendor" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Vendors</span>
-                  {categoryCounts.vendor > 0 && (
-                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
-                      {categoryCounts.vendor}
-                    </Badge>
-                  )}
-                </div>
+              <TabsTrigger
+                value="vendor"
+                className="relative whitespace-nowrap"
+              >
+                Vendors
+                {categoryCounts.vendor > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.vendor}
+                  </Badge>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="client" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Clients</span>
-                  {categoryCounts.client > 0 && (
-                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
-                      {categoryCounts.client}
-                    </Badge>
-                  )}
-                </div>
+              <TabsTrigger
+                value="client"
+                className="relative whitespace-nowrap"
+              >
+                Clients
+                {categoryCounts.client > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.client}
+                  </Badge>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="hardware" className="relative h-12 px-4 py-3 flex flex-col items-center justify-center text-center">
-                <div className="flex items-center gap-2">
-                  <span className="xl:inline hidden text-sm font-medium">Hardware/Software</span>
-                  <span className="lg:inline hidden xl:hidden text-sm font-medium">Hardware</span>
-                  <span className="lg:hidden inline text-sm font-medium">Hardware</span>
-                  {categoryCounts.hardware > 0 && (
-                    <Badge variant="secondary" className="text-xs px-2 py-0.5 min-w-[24px] h-5">
-                      {categoryCounts.hardware}
-                    </Badge>
-                  )}
-                </div>
+              <TabsTrigger
+                value="hardware"
+                className="relative whitespace-nowrap"
+              >
+                <span className="sm:inline hidden">Hardware/Software</span>
+                <span className="sm:hidden inline">H/W S/W</span>
+                {categoryCounts.hardware > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {categoryCounts.hardware}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
           </div>
-          
-          {/* Action buttons section */}
-          <div className="flex flex-row gap-3 w-full">
-            <Button 
-              onClick={handleBulkKeywords} 
-              disabled={createBulkKeywords.isPending} 
-              variant="outline" 
-              className="h-11 px-3 sm:px-4 flex-1 min-w-0 touch-manipulation"
+
+          <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <Button
+              onClick={handleBulkKeywords}
+              disabled={createBulkKeywords.isPending}
+              variant="outline"
+              className="h-9 px-2 sm:px-4"
             >
               {createBulkKeywords.isPending ? (
-                <Loader2 className="mr-1 sm:mr-2 h-4 w-4 animate-spin flex-shrink-0" />
+                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="mr-1 sm:mr-2 h-4 w-4 flex-shrink-0" />
+                <Plus className="sm:mr-2 h-4 w-4" />
               )}
-              <span className="truncate">
-                <span className="sm:inline hidden">Bulk Import</span>
-                <span className="sm:hidden inline">Bulk</span>
-              </span>
+              <span className="sm:inline hidden">Bulk Import</span>
+              <span className="sm:hidden inline">Bulk</span>
             </Button>
-            
-            <Button 
-              onClick={handleNewKeyword} 
-              disabled={createKeyword.isPending} 
-              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-11 px-3 sm:px-4 flex-1 min-w-0 touch-manipulation"
+
+            <Button
+              onClick={handleNewKeyword}
+              disabled={createKeyword.isPending}
+              className="h-9 px-2 sm:px-4"
             >
               {createKeyword.isPending ? (
-                <Loader2 className="mr-1 sm:mr-2 h-4 w-4 animate-spin flex-shrink-0" />
+                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="mr-1 sm:mr-2 h-4 w-4 flex-shrink-0" />
+                <Plus className="sm:mr-2 h-4 w-4" />
               )}
-              <span className="truncate">
-                <span className="lg:inline hidden">
-                  Add {selectedCategory === 'threat' ? 'Keyword' : 
-                      selectedCategory === 'vendor' ? 'Vendor' :
-                      selectedCategory === 'client' ? 'Client' : 'Hardware/Software'}
-                </span>
-                <span className="sm:inline hidden lg:hidden">
-                  Add {selectedCategory === 'threat' ? 'Keyword' : 
-                      selectedCategory === 'vendor' ? 'Vendor' :
-                      selectedCategory === 'client' ? 'Client' : 'H/W S/W'}
-                </span>
-                <span className="sm:hidden inline">Add</span>
+              <span className="sm:inline hidden">
+                Add{" "}
+                {selectedCategory === "threat"
+                  ? "Keyword"
+                  : selectedCategory === "vendor"
+                    ? "Vendor"
+                    : selectedCategory === "client"
+                      ? "Client"
+                      : "Hardware/Software"}
               </span>
+              <span className="sm:hidden inline">Add</span>
             </Button>
           </div>
         </div>
@@ -736,13 +767,32 @@ export default function Keywords() {
         <TabsContent value="threat" className="mt-6">
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Threat Keywords</CardTitle>
-              <CardDescription className="text-sm leading-relaxed">
-                Keywords related to cybersecurity threats (e.g., malware, breach, zero-day)
+              <CardTitle className="text-lg sm:text-xl">
+                Threat Keywords
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Keywords related to cybersecurity threats (e.g., malware,
+                breach, zero-day)
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 sm:p-6 sm:pt-0">
-              {renderUserKeywordTable(allKeywordsByCategory)}
+            <CardContent className="p-2 sm:p-6">
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "threat"),
+                "threat",
+              )}
+              <div className="space-y-4">
+                {userKeywords.filter((k) => k.category === "threat").length >
+                  0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "threat"),
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -751,12 +801,28 @@ export default function Keywords() {
           <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-lg sm:text-xl">Vendors</CardTitle>
-              <CardDescription className="text-sm leading-relaxed">
+              <CardDescription className="text-xs sm:text-sm">
                 Technology vendors to monitor for security threats
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 sm:p-6 sm:pt-0">
-              {renderUserKeywordTable(allKeywordsByCategory)}
+            <CardContent className="p-2 sm:p-6">
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "vendor"),
+                "vendor",
+              )}
+              <div className="space-y-4">
+                {userKeywords.filter((k) => k.category === "vendor").length >
+                  0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "vendor"),
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
