@@ -190,20 +190,29 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         {/* News Capsule parent */}
         <NavItem 
           href="/dashboard/news-capsule/home" 
-          icon={<Radar size={18} className="text-[#00FFFF]" />} 
-          active={isActive('/dashboard/capsule/home')}
+          icon={<Radar size={20} className="text-[#00FFFF]" />} 
+          active={isActive('/dashboard/news-capsule/home')}
         >
           News Capsule
         </NavItem>
         
-        {/* News Capsule child */}
+        {/* News Capsule children */}
         <NavItem 
-          href="/dashboard/news-capsule/reports" 
-          icon={<FileText size={18} className="text-[#BF00FF]" />} 
-          active={isActive('/dashboard/capsule/reports')}
+          href="/dashboard/news-capsule/research" 
+          icon={<Search size={16} className="text-[#00FFFF]/80" />} 
+          active={isActive('/dashboard/news-capsule/research')}
           isChild={true}
         >
-          Reports
+          Research
+        </NavItem>
+        
+        <NavItem 
+          href="/dashboard/news-capsule/reports" 
+          icon={<FileText size={16} className="text-[#00FFFF]/80" />} 
+          active={isActive('/dashboard/news-capsule/reports')}
+          isChild={true}
+        >
+          Executive Reports
         </NavItem>
         
         <div className="mt-4"></div>
@@ -327,21 +336,30 @@ export const MobileNavigation = () => {
 
                 {/* News Capsule parent */}
                 <NavItem 
-                  href="/dashboard/capsule/home" 
+                  href="/dashboard/news-capsule/home" 
                   icon={<Radar size={20} className="text-[#00FFFF]" />} 
-                  active={location.pathname.startsWith('/dashboard/capsule')}
+                  active={location.pathname.startsWith('/dashboard/news-capsule')}
                 >
                   News Capsule
                 </NavItem>
                 
-                {/* News Capsule child */}
+                {/* News Capsule children */}
                 <NavItem 
-                  href="/dashboard/capsule/reports" 
-                  icon={<FileText size={16} className="text-[#00FFFF]/80" />}
-                  active={location.pathname.includes('/dashboard/capsule/reports')}
+                  href="/dashboard/news-capsule/research" 
+                  icon={<Search size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/news-capsule/research')}
                   isChild={true}
                 >
-                  Reports
+                  Research
+                </NavItem>
+                
+                <NavItem 
+                  href="/dashboard/news-capsule/reports" 
+                  icon={<FileText size={16} className="text-[#00FFFF]/80" />}
+                  active={location.pathname.includes('/dashboard/news-capsule/reports')}
+                  isChild={true}
+                >
+                  Executive Reports
                 </NavItem>
                 
                 <NavItem 
