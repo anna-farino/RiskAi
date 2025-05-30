@@ -507,11 +507,13 @@ export default function Reports() {
                             color: black !important;
                           }
                           /* Format articles */
-                          .space-y-6 > div {
+                          .space-y-6 > div, .motion-div {
                             page-break-inside: avoid !important;
                             margin-bottom: 0.4in !important;
                             border: 1pt solid #ddd !important;
                             padding: 0.25in !important;
+                            background: white !important;
+                            display: block !important;
                           }
                           /* Format article titles */
                           .font-medium.text-lg, h3 {
@@ -535,6 +537,29 @@ export default function Reports() {
                             font-size: 10pt !important;
                             line-height: 1.4 !important;
                             color: black !important;
+                          }
+                          /* Format grid layouts */
+                          .grid-cols-2 {
+                            display: grid !important;
+                            grid-template-columns: 1fr 1fr !important;
+                            gap: 0.2in !important;
+                          }
+                          /* Format executive notes section */
+                          .border-t {
+                            border-top: 1pt solid #ccc !important;
+                            margin-top: 0.15in !important;
+                            padding-top: 0.1in !important;
+                          }
+                          /* Hide interactive elements */
+                          .group, .absolute, .cursor-grab, .opacity-0, 
+                          .hover\\:opacity-100, .ring-2, .ring-blue-500,
+                          button, textarea, .bg-blue-600 {
+                            display: none !important;
+                          }
+                          /* Show executive notes content */
+                          .text-slate-300, .text-slate-500 {
+                            color: black !important;
+                            display: block !important;
                           }
                           /* Remove footer */
                           .space-y-6:after {
