@@ -868,9 +868,24 @@ export default function Research() {
         <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Selected Articles</h2>
-            <span className="text-sm text-slate-400">
-              {selectedArticles.length} selected
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">
+                {selectedArticles.length} selected
+              </span>
+              {selectedArticles.length > 0 && (
+                <button
+                  onClick={() => {
+                    setSelectedArticles([]);
+                    storedSelectedArticles.length = 0;
+                    localStorage.removeItem('savedSelectedArticles');
+                    console.log("Cleared all selected articles");
+                  }}
+                  className="px-2 py-1 text-xs bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded border border-red-700/30"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
           </div>
           
           {/* Report Topic Field */}
