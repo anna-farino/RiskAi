@@ -668,7 +668,7 @@ export default function Research() {
 
             <div className="flex flex-col gap-2">
               <label htmlFor="url-input" className="text-sm text-slate-400">
-                {bulkMode ? 'Article URLs (one per line)' : 'Article URL'}
+                {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
