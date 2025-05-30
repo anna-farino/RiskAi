@@ -48,7 +48,7 @@ export default function Research() {
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
-  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkMode, setBulkMode] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [articlesPerPage] = useState(10);
   const [reportTopic, setReportTopic] = useState("");
@@ -664,29 +664,7 @@ export default function Research() {
           <h2 className="text-xl font-semibold mb-4">Submit Article URLs</h2>
           
           <div className="flex flex-col gap-4">
-            {/* Bulk URL Mode Toggle */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setBulkMode(false)}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  !bulkMode 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                Single URL
-              </button>
-              <button
-                onClick={() => setBulkMode(true)}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  bulkMode 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                Bulk URLs
-              </button>
-            </div>
+
 
             <div className="flex flex-col gap-2">
               <label htmlFor="url-input" className="text-sm text-slate-400">
