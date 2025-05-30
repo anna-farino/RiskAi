@@ -217,7 +217,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
       Content: ${content.content.substring(0, 4000)} ${content.content.length > 4000 ? '...[truncated]' : ''}
       
       Generate a structured summary with the following fields:
-      1. Title (keep it concise but informative)
+      1. Title (The headline of the article)
       2. Threat Name (what is the main threat discussed in the article)
       3. Vulnerability ID (if mentioned, otherwise "Unspecified")
       4. Summary (a 2-3 sentence summary of the main points)
