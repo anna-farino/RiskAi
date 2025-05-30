@@ -772,13 +772,17 @@ export default function Research() {
                       </button>
                       <button
                         onClick={() => {
-                          // Direct removal by filtering out this article ID from all lists
-                          const actualIndex = (currentPage - 1) * articlesPerPage + index;
-                          const newProcessed = processedArticles.filter((_, i) => i !== actualIndex);
+                          // Remove by filtering out articles with this specific ID and URL combination
+                          // This handles duplicates properly by removing ALL instances
+                          const newProcessed = processedArticles.filter(a => 
+                            !(a.id === article.id && a.url === article.url)
+                          );
                           setProcessedArticles(newProcessed);
                           
                           // Also remove from selected if it exists there
-                          const newSelected = selectedArticles.filter(a => a.id !== article.id);
+                          const newSelected = selectedArticles.filter(a => 
+                            !(a.id === article.id && a.url === article.url)
+                          );
                           setSelectedArticles(newSelected);
                           
                           // Update storage
