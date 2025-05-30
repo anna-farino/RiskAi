@@ -77,9 +77,9 @@ export default function Research() {
         try {
           const parsed = JSON.parse(savedSelectedStr);
           if (Array.isArray(parsed)) {
-            // Remove duplicates before setting
+            // Remove duplicates before setting using title as criteria
             const uniqueSelected = parsed.filter((article, index, self) => 
-              index === self.findIndex(a => a.id === article.id)
+              index === self.findIndex(a => a.title === article.title)
             );
             setSelectedArticles(uniqueSelected);
             
@@ -121,9 +121,9 @@ export default function Research() {
         const articles = await response.json();
         console.log('Fetched articles from database:', articles.length);
         
-        // Remove duplicates automatically
+        // Remove duplicates automatically using title as criteria
         const uniqueArticles = articles.filter((article, index, self) => 
-          index === self.findIndex(a => a.id === article.id)
+          index === self.findIndex(a => a.title === article.title)
         );
         
         setProcessedArticles(uniqueArticles);
