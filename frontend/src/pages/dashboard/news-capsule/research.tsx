@@ -789,10 +789,24 @@ export default function Research() {
                     <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => selectForReport(article)}
+                        onClick={() => {
+                          const isSelected = selectedArticles.some(selected => selected.title === article.title);
+                          if (isSelected) {
+                            // Remove from selected articles
+                            const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
+                            setSelectedArticles(newSelected);
+                            storedSelectedArticles.length = 0;
+                            storedSelectedArticles.push(...newSelected);
+                            localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
+                            console.log("Removed from selection:", article.title);
+                          } else {
+                            // Add to selected articles
+                            selectForReport(article);
+                          }
+                        }}
                         className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
                       >
-                        {selectedArticles.some(selected => selected.id === article.id) ? "Entered in Report" : "Select for Report"}
+                        {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
                       </button>
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
