@@ -678,7 +678,7 @@ export default function Research() {
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
-                      rows={6}
+                      rows={3}
                       className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md resize-vertical"
                     />
                   ) : (
