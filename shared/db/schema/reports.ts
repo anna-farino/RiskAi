@@ -1,4 +1,4 @@
-import { pgTable, primaryKey, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, primaryKey, timestamp, uuid, text } from "drizzle-orm/pg-core";
 import { users } from "./user";
 import { capsuleArticles } from "./news-capsule";
 
@@ -17,6 +17,7 @@ export const capsuleArticlesInReports = pgTable('capsule_articles_in_reports',
     reportId: uuid("report_id")
       .references(()=>reports.id, { onDelete: 'cascade'})
       .notNull(),
+    notes: text("notes").default(""),
   },
   (t) => [
     primaryKey({ columns: [t.articleId, t.reportId ]})

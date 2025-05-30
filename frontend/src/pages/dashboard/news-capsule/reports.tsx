@@ -1,14 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 
+interface ArticleNotes {
+  [articleId: string]: string;
+}
+
+interface ReportNotes {
+  [reportId: string]: ArticleNotes;
+}
+
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [articleNotes, setArticleNotes] = useState<ReportNotes>({});
   
+  // Load notes from localStorage on component mount
+  useEffect(() => {
+    const savedNotes = localStorage.getItem('reportArticleNotes');
+    if (savedNotes) {
+      try {
+        setArticleNotes(JSON.parse(savedNotes));
+      } catch (e) {
+        console.error("Failed to load article notes:", e);
+      }
+    }
+  }, []);
+
+  // Save notes to localStorage whenever they change
+  const saveNotesToStorage = (notes: ReportNotes) => {
+    try {
+      localStorage.setItem('reportArticleNotes', JSON.stringify(notes));
+    } catch (e) {
+      console.error("Failed to save article notes:", e);
+    }
+  };
+
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
+  };
+
+  const updateArticleNote = (reportId: string, articleId: string, note: string) => {
+    setArticleNotes(prev => {
+      const updated = {
+        ...prev,
+        [reportId]: {
+          ...prev[reportId],
+          [articleId]: note
+        }
+      };
+      saveNotesToStorage(updated);
+      return updated;
+    });
+  };
+
+  const getArticleNote = (reportId: string, articleId: string): string => {
+    return articleNotes[reportId]?.[articleId] || "";
   };
   
   const formatDate = (dateString: string) => {
@@ -274,6 +322,37 @@ export default function Reports() {
                               spacing: { after: 120 }
                             })
                           );
+                          
+                          // Add executive notes if they exist
+                          const articleNote = getArticleNote(selectedReport.id, article.id);
+                          if (articleNote.trim()) {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "Executive Notes:",
+                                    font: "Cambria",
+                                    size: 22,
+                                    bold: true
+                                  })
+                                ],
+                                spacing: { after: 0 }
+                              })
+                            );
+                            
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: articleNote,
+                                    font: "Cambria",
+                                    size: 22
+                                  })
+                                ],
+                                spacing: { after: 120 }
+                              })
+                            );
+                          }
                           
                           sections.push(
                             new Paragraph({
@@ -790,6 +869,17 @@ export default function Reports() {
                       <div className="mb-4">
                         <p className="text-xs text-slate-400 mb-1">Impacts</p>
                         <p className="text-sm">{article.impacts}</p>
+                      </div>
+                      
+                      {/* Notes Section */}
+                      <div className="mb-4">
+                        <p className="text-xs text-slate-400 mb-1">Executive Notes</p>
+                        <textarea
+                          value={getArticleNote(selectedReport.id, article.id)}
+                          onChange={(e) => updateArticleNote(selectedReport.id, article.id, e.target.value)}
+                          placeholder="Add executive notes for this story..."
+                          className="w-full p-2 text-sm bg-slate-700/50 border border-slate-600/50 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical min-h-[80px]"
+                        />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
