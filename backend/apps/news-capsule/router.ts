@@ -29,7 +29,10 @@ router.get('/articles', async (req, res) => {
       .where(eq(capsuleArticles.userId, userId))
       .orderBy(desc(capsuleArticles.createdAt));
     
-    res.json(articles);
+    // Filter out articles marked for deletion from processed articles view
+    const visibleArticles = articles.filter(article => !article.markedForDeletion);
+    
+    res.json(visibleArticles);
   } catch (error) {
     console.error('Error fetching capsule articles:', error);
     res.status(500).json({ error: 'Failed to fetch articles' });
@@ -62,13 +65,17 @@ router.delete('/articles/:id', async (req, res) => {
     const isInReports = reportsWithArticle[0]?.count > 0;
     
     if (isInReports) {
-      return res.status(400).json({ error: 'Cannot delete article that is already in reports' });
+      // Article is in reports - mark it as deleted for processing list but keep in database
+      await db
+        .update(capsuleArticles)
+        .set({ markedForDeletion: true })
+        .where(eq(capsuleArticles.id, articleId));
+    } else {
+      // Article is not in any reports - safe to delete completely
+      await db
+        .delete(capsuleArticles)
+        .where(eq(capsuleArticles.id, articleId));
     }
-    
-    // Delete the article itself
-    await db
-      .delete(capsuleArticles)
-      .where(eq(capsuleArticles.id, articleId));
     
     res.json({ success: true });
   } catch (error) {
