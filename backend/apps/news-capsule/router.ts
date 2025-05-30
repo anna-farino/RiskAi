@@ -63,7 +63,8 @@ router.delete('/articles/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting capsule article:', error);
-    res.status(500).json({ error: 'Failed to delete article' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Failed to delete article', details: error.message });
   }
 });
 
