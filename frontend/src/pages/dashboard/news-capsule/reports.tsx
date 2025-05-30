@@ -180,50 +180,8 @@ export default function Reports() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    className="px-3 py-1 text-sm bg-blue-700 hover:bg-blue-600 rounded-md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      
-                      // Build Word document content
-                      let wordContent = "RisqAI News Capsule Reporting\n";
-                      wordContent += `Executive Report: ${formatDate(selectedReport.createdAt)}\n`;
-                      wordContent += `Generated: ${new Date().toLocaleDateString()}\n\n`;
-                      
-                      selectedReport.articles.forEach((article, index) => {
-                        const notes = getArticleNote(selectedReport.id, article.id);
-                        wordContent += `ARTICLE ${index + 1}\n`;
-                        wordContent += `Title: ${article.title}\n`;
-                        wordContent += `Threat Name: ${article.threatName}\n`;
-                        wordContent += `Vulnerability ID: ${article.vulnerabilityId}\n`;
-                        wordContent += `Attack Vector: ${article.attackVector}\n`;
-                        wordContent += `Target OS: ${article.targetOS}\n`;
-                        if (notes.trim()) {
-                          wordContent += `Executive Notes: ${notes}\n`;
-                        }
-                        wordContent += `Source: ${cleanPublicationName(article.sourcePublication)}\n\n`;
-                        wordContent += `Summary:\n${article.summary}\n\n`;
-                        wordContent += `Impacts:\n${article.impacts}\n\n`;
-                        wordContent += `Original URL: ${article.originalUrl}\n`;
-                        wordContent += `-------------------------------------------\n\n`;
-                      });
-                      
-                      // Create and download file
-                      const element = document.createElement('a');
-                      const file = new Blob([wordContent], {type: 'application/msword'});
-                      element.href = URL.createObjectURL(file);
-                      element.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}.doc`;
-                      element.click();
-                      URL.revokeObjectURL(element.href);
-                    }}
-                  >
-                    Export to Word
-                  </button>
-                  
-                  <button
                     className="px-3 py-1 text-sm bg-green-700 hover:bg-green-600 rounded-md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      
+                    onClick={() => {
                       const versionText = selectedReport.versionNumber && selectedReport.versionNumber > 1 ? 
                         ` (Version: ${selectedReport.versionNumber})` : '';
                       
@@ -246,45 +204,6 @@ export default function Reports() {
                     }}
                   >
                     Print Report
-                  </button>
-                  
-                  <button
-                    className="px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded-md"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      
-                      // Build text content
-                      let textContent = `EXECUTIVE REPORT: ${formatDate(selectedReport.createdAt)}\n`;
-                      textContent += `Generated: ${new Date().toLocaleDateString()}\n\n`;
-                      
-                      selectedReport.articles.forEach((article, index) => {
-                        const notes = getArticleNote(selectedReport.id, article.id);
-                        textContent += `ARTICLE ${index + 1}\n`;
-                        textContent += `TITLE: ${article.title}\n`;
-                        textContent += `THREAT: ${article.threatName}\n`;
-                        textContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n`;
-                        textContent += `ATTACK VECTOR: ${article.attackVector}\n`;
-                        textContent += `TARGET OS: ${article.targetOS}\n`;
-                        if (notes.trim()) {
-                          textContent += `EXECUTIVE NOTES: ${notes}\n`;
-                        }
-                        textContent += `SOURCE: ${cleanPublicationName(article.sourcePublication)}\n\n`;
-                        textContent += `SUMMARY:\n${article.summary}\n\n`;
-                        textContent += `IMPACTS:\n${article.impacts}\n\n`;
-                        textContent += `ORIGINAL URL: ${article.originalUrl}\n`;
-                        textContent += `-------------------------------------------\n\n`;
-                      });
-                      
-                      // Create and download file
-                      const element = document.createElement('a');
-                      const file = new Blob([textContent], {type: 'text/plain'});
-                      element.href = URL.createObjectURL(file);
-                      element.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}.txt`;
-                      element.click();
-                      URL.revokeObjectURL(element.href);
-                    }}
-                  >
-                    Export as Text
                   </button>
                 </div>
               </div>
