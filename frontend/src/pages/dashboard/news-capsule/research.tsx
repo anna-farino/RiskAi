@@ -885,6 +885,63 @@ export default function Research() {
                   Clear All
                 </button>
               )}
+              <button
+                onClick={() => {
+                  // Remove More_Eggs articles from all data sources
+                  const cleanProcessedArticles = processedArticles.filter(article => 
+                    !article.title?.toLowerCase().includes('more_eggs') &&
+                    !article.title?.toLowerCase().includes('more eggs') &&
+                    !article.originalUrl?.toLowerCase().includes('more_eggs') &&
+                    !article.originalUrl?.toLowerCase().includes('more-eggs')
+                  );
+                  
+                  const cleanSelectedArticles = selectedArticles.filter(article => 
+                    !article.title?.toLowerCase().includes('more_eggs') &&
+                    !article.title?.toLowerCase().includes('more eggs') &&
+                    !article.originalUrl?.toLowerCase().includes('more_eggs') &&
+                    !article.originalUrl?.toLowerCase().includes('more-eggs')
+                  );
+                  
+                  setProcessedArticles(cleanProcessedArticles);
+                  setSelectedArticles(cleanSelectedArticles);
+                  
+                  // Update module variables
+                  storedArticles.length = 0;
+                  storedArticles.push(...cleanProcessedArticles);
+                  storedSelectedArticles.length = 0;
+                  storedSelectedArticles.push(...cleanSelectedArticles);
+                  
+                  // Update localStorage
+                  localStorage.setItem('savedArticleSummaries', JSON.stringify(cleanProcessedArticles));
+                  localStorage.setItem('savedSelectedArticles', JSON.stringify(cleanSelectedArticles));
+                  
+                  // Clean reports
+                  try {
+                    const savedReportsStr = localStorage.getItem('newsCapsuleReports');
+                    if (savedReportsStr) {
+                      const savedReports = JSON.parse(savedReportsStr);
+                      const cleanedReports = savedReports.map(report => ({
+                        ...report,
+                        articles: report.articles?.filter(article => 
+                          !article.title?.toLowerCase().includes('more_eggs') &&
+                          !article.title?.toLowerCase().includes('more eggs') &&
+                          !article.originalUrl?.toLowerCase().includes('more_eggs') &&
+                          !article.originalUrl?.toLowerCase().includes('more-eggs')
+                        ) || []
+                      }));
+                      localStorage.setItem('newsCapsuleReports', JSON.stringify(cleanedReports));
+                    }
+                  } catch (e) {
+                    console.error("Error cleaning reports:", e);
+                  }
+                  
+                  console.log("Removed all More_Eggs references");
+                  alert("All More_Eggs article references have been removed from the system");
+                }}
+                className="px-2 py-1 text-xs bg-orange-900/30 hover:bg-orange-900/50 text-orange-400 rounded border border-orange-700/30"
+              >
+                Remove More_Eggs
+              </button>
             </div>
           </div>
           
