@@ -584,6 +584,21 @@ export default function Research() {
     }
   };
   
+  // Check if an article is already in any report
+  const isArticleInReport = (articleId: string) => {
+    try {
+      const savedReportsStr = localStorage.getItem('newsCapsuleReports');
+      if (!savedReportsStr) return false;
+      
+      const savedReports = JSON.parse(savedReportsStr);
+      return savedReports.some((report: any) => 
+        report.articles && report.articles.some((article: any) => article.id === articleId)
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const removeProcessedArticle = async (id: string) => {
     // Optimistic update - remove from UI immediately
     const originalArticles = [...processedArticles];
@@ -754,6 +769,10 @@ export default function Research() {
             
             {processedArticles
               .slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage)
+              .filter((article, index, self) => 
+                // Remove duplicates by checking if current index is first occurrence of this ID
+                index === self.findIndex(a => a.id === article.id)
+              )
               .map((article) => (
                 <motion.div
                   key={article.id}
@@ -764,12 +783,21 @@ export default function Research() {
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => selectForReport(article)}
-                        className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                      >
-                        Select for Report
-                      </button>
+                      {isArticleInReport(article.id) ? (
+                        <button
+                          disabled
+                          className="px-3 py-1 text-sm bg-blue-900/30 text-blue-400 rounded-md border border-blue-700/30 cursor-not-allowed"
+                        >
+                          Entered in Report
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => selectForReport(article)}
+                          className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                        >
+                          Select for Report
+                        </button>
+                      )}
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
                         className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
