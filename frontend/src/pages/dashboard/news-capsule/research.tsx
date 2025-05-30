@@ -9,8 +9,8 @@ const MAX_STORED_ARTICLES = 100;
 const storedArticles: ArticleSummary[] = [];
 const storedSelectedArticles: ArticleSummary[] = [];
 
-// Store recent user-entered URLs (up to 10)
-const MAX_RECENT_URLS = 10;
+// Store recent user-entered URLs (up to 5)
+const MAX_RECENT_URLS = 5;
 const recentUrls: string[] = [];
 
 // List of demo URLs to exclude from saved suggestions
@@ -63,11 +63,14 @@ export default function Research() {
           // Filter out any excluded URLs
           const filteredUrls = parsed.filter(url => !excludedUrls.includes(url));
           setSavedUrls(filteredUrls);
+          console.log("Loaded saved URLs:", filteredUrls);
           
           // Also update the module-level array
           recentUrls.length = 0;
           recentUrls.push(...filteredUrls);
         }
+      } else {
+        console.log("No saved URLs found in localStorage");
       }
       
       // Load selected articles from localStorage
@@ -151,13 +154,19 @@ export default function Research() {
   // Save URL to recent URLs list
   const saveUrl = (urlToSave: string) => {
     // Don't save empty URLs or excluded demo URLs
-    if (!urlToSave || excludedUrls.includes(urlToSave)) return;
+    if (!urlToSave || excludedUrls.includes(urlToSave)) {
+      console.log("URL not saved - empty or excluded:", urlToSave);
+      return;
+    }
     
     // Create new array without the URL (if it already exists)
     const filteredUrls = savedUrls.filter(u => u !== urlToSave);
     
     // Add the URL to the beginning of the array
     const newSavedUrls = [urlToSave, ...filteredUrls].slice(0, MAX_RECENT_URLS);
+    
+    console.log("Saving URL to history:", urlToSave);
+    console.log("New saved URLs array:", newSavedUrls);
     
     // Update state and localStorage
     setSavedUrls(newSavedUrls);
@@ -169,6 +178,7 @@ export default function Research() {
     // Save to localStorage
     try {
       localStorage.setItem('userSavedUrls', JSON.stringify(newSavedUrls));
+      console.log("URLs saved to localStorage successfully");
     } catch (e) {
       console.error("Failed to save URLs", e);
     }
