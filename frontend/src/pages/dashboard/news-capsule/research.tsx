@@ -908,11 +908,17 @@ export default function Research() {
                   <div className="flex justify-between items-start">
                     <h4 className="text-sm font-medium mb-1">{article.title}</h4>
                     <button
-                      onClick={() => removeSelectedArticle(article.id)}
-                      className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log("Remove button clicked for article:", article.id);
+                        removeSelectedArticle(article.id);
+                      }}
+                      className="ml-2 px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30 cursor-pointer flex-shrink-0"
                       title="Remove from selection"
+                      type="button"
                     >
-                      ✕
+                      Remove
                     </button>
                   </div>
                   <p className="text-xs text-slate-400 mb-2">
