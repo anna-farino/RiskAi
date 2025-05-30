@@ -591,13 +591,13 @@ export const storage: IStorage = {
   // SETTINGS
   getSetting: async (key: string, userId?: string) => {
     try {
-      const conditions = [eq(threatSettings.key, key)];
-      if (userId) conditions.push(eq(threatSettings.userId, userId));
-
+      // Create user-specific key to work around unique constraint
+      const actualKey = userId ? `${key}_user_${userId}` : key;
+      
       const results = await db
         .select()
         .from(threatSettings)
-        .where(and(...conditions));
+        .where(eq(threatSettings.key, actualKey));
       return results[0];
     } catch (error) {
       console.error("Error fetching threat setting:", error);
@@ -607,6 +607,9 @@ export const storage: IStorage = {
 
   upsertSetting: async (key: string, value: any, userId?: string) => {
     try {
+      // Create user-specific key to work around unique constraint
+      const actualKey = userId ? `${key}_user_${userId}` : key;
+      
       // Check if the setting exists
       const existingSetting = await storage.getSetting(key, userId);
 
@@ -619,9 +622,9 @@ export const storage: IStorage = {
           .returning();
         return results[0];
       } else {
-        // Create new setting
+        // Create new setting with user-specific key
         const settingData = {
-          key,
+          key: actualKey,
           value,
           userId: userId || null,
         };

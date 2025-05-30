@@ -291,35 +291,21 @@ export class DatabaseStorage implements IStorage {
   
   // Settings
   async getSetting(key: string, userId?: string): Promise<Setting | undefined> {
-    let query = db
+    // Create user-specific key to work around unique constraint
+    const actualKey = userId ? `${key}_user_${userId}` : key;
+    
+    const [setting] = await db
       .select()
       .from(settings)
-      .where(eq(settings.key, key));
+      .where(eq(settings.key, actualKey));
     
-    if (userId !== undefined) {
-      query = db
-        .select()
-        .from(settings)
-        .where(and(
-          eq(settings.key, key),
-          eq(settings.userId, userId)
-        ))
-    } else {
-      // When userId is not specified, get global settings (null userId)
-      query = db
-        .select()
-        .from(settings)
-        .where(and(
-          eq(settings.key, key),
-          isNull(settings.userId)
-        ))
-    }
-    
-    const [setting] = await query;
     return setting;
   }
   
   async setSetting(key: string, value: any, userId?: string): Promise<Setting> {
+    // Create user-specific key to work around unique constraint
+    const actualKey = userId ? `${key}_user_${userId}` : key;
+    
     // Check if setting exists
     const existing = await this.getSetting(key, userId);
     
@@ -328,14 +314,14 @@ export class DatabaseStorage implements IStorage {
       const [updated] = await db
         .update(settings)
         .set({ value, updatedAt: new Date() })
-        .where(eq(settings.key, key))
+        .where(eq(settings.id, existing.id))
         .returning();
       return updated;
     } else {
-      // Create new setting
+      // Create new setting with user-specific key
       const [created] = await db
         .insert(settings)
-        .values({ key, value, userId })
+        .values({ key: actualKey, value, userId })
         .returning();
       return created;
     }

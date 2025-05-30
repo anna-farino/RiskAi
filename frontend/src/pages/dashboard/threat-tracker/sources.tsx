@@ -104,6 +104,7 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
+  const [localAutoScrapeEnabled, setLocalAutoScrapeEnabled] = useState<boolean | null>(null);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -202,6 +203,13 @@ export default function Sources() {
       setScrapeJobRunning(checkScrapeStatus.data.running);
     }
   }, [checkScrapeStatus.data]);
+
+  // Sync local auto-scrape state with query data
+  useEffect(() => {
+    if (autoScrapeSettings.data && localAutoScrapeEnabled === null) {
+      setLocalAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+    }
+  }, [autoScrapeSettings.data, localAutoScrapeEnabled]);
 
   // Create source mutation with optimistic updates
   const createSource = useMutation({
@@ -400,21 +408,39 @@ export default function Sources() {
     mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
+    onMutate: async ({ enabled, interval }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
+      
+      // Get snapshot of current data
+      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`]);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`], {
+        enabled,
+        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
+      });
+      
+      return { previousSettings };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousSettings) {
+        queryClient.setQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`], context.previousSettings);
+      }
+      toast({
+        title: "Error updating settings",
+        description: "There was an error updating auto-scrape settings. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: (data) => {
+      // Don't invalidate - rely on optimistic updates
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
           ? `Auto-scrape has been enabled with ${data.interval.toLowerCase()} frequency.`
           : "Auto-scrape has been disabled.",
-      });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
-    },
-    onError: (error) => {
-      console.error("Error updating auto-scrape settings:", error);
-      toast({
-        title: "Error updating settings",
-        description: "There was an error updating auto-scrape settings. Please try again.",
-        variant: "destructive",
       });
     },
   });
