@@ -186,7 +186,7 @@ export default function Reports() {
                                 new Paragraph({
                                   children: [
                                     new TextRun({
-                                      text: `Article ${index + 1}: ${article.title}`,
+                                      text: article.title,
                                       font: "Cambria",
                                       size: 22,
                                       bold: true
