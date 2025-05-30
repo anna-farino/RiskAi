@@ -756,7 +756,7 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 sm:p-6 sm:pt-0">
-              {renderKeywordTable(keywordsByCategory)}
+              {renderUserKeywordTable(allKeywordsByCategory)}
             </CardContent>
           </Card>
         </TabsContent>
