@@ -247,9 +247,8 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: parsedResult.Summary || "No summary available.",
         impacts: parsedResult.Impacts || "No impacts specified.",
         attackVector: parsedResult.attackVector || parsedResult["Attack Vector"] || "Unknown attack vector",
-        microsoftConnection: "Field deprecated", // Keep for DB compatibility
         sourcePublication: content.publication || new URL(url).hostname,
-        targetOS: parsedResult["Target OS"] || "Multiple operating systems"
+        targetOS: parsedResult["Target OS"] || "Unspecified"
       };
     } catch (error) {
       console.error('Error parsing AI response:', error);
@@ -262,9 +261,8 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: "Failed to generate summary. Please review the original article.",
         impacts: "Impacts could not be determined.",
         attackVector: "Unknown attack vector",
-        microsoftConnection: "Field deprecated", // Keep for DB compatibility
         sourcePublication: content.publication || new URL(url).hostname,
-        targetOS: "Multiple operating systems"
+        targetOS: "Unspecified"
       };
     }
   } catch (error) {

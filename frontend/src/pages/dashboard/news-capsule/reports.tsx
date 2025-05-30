@@ -360,35 +360,7 @@ export default function Reports() {
                                 })
                               );
                               
-                              // Microsoft Connection (if present)
-                              if (article.microsoftConnection) {
-                                sections.push(
-                                  new Paragraph({
-                                    children: [
-                                      new TextRun({
-                                        text: "Microsoft Connection:",
-                                        font: "Cambria",
-                                        size: 22,
-                                        bold: true
-                                      })
-                                    ],
-                                    spacing: { after: 60 }
-                                  })
-                                );
-                                
-                                sections.push(
-                                  new Paragraph({
-                                    children: [
-                                      new TextRun({
-                                        text: article.microsoftConnection,
-                                        font: "Cambria",
-                                        size: 22
-                                      })
-                                    ],
-                                    spacing: { after: 120 }
-                                  })
-                                );
-                              }
+
                               
                               // Original URL
                               sections.push(
