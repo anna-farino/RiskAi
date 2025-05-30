@@ -58,6 +58,16 @@ export default function Reports() {
   const getArticleNote = (reportId: string, articleId: string): string => {
     return articleNotes[reportId]?.[articleId] || "";
   };
+
+  const cleanPublicationName = (publication: string): string => {
+    // Remove common slogans and taglines
+    return publication
+      .replace(/\s*-\s*.*$/, '') // Remove everything after dash
+      .replace(/\s*\|\s*.*$/, '') // Remove everything after pipe
+      .replace(/\s*:\s*.*$/, '') // Remove everything after colon
+      .replace(/\s*–\s*.*$/, '') // Remove everything after em dash
+      .trim();
+  };
   
   const formatDate = (dateString: string) => {
     try {
@@ -245,7 +255,7 @@ export default function Reports() {
                             { label: "Vulnerability ID:", value: article.vulnerabilityId },
                             { label: "Attack Vector:", value: article.attackVector },
                             { label: "Target OS:", value: article.targetOS },
-                            { label: "Source:", value: article.sourcePublication }
+                            { label: "Source:", value: cleanPublicationName(article.sourcePublication) }
                           ];
                           
                           fields.forEach(field => {
@@ -697,7 +707,7 @@ export default function Reports() {
                                 
                                 reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
                                 reportContent += `TARGET OS: ${article.targetOS}\n`;
-                                reportContent += `SOURCE: ${article.sourcePublication}\n`;
+                                reportContent += `SOURCE: ${cleanPublicationName(article.sourcePublication)}\n`;
                                 reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
                                 reportContent += `-------------------------------------------\n\n`;
                               });
@@ -758,7 +768,7 @@ export default function Reports() {
                         
                         reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
                         reportContent += `TARGET OS: ${article.targetOS}\n`;
-                        reportContent += `SOURCE: ${article.sourcePublication}\n`;
+                        reportContent += `SOURCE: ${cleanPublicationName(article.sourcePublication)}\n`;
                         reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
                         reportContent += `-------------------------------------------\n\n`;
                       });
@@ -878,7 +888,7 @@ export default function Reports() {
                         </div>
                         <div>
                           <p className="text-xs text-slate-400">Source</p>
-                          <p className="text-sm">{article.sourcePublication}</p>
+                          <p className="text-sm">{cleanPublicationName(article.sourcePublication)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-slate-400">Target OS</p>
