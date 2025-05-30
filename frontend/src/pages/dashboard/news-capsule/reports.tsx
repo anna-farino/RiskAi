@@ -207,46 +207,90 @@ export default function Reports() {
                   </button>
                   
                   <button
-                    className="px-3 py-1 text-sm bg-purple-700 hover:bg-purple-600 rounded-md"
+                    className="px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded-md"
                     onClick={() => {
-                      // Build text report content
-                      let content = `EXECUTIVE REPORT\n`;
-                      content += `Date: ${formatDate(selectedReport.createdAt)}\n`;
-                      content += `Generated: ${new Date().toLocaleDateString()}\n`;
-                      content += `Articles: ${selectedReport.articles.length}\n\n`;
-                      content += `${'='.repeat(50)}\n\n`;
+                      // Export as text
+                      const reportTitle = `Executive Report (${formatDate(selectedReport.createdAt)})`;
+                      let reportContent = `${reportTitle}\n\n`;
                       
-                      selectedReport.articles.forEach((article, idx) => {
-                        const notes = getArticleNote(selectedReport.id, article.id);
-                        content += `ARTICLE ${idx + 1}\n`;
-                        content += `${'─'.repeat(20)}\n`;
-                        content += `Title: ${article.title}\n`;
-                        content += `Threat: ${article.threatName}\n`;
-                        content += `Vulnerability: ${article.vulnerabilityId}\n`;
-                        content += `Attack Vector: ${article.attackVector}\n`;
-                        content += `Target OS: ${article.targetOS}\n`;
-                        if (notes.trim()) {
-                          content += `Executive Notes: ${notes}\n`;
-                        }
-                        content += `Source: ${cleanPublicationName(article.sourcePublication)}\n\n`;
-                        content += `Summary:\n${article.summary}\n\n`;
-                        content += `Impacts:\n${article.impacts}\n\n`;
-                        content += `URL: ${article.originalUrl}\n\n`;
+                      selectedReport.articles.forEach(article => {
+                        reportContent += `TITLE: ${article.title}\n`;
+                        reportContent += `THREAT: ${article.threatName}\n`;
+                        reportContent += `VULNERABILITY ID: ${article.vulnerabilityId}\n\n`;
+                        reportContent += `SUMMARY:\n${article.summary}\n\n`;
+                        reportContent += `IMPACTS:\n${article.impacts}\n\n`;
+                        reportContent += `ATTACK VECTOR:\n${article.attackVector}\n\n`;
+                        reportContent += `TARGET OS: ${article.targetOS}\n`;
+                        reportContent += `SOURCE: ${article.sourcePublication}\n`;
+                        reportContent += `ORIGINAL URL: ${article.originalUrl}\n\n`;
+                        reportContent += `-------------------------------------------\n\n`;
                       });
                       
-                      // Create and trigger download
-                      const textBlob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-                      const url = window.URL.createObjectURL(textBlob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `Report_${formatDate(selectedReport.createdAt).replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      window.URL.revokeObjectURL(url);
+                      // Create and download text file
+                      const blob = new Blob([reportContent], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${reportTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
                     }}
                   >
-                    Export to Text
+                    Export as Text
+                  </button>
+                  
+                  <button
+                    className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                    onClick={() => {
+                      // Export to Word - simple HTML approach
+                      const reportTitle = `Executive Report (${formatDate(selectedReport.createdAt)})`;
+                      let htmlContent = `
+                        <html>
+                          <head>
+                            <meta charset="utf-8">
+                            <title>${reportTitle}</title>
+                          </head>
+                          <body>
+                            <h1>${reportTitle}</h1>
+                      `;
+                      
+                      selectedReport.articles.forEach(article => {
+                        htmlContent += `
+                          <h2>${article.title}</h2>
+                          <p><strong>Threat:</strong> ${article.threatName}</p>
+                          <p><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
+                          <p><strong>Summary:</strong></p>
+                          <p>${article.summary}</p>
+                          <p><strong>Impacts:</strong></p>
+                          <p>${article.impacts}</p>
+                          <p><strong>Attack Vector:</strong> ${article.attackVector}</p>
+                          <p><strong>Target OS:</strong> ${article.targetOS}</p>
+                          <p><strong>Source:</strong> ${article.sourcePublication}</p>
+                          <p><strong>URL:</strong> ${article.originalUrl}</p>
+                          <hr>
+                        `;
+                      });
+                      
+                      htmlContent += `
+                          </body>
+                        </html>
+                      `;
+                      
+                      // Create and download Word file
+                      const blob = new Blob([htmlContent], { type: 'application/msword' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${reportTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.doc`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    Export to Word
                   </button>
                 </div>
               </div>
