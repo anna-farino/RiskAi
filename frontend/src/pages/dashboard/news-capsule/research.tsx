@@ -50,6 +50,16 @@ export default function Research() {
   const [currentPage, setCurrentPage] = useState(1);
   const [articlesPerPage] = useState(10);
   const [reportTopic, setReportTopic] = useState("");
+
+  const cleanPublicationName = (publication: string): string => {
+    // Remove common slogans and taglines
+    return publication
+      .replace(/\s*-\s*.*$/, '') // Remove everything after dash
+      .replace(/\s*\|\s*.*$/, '') // Remove everything after pipe
+      .replace(/\s*:\s*.*$/, '') // Remove everything after colon
+      .replace(/\s*–\s*.*$/, '') // Remove everything after em dash
+      .trim();
+  };
   
   // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
@@ -915,7 +925,7 @@ export default function Research() {
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Source</p>
-                      <p className="text-sm">{article.sourcePublication}</p>
+                      <p className="text-sm">{cleanPublicationName(article.sourcePublication)}</p>
                     </div>
                   </div>
                 </motion.div>
