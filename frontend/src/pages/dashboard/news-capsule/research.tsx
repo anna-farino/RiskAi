@@ -949,7 +949,6 @@ export default function Research() {
                 
                 // Create the new report - include selected articles if any exist
                 const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                console.log("Creating report with topic:", reportTopic.trim());
                 const newReport = {
                   id: newReportId,
                   createdAt: new Date().toISOString(),
