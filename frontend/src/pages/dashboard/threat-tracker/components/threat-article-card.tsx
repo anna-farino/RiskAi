@@ -137,9 +137,15 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
         
         <div className="flex-1 p-5 flex flex-col">
           <div className="flex justify-between items-start mb-3">
-            <h3 className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2">
+            <a 
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2 hover:underline cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
               {article.title}
-            </h3>
+            </a>
             
             {/* Threat severity score badge */}
             <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
