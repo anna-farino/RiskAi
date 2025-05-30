@@ -197,8 +197,13 @@ export default function Research() {
       let errorMessage = "";
       const newArticles: ArticleSummary[] = [];
       
-      // Process each URL sequentially
-      for (const singleUrl of urls) {
+      // Process each URL sequentially with immediate feedback
+      for (let i = 0; i < urls.length; i++) {
+        const singleUrl = urls[i];
+        
+        // Update loading state with current progress
+        setError(`Processing article ${i + 1} of ${urls.length}...`);
+        
         try {
           const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
             method: "POST",
@@ -222,32 +227,29 @@ export default function Research() {
           if (data && data.id && data.title) {
             successCount++;
             newArticles.push(data);
+            
+            // Add article immediately to provide instant feedback
+            const updatedArticles = [data, ...processedArticles];
+            const limitedArticles = updatedArticles.slice(0, MAX_STORED_ARTICLES);
+            setProcessedArticles(limitedArticles);
+            
+            // Update module variable
+            storedArticles.length = 0;
+            storedArticles.push(...limitedArticles);
+            
+            // Save to localStorage
+            try {
+              localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
+            } catch (e) {
+              console.error("Failed to save article summaries", e);
+            }
+            
+            // Show immediate success feedback
+            setError(`Processed ${successCount} of ${urls.length} articles successfully`);
           }
         } catch (err) {
           errorCount++;
           errorMessage = `Failed to process ${errorCount} URL(s)`;
-        }
-      }
-      
-      // Update state with all new articles at once
-      if (newArticles.length > 0) {
-        // Add new articles to the front of the existing array
-        const updatedProcessedArticles = [...newArticles, ...processedArticles];
-        
-        // Only keep the most recent articles (limited by MAX_STORED_ARTICLES)
-        const limitedArticles = updatedProcessedArticles.slice(0, MAX_STORED_ARTICLES);
-        
-        setProcessedArticles(limitedArticles);
-        
-        // Update module variable
-        storedArticles.length = 0; // Clear array without creating a new one
-        storedArticles.push(...limitedArticles); // Add only the limited set
-        
-        // Save articles to localStorage so they persist between visits
-        try {
-          localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
-        } catch (e) {
-          console.error("Failed to save article summaries", e);
         }
       }
       
