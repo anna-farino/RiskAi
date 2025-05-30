@@ -71,15 +71,15 @@ export function RisqHeader() {
         {/* Rest of the header in a separate container */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
           
-          {/* Search bar for desktop only */}
-          <div className="hidden lg:flex items-center flex-1 max-w-sm mr-6">
-            <div className="relative w-full">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <Search className="h-4 w-4" />
+          {/* Search bar for all screen sizes */}
+          <div className="flex items-center flex-1 mr-3 sm:mr-4 md:mr-6">
+            <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md">
+              <div className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Search className="h-3 w-3 sm:h-4 sm:w-4" />
               </div>
               <Input 
-                placeholder="Search articles, reports, threats..."
-                className="pl-10 h-9 w-full bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30"
+                placeholder="Search..."
+                className="pl-7 sm:pl-10 h-8 sm:h-9 w-full bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 text-xs sm:text-sm"
               />
             </div>
           </div>
