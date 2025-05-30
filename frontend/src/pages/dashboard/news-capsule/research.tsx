@@ -782,7 +782,11 @@ export default function Research() {
                             selectForReport(article);
                           }
                         }}
-                        className="w-32 px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                        className={`w-32 px-3 py-1 text-sm rounded-md border ${
+                          selectedArticles.some(selected => selected.title === article.title) 
+                            ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
+                            : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
+                        }`}
                       >
                         {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
                       </button>
