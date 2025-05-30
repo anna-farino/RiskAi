@@ -291,6 +291,14 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
+    // Check if article with same title already exists
+    const alreadySelected = selectedArticles.some(selected => selected.title === article.title);
+    
+    if (alreadySelected) {
+      console.log("Article already selected:", article.title);
+      return; // Don't add duplicate
+    }
+    
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
     
