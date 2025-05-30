@@ -196,6 +196,87 @@ export default function Reports() {
                                 })
                               );
                               
+                              // Threat Name
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Threat Name: ",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    }),
+                                    new TextRun({
+                                      text: article.threatName,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 60 }
+                                })
+                              );
+                              
+                              // Vulnerability ID
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Vulnerability ID: ",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    }),
+                                    new TextRun({
+                                      text: article.vulnerabilityId,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 60 }
+                                })
+                              );
+                              
+                              // Target OS
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Target OS: ",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    }),
+                                    new TextRun({
+                                      text: article.targetOS,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 60 }
+                                })
+                              );
+                              
+                              // Source Publication
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Source: ",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    }),
+                                    new TextRun({
+                                      text: article.sourcePublication,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 120 }
+                                })
+                              );
+                              
+                              // Summary
                               sections.push(
                                 new Paragraph({
                                   children: [
@@ -206,7 +287,7 @@ export default function Reports() {
                                       bold: true
                                     })
                                   ],
-                                  spacing: { after: 0 }
+                                  spacing: { after: 60 }
                                 })
                               );
                               
@@ -223,6 +304,7 @@ export default function Reports() {
                                 })
                               );
                               
+                              // Impacts
                               sections.push(
                                 new Paragraph({
                                   children: [
@@ -233,7 +315,7 @@ export default function Reports() {
                                       bold: true
                                     })
                                   ],
-                                  spacing: { after: 0 }
+                                  spacing: { after: 60 }
                                 })
                               );
                               
@@ -250,6 +332,65 @@ export default function Reports() {
                                 })
                               );
                               
+                              // Attack Vector
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: "Attack Vector:",
+                                      font: "Cambria",
+                                      size: 22,
+                                      bold: true
+                                    })
+                                  ],
+                                  spacing: { after: 60 }
+                                })
+                              );
+                              
+                              sections.push(
+                                new Paragraph({
+                                  children: [
+                                    new TextRun({
+                                      text: article.attackVector,
+                                      font: "Cambria",
+                                      size: 22
+                                    })
+                                  ],
+                                  spacing: { after: 120 }
+                                })
+                              );
+                              
+                              // Microsoft Connection (if present)
+                              if (article.microsoftConnection) {
+                                sections.push(
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: "Microsoft Connection:",
+                                        font: "Cambria",
+                                        size: 22,
+                                        bold: true
+                                      })
+                                    ],
+                                    spacing: { after: 60 }
+                                  })
+                                );
+                                
+                                sections.push(
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: article.microsoftConnection,
+                                        font: "Cambria",
+                                        size: 22
+                                      })
+                                    ],
+                                    spacing: { after: 120 }
+                                  })
+                                );
+                              }
+                              
+                              // Original URL
                               sections.push(
                                 new Paragraph({
                                   children: [
