@@ -277,6 +277,11 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
+    // Check if article is already selected to prevent duplicates
+    if (selectedArticles.some(selected => selected.id === article.id)) {
+      return; // Don't add if already selected
+    }
+    
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
     
