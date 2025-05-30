@@ -228,10 +228,8 @@ export default function Research() {
             successCount++;
             newArticles.push(data);
             
-            // Add article immediately to provide instant feedback (with deduplication)
-            const updatedArticles = [data, ...processedArticles].filter(
-              (article, index, self) => index === self.findIndex(a => a.id === article.id)
-            );
+            // Add article immediately to provide instant feedback
+            const updatedArticles = [data, ...processedArticles];
             const limitedArticles = updatedArticles.slice(0, MAX_STORED_ARTICLES);
             setProcessedArticles(limitedArticles);
             
@@ -277,11 +275,6 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
-    // Check if article is already selected to prevent duplicates
-    if (selectedArticles.some(selected => selected.id === article.id)) {
-      return; // Don't add if already selected
-    }
-    
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
     
@@ -423,15 +416,6 @@ export default function Research() {
         
         // Success message
         alert("Articles successfully added to report!");
-        
-        // Clear selected articles since they've been added to report
-        setSelectedArticles([]);
-        storedSelectedArticles.length = 0;
-        localStorage.removeItem('savedSelectedArticles');
-        
-        // Force re-render to update button states
-        setProcessedArticles([...processedArticles]);
-        
         setIsLoading(false);
       };
       
@@ -585,12 +569,7 @@ export default function Research() {
   };
   
   const removeSelectedArticle = (id: string) => {
-    console.log("Removing article with ID:", id);
-    console.log("Current selected articles:", selectedArticles.length);
-    
     const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
-    console.log("New selected articles count:", newSelectedArticles.length);
-    
     setSelectedArticles(newSelectedArticles);
     
     // Update module variable
@@ -605,21 +584,6 @@ export default function Research() {
     }
   };
   
-  // Check if an article is already in any report
-  const isArticleInReport = (articleId: string) => {
-    try {
-      const savedReportsStr = localStorage.getItem('newsCapsuleReports');
-      if (!savedReportsStr) return false;
-      
-      const savedReports = JSON.parse(savedReportsStr);
-      return savedReports.some((report: any) => 
-        report.articles && report.articles.some((article: any) => article.id === articleId)
-      );
-    } catch {
-      return false;
-    }
-  };
-
   const removeProcessedArticle = async (id: string) => {
     // Optimistic update - remove from UI immediately
     const originalArticles = [...processedArticles];
@@ -790,10 +754,6 @@ export default function Research() {
             
             {processedArticles
               .slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage)
-              .filter((article, index, self) => 
-                // Remove duplicates by checking if current index is first occurrence of this ID
-                index === self.findIndex(a => a.id === article.id)
-              )
               .map((article) => (
                 <motion.div
                   key={article.id}
@@ -804,21 +764,12 @@ export default function Research() {
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
-                      {selectedArticles.some(selected => selected.id === article.id) ? (
-                        <button
-                          disabled
-                          className="px-3 py-1 text-sm bg-blue-900/30 text-blue-400 rounded-md border border-blue-700/30 cursor-not-allowed"
-                        >
-                          Entered into Report
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => selectForReport(article)}
-                          className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                        >
-                          Select for Report
-                        </button>
-                      )}
+                      <button
+                        onClick={() => selectForReport(article)}
+                        className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
+                      >
+                        Select for Report
+                      </button>
                       <button
                         onClick={() => removeProcessedArticle(article.id)}
                         className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
@@ -868,24 +819,9 @@ export default function Research() {
         <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Selected Articles</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-400">
-                {selectedArticles.length} selected
-              </span>
-              {selectedArticles.length > 0 && (
-                <button
-                  onClick={() => {
-                    setSelectedArticles([]);
-                    storedSelectedArticles.length = 0;
-                    localStorage.removeItem('savedSelectedArticles');
-                    console.log("Cleared all selected articles");
-                  }}
-                  className="px-2 py-1 text-xs bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded border border-red-700/30"
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
+            <span className="text-sm text-slate-400">
+              {selectedArticles.length} selected
+            </span>
           </div>
           
           {/* Report Topic Field */}
@@ -915,30 +851,18 @@ export default function Research() {
                 No articles selected yet
               </p>
             ) : (
-              selectedArticles
-                .filter((article, index, self) => 
-                  // Remove duplicates by checking if current index is first occurrence of this ID
-                  index === self.findIndex(a => a.id === article.id)
-                )
-                .map((article, index) => (
+              selectedArticles.map((article) => (
                 <div 
-                  key={`${article.id}-${index}`}
+                  key={article.id}
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
                     <h4 className="text-sm font-medium mb-1">{article.title}</h4>
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log("Remove button clicked for article:", article.id);
-                        removeSelectedArticle(article.id);
-                      }}
-                      className="ml-2 px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30 cursor-pointer flex-shrink-0"
-                      title="Remove from selection"
-                      type="button"
+                      onClick={() => removeSelectedArticle(article.id)}
+                      className="text-red-400 hover:text-red-300"
                     >
-                      Remove
+                      ✕
                     </button>
                   </div>
                   <p className="text-xs text-slate-400 mb-2">
@@ -952,13 +876,38 @@ export default function Research() {
             )}
           </div>
           
-          <button
-            onClick={sendToExecutiveReport}
-            disabled={selectedArticles.length === 0 || isLoading}
-            className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
-          >
-            {isLoading ? "Processing..." : "Send to Executive Report"}
-          </button>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => {
+                // Remove duplicates from both lists
+                const uniqueProcessed = processedArticles.filter((article, index, self) => 
+                  index === self.findIndex(a => a.id === article.id)
+                );
+                const uniqueSelected = selectedArticles.filter((article, index, self) => 
+                  index === self.findIndex(a => a.id === article.id)
+                );
+                
+                setProcessedArticles(uniqueProcessed);
+                setSelectedArticles(uniqueSelected);
+                
+                // Update storage
+                localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueProcessed));
+                localStorage.setItem('savedSelectedArticles', JSON.stringify(uniqueSelected));
+                
+                console.log("Fixed duplicates - now you can remove articles properly");
+              }}
+              className="px-3 py-2 text-sm bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-400 rounded-md border border-yellow-700/30"
+            >
+              Fix Duplicates
+            </button>
+            <button
+              onClick={sendToExecutiveReport}
+              disabled={selectedArticles.length === 0 || isLoading}
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+            >
+              {isLoading ? "Processing..." : "Send to Executive Report"}
+            </button>
+          </div>
           
           <button
             onClick={async () => {
@@ -1022,14 +971,6 @@ export default function Research() {
                 // Success message
                 if (selectedArticles.length > 0) {
                   alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
-                  
-                  // Clear selected articles since they've been added to report
-                  setSelectedArticles([]);
-                  storedSelectedArticles.length = 0;
-                  localStorage.removeItem('savedSelectedArticles');
-                  
-                  // Force re-render to update button states
-                  setProcessedArticles([...processedArticles]);
                 } else {
                   alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
                 }
