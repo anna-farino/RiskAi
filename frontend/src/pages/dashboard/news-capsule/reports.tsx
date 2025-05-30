@@ -234,12 +234,16 @@ export default function Reports() {
                         content += `URL: ${article.originalUrl}\n\n`;
                       });
                       
-                      // Create download
-                      const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(content);
-                      const downloadAnchorNode = document.createElement('a');
-                      downloadAnchorNode.setAttribute("href", dataStr);
-                      downloadAnchorNode.setAttribute("download", `Report_${formatDate(selectedReport.createdAt).replace(/[^a-zA-Z0-9]/g, '_')}.txt`);
-                      downloadAnchorNode.click();
+                      // Create and trigger download
+                      const textBlob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                      const url = window.URL.createObjectURL(textBlob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `Report_${formatDate(selectedReport.createdAt).replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
                     }}
                   >
                     Export to Text
