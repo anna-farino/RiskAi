@@ -585,7 +585,12 @@ export default function Research() {
   };
   
   const removeSelectedArticle = (id: string) => {
+    console.log("Removing article with ID:", id);
+    console.log("Current selected articles:", selectedArticles.length);
+    
     const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
+    console.log("New selected articles count:", newSelectedArticles.length);
+    
     setSelectedArticles(newSelectedArticles);
     
     // Update module variable
@@ -904,7 +909,8 @@ export default function Research() {
                     <h4 className="text-sm font-medium mb-1">{article.title}</h4>
                     <button
                       onClick={() => removeSelectedArticle(article.id)}
-                      className="text-red-400 hover:text-red-300"
+                      className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
+                      title="Remove from selection"
                     >
                       ✕
                     </button>
