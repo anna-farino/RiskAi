@@ -123,7 +123,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
       <div className="px-3 py-1 space-y-1">
         <NavItem 
           href="/dashboard" 
-          icon={<LayoutDashboard size={18} className="text-[#00FFFF]" />} 
+          icon={<LayoutDashboard size={18} className="text-white" />} 
           active={pathname === '/dashboard'}
         >
           Dashboard
@@ -141,7 +141,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         {/* News Radar children */}
         <NavItem 
           href="/dashboard/news/sources" 
-          icon={<Search size={16} className="text-[#BF00FF]/80" />} 
+          icon={<Search size={16} className="text-[#BF00FF]/60" />} 
           active={isActive('/dashboard/news/sources')}
           isChild={true}
         >
@@ -150,7 +150,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         
         <NavItem 
           href="/dashboard/news/keywords" 
-          icon={<AlertTriangle size={16} className="text-[#BF00FF]/80" />} 
+          icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />} 
           active={isActive('/dashboard/news/keywords')}
           isChild={true}
         >
@@ -169,7 +169,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         {/* Threat Tracker children */}
         <NavItem 
           href="/dashboard/threat/sources" 
-          icon={<Search size={16} className="text-[#00FFFF]/80" />} 
+          icon={<Search size={16} className="text-[#00FFFF]/60" />} 
           active={isActive('/dashboard/threat/sources')}
           isChild={true}
         >
@@ -178,7 +178,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         
         <NavItem 
           href="/dashboard/threat/keywords" 
-          icon={<AlertTriangle size={16} className="text-[#00FFFF]/80" />} 
+          icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />} 
           active={isActive('/dashboard/threat/keywords')}
           isChild={true}
         >
@@ -190,7 +190,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         {/* News Capsule parent */}
         <NavItem 
           href="/dashboard/news-capsule/home" 
-          icon={<Radar size={20} className="text-[#00FFFF]" />} 
+          icon={<Radar size={20} className="text-[#BF00FF]" />} 
           active={isActive('/dashboard/news-capsule/home')}
         >
           News Capsule
@@ -199,7 +199,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         {/* News Capsule children */}
         <NavItem 
           href="/dashboard/news-capsule/research" 
-          icon={<Search size={16} className="text-[#00FFFF]/80" />} 
+          icon={<Search size={16} className="text-[#BF00FF]/60" />} 
           active={isActive('/dashboard/news-capsule/research')}
           isChild={true}
         >
@@ -208,7 +208,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         
         <NavItem 
           href="/dashboard/news-capsule/reports" 
-          icon={<FileText size={16} className="text-[#00FFFF]/80" />} 
+          icon={<FileText size={16} className="text-[#BF00FF]/60" />} 
           active={isActive('/dashboard/news-capsule/reports')}
           isChild={true}
         >
@@ -219,7 +219,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         
         <NavItem 
           href="/dashboard/settings" 
-          icon={<Settings size={18} className="text-[#00FFFF]" />} 
+          icon={<Settings size={18} className="text-gray-300" />} 
           active={isActive('/dashboard/settings')}
         >
           Settings
@@ -272,7 +272,7 @@ export const MobileNavigation = () => {
               <div className="px-3 py-1 space-y-1">
                 <NavItem 
                   href="/dashboard" 
-                  icon={<LayoutDashboard size={18} className="text-[#00FFFF]" />} 
+                  icon={<LayoutDashboard size={18} className="text-white" />} 
                   active={location.pathname === '/dashboard'}
                 >
                   Dashboard
@@ -290,7 +290,7 @@ export const MobileNavigation = () => {
                 {/* News Radar children */}
                 <NavItem 
                   href="/dashboard/news/sources" 
-                  icon={<Search size={16} className="text-[#BF00FF]/80" />}
+                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
                   active={location.pathname.includes('/dashboard/news/sources')}
                   isChild={true}
                 >
@@ -299,7 +299,7 @@ export const MobileNavigation = () => {
                 
                 <NavItem 
                   href="/dashboard/news/keywords" 
-                  icon={<AlertTriangle size={16} className="text-[#BF00FF]/80" />}
+                  icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />}
                   active={location.pathname.includes('/dashboard/news/keywords')}
                   isChild={true}
                 >
@@ -318,7 +318,7 @@ export const MobileNavigation = () => {
                 {/* Threat Tracker children */}
                 <NavItem 
                   href="/dashboard/threat/sources" 
-                  icon={<Search size={16} className="text-[#00FFFF]/80" />}
+                  icon={<Search size={16} className="text-[#00FFFF]/60" />}
                   active={location.pathname.includes('/dashboard/threat/sources')}
                   isChild={true}
                 >
@@ -327,7 +327,7 @@ export const MobileNavigation = () => {
                 
                 <NavItem 
                   href="/dashboard/threat/keywords" 
-                  icon={<AlertTriangle size={16} className="text-[#00FFFF]/80" />}
+                  icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />}
                   active={location.pathname.includes('/dashboard/threat/keywords')}
                   isChild={true}
                 >
@@ -337,7 +337,7 @@ export const MobileNavigation = () => {
                 {/* News Capsule parent */}
                 <NavItem 
                   href="/dashboard/news-capsule/home" 
-                  icon={<Radar size={20} className="text-[#00FFFF]" />} 
+                  icon={<Radar size={20} className="text-[#BF00FF]" />} 
                   active={location.pathname.startsWith('/dashboard/news-capsule')}
                 >
                   News Capsule
@@ -346,7 +346,7 @@ export const MobileNavigation = () => {
                 {/* News Capsule children */}
                 <NavItem 
                   href="/dashboard/news-capsule/research" 
-                  icon={<Search size={16} className="text-[#00FFFF]/80" />}
+                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
                   active={location.pathname.includes('/dashboard/news-capsule/research')}
                   isChild={true}
                 >
@@ -355,7 +355,7 @@ export const MobileNavigation = () => {
                 
                 <NavItem 
                   href="/dashboard/news-capsule/reports" 
-                  icon={<FileText size={16} className="text-[#00FFFF]/80" />}
+                  icon={<FileText size={16} className="text-[#BF00FF]/60" />}
                   active={location.pathname.includes('/dashboard/news-capsule/reports')}
                   isChild={true}
                 >
@@ -364,7 +364,7 @@ export const MobileNavigation = () => {
                 
                 <NavItem 
                   href="/dashboard/settings" 
-                  icon={<Settings size={18} className="text-[#00FFFF]" />} 
+                  icon={<Settings size={18} className="text-gray-300" />} 
                   active={location.pathname.startsWith('/dashboard/settings')}
                 >
                   Settings
