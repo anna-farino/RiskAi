@@ -66,7 +66,7 @@ export interface IStorage {
     endDate?: Date;
     userId?: string;
   }): Promise<ThreatArticle[]>;
-  getArticleByUrl(url: string, userId?: string): Promise<ThreatArticle | undefined>;
+  getArticleByUrl(url: string, userId: string): Promise<ThreatArticle | undefined>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(
     id: string,
@@ -472,12 +472,12 @@ export const storage: IStorage = {
     }
   },
 
-  getArticleByUrl: async (url: string, userId?: string) => {
+  getArticleByUrl: async (url: string, userId: string) => {
     try {
-      const conditions = [eq(threatArticles.url, url)];
-      if (userId) {
-        conditions.push(eq(threatArticles.userId, userId));
-      }
+      const conditions = [
+        eq(threatArticles.url, url),
+        eq(threatArticles.userId, userId)
+      ];
 
       const results = await db
         .select()
