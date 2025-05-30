@@ -185,70 +185,43 @@ export default function Reports() {
                       const versionText = selectedReport.versionNumber && selectedReport.versionNumber > 1 ? 
                         ` (Version: ${selectedReport.versionNumber})` : '';
                       
-                      let htmlContent = `
-                        <html>
-                        <head>
-                          <meta charset="utf-8">
-                          <title>Executive Report</title>
-                          <style>
-                            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; margin: 1in; }
-                            h1 { text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24pt; }
-                            h2 { text-align: center; font-size: 14pt; margin-bottom: 18pt; }
-                            h3 { font-size: 14pt; font-weight: bold; margin-top: 18pt; margin-bottom: 6pt; }
-                            .field { margin-bottom: 6pt; }
-                            .field-label { font-weight: bold; }
-                            .section { margin-bottom: 18pt; }
-                            .article { margin-bottom: 36pt; border-bottom: 1px solid #ccc; padding-bottom: 18pt; }
-                          </style>
-                        </head>
-                        <body>
-                          <h1>RisqAI News Capsule Reporting</h1>
-                          <h2>Executive Report: ${formatDate(selectedReport.createdAt)}${versionText}</h2>
-                          <p style="text-align: center; margin-bottom: 36pt;">Generated on: ${new Date().toLocaleDateString()}</p>
-                      `;
+                      // Create RTF content that Word can open as DOCX
+                      let rtfContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}
+\\f0\\fs24 \\qc\\b RisqAI News Capsule Reporting\\b0\\par
+\\qc Executive Report: ${formatDate(selectedReport.createdAt)}${versionText}\\par
+\\qc Generated on: ${new Date().toLocaleDateString()}\\par\\par
+`;
                       
                       selectedReport.articles.forEach((article) => {
                         const execNotes = getArticleNote(selectedReport.id, article.id);
                         
-                        htmlContent += `
-                          <div class="article">
-                            <h3>${article.title}</h3>
-                            <div class="field"><span class="field-label">Threat Name:</span> ${article.threatName}</div>
-                            <div class="field"><span class="field-label">Vulnerability ID:</span> ${article.vulnerabilityId}</div>
-                            <div class="field"><span class="field-label">Attack Vector:</span> ${article.attackVector}</div>
-                            <div class="field"><span class="field-label">Target OS:</span> ${article.targetOS}</div>
-                            ${execNotes.trim() ? `<div class="field"><span class="field-label">Executive Notes:</span> ${execNotes}</div>` : ''}
-                            <div class="field"><span class="field-label">Source:</span> ${cleanPublicationName(article.sourcePublication)}</div>
-                            
-                            <div class="section">
-                              <div class="field-label">Summary:</div>
-                              <p>${article.summary}</p>
-                            </div>
-                            
-                            <div class="section">
-                              <div class="field-label">Impacts:</div>
-                              <p>${article.impacts}</p>
-                            </div>
-                            
-                            <div class="field"><span class="field-label">Original URL:</span> ${article.originalUrl}</div>
-                          </div>
-                        `;
+                        rtfContent += `\\ql\\b ${article.title.replace(/[{}\\]/g, '')}\\b0\\par
+\\b Threat Name:\\b0 ${article.threatName.replace(/[{}\\]/g, '')}\\par
+\\b Vulnerability ID:\\b0 ${article.vulnerabilityId.replace(/[{}\\]/g, '')}\\par
+\\b Attack Vector:\\b0 ${article.attackVector.replace(/[{}\\]/g, '')}\\par
+\\b Target OS:\\b0 ${article.targetOS.replace(/[{}\\]/g, '')}\\par`;
+                        
+                        if (execNotes.trim()) {
+                          rtfContent += `\\b Executive Notes:\\b0 ${execNotes.replace(/[{}\\]/g, '').replace(/\n/g, '\\par ')}\\par`;
+                        }
+                        
+                        rtfContent += `\\b Source:\\b0 ${cleanPublicationName(article.sourcePublication).replace(/[{}\\]/g, '')}\\par\\par
+\\b Summary:\\b0\\par
+${article.summary.replace(/[{}\\]/g, '').replace(/\n/g, '\\par ')}\\par\\par
+\\b Impacts:\\b0\\par
+${article.impacts.replace(/[{}\\]/g, '').replace(/\n/g, '\\par ')}\\par\\par
+\\b Original URL:\\b0 ${article.originalUrl.replace(/[{}\\]/g, '')}\\par
+\\par\\par`;
                       });
                       
-                      htmlContent += `
-                          <p style="text-align: center; margin-top: 36pt; font-style: italic;">Report Generated by RisqAI News Capsule</p>
-                        </body>
-                        </html>
-                      `;
+                      rtfContent += `\\qc\\i Report Generated by RisqAI News Capsule\\i0\\par}`;
                       
-                      // Create Word DOCX document with proper MIME type and encoding
-                      const blob = new Blob(['\ufeff', htmlContent], { 
-                        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-                      });
+                      // Create downloadable file
+                      const blob = new Blob([rtfContent], { type: 'application/rtf' });
                       const url = URL.createObjectURL(blob);
                       const link = document.createElement('a');
                       link.href = url;
-                      link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.docx`;
+                      link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.rtf`;
                       link.style.display = 'none';
                       document.body.appendChild(link);
                       link.click();
