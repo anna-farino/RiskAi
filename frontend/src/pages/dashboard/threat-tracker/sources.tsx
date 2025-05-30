@@ -116,7 +116,7 @@ export default function Sources() {
     },
   });
 
-  // Fetch sources
+  // Fetch sources with refetch on window focus for navigation remounting
   const sources = useQuery<ThreatSource[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/sources`],
     queryFn: async () => {
@@ -136,7 +136,10 @@ export default function Sources() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    }
+    },
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true, // Refetch when returning to page
+    refetchOnMount: true, // Always refetch on component mount
   });
   
   // Sync local state with query data when it changes
@@ -200,12 +203,41 @@ export default function Sources() {
     }
   }, [checkScrapeStatus.data]);
 
-  // Create source mutation
+  // Create source mutation with optimistic updates
   const createSource = useMutation({
     mutationFn: async (values: SourceFormValues) => {
       return apiRequest("POST", `${serverUrl}/api/threat-tracker/sources`, values);
     },
-    onSuccess: () => {
+    onMutate: async (newSource) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+      
+      // Create optimistic source with temporary ID
+      const optimisticSource: ThreatSource = {
+        id: `temp-${Date.now()}`,
+        name: newSource.name,
+        url: newSource.url,
+        active: newSource.active,
+        includeInAutoScrape: newSource.includeInAutoScrape,
+        lastScraped: null,
+        userId: 'current-user',
+        scrapingConfig: null
+      };
+      
+      // Add to local state immediately
+      setLocalSources(prev => [...prev, optimisticSource]);
+      
+      // Store previous state for rollback
+      const previousSources = queryClient.getQueryData([`${serverUrl}/api/threat-tracker/sources`]);
+      return { previousSources, optimisticSource };
+    },
+    onSuccess: (data, _, context) => {
+      // Replace optimistic source with real one
+      setLocalSources(prev => 
+        prev.map(source => 
+          source.id === context?.optimisticSource.id ? data : source
+        )
+      );
       toast({
         title: "Source created",
         description: "Your source has been added successfully.",
@@ -214,7 +246,13 @@ export default function Sources() {
       form.reset();
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.optimisticSource) {
+        setLocalSources(prev => 
+          prev.filter(source => source.id !== context.optimisticSource.id)
+        );
+      }
       console.error("Error creating source:", error);
       toast({
         title: "Error creating source",
@@ -249,10 +287,20 @@ export default function Sources() {
     },
   });
 
-  // Delete source mutation
+  // Delete source mutation with optimistic updates
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/sources/${id}`);
+    },
+    onMutate: async (deletedId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+      
+      // Remove from local state immediately
+      const previousSources = [...localSources];
+      setLocalSources(prev => prev.filter(source => source.id !== deletedId));
+      
+      return { previousSources, deletedId };
     },
     onSuccess: () => {
       toast({
@@ -261,7 +309,11 @@ export default function Sources() {
       });
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
       console.error("Error deleting source:", error);
       toast({
         title: "Error deleting source",
