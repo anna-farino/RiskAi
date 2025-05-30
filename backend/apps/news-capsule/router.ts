@@ -67,6 +67,8 @@ router.delete('/articles/:id', async (req, res) => {
     const userId = (req as FullRequest).user.id;
     const articleId = req.params.id;
     
+    console.log(`Attempting to delete article ${articleId} for user ${userId}`);
+    
     // Verify the article belongs to the user before deleting
     const existingArticle = await db
       .select()
@@ -75,21 +77,27 @@ router.delete('/articles/:id', async (req, res) => {
       .limit(1);
     
     if (existingArticle.length === 0) {
+      console.log(`Article ${articleId} not found`);
       return res.status(404).json({ error: 'Article not found' });
     }
     
     if (existingArticle[0].userId !== userId) {
+      console.log(`User ${userId} not authorized to delete article ${articleId}`);
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
-    await db
+    // Hard delete the article from the database
+    const deleteResult = await db
       .delete(capsuleArticles)
       .where(eq(capsuleArticles.id, articleId));
+    
+    console.log(`Delete result for article ${articleId}:`, deleteResult);
     
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting capsule article:', error);
-    res.status(500).json({ error: 'Failed to delete article' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to delete article', details: error.message });
   }
 });
 
