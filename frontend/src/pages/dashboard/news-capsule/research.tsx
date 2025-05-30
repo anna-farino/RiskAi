@@ -914,38 +914,13 @@ export default function Research() {
             )}
           </div>
           
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => {
-                // Remove duplicates from both lists
-                const uniqueProcessed = processedArticles.filter((article, index, self) => 
-                  index === self.findIndex(a => a.id === article.id)
-                );
-                const uniqueSelected = selectedArticles.filter((article, index, self) => 
-                  index === self.findIndex(a => a.id === article.id)
-                );
-                
-                setProcessedArticles(uniqueProcessed);
-                setSelectedArticles(uniqueSelected);
-                
-                // Update storage
-                localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueProcessed));
-                localStorage.setItem('savedSelectedArticles', JSON.stringify(uniqueSelected));
-                
-                console.log("Fixed duplicates - now you can remove articles properly");
-              }}
-              className="px-3 py-2 text-sm bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-400 rounded-md border border-yellow-700/30"
-            >
-              Fix Duplicates
-            </button>
-            <button
-              onClick={sendToExecutiveReport}
-              disabled={selectedArticles.length === 0 || isLoading}
-              className="flex-1 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
-            >
-              {isLoading ? "Processing..." : "Send to Executive Report"}
-            </button>
-          </div>
+          <button
+            onClick={sendToExecutiveReport}
+            disabled={selectedArticles.length === 0 || isLoading}
+            className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+          >
+            {isLoading ? "Processing..." : "Send to Executive Report"}
+          </button>
           
           <button
             onClick={async () => {
