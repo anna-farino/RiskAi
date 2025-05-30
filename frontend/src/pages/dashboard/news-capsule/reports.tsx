@@ -205,6 +205,45 @@ export default function Reports() {
                   >
                     Print Report
                   </button>
+                  
+                  <button
+                    className="px-3 py-1 text-sm bg-purple-700 hover:bg-purple-600 rounded-md"
+                    onClick={() => {
+                      // Build text report content
+                      let content = `EXECUTIVE REPORT\n`;
+                      content += `Date: ${formatDate(selectedReport.createdAt)}\n`;
+                      content += `Generated: ${new Date().toLocaleDateString()}\n`;
+                      content += `Articles: ${selectedReport.articles.length}\n\n`;
+                      content += `${'='.repeat(50)}\n\n`;
+                      
+                      selectedReport.articles.forEach((article, idx) => {
+                        const notes = getArticleNote(selectedReport.id, article.id);
+                        content += `ARTICLE ${idx + 1}\n`;
+                        content += `${'─'.repeat(20)}\n`;
+                        content += `Title: ${article.title}\n`;
+                        content += `Threat: ${article.threatName}\n`;
+                        content += `Vulnerability: ${article.vulnerabilityId}\n`;
+                        content += `Attack Vector: ${article.attackVector}\n`;
+                        content += `Target OS: ${article.targetOS}\n`;
+                        if (notes.trim()) {
+                          content += `Executive Notes: ${notes}\n`;
+                        }
+                        content += `Source: ${cleanPublicationName(article.sourcePublication)}\n\n`;
+                        content += `Summary:\n${article.summary}\n\n`;
+                        content += `Impacts:\n${article.impacts}\n\n`;
+                        content += `URL: ${article.originalUrl}\n\n`;
+                      });
+                      
+                      // Create download
+                      const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(content);
+                      const downloadAnchorNode = document.createElement('a');
+                      downloadAnchorNode.setAttribute("href", dataStr);
+                      downloadAnchorNode.setAttribute("download", `Report_${formatDate(selectedReport.createdAt).replace(/[^a-zA-Z0-9]/g, '_')}.txt`);
+                      downloadAnchorNode.click();
+                    }}
+                  >
+                    Export to Text
+                  </button>
                 </div>
               </div>
               
