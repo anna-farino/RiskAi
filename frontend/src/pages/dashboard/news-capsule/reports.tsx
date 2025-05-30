@@ -9,6 +9,7 @@ export default function Reports() {
   const [draggedArticle, setDraggedArticle] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
@@ -159,10 +160,23 @@ export default function Reports() {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="relative">
                   <button
-                    className="px-3 py-1 text-sm bg-blue-700 hover:bg-blue-600 rounded-md"
-                    onClick={async () => {
+                    className="px-4 py-2 text-sm bg-blue-700 hover:bg-blue-600 rounded-md flex items-center gap-2"
+                    onClick={() => setShowExportDropdown(!showExportDropdown)}
+                  >
+                    Exports
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {showExportDropdown && (
+                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md"
+                        onClick={async () => {
+                          setShowExportDropdown(false);
                       try {
                         // Create document sections
                         const sections = [];
@@ -432,13 +446,15 @@ export default function Reports() {
                         console.error('Error creating Word document:', error);
                         alert('Error creating Word document. Please try again.');
                       }
-                    }}
-                  >
-                    Export to Word
-                  </button>
-                  <button
-                    className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
-                    onClick={() => {
+                        }}
+                      >
+                        Export to Word
+                      </button>
+                      
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        onClick={() => {
+                          setShowExportDropdown(false);
                       // Add print-specific styling
                       const printStyle = document.createElement('style');
                       printStyle.id = 'print-style';
@@ -586,13 +602,15 @@ export default function Reports() {
                         // Restore original title
                         document.title = originalTitle;
                       }, 1000);
-                    }}
-                  >
-                    Print
-                  </button>
-                  <button
-                    className="px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded-md"
-                    onClick={() => {
+                        }}
+                      >
+                        Print
+                      </button>
+                      
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        onClick={() => {
+                          setShowExportDropdown(false);
                       // Get all reports from today to check if multiple versions exist
                       const savedReportsStr = localStorage.getItem('newsCapsuleReports');
                       if (savedReportsStr) {
