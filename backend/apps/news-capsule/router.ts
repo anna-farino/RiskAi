@@ -60,22 +60,11 @@ router.delete('/articles/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
-    // Check if article is in any reports
-    const reportsWithArticle = await db.execute(sql`SELECT COUNT(*) as count FROM capsule_articles_in_reports WHERE article_id = ${articleId}`);
-    const isInReports = reportsWithArticle[0]?.count > 0;
-    
-    if (isInReports) {
-      // Article is in reports - mark it as deleted for processing list but keep in database
-      await db
-        .update(capsuleArticles)
-        .set({ markedForDeletion: true })
-        .where(eq(capsuleArticles.id, articleId));
-    } else {
-      // Article is not in any reports - safe to delete completely
-      await db
-        .delete(capsuleArticles)
-        .where(eq(capsuleArticles.id, articleId));
-    }
+    // Always mark article as deleted for processing list but keep in database for reports
+    await db
+      .update(capsuleArticles)
+      .set({ markedForDeletion: true })
+      .where(eq(capsuleArticles.id, articleId));
     
     res.json({ success: true });
   } catch (error) {
