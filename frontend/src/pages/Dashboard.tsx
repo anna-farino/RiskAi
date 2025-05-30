@@ -158,31 +158,57 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
-                <div className="flex items-center">
-                  <Search className="w-5 h-5 mr-3 text-[#00FFFF]" />
-                  <div>
+            <div className="space-y-2">
+              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <Search className="w-4 h-4 mr-2 text-[#00FFFF]" />
                     <h4 className="text-sm font-medium">Article Research</h4>
-                    <p className="text-xs text-gray-400">Analyze and process articles</p>
                   </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
+                    Ready
+                  </span>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
-                  Ready
-                </span>
+                <p className="text-xs text-gray-400">AI-powered article analysis and processing</p>
               </div>
               
-              <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
-                <div className="flex items-center">
-                  <Database className="w-5 h-5 mr-3 text-[#00FFFF]" />
-                  <div>
+              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <Database className="w-4 h-4 mr-2 text-[#00FFFF]" />
                     <h4 className="text-sm font-medium">Executive Reports</h4>
-                    <p className="text-xs text-gray-400">Daily compiled insights</p>
                   </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-blue-900/30 text-blue-400 border border-blue-500/20">
+                    Active
+                  </span>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-blue-900/30 text-blue-400 border border-blue-500/20">
-                  Active
-                </span>
+                <p className="text-xs text-gray-400">Daily compiled insights for leadership</p>
+              </div>
+
+              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-2 text-[#BF00FF]" />
+                    <h4 className="text-sm font-medium">Threat Intelligence</h4>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-orange-900/30 text-orange-400 border border-orange-500/20">
+                    Processing
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">Security-focused article categorization</p>
+              </div>
+
+              <div className="bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-2 text-[#00FFFF]" />
+                    <h4 className="text-sm font-medium">Trend Analysis</h4>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-purple-900/30 text-purple-400 border border-purple-500/20">
+                    Scheduled
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">Pattern recognition across news sources</p>
               </div>
             </div>
           </RisqWidget>
