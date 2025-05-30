@@ -856,8 +856,7 @@ export default function Sources() {
                 onClick={() => stopGlobalScrape.mutate()}
                 disabled={stopGlobalScrape.isPending}
                 size="sm"
-                variant="destructive"
-                className="h-9 px-2 sm:px-3"
+                className="bg-red-600 hover:bg-red-600/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-3"
               >
                 {stopGlobalScrape.isPending ? (
                   <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
@@ -872,7 +871,7 @@ export default function Sources() {
                 onClick={() => runGlobalScrape.mutate()}
                 disabled={runGlobalScrape.isPending}
                 size="sm"
-                className="bg-primary hover:bg-primary/90 h-9 px-2 sm:px-3"
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-3"
               >
                 {runGlobalScrape.isPending ? (
                   <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
@@ -929,7 +928,7 @@ export default function Sources() {
               <Button 
                 type="submit" 
                 disabled={addSource.isPending}
-                className="bg-primary hover:bg-primary/90 h-9 sm:h-10 px-3 sm:px-4"
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 sm:h-10 px-3 sm:px-4"
               >
                 {addSource.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -994,7 +993,7 @@ export default function Sources() {
             </div>
             <h3 className="text-xl font-medium text-white mb-2">No sources added</h3>
             <Button 
-              className=""
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               onClick={() => sources.refetch()}
             >
                 Fetch Sources
