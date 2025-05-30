@@ -119,11 +119,6 @@ export default function Keywords() {
     client: true,
     hardware: true,
   });
-  
-  // Optimistic update states
-  const [pendingOperations, setPendingOperations] = useState<Set<string>>(new Set());
-  const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
-  const [addingItem, setAddingItem] = useState(false);
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
@@ -145,7 +140,7 @@ export default function Keywords() {
     },
   });
 
-  // Fetch keywords with refetch on window focus for navigation remounting
+  // Fetch keywords
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
@@ -168,8 +163,7 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    refetchOnWindowFocus: true,
-    staleTime: 0, // Always consider data stale to ensure fresh data on navigation
+    staleTime: 60000, // Reduce refetching frequency (1 minute)
   });
 
   // Update local state whenever query data changes
@@ -550,30 +544,11 @@ export default function Keywords() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {keywords.map((keyword: ThreatKeyword) => {
-              const isOptimistic = keyword.id.startsWith('temp-');
-              const isDeleting = deletingItems.has(keyword.id);
-              
-              return (
-                <TableRow 
-                  key={keyword.id}
-                  className={`${isOptimistic ? 'bg-blue-50/50 animate-pulse' : ''} ${isDeleting ? 'opacity-50 bg-red-50/30' : ''}`}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {keyword.term}
-                      {isOptimistic && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Adding...
-                        </div>
-                      )}
-                      {isDeleting && (
-                        <div className="flex items-center gap-1 text-xs text-red-600">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Deleting...
-                        </div>
-                      )}
+            {keywords.map((keyword: ThreatKeyword) => (
+              <TableRow key={keyword.id}>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {keyword.term}
                     {keyword.isDefault && (
                       <Badge
                         variant="secondary"
@@ -672,8 +647,7 @@ export default function Keywords() {
                   </div>
                 </TableCell>
               </TableRow>
-            );
-            })}
+            ))}
           </TableBody>
         </Table>
       </div>

@@ -104,11 +104,6 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
-  
-  // Optimistic update states
-  const [pendingOperations, setPendingOperations] = useState<Set<string>>(new Set());
-  const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
-  const [addingItem, setAddingItem] = useState(false);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -121,7 +116,7 @@ export default function Sources() {
     },
   });
 
-  // Fetch sources with refetch on window focus for navigation remounting
+  // Fetch sources
   const sources = useQuery<ThreatSource[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/sources`],
     queryFn: async () => {
@@ -141,9 +136,7 @@ export default function Sources() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    },
-    refetchOnWindowFocus: true,
-    staleTime: 0 // Always consider data stale to ensure fresh data on navigation
+    }
   });
   
   // Sync local state with query data when it changes
@@ -207,65 +200,27 @@ export default function Sources() {
     }
   }, [checkScrapeStatus.data]);
 
-  // Create source mutation with optimistic updates
+  // Create source mutation
   const createSource = useMutation({
     mutationFn: async (values: SourceFormValues) => {
       return apiRequest("POST", `${serverUrl}/api/threat-tracker/sources`, values);
     },
-    onMutate: async (newSource) => {
-      setAddingItem(true);
-      
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
-      
-      // Create optimistic source with temporary ID
-      const optimisticSource: ThreatSource = {
-        id: `temp-${Date.now()}`,
-        name: newSource.name,
-        url: newSource.url,
-        active: newSource.active,
-        includeInAutoScrape: newSource.includeInAutoScrape,
-        scrapingConfig: null,
-        lastScraped: null,
-        userId: 'temp-user'
-      };
-      
-      // Add to local state immediately
-      setLocalSources(prev => [optimisticSource, ...prev]);
-      
-      return { optimisticSource };
-    },
-    onSuccess: (data, variables, context) => {
+    onSuccess: () => {
       toast({
         title: "Source created",
         description: "Your source has been added successfully.",
       });
       setSourceDialogOpen(false);
       form.reset();
-      setAddingItem(false);
-      
-      // Update local state with real data
-      if (context?.optimisticSource) {
-        setLocalSources(prev => prev.map(source => 
-          source.id === context.optimisticSource.id ? data : source
-        ));
-      }
-      
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error, variables, context) => {
+    onError: (error) => {
       console.error("Error creating source:", error);
       toast({
         title: "Error creating source",
         description: "There was an error creating your source. Please try again.",
         variant: "destructive",
       });
-      setAddingItem(false);
-      
-      // Revert optimistic update
-      if (context?.optimisticSource) {
-        setLocalSources(prev => prev.filter(source => source.id !== context.optimisticSource.id));
-      }
     },
   });
 
@@ -294,56 +249,25 @@ export default function Sources() {
     },
   });
 
-  // Delete source mutation with optimistic updates
+  // Delete source mutation
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/sources/${id}`);
     },
-    onMutate: async (id) => {
-      // Add to deleting items for visual feedback
-      setDeletingItems(prev => new Set(prev).add(id));
-      
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
-      
-      // Get the source being deleted for potential rollback
-      const sourceToDelete = localSources.find(source => source.id === id);
-      
-      // Remove from local state immediately
-      setLocalSources(prev => prev.filter(source => source.id !== id));
-      
-      return { sourceToDelete };
-    },
-    onSuccess: (data, id) => {
+    onSuccess: () => {
       toast({
         title: "Source deleted",
         description: "Your source has been deleted successfully.",
       });
-      setDeletingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error, id, context) => {
+    onError: (error) => {
       console.error("Error deleting source:", error);
       toast({
         title: "Error deleting source",
         description: "There was an error deleting your source. Please try again.",
         variant: "destructive",
       });
-      
-      setDeletingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-      
-      // Revert optimistic update
-      if (context?.sourceToDelete) {
-        setLocalSources(prev => [...prev, context.sourceToDelete]);
-      }
     },
   });
 
@@ -798,32 +722,9 @@ export default function Sources() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {localSources.map((source) => {
-            const isOptimistic = source.id.startsWith('temp-');
-            const isDeleting = deletingItems.has(source.id);
-            
-            return (
-              <TableRow 
-                key={source.id}
-                className={`${isOptimistic ? 'bg-blue-50/50 animate-pulse' : ''} ${isDeleting ? 'opacity-50 bg-red-50/30' : ''}`}
-              >
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    {source.name}
-                    {isOptimistic && (
-                      <div className="flex items-center gap-1 text-xs text-blue-600">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Adding...
-                      </div>
-                    )}
-                    {isDeleting && (
-                      <div className="flex items-center gap-1 text-xs text-red-600">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Deleting...
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
+          {localSources.map((source) => (
+            <TableRow key={source.id}>
+              <TableCell className="font-medium">{source.name}</TableCell>
               <TableCell>
                 <a 
                   href={source.url} 
@@ -925,25 +826,9 @@ export default function Sources() {
                 </div>
               </TableCell>
             </TableRow>
-          );
-          })}
+          ))}
         </TableBody>
       </Table>
     );
   }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
-        <p className="text-muted-foreground">
-          Manage sources for threat monitoring and configure auto-scrape settings.
-        </p>
-      </div>
-      
-      {renderAutoScrapeCard()}
-      {renderSourcesCard()}
-      {renderAddSourceDialog()}
-    </div>
-  );
 }
