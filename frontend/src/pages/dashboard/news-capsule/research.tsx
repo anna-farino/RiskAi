@@ -661,7 +661,7 @@ export default function Research() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* URL Input Section */}
         <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
+          <h2 className="text-xl font-semibold mb-4">Submit Article URLs</h2>
           
           <div className="flex flex-col gap-4">
 
