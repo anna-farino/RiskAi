@@ -241,15 +241,23 @@ export default function Reports() {
                         </html>
                       `;
                       
-                      const blob = new Blob([htmlContent], { type: 'application/msword' });
+                      // Create Word document with proper MIME type and encoding
+                      const blob = new Blob(['\ufeff', htmlContent], { 
+                        type: 'application/vnd.ms-word;charset=utf-8' 
+                      });
                       const url = URL.createObjectURL(blob);
                       const link = document.createElement('a');
                       link.href = url;
                       link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/[^a-z0-9]/gi, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.doc`;
+                      link.style.display = 'none';
                       document.body.appendChild(link);
                       link.click();
-                      document.body.removeChild(link);
-                      URL.revokeObjectURL(url);
+                      
+                      // Clean up
+                      setTimeout(() => {
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                      }, 100);
                     }}
                   >
                     Export to Word
