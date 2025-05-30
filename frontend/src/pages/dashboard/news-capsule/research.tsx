@@ -851,15 +851,23 @@ export default function Research() {
                 No articles selected yet
               </p>
             ) : (
-              selectedArticles.map((article) => (
+              selectedArticles.map((article, index) => (
                 <div 
-                  key={article.id}
+                  key={`selected-${article.id}-${index}`}
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
                     <h4 className="text-sm font-medium mb-1">{article.title}</h4>
                     <button
-                      onClick={() => removeSelectedArticle(article.id)}
+                      onClick={() => {
+                        // Direct removal by filtering out this specific index
+                        const newSelected = selectedArticles.filter((_, i) => i !== index);
+                        setSelectedArticles(newSelected);
+                        storedSelectedArticles.length = 0;
+                        storedSelectedArticles.push(...newSelected);
+                        localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
+                        console.log("Removed article at index:", index);
+                      }}
                       className="text-red-400 hover:text-red-300"
                     >
                       ✕
