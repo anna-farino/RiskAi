@@ -3,9 +3,9 @@ import jwt from 'jsonwebtoken';
 import otpGenerator from 'otp-generator' 
 import { hashString } from "./auth"
 import express, { CookieOptions } from 'express'
-import { sendEmailJs } from "./sendEmailJs"
 import { db } from "../../backend/db/db"
 import { otps } from "@shared/db/schema/otps"
+import sendGrid from "./sendGrid";
 
 
 type Args = {
@@ -41,14 +41,25 @@ export async function generateOtpAndSendToUser({
   }
   console.log("🔐 [OTP] OTP hashed");
 
-  const templateParams = { 
-    email, 
-    otp
-  };
+  //Old emailJS stuff
+  //const templateParams = { 
+  //  email, 
+  //  otp
+  //};
   
   try {
-    const template = process.env.EMAILJS_TEMPLATE_OTP_ID as string
-    sendEmailJs({ template, templateParams })
+    //const template = process.env.EMAILJS_TEMPLATE_OTP_ID as string
+    //sendEmailJs({ template, templateParams })
+    await sendGrid({
+      to: email,
+      subject: "Your One-Time Password",
+      text: `Your One-Time Password (OTP) is:
+
+${otp}
+
+(It will expire after 5 minutes)
+`
+    })
 
     console.log("🔐 [OTP] Email sent correctly");
   } catch(err) {

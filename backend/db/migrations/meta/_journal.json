@@ -120,6 +120,13 @@
       "when": 1747778063372,
       "tag": "0016_kind_kinsey_walden",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1748463340700,
+      "tag": "0017_useful_living_tribunal",
+      "breakpoints": true
     }
   ]
 }
