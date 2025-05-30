@@ -31,13 +31,10 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
     
-    // Check if we already have this article FOR THIS USER
-    const existingArticles = await storage.getArticles({
-      search: articleUrl,
-      userId: userId
-    });
+    // Check if we already have this article FOR THIS USER using exact URL match
+    const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
     
-    if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
+    if (existingArticle) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
       return null;
     }

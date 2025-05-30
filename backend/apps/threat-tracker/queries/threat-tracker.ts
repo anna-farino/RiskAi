@@ -66,6 +66,7 @@ export interface IStorage {
     endDate?: Date;
     userId?: string;
   }): Promise<ThreatArticle[]>;
+  getArticleByUrl(url: string, userId?: string): Promise<ThreatArticle | undefined>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(
     id: string,
@@ -467,6 +468,25 @@ export const storage: IStorage = {
       return results[0];
     } catch (error) {
       console.error("Error fetching threat article:", error);
+      return undefined;
+    }
+  },
+
+  getArticleByUrl: async (url: string, userId?: string) => {
+    try {
+      const conditions = [eq(threatArticles.url, url)];
+      if (userId) {
+        conditions.push(eq(threatArticles.userId, userId));
+      }
+
+      const results = await db
+        .select()
+        .from(threatArticles)
+        .where(and(...conditions))
+        .execute();
+      return results[0];
+    } catch (error) {
+      console.error("Error fetching threat article by URL:", error);
       return undefined;
     }
   },
