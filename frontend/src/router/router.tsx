@@ -5,8 +5,18 @@ import { createBrowserRouter } from 'react-router-dom'
 import { authChildren } from './auth/auth-children.tsx'
 import { dashboardChildren } from './dashboard/dashboardChildren.tsx'
 import DashboardLayout from '@/components/layout/DashboardLayout.tsx'
+import Auth0ProviderWithNavigate from '@/auth0-provider-with-navigate.tsx'
+import LoginPageForAuth0 from '@/login-page-for-auth0.tsx'
 
 export const router = createBrowserRouter([
+  {
+    path: 'login',
+    element:
+      <Auth0ProviderWithNavigate>
+        <LoginPageForAuth0/>
+      </Auth0ProviderWithNavigate>,
+    index: true
+  },
   {
     path: '/auth',
     element: <AuthLayout/>,
@@ -20,8 +30,8 @@ export const router = createBrowserRouter([
     hydrateFallbackElement: <h1>Loading...</h1>,
     children: dashboardChildren 
   },
-  {
-    path: '*',
-    element: <Redirect/>
-  },
+  //{
+  //  path: '*',
+  //  element: <Redirect/>
+  //},
 ])

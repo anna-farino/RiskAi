@@ -15,9 +15,35 @@ import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to t
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
 import { auth0 } from 'backend/middleware/auth0';
+//import { auth, requiresAuth } from 'express-openid-connect';
+
+const config = {
+  authRequired: false,
+  auth0Logout: true,
+  baseURL: 'http://localhost:3000',
+  clientID: 'e0fDdUxBsIoxw2KHFeXPWkOoHY1B9Arz',
+  issuerBaseURL: 'https://dev-t5wd7j8putzpb6ev.us.auth0.com',
+  secret: 'LONG_RANDOM_STRING'
+};
+
+// The `auth` router attaches /login, /logout
+// and /callback routes to the baseURL
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
+//router.use(auth(config));
+router.get('/auth0test', 
+  auth0, 
+  (req, res) => {
+  res.json({ loggedIn: true })
+})
+//router.get('/auth0test', 
+//  //requiresAuth(), 
+//  (req, res) => {
+//  console.log("SUCCESS!")
+//  res.json({ loggedIn: req.oidc.isAuthenticated() })
+//  //res.json({ result: "success!" })
+//})
 
 // HELLO WORLD route
 //router.get('/test', limiter, handleTest)
@@ -30,7 +56,7 @@ router.use('/auth', limiter, authRouter)
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 //router.use(verifyToken)
-router.use(auth0)
+//router.use(auth0)
 
 // PROTECTED ROUTES
 router.use('/users', usersRouter)
