@@ -35,7 +35,7 @@ export default function LoginPageForAuth0() {
         accessToken = await getAccessTokenSilently({
           authorizationParams: {
             audience: 'http://localhost:5002',
-            scope: 'read:settings write:settings'
+            //scope: 'read:settings write:settings'
           }
         })
       } catch(error) {
@@ -64,6 +64,9 @@ export default function LoginPageForAuth0() {
     }
   })
   console.log("is authenticated:", isAuthenticated, user)
+
+
+
   return (
     <div className="flex flex-row w-full gap-4 p-10 bg-blue-800">
       <button
