@@ -37,52 +37,26 @@ interface ArticleSummary {
   createdAt: string;
   markedForReporting: boolean;
   markedForDeletion: boolean;
+  sourceApp?: string; // Track which app sent this article
 }
 
-// Function to determine article source based on URL and sourcePublication
-const getArticleSource = (article: ArticleSummary) => {
-  const url = article.originalUrl.toLowerCase();
-  const source = article.sourcePublication.toLowerCase();
+// Function to determine which app sent the article
+const getSourceAppIndicator = (article: ArticleSummary) => {
+  const sourceApp = article.sourceApp || 'manual';
   
-  // Check for News Radar indicators (when they exist)
-  if (source.includes('news radar') || url.includes('newsradar') || source.includes('newsradar')) {
-    return { type: 'news-radar', label: 'News Radar', color: 'bg-blue-500', textColor: 'text-blue-100' };
+  switch (sourceApp) {
+    case 'news-radar':
+      return { label: 'NR', color: 'bg-blue-500', textColor: 'text-blue-100' };
+    case 'threat-tracker':
+      return { label: 'TT', color: 'bg-red-500', textColor: 'text-red-100' };
+    case 'news-tracker':
+      return { label: 'NT', color: 'bg-green-500', textColor: 'text-green-100' };
+    default:
+      return { label: 'M', color: 'bg-gray-500', textColor: 'text-gray-100' };
   }
-  
-  // Check for Threat Tracker indicators  
-  if (source.includes('threat tracker') || url.includes('threattracker') || source.includes('threattracker')) {
-    return { type: 'threat-tracker', label: 'Threat Tracker', color: 'bg-red-500', textColor: 'text-red-100' };
-  }
-  
-  // Check for News Tracker indicators
-  if (source.includes('news tracker') || url.includes('newstracker') || source.includes('newstracker')) {
-    return { type: 'news-tracker', label: 'News Tracker', color: 'bg-green-500', textColor: 'text-green-100' };
-  }
-  
-  // Check for major cybersecurity news sources
-  if (source.includes('hacker news') || url.includes('thehackernews')) {
-    return { type: 'hackernews', label: 'Hacker News', color: 'bg-orange-500', textColor: 'text-orange-100' };
-  }
-  
-  if (source.includes('cyber security news') || url.includes('cybersecuritynews')) {
-    return { type: 'cybersec', label: 'CyberSec News', color: 'bg-purple-500', textColor: 'text-purple-100' };
-  }
-  
-  if (source.includes('gbhackers') || url.includes('gbhackers')) {
-    return { type: 'gbhackers', label: 'GBHackers', color: 'bg-indigo-500', textColor: 'text-indigo-100' };
-  }
-  
-  if (source.includes('securityweek') || url.includes('securityweek')) {
-    return { type: 'secweek', label: 'SecurityWeek', color: 'bg-emerald-500', textColor: 'text-emerald-100' };
-  }
-  
-  if (source.includes('sc media') || url.includes('scworld')) {
-    return { type: 'scmedia', label: 'SC Media', color: 'bg-cyan-500', textColor: 'text-cyan-100' };
-  }
-  
-  // Default for other sources
-  return { type: 'other', label: 'Other Source', color: 'bg-gray-500', textColor: 'text-gray-100' };
 };
+
+
 
 export default function Research() {
   const [url, setUrl] = useState("");
@@ -809,19 +783,7 @@ export default function Research() {
                   className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-medium">{article.title}</h3>
-                        {(() => {
-                          const source = getArticleSource(article);
-                          return (
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${source.color} ${source.textColor}`}>
-                              {source.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
+                    <h3 className="text-lg font-medium">{article.title}</h3>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
@@ -934,22 +896,10 @@ export default function Research() {
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-sm font-medium">{article.title}</h4>
-                        {(() => {
-                          const source = getArticleSource(article);
-                          return (
-                            <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${source.color} ${source.textColor}`}>
-                              {source.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
+                    <h4 className="text-sm font-medium mb-1">{article.title}</h4>
                     <button
                       onClick={() => removeSelectedArticle(article.id)}
-                      className="text-red-400 hover:text-red-300 ml-2"
+                      className="text-red-400 hover:text-red-300"
                     >
                       ✕
                     </button>

@@ -18,6 +18,7 @@ export const capsuleArticles = pgTable("capsule_articles", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   markedForReporting: boolean("marked_for_reporting").default(true).notNull(),
   markedForDeletion: boolean("marked_for_deletion").default(false).notNull(),
+  sourceApp: text("source_app").default("manual").notNull(), // Track which app sent this article
   userId: uuid("user_id").notNull().references(() => users.id),
 });
 
@@ -37,6 +38,7 @@ export const insertCapsuleArticleSchema = z.object({
   targetOS: z.string().default("Unspecified"),
   markedForReporting: z.boolean().default(true),
   markedForDeletion: z.boolean().default(false),
+  sourceApp: z.string().default("manual"),
   userId: z.string().uuid(),
 });
 
