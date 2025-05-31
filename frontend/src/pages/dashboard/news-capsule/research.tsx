@@ -783,8 +783,40 @@ export default function Research() {
                   className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <h3 className="text-lg font-medium">{article.title}</h3>
+                    <h3 className="text-lg font-medium flex-1">{article.title}</h3>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const isSelected = selectedArticles.some(selected => selected.title === article.title);
+                            if (isSelected) {
+                              // Remove from selected articles
+                              const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
+                              setSelectedArticles(newSelected);
+                              storedSelectedArticles.length = 0;
+                              storedSelectedArticles.push(...newSelected);
+                              localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
+                              console.log("Removed from selection:", article.title);
+                            } else {
+                              // Add to selected articles
+                              selectForReport(article);
+                            }
+                          }}
+                          className={`w-32 px-3 py-1 text-sm rounded-md border ${
+                            selectedArticles.some(selected => selected.title === article.title) 
+                              ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
+                              : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
+                          }`}
+                        >
+                          {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
+                        </button>
+                        <button
+                          onClick={() => removeProcessedArticle(article.id)}
+                          className="w-8 h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                        >
+                          ×
+                        </button>
+                      </div>
                       {(() => {
                         const indicator = getSourceAppIndicator(article);
                         return (
@@ -793,38 +825,6 @@ export default function Research() {
                           </span>
                         );
                       })()}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const isSelected = selectedArticles.some(selected => selected.title === article.title);
-                          if (isSelected) {
-                            // Remove from selected articles
-                            const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
-                            setSelectedArticles(newSelected);
-                            storedSelectedArticles.length = 0;
-                            storedSelectedArticles.push(...newSelected);
-                            localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
-                            console.log("Removed from selection:", article.title);
-                          } else {
-                            // Add to selected articles
-                            selectForReport(article);
-                          }
-                        }}
-                        className={`w-32 px-3 py-1 text-sm rounded-md border ${
-                          selectedArticles.some(selected => selected.title === article.title) 
-                            ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
-                            : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
-                        }`}
-                      >
-                        {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
-                      </button>
-                      <button
-                        onClick={() => removeProcessedArticle(article.id)}
-                        className="w-8 h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
-                      >
-                        ×
-                      </button>
                     </div>
                   </div>
                   
@@ -906,8 +906,14 @@ export default function Research() {
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2 flex-1">
-                      <h4 className="text-sm font-medium mb-1">{article.title}</h4>
+                    <h4 className="text-sm font-medium mb-1 flex-1">{article.title}</h4>
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        onClick={() => removeSelectedArticle(article.id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        ✕
+                      </button>
                       {(() => {
                         const indicator = getSourceAppIndicator(article);
                         return (
@@ -917,12 +923,6 @@ export default function Research() {
                         );
                       })()}
                     </div>
-                    <button
-                      onClick={() => removeSelectedArticle(article.id)}
-                      className="text-red-400 hover:text-red-300 ml-2"
-                    >
-                      ✕
-                    </button>
                   </div>
                   <p className="text-xs text-slate-400 mb-2">
                     {article.threatName}
