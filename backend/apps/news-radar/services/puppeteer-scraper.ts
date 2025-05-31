@@ -8,6 +8,7 @@ import vanillaPuppeteer from 'puppeteer';
 import * as fs from 'fs';
 import dotenv from 'dotenv';
 import dotenvConfig from 'backend/utils/dotenv-config';
+import { runQueuedPuppeteerJob } from 'shared/db/puppeteer-queue';
 
 dotenvConfig(dotenv)
 
@@ -118,22 +119,28 @@ async function extractArticleLinks(page: Page): Promise<string> {
 export async function scrapePuppeteer(
   url: string,
   isArticlePage: boolean = false,
-  scrapingConfig: any
+  scrapingConfig: any,
+  queueOptions?: { userId?: string }
 ): Promise<string> {
-  let browser: Browser | null = null;
-  let page: Page | null = null;
-  log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
+  return runQueuedPuppeteerJob({
+    inputData: { url, isArticlePage, scrapingConfig },
+    userId: queueOptions?.userId,
+    sourceApp: 'news-radar',
+    fn: async () => {
+      let browser: Browser | null = null;
+      let page: Page | null = null;
+      log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
 
-  // Simple URL validation
-  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-    throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
-  }
-  log('[scrapePuppeteer] Before Launching new browser, memory usage', process.memoryUsage());
+      // Simple URL validation
+      if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+        throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
+      }
+      log('[scrapePuppeteer] Before Launching new browser, memory usage', process.memoryUsage());
 
-  try {
-    // Launch the browser afresh for every call for lowest memory use
-    log('[scrapePuppeteer] 🟢 Launching new browser instance');
-    browser = await puppeteer.launch({
+      try {
+        // Launch the browser afresh for every call for lowest memory use
+        log('[scrapePuppeteer] 🟢 Launching new browser instance');
+        browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -398,6 +405,6 @@ export async function scrapePuppeteer(
       }
     }
   }
-}
+}})}
 
 
