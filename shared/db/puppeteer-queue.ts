@@ -90,14 +90,46 @@ export async function runQueuedPuppeteerJob<T>({
 )
   : Promise<T> 
 {
+  const logTitle = "[QUEUE PUPPETEER]"
+  function log(str: string) { 
+    console.log(logTitle+" "+str)
+  }
+  log("Beging queueing")
+  log("Looking for stale jobs...")
+
+  const numberOfStaleJobs = await markStaleJobsAsFailed()
+
+  log("Stale jobs found: "+numberOfStaleJobs)
+  log("Enqueueing job...")
+
   const job = await enqueuePuppeteerJob({ inputData, userId, sourceApp });
   await waitForTurnAndStart(job.id);
+  log("My turn")
   try {
     const result = await fn(job.id);
+    log("Marking the job as Done")
     await markJobDone(job.id, result);
     return result;
   } catch (e) {
+    log("Marking the job as Failed")
     await markJobFailed(job.id, e);
     throw e;
   }
+}
+
+
+export async function markStaleJobsAsFailed(): Promise<number> {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const staleJobs = await db
+    .select()
+    .from(puppeteerJobQueue)
+    .where(and(
+      eq(puppeteerJobQueue.status, 'running'),
+      sql`${puppeteerJobQueue.updatedAt} < ${fiveMinutesAgo}`
+    ));
+
+  for (const job of staleJobs) {
+    await markJobFailed(job.id, 'Job exceeded 5 minutes running time');
+  }
+  return staleJobs.length
 }
