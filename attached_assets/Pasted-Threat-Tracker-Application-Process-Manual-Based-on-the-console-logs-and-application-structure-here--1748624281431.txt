@@ -1,0 +1,102 @@
+Threat Tracker Application Process Manual
+Based on the console logs and application structure, here's the step-by-step process that occurs in the Threat Tracker app:
+
+Overview
+The Threat Tracker is a third module within the application that operates similarly to News Radar but focuses specifically on threat-related articles and intelligence.
+
+Backend Process Flow
+1. Threat Data Repository
+Maintains a specialized database of threat-related articles
+Uses /api/threat-tracker/articles as the primary endpoint
+Stores threat intelligence with searchable metadata
+Operates independently from News Radar and News Capsule databases
+2. API Architecture
+Follows the same authentication pattern as other modules
+Requires valid user session for access
+Returns JSON-formatted threat article data
+Supports real-time filtering and search capabilities
+Data Fetching Process
+3. Request Initialization
+Component Load: Threat Tracker interface loads in the browser
+Authentication Check: System verifies user login status
+API Call Preparation: Frontend constructs request parameters
+Server Communication: Authenticated request sent to threat tracker endpoint
+4. Filter Parameter Processing
+The system processes the same filter structure as News Radar:
+
+Default Parameters:
+
+Search string: "" (empty)
+Keyword IDs: [] (empty array)
+Parameter Flow:
+
+Frontend builds filter object with search and keyword criteria
+Parameters are logged for debugging: {"search":"","keywordIds":[]}
+Request includes authentication headers
+Backend processes filters against threat database
+5. Response Handling
+Database Query: Backend searches threat articles using provided filters
+Result Processing: Articles matching criteria are collected
+Response Generation: Server returns count and article data
+Frontend Update: Interface displays "Received filtered articles: 0"
+Filtering System Architecture
+6. Search Capabilities
+Text Search: Users can search through threat article content
+Keyword Filtering: Threat-specific keywords for categorization
+Combined Filters: Multiple criteria can be applied simultaneously
+Real-time Results: Interface updates as filters change
+7. Empty Result Handling
+Current logs show zero results, indicating:
+
+No articles currently match the default (empty) filter criteria
+Database may be empty or filters are too restrictive
+System properly handles and displays empty states
+No errors in the data retrieval process
+Integration Architecture
+8. Multi-Module Coordination
+The application runs three parallel tracking systems:
+
+Sequential Loading:
+
+News Tracker articles fetched first
+Threat Tracker articles fetched second
+Both use identical parameter structures
+Independent result sets maintained
+Shared Components:
+
+Same authentication system across all modules
+Consistent API design patterns
+Similar filtering interface design
+Common error handling approaches
+9. User Workflow
+Module Selection: User navigates to Threat Tracker section
+Data Loading: System automatically fetches available threat articles
+Filter Application: User can apply search terms and keyword filters
+Result Display: Matching threats are shown in the interface
+Article Review: Users can examine individual threat details
+Technical Implementation
+10. Database Structure
+Separate threat article storage from news articles
+Threat-specific metadata fields
+Keyword taxonomy for threat categorization
+Optimized for security intelligence queries
+11. Performance Characteristics
+Parallel loading with News Radar for efficiency
+Client-side filtering interface for responsive user experience
+Server-side query processing for accuracy
+Minimal network overhead with targeted requests
+12. Error Management
+Graceful handling of empty result sets
+Network failure recovery
+Authentication timeout management
+Consistent logging for debugging
+Data Flow Summary
+The Threat Tracker follows this complete cycle:
+
+User accesses Threat Tracker module
+System makes authenticated request to /api/threat-tracker/articles
+Backend processes filter parameters against threat database
+Results (currently 0 articles) are returned to frontend
+Interface updates to display available threats
+Users can interact with filtering controls to refine results
+This specialized threat tracking system complements the broader news monitoring capabilities, providing focused intelligence on security threats while maintaining the same user experience patterns as the other application modules.
