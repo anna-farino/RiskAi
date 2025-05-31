@@ -1,0 +1,8 @@
+## Next Steps & Recommendations
+
+• Review your scrape-article logic. Make sure for each loop within a single queue job:
+  • Pages and browsers are closed after each operation.
+  • Large results/HTML are not held in memory if not needed.
+• Consider processing fewer articles per job, or split each scrape into smaller subtasks.
+
+If you want, I can review your exact job scraping logic and point out where to insert cleanup so you don’t OOM/killed in production! Let me know if you want this fix applied or a direct scan of your job processor code.

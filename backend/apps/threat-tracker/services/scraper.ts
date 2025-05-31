@@ -69,8 +69,12 @@ let browser: Browser | null = null;
  * Get or create a browser instance
  */
 async function getBrowser(): Promise<Browser> {
+  log(`[ThreatTracker][getBrowser] Current browser is ${browser ? 'initialized' : 'null/undefined'}`, "scraper");
   if (!browser) {
     try {
+      log(`[ThreatTracker][getBrowser] Launching new browser instance...`, "scraper");
+      // Extra logging for launch options
+      log(`[ThreatTracker][getBrowser] Launching Puppeteer with executablePath: ${CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH}`, "scraper");
       browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -101,6 +105,8 @@ async function getBrowser(): Promise<Browser> {
       log(`[ThreatTracker][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
       throw error;
     }
+  } else {
+    log(`[ThreatTracker][getBrowser] Reusing existing browser instance.`, "scraper");
   }
   return browser;
 }
@@ -110,8 +116,11 @@ async function getBrowser(): Promise<Browser> {
  */
 async function setupPage(): Promise<Page> {
   log(`[ThreatTracker][setupPage] Setting up new page`, "scraper");
-  const browser = await getBrowser();
-  const page = await browser.newPage();
+  log(`[ThreatTracker][setupPage] Browser instance is ${browser ? 'initialized' : 'null/undefined'}`, "scraper");
+  const browserInstance = await getBrowser();
+  log(`[ThreatTracker][setupPage] getBrowser returned instance: ${browserInstance && browserInstance.process() ? 'running' : 'not running or null'}`);
+  const page = await browserInstance.newPage();
+  log(`[ThreatTracker][setupPage] New page created`, "scraper");
 
   // Set viewport
   await page.setViewport({ width: 1920, height: 1080 });
@@ -632,11 +641,15 @@ export async function scrapeUrl(
           }
         }
         if (browser) {
+          log(`[ThreatTracker][CLEANUP] Browser instance exists, attempting to close. Current state: ${browser.process() ? 'running' : 'not running'}`, "scraper");
           try {
             await browser.close();
             console.log('[ThreatTracker] 🔴 Browser closed successfully');
           } catch (closeError: any) {
             console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
+          } finally {
+            browser = null;
+            log('[ThreatTracker][CLEANUP] Browser instance reset to null after close.', "scraper");
           }
         }
       }
