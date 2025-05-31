@@ -128,6 +128,7 @@ export async function scrapePuppeteer(
   if (!url || typeof url !== 'string' || !url.startsWith('http')) {
     throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
   }
+  log('[scrapePuppeteer] Before Launching new browser, memory usage', process.memoryUsage);
 
   try {
     // Launch the browser afresh for every call for lowest memory use
@@ -182,6 +183,7 @@ export async function scrapePuppeteer(
     // Enable JavaScript and cookies
     try {
       await page.setJavaScriptEnabled(true);
+      log(`[scrapePuppeteer] setJavaScriptEnabled! 👍`);
     } catch (error: any) {
       console.error("[scrapePuppeteer] Error enabling JavaScript (non-critical):", error);
       // Continue despite this error

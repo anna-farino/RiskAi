@@ -15,6 +15,14 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 console.log("Database url", process.env.DATABASE_URL)
 console.log("[🌐 NODE_ENV]", process.env.NODE_ENV)
 
+
+process.on('unhandledRejection', reason => {
+  console.error('🧨 Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', err => {
+  console.error('🧨 Uncaught Exception:', err);
+});
+
 const app = express();
 
 app.set('trust-proxy', 1);
