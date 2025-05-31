@@ -783,7 +783,17 @@ export default function Research() {
                   className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-lg font-medium">{article.title}</h3>
+                    <div className="flex items-center gap-2 flex-1">
+                      <h3 className="text-lg font-medium">{article.title}</h3>
+                      {(() => {
+                        const indicator = getSourceAppIndicator(article);
+                        return (
+                          <span className={`px-2 py-1 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
+                            {indicator.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
@@ -896,10 +906,20 @@ export default function Research() {
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
-                    <h4 className="text-sm font-medium mb-1">{article.title}</h4>
+                    <div className="flex items-center gap-2 flex-1">
+                      <h4 className="text-sm font-medium mb-1">{article.title}</h4>
+                      {(() => {
+                        const indicator = getSourceAppIndicator(article);
+                        return (
+                          <span className={`px-1.5 py-0.5 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
+                            {indicator.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <button
                       onClick={() => removeSelectedArticle(article.id)}
-                      className="text-red-400 hover:text-red-300"
+                      className="text-red-400 hover:text-red-300 ml-2"
                     >
                       ✕
                     </button>
