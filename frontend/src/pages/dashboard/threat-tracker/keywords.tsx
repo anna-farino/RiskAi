@@ -140,7 +140,7 @@ export default function Keywords() {
     },
   });
 
-  // Fetch keywords
+  // Fetch keywords with refetch on window focus for navigation remounting
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
@@ -163,7 +163,9 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 60000, // Reduce refetching frequency (1 minute)
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true, // Refetch when returning to page
+    refetchOnMount: true, // Always refetch on component mount
   });
 
   // Update local state whenever query data changes
@@ -250,7 +252,34 @@ export default function Keywords() {
         values,
       );
     },
-    onSuccess: () => {
+    onMutate: async (newKeyword) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Create optimistic keyword with temporary ID
+      const optimisticKeyword = {
+        id: `temp-${Date.now()}`,
+        term: newKeyword.term,
+        category: newKeyword.category,
+        active: newKeyword.active,
+        isDefault: false,
+        userId: 'current-user'
+      };
+      
+      // Add to local state immediately
+      setLocalKeywords(prev => [...prev, optimisticKeyword]);
+      
+      // Store previous state for rollback
+      const previousKeywords = queryClient.getQueryData([`${serverUrl}/api/threat-tracker/keywords`]);
+      return { previousKeywords, optimisticKeyword };
+    },
+    onSuccess: (data, _, context) => {
+      // Replace optimistic keyword with real one
+      setLocalKeywords(prev => 
+        prev.map(keyword => 
+          keyword.id === context?.optimisticKeyword.id ? data : keyword
+        )
+      );
       toast({
         title: "Keyword created",
         description: "Your keyword has been added successfully.",
@@ -261,7 +290,13 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.optimisticKeyword) {
+        setLocalKeywords(prev => 
+          prev.filter(keyword => keyword.id !== context.optimisticKeyword.id)
+        );
+      }
       console.error("Error creating keyword:", error);
       toast({
         title: "Error creating keyword",
@@ -318,6 +353,16 @@ export default function Keywords() {
         `${serverUrl}/api/threat-tracker/keywords/${id}`,
       );
     },
+    onMutate: async (deletedId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Remove from local state immediately
+      const previousKeywords = [...localKeywords];
+      setLocalKeywords(prev => prev.filter(keyword => keyword.id !== deletedId));
+      
+      return { previousKeywords, deletedId };
+    },
     onSuccess: () => {
       toast({
         title: "Keyword deleted",
@@ -327,7 +372,11 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousKeywords) {
+        setLocalKeywords(context.previousKeywords);
+      }
       console.error("Error deleting keyword:", error);
       toast({
         title: "Error deleting keyword",
@@ -606,9 +655,9 @@ export default function Keywords() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditKeyword(keyword)}
-                          className="h-8 w-8"
+                          className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-blue-400 hover:bg-blue-400/10"
                         >
-                          <PencilLine className="h-4 w-4" />
+                          <PencilLine className="h-3.5 w-3.5" />
                           <span className="sr-only">Edit</span>
                         </Button>
 
@@ -617,9 +666,9 @@ export default function Keywords() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-destructive hover:text-destructive h-8 w-8"
+                              className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                               <span className="sr-only">Delete</span>
                             </Button>
                           </AlertDialogTrigger>
