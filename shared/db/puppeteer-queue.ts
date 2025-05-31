@@ -46,8 +46,8 @@ export async function tryStartJob(jobId: string): Promise<boolean> {
  */
 export async function waitForTurnAndStart(
   jobId: string, 
-  pollMs = 1500, 
-  timeoutMs = 300000
+  pollMs = 1000, 
+  timeoutMs = 1000 * 10
 ) {
   const started = await tryStartJob(jobId);
   if (started) return;
@@ -117,15 +117,14 @@ export async function runQueuedPuppeteerJob<T>({
   }
 }
 
-
 export async function markStaleJobsAsFailed(): Promise<number> {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const staleTime = new Date(Date.now() - 60 * 1000);
   const staleJobs = await db
     .select()
     .from(puppeteerJobQueue)
     .where(and(
       eq(puppeteerJobQueue.status, 'running'),
-      sql`${puppeteerJobQueue.updatedAt} < ${fiveMinutesAgo}`
+      sql`${puppeteerJobQueue.updatedAt} < ${staleTime}`
     ));
 
   for (const job of staleJobs) {
