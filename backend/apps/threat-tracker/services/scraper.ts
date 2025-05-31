@@ -631,6 +631,14 @@ export async function scrapeUrl(
             log(`[ThreatTracker] Error closing page: ${closeError.message}`, "scraper-error");
           }
         }
+        if (browser) {
+          try {
+            await browser.close();
+            console.log('[ThreatTracker] 🔴 Browser closed successfully');
+          } catch (closeError: any) {
+            console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
+          }
+        }
       }
     }
   })
