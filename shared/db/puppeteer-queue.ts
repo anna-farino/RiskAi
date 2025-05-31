@@ -47,7 +47,7 @@ export async function tryStartJob(jobId: string): Promise<boolean> {
 export async function waitForTurnAndStart(
   jobId: string, 
   pollMs = 1000, 
-  timeoutMs = 1000 * 10
+  timeoutMs = 1000 * 60
 ) {
   const started = await tryStartJob(jobId);
   if (started) return;
