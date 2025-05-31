@@ -44,7 +44,7 @@ const getArticleSource = (article: ArticleSummary) => {
   const url = article.originalUrl.toLowerCase();
   const source = article.sourcePublication.toLowerCase();
   
-  // Check for News Radar indicators
+  // Check for News Radar indicators (when they exist)
   if (source.includes('news radar') || url.includes('newsradar') || source.includes('newsradar')) {
     return { type: 'news-radar', label: 'News Radar', color: 'bg-blue-500', textColor: 'text-blue-100' };
   }
@@ -59,8 +59,29 @@ const getArticleSource = (article: ArticleSummary) => {
     return { type: 'news-tracker', label: 'News Tracker', color: 'bg-green-500', textColor: 'text-green-100' };
   }
   
-  // Default for manually processed articles
-  return { type: 'manual', label: 'Manual', color: 'bg-gray-500', textColor: 'text-gray-100' };
+  // Check for major cybersecurity news sources
+  if (source.includes('hacker news') || url.includes('thehackernews')) {
+    return { type: 'hackernews', label: 'Hacker News', color: 'bg-orange-500', textColor: 'text-orange-100' };
+  }
+  
+  if (source.includes('cyber security news') || url.includes('cybersecuritynews')) {
+    return { type: 'cybersec', label: 'CyberSec News', color: 'bg-purple-500', textColor: 'text-purple-100' };
+  }
+  
+  if (source.includes('gbhackers') || url.includes('gbhackers')) {
+    return { type: 'gbhackers', label: 'GBHackers', color: 'bg-indigo-500', textColor: 'text-indigo-100' };
+  }
+  
+  if (source.includes('securityweek') || url.includes('securityweek')) {
+    return { type: 'secweek', label: 'SecurityWeek', color: 'bg-emerald-500', textColor: 'text-emerald-100' };
+  }
+  
+  if (source.includes('sc media') || url.includes('scworld')) {
+    return { type: 'scmedia', label: 'SC Media', color: 'bg-cyan-500', textColor: 'text-cyan-100' };
+  }
+  
+  // Default for other sources
+  return { type: 'other', label: 'Other Source', color: 'bg-gray-500', textColor: 'text-gray-100' };
 };
 
 export default function Research() {
