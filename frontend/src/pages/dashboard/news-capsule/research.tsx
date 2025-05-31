@@ -39,6 +39,30 @@ interface ArticleSummary {
   markedForDeletion: boolean;
 }
 
+// Function to determine article source based on URL and sourcePublication
+const getArticleSource = (article: ArticleSummary) => {
+  const url = article.originalUrl.toLowerCase();
+  const source = article.sourcePublication.toLowerCase();
+  
+  // Check for News Radar indicators
+  if (source.includes('news radar') || url.includes('newsradar') || source.includes('newsradar')) {
+    return { type: 'news-radar', label: 'News Radar', color: 'bg-blue-500', textColor: 'text-blue-100' };
+  }
+  
+  // Check for Threat Tracker indicators  
+  if (source.includes('threat tracker') || url.includes('threattracker') || source.includes('threattracker')) {
+    return { type: 'threat-tracker', label: 'Threat Tracker', color: 'bg-red-500', textColor: 'text-red-100' };
+  }
+  
+  // Check for News Tracker indicators
+  if (source.includes('news tracker') || url.includes('newstracker') || source.includes('newstracker')) {
+    return { type: 'news-tracker', label: 'News Tracker', color: 'bg-green-500', textColor: 'text-green-100' };
+  }
+  
+  // Default for manually processed articles
+  return { type: 'manual', label: 'Manual', color: 'bg-gray-500', textColor: 'text-gray-100' };
+};
+
 export default function Research() {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -764,7 +788,19 @@ export default function Research() {
                   className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-lg font-medium">{article.title}</h3>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-medium">{article.title}</h3>
+                        {(() => {
+                          const source = getArticleSource(article);
+                          return (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${source.color} ${source.textColor}`}>
+                              {source.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
@@ -877,10 +913,22 @@ export default function Research() {
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
-                    <h4 className="text-sm font-medium mb-1">{article.title}</h4>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="text-sm font-medium">{article.title}</h4>
+                        {(() => {
+                          const source = getArticleSource(article);
+                          return (
+                            <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${source.color} ${source.textColor}`}>
+                              {source.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
                     <button
                       onClick={() => removeSelectedArticle(article.id)}
-                      className="text-red-400 hover:text-red-300"
+                      className="text-red-400 hover:text-red-300 ml-2"
                     >
                       ✕
                     </button>
