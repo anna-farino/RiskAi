@@ -13,14 +13,14 @@ export default function LoginPageForAuth0() {
         audience: 'http://localhost:5002'
       },
       appState: {
-        returnTo: 'http://localhost:5714',
+        returnTo: 'http://localhost:5174/login',
       },
     });
   };
   async function handleLogout() {
     await logout({
       logoutParams: {
-        returnTo: 'http://localhost:5714/',
+        returnTo: 'http://localhost:5174/login',
       }
     })
   }
@@ -40,7 +40,7 @@ export default function LoginPageForAuth0() {
         })
       } catch(error) {
         console.error((error as any).message.toString())
-        if ((error as any).message.toString() === "Consent required") {
+        if (false && (error as any).message.toString() === "Consent required") {
           loginWithPopup({
             authorizationParams: {
               audience: 'http://localhost:5002',
@@ -50,7 +50,7 @@ export default function LoginPageForAuth0() {
           });
         }
       }
-      console.log("accessToken", accessToken)
+      //console.log("accessToken", accessToken)
       const response = await fetch(serverUrl + '/api/auth0test', {
         method: 'GET',
         headers: {
