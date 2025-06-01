@@ -7,6 +7,7 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
+import { enqueuePuppeteerJob } from "shared/db/puppeteer-queue";
 
 
 export const newsRouter = Router()
@@ -237,8 +238,7 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
   }
 
   try {
-    // Immediately enqueue a scrape job and return job reference (do not wait for completion)
-    const { enqueuePuppeteerJob } = await import('shared/db/puppeteer-queue');
+    console.log("Enqueueing the job using sourceId", sourceId)
     const job = await enqueuePuppeteerJob({
       inputData: { sourceId },
       userId,
@@ -246,6 +246,7 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
       url: source.url,
       sourceId
     });
+    console.log("Job enqueued using sourceId", sourceId)
     res.json({
       message: 'Scrape job enqueued',
       jobId: job.id,

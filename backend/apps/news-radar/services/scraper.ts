@@ -286,7 +286,7 @@ export async function scrapeUrl(
   config?: any,
 ): Promise<string> {
   try {
-    const maxAttempts = 1;
+    const maxAttempts = 5;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {

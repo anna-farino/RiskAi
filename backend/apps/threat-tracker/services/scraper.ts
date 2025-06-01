@@ -61,84 +61,11 @@ function findChromePath() {
 const CHROME_PATH = findChromePath();
 log(`[ThreatTracker][Puppeteer] Using Chrome at: ${CHROME_PATH}`, "scraper");
 
-// Shared browser instance to reuse across requests
-let browser: Browser | null = null;
 
 /**
  * Get or create a browser instance
  */
-async function getBrowser(): Promise<Browser> {
-  log(`[ThreatTracker][getBrowser] Current browser is ${browser ? 'initialized' : 'null/undefined'}`, "scraper");
-  if (!browser) {
-    try {
-      log(`[ThreatTracker][getBrowser] Launching new browser instance...`, "scraper");
-      // Extra logging for launch options
-      log(`[ThreatTracker][getBrowser] Launching Puppeteer with executablePath: ${CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH}`, "scraper");
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
-          '--window-size=1920x1080',
-          '--disable-features=site-per-process,AudioServiceOutOfProcess',
-          '--disable-software-rasterizer',
-          '--disable-extensions',
-          '--disable-gl-drawing-for-tests',
-          '--mute-audio',
-          '--no-zygote',
-          '--no-first-run',
-          '--no-default-browser-check',
-          '--ignore-certificate-errors',
-          '--allow-running-insecure-content',
-          '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
-        ],
-        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 180000 // 3 minute timeout on browser launch
-      });
-      log("[ThreatTracker][getBrowser] Browser launched successfully", "scraper");
-    } catch (error: any) {
-      log(`[ThreatTracker][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
-      throw error;
-    }
-  } else {
-    log(`[ThreatTracker][getBrowser] Reusing existing browser instance.`, "scraper");
-  }
-  return browser;
-}
 
-/**
- * Setup a new page with stealth protections
- */
-async function setupPage(): Promise<Page> {
-  log(`[ThreatTracker][setupPage] Setting up new page`, "scraper");
-  log(`[ThreatTracker][setupPage] Browser instance is ${browser ? 'initialized' : 'null/undefined'}`, "scraper");
-  const browserInstance = await getBrowser();
-  log(`[ThreatTracker][setupPage] getBrowser returned instance: ${browserInstance && browserInstance.process() ? 'running' : 'not running or null'}`);
-  const page = await browserInstance.newPage();
-  log(`[ThreatTracker][setupPage] New page created`, "scraper");
-
-  // Set viewport
-  await page.setViewport({ width: 1920, height: 1080 });
-
-  // Set user agent
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
-
-  // Set extra headers
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-  });
-
-  // Set longer timeouts
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(60000);
-
-  return page;
-}
 
 /**
  * Extract article links as a structured HTML
@@ -419,6 +346,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
   log(`[ThreatTracker] Starting to scrape ${url}${isArticlePage ? ' as article page' : ''}`, "scraper");
   
   let page: Page | null = null;
+  let browserInstance: Browser | null = null;
   
   try {
     // Check for common URL errors
@@ -426,8 +354,60 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       url = "https://" + url;
     }
 
-    page = await setupPage();
     
+    log(`[ThreatTracker][setupPage] Setting up new page`, "scraper");
+    log(`[ThreatTracker][setupPage] Browser instance is ${browserInstance ? 'initialized' : 'null/undefined'}`, "scraper");
+
+
+      browserInstance = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess',
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--disable-gl-drawing-for-tests',
+          '--mute-audio',
+          '--no-zygote',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--ignore-certificate-errors',
+          '--allow-running-insecure-content',
+          '--disable-web-security',
+          '--disable-blink-features=AutomationControlled'
+        ],
+        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        timeout: 180000 // 3 minute timeout on browser launch
+      });
+
+
+
+
+    log(`[ThreatTracker][setupPage] getBrowser returned instance: ${browserInstance && browserInstance.process() ? 'running' : 'not running or null'}`);
+    const page = await browserInstance.newPage();
+    log(`[ThreatTracker][setupPage] New page created`, "scraper");
+
+    // Set viewport
+    await page.setViewport({ width: 1920, height: 1080 });
+
+    // Set user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+
+    // Set extra headers
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    });
+
+    // Set longer timeouts
+    page.setDefaultNavigationTimeout(60000);
+    page.setDefaultTimeout(60000);
+
     // Navigate to the page
     const response = await page.goto(url, { waitUntil: "networkidle2" });
     log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
@@ -610,6 +590,14 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         log("[ThreatTracker] Page closed successfully", "scraper");
       } catch (closeError: any) {
         log(`[ThreatTracker] Error closing page: ${closeError.message}`, "scraper-error");
+      }
+    }
+    if (browserInstance) {
+      try {
+        await browserInstance.close();
+        console.log('[ThreatTracker] 🔴 Browser closed successfully');
+      } catch (closeError: any) {
+        console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
       }
     }
   }

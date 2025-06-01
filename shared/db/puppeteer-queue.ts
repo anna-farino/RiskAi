@@ -63,6 +63,7 @@ export async function waitForTurnAndStart(
 }
 
 export async function markJobDone(jobId: string, outputData?: any) {
+  console.log(`Marking the job ${jobId} as 'done'`)
   await db.update(puppeteerJobQueue)
     .set({ status: 'done', outputData, updatedAt: new Date() })
     .where(eq(puppeteerJobQueue.id, jobId));
