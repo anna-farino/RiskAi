@@ -134,6 +134,13 @@
       "when": 1748721711727,
       "tag": "0018_melted_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1748799859427,
+      "tag": "0019_daffy_scream",
+      "breakpoints": true
     }
   ]
 }

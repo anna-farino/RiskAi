@@ -7,17 +7,19 @@ import { users } from "./schema/user";
  * Enqueue a Puppeteer job in the DB (returns job row)
  */
 type EnqPupJobArgs = {
-  inputData: any, 
-  userId?: string, 
-  sourceApp?: string
+  inputData: any,
+  userId?: string,
+  sourceApp?: string,
+  url: string
 }
-export async function enqueuePuppeteerJob({ inputData, userId, sourceApp }: EnqPupJobArgs) {
+export async function enqueuePuppeteerJob({ inputData, userId, sourceApp, url }: EnqPupJobArgs) {
   const [job] = await db
     .insert(puppeteerJobQueue)
     .values({
       status: 'queued',
       userId,
       sourceApp,
+      url,
       inputData,
     })
     .returning();
@@ -86,32 +88,29 @@ export async function runQueuedPuppeteerJob<T>({
   userId, 
   sourceApp, 
   fn
-} : RunQueueArgs<T>
-)
-  : Promise<T> 
-{
-  const logTitle = "[QUEUE PUPPETEER]"
-  function log(str: string) { 
-    console.log(logTitle+" "+str)
+}: RunQueueArgs<T> & { url: string }
+): Promise<T> {
+  const logTitle = "[QUEUE PUPPETEER]";
+  function log(str: string) {
+    console.log(logTitle + " " + str);
   }
-  log("Beging queueing")
-  log("Looking for stale jobs...")
-
-  const numberOfStaleJobs = await markStaleJobsAsFailed()
-
-  log("Stale jobs found: "+numberOfStaleJobs)
-  log("Enqueueing job...")
-
-  const job = await enqueuePuppeteerJob({ inputData, userId, sourceApp });
+  log("Beginning queueing");
+  log("Looking for stale jobs...");
+  const numberOfStaleJobs = await markStaleJobsAsFailed();
+  log("Stale jobs found: " + numberOfStaleJobs);
+  log("Enqueueing job...");
+  const job = await enqueuePuppeteerJob({ 
+    inputData, userId, sourceApp, url: (inputData && inputData.url) || '' 
+  });
   await waitForTurnAndStart(job.id);
-  log("My turn")
+  log("My turn");
   try {
     const result = await fn(job.id);
-    log("Marking the job as Done")
+    log("Marking the job as Done");
     await markJobDone(job.id, result);
     return result;
   } catch (e) {
-    log("Marking the job as Failed")
+    log("Marking the job as Failed");
     await markJobFailed(job.id, e);
     throw e;
   }

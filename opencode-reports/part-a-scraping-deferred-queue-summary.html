@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SCRAPING Deferred Queue Upgrade: PART A (Summary)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2em; background: #fcfcff; color: #222; }
+    code, pre { background: #f4f6fa; border-radius: 4px; padding: 0.2em 0.5em; font-size: 90%; }
+    pre { padding: 1em; white-space: pre-wrap; }
+    h2 { border-bottom: 1px solid #e1e1e1; margin-top: 2em; }
+    section { margin-bottom: 2em; }
+  </style>
+</head>
+<body>
+  <h1>SCRAPING Deferred Queue Upgrade: PART A (Summary)</h1>
+  <section>
+    <h2>Purpose</h2>
+    <p>This update refactors both <code>news-radar</code> and <code>threat-tracker</code> scraping endpoints to:</p>
+    <ul>
+      <li>Enqueue jobs in the DB with <strong>userId</strong>, <strong>sourceApp</strong>, and now a distinct <strong>url</strong> column</li>
+      <li>Return job reference to client <strong>immediately</strong> (no longer waits for scraping to complete)</li>
+      <li>Run jobs strictly 1-at-a-time, each job opens/closes its own browser/page for low RAM usage</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Schema update: <code>puppeteer_job_queue</code></h2>
+    <p>Added new <code>url</code> column:</p>
+    <pre>export const puppeteerJobQueue = pgTable('puppeteer_job_queue', {
+  ...
+  sourceApp: text('source_app'),
+  url: text('url').notNull(), // direct URL of the job
+  inputData: jsonb('input_data').notNull(),
+  ...
+});
+</pre>
+  </section>
+  <section>
+    <h2>Queue Logic</h2>
+    <p>Changed <code>enqueuePuppeteerJob</code> and <code>runQueuedPuppeteerJob</code> to:</p>
+    <ul>
+      <li>Accept and store <code>url</code> at top-level column (not just in inputData)</li>
+      <li>Pass <code>url</code> in from all entrypoints</li>
+    </ul>
+    <pre>export async function enqueuePuppeteerJob({ inputData, userId, sourceApp, url }: EnqPupJobArgs) { ... }</pre>
+  </section>
+  <section>
+    <h2>API Endpoint Changes</h2>
+    <h3><code>news-radar</code> &amp; <code>threat-tracker</code> Scraping</h3>
+    <ul>
+      <li>Both POST to <strong>/scrape/source/:id</strong> (threat-tracker) and <strong>/sources/:id/scrape</strong> (news-radar) now:</li>
+      <li>Enqueue a job for the given source url and return this object immediately:</li>
+    </ul>
+    <pre>{
+  message: 'Scrape job enqueued',
+  jobId: '...',
+  status: 'queued'
+}
+</pre>
+    <p><em>No scraping is done during the HTTP request.</em></p>
+    <h3>Example Patch (90 news-radar router')</h3>
+    <pre>// BEFORE:
+const { processedCount, savedCount, newArticles } = await scrapeSource(sourceId);
+res.json({ ... });
+
+// AFTER:
+const job = await enqueuePuppeteerJob({...});
+res.json({ message: 'Scrape job enqueued', jobId: job.id, status: job.status });
+</pre>
+  </section>
+  <section>
+    <h2>Low-RAM, Atomic Jobs</h2>
+    <ul>
+      <li>Background worker always opens/closes each browser/page per job</li>
+      <li>Atomic run logic (runQueuedPuppeteerJob, tryStartJob) ensures only one job runs at a time</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Files Changed</h2>
+    <ul>
+      <li>shared/db/schema/puppeteer-job-queue.ts</li>
+      <li>shared/db/puppeteer-queue.ts</li>
+      <li>backend/apps/news-radar/services/puppeteer-scraper.ts</li>
+      <li>backend/apps/threat-tracker/services/scraper.ts</li>
+      <li>backend/apps/news-radar/router/index.ts</li>
+      <li>backend/apps/threat-tracker/router/index.ts</li>
+    </ul>
+  </section>
+  <section style="color: #547; border-left: 2px solid #99b; padding-left:1em">
+    <b>Next step:</b> Run Drizzle migration/generate so your DB is aware of the <code>url</code> column.<br>
+    This system now fully decouples frontend from waiting for scraping!
+  </section>
+</body>
+</html>

@@ -8,6 +8,7 @@ import logTime from './middleware/log-time';
 import { callId } from './middleware/call-id';
 import { corsOptions } from './utils/cors-options';
 import { helmetConfig, setNonce } from './utils/helmet-config';
+import { runBackgroundQueuedJobsScraper } from './utils/background-scrape-scheduler';
 
 const port = Number(process.env.PORT) || 5000;
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -50,3 +51,5 @@ app.listen(port, () => {
     console.log('💻 [SERVER] Development mode: Proxying non-API requests to Vite dev server');
   }
 });
+
+runBackgroundQueuedJobsScraper()

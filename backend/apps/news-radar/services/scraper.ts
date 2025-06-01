@@ -3,6 +3,7 @@ import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";
 import { detectArticleLinks } from "./openai";
 import { scrapePuppeteer } from "./puppeteer-scraper";
 
+
 // Rotating User-Agent list to appear more natural
 const userAgents = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -285,7 +286,7 @@ export async function scrapeUrl(
   config?: any,
 ): Promise<string> {
   try {
-    const maxAttempts = 5;
+    const maxAttempts = 1;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {

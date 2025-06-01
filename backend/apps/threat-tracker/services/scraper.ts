@@ -8,7 +8,6 @@ import { log } from "backend/utils/log";
 import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
-import { runQueuedPuppeteerJob } from 'shared/db/puppeteer-queue';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -413,248 +412,238 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
  * If isArticlePage is true, it will process the page as an article
  * Otherwise, it will extract possible article links
  */
+// scrapeUrl now does NOT queue, just does the scrape immediately
 export async function scrapeUrl(
-  url: string, 
-  isArticlePage: boolean = false, 
-  scrapingConfig?: any, 
-  queueOptions?: { userId?: string }
-)
-  : Promise<string> 
-{
-  return runQueuedPuppeteerJob({
-    inputData: { url, isArticlePage, scrapingConfig },
-    userId: queueOptions?.userId,
-    sourceApp: 'threat-tracker',
-    fn: async () => {
-      log(`[ThreatTracker] Starting to scrape ${url}${isArticlePage ? ' as article page' : ''}`, "scraper");
-      
-      let page: Page | null = null;
-      
-      try {
-        // Check for common URL errors
-        if (!url.startsWith("http")) {
-          url = "https://" + url;
-        }
+  url: string,
+  isArticlePage: boolean = false,
+  scrapingConfig?: any,
+): Promise<string> {
+  log(`[ThreatTracker] Starting to scrape ${url}${isArticlePage ? ' as article page' : ''}`, "scraper");
+  
+  let page: Page | null = null;
+  
+  try {
+    // Check for common URL errors
+    if (!url.startsWith("http")) {
+      url = "https://" + url;
+    }
 
-        page = await setupPage();
-        
+    page = await setupPage();
         // Navigate to the page
-        const response = await page.goto(url, { waitUntil: "networkidle2" });
-        log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
-        
-        if (response && !response.ok()) {
-          log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
-        }
+    const response = await page.goto(url, { waitUntil: "networkidle2" });
+    log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    
+    if (response && !response.ok()) {
+      log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
+    }
 
-        // Wait for potential challenges to be processed
-        log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
-        await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for potential challenges to be processed
+    log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Check for bot protection
-        const botProtectionCheck = await page.evaluate(() => {
-          return (
-            document.body.innerHTML.includes('_Incapsula_Resource') ||
-            document.body.innerHTML.includes('Incapsula') ||
-            document.body.innerHTML.includes('captcha') ||
-            document.body.innerHTML.includes('Captcha') ||
-            document.body.innerHTML.includes('cloudflare') ||
-            document.body.innerHTML.includes('CloudFlare')
-          );
-        });
+    // Check for bot protection
+    const botProtectionCheck = await page.evaluate(() => {
+      return (
+        document.body.innerHTML.includes('_Incapsula_Resource') ||
+        document.body.innerHTML.includes('Incapsula') ||
+        document.body.innerHTML.includes('captcha') ||
+        document.body.innerHTML.includes('Captcha') ||
+        document.body.innerHTML.includes('cloudflare') ||
+        document.body.innerHTML.includes('CloudFlare')
+      );
+    });
 
-        if (botProtectionCheck) {
-          log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
-          // Perform some human-like actions
-          await page.mouse.move(50, 50);
-          await page.mouse.down();
-          await page.mouse.move(100, 100);
-          await page.mouse.up();
-          
-          // Reload the page and wait again
-          await page.reload({ waitUntil: 'networkidle2' });
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
+    if (botProtectionCheck) {
+      log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
+      // Perform some human-like actions
+      await page.mouse.move(50, 50);
+      await page.mouse.down();
+      await page.mouse.move(100, 100);
+      await page.mouse.up();
+      
+      // Reload the page and wait again
+      await page.reload({ waitUntil: 'networkidle2' });
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
 
-        // For article pages, extract the content based on selectors
-        if (isArticlePage) {
-          log('[ThreatTracker] Extracting article content', "scraper");
+    // For article pages, extract the content based on selectors
+    if (isArticlePage) {
+      log('[ThreatTracker] Extracting article content', "scraper");
 
-          // Scroll through the page to ensure all content is loaded
-          await page.evaluate(() => {
-            window.scrollTo(0, document.body.scrollHeight / 3);
-            return new Promise(resolve => setTimeout(resolve, 1000));
-          });
-          await page.evaluate(() => {
-            window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-            return new Promise(resolve => setTimeout(resolve, 1000));
-          });
-          await page.evaluate(() => {
-            window.scrollTo(0, document.body.scrollHeight);
-            return new Promise(resolve => setTimeout(resolve, 1000));
-          });
+      // Scroll through the page to ensure all content is loaded
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight / 3);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
 
-          // Extract article content using the provided scraping config
-          const articleContent = await page.evaluate((config) => {
-            // First try using the provided selectors
-            if (config) {
-              const title = config.titleSelector || config.title 
-                ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
-                : '';
-                
-              const content = config.contentSelector || config.content 
-                ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
-                : '';
-                
-              const author = config.authorSelector || config.author 
-                ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
-                : '';
-                
-              const date = config.dateSelector || config.date 
-                ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
-                : '';
+      // Extract article content using the provided scraping config
+      const articleContent = await page.evaluate((config) => {
+        // First try using the provided selectors
+        if (config) {
+          const title = config.titleSelector || config.title 
+            ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
+            : '';
+            
+          const content = config.contentSelector || config.content 
+            ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
+            : '';
+            
+          const author = config.authorSelector || config.author 
+            ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
+            : '';
+            
+          const date = config.dateSelector || config.date 
+            ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
+            : '';
 
-              if (content) {
-                return { title, content, author, date };
-              }
-            }
-
-            // Fallback selectors if config fails
-            const fallbackSelectors = {
-              content: [
-                'article',
-                '.article-content',
-                '.article-body',
-                'main .content',
-                '.post-content',
-                '#article-content',
-                '.story-content'
-              ],
-              title: ['h1', '.article-title', '.post-title'],
-              author: ['.author', '.byline', '.article-author'],
-              date: [
-                'time',
-                '[datetime]',
-                '.article-date',
-                '.post-date',
-                '.published-date',
-                '.timestamp'
-              ]
-            };
-
-            // Try fallback selectors
-            let content = '';
-            for (const selector of fallbackSelectors.content) {
-              const element = document.querySelector(selector);
-              if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
-                content = element.textContent?.trim() || '';
-                break;
-              }
-            }
-
-            // If still no content, get the main content or body
-            if (!content || content.length < 100) {
-              const main = document.querySelector('main');
-              if (main) {
-                content = main.textContent?.trim() || '';
-              }
-              
-              if (!content || content.length < 100) {
-                content = document.body.textContent?.trim() || '';
-              }
-            }
-
-            // Try to get title
-            let title = '';
-            for (const selector of fallbackSelectors.title) {
-              const element = document.querySelector(selector);
-              if (element) {
-                title = element.textContent?.trim() || '';
-                break;
-              }
-            }
-
-            // Try to get author
-            let author = '';
-            for (const selector of fallbackSelectors.author) {
-              const element = document.querySelector(selector);
-              if (element) {
-                author = element.textContent?.trim() || '';
-                break;
-              }
-            }
-
-            // Try to get date
-            let date = '';
-            for (const selector of fallbackSelectors.date) {
-              const element = document.querySelector(selector);
-              if (element) {
-                date = element.textContent?.trim() || '';
-                break;
-              }
-            }
-
+          if (content) {
             return { title, content, author, date };
-          }, scrapingConfig);
-
-          log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
-
-          // Return the content in HTML format
-          return `<html><body>
-            <h1>${articleContent.title || ''}</h1>
-            ${articleContent.author ? `<div class="author">${articleContent.author}</div>` : ''}
-            ${articleContent.date ? `<div class="date">${articleContent.date}</div>` : ''}
-            <div class="content">${articleContent.content || ''}</div>
-          </body></html>`;
-        }
-        
-        // For source/listing pages, extract potential article links
-        // First do our own extraction to get all links
-        await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
-          log('[ThreatTracker] Timeout waiting for links in scrapeUrl, continuing anyway', "scraper");
-        });
-        
-        const extractedLinkData = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a'));
-          return links.map(link => ({
-            href: link.getAttribute('href'),
-            text: link.textContent?.trim() || '',
-            parentText: link.parentElement?.textContent?.trim() || '',
-            parentClass: link.parentElement?.className || ''
-          })).filter(link => link.href); // Only keep links with href attribute
-        });
-
-        log(`[ThreatTracker] Primary extraction: Found ${extractedLinkData.length} links`, "scraper");
-        
-        // Pass the extracted data to extractArticleLinksStructured to avoid duplicate extraction
-        return await extractArticleLinksStructured(page, extractedLinkData);
-        
-      } catch (error: any) {
-        log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
-        throw error;
-      } finally {
-        if (page) {
-          try {
-            await page.close();
-            log("[ThreatTracker] Page closed successfully", "scraper");
-          } catch (closeError: any) {
-            log(`[ThreatTracker] Error closing page: ${closeError.message}`, "scraper-error");
           }
         }
-        if (browser) {
-          log(`[ThreatTracker][CLEANUP] Browser instance exists, attempting to close. Current state: ${browser.process() ? 'running' : 'not running'}`, "scraper");
-          try {
-            await browser.close();
-            console.log('[ThreatTracker] 🔴 Browser closed successfully');
-          } catch (closeError: any) {
-            console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
-          } finally {
-            browser = null;
-            log('[ThreatTracker][CLEANUP] Browser instance reset to null after close.', "scraper");
+
+        // Fallback selectors if config fails
+        const fallbackSelectors = {
+          content: [
+            'article',
+            '.article-content',
+            '.article-body',
+            'main .content',
+            '.post-content',
+            '#article-content',
+            '.story-content'
+          ],
+          title: ['h1', '.article-title', '.post-title'],
+          author: ['.author', '.byline', '.article-author'],
+          date: [
+            'time',
+            '[datetime]',
+            '.article-date',
+            '.post-date',
+            '.published-date',
+            '.timestamp'
+          ]
+        };
+
+        // Try fallback selectors
+        let content = '';
+        for (const selector of fallbackSelectors.content) {
+          const element = document.querySelector(selector);
+          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
+            content = element.textContent?.trim() || '';
+            break;
           }
         }
+
+        // If still no content, get the main content or body
+        if (!content || content.length < 100) {
+          const main = document.querySelector('main');
+          if (main) {
+            content = main.textContent?.trim() || '';
+          }
+          
+          if (!content || content.length < 100) {
+            content = document.body.textContent?.trim() || '';
+          }
+        }
+
+        // Try to get title
+        let title = '';
+        for (const selector of fallbackSelectors.title) {
+          const element = document.querySelector(selector);
+          if (element) {
+            title = element.textContent?.trim() || '';
+            break;
+          }
+        }
+
+        // Try to get author
+        let author = '';
+        for (const selector of fallbackSelectors.author) {
+          const element = document.querySelector(selector);
+          if (element) {
+            author = element.textContent?.trim() || '';
+            break;
+          }
+        }
+
+        // Try to get date
+        let date = '';
+        for (const selector of fallbackSelectors.date) {
+          const element = document.querySelector(selector);
+          if (element) {
+            date = element.textContent?.trim() || '';
+            break;
+          }
+        }
+
+        return { title, content, author, date };
+      }, scrapingConfig);
+
+      log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
+
+      // Return the content in HTML format
+      return `<html><body>
+        <h1>${articleContent.title || ''}</h1>
+        ${articleContent.author ? `<div class="author">${articleContent.author}</div>` : ''}
+        ${articleContent.date ? `<div class="date">${articleContent.date}</div>` : ''}
+        <div class="content">${articleContent.content || ''}</div>
+      </body></html>`;
+    }
+    
+    // For source/listing pages, extract potential article links
+    // First do our own extraction to get all links
+    await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
+      log('[ThreatTracker] Timeout waiting for links in scrapeUrl, continuing anyway', "scraper");
+    });
+    
+    const extractedLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href); // Only keep links with href attribute
+    });
+
+    log(`[ThreatTracker] Primary extraction: Found ${extractedLinkData.length} links`, "scraper");
+    
+    // Pass the extracted data to extractArticleLinksStructured to avoid duplicate extraction
+    return await extractArticleLinksStructured(page, extractedLinkData);
+    
+  } catch (error: any) {
+    log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
+    throw error;
+  } finally {
+    if (page) {
+      try {
+        await page.close();
+        log("[ThreatTracker] Page closed successfully", "scraper");
+      } catch (closeError: any) {
+        log(`[ThreatTracker] Error closing page: ${closeError.message}`, "scraper-error");
       }
     }
-  })
+    if (browser) {
+      log(`[ThreatTracker][CLEANUP] Browser instance exists, attempting to close. Current state: ${browser.process() ? 'running' : 'not running'}`, "scraper");
+      try {
+        await browser.close();
+        console.log('[ThreatTracker] 🔴 Browser closed successfully');
+      } catch (closeError: any) {
+        console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
+      } finally {
+        browser = null;
+        log('[ThreatTracker][CLEANUP] Browser instance reset to null after close.', "scraper");
+      }
+    }
+  }
 }
 
 /**

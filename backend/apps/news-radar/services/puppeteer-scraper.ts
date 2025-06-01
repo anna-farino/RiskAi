@@ -120,13 +120,7 @@ export async function scrapePuppeteer(
   url: string,
   isArticlePage: boolean = false,
   scrapingConfig: any,
-  queueOptions?: { userId?: string }
 ): Promise<string> {
-  return runQueuedPuppeteerJob({
-    inputData: { url, isArticlePage, scrapingConfig },
-    userId: queueOptions?.userId,
-    sourceApp: 'news-radar',
-    fn: async () => {
       let browser: Browser | null = null;
       let page: Page | null = null;
       log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
@@ -405,6 +399,6 @@ export async function scrapePuppeteer(
       }
     }
   }
-}})}
+}
 
 

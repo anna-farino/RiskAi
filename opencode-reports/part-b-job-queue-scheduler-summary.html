@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Part B: Scraping Queue Global Scheduler Upgrade</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2em; background: #fcfcff; color: #222; }
+    code, pre { background: #f4f6fa; border-radius: 4px; padding: 0.2em 0.5em; font-size: 90%; }
+    pre { padding: 1em; white-space: pre-wrap; }
+    h2 { border-bottom: 1px solid #e1e1e1; margin-top: 2em; }
+    section { margin-bottom: 2em; }
+  </style>
+</head>
+<body>
+  <h1>Part B: Scraping Queue Scheduler (with restart-safe recovery)</h1>
+  <section>
+    <h2>Controller & Scraping Functions</h2>
+    <p>
+    <b>scraper.ts</b> in both <i>news-radar</i> and <i>threat-tracker</i> no longer wrap their scrape logic in queue logic. Instead,
+    <code>scrapeUrl</code> functions now simply run the scrape immediately if called directly.
+    </p>
+    <pre>// NewsRadar and ThreatTracker
+export async function scrapeUrl(url, isArticlePage = false, scrapingConfig, queueOptions) {
+  return scrapePuppeteer(url, isArticlePage, scrapingConfig, queueOptions);
+}
+</pre>
+  </section>
+  <section>
+    <h2>Scheduler / Worker Process</h2>
+    <p>A new <b>background-scrape-scheduler.ts</b> file runs automatically on app start (import it from your main index/server file):</p>
+    <p>At scheduler start, any jobs left as <code>status='running'</code> (from a crash etc) are set to <code>'queued'</code>.<br>Then jobs are processed, one at a time, in creation order:</p>
+    <pre>import { getOldestQueuedJob, tryStartJob, markJobDone, markJobFailed } from 'shared/db/puppeteer-queue';
+import { scrapePuppeteer } from './puppeteer-scraper';
+import { log } from 'backend/utils/log';
+import { db } from 'backend/db/db';
+
+const POLL_INTERVAL_MS = 10000; // 10 seconds
+
+async function resetStuckJobsToQueued() {
+  log('[Scheduler] Resetting stuck running jobs to queued', 'scheduler');
+  await db.execute(
+    "UPDATE puppeteer_job_queue SET status = 'queued' WHERE status = 'running'"
+  );
+}
+
+async function runScrapeJob(job) {
+  try {
+    log(`[Scheduler] Running scrape for job ${job.id}: ${job.url}`, 'scheduler');
+    await scrapePuppeteer(job.url, job.inputData.isArticlePage, job.inputData.scrapingConfig, { userId: job.userId });
+    await markJobDone(job.id, { message: 'Scrape complete' });
+    log(`[Scheduler] Job ${job.id} completed.`, 'scheduler');
+  } catch (err) {
+    log(`[Scheduler] Job ${job.id} failed: ${err}`, 'scheduler');
+    await markJobFailed(job.id, { error: String(err) });
+  }
+}
+
+async function schedulerLoop() {
+  while (true) {
+    try {
+      const job = await getOldestQueuedJob();
+      if (job) {
+        const started = await tryStartJob(job.id);
+        if (started) {
+          await runScrapeJob({ ...job });
+        }
+      }
+    } catch (e) {
+      log(`[Scheduler] Loop error: ${e}`, 'scheduler');
+    }
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+  }
+}
+
+(async () => {
+  await resetStuckJobsToQueued();
+  schedulerLoop();
+})();
+</pre>
+    <p>The code is nearly identical for ThreatTracker, swapping <code>scrapePuppeteer</code> for <code>scrapeUrl</code> if needed.</p>
+  </section>
+
+  <section>
+    <h2>How Restart/Persistence Works</h2>
+    <ul>
+      <li>On cold start, all <code>running</code> jobs are set back to <code>queued</code> and retried.</li>
+      <li>No jobs are "stuck" after a crash.</li>
+      <li>One job runs at a time, using the single-atomic-run guarantee you built before.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Files Created or Changed</h2>
+    <ul>
+      <li><b>backend/apps/news-radar/services/background-scrape-scheduler.ts</b></li>
+      <li><b>backend/apps/threat-tracker/services/background-scrape-scheduler.ts</b></li>
+      <li><b>backend/apps/news-radar/services/scraper.ts</b></li>
+      <li><b>backend/apps/threat-tracker/services/scraper.ts</b></li>
+    </ul>
+  </section>
+  <section style="color: #547; border-left: 2px solid #99b; padding-left:1em">
+    <b>Next step:</b> Import the scheduler in your server entrypoint for each app (<code>import './services/background-scrape-scheduler'</code>) and start!
+  </section>
+</body>
+</html>
