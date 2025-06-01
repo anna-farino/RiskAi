@@ -3,8 +3,8 @@ import { log } from 'backend/utils/log';
 import { db } from 'backend/db/db';
 import { PuppeteerJobQueue, puppeteerJobQueue } from '@shared/db/schema';
 import { asc, eq } from 'drizzle-orm';
-import { scrapeUrl as newsRadarScraper} from '@backend/apps/news-radar/services/scraper';
-import { scrapeUrl as threatTrackerScraper } from '@backend/apps/threat-tracker/services/scraper';
+import { scrapeUrl as newsRadarScraper} from 'backend/apps/news-radar/services/scraper';
+import { scrapeUrl as threatTrackerScraper } from 'backend/apps/threat-tracker/services/scraper';
 
 const POLL_INTERVAL_MS = 10000; // 10 seconds
 
@@ -39,12 +39,14 @@ async function schedulerLoop() {
 }
 
 async function getOldestQueuedJob() {
-  log('[Scheduler] Getting the oldest job in the queue');
+  log('[Scheduler] Getting the oldest job in the queue...');
   const oldestJob = await db
     .select()
     .from(puppeteerJobQueue)
+    .where(eq(puppeteerJobQueue.status, 'queued'))
     .orderBy(asc(puppeteerJobQueue.createdAt))
     .limit(1)
+  log(`[Scheduler] ...oldest job found: ${oldestJob.length > 0 ? 'true' : 'false'}`);
   return oldestJob
 }
 

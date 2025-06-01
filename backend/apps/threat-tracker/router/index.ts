@@ -447,6 +447,7 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
       sourceApp: 'threat-tracker',
       url: source.url
     });
+    reqLog(req, `Job enqueued. Source: ${source.url}. App: threat-tracker`)
     res.json({
       message: 'Scrape job enqueued',
       jobId: job.id,
