@@ -8,6 +8,7 @@ export const puppeteerJobQueue = pgTable('puppeteer_job_queue', {
   updatedAt: timestamp('updated_at'),
   status: text('status').notNull(), // Use: 'queued', 'running', 'done', 'failed'
   userId: uuid('user_id').references(() => users.id),
+  sourceId: text('source_id'),
   sourceApp: text('source_app'), // 'news-radar', 'threat-tracker', etc.
   url: text('url').notNull(), // direct URL of the job
   inputData: jsonb('input_data').notNull(), // JSON describing url/config

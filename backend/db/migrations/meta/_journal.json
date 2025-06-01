@@ -141,6 +141,13 @@
       "when": 1748799859427,
       "tag": "0019_daffy_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1748804194194,
+      "tag": "0020_dashing_stature",
+      "breakpoints": true
     }
   ]
 }

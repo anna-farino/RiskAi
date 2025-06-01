@@ -243,7 +243,8 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
       inputData: { sourceId },
       userId,
       sourceApp: 'news-radar',
-      url: source.url
+      url: source.url,
+      sourceId
     });
     res.json({
       message: 'Scrape job enqueued',

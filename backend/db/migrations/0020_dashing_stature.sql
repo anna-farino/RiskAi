@@ -1,0 +1,1 @@
+ALTER TABLE "puppeteer_job_queue" ADD COLUMN "source_id" text;

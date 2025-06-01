@@ -8,7 +8,6 @@ import vanillaPuppeteer from 'puppeteer';
 import * as fs from 'fs';
 import dotenv from 'dotenv';
 import dotenvConfig from 'backend/utils/dotenv-config';
-import { runQueuedPuppeteerJob } from 'shared/db/puppeteer-queue';
 
 dotenvConfig(dotenv)
 

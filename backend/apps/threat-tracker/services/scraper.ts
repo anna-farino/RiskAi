@@ -217,7 +217,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
 
     // Debug log: Print the extracted links data
-    log(
+    false && log(
       `[ThreatTracker] Extracted links data:\n${JSON.stringify(articleLinkData, null, 2)}`,
       "scraper-debug",
     );
@@ -403,6 +403,8 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
       </div>
     </body>
   </html>`;
+
+  console.log("Created generatedHtml: ", generatedHtml.slice(0,50))
   
   return generatedHtml;
 }
@@ -413,11 +415,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
  * Otherwise, it will extract possible article links
  */
 // scrapeUrl now does NOT queue, just does the scrape immediately
-export async function scrapeUrl(
-  url: string,
-  isArticlePage: boolean = false,
-  scrapingConfig?: any,
-): Promise<string> {
+export async function scrapeUrl(url: string, isArticlePage: boolean = false, scrapingConfig?: any): Promise<string> {
   log(`[ThreatTracker] Starting to scrape ${url}${isArticlePage ? ' as article page' : ''}`, "scraper");
   
   let page: Page | null = null;
@@ -429,7 +427,8 @@ export async function scrapeUrl(
     }
 
     page = await setupPage();
-        // Navigate to the page
+    
+    // Navigate to the page
     const response = await page.goto(url, { waitUntil: "networkidle2" });
     log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
     
@@ -599,25 +598,7 @@ export async function scrapeUrl(
     }
     
     // For source/listing pages, extract potential article links
-    // First do our own extraction to get all links
-    await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
-      log('[ThreatTracker] Timeout waiting for links in scrapeUrl, continuing anyway', "scraper");
-    });
-    
-    const extractedLinkData = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a'));
-      return links.map(link => ({
-        href: link.getAttribute('href'),
-        text: link.textContent?.trim() || '',
-        parentText: link.parentElement?.textContent?.trim() || '',
-        parentClass: link.parentElement?.className || ''
-      })).filter(link => link.href); // Only keep links with href attribute
-    });
-
-    log(`[ThreatTracker] Primary extraction: Found ${extractedLinkData.length} links`, "scraper");
-    
-    // Pass the extracted data to extractArticleLinksStructured to avoid duplicate extraction
-    return await extractArticleLinksStructured(page, extractedLinkData);
+    return await extractArticleLinksStructured(page);
     
   } catch (error: any) {
     log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
@@ -629,18 +610,6 @@ export async function scrapeUrl(
         log("[ThreatTracker] Page closed successfully", "scraper");
       } catch (closeError: any) {
         log(`[ThreatTracker] Error closing page: ${closeError.message}`, "scraper-error");
-      }
-    }
-    if (browser) {
-      log(`[ThreatTracker][CLEANUP] Browser instance exists, attempting to close. Current state: ${browser.process() ? 'running' : 'not running'}`, "scraper");
-      try {
-        await browser.close();
-        console.log('[ThreatTracker] 🔴 Browser closed successfully');
-      } catch (closeError: any) {
-        console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
-      } finally {
-        browser = null;
-        log('[ThreatTracker][CLEANUP] Browser instance reset to null after close.', "scraper");
       }
     }
   }

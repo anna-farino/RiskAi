@@ -4,7 +4,8 @@ import { db } from 'backend/db/db';
 import { PuppeteerJobQueue, puppeteerJobQueue } from '@shared/db/schema';
 import { asc, eq } from 'drizzle-orm';
 import { scrapeUrl as newsRadarScraper} from 'backend/apps/news-radar/services/scraper';
-import { scrapeUrl as threatTrackerScraper } from 'backend/apps/threat-tracker/services/scraper';
+import { storage } from 'backend/apps/threat-tracker/queries/threat-tracker';
+import { scrapeSource } from 'backend/apps/threat-tracker/services/background-jobs';
 
 const POLL_INTERVAL_MS = 10000; // 10 seconds
 
@@ -63,11 +64,20 @@ async function runScrapeJob(job: PuppeteerJobQueue) {
         );
         break
       case 'threat-tracker':
-        await threatTrackerScraper(
-          job.url, 
-          (job.inputData as any)?.isArticlePage, 
-          (job.inputData as any)?.scrapingConfig
-        );
+        const sourceId = job.sourceId;
+        const userId = job.userId;
+        // Check if the source exists and belongs to the user
+        const source = await storage.getSource(sourceId);
+        if (!source) { 
+          console.error("No source found")
+          return 
+        }
+        if (source.userId && source.userId !== userId) { 
+          console.error("User doesn't own the source")
+          return
+        }
+        // Scrape the source
+        const newArticles = await scrapeSource(source);
         break
     }
     await markJobDone(job.id, { message: 'Scrape complete' });

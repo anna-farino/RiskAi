@@ -1,7 +1,6 @@
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "../../backend/db/db";
 import { puppeteerJobQueue } from "./schema/puppeteer-job-queue";
-import { users } from "./schema/user";
 
 /**
  * Enqueue a Puppeteer job in the DB (returns job row)
@@ -10,9 +9,10 @@ type EnqPupJobArgs = {
   inputData: any,
   userId?: string,
   sourceApp?: string,
-  url: string
+  url: string,
+  sourceId: string
 }
-export async function enqueuePuppeteerJob({ inputData, userId, sourceApp, url }: EnqPupJobArgs) {
+export async function enqueuePuppeteerJob({ inputData, userId, sourceApp, url, sourceId }: EnqPupJobArgs) {
   const [job] = await db
     .insert(puppeteerJobQueue)
     .values({
@@ -21,6 +21,7 @@ export async function enqueuePuppeteerJob({ inputData, userId, sourceApp, url }:
       sourceApp,
       url,
       inputData,
+      sourceId
     })
     .returning();
   return job;
@@ -73,48 +74,6 @@ export async function markJobFailed(jobId: string, error: any) {
     .where(eq(puppeteerJobQueue.id, jobId));
 }
 
-/**
- * All-in-one queue+wait+done
- * Wrap your Puppeteer code with this, passing a callback that does the actual scraping logic.
- */
-type RunQueueArgs<T> = { 
-  inputData: any, 
-  userId?: string, 
-  sourceApp?: string, 
-  fn: (jobId:string) => Promise<T> 
-}
-export async function runQueuedPuppeteerJob<T>({
-  inputData, 
-  userId, 
-  sourceApp, 
-  fn
-}: RunQueueArgs<T> & { url: string }
-): Promise<T> {
-  const logTitle = "[QUEUE PUPPETEER]";
-  function log(str: string) {
-    console.log(logTitle + " " + str);
-  }
-  log("Beginning queueing");
-  log("Looking for stale jobs...");
-  const numberOfStaleJobs = await markStaleJobsAsFailed();
-  log("Stale jobs found: " + numberOfStaleJobs);
-  log("Enqueueing job...");
-  const job = await enqueuePuppeteerJob({ 
-    inputData, userId, sourceApp, url: (inputData && inputData.url) || '' 
-  });
-  await waitForTurnAndStart(job.id);
-  log("My turn");
-  try {
-    const result = await fn(job.id);
-    log("Marking the job as Done");
-    await markJobDone(job.id, result);
-    return result;
-  } catch (e) {
-    log("Marking the job as Failed");
-    await markJobFailed(job.id, e);
-    throw e;
-  }
-}
 
 export async function markStaleJobsAsFailed(): Promise<number> {
   const staleTime = new Date(Date.now() - 60 * 1000);
