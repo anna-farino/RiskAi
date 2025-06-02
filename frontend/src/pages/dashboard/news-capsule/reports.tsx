@@ -738,51 +738,51 @@ export default function Reports() {
                             container.style.position = 'absolute';
                             container.style.left = '-9999px';
                             container.style.top = '0';
-                            container.style.width = '8.5in';
+                            container.style.width = '7in';
                             container.style.background = 'white';
                             container.style.fontFamily = 'Cambria, serif';
                             container.style.fontSize = '11pt';
-                            container.style.lineHeight = '1.15';
+                            container.style.lineHeight = '1.3';
                             container.style.color = 'black';
-                            container.style.padding = '1in 0.75in';
+                            container.style.padding = '20px';
                             
                             let htmlContent = `
-                              <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.15; color: black;">
-                                <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 0.5in;">RisqAI News Capsule Reporting</h1>
-                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 0.25in;">Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</h2>
+                              <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.3; color: black; max-width: 100%;">
+                                <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24px;">RisqAI News Capsule Reporting</h1>
+                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</h2>
                             `;
                             
                             if (selectedReport.topic) {
-                              htmlContent += `<p style="margin-bottom: 0.25in;"><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
+                              htmlContent += `<p style="margin-bottom: 16px;"><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
                             }
                             
                             selectedReport.articles.forEach((article, index) => {
                               htmlContent += `
-                                <div style="page-break-inside: avoid; margin-bottom: 0.4in;">
-                                  <h3 style="font-size: 12pt; font-weight: bold; margin-bottom: 0.1in;">Article ${index + 1}: ${article.title}</h3>
-                                  <p style="margin-bottom: 0.1in;"><strong>Threat Name:</strong> ${article.threatName}</p>
-                                  <p style="margin-bottom: 0.1in;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
-                                  <p style="margin-bottom: 0.1in;"><strong>Target OS:</strong> ${article.targetOS}</p>
-                                  <p style="margin-bottom: 0.1in;"><strong>Source:</strong> ${article.sourcePublication}</p>
+                                <div style="page-break-inside: avoid; margin-bottom: 24px; border-bottom: 1px solid #ddd; padding-bottom: 16px;">
+                                  <h3 style="font-size: 12pt; font-weight: bold; margin-bottom: 12px; color: #333;">Article ${index + 1}: ${article.title}</h3>
+                                  <p style="margin-bottom: 8px;"><strong>Threat Name:</strong> ${article.threatName}</p>
+                                  <p style="margin-bottom: 8px;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
+                                  <p style="margin-bottom: 8px;"><strong>Target OS:</strong> ${article.targetOS}</p>
+                                  <p style="margin-bottom: 12px;"><strong>Source:</strong> ${article.sourcePublication}</p>
                                   
-                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Summary:</h4>
-                                  <p style="margin-bottom: 0.15in;">${article.summary}</p>
+                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Summary:</h4>
+                                  <p style="margin-bottom: 12px; line-height: 1.4;">${article.summary}</p>
                                   
-                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Impacts:</h4>
-                                  <p style="margin-bottom: 0.15in;">${article.impacts}</p>
+                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Impacts:</h4>
+                                  <p style="margin-bottom: 12px; line-height: 1.4;">${article.impacts}</p>
                                   
-                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Attack Vector:</h4>
-                                  <p style="margin-bottom: 0.15in;">${article.attackVector}</p>
+                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Attack Vector:</h4>
+                                  <p style="margin-bottom: 12px; line-height: 1.4;">${article.attackVector}</p>
                               `;
                               
                               if (executiveNotes[article.id]) {
                                 htmlContent += `
-                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Executive Note:</h4>
-                                  <p style="margin-bottom: 0.15in;">${executiveNotes[article.id]}</p>
+                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Executive Note:</h4>
+                                  <p style="margin-bottom: 12px; line-height: 1.4; background-color: #f8f9fa; padding: 8px; border-left: 3px solid #007bff;">${executiveNotes[article.id]}</p>
                                 `;
                               }
                               
-                              htmlContent += `<p style="margin-bottom: 0.15in;"><strong>Original URL:</strong> ${article.originalUrl}</p></div>`;
+                              htmlContent += `<p style="margin-bottom: 8px; font-size: 10pt; color: #666;"><strong>Original URL:</strong> ${article.originalUrl}</p></div>`;
                             });
                             
                             htmlContent += '</div>';
