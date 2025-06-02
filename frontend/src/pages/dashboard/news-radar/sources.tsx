@@ -782,7 +782,7 @@ export default function Sources() {
           }
         }}
       >
-        <></>
+        <span></span>
       </DeleteAlertDialog>
 
       <div className="flex flex-col gap-5 mb-8">
