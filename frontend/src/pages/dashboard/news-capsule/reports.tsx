@@ -508,23 +508,19 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide all navigation and layout elements */
-                              header, aside, nav, button, input, select,
-                              .w-80.flex-shrink-0,
-                              .w-64.min-h-\\[calc\\(100vh-88px\\)\\],
-                              .pt-\\[88px\\],
-                              .md\\:ml-64 {
+                              /* Hide navigation and sidebar only */
+                              header, aside, nav,
+                              .w-80.flex-shrink-0 {
                                 display: none !important;
                               }
-                              /* Reset margins and padding from layout */
-                              main, .flex-1 {
-                                margin: 0 !important;
-                                padding: 0 !important;
-                              }
-                              /* Hide RisqHeader and MainNavigation completely */
-                              .min-h-screen.bg-gradient-to-br > div:first-child,
-                              .hidden.md\\:block.w-64 {
+                              /* Hide all buttons except keep report content visible */
+                              button, input, select, textarea {
                                 display: none !important;
+                              }
+                              /* Reset layout margins for print */
+                              main {
+                                margin-left: 0 !important;
+                                padding: 20px !important;
                               }
                               /* Hide the main layout flex container and make report full width */
                               .flex.gap-6 {
