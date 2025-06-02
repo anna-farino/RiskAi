@@ -89,12 +89,12 @@ export async function runPuppeteerWorker(data: WorkerInput): Promise<string> {
       proc.kill('SIGKILL');
     });
 
-    // Set a shorter timeout for production
+    // Set a balanced timeout for production stability
     const timeout = setTimeout(() => {
       console.error(`[PuppeteerWorker] Timeout - killing process`);
       proc.kill('SIGKILL');
       reject(new Error('Puppeteer worker timeout'));
-    }, 60000); // 1 minute timeout for production
+    }, 45000); // 45 second timeout for production
 
     proc.on('close', () => {
       clearTimeout(timeout);

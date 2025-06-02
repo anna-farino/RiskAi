@@ -1,4 +1,5 @@
 import { runPuppeteerWorker } from '../../../utils/puppeteer-worker-executor';
+import { simpleFallbackScraper } from '../../../utils/simple-scraper-fallback';
 import * as cheerio from 'cheerio';
 import { log } from "backend/utils/log";
 import { detectHtmlStructure } from './openai';
@@ -19,18 +20,27 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       url = "https://" + url;
     }
 
-    // Use the worker process instead of direct Puppeteer
+    // Try Puppeteer worker first
     log('[ThreatTracker] 🟢 Starting Puppeteer worker process', "scraper");
-    const result = await runPuppeteerWorker({
-      url,
-      isArticlePage,
-      scrapingConfig
-    });
-    
-    log('[ThreatTracker] ✅ Worker process completed successfully', "scraper");
-    return result;
+    try {
+      const result = await runPuppeteerWorker({
+        url,
+        isArticlePage,
+        scrapingConfig
+      });
+      
+      log('[ThreatTracker] ✅ Worker process completed successfully', "scraper");
+      return result;
+    } catch (workerError: any) {
+      log(`[ThreatTracker] Worker failed: ${workerError.message}, trying fallback scraper`, "scraper");
+      
+      // Fallback to simple HTTP scraper
+      const fallbackResult = await simpleFallbackScraper(url, isArticlePage);
+      log('[ThreatTracker] ✅ Fallback scraper completed', "scraper");
+      return fallbackResult;
+    }
   } catch (error: any) {
-    log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
+    log(`[ThreatTracker] All scraping methods failed for ${url}: ${error.message}`, "scraper-error");
     throw error;
   }
 }

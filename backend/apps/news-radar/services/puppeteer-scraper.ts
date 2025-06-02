@@ -1,4 +1,5 @@
 import { runPuppeteerWorker } from '../../../utils/puppeteer-worker-executor';
+import { simpleFallbackScraper } from '../../../utils/simple-scraper-fallback';
 import { log } from 'console';
 import dotenv from 'dotenv';
 import dotenvConfig from 'backend/utils/dotenv-config';
@@ -18,18 +19,27 @@ export async function scrapePuppeteer(
   }
 
   try {
-    // Use the worker process instead of direct Puppeteer
+    // Try Puppeteer worker first
     log('[scrapePuppeteer] 🟢 Starting Puppeteer worker process');
-    const result = await runPuppeteerWorker({
-      url,
-      isArticlePage,
-      scrapingConfig
-    });
-    
-    log('[scrapePuppeteer] ✅ Worker process completed successfully');
-    return result;
+    try {
+      const result = await runPuppeteerWorker({
+        url,
+        isArticlePage,
+        scrapingConfig
+      });
+      
+      log('[scrapePuppeteer] ✅ Worker process completed successfully');
+      return result;
+    } catch (workerError: any) {
+      log(`[scrapePuppeteer] Worker failed: ${workerError.message}, trying fallback scraper`);
+      
+      // Fallback to simple HTTP scraper
+      const fallbackResult = await simpleFallbackScraper(url, isArticlePage);
+      log('[scrapePuppeteer] ✅ Fallback scraper completed');
+      return fallbackResult;
+    }
   } catch (error: any) {
-    console.error("[scrapePuppeteer] Fatal error during scraping:", error);
+    console.error("[scrapePuppeteer] All scraping methods failed:", error);
     throw new Error(`Puppeteer scraping failed: ${error?.message || String(error)}`);
   }
 }

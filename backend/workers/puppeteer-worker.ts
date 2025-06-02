@@ -114,30 +114,22 @@ async function main() {
     
     console.error(`[Worker] Page setup complete`);
     
-    // Navigate to URL with shorter timeout
+    // Navigate to URL with very short timeout
     const response = await page.goto(inputData.url, { 
       waitUntil: 'domcontentloaded',  // Faster than networkidle2
-      timeout: 30000  // Shorter timeout
+      timeout: 15000  // Very short timeout
     });
 
-    // Shorter wait for page to stabilize
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Minimal wait for page to stabilize
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     let outputData: WorkerOutput;
 
     if (inputData.isArticlePage) {
-      // Extract article content with faster scrolling
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight / 3);
-        return new Promise(resolve => setTimeout(resolve, 200));
-      });
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-        return new Promise(resolve => setTimeout(resolve, 200));
-      });
+      // Extract article content with minimal scrolling
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight);
-        return new Promise(resolve => setTimeout(resolve, 200));
+        return new Promise(resolve => setTimeout(resolve, 100));
       });
 
       const articleContent = await page.evaluate((scrapingConfig) => {
