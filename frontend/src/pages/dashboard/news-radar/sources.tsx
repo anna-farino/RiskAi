@@ -886,7 +886,7 @@ export default function Sources() {
         </div>
         
         {/* Scheduled status indicator */}
-        { autoScrapeSettings.data?.enabled && autoScrapeSettings.data?.interval && (
+        {autoScrapeSettings.data?.enabled && autoScrapeSettings.data?.interval && (
           <div className="flex flex-wrap items-center p-3 bg-primary/10 rounded-lg text-xs sm:text-sm border border-primary/20">
             <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-1.5 sm:mr-2 flex-shrink-0" />
             <span className="text-white">
