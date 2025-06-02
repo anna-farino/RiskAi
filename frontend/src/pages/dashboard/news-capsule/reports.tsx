@@ -183,7 +183,8 @@ export default function Reports() {
           sourcePublication: article.sourcePublication,
           originalUrl: article.originalUrl,
           targetOS: article.targetOS,
-          createdAt: article.createdAt
+          createdAt: article.createdAt,
+          executiveNote: executiveNotes[article.id] || null
         }))
       }
     };
@@ -496,7 +497,35 @@ export default function Reports() {
                                 })
                               );
                               
-
+                              // Executive Note if exists
+                              if (executiveNotes[article.id]) {
+                                sections.push(
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: "Executive Note:",
+                                        font: "Cambria",
+                                        size: 22,
+                                        bold: true
+                                      })
+                                    ],
+                                    spacing: { after: 60 }
+                                  })
+                                );
+                                
+                                sections.push(
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: executiveNotes[article.id],
+                                        font: "Cambria",
+                                        size: 22
+                                      })
+                                    ],
+                                    spacing: { after: 120 }
+                                  })
+                                );
+                              }
                               
                               // Original URL
                               sections.push(
@@ -718,6 +747,12 @@ export default function Reports() {
                             textContent += "Attack Vector:\n";
                             textContent += article.attackVector + "\n\n";
                             
+                            // Add executive note if exists
+                            if (executiveNotes[article.id]) {
+                              textContent += "Executive Note:\n";
+                              textContent += executiveNotes[article.id] + "\n\n";
+                            }
+                            
                             textContent += `Original URL: ${article.originalUrl}\n\n`;
                             textContent += "-".repeat(50) + "\n\n";
                           });
@@ -819,6 +854,66 @@ export default function Reports() {
                         <div>
                           <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
                           <p className="text-sm leading-relaxed">{article.attackVector}</p>
+                        </div>
+                        
+                        {/* Executive Notes Section */}
+                        <div className="mt-4 pt-4 border-t border-slate-700/30">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-slate-400 mb-1">Executive Note</p>
+                            {!executiveNotes[article.id] && !showAddNote && !editingNote ? (
+                              <button
+                                onClick={() => setShowAddNote(article.id)}
+                                className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                              >
+                                <PlusIcon className="w-3 h-3" />
+                                Add Note
+                              </button>
+                            ) : executiveNotes[article.id] && editingNote !== article.id ? (
+                              <button
+                                onClick={() => startEditingNote(article.id)}
+                                className="text-xs text-slate-400 hover:text-slate-300 flex items-center gap-1"
+                              >
+                                <EditIcon className="w-3 h-3" />
+                                Edit
+                              </button>
+                            ) : null}
+                          </div>
+                          
+                          {/* Display existing note */}
+                          {executiveNotes[article.id] && editingNote !== article.id && showAddNote !== article.id && (
+                            <div className="bg-slate-800/50 p-3 rounded-md border border-slate-700/50">
+                              <p className="text-sm leading-relaxed text-slate-200">{executiveNotes[article.id]}</p>
+                            </div>
+                          )}
+                          
+                          {/* Note editing/creation form */}
+                          {(editingNote === article.id || showAddNote === article.id) && (
+                            <div className="space-y-2">
+                              <textarea
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                                placeholder="Add your executive note for this article..."
+                                className="w-full p-3 bg-slate-800/50 border border-slate-700/50 rounded-md text-sm text-slate-200 placeholder-slate-400 focus:border-blue-500 focus:outline-none resize-vertical min-h-[100px]"
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => saveExecutiveNote(article.id, noteText)}
+                                  disabled={!noteText.trim()}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-xs rounded-md flex items-center gap-1"
+                                >
+                                  <SaveIcon className="w-3 h-3" />
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelEditingNote}
+                                  className="px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white text-xs rounded-md"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>
