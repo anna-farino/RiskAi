@@ -672,7 +672,7 @@ export default function Research() {
       </div>
       
       {/* Content Layout with Fixed Selected Articles */}
-      <div className="flex-1 flex gap-6 p-6">
+      <div className="flex-1 flex gap-6 p-6 overflow-hidden">
         {/* Scrollable Left Content */}
         <div className="flex-1 overflow-y-auto pr-6">
           <div className="flex flex-col gap-6">
@@ -920,8 +920,8 @@ export default function Research() {
         </div>
         
         {/* Fixed Selected Articles Section */}
-        <div className="w-96 flex-shrink-0">
-          <div className="sticky top-0 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl max-h-screen overflow-y-auto">
+        <div className="w-96 flex-shrink-0 h-full">
+          <div className="h-full p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Selected Articles</h2>
             <span className="text-sm text-slate-400">
@@ -950,7 +950,7 @@ export default function Research() {
             </p>
           </div>
           
-          <div className="flex flex-col gap-3 max-h-[360px] overflow-y-auto">
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto">
             {selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic">
                 No articles selected yet
@@ -1122,6 +1122,8 @@ export default function Research() {
           </button>
         </div>
       )}
+          </div>
+        </div>
       </div>
     </div>
   );
