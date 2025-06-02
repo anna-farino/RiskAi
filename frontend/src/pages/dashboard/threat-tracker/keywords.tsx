@@ -673,7 +673,7 @@ export default function Keywords() {
       >
         <div className="flex flex-col space-y-4">
           <div className="w-full overflow-hidden">
-            <TabsList className="w-full h-auto grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:flex lg:w-auto gap-1 p-1">
+            <TabsList className="w-full h-auto grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:flex xl:w-auto gap-1 p-1">
               <TabsTrigger
                 value="threat"
                 className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
