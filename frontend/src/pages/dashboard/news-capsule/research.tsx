@@ -668,9 +668,9 @@ export default function Research() {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* URL Input Section */}
-        <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+      <div className="flex gap-6">
+        {/* URL Input Section - Left Side */}
+        <div className="flex-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
           
           <div className="flex flex-col gap-4">
@@ -857,11 +857,10 @@ export default function Research() {
               ));
             })()}
           </div>
-          
         </div>
         
-        {/* Selected Articles Section */}
-        <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+        {/* Selected Articles Section - Right Side */}
+        <div className="w-80 flex-shrink-0 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Selected Articles</h2>
             <span className="text-sm text-slate-400">
