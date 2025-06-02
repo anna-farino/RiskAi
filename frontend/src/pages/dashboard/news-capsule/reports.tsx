@@ -146,21 +146,24 @@ export default function Reports() {
         </p>
       </div>
       
-      <div className="flex gap-6 h-full">
-        {/* Reports Panel - Fixed Width */}
+      <div className="flex gap-6 h-[calc(100vh-12rem)]">
+        {/* Reports Panel - Fixed Width, No Scroll */}
         <div className="w-80 flex-shrink-0">
           <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl h-full">
             <h2 className="text-xl font-semibold mb-4">Reports Panel</h2>
-            <ReportsManager 
-              onReportSelect={handleReportSelect}
-              selectedReportId={selectedReport?.id}
-            />
+            <div className="overflow-y-auto h-[calc(100%-3rem)]">
+              <ReportsManager 
+                onReportSelect={handleReportSelect}
+                selectedReportId={selectedReport?.id}
+              />
+            </div>
           </div>
         </div>
         
-        {/* Executive Report Content - Flexible Width */}
-        <div className="flex-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          {selectedReport ? (
+        {/* Executive Report Content - Flexible Width, Independent Scroll */}
+        <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+          <div className="h-full overflow-y-auto p-5">
+            {selectedReport ? (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -728,6 +731,7 @@ export default function Reports() {
               <p>Select a report to view its details</p>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
