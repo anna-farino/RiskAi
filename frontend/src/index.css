@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Import Google Fonts - Space Grotesk for logo, Poppins as fallback */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
@@ -5,10 +9,6 @@
 @import './styles/risqai-utils.css';
 @import './styles/logo.css';
 @import './styles/gradients.css';
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
