@@ -660,15 +660,20 @@ export default function Research() {
   };
   
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Capsule Research</h1>
-        <p className="text-slate-300">
-          Analyze articles for executive reporting by submitting URLs for processing.
-        </p>
+    <div className="flex flex-col h-screen">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 p-6 bg-slate-950/80 backdrop-blur-sm border-b border-slate-700/50">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">Capsule Research</h1>
+          <p className="text-slate-300">
+            Analyze articles for executive reporting by submitting URLs for processing.
+          </p>
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* URL Input Section */}
         <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
@@ -1062,6 +1067,7 @@ export default function Research() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
