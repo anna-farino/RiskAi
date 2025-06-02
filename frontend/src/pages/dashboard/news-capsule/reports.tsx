@@ -508,14 +508,24 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide navigation and sidebar only */
-                              header, aside, nav,
+                              /* Hide all navigation and layout elements */
+                              header, aside, nav, button, input, select, textarea,
                               .w-80.flex-shrink-0 {
                                 display: none !important;
                               }
-                              /* Hide all buttons except keep report content visible */
-                              button, input, select, textarea {
+                              /* Hide everything except the actual report content */
+                              body > div > div > div > aside,
+                              body > div > div > div:first-child,
+                              main > div:first-child,
+                              main > div > div:first-child {
                                 display: none !important;
+                              }
+                              /* Show only the report panel content */
+                              .flex-1:last-child {
+                                display: block !important;
+                                width: 100% !important;
+                                margin: 0 !important;
+                                padding: 20px !important;
                               }
                               /* Reset layout margins for print */
                               main {
