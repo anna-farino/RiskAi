@@ -671,18 +671,18 @@ export default function Keywords() {
         onValueChange={setSelectedCategory}
         className="w-full"
       >
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-          <div className="w-full lg:flex-1 overflow-x-auto pb-2">
-            <TabsList className="w-full lg:w-auto grid grid-cols-2 sm:grid-cols-4 lg:flex gap-1 p-1">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-4">
+          <div className="w-full xl:flex-1">
+            <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 xl:flex gap-2 p-2">
               <TabsTrigger
                 value="threat"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="relative text-xs sm:text-sm px-4 py-3 min-h-[44px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
-                  <span className="md:inline hidden">Threat Keywords</span>
-                  <span className="md:hidden inline">Threats</span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="lg:inline hidden">Threat Keywords</span>
+                  <span className="lg:hidden inline">Threats</span>
                   {categoryCounts.threat > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                    <Badge variant="secondary" className="text-xs h-4 px-2">
                       {categoryCounts.threat}
                     </Badge>
                   )}
@@ -690,12 +690,12 @@ export default function Keywords() {
               </TabsTrigger>
               <TabsTrigger
                 value="vendor"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="relative text-xs sm:text-sm px-4 py-3 min-h-[44px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
+                <div className="flex flex-col items-center gap-1">
                   <span>Vendors</span>
                   {categoryCounts.vendor > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                    <Badge variant="secondary" className="text-xs h-4 px-2">
                       {categoryCounts.vendor}
                     </Badge>
                   )}
@@ -703,12 +703,12 @@ export default function Keywords() {
               </TabsTrigger>
               <TabsTrigger
                 value="client"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="relative text-xs sm:text-sm px-4 py-3 min-h-[44px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
+                <div className="flex flex-col items-center gap-1">
                   <span>Clients</span>
                   {categoryCounts.client > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                    <Badge variant="secondary" className="text-xs h-4 px-2">
                       {categoryCounts.client}
                     </Badge>
                   )}
@@ -716,13 +716,13 @@ export default function Keywords() {
               </TabsTrigger>
               <TabsTrigger
                 value="hardware"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="relative text-xs sm:text-sm px-4 py-3 min-h-[44px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
-                  <span className="md:inline hidden">Hardware/Software</span>
-                  <span className="md:hidden inline">H/W S/W</span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="lg:inline hidden">Hardware/Software</span>
+                  <span className="lg:hidden inline">H/W S/W</span>
                   {categoryCounts.hardware > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                    <Badge variant="secondary" className="text-xs h-4 px-2">
                       {categoryCounts.hardware}
                     </Badge>
                   )}
@@ -731,33 +731,33 @@ export default function Keywords() {
             </TabsList>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto px-2">
             <Button
               onClick={handleBulkKeywords}
               disabled={createBulkKeywords.isPending}
               variant="outline"
-              className="h-9 px-3 sm:px-4 text-xs sm:text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial"
+              className="h-11 px-6 text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial min-w-[120px]"
             >
               {createBulkKeywords.isPending ? (
-                <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <Plus className="mr-2 h-4 w-4" />
               )}
-              <span className="md:inline hidden">Bulk Import</span>
-              <span className="md:hidden inline">Bulk</span>
+              <span className="lg:inline hidden">Bulk Import</span>
+              <span className="lg:hidden inline">Bulk</span>
             </Button>
 
             <Button
               onClick={handleNewKeyword}
               disabled={createKeyword.isPending}
-              className="h-9 px-3 sm:px-4 text-xs sm:text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial"
+              className="h-11 px-6 text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial min-w-[120px]"
             >
               {createKeyword.isPending ? (
-                <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <Plus className="mr-2 h-4 w-4" />
               )}
-              <span className="md:inline hidden">
+              <span className="lg:inline hidden">
                 Add{" "}
                 {selectedCategory === "threat"
                   ? "Keyword"
@@ -767,7 +767,7 @@ export default function Keywords() {
                       ? "Client"
                       : "Hardware/Software"}
               </span>
-              <span className="md:hidden inline">Add</span>
+              <span className="lg:hidden inline">Add</span>
             </Button>
           </div>
         </div>
