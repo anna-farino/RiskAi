@@ -898,8 +898,8 @@ export default function Sources() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
-        <div className="lg:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div className="xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:gap-4">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-base sm:text-lg font-medium text-white">Add News Source</h2>
@@ -1003,17 +1003,17 @@ export default function Sources() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-            <Table className="min-w-[650px]">
+          <div className="overflow-x-auto lg:overflow-x-visible -mx-4 sm:mx-0 px-4 sm:px-0">
+            <Table className="min-w-[650px] lg:min-w-0 w-full">
               <TableHeader>
                 <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                  <TableHead className="text-slate-300 w-[25%]">Source</TableHead>
-                  <TableHead className="text-slate-300 w-[30%]">URL</TableHead>
-                  <TableHead className="text-slate-300 w-[20%]">
+                  <TableHead className="text-slate-300 lg:w-auto w-[25%]">Source</TableHead>
+                  <TableHead className="text-slate-300 lg:w-auto w-[30%] lg:max-w-[200px] xl:max-w-none">URL</TableHead>
+                  <TableHead className="text-slate-300 lg:w-auto w-[20%] lg:min-w-[120px]">
                     <span className="hidden sm:inline">Auto-Scrape</span>
                     <span className="sm:hidden">Auto</span>
                   </TableHead>
-                  <TableHead className="text-right text-slate-300 w-[25%]">Actions</TableHead>
+                  <TableHead className="text-right text-slate-300 lg:w-auto w-[25%] lg:min-w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1025,7 +1025,7 @@ export default function Sources() {
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
-                    <TableCell className="min-w-[100px] font-medium text-white">
+                    <TableCell className="lg:min-w-0 min-w-[100px] font-medium text-white">
                       <div className="flex items-center gap-2">
                         <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center">
                           {pendingItems.has(source.id) 
@@ -1033,23 +1033,23 @@ export default function Sources() {
                             : <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                           }
                         </div>
-                        <span className="truncate max-w-[80px] sm:max-w-full">{source.name}</span>
+                        <span className="truncate max-w-[80px] sm:max-w-full lg:max-w-[150px] xl:max-w-none">{source.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="min-w-[120px]">
+                    <TableCell className="lg:min-w-0 min-w-[120px]">
                       <div className="flex items-center gap-1 sm:gap-2">
                         <Link2 className="h-3 w-3 sm:h-4 sm:w-4 text-slate-500 flex-shrink-0" />
                         <a 
                           href={source.url} 
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-300 hover:text-primary transition-colors truncate max-w-[80px] sm:max-w-[120px] md:max-w-[200px]"
+                          className="text-slate-300 hover:text-primary transition-colors truncate max-w-[80px] sm:max-w-[120px] lg:max-w-[180px] xl:max-w-[250px]"
                         >
                           {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </a>
                       </div>
                     </TableCell>
-                    <TableCell className="min-w-[80px]">
+                    <TableCell className="lg:min-w-0 min-w-[80px]">
                       <div className="flex items-center space-x-1 sm:space-x-2">
                         <Switch
                           id={`auto-scrape-${source.id}`}
@@ -1065,8 +1065,8 @@ export default function Sources() {
                         </Label>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right p-2 sm:p-4 min-w-[130px]">
-                      <div className="flex justify-end gap-1 sm:gap-2">
+                    <TableCell className="text-right p-2 sm:p-4 lg:min-w-0 min-w-[130px]">
+                      <div className="flex justify-end gap-1 sm:gap-2 lg:flex-wrap xl:flex-nowrap">
                         <Button
                           size="sm"
                           variant="outline"
