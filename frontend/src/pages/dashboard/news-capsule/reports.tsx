@@ -30,11 +30,94 @@ export default function Reports() {
   
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Executive Reports</h1>
-        <p className="text-slate-300">
-          View and manage compiled reports for executive review.
-        </p>
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">Executive Reports</h1>
+          <p className="text-slate-300">
+            View and manage compiled reports for executive review.
+          </p>
+        </div>
+        
+        {/* Export Button - Only show when a report is selected */}
+        {selectedReport && (
+          <div className="relative">
+            <button
+              className="px-4 py-2 text-sm bg-blue-700 hover:bg-blue-600 rounded-md flex items-center gap-2"
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+            >
+              Exports
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md"
+                  onClick={async () => {
+                    setShowExportDropdown(false);
+                    // Simple Word export for now
+                    const content = `Executive Report: ${formatDate(selectedReport.createdAt)}\n\n${selectedReport.articles?.map((article: any, index: number) => `${index + 1}. ${article.title}\n${article.summary || ''}`).join('\n\n') || 'No articles'}`;
+                    
+                    const doc = new Document({
+                      sections: [{
+                        properties: {},
+                        children: [
+                          new Paragraph({
+                            children: [new TextRun({ text: content, font: "Cambria" })],
+                            alignment: AlignmentType.LEFT
+                          })
+                        ]
+                      }]
+                    });
+                    
+                    const blob = await Packer.toBlob(doc);
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.docx`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Export to Word
+                </button>
+                
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                  onClick={() => {
+                    setShowExportDropdown(false);
+                    window.print();
+                  }}
+                >
+                  Print
+                </button>
+                
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-b-md"
+                  onClick={() => {
+                    setShowExportDropdown(false);
+                    const content = `Executive Report: ${formatDate(selectedReport.createdAt)}\n\n${selectedReport.articles?.map((article: any, index: number) => `${index + 1}. ${article.title}\n${article.summary || ''}`).join('\n\n') || 'No articles'}`;
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.txt`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Export as Text
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
