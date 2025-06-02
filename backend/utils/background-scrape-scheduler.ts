@@ -3,9 +3,9 @@ import { log } from 'backend/utils/log';
 import { db } from 'backend/db/db';
 import { PuppeteerJobQueue, puppeteerJobQueue } from '@shared/db/schema';
 import { asc, eq } from 'drizzle-orm';
-import { scrapeUrl as newsRadarScraper} from 'backend/apps/news-radar/services/scraper';
 import { storage } from 'backend/apps/threat-tracker/queries/threat-tracker';
 import { scrapeSource } from 'backend/apps/threat-tracker/services/background-jobs';
+import { scrapeSource as newsRadarScrapeSource } from 'backend/apps/news-radar/services/background-jobs';
 
 const POLL_INTERVAL_MS = 10000; // 10 seconds
 
@@ -47,37 +47,27 @@ async function getOldestQueuedJob() {
     .where(eq(puppeteerJobQueue.status, 'queued'))
     .orderBy(asc(puppeteerJobQueue.createdAt))
     .limit(1)
-  log(`[Scheduler] ...oldest job found: ${oldestJob.length > 0 ? 'true' : 'false'}`);
+  const oldestJobFound = oldestJob.length > 0;
+  log(`[Scheduler] ...oldest job found: ${oldestJobFound ? 'true' : 'false'}`);
+  if (oldestJobFound) {
+    log(`[Scheduler] Found this job:`, JSON.stringify(oldestJob[0]))
+  } 
   return oldestJob
 }
 
 async function runScrapeJob(job: PuppeteerJobQueue) {
   try {
     log(`[Scheduler] Running scrape for job ${job.id}: ${job.url}`, 'scheduler');
-    
     switch(job.sourceApp) {
       case 'news-radar':
-        await newsRadarScraper(
-          job.url, 
-          (job.inputData as any)?.isArticlePage, 
-          (job.inputData as any)?.scrapingConfig
-        );
+        log(`[Scheduler] Source app: news-radar`, job.sourceId);
+        await newsRadarScrapeSource(job.sourceId);
         break
       case 'threat-tracker':
+        log(`[Scheduler] Source app: threat-tracker`, job.sourceId);
         const sourceId = job.sourceId;
-        const userId = job.userId;
-        // Check if the source exists and belongs to the user
         const source = await storage.getSource(sourceId);
-        if (!source) { 
-          console.error("No source found")
-          return 
-        }
-        if (source.userId && source.userId !== userId) { 
-          console.error("User doesn't own the source")
-          return
-        }
-        // Scrape the source
-        const newArticles = await scrapeSource(source);
+        await scrapeSource(source);
         break
     }
     await markJobDone(job.id, { message: 'Scrape complete' });

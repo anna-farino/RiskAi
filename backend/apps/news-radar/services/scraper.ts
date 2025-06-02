@@ -449,7 +449,6 @@ export async function extractArticleLinks(
           `[Link Detection] Potential article link found: ${fullUrl}`,
           "scraper",
         );
-        log(`[Link Detection] Link text: ${text}`, "scraper");
       }
     });
 

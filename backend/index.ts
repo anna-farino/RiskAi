@@ -16,7 +16,6 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 console.log("Database url", process.env.DATABASE_URL)
 console.log("[🌐 NODE_ENV]", process.env.NODE_ENV)
 
-
 process.on('unhandledRejection', reason => {
   console.error('🧨 Unhandled Rejection:', reason);
 });
@@ -36,6 +35,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/api', router);
 
+runBackgroundQueuedJobsScraper()
+
 if (isDevelopment) {
   app.use('/', createProxyMiddleware({
     target: 'http://localhost:5174',
@@ -52,4 +53,3 @@ app.listen(port, () => {
   }
 });
 
-runBackgroundQueuedJobsScraper()
