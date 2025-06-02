@@ -588,7 +588,7 @@ export default function Reports() {
                             @media print {
                               @page {
                                 size: letter;
-                                margin: 0.75in 0.5in;
+                                margin: 1in 0.75in 1in 0.75in;
                               }
                               body {
                                 font-family: Cambria, serif !important;
