@@ -146,17 +146,20 @@ export default function Reports() {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        {/* Reports List */}
-        <div className="md:col-span-1">
-          <ReportsManager 
-            onReportSelect={handleReportSelect}
-            selectedReportId={selectedReport?.id}
-          />
+      <div className="flex gap-6 h-full">
+        {/* Reports Panel - Fixed Width */}
+        <div className="w-80 flex-shrink-0">
+          <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl h-full">
+            <h2 className="text-xl font-semibold mb-4">Reports Panel</h2>
+            <ReportsManager 
+              onReportSelect={handleReportSelect}
+              selectedReportId={selectedReport?.id}
+            />
+          </div>
         </div>
         
-        {/* Report Details */}
-        <div className="md:col-span-4 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+        {/* Executive Report Content - Flexible Width */}
+        <div className="flex-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           {selectedReport ? (
             <div>
               <div className="flex justify-between items-center mb-6">
