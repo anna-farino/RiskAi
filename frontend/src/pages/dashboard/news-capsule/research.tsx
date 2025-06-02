@@ -671,11 +671,13 @@ export default function Research() {
         </div>
       </div>
       
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* URL Input Section */}
-        <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+      {/* Content Layout with Fixed Selected Articles */}
+      <div className="flex-1 flex gap-6 p-6">
+        {/* Scrollable Left Content */}
+        <div className="flex-1 overflow-y-auto pr-6">
+          <div className="flex flex-col gap-6">
+            {/* URL Input Section */}
+            <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
           
           <div className="flex flex-col gap-4">
@@ -863,10 +865,63 @@ export default function Research() {
             })()}
           </div>
           
+          {/* Processed Articles Pagination */}
+          {processedArticles.length > articlesPerPage && (
+            <div className="flex items-center justify-center gap-4 mt-6 p-4 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400 mr-2">
+                  Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                </span>
+                {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+                  .filter(page => {
+                    const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                    return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2;
+                  })
+                  .map((page, index, visiblePages) => {
+                    const prevPage = visiblePages[index - 1];
+                    const showEllipsis = prevPage && page - prevPage > 1;
+                    
+                    return (
+                      <React.Fragment key={page}>
+                        {showEllipsis && <span className="text-slate-400 px-2">...</span>}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-2 rounded-md min-w-[40px] ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+                disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+                className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+          </div>
         </div>
         
-        {/* Selected Articles Section */}
-        <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+        {/* Fixed Selected Articles Section */}
+        <div className="w-96 flex-shrink-0">
+          <div className="sticky top-0 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl max-h-screen overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Selected Articles</h2>
             <span className="text-sm text-slate-400">
