@@ -202,11 +202,517 @@ export default function Reports() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Executive Reports</h1>
-        <p className="text-slate-300">
-          View and manage compiled reports for executive review.
-        </p>
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">Executive Reports</h1>
+          <p className="text-slate-300">
+            View and manage compiled reports for executive review.
+          </p>
+        </div>
+        
+        {/* Export Button - Only show when a report is selected */}
+        {selectedReport && (
+          <div className="relative">
+            <button
+              className="px-4 py-2 text-sm bg-blue-700 hover:bg-blue-600 rounded-md flex items-center gap-2"
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+            >
+              Exports
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md"
+                  onClick={async () => {
+                    setShowExportDropdown(false);
+                    try {
+                      // Create document sections
+                      const sections = [];
+                      
+                      // Header
+                      sections.push(
+                        new Paragraph({
+                          children: [
+                            new TextRun({
+                              text: "RisqAI News Capsule Reporting",
+                              font: "Cambria",
+                              size: 28,
+                              bold: true,
+                              color: "000000"
+                            })
+                          ],
+                          alignment: AlignmentType.CENTER,
+                          spacing: { after: 240 }
+                        })
+                      );
+                      
+                      sections.push(
+                        new Paragraph({
+                          children: [
+                            new TextRun({
+                              text: `Executive Report: ${formatDate(selectedReport.createdAt)}`,
+                              font: "Cambria",
+                              size: 18,
+                              bold: true,
+                              color: "000000"
+                            }),
+                            ...(selectedReport.versionNumber && selectedReport.versionNumber > 1 ? [
+                              new TextRun({
+                                text: ` (Version: ${selectedReport.versionNumber})`,
+                                font: "Cambria",
+                                size: 14,
+                                bold: false,
+                                color: "000000"
+                              })
+                            ] : [])
+                          ],
+                          alignment: AlignmentType.CENTER,
+                          spacing: { after: 240 }
+                        })
+                      );
+                      
+                      if (selectedReport.topic) {
+                        sections.push(
+                          new Paragraph({
+                            children: [
+                              new TextRun({
+                                text: `Report Topic: ${selectedReport.topic}`,
+                                font: "Cambria",
+                                size: 14,
+                                bold: true,
+                                color: "000000"
+                              })
+                            ],
+                            alignment: AlignmentType.CENTER,
+                            spacing: { after: 240 }
+                          })
+                        );
+                      }
+                      
+                      // Articles
+                      if (selectedReport.articles && selectedReport.articles.length > 0) {
+                        sections.push(
+                          new Paragraph({
+                            children: [
+                              new TextRun({
+                                text: "Articles",
+                                font: "Cambria",
+                                size: 16,
+                                bold: true,
+                                color: "000000"
+                              })
+                            ],
+                            spacing: { before: 240, after: 120 }
+                          })
+                        );
+                        
+                        selectedReport.articles.forEach((article: any, index: number) => {
+                          // Article title with number
+                          sections.push(
+                            new Paragraph({
+                              children: [
+                                new TextRun({
+                                  text: `${index + 1}. ${article.title}`,
+                                  font: "Cambria",
+                                  size: 14,
+                                  bold: true,
+                                  color: "000000"
+                                })
+                              ],
+                              spacing: { before: 200, after: 120 }
+                            })
+                          );
+                          
+                          // Article details
+                          const details = [
+                            `Threat Level: ${article.threatLevel}`,
+                            `Attack Type: ${article.attackType}`,
+                            `Vulnerability ID: ${article.vulnerabilityId}`,
+                            `Target OS: ${article.targetOS}`,
+                            `Source: ${article.sourcePublication}`
+                          ].filter(Boolean);
+                          
+                          details.forEach(detail => {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: detail,
+                                    font: "Cambria",
+                                    size: 11,
+                                    color: "000000"
+                                  })
+                                ],
+                                spacing: { after: 60 }
+                              })
+                            );
+                          });
+                          
+                          // Summary
+                          if (article.summary) {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "Summary: ",
+                                    font: "Cambria",
+                                    size: 11,
+                                    bold: true,
+                                    color: "000000"
+                                  }),
+                                  new TextRun({
+                                    text: article.summary,
+                                    font: "Cambria",
+                                    size: 11,
+                                    color: "000000"
+                                  })
+                                ],
+                                spacing: { after: 120 }
+                              })
+                            );
+                          }
+                          
+                          // Impacts
+                          if (article.impacts) {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "Impacts: ",
+                                    font: "Cambria",
+                                    size: 11,
+                                    bold: true,
+                                    color: "000000"
+                                  }),
+                                  new TextRun({
+                                    text: article.impacts,
+                                    font: "Cambria",
+                                    size: 11,
+                                    color: "000000"
+                                  })
+                                ],
+                                spacing: { after: 120 }
+                              })
+                            );
+                          }
+                          
+                          // Attack Vector
+                          if (article.attackVector) {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "Attack Vector: ",
+                                    font: "Cambria",
+                                    size: 11,
+                                    bold: true,
+                                    color: "000000"
+                                  }),
+                                  new TextRun({
+                                    text: article.attackVector,
+                                    font: "Cambria",
+                                    size: 11,
+                                    color: "000000"
+                                  })
+                                ],
+                                spacing: { after: 120 }
+                              })
+                            );
+                          }
+                          
+                          // Executive Note
+                          const note = executiveNotes[article.id];
+                          if (note && note.trim()) {
+                            sections.push(
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: "Executive Note: ",
+                                    font: "Cambria",
+                                    size: 11,
+                                    bold: true,
+                                    color: "000000"
+                                  }),
+                                  new TextRun({
+                                    text: note,
+                                    font: "Cambria",
+                                    size: 11,
+                                    color: "000000"
+                                  })
+                                ],
+                                spacing: { after: 240 }
+                              })
+                            );
+                          }
+                        });
+                      }
+                      
+                      // Create document
+                      const doc = new Document({
+                        sections: [
+                          {
+                            properties: {},
+                            children: sections
+                          }
+                        ]
+                      });
+                      
+                      // Generate and download
+                      const blob = await Packer.toBlob(doc);
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.docx`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    } catch (error) {
+                      console.error('Error creating Word document:', error);
+                      alert('Error creating Word document. Please try again.');
+                    }
+                  }}
+                >
+                  Export to Word
+                </button>
+                
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                  onClick={() => {
+                    setShowExportDropdown(false);
+                    // Add print-specific styling
+                    const printStyle = document.createElement('style');
+                    printStyle.id = 'print-style';
+                    printStyle.innerHTML = `
+                      @media print {
+                        @page {
+                          size: letter;
+                          margin: 0.75in 0.5in;
+                        }
+                        body {
+                          font-family: Cambria, serif !important;
+                          font-size: 11pt !important;
+                          line-height: 1.15 !important;
+                          background: white !important;
+                          color: black !important;
+                          margin: 0 !important;
+                          padding: 0 !important;
+                        }
+                        /* Hide navigation and interactive elements */
+                        header, aside, nav, 
+                        button, input, select, textarea,
+                        .w-80.flex-shrink-0 {
+                          display: none !important;
+                        }
+                        /* Hide the top navigation tabs specifically */
+                        .flex.gap-8,
+                        .flex.gap-8 *,
+                        a[href*="/dashboard/news-capsule"] {
+                          display: none !important;
+                        }
+                        /* Hide any element containing "Home", "Research", "Executive Reports" */
+                        *:contains("Home"):not(h2):not(h3):not(p),
+                        *:contains("Research"):not(h2):not(h3):not(p),
+                        *:contains("Executive Reports"):not(h2):not(h3):not(p) {
+                          display: none !important;
+                        }
+                        /* Reset layout margins for print */
+                        main {
+                          margin-left: 0 !important;
+                          padding: 20px !important;
+                        }
+                        /* Hide the main layout flex container and make report full width */
+                        .flex.gap-6 {
+                          display: block !important;
+                        }
+                        /* Make the Executive Report content full width */
+                        .flex-1 {
+                          width: 100% !important;
+                          max-width: 100% !important;
+                          flex: none !important;
+                        }
+                        .grid.grid-cols-1 {
+                          display: block !important;
+                        }
+                        /* Format titles and headers */
+                        h1, h2, h3, .text-xl, .text-lg {
+                          font-size: 14pt !important;
+                          font-weight: bold !important;
+                          margin-top: 12pt !important;
+                          margin-bottom: 6pt !important;
+                          color: black !important;
+                        }
+                        /* Format text */
+                        p, .text-sm {
+                          font-size: 10pt !important;
+                          line-height: 1.4 !important;
+                          color: black !important;
+                        }
+                        /* Single column layout for print - force all grids to block */
+                        .grid, .grid-cols-1, .grid-cols-2 {
+                          display: block !important;
+                          grid-template-columns: none !important;
+                        }
+                        /* Remove card styling for print and ensure single column */
+                        .space-y-6 > div, .space-y-8 > div {
+                          border: none !important;
+                          border-radius: 0 !important;
+                          background: none !important;
+                          padding: 0 !important;
+                          margin-bottom: 0.3in !important;
+                          page-break-inside: avoid;
+                          width: 100% !important;
+                          display: block !important;
+                        }
+                        /* Ensure story content flows in single column */
+                        .space-y-6, .space-y-8 {
+                          display: block !important;
+                          width: 100% !important;
+                        }
+                        /* Hide interactive elements */
+                        .group, .absolute, .cursor-grab, .opacity-0, 
+                        .hover\\:opacity-100, .ring-2, .ring-blue-500,
+                        button, textarea, .bg-blue-600 {
+                          display: none !important;
+                        }
+                      }
+                    `;
+                    document.head.appendChild(printStyle);
+                    
+                    // Change the document title for printing
+                    const originalTitle = document.title;
+                    document.title = "RisqAI News Capsule Reporting";
+                    
+                    // Print the report
+                    window.print();
+                    
+                    // Remove the print style after printing and restore title
+                    setTimeout(() => {
+                      const styleElement = document.getElementById('print-style');
+                      if (styleElement) {
+                        styleElement.remove();
+                      }
+                      document.title = originalTitle;
+                    }, 1000);
+                  }}
+                >
+                  Print
+                </button>
+                
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                  onClick={() => {
+                    setShowExportDropdown(false);
+                    // Generate text content
+                    let textContent = "RisqAI News Capsule Reporting\n";
+                    textContent += "=".repeat(50) + "\n\n";
+                    
+                    textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}`;
+                    if (selectedReport.versionNumber && selectedReport.versionNumber > 1) {
+                      textContent += ` (Version: ${selectedReport.versionNumber})`;
+                    }
+                    textContent += "\n\n";
+                    
+                    if (selectedReport.topic) {
+                      textContent += `Report Topic: ${selectedReport.topic}\n\n`;
+                    }
+                    
+                    textContent += "Articles:\n";
+                    textContent += "-".repeat(30) + "\n\n";
+                    
+                    if (selectedReport.articles && selectedReport.articles.length > 0) {
+                      selectedReport.articles.forEach((article: any, index: number) => {
+                        textContent += `${index + 1}. ${article.title}\n`;
+                        textContent += `   Threat Level: ${article.threatLevel}\n`;
+                        textContent += `   Attack Type: ${article.attackType}\n`;
+                        textContent += `   Vulnerability ID: ${article.vulnerabilityId}\n`;
+                        textContent += `   Target OS: ${article.targetOS}\n`;
+                        textContent += `   Source: ${article.sourcePublication}\n\n`;
+                        
+                        if (article.summary) {
+                          textContent += `   Summary: ${article.summary}\n\n`;
+                        }
+                        
+                        if (article.impacts) {
+                          textContent += `   Impacts: ${article.impacts}\n\n`;
+                        }
+                        
+                        if (article.attackVector) {
+                          textContent += `   Attack Vector: ${article.attackVector}\n\n`;
+                        }
+                        
+                        // Include Executive Note
+                        const note = executiveNotes[article.id];
+                        if (note && note.trim()) {
+                          textContent += `   Executive Note: ${note}\n\n`;
+                        }
+                        
+                        textContent += "-".repeat(50) + "\n\n";
+                      });
+                    }
+                    
+                    // Create and download text file
+                    const blob = new Blob([textContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.txt`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Export as Text
+                </button>
+                
+                <button
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-b-md"
+                  onClick={() => {
+                    setShowExportDropdown(false);
+                    
+                    // Create JSON structure
+                    const jsonData = {
+                      title: "RisqAI News Capsule Reporting",
+                      reportDate: formatDate(selectedReport.createdAt),
+                      versionNumber: selectedReport.versionNumber,
+                      topic: selectedReport.topic,
+                      articles: selectedReport.articles?.map((article: any) => ({
+                        title: article.title,
+                        threatLevel: article.threatLevel,
+                        attackType: article.attackType,
+                        vulnerabilityId: article.vulnerabilityId,
+                        targetOS: article.targetOS,
+                        sourcePublication: article.sourcePublication,
+                        summary: article.summary,
+                        impacts: article.impacts,
+                        attackVector: article.attackVector,
+                        executiveNote: executiveNotes[article.id] || null
+                      })) || []
+                    };
+                    
+                    // Create and download JSON file
+                    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Export as JSON
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
@@ -228,7 +734,7 @@ export default function Reports() {
           <div className="h-full overflow-y-auto p-5">
             {selectedReport ? (
             <div>
-              <div className="flex justify-between items-center mb-6">
+              <div className="mb-6">
                 <div>
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
@@ -242,16 +748,7 @@ export default function Reports() {
                     </p>
                   )}
                 </div>
-                <div className="relative">
-                  <button
-                    className="px-4 py-2 text-sm bg-blue-700 hover:bg-blue-600 rounded-md flex items-center gap-2"
-                    onClick={() => setShowExportDropdown(!showExportDropdown)}
-                  >
-                    Exports
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+              </div>
                   
                   {showExportDropdown && (
                     <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
