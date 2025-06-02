@@ -778,7 +778,7 @@ export default function Research() {
                   animate={{ opacity: 1, y: 0 }}
                   className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start">
                     <h3 className="text-lg font-medium flex-1">{article.title}</h3>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex gap-2">
@@ -824,7 +824,7 @@ export default function Research() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Threat Name</p>
                       <p className="text-sm">{article.threatName}</p>
