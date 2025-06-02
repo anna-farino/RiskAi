@@ -749,12 +749,9 @@ export default function Reports() {
                   )}
                 </div>
               </div>
-                  
-                  {showExportDropdown && (
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
-                      <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md"
-                        onClick={async () => {
+              
+              {/* Article Cards */}
+              {selectedReport.articles && selectedReport.articles.length > 0 ? (
                           setShowExportDropdown(false);
                           try {
                             // Create document sections
