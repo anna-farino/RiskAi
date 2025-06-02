@@ -1004,17 +1004,17 @@ export default function Sources() {
           </div>
         ) : (
           <div className="overflow-x-auto md:overflow-x-visible lg:overflow-x-visible -mx-4 sm:mx-0 px-4 sm:px-0">
-            <Table className="min-w-[650px] md:min-w-[500px] lg:min-w-0 w-full">
+            <Table className="min-w-[650px] md:min-w-[480px] lg:min-w-0 w-full">
               <TableHeader>
                 <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
                   <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[25%]">Source</TableHead>
-                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[30%] md:max-w-[150px] lg:max-w-[200px] xl:max-w-none">URL</TableHead>
-                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[20%] md:min-w-[90px] lg:min-w-[120px]">
+                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[30%] md:max-w-[160px] lg:max-w-[200px] xl:max-w-none">URL</TableHead>
+                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[20%] md:min-w-[85px] lg:min-w-[120px]">
                     <span className="hidden sm:inline md:hidden lg:inline">Auto-Scrape</span>
                     <span className="sm:hidden md:inline lg:hidden">Auto</span>
                     <span className="md:hidden">Auto</span>
                   </TableHead>
-                  <TableHead className="text-right text-slate-300 md:w-auto lg:w-auto w-[25%] md:min-w-[100px] lg:min-w-[140px]">Actions</TableHead>
+                  <TableHead className="text-right text-slate-300 md:w-auto lg:w-auto w-[25%] md:min-w-[95px] lg:min-w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1034,7 +1034,7 @@ export default function Sources() {
                             : <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                           }
                         </div>
-                        <span className="truncate max-w-[80px] sm:max-w-full md:max-w-[120px] lg:max-w-[150px] xl:max-w-none">{source.name}</span>
+                        <span className="truncate max-w-[80px] sm:max-w-full md:max-w-[115px] lg:max-w-[150px] xl:max-w-none">{source.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="md:min-w-0 lg:min-w-0 min-w-[120px]">
@@ -1044,7 +1044,7 @@ export default function Sources() {
                           href={source.url} 
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-300 hover:text-primary transition-colors truncate max-w-[80px] sm:max-w-[120px] md:max-w-[140px] lg:max-w-[180px] xl:max-w-[250px]"
+                          className="text-slate-300 hover:text-primary transition-colors truncate max-w-[80px] sm:max-w-[120px] md:max-w-[150px] lg:max-w-[180px] xl:max-w-[250px]"
                         >
                           {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </a>
