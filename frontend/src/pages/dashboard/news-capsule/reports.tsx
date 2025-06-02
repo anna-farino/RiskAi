@@ -543,7 +543,7 @@ export default function Reports() {
                                       size: 22
                                     })
                                   ],
-                                  spacing: { after: 240 }
+                                  spacing: { after: 360 }
                                 })
                               );
                             });
