@@ -42,8 +42,9 @@ interface ArticleSummary {
 
 // Function to determine which app sent the article
 const getSourceAppIndicator = (article: ArticleSummary) => {
-  // Since all current articles are manually processed, show 'M' for manual
-  return { label: 'M', color: 'bg-gray-500', textColor: 'text-gray-100' };
+  // Articles processed through News Capsule research page show 'NC'
+  // Other manually entered articles show 'M'
+  return { label: 'NC', color: 'bg-purple-600', textColor: 'text-purple-100' };
 };
 
 
