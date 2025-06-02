@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -724,6 +726,106 @@ export default function Reports() {
                         }}
                       >
                         Print
+                      </button>
+                      
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        onClick={async () => {
+                          setShowExportDropdown(false);
+                          try {
+                            // Create a temporary container for PDF generation
+                            const container = document.createElement('div');
+                            container.style.position = 'absolute';
+                            container.style.left = '-9999px';
+                            container.style.top = '0';
+                            container.style.width = '8.5in';
+                            container.style.background = 'white';
+                            container.style.fontFamily = 'Cambria, serif';
+                            container.style.fontSize = '11pt';
+                            container.style.lineHeight = '1.15';
+                            container.style.color = 'black';
+                            container.style.padding = '1in 0.75in';
+                            
+                            let htmlContent = `
+                              <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.15; color: black;">
+                                <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 0.5in;">RisqAI News Capsule Reporting</h1>
+                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 0.25in;">Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</h2>
+                            `;
+                            
+                            if (selectedReport.topic) {
+                              htmlContent += `<p style="margin-bottom: 0.25in;"><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
+                            }
+                            
+                            selectedReport.articles.forEach((article, index) => {
+                              htmlContent += `
+                                <div style="page-break-inside: avoid; margin-bottom: 0.4in;">
+                                  <h3 style="font-size: 12pt; font-weight: bold; margin-bottom: 0.1in;">Article ${index + 1}: ${article.title}</h3>
+                                  <p style="margin-bottom: 0.1in;"><strong>Threat Name:</strong> ${article.threatName}</p>
+                                  <p style="margin-bottom: 0.1in;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
+                                  <p style="margin-bottom: 0.1in;"><strong>Target OS:</strong> ${article.targetOS}</p>
+                                  <p style="margin-bottom: 0.1in;"><strong>Source:</strong> ${article.sourcePublication}</p>
+                                  
+                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Summary:</h4>
+                                  <p style="margin-bottom: 0.15in;">${article.summary}</p>
+                                  
+                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Impacts:</h4>
+                                  <p style="margin-bottom: 0.15in;">${article.impacts}</p>
+                                  
+                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Attack Vector:</h4>
+                                  <p style="margin-bottom: 0.15in;">${article.attackVector}</p>
+                              `;
+                              
+                              if (executiveNotes[article.id]) {
+                                htmlContent += `
+                                  <h4 style="font-weight: bold; margin: 0.15in 0 0.05in 0;">Executive Note:</h4>
+                                  <p style="margin-bottom: 0.15in;">${executiveNotes[article.id]}</p>
+                                `;
+                              }
+                              
+                              htmlContent += `<p style="margin-bottom: 0.15in;"><strong>Original URL:</strong> ${article.originalUrl}</p></div>`;
+                            });
+                            
+                            htmlContent += '</div>';
+                            container.innerHTML = htmlContent;
+                            document.body.appendChild(container);
+                            
+                            // Generate PDF using html2canvas and jsPDF
+                            const canvas = await html2canvas(container, {
+                              scale: 2,
+                              useCORS: true,
+                              backgroundColor: '#ffffff'
+                            });
+                            
+                            const pdf = new jsPDF('p', 'mm', 'a4');
+                            const imgWidth = 210; // A4 width in mm
+                            const pageHeight = 295; // A4 height in mm
+                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                            let heightLeft = imgHeight;
+                            let position = 0;
+                            
+                            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+                            heightLeft -= pageHeight;
+                            
+                            while (heightLeft >= 0) {
+                              position = heightLeft - imgHeight;
+                              pdf.addPage();
+                              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+                              heightLeft -= pageHeight;
+                            }
+                            
+                            // Download the PDF
+                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.pdf`);
+                            
+                            // Clean up
+                            document.body.removeChild(container);
+                            
+                          } catch (error) {
+                            console.error('Error creating PDF:', error);
+                            alert('Error creating PDF. Please try again.');
+                          }
+                        }}
+                      >
+                        Export to PDF
                       </button>
                       
                       <button
