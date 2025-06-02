@@ -1122,6 +1122,8 @@ export default function Research() {
           </button>
         </div>
       )}
+          </div>
+        </div>
       </div>
     </div>
   );
