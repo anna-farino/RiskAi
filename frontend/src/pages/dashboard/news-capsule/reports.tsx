@@ -543,11 +543,19 @@ export default function Reports() {
                                 line-height: 1.4 !important;
                                 color: black !important;
                               }
-                              /* Format grid layouts */
+                              /* Single column layout for print */
                               .grid-cols-2 {
-                                display: grid !important;
-                                grid-template-columns: 1fr 1fr !important;
-                                gap: 0.2in !important;
+                                display: block !important;
+                                grid-template-columns: none !important;
+                              }
+                              /* Remove card styling for print */
+                              .space-y-6 > div {
+                                border: none !important;
+                                border-radius: 0 !important;
+                                background: none !important;
+                                padding: 0 !important;
+                                margin-bottom: 0.3in !important;
+                                page-break-inside: avoid;
                               }
                               /* Hide interactive elements */
                               .group, .absolute, .cursor-grab, .opacity-0, 
@@ -661,11 +669,11 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`p-4 border rounded-lg relative cursor-move ${
+                      className={`relative cursor-move pb-6 mb-6 ${
                         dragOverIndex === index 
-                          ? 'bg-blue-900/30 border-blue-500/50' 
-                          : 'bg-slate-800/50 border-slate-700/40'
-                      }`}
+                          ? 'bg-blue-900/10 p-2 rounded-lg' 
+                          : ''
+                      } ${index < selectedReport.articles.length - 1 ? 'border-b border-slate-700/30' : ''}`}
                       draggable
                       onDragStart={(e) => handleDragStart(e, article.id)}
                       onDragOver={(e) => handleDragOver(e, index)}
