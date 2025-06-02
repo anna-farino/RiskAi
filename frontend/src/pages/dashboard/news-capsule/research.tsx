@@ -668,12 +668,13 @@ export default function Research() {
         </p>
       </div>
       
-      <div className="flex gap-6">
-        {/* URL Input Section - Left Side */}
-        <div className="flex-1 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
-          
-          <div className="flex flex-col gap-4">
+      <div className="flex gap-6 h-[calc(100vh-12rem)]">
+        {/* URL Input Section - Left Side, Independent Scroll */}
+        <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+          <div className="h-full overflow-y-auto p-5">
+            <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
+            
+            <div className="flex flex-col gap-4">
 
 
             <div className="flex flex-col gap-2">
@@ -856,17 +857,19 @@ export default function Research() {
                 </motion.div>
               ));
             })()}
+            </div>
           </div>
         </div>
         
-        {/* Selected Articles Section - Right Side */}
-        <div className="w-80 flex-shrink-0 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Selected Articles</h2>
-            <span className="text-sm text-slate-400">
-              {selectedArticles.length} selected
-            </span>
-          </div>
+        {/* Selected Articles Section - Right Side, Fixed */}
+        <div className="w-80 flex-shrink-0 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+          <div className="h-full overflow-y-auto p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Selected Articles</h2>
+              <span className="text-sm text-slate-400">
+                {selectedArticles.length} selected
+              </span>
+            </div>
           
           {/* Report Topic Field */}
           <div className="mb-4">
@@ -1007,6 +1010,7 @@ export default function Research() {
           >
             New Report
           </button>
+          </div>
         </div>
       </div>
       
