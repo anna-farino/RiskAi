@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { XIcon, GripVerticalIcon } from "lucide-react";
+import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -12,9 +12,71 @@ export default function Reports() {
   const [noteText, setNoteText] = useState<string>('');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
+  const [showAddNote, setShowAddNote] = useState<string | null>(null);
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
+    loadExecutiveNotes(report.id);
+  };
+
+  // Load executive notes for the selected report
+  const loadExecutiveNotes = async (reportId: string) => {
+    try {
+      const response = await fetch(`/api/news-capsule/executive-notes/${reportId}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const notesMap: Record<string, string> = {};
+        data.notes.forEach((note: any) => {
+          notesMap[note.articleId] = note.note;
+        });
+        setExecutiveNotes(notesMap);
+      }
+    } catch (error) {
+      console.error('Error loading executive notes:', error);
+    }
+  };
+
+  // Save or update an executive note
+  const saveExecutiveNote = async (articleId: string, note: string) => {
+    if (!selectedReport) return;
+
+    try {
+      const response = await fetch('/api/news-capsule/executive-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          articleId,
+          reportId: selectedReport.id,
+          note
+        })
+      });
+
+      if (response.ok) {
+        setExecutiveNotes(prev => ({ ...prev, [articleId]: note }));
+        setEditingNote(null);
+        setShowAddNote(null);
+        setNoteText('');
+      }
+    } catch (error) {
+      console.error('Error saving executive note:', error);
+    }
+  };
+
+  // Start editing a note
+  const startEditingNote = (articleId: string) => {
+    setEditingNote(articleId);
+    setNoteText(executiveNotes[articleId] || '');
+  };
+
+  // Cancel editing a note
+  const cancelEditingNote = () => {
+    setEditingNote(null);
+    setShowAddNote(null);
+    setNoteText('');
   };
 
   const removeArticleFromReport = (articleId: string) => {

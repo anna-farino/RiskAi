@@ -55,7 +55,7 @@ export async function createExecutiveNote(req: Request, res: Response) {
         success: true,
         note: newNote
       });
-    }, req);
+    }, req, res);
   } catch (error) {
     console.error('Error creating executive note:', error);
     res.status(500).json({ error: 'Failed to create executive note' });
@@ -75,7 +75,7 @@ export async function getExecutiveNotes(req: Request, res: Response) {
         success: true,
         notes: reportNotes
       });
-    }, req);
+    }, req, res);
   } catch (error) {
     console.error('Error fetching executive notes:', error);
     res.status(500).json({ error: 'Failed to fetch executive notes' });
@@ -107,7 +107,7 @@ export async function updateExecutiveNote(req: Request, res: Response) {
         success: true,
         note: executiveNotes[noteIndex]
       });
-    }, req);
+    }, req, res);
   } catch (error) {
     console.error('Error updating executive note:', error);
     res.status(500).json({ error: 'Failed to update executive note' });
@@ -133,7 +133,7 @@ export async function deleteExecutiveNote(req: Request, res: Response) {
         success: true,
         message: 'Note deleted successfully'
       });
-    }, req);
+    }, req, res);
   } catch (error) {
     console.error('Error deleting executive note:', error);
     res.status(500).json({ error: 'Failed to delete executive note' });
