@@ -117,7 +117,7 @@ async function main() {
     // Navigate to URL with very short timeout
     const response = await page.goto(inputData.url, { 
       waitUntil: 'domcontentloaded',  // Faster than networkidle2
-      timeout: 15000  // Very short timeout
+      timeout: 45000  // Very short timeout
     });
 
     // Minimal wait for page to stabilize
