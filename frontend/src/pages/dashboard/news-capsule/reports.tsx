@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
+import { XIcon } from "lucide-react";
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -13,6 +14,26 @@ export default function Reports() {
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
+  };
+
+  const removeArticleFromReport = (articleId: string) => {
+    if (!selectedReport) return;
+
+    // Create updated report with article removed
+    const updatedReport = {
+      ...selectedReport,
+      articles: selectedReport.articles.filter(article => article.id !== articleId)
+    };
+
+    // Update localStorage
+    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
+    const updatedReports = savedReports.map((report: Report) => 
+      report.id === selectedReport.id ? updatedReport : report
+    );
+    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+
+    // Update selected report
+    setSelectedReport(updatedReport);
   };
   
   const formatDate = (dateString: string) => {
@@ -587,9 +608,18 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative"
                     >
-                      <h3 className="text-lg font-medium mb-3">{article.title}</h3>
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="text-lg font-medium flex-1 pr-4">{article.title}</h3>
+                        <button
+                          onClick={() => removeArticleFromReport(article.id)}
+                          className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
+                          title="Remove article from report"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
