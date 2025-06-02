@@ -508,18 +508,22 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide only navigation and interactive elements */
+                              /* Hide navigation and interactive elements */
                               header, aside, nav, 
                               button, input, select, textarea,
                               .w-80.flex-shrink-0 {
                                 display: none !important;
                               }
-                              /* Hide page navigation menu and header section only */
-                              .flex.items-center.justify-between.mb-8 {
+                              /* Hide the top navigation tabs specifically */
+                              .flex.gap-8,
+                              .flex.gap-8 *,
+                              a[href*="/dashboard/news-capsule"] {
                                 display: none !important;
                               }
-                              /* Hide the first div that contains page headers */
-                              .flex.flex-col.gap-2:first-child {
+                              /* Hide any element containing "Home", "Research", "Executive Reports" */
+                              *:contains("Home"):not(h2):not(h3):not(p),
+                              *:contains("Research"):not(h2):not(h3):not(p),
+                              *:contains("Executive Reports"):not(h2):not(h3):not(p) {
                                 display: none !important;
                               }
                               /* Reset layout margins for print */
