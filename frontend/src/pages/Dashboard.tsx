@@ -9,11 +9,11 @@ import { csfrHeaderObject } from "@/utils/csrf-header";
 export default function Dashboard() {
   const navigate = useNavigate();
   
-  // Fetch News Radar articles
-  const { data: newsArticles, isLoading: newsLoading, error: newsError } = useQuery({
-    queryKey: ['news-radar-articles'],
+  // Fetch News Radar articles with enhanced real-time updates
+  const { data: newsArticles, isLoading: newsLoading, error: newsError, refetch: refetchNews } = useQuery({
+    queryKey: ['news-radar-articles-dashboard'],
     queryFn: async () => {
-      const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+      const response = await fetch(`${serverUrl}/api/news-tracker/articles?limit=10&sortBy=createdAt&order=desc`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -22,13 +22,17 @@ export default function Dashboard() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch news articles');
+        throw new Error(`Failed to fetch news articles: ${response.statusText}`);
       }
       
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
-    refetchInterval: 60000, // Refresh every minute
-    staleTime: 30000, // Consider data stale after 30 seconds
+    refetchInterval: 30000, // Refresh every 30 seconds for more responsive updates
+    staleTime: 15000, // Consider data stale after 15 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    retry: 3, // Retry failed requests up to 3 times
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
   
   // Format time ago helper
@@ -48,23 +52,51 @@ export default function Dashboard() {
     return `${diffInDays}d ago`;
   };
   
-  // Get badge color based on article category or severity
-  const getBadgeStyle = (article: any) => {
-    const category = article.category?.toLowerCase() || 'news';
+  // Get source badge styling
+  const getSourceBadge = (article: any) => {
+    const source = article.source?.toLowerCase() || article.url?.split('/')[2]?.replace('www.', '') || 'unknown';
+    return {
+      name: source.charAt(0).toUpperCase() + source.slice(1),
+      style: 'bg-slate-700/50 text-slate-300 border border-slate-600/30'
+    };
+  };
+
+  // Get priority badge based on keywords or content
+  const getPriorityBadge = (article: any) => {
+    const keywords = article.detectedKeywords || [];
+    const title = article.title?.toLowerCase() || '';
+    const summary = article.summary?.toLowerCase() || '';
     
-    switch (category) {
-      case 'alert':
-      case 'critical':
-        return { bg: 'bg-[#BF00FF]/20', text: 'text-[#00FFFF]', border: 'border-[#BF00FF]/10' };
-      case 'cve':
-      case 'vulnerability':
-        return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/20' };
-      case 'update':
-      case 'patch':
-        return { bg: 'bg-[#00FFFF]/20', text: 'text-[#00FFFF]', border: 'border-[#00FFFF]/20' };
-      default:
-        return { bg: 'bg-[#5B21B6]/20', text: 'text-[#00FFFF]', border: 'border-[#BF00FF]/10' };
+    // High priority indicators
+    const criticalKeywords = ['critical', 'urgent', 'exploit', 'zero-day', 'breach', 'ransomware', 'vulnerability'];
+    const hasCritical = criticalKeywords.some(keyword => 
+      title.includes(keyword) || summary.includes(keyword) || 
+      keywords.some((k: any) => k.keyword?.toLowerCase().includes(keyword))
+    );
+    
+    if (hasCritical) {
+      return { level: 'HIGH', style: 'bg-red-500/20 text-red-400 border-red-500/30' };
     }
+    
+    // Medium priority indicators
+    const mediumKeywords = ['security', 'update', 'patch', 'warning'];
+    const hasMedium = mediumKeywords.some(keyword => 
+      title.includes(keyword) || summary.includes(keyword) || 
+      keywords.some((k: any) => k.keyword?.toLowerCase().includes(keyword))
+    );
+    
+    if (hasMedium) {
+      return { level: 'MED', style: 'bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30' };
+    }
+    
+    return { level: 'INFO', style: 'bg-[#BF00FF]/20 text-[#BF00FF] border-[#BF00FF]/30' };
+  };
+
+  // Enhanced article click handler
+  const handleArticleClick = (article: any) => {
+    // Store selected article data and navigate
+    sessionStorage.setItem('selectedArticle', JSON.stringify(article));
+    navigate('/dashboard/news/home', { state: { selectedArticle: article } });
   };
   
   return (
@@ -110,9 +142,21 @@ export default function Dashboard() {
                       Loading latest articles...
                     </div>
                   ) : newsError ? (
-                    "Unable to load articles"
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-3 h-3 text-red-400" />
+                      <span className="text-red-400">API connection failed</span>
+                      <button 
+                        onClick={() => refetchNews()} 
+                        className="text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   ) : (
-                    `${newsArticles?.length || 0} articles from live sources`
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span>{newsArticles?.length || 0} live articles • Auto-refresh 30s</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -142,28 +186,69 @@ export default function Dashboard() {
                 </div>
               ) : newsArticles && newsArticles.length > 0 ? (
                 newsArticles.slice(0, 4).map((article: any, index: number) => {
-                  const badgeStyle = getBadgeStyle(article);
+                  const sourceBadge = getSourceBadge(article);
+                  const priorityBadge = getPriorityBadge(article);
+                  const keywords = article.detectedKeywords || [];
+                  
                   return (
-                    <div key={article.id || index} className={`bg-black/30 rounded-lg p-2 border ${badgeStyle.border}`}>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className={`text-xs px-2 py-0.5 rounded ${badgeStyle.bg} ${badgeStyle.text}`}>
-                          {article.category || 'News'}
-                        </span>
+                    <div 
+                      key={article.id || index} 
+                      className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                      onClick={() => handleArticleClick(article)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex gap-1.5">
+                          <span className={`text-xs px-1.5 py-0.5 rounded border ${priorityBadge.style}`}>
+                            {priorityBadge.level}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${sourceBadge.style}`}>
+                            {sourceBadge.name}
+                          </span>
+                        </div>
                         <span className="text-xs text-gray-400">
                           {article.createdAt ? formatTimeAgo(article.createdAt) : 'Recently'}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-300 line-clamp-2">
-                        {article.title || article.summary || 'News article content'}
-                      </p>
+                      
+                      <h4 className="text-xs font-medium text-white mb-1 line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
+                        {article.title || 'Untitled Article'}
+                      </h4>
+                      
+                      {article.summary && (
+                        <p className="text-xs text-gray-300 line-clamp-2 mb-2">
+                          {article.summary}
+                        </p>
+                      )}
+                      
+                      {keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
+                            <span 
+                              key={kidx} 
+                              className="text-xs px-1.5 py-0.5 bg-[#BF00FF]/10 text-[#BF00FF] rounded border border-[#BF00FF]/20"
+                            >
+                              {keyword.keyword || keyword}
+                            </span>
+                          ))}
+                          {keywords.length > 3 && (
+                            <span className="text-xs text-gray-500">+{keywords.length - 3}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })
               ) : (
-                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 text-center">
-                  <Newspaper className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                  <p className="text-xs text-gray-400">No articles available</p>
-                  <p className="text-xs text-gray-500 mt-1">Check back soon for updates</p>
+                <div className="bg-black/30 rounded-lg p-4 border border-[#BF00FF]/10 text-center">
+                  <Newspaper className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400 mb-1">No articles available</p>
+                  <p className="text-xs text-gray-500 mb-3">Configure sources to start receiving updates</p>
+                  <button 
+                    onClick={() => navigate('/dashboard/news/sources')}
+                    className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                  >
+                    Configure Sources →
+                  </button>
                 </div>
               )}
             </div>
