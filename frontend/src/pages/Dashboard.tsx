@@ -1,10 +1,71 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart } from 'lucide-react';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart, Loader2 } from 'lucide-react';
+import { useQuery } from "@tanstack/react-query";
+import { serverUrl } from "@/utils/server-url";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  
+  // Fetch News Radar articles
+  const { data: newsArticles, isLoading: newsLoading, error: newsError } = useQuery({
+    queryKey: ['news-radar-articles'],
+    queryFn: async () => {
+      const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch news articles');
+      }
+      
+      return response.json();
+    },
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 30000, // Consider data stale after 30 seconds
+  });
+  
+  // Format time ago helper
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+      return diffInMinutes <= 1 ? 'Just now' : `${diffInMinutes}m ago`;
+    }
+    if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    }
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays}d ago`;
+  };
+  
+  // Get badge color based on article category or severity
+  const getBadgeStyle = (article: any) => {
+    const category = article.category?.toLowerCase() || 'news';
+    
+    switch (category) {
+      case 'alert':
+      case 'critical':
+        return { bg: 'bg-[#BF00FF]/20', text: 'text-[#00FFFF]', border: 'border-[#BF00FF]/10' };
+      case 'cve':
+      case 'vulnerability':
+        return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/20' };
+      case 'update':
+      case 'patch':
+        return { bg: 'bg-[#00FFFF]/20', text: 'text-[#00FFFF]', border: 'border-[#00FFFF]/20' };
+      default:
+        return { bg: 'bg-[#5B21B6]/20', text: 'text-[#00FFFF]', border: 'border-[#BF00FF]/10' };
+    }
+  };
   
   return (
     <div className="min-h-screen bg-black">
@@ -43,43 +104,68 @@ export default function Dashboard() {
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  24/7 monitoring from 140+ sources
+                  {newsLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Loading latest articles...
+                    </div>
+                  ) : newsError ? (
+                    "Unable to load articles"
+                  ) : (
+                    `${newsArticles?.length || 0} articles from live sources`
+                  )}
                 </div>
               </div>
             }
           >
             <div className="space-y-2">
-              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-0.5 rounded">Alert</span>
-                  <span className="text-xs text-gray-400">2h ago</span>
+              {newsLoading ? (
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10 animate-pulse">
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="w-12 h-4 bg-gray-600 rounded"></div>
+                        <div className="w-10 h-3 bg-gray-600 rounded"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="w-full h-3 bg-gray-600 rounded"></div>
+                        <div className="w-3/4 h-3 bg-gray-600 rounded"></div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : newsError ? (
+                <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20 text-center">
+                  <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
+                  <p className="text-xs text-red-400">Failed to load articles</p>
+                  <p className="text-xs text-gray-500 mt-1">Check your connection</p>
                 </div>
-                <p className="text-xs text-gray-300">Critical vulnerability found in popular framework affecting cloud services</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#5B21B6]/20 text-[#00FFFF] px-2 py-0.5 rounded">News</span>
-                  <span className="text-xs text-gray-400">5h ago</span>
+              ) : newsArticles && newsArticles.length > 0 ? (
+                newsArticles.slice(0, 4).map((article: any, index: number) => {
+                  const badgeStyle = getBadgeStyle(article);
+                  return (
+                    <div key={article.id || index} className={`bg-black/30 rounded-lg p-2 border ${badgeStyle.border}`}>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className={`text-xs px-2 py-0.5 rounded ${badgeStyle.bg} ${badgeStyle.text}`}>
+                          {article.category || 'News'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {article.createdAt ? formatTimeAgo(article.createdAt) : 'Recently'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-300 line-clamp-2">
+                        {article.title || article.summary || 'News article content'}
+                      </p>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 text-center">
+                  <Newspaper className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                  <p className="text-xs text-gray-400">No articles available</p>
+                  <p className="text-xs text-gray-500 mt-1">Check back soon for updates</p>
                 </div>
-                <p className="text-xs text-gray-300">New ransomware targeting critical infrastructure in energy sector</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-2 border border-red-500/20">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">CVE</span>
-                  <span className="text-xs text-gray-400">30m ago</span>
-                </div>
-                <p className="text-xs text-gray-300">CVE-2025-0623 discovered in widely used authentication library</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-2 border border-[#00FFFF]/20">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#00FFFF]/20 text-[#00FFFF] px-2 py-0.5 rounded">Update</span>
-                  <span className="text-xs text-gray-400">Just now</span>
-                </div>
-                <p className="text-xs text-gray-300">Security patches released for three major operating systems</p>
-              </div>
+              )}
             </div>
           </RisqWidget>
           
