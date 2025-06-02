@@ -508,9 +508,19 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide the Reports Panel and navigation */
+                              /* Hide navigation, headers, and Reports Panel */
                               nav, header, aside, button, input, select,
-                              .w-80.flex-shrink-0 {
+                              .w-80.flex-shrink-0,
+                              .flex.flex-col.gap-2,
+                              .mb-8,
+                              h1,
+                              .text-slate-400 {
+                                display: none !important;
+                              }
+                              /* Hide the top navigation menu specifically */
+                              .flex.items-center.justify-between.mb-8,
+                              .flex.gap-8,
+                              .text-purple-400 {
                                 display: none !important;
                               }
                               /* Hide the main layout flex container and make report full width */
