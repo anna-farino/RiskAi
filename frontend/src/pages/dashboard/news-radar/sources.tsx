@@ -769,7 +769,7 @@ export default function Sources() {
 
   return (
     <div className={cn(
-      "flex flex-col pb-20"
+      "flex flex-col pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full"
     )}>
       {/* Delete confirmation dialog */}
       <DeleteAlertDialog
@@ -785,11 +785,11 @@ export default function Sources() {
         <span></span>
       </DeleteAlertDialog>
 
-      <div className="flex flex-col gap-5 mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:gap-5 mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col gap-1 sm:gap-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">Sources</h1>
-            <p className="text-sm sm:text-base text-slate-300">Manage news sources and control web scraping operations</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white">Sources</h1>
+            <p className="text-xs sm:text-sm md:text-base text-slate-300">Manage news sources and control web scraping operations</p>
           </div>
           
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -798,11 +798,11 @@ export default function Sources() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white h-9 px-2 sm:px-3"
+                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  <Settings className="sm:mr-2 h-4 w-4" />
+                  <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Auto-Scrape Settings</span>
-                  <span className="sm:hidden ml-0.5">Settings</span>
+                  <span className="sm:hidden ml-1">Settings</span>
                 </Button>
               </PopoverTrigger>
               {<PopoverContent className="w-80 bg-slate-900 border-slate-700 text-white">
@@ -898,28 +898,28 @@ export default function Sources() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-8">
-        <div className="xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="lg:col-span-3 xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:gap-4">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-base sm:text-lg font-medium text-white">Add News Source</h2>
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">Add News Source</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
               <div>
-                <label className="text-xs text-slate-400 mb-1 sm:mb-1.5 block">Source Name</label>
+                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name</label>
                 <Input
                   placeholder="E.g., Tech News Daily"
                   {...form.register("name")}
-                  className="h-9 sm:h-10 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 sm:mb-1.5 block">Source URL</label>
+                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source URL</label>
                 <Input
                   placeholder="https://example.com"
                   {...form.register("url")}
-                  className="h-9 sm:h-10 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -928,40 +928,41 @@ export default function Sources() {
               <Button 
                 type="submit" 
                 disabled={addSource.isPending}
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 sm:h-10 px-3 sm:px-4"
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
               >
                 {addSource.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                 ) : (
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 )}
-                Add Source
+                <span className="hidden xs:inline">Add Source</span>
+                <span className="xs:hidden">Add</span>
               </Button>
             </div>
           </form>
         </div>
 
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 flex flex-col justify-between">
+        <div className="lg:col-span-2 xl:col-span-1 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6 flex flex-col justify-between">
           <div>
-            <h2 className="text-lg font-medium text-white mb-3">Quick Tips</h2>
-            <ul className="space-y-3 text-sm">
-              <li className="flex gap-2 text-slate-300">
-                <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
+            <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white mb-2 sm:mb-3">Quick Tips</h2>
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+              <li className="flex gap-1 sm:gap-2 text-slate-300">
+                <Check className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-green-400 flex-shrink-0 mt-0.5" />
                 <span>Add reliable news sources with well-structured content for best results.</span>
               </li>
-              <li className="flex gap-2 text-slate-300">
-                <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
+              <li className="flex gap-1 sm:gap-2 text-slate-300">
+                <Check className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-green-400 flex-shrink-0 mt-0.5" />
                 <span>Configure auto-scrape settings to automatically collect new content on a schedule.</span>
               </li>
             </ul>
           </div>
           
-          <div className="mt-4 pt-4 border-t border-slate-700/50">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <Globe className="h-4 w-4 text-primary" />
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-700/50">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4 text-primary" />
               </div>
-              <div className="text-sm text-white">
+              <div className="text-xs sm:text-sm text-white">
                 <span className="font-medium">{sources.data?.length || 0}</span> sources available
               </div>
             </div>
@@ -973,10 +974,10 @@ export default function Sources() {
         "bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden",
         "flex flex-col"
       )}>
-        <div className="p-5 border-b border-slate-700/50">
+        <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-white">Source List</h2>
-            <div className="text-sm text-slate-400">
+            <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">Source List</h2>
+            <div className="text-xs sm:text-sm text-slate-400">
               {sources.data?.length || 0} sources configured
             </div>
           </div>
