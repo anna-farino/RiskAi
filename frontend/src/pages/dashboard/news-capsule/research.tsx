@@ -672,7 +672,7 @@ export default function Research() {
       </div>
       
       {/* Content Layout with Fixed Selected Articles */}
-      <div className="flex-1 flex gap-6 p-6 overflow-hidden">
+      <div className="flex-1 flex gap-6 p-6">
         {/* Scrollable Left Content */}
         <div className="flex-1 overflow-y-auto pr-6">
           <div className="flex flex-col gap-6">
@@ -920,8 +920,8 @@ export default function Research() {
         </div>
         
         {/* Fixed Selected Articles Section */}
-        <div className="w-96 flex-shrink-0 h-full">
-          <div className="h-full p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl flex flex-col">
+        <div className="w-96 flex-shrink-0">
+          <div className="sticky top-0 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl max-h-screen overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Selected Articles</h2>
             <span className="text-sm text-slate-400">
@@ -950,7 +950,7 @@ export default function Research() {
             </p>
           </div>
           
-          <div className="flex-1 flex flex-col gap-3 overflow-y-auto">
+          <div className="flex flex-col gap-3 max-h-[360px] overflow-y-auto">
             {selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic">
                 No articles selected yet
@@ -1068,151 +1068,6 @@ export default function Research() {
           >
             New Report
           </button>
-          </div>
-        </div>
-        
-        {/* Fixed Selected Articles Section */}
-        <div className="w-96 flex-shrink-0 h-full">
-          <div className="h-full p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Selected Articles</h2>
-              <span className="text-sm text-slate-400">
-                {selectedArticles.length} selected
-              </span>
-            </div>
-            
-            {/* Report Topic Field */}
-            <div className="mb-4">
-              <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
-                Report Topic (Optional)
-              </label>
-              <input
-                id="reportTopic"
-                type="text"
-                value={reportTopic}
-                onChange={(e) => {
-                  setReportTopic(e.target.value);
-                  localStorage.setItem('reportTopic', e.target.value);
-                }}
-                placeholder="Enter a topic (Optional)"
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                This topic will appear in the Executive Report below the title
-              </p>
-            </div>
-            
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto">
-              {selectedArticles.length === 0 ? (
-                <p className="text-sm text-slate-400 italic">
-                  No articles selected yet
-                </p>
-              ) : (
-                selectedArticles.map((article, index) => (
-                  <div 
-                    key={`selected-${article.id}-${index}`}
-                    className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
-                  >
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-sm font-medium mb-1 flex-1">{article.title}</h4>
-                      <div className="flex flex-col items-end gap-1">
-                        <button
-                          onClick={() => removeSelectedArticle(article.id)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          ✕
-                        </button>
-                        {(() => {
-                          const indicator = getSourceAppIndicator(article);
-                          return (
-                            <span className={`px-1.5 py-0.5 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
-                              {indicator.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-2">
-                      {article.threatName}
-                    </p>
-                    <p className="text-xs line-clamp-2">
-                      {article.summary}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <button
-              onClick={sendToExecutiveReport}
-              disabled={selectedArticles.length === 0 || isLoading}
-              className="mt-4 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white"
-            >
-              {isLoading ? "Processing..." : "Send to Executive Report"}
-            </button>
-            
-            <button
-              onClick={async () => {
-                // Create a new report version - include selected articles if any exist
-                try {
-                  setIsLoading(true);
-                  setError(null);
-                  
-                  // Check if localStorage already has reports
-                  let savedReports = [];
-                  let versionNumber = 1;
-                  
-                  try {
-                    const localStorageReports = localStorage.getItem('newsCapsuleReports');
-                    if (localStorageReports) {
-                      savedReports = JSON.parse(localStorageReports);
-                      
-                      // Find reports from today
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      
-                        // Find the highest version number among ALL reports (not just today's)
-                      const highestVersion = savedReports.reduce((max: number, report: any) => {
-                        // Make sure to use the actual version number that was stored
-                        const reportVersion = parseInt(report.versionNumber) || 0;
-                        return reportVersion > max ? reportVersion : max;
-                      }, 0);
-                      
-                      // Set the next version number as one higher than the highest existing version
-                      versionNumber = highestVersion + 1;
-                    }
-                  } catch (parseError) {
-                    console.error("Error parsing localStorage reports:", parseError);
-                  }
-                  
-                  // Create new report with selected articles (if any)
-                  const newReport = {
-                    id: Date.now().toString(),
-                    versionNumber: versionNumber,
-                    dateGenerated: new Date().toISOString(),
-                    articles: selectedArticles.length > 0 ? selectedArticles : [],
-                    reportTopic: reportTopic || ""
-                  };
-                  
-                  // Add to reports array
-                  savedReports.push(newReport);
-                  
-                  // Save to localStorage
-                  localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-                  
-                  console.log(`Created new report version ${versionNumber} with ${selectedArticles.length} articles`);
-                  
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : "An error occurred");
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-              className="mt-2 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
-            >
-              New Report
-            </button>
-          </div>
         </div>
       </div>
       
@@ -1267,6 +1122,7 @@ export default function Research() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
