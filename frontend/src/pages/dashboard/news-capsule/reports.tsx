@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { XIcon } from "lucide-react";
+import { XIcon, GripVerticalIcon } from "lucide-react";
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -11,6 +11,7 @@ export default function Reports() {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
@@ -34,6 +35,52 @@ export default function Reports() {
 
     // Update selected report
     setSelectedReport(updatedReport);
+  };
+
+  const handleDragStart = (e: React.DragEvent, articleId: string) => {
+    setDraggedArticle(articleId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (!selectedReport || !draggedArticle) return;
+
+    const draggedIndex = selectedReport.articles.findIndex(article => article.id === draggedArticle);
+    if (draggedIndex === -1 || draggedIndex === dropIndex) return;
+
+    // Create new articles array with reordered items
+    const newArticles = [...selectedReport.articles];
+    const [draggedItem] = newArticles.splice(draggedIndex, 1);
+    newArticles.splice(dropIndex, 0, draggedItem);
+
+    // Update report with new order
+    const updatedReport = {
+      ...selectedReport,
+      articles: newArticles
+    };
+
+    // Update localStorage
+    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
+    const updatedReports = savedReports.map((report: Report) => 
+      report.id === selectedReport.id ? updatedReport : report
+    );
+    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+
+    // Update selected report
+    setSelectedReport(updatedReport);
+    setDraggedArticle(null);
+    setDragOverIndex(null);
   };
   
   const formatDate = (dateString: string) => {
@@ -608,10 +655,22 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg relative"
+                      className={`p-4 border rounded-lg relative cursor-move ${
+                        dragOverIndex === index 
+                          ? 'bg-blue-900/30 border-blue-500/50' 
+                          : 'bg-slate-800/50 border-slate-700/40'
+                      }`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, article.id)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, index)}
                     >
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="text-lg font-medium flex-1 pr-4">{article.title}</h3>
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="p-1 text-slate-400 hover:text-slate-300 cursor-grab active:cursor-grabbing">
+                          <GripVerticalIcon className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-lg font-medium flex-1">{article.title}</h3>
                         <button
                           onClick={() => removeArticleFromReport(article.id)}
                           className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
