@@ -508,19 +508,22 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide navigation, headers, and Reports Panel */
-                              nav, header, aside, button, input, select,
+                              /* Hide all navigation and layout elements */
+                              header, aside, nav, button, input, select,
                               .w-80.flex-shrink-0,
-                              .flex.flex-col.gap-2,
-                              .mb-8,
-                              h1,
-                              .text-slate-400 {
+                              .w-64.min-h-\\[calc\\(100vh-88px\\)\\],
+                              .pt-\\[88px\\],
+                              .md\\:ml-64 {
                                 display: none !important;
                               }
-                              /* Hide the top navigation menu specifically */
-                              .flex.items-center.justify-between.mb-8,
-                              .flex.gap-8,
-                              .text-purple-400 {
+                              /* Reset margins and padding from layout */
+                              main, .flex-1 {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                              }
+                              /* Hide RisqHeader and MainNavigation completely */
+                              .min-h-screen.bg-gradient-to-br > div:first-child,
+                              .hidden.md\\:block.w-64 {
                                 display: none !important;
                               }
                               /* Hide the main layout flex container and make report full width */
