@@ -54,6 +54,10 @@ function findChromePath(): string {
 }
 
 async function main() {
+  // Monitor memory usage for production debugging
+  const initialMemory = process.memoryUsage();
+  console.error(`[Worker] Initial memory: ${Math.round(initialMemory.heapUsed / 1024 / 1024)}MB`);
+  
   // Parse input data from command line arguments
   const inputArg = process.argv.find((a) => a.startsWith('--input-data='));
   if (!inputArg) {
@@ -64,68 +68,76 @@ async function main() {
   const inputData: WorkerInput = JSON.parse(Buffer.from(inpDataB64, 'base64').toString());
 
   const CHROME_PATH = findChromePath();
+  console.error(`[Worker] Using Chrome path: ${CHROME_PATH}`);
 
   let browser: Browser | null = null;
   let page: Page | null = null;
 
   try {
-    // Launch browser
+    // Ultra-minimal browser launch for production environments
+    console.error(`[Worker] Launching browser with minimal settings`);
     browser = await puppeteer.launch({
-      headless: true,
+      headless: 'new',  // Use new headless mode
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
         '--disable-gpu',
-        '--window-size=1920x1080',
-        '--disable-features=site-per-process,AudioServiceOutOfProcess',
-        '--disable-software-rasterizer',
         '--disable-extensions',
-        '--disable-gl-drawing-for-tests',
-        '--mute-audio',
-        '--no-zygote',
+        '--disable-plugins',
+        '--disable-images',
+        '--disable-css',
+        '--disable-fonts',
+        '--disable-background-networking',
+        '--disable-sync',
+        '--disable-translate',
         '--no-first-run',
         '--no-default-browser-check',
+        '--mute-audio',
+        '--window-size=800x600',  // Minimal window size
+        '--memory-pressure-off',
+        '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess',
+        '--disable-blink-features=AutomationControlled',
         '--ignore-certificate-errors',
         '--allow-running-insecure-content',
         '--disable-web-security',
-        '--disable-blink-features=AutomationControlled',
       ],
       executablePath: CHROME_PATH,
-      timeout: 180000
+      timeout: 30000  // Very short timeout
     });
 
     page = await browser.newPage();
     
-    // Set viewport and user agent
-    await page.setViewport({ width: 1920, height: 1080 });
+    // Set minimal viewport to reduce memory usage
+    await page.setViewport({ width: 800, height: 600 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
     
-    // Navigate to URL
+    console.error(`[Worker] Page setup complete`);
+    
+    // Navigate to URL with shorter timeout
     const response = await page.goto(inputData.url, { 
-      waitUntil: 'networkidle2', 
-      timeout: 60000 
+      waitUntil: 'domcontentloaded',  // Faster than networkidle2
+      timeout: 30000  // Shorter timeout
     });
 
-    // Wait for page to stabilize
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Shorter wait for page to stabilize
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     let outputData: WorkerOutput;
 
     if (inputData.isArticlePage) {
-      // Extract article content
+      // Extract article content with faster scrolling
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight / 3);
-        return new Promise(resolve => setTimeout(resolve, 1000));
+        return new Promise(resolve => setTimeout(resolve, 200));
       });
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-        return new Promise(resolve => setTimeout(resolve, 1000));
+        return new Promise(resolve => setTimeout(resolve, 200));
       });
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight);
-        return new Promise(resolve => setTimeout(resolve, 1000));
+        return new Promise(resolve => setTimeout(resolve, 200));
       });
 
       const articleContent = await page.evaluate((scrapingConfig) => {
@@ -262,16 +274,32 @@ async function main() {
       message: error.message || String(error)
     }));
   } finally {
+    // Force cleanup and log memory usage
     if (page) {
       try {
         await page.close();
-      } catch (e) {}
+        console.error(`[Worker] Page closed`);
+      } catch (e) {
+        console.error(`[Worker] Error closing page: ${e}`);
+      }
     }
     if (browser) {
       try {
         await browser.close();
-      } catch (e) {}
+        console.error(`[Worker] Browser closed`);
+      } catch (e) {
+        console.error(`[Worker] Error closing browser: ${e}`);
+      }
     }
+    
+    // Force garbage collection if available
+    if (global.gc) {
+      global.gc();
+      console.error(`[Worker] Forced garbage collection`);
+    }
+    
+    const finalMemory = process.memoryUsage();
+    console.error(`[Worker] Final memory: ${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB`);
   }
 }
 

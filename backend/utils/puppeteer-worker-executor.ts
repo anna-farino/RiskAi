@@ -29,8 +29,11 @@ export async function runPuppeteerWorker(data: WorkerInput): Promise<string> {
     const backendDir = path.resolve(__dirname, '..');
     const workerPath = path.join(backendDir, 'workers', 'puppeteer-worker.ts');
     
+    // Production-optimized worker execution
+    console.log(`[PuppeteerWorker] Starting worker in ${backendDir}`);
+    console.log(`[PuppeteerWorker] Environment: ${process.env.NODE_ENV || 'development'}`);
+    
     // Use tsx to run TypeScript directly, set cwd to backend directory
-    // Use relative path from backend directory
     const proc = spawn('npx', [
       'tsx',
       'workers/puppeteer-worker.ts',  // Relative to backend dir
@@ -38,7 +41,11 @@ export async function runPuppeteerWorker(data: WorkerInput): Promise<string> {
     ], { 
       shell: false,
       stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: backendDir
+      cwd: backendDir,
+      env: {
+        ...process.env,
+        NODE_OPTIONS: '--max-old-space-size=512'  // Limit memory for worker
+      }
     });
 
     proc.stdout.on('data', (data) => {
@@ -82,12 +89,12 @@ export async function runPuppeteerWorker(data: WorkerInput): Promise<string> {
       proc.kill('SIGKILL');
     });
 
-    // Set a timeout to prevent hanging
+    // Set a shorter timeout for production
     const timeout = setTimeout(() => {
       console.error(`[PuppeteerWorker] Timeout - killing process`);
       proc.kill('SIGKILL');
       reject(new Error('Puppeteer worker timeout'));
-    }, 180000); // 3 minutes
+    }, 60000); // 1 minute timeout for production
 
     proc.on('close', () => {
       clearTimeout(timeout);
