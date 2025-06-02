@@ -1004,19 +1004,20 @@ export default function Sources() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0 px-3 sm:px-4 lg:px-0">
-            <Table className="min-w-[320px] w-full">
-              <TableHeader>
-                <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                  <TableHead className="text-slate-300 w-[30%] min-w-[80px]">Source</TableHead>
-                  <TableHead className="text-slate-300 w-[35%] min-w-[100px]">URL</TableHead>
-                  <TableHead className="text-slate-300 w-[15%] min-w-[45px] text-center">
-                    <span className="hidden sm:inline">Auto</span>
-                    <span className="sm:hidden">A</span>
-                  </TableHead>
-                  <TableHead className="text-right text-slate-300 w-[20%] min-w-[60px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
+          <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0">
+            <div className="px-3 sm:px-4 lg:px-0 min-w-[280px]">
+              <Table className="w-full table-fixed">
+                <TableHeader>
+                  <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
+                    <TableHead className="text-slate-300 w-[25%] text-xs sm:text-sm">Source</TableHead>
+                    <TableHead className="text-slate-300 w-[35%] text-xs sm:text-sm">URL</TableHead>
+                    <TableHead className="text-slate-300 w-[15%] text-center text-xs sm:text-sm">
+                      <span className="hidden sm:inline">Auto</span>
+                      <span className="sm:hidden">A</span>
+                    </TableHead>
+                    <TableHead className="text-right text-slate-300 w-[25%] text-xs sm:text-sm">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {localSources.map((source) => (
                   <TableRow 
@@ -1026,20 +1027,20 @@ export default function Sources() {
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
-                    <TableCell className="font-medium text-white">
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <div className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <TableCell className="font-medium text-white w-[25%] p-2 sm:p-4">
+                      <div className="flex items-center gap-1 overflow-hidden">
+                        <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           {pendingItems.has(source.id) 
-                            ? <Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-primary animate-spin" />
-                            : <Globe className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-primary" />
+                            ? <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary animate-spin" />
+                            : <Globe className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary" />
                           }
                         </div>
-                        <span className="truncate text-xs sm:text-sm lg:text-base">{source.name}</span>
+                        <span className="truncate text-xs sm:text-sm">{source.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Link2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-slate-500 flex-shrink-0" />
+                    <TableCell className="w-[35%] p-2 sm:p-4">
+                      <div className="flex items-center gap-1 overflow-hidden">
+                        <Link2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
                         <a 
                           href={source.url} 
                           target="_blank"
@@ -1050,7 +1051,7 @@ export default function Sources() {
                         </a>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center w-[15%] p-2 sm:p-4">
                       <div className="flex justify-center">
                         <Switch
                           id={`auto-scrape-${source.id}`}
@@ -1063,50 +1064,48 @@ export default function Sources() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1 sm:gap-2 md:flex-wrap lg:flex-wrap xl:flex-nowrap">
+                    <TableCell className="text-right w-[25%] p-2 sm:p-4">
+                      <div className="flex justify-end gap-0.5 sm:gap-1">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending}
-                          className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/70 hover:text-white h-7 px-2 sm:h-8 sm:px-3"
+                          className="hover:bg-slate-700/50 text-slate-400 hover:text-white h-6 w-6 sm:h-7 sm:w-7 p-0"
                         >
                           {scrapeSource.isPending ? (
-                            <Loader2 className="sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                            <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-spin" />
                           ) : (
-                            <RotateCw className="sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                            <RotateCw className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                           )}
-                          <span className="hidden sm:inline">Scrape</span>
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending}
-                          className="border-red-900/50 bg-red-950/20 text-red-400 hover:bg-red-900/30 hover:text-red-300 h-7 px-2 sm:h-8 sm:px-3"
+                          className="hover:bg-red-500/20 text-red-400 hover:text-red-300 h-6 w-6 sm:h-7 sm:w-7 p-0"
                         >
                           {stopScraping.isPending ? (
-                            <Loader2 className="sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                            <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-spin" />
                           ) : (
-                            <X className="sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                            <X className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                           )}
-                          <span className="hidden sm:inline">Stop</span>
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={() => {
                             setSourceToDelete(source.id);
                             setDeleteDialogOpen(true);
                           }}
                           disabled={deleteSource.isPending}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-950/30 h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          className="hover:bg-red-500/20 text-red-400 hover:text-red-300 h-6 w-6 sm:h-7 sm:w-7 p-0"
                         >
                           {deleteSource.isPending ? (
-                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                            <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-spin" />
                           ) : (
-                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <Trash2 className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                           )}
                         </Button>
                       </div>
@@ -1115,6 +1114,7 @@ export default function Sources() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
         )}
       </div>
