@@ -9,7 +9,17 @@ import { scrapeSource as newsRadarScrapeSource } from 'backend/apps/news-radar/s
 
 const POLL_INTERVAL_MS = 10000; // 10 seconds
 
+let isSchedulerRunning = false;
+
 export async function runBackgroundQueuedJobsScraper() {
+  if (isSchedulerRunning) {
+    log('[Scheduler] Scheduler already running, skipping duplicate start', 'scheduler');
+    return;
+  }
+  
+  isSchedulerRunning = true;
+  log('[Scheduler] Starting background queue scheduler', 'scheduler');
+  
   await resetStuckJobsToQueued();
   schedulerLoop();
 }
@@ -30,6 +40,8 @@ async function schedulerLoop() {
         const started = await tryStartJob(job[0].id);
         if (started) {
           await runScrapeJob({ ...job[0] });
+        } else {
+          log(`[Scheduler] Could not start job ${job[0].id} - another job may be running`, 'scheduler');
         }
       }
     } catch (e) {

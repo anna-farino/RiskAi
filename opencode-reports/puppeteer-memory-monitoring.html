@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puppeteer Memory Monitoring Implementation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        pre {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f8f8f8;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .highlight {
+            background-color: #ffffcc;
+            padding: 2px;
+        }
+        .warning {
+            background-color: #ffeeee;
+            border-left: 4px solid #e74c3c;
+            padding: 10px;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: #eeffee;
+            border-left: 4px solid #2ecc71;
+            padding: 10px;
+            margin: 20px 0;
+        }
+        .file-path {
+            font-family: 'Courier New', Courier, monospace;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .implementation {
+            margin: 20px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .memory-chart {
+            width: 100%;
+            height: 300px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .memory-chart img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Puppeteer Memory Monitoring Implementation</h1>
+    <p><strong>Date:</strong> June 2, 2025</p>
+    <p><strong>Project:</strong> News Project</p>
+
+    <h2>Overview</h2>
+    <p>
+        This report documents the implementation of memory monitoring for Puppeteer browser instances to prevent crashes due to excessive memory usage.
+        The solution continuously monitors memory consumption and proactively closes browser instances when memory usage exceeds predefined thresholds.
+    </p>
+
+    <div class="success">
+        <strong>Key Benefits:</strong>
+        <ul>
+            <li>Prevents application crashes due to browser memory leaks</li>
+            <li>Provides visibility into memory usage patterns</li>
+            <li>Automatically recovers from high memory situations</li>
+            <li>Configurable threshold to adapt to different environments</li>
+        </ul>
+    </div>
+
+    <h2>Problem Statement</h2>
+    <p>
+        Puppeteer browser instances can consume significant memory, especially when processing multiple pages or complex websites.
+        Without proper monitoring and management, this can lead to:
+    </p>
+    <ul>
+        <li>Application crashes due to out-of-memory errors</li>
+        <li>Degraded performance as memory usage increases</li>
+        <li>Resource contention with other system processes</li>
+        <li>Potential service disruptions in production environments</li>
+    </ul>
+
+    <h2>Implementation Details</h2>
+
+    <h3>1. Memory Monitoring Utility</h3>
+    <div class="implementation">
+        <div class="file-path">shared/db/puppeteer-memory-monitor.ts</div>
+        <pre><code>import type { Browser } from 'puppeteer';
+
+/**
+ * Memory threshold in MB at which to close the browser to prevent crashes
+ * Adjust based on your environment's available memory
+ */
+const MEMORY_THRESHOLD_MB = 1024; // 1GB
+
+export function monitorBrowserMemory(browser: Browser, logPrefix = 'MemoryMonitor'): () => void {
+  let isRunning = true;
+  
+  const checkMemory = async (): Promise&lt;void&gt; => {
+    if (!isRunning || !browser) return;
+    
+    try {
+      const memoryUsage = process.memoryUsage();
+      const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+      const rssMemoryMB = Math.round(memoryUsage.rss / 1024 / 1024);
+      
+      console.log(`[${logPrefix}] Memory usage: ${heapUsedMB}MB (heap) / ${rssMemoryMB}MB (rss)`);
+      
+      // Check if memory usage exceeds threshold
+      if (rssMemoryMB > MEMORY_THRESHOLD_MB) {
+        console.log(`[${logPrefix}] ⚠️ Memory usage exceeded threshold (${MEMORY_THRESHOLD_MB}MB), closing browser to prevent crash`);
+        
+        try {
+          await browser.close();
+          console.log(`[${logPrefix}] Browser closed successfully due to high memory usage`);
+        } catch (error) {
+          console.error(`[${logPrefix}] Error closing browser:`, error);
+        }
+        
+        // Stop monitoring after closing
+        isRunning = false;
+        return;
+      }
+      
+      // Continue monitoring if browser is still open
+      if (isRunning) {
+        setTimeout(checkMemory, 5000); // Check every 5 seconds
+      }
+    } catch (error) {
+      console.error(`[${logPrefix}] Error monitoring memory:`, error);
+      isRunning = false;
+    }
+  };
+  
+  // Start monitoring
+  checkMemory();
+  
+  // Return function to stop monitoring
+  return () => {
+    isRunning = false;
+    console.log(`[${logPrefix}] Memory monitoring stopped`);
+  };
+}</code></pre>
+    </div>
+
+    <h3>2. Integration with News Radar Scraper</h3>
+    <div class="implementation">
+        <div class="file-path">backend/apps/news-radar/services/puppeteer-scraper.ts</div>
+        <pre><code>// Import the memory monitor
+import { monitorBrowserMemory } from 'shared/db/puppeteer-memory-monitor';
+
+// ...
+
+// Start browser with memory monitoring
+browser = await puppeteer.launch({
+  // ... browser options ...
+});
+log('[scrapePuppeteer] ✅ Browser launched');
+
+// Start memory monitoring
+const stopMemoryMonitoring = monitorBrowserMemory(browser, 'NewsRadar');
+
+// ...
+
+// In the finally block, stop monitoring before closing
+if (browser) {
+  try {
+    // Stop memory monitoring before closing browser
+    if (typeof stopMemoryMonitoring === 'function') {
+      stopMemoryMonitoring();
+    }
+    await browser.close();
+    console.log('[scrapePuppeteer] 🔴 Browser closed successfully');
+  } catch (closeError: any) {
+    console.error('[scrapePuppeteer] Error closing browser:', closeError?.message || String(closeError));
+  }
+}</code></pre>
+    </div>
+
+    <h3>3. Integration with Threat Tracker Scraper</h3>
+    <div class="implementation">
+        <div class="file-path">backend/apps/threat-tracker/services/scraper.ts</div>
+        <pre><code>// Import the memory monitor
+import { monitorBrowserMemory } from 'shared/db/puppeteer-memory-monitor';
+
+// ...
+
+// Start browser with memory monitoring
+browserInstance = await puppeteer.launch({
+  // ... browser options ...
+});
+
+// Start memory monitoring
+const stopMemoryMonitoring = monitorBrowserMemory(browserInstance, 'ThreatTracker');
+
+// ...
+
+// In the finally block, stop monitoring before closing
+if (browserInstance) {
+  try {
+    // Stop memory monitoring before closing browser
+    if (typeof stopMemoryMonitoring === 'function') {
+      stopMemoryMonitoring();
+    }
+    await browserInstance.close();
+    console.log('[ThreatTracker] 🔴 Browser closed successfully');
+  } catch (closeError: any) {
+    console.error('[ThreatTracker] Error closing browser:', closeError?.message || String(closeError));
+  }
+}</code></pre>
+    </div>
+
+    <h2>Memory Usage Monitoring</h2>
+    <p>
+        The implementation tracks two key memory metrics:
+    </p>
+    <table>
+        <tr>
+            <th>Metric</th>
+            <th>Description</th>
+            <th>Threshold</th>
+        </tr>
+        <tr>
+            <td><code>heapUsed</code></td>
+            <td>Memory used by JavaScript objects and data structures</td>
+            <td>Logged but not used for threshold decisions</td>
+        </tr>
+        <tr>
+            <td><code>rss</code> (Resident Set Size)</td>
+            <td>Total memory allocated for the Node.js process, including C++ objects, buffers, and stack</td>
+            <td>1024 MB (1 GB)</td>
+        </tr>
+    </table>
+
+    <div class="memory-chart">
+        <p><em>Memory usage visualization would appear here in a production report</em></p>
+    </div>
+
+    <h2>Configuration Options</h2>
+    <p>
+        The memory monitoring utility can be configured by adjusting the following parameters:
+    </p>
+    <ul>
+        <li><strong>MEMORY_THRESHOLD_MB</strong>: The memory threshold in MB at which to close the browser (default: 1024 MB)</li>
+        <li><strong>Check Interval</strong>: How frequently memory is checked (default: every 5 seconds)</li>
+        <li><strong>Log Prefix</strong>: Custom prefix for log messages to identify different browser instances</li>
+    </ul>
+
+    <h2>Recommendations</h2>
+    <div class="warning">
+        <p><strong>Recommended Actions:</strong></p>
+        <ol>
+            <li>Monitor logs for memory usage patterns to fine-tune the threshold based on actual usage</li>
+            <li>Consider implementing a browser pool with automatic recycling for high-traffic scenarios</li>
+            <li>Add metrics collection to track memory usage over time and identify potential memory leaks</li>
+            <li>Adjust the threshold based on the environment (development, staging, production)</li>
+        </ol>
+    </div>
+
+    <h2>Conclusion</h2>
+    <p>
+        The implemented memory monitoring solution provides a robust mechanism to prevent browser crashes due to excessive memory usage.
+        By proactively monitoring and managing Puppeteer browser instances, the application can maintain stability and reliability,
+        especially during extended operation or when processing resource-intensive websites.
+    </p>
+    <p>
+        This implementation follows a defensive programming approach, ensuring that even if memory usage increases unexpectedly,
+        the system can recover gracefully without requiring manual intervention.
+    </p>
+
+    <footer>
+        <p><small>Generated with OpenCode AI - June 2, 2025</small></p>
+    </footer>
+</body>
+</html>

@@ -414,6 +414,8 @@ export async function extractArticleLinks(
         `[Link Detection] Dynamic content detected, switching to Puppeteer`,
         "scraper",
       );
+      const puppeteerHtml = await scrapePuppeteer(baseUrl, false, {});
+      html = puppeteerHtml;
       return
     }
 

@@ -41,7 +41,27 @@ export async function tryStartJob(jobId: string): Promise<boolean> {
       sql`(SELECT COUNT(*) FROM ${puppeteerJobQueue} WHERE status = 'running') = 0`
     ))
     .returning();
-  return result.length > 0;
+  let runningJobFound = result.length > 0
+
+  if (!runningJobFound) {
+    const runningJobs = await db
+      .select()
+      .from(puppeteerJobQueue)
+      .where(eq(puppeteerJobQueue.status, 'running'))
+
+    for (let i=0; i<runningJobs.length; i++) {
+      const jobAge = (new Date()).getTime() - runningJobs[i].createdAt.getTime()
+      const tenMinutesInMs = 10 * 60 * 1000 // 600,000 ms
+      if (jobAge > tenMinutesInMs) {
+        await db
+          .update(puppeteerJobQueue)
+          .set({ status: 'done' })
+          .where(eq(puppeteerJobQueue.id, runningJobs[i].id))
+      }
+    }
+  }
+
+  return runningJobFound;
 }
 
 /**

@@ -8,6 +8,7 @@ import { log } from "backend/utils/log";
 import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
+import { checkMemoryIsOk } from '@shared/db/puppeteer-memory-monitor';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -384,9 +385,9 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         timeout: 180000 // 3 minute timeout on browser launch
       });
+    const maxMemoryError = "Memory Error"
 
-
-
+    if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
 
     log(`[ThreatTracker][setupPage] getBrowser returned instance: ${browserInstance && browserInstance.process() ? 'running' : 'not running or null'}`);
     const page = await browserInstance.newPage();
@@ -409,6 +410,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     page.setDefaultTimeout(60000);
 
     // Navigate to the page
+    if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
     const response = await page.goto(url, { waitUntil: "networkidle2" });
     log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
     
@@ -433,6 +435,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     });
 
     if (botProtectionCheck) {
+      if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
       log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
       // Perform some human-like actions
       await page.mouse.move(50, 50);
@@ -441,6 +444,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       await page.mouse.up();
       
       // Reload the page and wait again
+      if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
       await page.reload({ waitUntil: 'networkidle2' });
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
@@ -448,8 +452,10 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     // For article pages, extract the content based on selectors
     if (isArticlePage) {
       log('[ThreatTracker] Extracting article content', "scraper");
+      if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
 
       // Scroll through the page to ensure all content is loaded
+      if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight / 3);
         return new Promise(resolve => setTimeout(resolve, 1000));
@@ -463,6 +469,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
+      if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
         // First try using the provided selectors
@@ -577,6 +584,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       </body></html>`;
     }
     
+    if (!(checkMemoryIsOk(browserInstance))) return maxMemoryError 
     // For source/listing pages, extract potential article links
     return await extractArticleLinksStructured(page);
     

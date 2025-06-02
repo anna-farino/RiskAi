@@ -1,13 +1,13 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, Page } from 'puppeteer';
-// All explicit browser management in this file is now per-call only, for low-memory operation.
 import { execSync } from 'child_process';
 import { log } from 'console';
 import vanillaPuppeteer from 'puppeteer';
 import * as fs from 'fs';
 import dotenv from 'dotenv';
 import dotenvConfig from 'backend/utils/dotenv-config';
+import { checkMemoryIsOk } from '@shared/db/puppeteer-memory-monitor';
 
 dotenvConfig(dotenv)
 
@@ -69,7 +69,11 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 // REMOVED global browser instance and getBrowser/setupPage for per-call browser model
 
 // This function expects a fully prepared page and is safe.
-async function extractArticleLinks(page: Page): Promise<string> {
+async function extractArticleLinks(
+  page: Page,
+)
+  : Promise<string> 
+{
   // Wait for any links to appear
   await page.waitForSelector('a', { timeout: 5000 });
   console.log('[Puppeteer] Found anchor tags on page');
@@ -159,6 +163,12 @@ export async function scrapePuppeteer(
       timeout: 180000, // 3 minute timeout
     });
     log('[scrapePuppeteer] ✅ Browser launched');
+
+    const maxMemoryMessage = "MemoryError"
+
+    if (!(checkMemoryIsOk(browser))) return maxMemoryMessage
+    
+    // Start memory monitoring
     page = await browser.newPage();
     log('[scrapePuppeteer] ✅ New page opened');
 
@@ -216,6 +226,9 @@ export async function scrapePuppeteer(
     });
 
     if (incapsulaCheck) {
+
+      if (!(await checkMemoryIsOk(browser))) return maxMemoryMessage 
+
       console.log('[Puppeteer] Still on Incapsula challenge page, performing additional actions');
       // Perform some human-like actions
       await page.mouse.move(50, 50);
@@ -231,6 +244,8 @@ export async function scrapePuppeteer(
     if (isArticlePage) {
       console.log('[Puppeteer] Extracting article content - starting extraction');
 
+      if (!(checkMemoryIsOk(browser))) return maxMemoryMessage 
+
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
         console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
@@ -238,11 +253,13 @@ export async function scrapePuppeteer(
         window.scrollTo(0, document.body.scrollHeight / 3);
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
+      if (!(checkMemoryIsOk(browser))) return maxMemoryMessage 
       await page.evaluate(() => {
         console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
         window.scrollTo(0, document.body.scrollHeight * 2 / 3);
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
+      if (!(checkMemoryIsOk(browser))) return maxMemoryMessage 
       await page.evaluate(() => {
         console.log('[Puppeteer-Debug] Scrolling to bottom of page');
         window.scrollTo(0, document.body.scrollHeight);

@@ -7,3 +7,4 @@ export * from './news-capsule';
 export * from './news-tracker';
 export * from './threat-tracker';
 export * from './puppeteer-job-queue';
+export * from '../puppeteer-memory-monitor';
