@@ -769,7 +769,7 @@ export default function Sources() {
 
   return (
     <div className={cn(
-      "flex flex-col pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full"
+      "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
     )}>
       {/* Delete confirmation dialog */}
       <DeleteAlertDialog
@@ -785,23 +785,23 @@ export default function Sources() {
         <span></span>
       </DeleteAlertDialog>
 
-      <div className="flex flex-col gap-4 sm:gap-5 mb-6 sm:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div className="flex flex-col gap-1 sm:gap-2">
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white">Sources</h1>
-            <p className="text-xs sm:text-sm md:text-base text-slate-300">Manage news sources and control web scraping operations</p>
+      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
+          <div className="flex flex-col gap-0.5 sm:gap-1 lg:gap-2">
+            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">Sources</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-slate-300">Manage news sources and control web scraping operations</p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
             <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
+                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white h-7 sm:h-8 lg:h-9 px-2 sm:px-2.5 lg:px-3 text-xs"
                 >
-                  <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Auto-Scrape Settings</span>
+                  <Settings className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4 sm:mr-1.5 lg:mr-2" />
+                  <span className="hidden sm:inline text-xs lg:text-sm">Auto-Scrape Settings</span>
                   <span className="sm:hidden ml-1">Settings</span>
                 </Button>
               </PopoverTrigger>
@@ -898,7 +898,7 @@ export default function Sources() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
         <div className="lg:col-span-3 xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:gap-4">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
@@ -1004,18 +1004,17 @@ export default function Sources() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto md:overflow-x-visible lg:overflow-x-visible -mx-4 sm:mx-0 px-4 sm:px-0">
-            <Table className="min-w-[650px] md:min-w-[460px] lg:min-w-0 w-full">
+          <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0 px-3 sm:px-4 lg:px-0">
+            <Table className="min-w-[320px] w-full">
               <TableHeader>
                 <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[25%]">Source</TableHead>
-                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[30%] md:max-w-[160px] lg:max-w-[200px] xl:max-w-none">URL</TableHead>
-                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[20%] md:min-w-[85px] lg:min-w-[90px]">
-                    <span className="hidden sm:inline md:hidden lg:inline">Auto-Scrape</span>
-                    <span className="sm:hidden md:inline lg:hidden">Auto</span>
-                    <span className="md:hidden">Auto</span>
+                  <TableHead className="text-slate-300 w-[30%] min-w-[80px]">Source</TableHead>
+                  <TableHead className="text-slate-300 w-[35%] min-w-[100px]">URL</TableHead>
+                  <TableHead className="text-slate-300 w-[15%] min-w-[45px] text-center">
+                    <span className="hidden sm:inline">Auto</span>
+                    <span className="sm:hidden">A</span>
                   </TableHead>
-                  <TableHead className="text-right text-slate-300 md:w-auto lg:w-auto w-[25%] md:min-w-[95px] lg:min-w-[105px]">Actions</TableHead>
+                  <TableHead className="text-right text-slate-300 w-[20%] min-w-[60px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1027,32 +1026,32 @@ export default function Sources() {
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
-                    <TableCell className="md:min-w-0 lg:min-w-0 min-w-[100px] font-medium text-white">
-                      <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <TableCell className="font-medium text-white">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           {pendingItems.has(source.id) 
-                            ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 text-primary animate-spin" />
-                            : <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                            ? <Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-primary animate-spin" />
+                            : <Globe className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-primary" />
                           }
                         </div>
-                        <span className="truncate max-w-[80px] sm:max-w-full md:max-w-[115px] lg:max-w-[150px] xl:max-w-none">{source.name}</span>
+                        <span className="truncate text-xs sm:text-sm lg:text-base">{source.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="md:min-w-0 lg:min-w-0 min-w-[120px]">
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <Link2 className="h-3 w-3 sm:h-4 sm:w-4 text-slate-500 flex-shrink-0" />
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Link2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-slate-500 flex-shrink-0" />
                         <a 
                           href={source.url} 
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-300 hover:text-primary transition-colors truncate max-w-[80px] sm:max-w-[120px] md:max-w-[150px] lg:max-w-[180px] xl:max-w-[250px]"
+                          className="text-slate-300 hover:text-primary transition-colors truncate text-xs sm:text-sm"
                         >
                           {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </a>
                       </div>
                     </TableCell>
-                    <TableCell className="md:min-w-0 lg:min-w-0 min-w-[80px]">
-                      <div className="flex items-center space-x-1 sm:space-x-2">
+                    <TableCell className="text-center">
+                      <div className="flex justify-center">
                         <Switch
                           id={`auto-scrape-${source.id}`}
                           checked={source.includeInAutoScrape || false}
@@ -1060,14 +1059,11 @@ export default function Sources() {
                             toggleAutoScrape.mutate({ id: source.id, include: checked })
                           }
                           disabled={toggleAutoScrape.isPending}
+                          className="scale-75 sm:scale-100"
                         />
-                        <Label htmlFor={`auto-scrape-${source.id}`} className="text-slate-300 text-xs sm:text-sm">
-                          <span className="hidden sm:inline">{source.includeInAutoScrape ? "Included" : "Excluded"}</span>
-                          <span className="sm:hidden">{source.includeInAutoScrape ? "On" : "Off"}</span>
-                        </Label>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right p-2 sm:p-4 md:min-w-0 lg:min-w-0 min-w-[130px]">
+                    <TableCell className="text-right">
                       <div className="flex justify-end gap-1 sm:gap-2 md:flex-wrap lg:flex-wrap xl:flex-nowrap">
                         <Button
                           size="sm"
