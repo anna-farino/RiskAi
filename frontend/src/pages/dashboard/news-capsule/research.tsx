@@ -893,7 +893,7 @@ export default function Research() {
             </p>
           </div>
           
-          <div className="flex flex-col gap-3 max-h-[360px] overflow-y-auto">
+          <div className="flex flex-col gap-3">
             {selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic">
                 No articles selected yet
