@@ -768,7 +768,7 @@ export default function Sources() {
   });
 
   return (
-    <div className="w-full">
+    <div className="min-h-screen w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Delete confirmation dialog */}
       <DeleteAlertDialog
         open={deleteDialogOpen}
@@ -783,29 +783,29 @@ export default function Sources() {
         <></>
       </DeleteAlertDialog>
 
-      <div className="space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Section */}
         <div className="space-y-4">
-          <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Sources</h1>
-              <p className="text-sm text-slate-300">Manage news sources and control web scraping operations</p>
+          <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white">Sources</h1>
+              <p className="text-sm sm:text-base text-slate-300">Manage news sources and control web scraping operations</p>
             </div>
             
-            <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:space-x-2">
+            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 sm:flex-shrink-0">
               <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
                 <PopoverTrigger asChild>
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white"
+                    className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white whitespace-nowrap"
                   >
                     <Settings className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Auto-Scrape Settings</span>
-                    <span className="sm:hidden">Settings</span>
+                    <span className="hidden md:inline">Auto-Scrape Settings</span>
+                    <span className="md:hidden">Settings</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 bg-slate-900 border-slate-700 text-white">
+                <PopoverContent className="w-72 sm:w-80 bg-slate-900 border-slate-700 text-white">
                   <div className="space-y-4">
                     <h4 className="font-medium text-white">Auto-Scrape Configuration</h4>
                     <div className="flex items-center justify-between">
@@ -856,30 +856,30 @@ export default function Sources() {
                   onClick={() => stopGlobalScrape.mutate()}
                   disabled={stopGlobalScrape.isPending}
                   size="sm"
-                  className="bg-red-600 hover:bg-red-600/80 text-white hover:text-[#00FFFF]"
+                  className="bg-red-600 hover:bg-red-600/80 text-white hover:text-[#00FFFF] whitespace-nowrap"
                 >
                   {stopGlobalScrape.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <X className="mr-2 h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">Stop Auto-Scrape</span>
-                  <span className="sm:hidden">Stop</span>
+                  <span className="hidden md:inline">Stop Auto-Scrape</span>
+                  <span className="md:hidden">Stop</span>
                 </Button>
               ) : (
                 <Button 
                   onClick={() => runGlobalScrape.mutate()}
                   disabled={runGlobalScrape.isPending}
                   size="sm"
-                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] whitespace-nowrap"
                 >
                   {runGlobalScrape.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <Play className="mr-2 h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">Run Auto-Scrape Now</span>
-                  <span className="sm:hidden">Run Now</span>
+                  <span className="hidden md:inline">Run Auto-Scrape Now</span>
+                  <span className="md:hidden">Run Now</span>
                 </Button>
               )}
             </div>
@@ -899,31 +899,31 @@ export default function Sources() {
         </div>
 
         {/* Add Source Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+          <div className="xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
             <form onSubmit={onSubmit} className="space-y-4">
-              <h2 className="text-lg font-medium text-white">Add News Source</h2>
+              <h2 className="text-base sm:text-lg font-medium text-white">Add News Source</h2>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Source Name</label>
+                  <label className="text-sm text-slate-400 block">Source Name</label>
                   <Input
                     placeholder="E.g., Tech News Daily"
                     {...form.register("name")}
-                    className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                    className="w-full bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Source URL</label>
+                  <label className="text-sm text-slate-400 block">Source URL</label>
                   <Input
                     placeholder="https://example.com"
                     {...form.register("url")}
-                    className="bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                    className="w-full bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <Button 
                   type="submit" 
                   disabled={addSource.isPending}
@@ -940,27 +940,27 @@ export default function Sources() {
             </form>
           </div>
 
-          <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 flex flex-col justify-between">
-            <div>
-              <h2 className="text-lg font-medium text-white mb-4">Quick Tips</h2>
-              <ul className="space-y-3 text-sm">
+          <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6 flex flex-col">
+            <div className="flex-1">
+              <h2 className="text-base sm:text-lg font-medium text-white mb-3 sm:mb-4">Quick Tips</h2>
+              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                 <li className="flex gap-2 text-slate-300">
-                  <Check className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span>Add reliable news sources with well-structured content for best results.</span>
+                  <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">Add reliable news sources with well-structured content for best results.</span>
                 </li>
                 <li className="flex gap-2 text-slate-300">
-                  <Check className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span>Configure auto-scrape settings to automatically collect new content on a schedule.</span>
+                  <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">Configure auto-scrape settings to automatically collect new content on a schedule.</span>
                 </li>
               </ul>
             </div>
             
             <div className="mt-4 pt-4 border-t border-slate-700/50">
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Globe className="h-4 w-4 text-primary" />
+                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                 </div>
-                <div className="text-sm text-white">
+                <div className="text-xs sm:text-sm text-white">
                   <span className="font-medium">{sources.data?.length || 0}</span> sources available
                 </div>
               </div>
@@ -969,45 +969,45 @@ export default function Sources() {
         </div>
 
         {/* Source List */}
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-slate-700/50">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+          <div className="p-4 sm:p-6 border-b border-slate-700/50">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h2 className="text-lg font-medium text-white">Source List</h2>
-              <div className="text-sm text-slate-400">
+              <h2 className="text-base sm:text-lg font-medium text-white">Source List</h2>
+              <div className="text-xs sm:text-sm text-slate-400">
                 {sources.data?.length || 0} sources configured
               </div>
             </div>
           </div>
 
           {sources.isLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            <div className="flex justify-center py-12 sm:py-16">
+              <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-slate-400" />
             </div>
           ) : sources.data?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-              <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
-                <Globe className="h-8 w-8 text-slate-400" />
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 sm:px-6 text-center">
+              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-3 sm:mb-4">
+                <Globe className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" />
               </div>
-              <h3 className="text-xl font-medium text-white mb-2">No sources added</h3>
+              <h3 className="text-lg sm:text-xl font-medium text-white mb-2">No sources added</h3>
               <Button 
                 className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] mb-3"
                 onClick={() => sources.refetch()}
               >
                 Fetch Sources
               </Button>
-              <p className="text-slate-400 max-w-md">
+              <p className="text-sm sm:text-base text-slate-400 max-w-sm sm:max-w-md">
                 Add your first news source above to start scraping articles
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-full">
                 <TableHeader>
-                  <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                    <TableHead className="text-slate-300">Source</TableHead>
-                    <TableHead className="text-slate-300">URL</TableHead>
-                    <TableHead className="text-slate-300">Auto-Scrape</TableHead>
-                    <TableHead className="text-right text-slate-300">Actions</TableHead>
+                  <TableRow className="border-slate-700/50">
+                    <TableHead className="text-slate-300 text-xs sm:text-sm px-3 sm:px-6 py-3">Source</TableHead>
+                    <TableHead className="text-slate-300 text-xs sm:text-sm px-3 sm:px-6 py-3 hidden sm:table-cell">URL</TableHead>
+                    <TableHead className="text-slate-300 text-xs sm:text-sm px-3 sm:px-6 py-3">Auto</TableHead>
+                    <TableHead className="text-slate-300 text-xs sm:text-sm px-3 sm:px-6 py-3 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1015,79 +1015,89 @@ export default function Sources() {
                     <TableRow 
                       key={source.id} 
                       className={cn(
-                        "border-slate-700/50 hover:bg-slate-800/70",
+                        "border-slate-700/50 hover:bg-slate-800/50",
                         pendingItems.has(source.id) && "opacity-60"
                       )}
                     >
-                      <TableCell className="font-medium text-white">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            {pendingItems.has(source.id) 
-                              ? <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                              : <Globe className="h-4 w-4 text-primary" />
-                            }
+                      <TableCell className="px-3 sm:px-6 py-3">
+                        <div className="flex flex-col space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              {pendingItems.has(source.id) 
+                                ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 text-primary animate-spin" />
+                                : <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                              }
+                            </div>
+                            <span className="font-medium text-white text-xs sm:text-sm truncate">{source.name}</span>
                           </div>
-                          <span className="min-w-0 truncate">{source.name}</span>
+                          <div className="sm:hidden flex items-center gap-1 ml-8 text-xs">
+                            <Link2 className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                            <a 
+                              href={source.url} 
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-slate-400 hover:text-primary transition-colors truncate"
+                              title={source.url}
+                            >
+                              {source.url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </a>
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-3 sm:px-6 py-3 hidden sm:table-cell">
                         <div className="flex items-center gap-2">
                           <Link2 className="h-4 w-4 text-slate-500 flex-shrink-0" />
                           <a 
                             href={source.url} 
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-slate-300 hover:text-primary transition-colors truncate"
+                            className="text-slate-300 hover:text-primary transition-colors truncate text-sm"
                             title={source.url}
                           >
                             {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                           </a>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id={`auto-scrape-${source.id}`}
-                            checked={source.includeInAutoScrape || false}
-                            onCheckedChange={(checked) => 
-                              toggleAutoScrape.mutate({ id: source.id, include: checked })
-                            }
-                            disabled={toggleAutoScrape.isPending}
-                          />
-                          <Label htmlFor={`auto-scrape-${source.id}`} className="text-slate-300 text-sm">
-                            {source.includeInAutoScrape ? "Included" : "Excluded"}
-                          </Label>
-                        </div>
+                      <TableCell className="px-3 sm:px-6 py-3">
+                        <Switch
+                          id={`auto-scrape-${source.id}`}
+                          checked={source.includeInAutoScrape || false}
+                          onCheckedChange={(checked) => 
+                            toggleAutoScrape.mutate({ id: source.id, include: checked })
+                          }
+                          disabled={toggleAutoScrape.isPending}
+                          className="scale-75 sm:scale-100"
+                        />
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="px-3 sm:px-6 py-3">
                         <div className="flex justify-end gap-1">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => scrapeSource.mutate(source.id)}
                             disabled={scrapeSource.isPending}
-                            className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/70 hover:text-white"
+                            className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/70 hover:text-white h-7 w-7 sm:h-8 sm:w-auto sm:px-3 p-0 sm:p-2"
                           >
                             {scrapeSource.isPending ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin sm:mr-2" />
                             ) : (
-                              <RotateCw className="mr-2 h-4 w-4" />
+                              <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
                             )}
-                            Scrape
+                            <span className="hidden sm:inline text-xs">Scrape</span>
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => stopScraping.mutate(source.id)}
                             disabled={stopScraping.isPending}
-                            className="border-red-900/50 bg-red-950/20 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+                            className="border-red-900/50 bg-red-950/20 text-red-400 hover:bg-red-900/30 hover:text-red-300 h-7 w-7 sm:h-8 sm:w-auto sm:px-3 p-0 sm:p-2"
                           >
                             {stopScraping.isPending ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin sm:mr-2" />
                             ) : (
-                              <X className="mr-2 h-4 w-4" />
+                              <X className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
                             )}
-                            Stop
+                            <span className="hidden sm:inline text-xs">Stop</span>
                           </Button>
                           <Button
                             size="sm"
@@ -1097,12 +1107,12 @@ export default function Sources() {
                               setDeleteDialogOpen(true);
                             }}
                             disabled={deleteSource.isPending}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-950/30 p-2"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-950/30 h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
                             {deleteSource.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                             ) : (
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             )}
                           </Button>
                         </div>
