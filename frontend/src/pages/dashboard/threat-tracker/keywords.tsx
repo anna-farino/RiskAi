@@ -731,7 +731,7 @@ export default function Keywords() {
             </TabsList>
           </div>
 
-          <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto sm:self-end">
+          <div className="flex flex-row gap-2 w-full sm:w-auto sm:self-end">
             <Button
               onClick={handleBulkKeywords}
               disabled={createBulkKeywords.isPending}
