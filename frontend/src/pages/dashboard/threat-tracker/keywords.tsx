@@ -518,7 +518,7 @@ export default function Keywords() {
             {selectedCategory === "hardware" &&
               "Add custom hardware/software to monitor for security issues."}
           </p>
-          <Button onClick={handleNewKeyword}>
+          <Button onClick={handleNewKeyword} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0">
             <Plus className="mr-2 h-4 w-4" />
             Add{" "}
             {selectedCategory === "threat"
@@ -728,7 +728,7 @@ export default function Keywords() {
               onClick={handleBulkKeywords}
               disabled={createBulkKeywords.isPending}
               variant="outline"
-              className="h-9 px-2 sm:px-4"
+              className="h-9 px-2 sm:px-4 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
             >
               {createBulkKeywords.isPending ? (
                 <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
@@ -742,7 +742,7 @@ export default function Keywords() {
             <Button
               onClick={handleNewKeyword}
               disabled={createKeyword.isPending}
-              className="h-9 px-2 sm:px-4"
+              className="h-9 px-2 sm:px-4 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
             >
               {createKeyword.isPending ? (
                 <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
