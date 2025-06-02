@@ -865,6 +865,85 @@ export default function Research() {
         {/* Selected Articles Section - Right Side, Fixed */}
         <div className="w-80 flex-shrink-0 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
           <div className="h-full overflow-y-auto p-5">
+            {/* Action Buttons */}
+            <button
+              onClick={sendToExecutiveReport}
+              disabled={selectedArticles.length === 0 || isLoading}
+              className="mb-2 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white"
+            >
+              {isLoading ? "Processing..." : "Send to Executive Report"}
+            </button>
+            
+            <button
+              onClick={async () => {
+                // Create a new report version - include selected articles if any exist
+                try {
+                  setIsLoading(true);
+                  setError(null);
+                  
+                  // Check if localStorage already has reports
+                  let savedReports = [];
+                  let versionNumber = 1;
+                  
+                  try {
+                    const localStorageReports = localStorage.getItem('newsCapsuleReports');
+                    if (localStorageReports) {
+                      savedReports = JSON.parse(localStorageReports);
+                      
+                      // Find reports from today
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      
+                        // Find the highest version number among ALL reports (not just today's)
+                      const highestVersion = savedReports.reduce((max: number, report: any) => {
+                        // Make sure to use the actual version number that was stored
+                        const reportVersion = parseInt(report.versionNumber) || 0;
+                        return reportVersion > max ? reportVersion : max;
+                      }, 0);
+                      
+                      // Set the next version number as one higher than the highest existing version
+                      versionNumber = highestVersion + 1;
+                      console.log("Next version number will be:", versionNumber, "highest found was:", highestVersion);
+                    }
+                  } catch (e) {
+                    console.error("Failed to check localStorage for reports", e);
+                    // Continue with default values if localStorage fails
+                  }
+                  
+                  // Create the new report - include selected articles if any exist
+                  const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                  const newReport = {
+                    id: newReportId,
+                    createdAt: new Date().toISOString(),
+                    articles: [...selectedArticles], // Include selected articles
+                    versionNumber: versionNumber,
+                    topic: reportTopic.trim() || undefined
+                  };
+                  
+                  // Add to beginning of reports array
+                  savedReports.unshift(newReport);
+                  
+                  // Save updated reports to localStorage
+                  localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
+                  console.log("Created new report version", versionNumber, "with", selectedArticles.length, "articles");
+                  
+                  // Success message
+                  if (selectedArticles.length > 0) {
+                    alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
+                  } else {
+                    alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
+                  }
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "An error occurred");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="mb-4 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
+            >
+              New Report
+            </button>
+            
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Selected Articles</h2>
               <span className="text-sm text-slate-400">
@@ -933,84 +1012,6 @@ export default function Research() {
               ))
             )}
           </div>
-          
-          <button
-            onClick={sendToExecutiveReport}
-            disabled={selectedArticles.length === 0 || isLoading}
-            className="mt-4 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white"
-          >
-            {isLoading ? "Processing..." : "Send to Executive Report"}
-          </button>
-          
-          <button
-            onClick={async () => {
-              // Create a new report version - include selected articles if any exist
-              try {
-                setIsLoading(true);
-                setError(null);
-                
-                // Check if localStorage already has reports
-                let savedReports = [];
-                let versionNumber = 1;
-                
-                try {
-                  const localStorageReports = localStorage.getItem('newsCapsuleReports');
-                  if (localStorageReports) {
-                    savedReports = JSON.parse(localStorageReports);
-                    
-                    // Find reports from today
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    
-                      // Find the highest version number among ALL reports (not just today's)
-                    const highestVersion = savedReports.reduce((max: number, report: any) => {
-                      // Make sure to use the actual version number that was stored
-                      const reportVersion = parseInt(report.versionNumber) || 0;
-                      return reportVersion > max ? reportVersion : max;
-                    }, 0);
-                    
-                    // Set the next version number as one higher than the highest existing version
-                    versionNumber = highestVersion + 1;
-                    console.log("Next version number will be:", versionNumber, "highest found was:", highestVersion);
-                  }
-                } catch (e) {
-                  console.error("Failed to check localStorage for reports", e);
-                  // Continue with default values if localStorage fails
-                }
-                
-                // Create the new report - include selected articles if any exist
-                const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                const newReport = {
-                  id: newReportId,
-                  createdAt: new Date().toISOString(),
-                  articles: [...selectedArticles], // Include selected articles
-                  versionNumber: versionNumber,
-                  topic: reportTopic.trim() || undefined
-                };
-                
-                // Add to beginning of reports array
-                savedReports.unshift(newReport);
-                
-                // Save updated reports to localStorage
-                localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-                console.log("Created new report version", versionNumber, "with", selectedArticles.length, "articles");
-                
-                // Success message
-                if (selectedArticles.length > 0) {
-                  alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
-                } else {
-                  alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
-                }
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "An error occurred");
-              } finally {
-                setIsLoading(false);
-              }
-            }}
-            className="mt-2 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
-          >
-            New Report
-          </button>
           </div>
         </div>
       </div>
