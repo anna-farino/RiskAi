@@ -37,23 +37,13 @@ interface ArticleSummary {
   createdAt: string;
   markedForReporting: boolean;
   markedForDeletion: boolean;
-  sourceApp?: string; // Track which app sent this article
+
 }
 
 // Function to determine which app sent the article
 const getSourceAppIndicator = (article: ArticleSummary) => {
-  const sourceApp = article.sourceApp || 'manual';
-  
-  switch (sourceApp) {
-    case 'news-radar':
-      return { label: 'NR', color: 'bg-blue-500', textColor: 'text-blue-100' };
-    case 'threat-tracker':
-      return { label: 'TT', color: 'bg-red-500', textColor: 'text-red-100' };
-    case 'news-tracker':
-      return { label: 'NT', color: 'bg-green-500', textColor: 'text-green-100' };
-    default:
-      return { label: 'M', color: 'bg-gray-500', textColor: 'text-gray-100' };
-  }
+  // Since all current articles are manually processed, show 'M' for manual
+  return { label: 'M', color: 'bg-gray-500', textColor: 'text-gray-100' };
 };
 
 
@@ -144,6 +134,7 @@ export default function Research() {
           index === self.findIndex(a => a.title === article.title)
         );
         
+        console.log('Setting processed articles:', uniqueArticles.length);
         setProcessedArticles(uniqueArticles);
         
         // Update module-level array and save cleaned data
@@ -773,9 +764,13 @@ export default function Research() {
               </div>
             )}
             
-            {processedArticles
-              .slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage)
-              .map((article, index) => (
+            {(() => {
+              const startIdx = (currentPage - 1) * articlesPerPage;
+              const endIdx = currentPage * articlesPerPage;
+              const articlesToShow = processedArticles.slice(startIdx, endIdx);
+              console.log(`Displaying articles ${startIdx}-${endIdx} of ${processedArticles.length}:`, articlesToShow.length);
+              console.log('Sample article titles:', articlesToShow.slice(0, 3).map(a => a.title));
+              return articlesToShow.map((article, index) => (
                 <motion.div
                   key={`article-${article.id}-${index}`}
                   initial={{ opacity: 0, y: 20 }}
@@ -859,7 +854,8 @@ export default function Research() {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+              ));
+            })()}
           </div>
           
         </div>
