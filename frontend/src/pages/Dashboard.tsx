@@ -13,7 +13,7 @@ export default function Dashboard() {
   const { data: newsArticles, isLoading: newsLoading, error: newsError } = useQuery({
     queryKey: ['news-radar-articles'],
     queryFn: async () => {
-      const response = await fetch(`${serverUrl}/api/news-radar/articles`, {
+      const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
         method: 'GET',
         credentials: 'include',
         headers: {
