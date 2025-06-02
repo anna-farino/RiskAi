@@ -671,8 +671,8 @@ export default function Keywords() {
         onValueChange={setSelectedCategory}
         className="w-full"
       >
-        <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row lg:justify-between lg:items-center">
-          <div className="w-full lg:max-w-none overflow-hidden">
+        <div className="flex flex-col space-y-4">
+          <div className="w-full overflow-hidden">
             <TabsList className="w-full h-auto grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:flex lg:w-auto gap-1 p-1">
               <TabsTrigger
                 value="threat"
@@ -731,7 +731,7 @@ export default function Keywords() {
             </TabsList>
           </div>
 
-          <div className="flex flex-col xs:flex-row gap-2 w-full lg:w-auto lg:flex-shrink-0">
+          <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto sm:self-end">
             <Button
               onClick={handleBulkKeywords}
               disabled={createBulkKeywords.isPending}
