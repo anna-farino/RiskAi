@@ -508,15 +508,20 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide navigation and controls */
-                              nav, header, aside, .md\\:col-span-1, button, 
-                              input, select, .flex.gap-2, .flex.justify-between {
+                              /* Hide the Reports Panel and navigation */
+                              nav, header, aside, button, input, select,
+                              .w-80.flex-shrink-0 {
                                 display: none !important;
                               }
-                              /* Make the report container full width */
-                              .md\\:col-span-4 {
+                              /* Hide the main layout flex container and make report full width */
+                              .flex.gap-6 {
+                                display: block !important;
+                              }
+                              /* Make the Executive Report content full width */
+                              .flex-1 {
                                 width: 100% !important;
                                 max-width: 100% !important;
+                                flex: none !important;
                               }
                               .grid.grid-cols-1 {
                                 display: block !important;
@@ -543,19 +548,26 @@ export default function Reports() {
                                 line-height: 1.4 !important;
                                 color: black !important;
                               }
-                              /* Single column layout for print */
-                              .grid-cols-2 {
+                              /* Single column layout for print - force all grids to block */
+                              .grid, .grid-cols-1, .grid-cols-2 {
                                 display: block !important;
                                 grid-template-columns: none !important;
                               }
-                              /* Remove card styling for print */
-                              .space-y-6 > div {
+                              /* Remove card styling for print and ensure single column */
+                              .space-y-6 > div, .space-y-8 > div {
                                 border: none !important;
                                 border-radius: 0 !important;
                                 background: none !important;
                                 padding: 0 !important;
                                 margin-bottom: 0.3in !important;
                                 page-break-inside: avoid;
+                                width: 100% !important;
+                                display: block !important;
+                              }
+                              /* Ensure story content flows in single column */
+                              .space-y-6, .space-y-8 {
+                                display: block !important;
+                                width: 100% !important;
                               }
                               /* Hide interactive elements */
                               .group, .absolute, .cursor-grab, .opacity-0, 
