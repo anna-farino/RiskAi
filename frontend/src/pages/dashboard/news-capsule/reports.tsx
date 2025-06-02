@@ -758,31 +758,46 @@ export default function Reports() {
                             
                             selectedReport.articles.forEach((article, index) => {
                               htmlContent += `
-                                <div style="page-break-inside: avoid; margin-bottom: 24px; border-bottom: 1px solid #ddd; padding-bottom: 16px;">
-                                  <h3 style="font-size: 12pt; font-weight: bold; margin-bottom: 12px; color: #333;">Article ${index + 1}: ${article.title}</h3>
-                                  <p style="margin-bottom: 8px;"><strong>Threat Name:</strong> ${article.threatName}</p>
-                                  <p style="margin-bottom: 8px;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
-                                  <p style="margin-bottom: 8px;"><strong>Target OS:</strong> ${article.targetOS}</p>
-                                  <p style="margin-bottom: 12px;"><strong>Source:</strong> ${article.sourcePublication}</p>
+                                <div style="page-break-inside: avoid; page-break-before: ${index > 0 ? 'auto' : 'avoid'}; margin-bottom: 32px; border: 1px solid #e0e0e0; padding: 20px; background-color: #fafafa;">
+                                  <h3 style="font-size: 13pt; font-weight: bold; margin-bottom: 16px; color: #222; border-bottom: 2px solid #007bff; padding-bottom: 8px;">Article ${index + 1}: ${article.title}</h3>
                                   
-                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Summary:</h4>
-                                  <p style="margin-bottom: 12px; line-height: 1.4;">${article.summary}</p>
+                                  <div style="margin-bottom: 16px;">
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Threat Name:</strong> ${article.threatName}</p>
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Target OS:</strong> ${article.targetOS}</p>
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Source:</strong> ${article.sourcePublication}</p>
+                                  </div>
                                   
-                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Impacts:</h4>
-                                  <p style="margin-bottom: 12px; line-height: 1.4;">${article.impacts}</p>
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Summary:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.summary}</p>
+                                  </div>
                                   
-                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Attack Vector:</h4>
-                                  <p style="margin-bottom: 12px; line-height: 1.4;">${article.attackVector}</p>
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Impacts:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.impacts}</p>
+                                  </div>
+                                  
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Attack Vector:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.attackVector}</p>
+                                  </div>
                               `;
                               
                               if (executiveNotes[article.id]) {
                                 htmlContent += `
-                                  <h4 style="font-weight: bold; margin: 12px 0 6px 0; color: #555;">Executive Note:</h4>
-                                  <p style="margin-bottom: 12px; line-height: 1.4; background-color: #f8f9fa; padding: 8px; border-left: 3px solid #007bff;">${executiveNotes[article.id]}</p>
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Executive Note:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; background-color: #e3f2fd; padding: 12px; border-left: 4px solid #1976d2; text-align: justify;">${executiveNotes[article.id]}</p>
+                                  </div>
                                 `;
                               }
                               
-                              htmlContent += `<p style="margin-bottom: 8px; font-size: 10pt; color: #666;"><strong>Original URL:</strong> ${article.originalUrl}</p></div>`;
+                              htmlContent += `
+                                  <div style="border-top: 1px solid #ccc; padding-top: 8px; margin-top: 16px;">
+                                    <p style="margin-bottom: 0; font-size: 9pt; color: #888;"><strong>Source URL:</strong> ${article.originalUrl}</p>
+                                  </div>
+                                </div>`;
                             });
                             
                             htmlContent += '</div>';
@@ -797,20 +812,26 @@ export default function Reports() {
                             });
                             
                             const pdf = new jsPDF('p', 'mm', 'a4');
-                            const imgWidth = 210; // A4 width in mm
-                            const pageHeight = 295; // A4 height in mm
+                            const pageWidth = 210; // A4 width in mm
+                            const pageHeight = 297; // A4 height in mm
+                            const margins = { top: 25, bottom: 25, left: 20, right: 20 }; // 1 inch = 25.4mm
+                            const contentWidth = pageWidth - margins.left - margins.right;
+                            const contentHeight = pageHeight - margins.top - margins.bottom;
+                            
+                            const imgWidth = contentWidth;
                             const imgHeight = (canvas.height * imgWidth) / canvas.width;
                             let heightLeft = imgHeight;
                             let position = 0;
                             
-                            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-                            heightLeft -= pageHeight;
+                            // Add first page with margins
+                            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margins.left, margins.top + position, imgWidth, imgHeight);
+                            heightLeft -= contentHeight;
                             
                             while (heightLeft >= 0) {
                               position = heightLeft - imgHeight;
                               pdf.addPage();
-                              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-                              heightLeft -= pageHeight;
+                              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margins.left, margins.top + position, imgWidth, imgHeight);
+                              heightLeft -= contentHeight;
                             }
                             
                             // Download the PDF
