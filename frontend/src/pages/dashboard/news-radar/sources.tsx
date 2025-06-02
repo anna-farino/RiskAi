@@ -984,22 +984,22 @@ export default function Sources() {
         </div>
 
         {sources.isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          <div className="flex justify-center py-12 sm:py-16">
+            <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-slate-400" />
           </div>
         ) : sources.data?.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
-              <Globe className="h-8 w-8 text-slate-400" />
+          <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center px-4">
+            <div className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-3 sm:mb-4">
+              <Globe className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-slate-400" />
             </div>
-            <h3 className="text-xl font-medium text-white mb-2">No sources added</h3>
+            <h3 className="text-lg sm:text-xl font-medium text-white mb-2">No sources added</h3>
             <Button 
-              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 px-3 sm:px-4 text-sm mb-3"
               onClick={() => sources.refetch()}
             >
                 Fetch Sources
             </Button>
-            <p className="text-slate-400 max-w-md">
+            <p className="text-xs sm:text-sm text-slate-400 max-w-xs sm:max-w-md">
               Add your first news source above to start scraping articles
             </p>
           </div>
