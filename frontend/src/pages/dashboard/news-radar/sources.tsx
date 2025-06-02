@@ -1009,12 +1009,12 @@ export default function Sources() {
                 <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
                   <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[25%]">Source</TableHead>
                   <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[30%] md:max-w-[160px] lg:max-w-[200px] xl:max-w-none">URL</TableHead>
-                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[20%] md:min-w-[85px] lg:min-w-[100px]">
+                  <TableHead className="text-slate-300 md:w-auto lg:w-auto w-[20%] md:min-w-[85px] lg:min-w-[90px]">
                     <span className="hidden sm:inline md:hidden lg:inline">Auto-Scrape</span>
                     <span className="sm:hidden md:inline lg:hidden">Auto</span>
                     <span className="md:hidden">Auto</span>
                   </TableHead>
-                  <TableHead className="text-right text-slate-300 md:w-auto lg:w-auto w-[25%] md:min-w-[95px] lg:min-w-[115px]">Actions</TableHead>
+                  <TableHead className="text-right text-slate-300 md:w-auto lg:w-auto w-[25%] md:min-w-[95px] lg:min-w-[105px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
