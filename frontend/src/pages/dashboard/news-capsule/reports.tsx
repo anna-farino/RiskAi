@@ -619,8 +619,26 @@ export default function Reports() {
                               }
                               /* Reset layout margins for print */
                               main {
-                                margin-left: 0 !important;
-                                padding: 20px !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                              }
+                              /* Remove all layout spacing and positioning */
+                              .min-h-screen, .pt-\\[88px\\], .flex, .p-4, .md\\:p-6,
+                              .space-y-6, .space-y-8, .mb-8, .mt-8, .py-4, .px-2,
+                              .gap-6, .gap-2, .gap-4, .gap-8 {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                gap: 0 !important;
+                              }
+                              /* Force content to start at top */
+                              * {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                              }
+                              /* Only allow bottom spacing between articles */
+                              .space-y-6 > div {
+                                margin-bottom: 0.3in !important;
+                                margin-top: 0 !important;
                               }
                               /* Hide the main layout flex container and make report full width */
                               .flex.gap-6 {
