@@ -312,7 +312,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>{newsArticles?.length || 0} live articles • Auto-refresh 30s</span>
+                      <span>{newsArticles?.length || 0} articles • 30s</span>
                     </div>
                   )}
                 </div>
@@ -440,7 +440,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                      <span>{threatArticles?.length || 0} active threats • Monitor 20s</span>
+                      <span>{threatArticles?.length || 0} threats • 20s</span>
                     </div>
                   )}
                 </div>
@@ -686,7 +686,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
-                      <span>{capsuleReports?.length || 0} reports • Sync 45s</span>
+                      <span>{capsuleReports?.length || 0} reports • 45s</span>
                     </div>
                   )}
                 </div>
@@ -814,7 +814,7 @@ export default function Dashboard() {
                   <div className="text-xs text-gray-400 mt-2 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>System configured • 5 active settings</span>
+                      <span>5 settings • Active</span>
                     </div>
                   </div>
                 </div>
