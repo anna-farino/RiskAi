@@ -104,6 +104,7 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
+  const [localAutoScrapeEnabled, setLocalAutoScrapeEnabled] = useState<boolean | null>(null);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -116,7 +117,7 @@ export default function Sources() {
     },
   });
 
-  // Fetch sources
+  // Fetch sources with refetch on window focus for navigation remounting
   const sources = useQuery<ThreatSource[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/sources`],
     queryFn: async () => {
@@ -136,7 +137,10 @@ export default function Sources() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    }
+    },
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true, // Refetch when returning to page
+    refetchOnMount: true, // Always refetch on component mount
   });
   
   // Sync local state with query data when it changes
@@ -200,12 +204,48 @@ export default function Sources() {
     }
   }, [checkScrapeStatus.data]);
 
-  // Create source mutation
+  // Sync local auto-scrape state with query data
+  useEffect(() => {
+    if (autoScrapeSettings.data && localAutoScrapeEnabled === null) {
+      setLocalAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+    }
+  }, [autoScrapeSettings.data, localAutoScrapeEnabled]);
+
+  // Create source mutation with optimistic updates
   const createSource = useMutation({
     mutationFn: async (values: SourceFormValues) => {
       return apiRequest("POST", `${serverUrl}/api/threat-tracker/sources`, values);
     },
-    onSuccess: () => {
+    onMutate: async (newSource) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+      
+      // Create optimistic source with temporary ID
+      const optimisticSource: ThreatSource = {
+        id: `temp-${Date.now()}`,
+        name: newSource.name,
+        url: newSource.url,
+        active: newSource.active,
+        includeInAutoScrape: newSource.includeInAutoScrape,
+        lastScraped: null,
+        userId: 'current-user',
+        scrapingConfig: null
+      };
+      
+      // Add to local state immediately
+      setLocalSources(prev => [...prev, optimisticSource]);
+      
+      // Store previous state for rollback
+      const previousSources = queryClient.getQueryData([`${serverUrl}/api/threat-tracker/sources`]);
+      return { previousSources, optimisticSource };
+    },
+    onSuccess: (data, _, context) => {
+      // Replace optimistic source with real one
+      setLocalSources(prev => 
+        prev.map(source => 
+          source.id === context?.optimisticSource.id ? data : source
+        )
+      );
       toast({
         title: "Source created",
         description: "Your source has been added successfully.",
@@ -214,7 +254,13 @@ export default function Sources() {
       form.reset();
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.optimisticSource) {
+        setLocalSources(prev => 
+          prev.filter(source => source.id !== context.optimisticSource.id)
+        );
+      }
       console.error("Error creating source:", error);
       toast({
         title: "Error creating source",
@@ -249,10 +295,20 @@ export default function Sources() {
     },
   });
 
-  // Delete source mutation
+  // Delete source mutation with optimistic updates
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/sources/${id}`);
+    },
+    onMutate: async (deletedId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+      
+      // Remove from local state immediately
+      const previousSources = [...localSources];
+      setLocalSources(prev => prev.filter(source => source.id !== deletedId));
+      
+      return { previousSources, deletedId };
     },
     onSuccess: () => {
       toast({
@@ -261,7 +317,11 @@ export default function Sources() {
       });
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
       console.error("Error deleting source:", error);
       toast({
         title: "Error deleting source",
@@ -348,21 +408,47 @@ export default function Sources() {
     mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
+    onMutate: async ({ enabled, interval }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
+      
+      // Get snapshot of current data
+      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`]);
+      const previousLocalEnabled = localAutoScrapeEnabled;
+      
+      // Immediately update local state for instant UI feedback
+      setLocalAutoScrapeEnabled(enabled);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`], {
+        enabled,
+        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
+      });
+      
+      return { previousSettings, previousLocalEnabled };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousSettings) {
+        queryClient.setQueryData<AutoScrapeSettings>([`${serverUrl}/api/threat-tracker/settings/auto-scrape`], context.previousSettings);
+      }
+      if (context?.previousLocalEnabled !== undefined) {
+        setLocalAutoScrapeEnabled(context.previousLocalEnabled);
+      }
+      toast({
+        title: "Error updating settings",
+        description: "There was an error updating auto-scrape settings. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: (data) => {
+      // Sync local state with server response
+      setLocalAutoScrapeEnabled(data.enabled);
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
           ? `Auto-scrape has been enabled with ${data.interval.toLowerCase()} frequency.`
           : "Auto-scrape has been disabled.",
-      });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
-    },
-    onError: (error) => {
-      console.error("Error updating auto-scrape settings:", error);
-      toast({
-        title: "Error updating settings",
-        description: "There was an error updating auto-scrape settings. Please try again.",
-        variant: "destructive",
       });
     },
   });
@@ -457,7 +543,7 @@ export default function Sources() {
             <div className="flex items-center gap-2">
               <Switch
                 id="auto-scrape"
-                checked={autoScrapeSettings.data?.enabled || false}
+                checked={localAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled ?? false}
                 onCheckedChange={handleToggleAutoScrape}
                 disabled={updateAutoScrapeSettings.isPending}
               />
@@ -466,7 +552,7 @@ export default function Sources() {
                   htmlFor="auto-scrape"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  {autoScrapeSettings.data?.enabled ? 'Enabled' : 'Disabled'}
+                  {(localAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled) ? 'Enabled' : 'Disabled'}
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {autoScrapeSettings.data?.enabled
@@ -789,8 +875,9 @@ export default function Sources() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleEditSource(source)}
+                    className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-blue-400 hover:bg-blue-400/10"
                   >
-                    <PencilLine className="h-4 w-4" />
+                    <PencilLine className="h-3.5 w-3.5" />
                     <span className="sr-only">Edit</span>
                   </Button>
                   
@@ -799,9 +886,9 @@ export default function Sources() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:text-destructive"
+                        className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                         <span className="sr-only">Delete</span>
                       </Button>
                     </AlertDialogTrigger>
