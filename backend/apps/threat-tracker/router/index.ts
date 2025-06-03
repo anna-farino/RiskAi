@@ -431,33 +431,28 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
   try {
     const sourceId = req.params.id;
     const userId = getUserId(req);
+    
     // Check if the source exists and belongs to the user
     const source = await storage.getSource(sourceId);
     if (!source) {
       return res.status(404).json({ error: "Source not found" });
     }
+    
     if (source.userId && source.userId !== userId) {
       return res.status(403).json({ error: "Not authorized to scrape this source" });
     }
-    // Immediately enqueue a scrape job and return job reference (do not wait for completion)
-    const { enqueuePuppeteerJob } = await import('shared/db/puppeteer-queue');
-    const job = await enqueuePuppeteerJob({
-      inputData: { sourceId },
-      userId,
-      sourceApp: 'threat-tracker',
-      url: source.url,
-      sourceId
-    });
-    reqLog(req, `Job enqueued. Source: ${source.url}. App: threat-tracker`)
+    
+    // Scrape the source
+    const newArticles = await scrapeSource(source);
+    
     res.json({
-      message: 'Scrape job enqueued',
-      jobId: job.id,
-      status: job.status
+      message: `Successfully scraped source: ${source.name}`,
+      articleCount: newArticles ? newArticles.length : 0,
+      articles: newArticles
     });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    console.error("Error enqueueing scrape:", errorMessage);
-    res.status(500).json({ error: errorMessage });
+  } catch (error: any) {
+    console.error("Error scraping source:", error);
+    res.status(500).json({ error: error.message || "Failed to scrape source" });
   }
 });
 

@@ -141,7 +141,7 @@ export async function identifyArticleLinks(
 
     // Debug log: Print the structured HTML being sent to OpenAI
     log(
-      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis...`,
+      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis:\n${linksText}`,
       "openai-debug",
     );
 

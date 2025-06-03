@@ -7,7 +7,6 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
-import { enqueuePuppeteerJob } from "shared/db/puppeteer-queue";
 
 
 export const newsRouter = Router()
@@ -238,23 +237,34 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
   }
 
   try {
-    console.log("Enqueueing the job using sourceId", sourceId)
-    const job = await enqueuePuppeteerJob({
-      inputData: { sourceId },
-      userId,
-      sourceApp: 'news-radar',
-      url: source.url,
-      sourceId
-    });
-    console.log("Job enqueued using sourceId", sourceId)
+    // Use the updated scrapeSource function that handles all the scraping logic
+    const { processedCount, savedCount, newArticles } = await scrapeSource(sourceId);
+
+    // If there are new articles, send an email notification
+    if (newArticles.length > 0) {
+      try {
+        await sendNewArticlesEmail(userId, newArticles, source.name);
+        log(`[Email] Sent notification email for ${newArticles.length} new articles from ${source.name}`, 'scraper');
+      } catch (emailError) {
+        log(`[Email] Error sending notification: ${emailError}`, 'scraper');
+        // Continue processing - don't fail the request if email sending fails
+      }
+    }
+
+    log(`[Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`, 'scraper');
     res.json({
-      message: 'Scrape job enqueued',
-      jobId: job.id,
-      status: job.status
+      message: "Scraping completed successfully",
+      stats: {
+        totalProcessed: processedCount,
+        totalSaved: savedCount,
+        newArticlesFound: newArticles.length
+      }
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    // Clear active flag on error
+    activeScraping.delete(sourceId);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    log(`[Scraping] Enqueue error: ${errorMessage}`, 'scraper');
+    log(`[Scraping] Fatal error: ${errorMessage}`, 'scraper');
     res.status(500).json({ message: errorMessage });
   }
 });

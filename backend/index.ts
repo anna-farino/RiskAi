@@ -8,20 +8,12 @@ import logTime from './middleware/log-time';
 import { callId } from './middleware/call-id';
 import { corsOptions } from './utils/cors-options';
 import { helmetConfig, setNonce } from './utils/helmet-config';
-import { runBackgroundQueuedJobsScraper } from './utils/background-scrape-scheduler';
 
 const port = Number(process.env.PORT) || 5000;
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 console.log("Database url", process.env.DATABASE_URL)
 console.log("[🌐 NODE_ENV]", process.env.NODE_ENV)
-
-process.on('unhandledRejection', reason => {
-  console.error('🧨 Unhandled Rejection:', reason);
-});
-process.on('uncaughtException', err => {
-  console.error('🧨 Uncaught Exception:', err);
-});
 
 const app = express();
 
@@ -34,8 +26,6 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api', router);
-
-runBackgroundQueuedJobsScraper()
 
 if (isDevelopment) {
   app.use('/', createProxyMiddleware({
@@ -52,4 +42,3 @@ app.listen(port, () => {
     console.log('💻 [SERVER] Development mode: Proxying non-API requests to Vite dev server');
   }
 });
-

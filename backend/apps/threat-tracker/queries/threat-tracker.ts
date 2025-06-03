@@ -6,7 +6,7 @@ import type {
   ThreatArticle,
   InsertThreatArticle,
   ThreatSetting,
-} from "shared/db/schema/threat-tracker/index";
+} from "@shared/db/schema/threat-tracker/index";
 import {
   threatSources,
   threatKeywords,

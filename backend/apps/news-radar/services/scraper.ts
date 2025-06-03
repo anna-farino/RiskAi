@@ -3,7 +3,6 @@ import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";
 import { detectArticleLinks } from "./openai";
 import { scrapePuppeteer } from "./puppeteer-scraper";
 
-
 // Rotating User-Agent list to appear more natural
 const userAgents = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -416,7 +415,6 @@ export async function extractArticleLinks(
       );
       const puppeteerHtml = await scrapePuppeteer(baseUrl, false, {});
       html = puppeteerHtml;
-      return
     }
 
     // Update the link extraction section to include better filtering and logging
@@ -450,6 +448,7 @@ export async function extractArticleLinks(
           `[Link Detection] Potential article link found: ${fullUrl}`,
           "scraper",
         );
+        log(`[Link Detection] Link text: ${text}`, "scraper");
       }
     });
 

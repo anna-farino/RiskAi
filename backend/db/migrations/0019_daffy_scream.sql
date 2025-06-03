@@ -1,1 +1,0 @@
-ALTER TABLE "puppeteer_job_queue" ADD COLUMN "url" text NOT NULL;
