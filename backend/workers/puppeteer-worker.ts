@@ -74,10 +74,10 @@ async function main() {
   let page: Page | null = null;
 
   try {
-    // Ultra-minimal browser launch for production environments
-    console.error(`[Worker] Launching browser with minimal settings`);
+    // Balanced browser launch for better content quality while maintaining stability
+    console.error(`[Worker] Launching browser with balanced settings`);
     browser = await puppeteer.launch({
-      headless: true,  // Use new headless mode
+      headless: 'new',  // Use new headless mode
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -85,16 +85,16 @@ async function main() {
         '--disable-gpu',
         '--disable-extensions',
         '--disable-plugins',
-        '--disable-images',
-        '--disable-css',
-        '--disable-fonts',
+        '--disable-images',        // Keep images disabled for memory
+        '--disable-fonts',         // Keep fonts disabled for memory
+        // Re-enable CSS for better content detection
         '--disable-background-networking',
         '--disable-sync',
         '--disable-translate',
         '--no-first-run',
         '--no-default-browser-check',
         '--mute-audio',
-        '--window-size=800x600',  // Minimal window size
+        '--window-size=1280x720',  // Larger window for better content detection
         '--memory-pressure-off',
         '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess',
         '--disable-blink-features=AutomationControlled',
@@ -103,34 +103,85 @@ async function main() {
         '--disable-web-security',
       ],
       executablePath: CHROME_PATH,
-      timeout: 30000  // Very short timeout
+      timeout: 45000  // Longer timeout for better reliability
     });
 
     page = await browser.newPage();
     
-    // Set minimal viewport to reduce memory usage
-    await page.setViewport({ width: 800, height: 600 });
+    // Set balanced viewport for better content detection
+    await page.setViewport({ width: 1280, height: 720 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+    
+    // Set extra headers like original
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    });
+
+    // Set longer timeouts like original
+    page.setDefaultNavigationTimeout(45000);
+    page.setDefaultTimeout(45000);
     
     console.error(`[Worker] Page setup complete`);
     
-    // Navigate to URL with very short timeout
+    // Navigate to URL with balanced timeout for better content loading
     const response = await page.goto(inputData.url, { 
-      waitUntil: 'domcontentloaded',  // Faster than networkidle2
-      timeout: 90 * 1000  // Very short timeout
+      waitUntil: 'networkidle2',  // Wait for network to settle for better content
+      timeout: 45000  // 45 second timeout - balanced approach
     });
 
-    // Minimal wait for page to stabilize
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.error(`[Worker] Page loaded, status: ${response ? response.status() : 'unknown'}`);
+
+    // Wait for page to stabilize (longer for dynamic content)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Check for bot protection and handle it
+    const botProtectionCheck = await page.evaluate(() => {
+      return (
+        document.body.innerHTML.includes('_Incapsula_Resource') ||
+        document.body.innerHTML.includes('Incapsula') ||
+        document.body.innerHTML.includes('captcha') ||
+        document.body.innerHTML.includes('Captcha') ||
+        document.body.innerHTML.includes('cloudflare') ||
+        document.body.innerHTML.includes('CloudFlare')
+      );
+    });
+
+    if (botProtectionCheck) {
+      console.error(`[Worker] Bot protection detected, performing evasive actions`);
+      // Perform human-like actions
+      await page.mouse.move(50, 50);
+      await page.mouse.down();
+      await page.mouse.move(100, 100);
+      await page.mouse.up();
+      
+      // Reload and wait
+      await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
 
     let outputData: WorkerOutput;
 
     if (inputData.isArticlePage) {
-      // Extract article content with minimal scrolling
+      // Extract article content with proper scrolling strategy
+      console.error(`[Worker] Extracting article content`);
+      
+      // Scroll through the page to ensure all content is loaded (like original)
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight / 3);
+        return new Promise(resolve => setTimeout(resolve, 800));
+      });
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        return new Promise(resolve => setTimeout(resolve, 800));
+      });
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight);
-        return new Promise(resolve => setTimeout(resolve, 100));
+        return new Promise(resolve => setTimeout(resolve, 800));
       });
+      
+      console.error(`[Worker] Scrolling completed, waiting for content to settle`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       const articleContent = await page.evaluate((scrapingConfig) => {
         // Try using provided selectors first
@@ -213,9 +264,43 @@ async function main() {
         </body></html>`
       };
     } else {
-      // Extract article links
-      await page.waitForSelector('a', { timeout: 5000 }).catch(() => {});
+      // Extract article links with HTMX support (like original)
+      console.error(`[Worker] Extracting article links`);
       
+      await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
+        console.error('[Worker] Timeout waiting for links, continuing anyway');
+      });
+
+      // Check for HTMX usage on the page (from original logic)
+      const hasHtmx = await page.evaluate(() => {
+        return {
+          scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
+          hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
+          hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+            url: el.getAttribute('hx-get'),
+            trigger: el.getAttribute('hx-trigger') || 'click'
+          }))
+        };
+      });
+
+      if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
+        console.error('[Worker] HTMX detected on page, handling dynamic content...');
+        
+        // Wait longer for initial HTMX content to load
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Get all HTMX load endpoints that should have been triggered
+        const loadTriggers = hasHtmx.hxGetElements.filter(el => 
+          el.trigger === 'load' || el.trigger.includes('load')
+        );
+        
+        if (loadTriggers.length > 0) {
+          console.error(`[Worker] Found ${loadTriggers.length} HTMX endpoints triggered on load`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
+      // Wait for any remaining dynamic content to load
       await page.waitForFunction(
         () => {
           const loadingElements = document.querySelectorAll(
@@ -223,10 +308,11 @@ async function main() {
           );
           return loadingElements.length === 0;
         },
-        { timeout: 10000 }
-      ).catch(() => {});
+        { timeout: 8000 }
+      ).catch(() => console.error('[Worker] Timeout waiting for loading indicators'));
 
-      const articleLinkData = await page.evaluate(() => {
+      // Extract all links after ensuring content is loaded
+      let articleLinkData = await page.evaluate(() => {
         const links = Array.from(document.querySelectorAll('a'));
         return links.map(link => ({
           href: link.getAttribute('href'),
@@ -236,16 +322,75 @@ async function main() {
         })).filter(link => link.href);
       });
 
+      console.error(`[Worker] Extracted ${articleLinkData.length} potential article links`);
+
+      // If fewer than 20 links were found, try additional techniques (from original)
+      if (articleLinkData.length < 20) {
+        console.error(`[Worker] Fewer than 20 links found, trying additional techniques...`);
+        
+        // Standard approach: Scroll through the page to trigger lazy loading
+        console.error(`[Worker] Scrolling page to trigger lazy loading...`);
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight / 3);
+          return new Promise(resolve => setTimeout(resolve, 800));
+        });
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+          return new Promise(resolve => setTimeout(resolve, 800));
+        });
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight);
+          return new Promise(resolve => setTimeout(resolve, 800));
+        });
+        
+        // Wait for additional time to let dynamic content load
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Try extracting links again after all our techniques
+        articleLinkData = await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a'));
+          return links.map(link => ({
+            href: link.getAttribute('href'),
+            text: link.textContent?.trim() || '',
+            parentText: link.parentElement?.textContent?.trim() || '',
+            parentClass: link.parentElement?.className || ''
+          })).filter(link => link.href);
+        });
+        
+        console.error(`[Worker] After additional techniques: Extracted ${articleLinkData.length} potential article links`);
+      }
+
+      // Create a simplified HTML with cleaned links (like original)
       const generatedHtml = `
       <html>
         <body>
           <div class="extracted-article-links">
-            ${articleLinkData.map(link =>
-              `<div class="article-link-item">
-                <a href="${link.href}">${link.text}</a>
-                <div class="context">${link.parentText.substring(0, 100)}</div>
-              </div>`
-            ).join('\n')}
+            ${articleLinkData.map(link => {
+              // Clean HTML tags from link text to prevent malformed HTML (from original)
+              let cleanText = link.text.replace(/<[^>]+>/g, '').trim();
+              const cleanParentText = link.parentText.replace(/<[^>]+>/g, '').trim();
+              
+              // If cleaning the text results in empty or very short text, use the href as fallback
+              if (!cleanText || cleanText.length < 5) {
+                // Extract meaningful text from the URL path
+                try {
+                  const url = new URL(link.href);
+                  const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+                  // Use the last meaningful part of the path or the domain
+                  cleanText = pathParts.length > 0 ? pathParts[pathParts.length - 1] : url.hostname;
+                  // Clean up common URL patterns
+                  cleanText = cleanText.replace(/\.html?$/, '').replace(/-/g, ' ');
+                } catch {
+                  // If URL parsing fails, just use the href
+                  cleanText = link.href;
+                }
+              }
+              
+              return `<div class="article-link-item">
+                <a href="${link.href}">${cleanText}</a>
+                <div class="context">${cleanParentText.substring(0, 100)}</div>
+              </div>`;
+            }).join('\n')}
           </div>
         </body>
       </html>`;
