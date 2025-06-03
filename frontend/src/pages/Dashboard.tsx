@@ -760,7 +760,7 @@ export default function Dashboard() {
                       </h4>
                       
                       <p className="text-xs text-gray-300 line-clamp-2">
-                        {(() => {
+                        <span className="text-gray-400">Topic:</span> {(() => {
                           // Generate brief topic from articles
                           if (report.articles && report.articles.length > 0) {
                             const threats = report.articles.map((a: any) => a.threatName || a.title?.split(' ')[0] || 'Security').slice(0, 2);
