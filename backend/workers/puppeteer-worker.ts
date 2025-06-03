@@ -77,7 +77,7 @@ async function main() {
     // Balanced browser launch for better content quality while maintaining stability
     console.error(`[Worker] Launching browser with balanced settings`);
     browser = await puppeteer.launch({
-      headless: true,  // Use new headless mode
+      headless: 'new',  // Use new headless mode
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
