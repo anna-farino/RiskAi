@@ -739,6 +739,11 @@ export default function Dashboard() {
                       
                       <h4 className="text-xs font-medium text-white mb-1 line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
                         Executive Report #{report.id?.substring(0, 8) || 'Unknown'}
+                        {report.versionNumber && (
+                          <span className="ml-1 text-[#00FFFF] text-xs font-normal">
+                            v{report.versionNumber}
+                          </span>
+                        )}
                       </h4>
                       
                       <p className="text-xs text-gray-300 line-clamp-2">
@@ -746,6 +751,11 @@ export default function Dashboard() {
                           ? `Analysis of ${report.articles.length} article${report.articles.length !== 1 ? 's' : ''} processed`
                           : 'Report generated from processed articles'
                         }
+                        {report.versionNumber && report.versionNumber > 1 && (
+                          <span className="text-[#BF00FF] ml-1">
+                            (Version {report.versionNumber})
+                          </span>
+                        )}
                       </p>
                       
                       {report.articles && report.articles.length > 0 && (
