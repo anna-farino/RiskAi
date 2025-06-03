@@ -27,7 +27,7 @@ export default function Home() {
           <div className="mt-auto">
             <Link 
               to="/dashboard/news-capsule/research" 
-              className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md"
+              className="inline-flex items-center px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md"
             >
               Begin Research
             </Link>
@@ -47,7 +47,7 @@ export default function Home() {
           <div className="mt-auto">
             <Link 
               to="/dashboard/news-capsule/reports" 
-              className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md"
+              className="inline-flex items-center px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md"
             >
               View Reports
             </Link>

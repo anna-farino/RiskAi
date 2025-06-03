@@ -3,14 +3,14 @@ import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 
-// Store real articles at module level, limiting to most recent ones
-// We'll limit to 10 recent articles to avoid memory issues
-const MAX_STORED_ARTICLES = 10;
+// Store real articles at module level, allowing more articles for pagination
+// Increased limit to support pagination functionality
+const MAX_STORED_ARTICLES = 100;
 const storedArticles: ArticleSummary[] = [];
 const storedSelectedArticles: ArticleSummary[] = [];
 
-// Store recent user-entered URLs (up to 10)
-const MAX_RECENT_URLS = 10;
+// Store recent user-entered URLs (up to 5)
+const MAX_RECENT_URLS = 5;
 const recentUrls: string[] = [];
 
 // List of demo URLs to exclude from saved suggestions
@@ -31,7 +31,6 @@ interface ArticleSummary {
   summary: string;
   impacts: string;
   attackVector: string;
-  microsoftConnection: string;
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
@@ -48,6 +47,10 @@ export default function Research() {
   const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
+  const [bulkMode, setBulkMode] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [articlesPerPage] = useState(10);
+  const [reportTopic, setReportTopic] = useState("");
   
   // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
@@ -73,15 +76,26 @@ export default function Research() {
         try {
           const parsed = JSON.parse(savedSelectedStr);
           if (Array.isArray(parsed)) {
-            setSelectedArticles(parsed);
+            // Remove duplicates before setting using title as criteria
+            const uniqueSelected = parsed.filter((article, index, self) => 
+              index === self.findIndex(a => a.title === article.title)
+            );
+            setSelectedArticles(uniqueSelected);
             
-            // Update module-level array
+            // Update module-level array and save cleaned data
             storedSelectedArticles.length = 0;
-            storedSelectedArticles.push(...parsed);
+            storedSelectedArticles.push(...uniqueSelected);
+            localStorage.setItem('savedSelectedArticles', JSON.stringify(uniqueSelected));
           }
         } catch (e) {
           console.error("Failed to parse saved selected articles", e);
         }
+      }
+      
+      // Load report topic
+      const savedTopic = localStorage.getItem('reportTopic');
+      if (savedTopic) {
+        setReportTopic(savedTopic);
       }
     } catch (e) {
       console.error("Failed to load saved data", e);
@@ -105,11 +119,22 @@ export default function Research() {
       if (response.ok) {
         const articles = await response.json();
         console.log('Fetched articles from database:', articles.length);
-        setProcessedArticles(articles);
         
-        // Update module-level array
+        // Remove duplicates automatically using title as criteria
+        const uniqueArticles = articles.filter((article, index, self) => 
+          index === self.findIndex(a => a.title === article.title)
+        );
+        
+        setProcessedArticles(uniqueArticles);
+        
+        // Update module-level array and save cleaned data
         storedArticles.length = 0;
-        storedArticles.push(...articles);
+        storedArticles.push(...uniqueArticles);
+        localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueArticles));
+        
+        if (uniqueArticles.length !== articles.length) {
+          console.log('Automatically removed duplicates:', articles.length - uniqueArticles.length);
+        }
       } else {
         console.error('Failed to fetch articles from database');
       }
@@ -157,7 +182,7 @@ export default function Research() {
   
   const processUrl = async () => {
     if (!url) {
-      setError("Please enter a URL or multiple URLs separated by commas");
+      setError(bulkMode ? "Please enter URLs (one per line)" : "Please enter a URL");
       return;
     }
     
@@ -165,8 +190,10 @@ export default function Research() {
       setIsLoading(true);
       setError(null);
       
-      // Split the input by commas to get individual URLs
-      const urls = url.split(',').map(u => u.trim()).filter(u => u.length > 0);
+      // Split the input based on mode - by lines for bulk mode, by commas for single mode
+      const urls = bulkMode 
+        ? url.split('\n').map(u => u.trim()).filter(u => u.length > 0)
+        : url.split(',').map(u => u.trim()).filter(u => u.length > 0);
       
       if (urls.length === 0) {
         setError("Please enter valid URLs");
@@ -183,9 +210,15 @@ export default function Research() {
       let successCount = 0;
       let errorCount = 0;
       let errorMessage = "";
+      const newArticles: ArticleSummary[] = [];
       
-      // Process each URL sequentially
-      for (const singleUrl of urls) {
+      // Process each URL sequentially with immediate feedback
+      for (let i = 0; i < urls.length; i++) {
+        const singleUrl = urls[i];
+        
+        // Update loading state with current progress
+        setError(`Processing article ${i + 1} of ${urls.length}...`);
+        
         try {
           const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
             method: "POST",
@@ -208,16 +241,26 @@ export default function Research() {
           // Make sure we only store real articles by checking for required fields
           if (data && data.id && data.title) {
             successCount++;
+            newArticles.push(data);
             
-            // Refresh articles from database to get the latest data
-            await fetchArticlesFromDatabase();
+            // Add article immediately to provide instant feedback
+            const updatedArticles = [data, ...processedArticles];
+            const limitedArticles = updatedArticles.slice(0, MAX_STORED_ARTICLES);
+            setProcessedArticles(limitedArticles);
             
-            // Save articles to localStorage so they persist between visits
+            // Update module variable
+            storedArticles.length = 0;
+            storedArticles.push(...limitedArticles);
+            
+            // Save to localStorage
             try {
-              localStorage.setItem('savedArticleSummaries', JSON.stringify(processedArticles));
+              localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
             } catch (e) {
-              console.error("Failed to save article summaries", e)
+              console.error("Failed to save article summaries", e);
             }
+            
+            // Show immediate success feedback
+            setError(`Processed ${successCount} of ${urls.length} articles successfully`);
           }
         } catch (err) {
           errorCount++;
@@ -247,6 +290,14 @@ export default function Research() {
   };
   
   const selectForReport = (article: ArticleSummary) => {
+    // Check if article with same title already exists
+    const alreadySelected = selectedArticles.some(selected => selected.title === article.title);
+    
+    if (alreadySelected) {
+      console.log("Article already selected:", article.title);
+      return; // Don't add duplicate
+    }
+    
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
     
@@ -374,7 +425,8 @@ export default function Research() {
             id: newReportId,
             createdAt: new Date().toISOString(),
             articles: [...selectedArticles],
-            versionNumber: versionNumber
+            versionNumber: versionNumber,
+            topic: reportTopic.trim() || undefined
           };
           
           // Add to beginning of reports array
@@ -586,7 +638,8 @@ export default function Research() {
         }
       } else {
         // Revert optimistic update on failure
-        console.error('Failed to delete article from database');
+        const responseText = await response.text();
+        console.error('Failed to delete article from database:', response.status, responseText);
         setProcessedArticles(originalArticles);
       }
     } catch (error) {
@@ -608,26 +661,39 @@ export default function Research() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* URL Input Section */}
         <div className="md:col-span-2 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <h2 className="text-xl font-semibold mb-4">Submit Article URL</h2>
+          <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
           
           <div className="flex flex-col gap-4">
+
+
             <div className="flex flex-col gap-2">
               <label htmlFor="url-input" className="text-sm text-slate-400">
-                Article URL
+                {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <input
-                    id="url-input"
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onFocus={() => setShowUrlDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                    placeholder="https://example.com/article"
-                    autoComplete="off"
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
-                  />
+                  {bulkMode ? (
+                    <textarea
+                      id="url-input"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                      rows={3}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md resize-vertical"
+                    />
+                  ) : (
+                    <input
+                      id="url-input"
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onFocus={() => setShowUrlDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                      placeholder="https://example.com/article"
+                      autoComplete="off"
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
+                    />
+                  )}
                   
                   {/* Dropdown for saved URLs */}
                   {showUrlDropdown && savedUrls.length > 0 && (
@@ -657,7 +723,7 @@ export default function Research() {
                 <button
                   onClick={processUrl}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+                  className="px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50"
                 >
                   {isLoading ? "Processing..." : "Process"}
                 </button>
@@ -673,66 +739,100 @@ export default function Research() {
           
           {/* Processed Articles Display */}
           <div className="mt-6 flex flex-col gap-4">
-            {processedArticles.length > 0 && <h3 className="text-lg font-medium">Processed Articles</h3>}
+            {processedArticles.length > 0 && (
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">
+                  Processed Articles ({processedArticles.length})
+                </h3>
+                {processedArticles.length > articlesPerPage && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">
+                      Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
             
-            {processedArticles.map((article) => (
-              <motion.div
-                key={article.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-medium">{article.title}</h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => selectForReport(article)}
-                      className="px-3 py-1 text-sm bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded-md border border-green-700/30"
-                    >
-                      Select for Report
-                    </button>
-                    <button
-                      onClick={() => removeProcessedArticle(article.id)}
-                      className="px-3 py-1 text-sm bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
-                    >
-                      Remove
-                    </button>
+            {processedArticles
+              .slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage)
+              .map((article, index) => (
+                <motion.div
+                  key={`article-${article.id}-${index}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-lg font-medium">{article.title}</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const isSelected = selectedArticles.some(selected => selected.title === article.title);
+                          if (isSelected) {
+                            // Remove from selected articles
+                            const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
+                            setSelectedArticles(newSelected);
+                            storedSelectedArticles.length = 0;
+                            storedSelectedArticles.push(...newSelected);
+                            localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelected));
+                            console.log("Removed from selection:", article.title);
+                          } else {
+                            // Add to selected articles
+                            selectForReport(article);
+                          }
+                        }}
+                        className={`w-32 px-3 py-1 text-sm rounded-md border ${
+                          selectedArticles.some(selected => selected.title === article.title) 
+                            ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
+                            : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
+                        }`}
+                      >
+                        {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
+                      </button>
+                      <button
+                        onClick={() => removeProcessedArticle(article.id)}
+                        className="w-8 h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Threat Name</p>
-                    <p className="text-sm">{article.threatName}</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Threat Name</p>
+                      <p className="text-sm">{article.threatName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
+                      <p className="text-sm">{article.vulnerabilityId}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-xs text-slate-400 mb-1">Summary</p>
+                      <p className="text-sm">{article.summary}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-xs text-slate-400 mb-1">Impacts</p>
+                      <p className="text-sm">{article.impacts}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
+                      <p className="text-sm">{article.attackVector}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Target OS</p>
+                      <p className="text-sm">{article.targetOS}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Source</p>
+                      <p className="text-sm">{article.sourcePublication}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
-                    <p className="text-sm">{article.vulnerabilityId}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-slate-400 mb-1">Summary</p>
-                    <p className="text-sm">{article.summary}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-slate-400 mb-1">Impacts</p>
-                    <p className="text-sm">{article.impacts}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
-                    <p className="text-sm">{article.attackVector}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Target OS</p>
-                    <p className="text-sm">{article.targetOS}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Source</p>
-                    <p className="text-sm">{article.sourcePublication}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
           </div>
+          
         </div>
         
         {/* Selected Articles Section */}
@@ -744,15 +844,36 @@ export default function Research() {
             </span>
           </div>
           
-          <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto">
+          {/* Report Topic Field */}
+          <div className="mb-4">
+            <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
+              Report Topic (Optional)
+            </label>
+            <input
+              id="reportTopic"
+              type="text"
+              value={reportTopic}
+              onChange={(e) => {
+                setReportTopic(e.target.value);
+                localStorage.setItem('reportTopic', e.target.value);
+              }}
+              placeholder="Enter a topic (Optional)"
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              This topic will appear in the Executive Report below the title
+            </p>
+          </div>
+          
+          <div className="flex flex-col gap-3 max-h-[360px] overflow-y-auto">
             {selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic">
                 No articles selected yet
               </p>
             ) : (
-              selectedArticles.map((article) => (
+              selectedArticles.map((article, index) => (
                 <div 
-                  key={article.id}
+                  key={`selected-${article.id}-${index}`}
                   className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
@@ -778,14 +899,14 @@ export default function Research() {
           <button
             onClick={sendToExecutiveReport}
             disabled={selectedArticles.length === 0 || isLoading}
-            className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+            className="mt-4 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white"
           >
             {isLoading ? "Processing..." : "Send to Executive Report"}
           </button>
           
           <button
             onClick={async () => {
-              // Create a new empty version of today's report
+              // Create a new report version - include selected articles if any exist
               try {
                 setIsLoading(true);
                 setError(null);
@@ -803,15 +924,8 @@ export default function Research() {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     
-                    const todaysReports = savedReports.filter((report: any) => {
-                      const reportDate = new Date(report.createdAt);
-                      const reportDay = new Date(reportDate);
-                      reportDay.setHours(0, 0, 0, 0);
-                      return reportDay.getTime() === today.getTime();
-                    });
-                    
-                    // Find the highest version number among today's reports
-                    const highestVersion = todaysReports.reduce((max: number, report: any) => {
+                      // Find the highest version number among ALL reports (not just today's)
+                    const highestVersion = savedReports.reduce((max: number, report: any) => {
                       // Make sure to use the actual version number that was stored
                       const reportVersion = parseInt(report.versionNumber) || 0;
                       return reportVersion > max ? reportVersion : max;
@@ -826,13 +940,14 @@ export default function Research() {
                   // Continue with default values if localStorage fails
                 }
                 
-                // Create the new report
+                // Create the new report - include selected articles if any exist
                 const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
                 const newReport = {
                   id: newReportId,
                   createdAt: new Date().toISOString(),
-                  articles: [], // Empty articles array
-                  versionNumber: versionNumber
+                  articles: [...selectedArticles], // Include selected articles
+                  versionNumber: versionNumber,
+                  topic: reportTopic.trim() || undefined
                 };
                 
                 // Add to beginning of reports array
@@ -840,10 +955,14 @@ export default function Research() {
                 
                 // Save updated reports to localStorage
                 localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-                console.log("Created new empty report version", versionNumber);
+                console.log("Created new report version", versionNumber, "with", selectedArticles.length, "articles");
                 
                 // Success message
-                alert(`Successfully created new Executive Report (Version ${versionNumber})`);
+                if (selectedArticles.length > 0) {
+                  alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
+                } else {
+                  alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
+                }
               } catch (err) {
                 setError(err instanceof Error ? err.message : "An error occurred");
               } finally {
@@ -856,6 +975,58 @@ export default function Research() {
           </button>
         </div>
       </div>
+      
+      {/* Pagination Controls - At the bottom of the research page */}
+      {processedArticles.length > articlesPerPage && (
+        <div className="flex items-center justify-center gap-4 mt-6 p-4 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400 mr-2">
+              Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+            </span>
+            {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+              .filter(page => {
+                const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2;
+              })
+              .map((page, index, visiblePages) => {
+                const prevPage = visiblePages[index - 1];
+                const showEllipsis = prevPage && page - prevPage > 1;
+                
+                return (
+                  <React.Fragment key={page}>
+                    {showEllipsis && <span className="text-slate-400 px-2">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-2 rounded-md min-w-[40px] ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-white hover:bg-slate-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+          </div>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+            disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+            className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import AuthLayout from "@/components/layout/AuthLayout"
+
 import { useNavigate } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -90,69 +90,105 @@ export default function ConfirmPassword({
   });
 
   return (
-    <AuthLayout twHeight={twHeight}>
-      <Card className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50">
-        <CardHeader>
-          <CardTitle className="text-2xl text-white">Enter New Password</CardTitle>
-          <CardDescription className="text-slate-300">
-            Enter your new password below 
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2 relative">
-                <Label htmlFor="password" className="text-slate-300">Password</Label>
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  disabled={mutation.isPending}
-                  {...form.register("password")}
-                  className="pr-10 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500" // padding for the eye icon
-                />
-                <PasswordEye 
-                  state={showPassword} 
-                  setStateFn={setShowPassword}
-                />
-                {form.formState.errors.password && (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.password.message}
-                  </p>
-                )}
+    <div className="min-h-screen w-full bg-black flex flex-col">
+      <div className="flex-1 flex justify-center pt-16 pb-12 px-6 sm:px-8 lg:px-0">
+        <div className="w-full max-w-lg space-y-8">
+          {/* Page Title */}
+          <div className="text-center space-y-4">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
+              Password Reset
+            </h1>
+            <p className="text-gray-400 text-sm sm:text-base">
+              Create a secure new password for your account
+            </p>
+          </div>
+
+          {/* Password Reset Widget Card */}
+          <Card className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-8 hover:border-[#BF00FF]/40 transition-all duration-300 shadow-2xl">
+            <CardHeader className="p-0 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                  <svg className="h-6 w-6 text-[#BF00FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3a1 1 0 011-1h2.586l6.243-6.243C11.978 9.628 12.736 9.5 13.5 9.5a6.002 6.002 0 016.5 1.5z" />
+                  </svg>
+                </div>
+                <CardTitle className="text-xl sm:text-2xl font-semibold text-white">
+                  New Password
+                </CardTitle>
               </div>
-              <div className="grid gap-2 relative">
-                <Label htmlFor="confirm-password" className="text-slate-300">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  disabled={mutation.isPending}
-                  {...form.register("confirmPassword")}
-                  className="pr-10 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
-                />
-                <PasswordEye 
-                  state={showConfirmPassword} 
-                  setStateFn={setShowConfirmPassword}
-                />
-                {form.formState.errors.confirmPassword && (
-                  <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
+              <CardDescription className="text-gray-400 text-base leading-relaxed">
+                Enter your new password below. Make sure it's strong and secure.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <form onSubmit={onSubmit}>
+                <div className="flex flex-col gap-6">
+                  <div className="grid gap-3 relative">
+                    <Label htmlFor="password" className="text-white font-medium">Password</Label>
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      disabled={mutation.isPending}
+                      {...form.register("password")}
+                      className="pr-10 bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 h-11"
+                      placeholder="Enter your new password"
+                    />
+                    <PasswordEye 
+                      state={showPassword} 
+                      setStateFn={setShowPassword}
+                    />
+                    {form.formState.errors.password && (
+                      <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md border border-red-500/20">
+                        {form.formState.errors.password.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid gap-3 relative">
+                    <Label htmlFor="confirmPassword" className="text-white font-medium">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      disabled={mutation.isPending}
+                      {...form.register("confirmPassword")}
+                      className="pr-10 bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 h-11"
+                      placeholder="Confirm your new password"
+                    />
+                    <PasswordEye 
+                      state={showConfirmPassword} 
+                      setStateFn={setShowConfirmPassword}
+                    />
+                    {form.formState.errors.confirmPassword && (
+                      <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md border border-red-500/20">
+                        {form.formState.errors.confirmPassword.message}
+                      </p>
+                    )}
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 hover:text-[#00FFFF] text-white font-semibold h-12 rounded-lg transition-all duration-300" 
+                    disabled={mutation.isPending}
+                  >
+                    { mutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating password...
+                      </>
+                    ) : (
+                      "Update Password"
+                    )}
+                  </Button>
+                </div>
+                {redirect==='home' && (
+                  <div className="mt-6">
+                    <GoBackToLogin/>
+                  </div>
                 )}
-              </div>
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={mutation.isPending}>
-                { mutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Storing new password...
-                  </>
-                ) : (
-                  "Confirm"
-                )}
-              </Button>
-            </div>
-            {redirect==='home' && <GoBackToLogin/>}
-          </form>
-        </CardContent>
-      </Card>
-    </AuthLayout>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
 

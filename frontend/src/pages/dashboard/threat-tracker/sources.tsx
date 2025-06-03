@@ -576,6 +576,7 @@ export default function Sources() {
                 size="sm"
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.DAILY)}
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               >
                 Daily
               </Button>
@@ -618,6 +619,7 @@ export default function Sources() {
                 variant="default" 
                 onClick={() => scrapeAllSources.mutate()}
                 disabled={scrapeAllSources.isPending || localSources.length === 0}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               >
                 {scrapeAllSources.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -640,7 +642,7 @@ export default function Sources() {
               Websites to monitor for security threat information
             </CardDescription>
           </div>
-          <Button onClick={handleNewSource} disabled={createSource.isPending}>
+          <Button onClick={handleNewSource} disabled={createSource.isPending} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
             {createSource.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -788,7 +790,7 @@ export default function Sources() {
           <p className="text-sm text-muted-foreground mb-4">
             Add sources to start monitoring for security threats
           </p>
-          <Button onClick={handleNewSource}>
+          <Button onClick={handleNewSource} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
             <Plus className="mr-2 h-4 w-4" />
             Add Source
           </Button>

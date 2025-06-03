@@ -5,6 +5,7 @@ import { getReports } from './get-reports';
 import { db } from '../../db/db';
 import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
 import { eq, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { FullRequest } from '../../middleware';
 
 const router = Router();
@@ -28,7 +29,10 @@ router.get('/articles', async (req, res) => {
       .where(eq(capsuleArticles.userId, userId))
       .orderBy(desc(capsuleArticles.createdAt));
     
-    res.json(articles);
+    // Filter out articles marked for deletion from processed articles view
+    const visibleArticles = articles.filter(article => !article.markedForDeletion);
+    
+    res.json(visibleArticles);
   } catch (error) {
     console.error('Error fetching capsule articles:', error);
     res.status(500).json({ error: 'Failed to fetch articles' });
@@ -56,14 +60,17 @@ router.delete('/articles/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
+    // Always mark article as deleted for processing list but keep in database for reports
     await db
-      .delete(capsuleArticles)
+      .update(capsuleArticles)
+      .set({ markedForDeletion: true })
       .where(eq(capsuleArticles.id, articleId));
     
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting capsule article:', error);
-    res.status(500).json({ error: 'Failed to delete article' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Failed to delete article', details: error.message });
   }
 });
 

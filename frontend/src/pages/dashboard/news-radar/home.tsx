@@ -669,7 +669,7 @@ export default function NewsHome() {
                 Add sources and start scraping to populate your news feed with
                 the latest articles.
               </p>
-              <Button asChild size="sm" className="sm:py-2 sm:px-4">
+              <Button asChild size="sm" className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] sm:py-2 sm:px-4">
                 <Link to="/dashboard/news/sources">
                   Get Started with Sources
                 </Link>

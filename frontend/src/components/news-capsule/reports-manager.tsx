@@ -22,6 +22,7 @@ export interface Report {
   createdAt: string;
   articles: ArticleSummary[];
   versionNumber?: number;
+  topic?: string;
 }
 
 interface ReportsManagerProps {
@@ -200,6 +201,11 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
                 <p className="text-xs text-blue-400">
                   {formatTime(report.createdAt)}
                 </p>
+                {report.topic && (
+                  <p className="text-xs text-slate-300 italic">
+                    Topic: {report.topic}
+                  </p>
+                )}
                 <p className="text-xs text-slate-400">
                   {report.articles.length} articles
                 </p>

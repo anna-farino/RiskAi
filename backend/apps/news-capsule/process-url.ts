@@ -137,8 +137,16 @@ export async function processUrl(req: Request, res: Response) {
     const userId = (req as FullRequest).user.id;
     console.log('Saving to database for user:', userId);
     const articleData = {
-      ...summary,
+      title: summary.title,
+      threatName: summary.threatName,
+      vulnerabilityId: summary.vulnerabilityId,
+      summary: summary.summary,
+      impacts: summary.impacts,
+      attackVector: summary.attackVector,
+      microsoftConnection: summary.microsoftConnection,
+      sourcePublication: summary.sourcePublication,
       originalUrl: url,
+      targetOS: summary.targetOS,
       userId,
       createdAt: new Date(),
       markedForReporting: true,
@@ -217,7 +225,7 @@ async function generateArticleSummary(contentJson: string, url: string) {
       Content: ${content.content.substring(0, 4000)} ${content.content.length > 4000 ? '...[truncated]' : ''}
       
       Generate a structured summary with the following fields:
-      1. Title (keep it concise but informative)
+      1. Title (The headline of the article)
       2. Threat Name (what is the main threat discussed in the article)
       3. Vulnerability ID (if mentioned, otherwise "Unspecified")
       4. Summary (a 2-3 sentence summary of the main points)
@@ -247,9 +255,9 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: parsedResult.Summary || "No summary available.",
         impacts: parsedResult.Impacts || "No impacts specified.",
         attackVector: parsedResult.attackVector || parsedResult["Attack Vector"] || "Unknown attack vector",
-        microsoftConnection: "Field deprecated", // Keep for DB compatibility
+        microsoftConnection: "Not applicable",
         sourcePublication: content.publication || new URL(url).hostname,
-        targetOS: parsedResult["Target OS"] || "Multiple operating systems"
+        targetOS: parsedResult["Target OS"] || "Unspecified"
       };
     } catch (error) {
       console.error('Error parsing AI response:', error);
@@ -262,9 +270,9 @@ async function generateArticleSummary(contentJson: string, url: string) {
         summary: "Failed to generate summary. Please review the original article.",
         impacts: "Impacts could not be determined.",
         attackVector: "Unknown attack vector",
-        microsoftConnection: "Field deprecated", // Keep for DB compatibility
+        microsoftConnection: "Not applicable",
         sourcePublication: content.publication || new URL(url).hostname,
-        targetOS: "Multiple operating systems"
+        targetOS: "Unspecified"
       };
     }
   } catch (error) {
