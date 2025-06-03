@@ -856,7 +856,7 @@ export default function Dashboard() {
                       <span className="text-xs font-medium">Alert Settings</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs bg-[#BF00FF]/20 text-[#BF00FF] px-2 py-0.5 rounded">Real-time</span>
+                      <span className="text-xs bg-[#BF00FF]/20 text-[#BF00FF] px-2 py-0.5 rounded">Live</span>
                       <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
                     </div>
                   </div>
