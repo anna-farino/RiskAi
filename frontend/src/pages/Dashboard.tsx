@@ -828,7 +828,7 @@ export default function Dashboard() {
             </div>
           </RisqWidget>}
           <RisqWidget
-              title="Settings & Preferences"
+              title="Settings"
               description="Configure your News Radar experience"
               icon={<Settings className="w-10 h-10 text-gray-300" />}
               variant="interactive"
