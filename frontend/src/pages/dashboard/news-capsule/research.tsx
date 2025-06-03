@@ -218,10 +218,11 @@ export default function Research() {
         saveUrl(singleUrl);
       });
       
-      // Create a counter for successful processing
+      // Create detailed tracking for bulk processing
       let successCount = 0;
       let errorCount = 0;
-      let errorMessage = "";
+      const successfulUrls: string[] = [];
+      const failedUrls: string[] = [];
       const newArticles: ArticleSummary[] = [];
       
       // Process each URL sequentially with immediate feedback
@@ -229,7 +230,7 @@ export default function Research() {
         const singleUrl = urls[i];
         
         // Update loading state with current progress
-        setError(`Processing article ${i + 1} of ${urls.length}...`);
+        setError(`Processing article ${i + 1} of ${urls.length}: ${singleUrl.substring(0, 50)}...`);
         
         try {
           const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
@@ -243,8 +244,10 @@ export default function Research() {
           });
           
           if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error(`Failed to process URL ${singleUrl}:`, errorData);
             errorCount++;
-            errorMessage = `Failed to process ${errorCount} URL(s)`;
+            failedUrls.push(singleUrl);
             continue; // Try the next URL
           }
           
@@ -253,43 +256,37 @@ export default function Research() {
           // Make sure we only store real articles by checking for required fields
           if (data && data.id && data.title) {
             successCount++;
+            successfulUrls.push(singleUrl);
             newArticles.push(data);
-            
-            // Add article immediately to provide instant feedback
-            const updatedArticles = [data, ...processedArticles];
-            const limitedArticles = updatedArticles.slice(0, MAX_STORED_ARTICLES);
-            setProcessedArticles(limitedArticles);
-            
-            // Update module variable
-            storedArticles.length = 0;
-            storedArticles.push(...limitedArticles);
-            
-            // Save to localStorage
-            try {
-              localStorage.setItem('savedArticleSummaries', JSON.stringify(limitedArticles));
-            } catch (e) {
-              console.error("Failed to save article summaries", e);
-            }
+            console.log(`Successfully processed: ${data.title}`);
             
             // Show immediate success feedback
             setError(`Processed ${successCount} of ${urls.length} articles successfully`);
+          } else {
+            console.error(`Invalid article data received for URL ${singleUrl}:`, data);
+            errorCount++;
+            failedUrls.push(singleUrl);
           }
         } catch (err) {
+          console.error(`Error processing URL ${singleUrl}:`, err);
           errorCount++;
-          errorMessage = `Failed to process ${errorCount} URL(s)`;
+          failedUrls.push(singleUrl);
         }
       }
       
-      // Set a success or partial success message
+      // Refresh articles from database to get latest state
+      await fetchArticlesFromDatabase();
+      
+      // Set detailed success or error message
       if (errorCount > 0) {
         if (successCount > 0) {
-          setError(`Successfully processed ${successCount} URL(s). ${errorMessage}`);
+          setError(`Successfully processed ${successCount} of ${urls.length} articles. ${errorCount} failed to process.`);
         } else {
-          setError(errorMessage);
+          setError(`Failed to process all ${urls.length} articles. Check console for details.`);
         }
       } else if (successCount > 0) {
-        // Clear any previous errors if all URLs processed successfully
         setError(null);
+        console.log(`All ${successCount} articles processed successfully!`);
       }
       
       // Clear the input field
