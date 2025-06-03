@@ -37,8 +37,8 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  // Load reports from localStorage on component mount
-  useEffect(() => {
+  // Function to load reports from localStorage
+  const loadReports = () => {
     try {
       setIsLoading(true);
       // First check localStorage for saved reports
@@ -70,7 +70,29 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Load reports on component mount
+  useEffect(() => {
+    loadReports();
   }, []);
+
+  // Poll for changes in localStorage every 2 seconds to catch new reports
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const savedReports = localStorage.getItem('newsCapsuleReports');
+      if (savedReports) {
+        const parsedReports = JSON.parse(savedReports);
+        // Only update if the number of reports has changed
+        if (parsedReports.length !== reports.length) {
+          console.log("Detected new reports, refreshing...");
+          loadReports();
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [reports.length]);
 
   // Save reports to localStorage whenever they change
   useEffect(() => {
