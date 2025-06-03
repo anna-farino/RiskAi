@@ -450,7 +450,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               {threatLoading ? (
                 <>
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                  {[1, 2, 3, 4].map((i) => (
                     <div key={i} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/20 animate-pulse">
                       <div className="flex items-start gap-3">
                         <div className="w-4 h-4 bg-gray-600 rounded mt-1 flex-shrink-0"></div>
@@ -539,7 +539,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Threat Articles List */}
-                  {threatArticles.slice(0, 6).map((threat: any, index: number) => {
+                  {threatArticles.slice(0, 4).map((threat: any, index: number) => {
                     const severity = getThreatSeverity(threat);
                     const keywords = threat.detectedKeywords || [];
                     
@@ -608,12 +608,12 @@ export default function Dashboard() {
                   })}
                   
                   {/* Show More Section */}
-                  {threatArticles.length > 6 && (
+                  {threatArticles.length > 4 && (
                     <div className="bg-slate-900/30 rounded-lg p-3 border border-slate-700/20 text-center">
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-[#00FFFF] rounded-full animate-pulse"></div>
                         <span className="text-xs text-gray-300">
-                          {threatArticles.length - 6} more threats available
+                          {threatArticles.length - 4} more threats available
                         </span>
                       </div>
                       <button 
