@@ -217,43 +217,36 @@ export default function Dashboard() {
 
   // Get report status styling and information
   const getReportStatus = (report: any) => {
-    const status = report.status?.toLowerCase() || 'unknown';
+    if (!report) return { label: 'Unknown', style: 'bg-gray-500/20 text-gray-400', indicator: 'bg-gray-400' };
     
-    switch (status) {
-      case 'completed':
-      case 'processed':
-        return {
-          label: 'Processed',
-          style: 'bg-emerald-500/20 text-emerald-400',
-          indicator: 'bg-emerald-400'
-        };
-      case 'processing':
-      case 'analyzing':
-        return {
-          label: 'Analyzing',
-          style: 'bg-blue-500/20 text-blue-400',
-          indicator: 'bg-blue-400 animate-pulse'
-        };
-      case 'queued':
-      case 'pending':
-        return {
-          label: 'Queued',
-          style: 'bg-orange-500/20 text-orange-400',
-          indicator: 'bg-orange-400'
-        };
-      case 'failed':
-      case 'error':
-        return {
-          label: 'Failed',
-          style: 'bg-red-500/20 text-red-400',
-          indicator: 'bg-red-400'
-        };
-      default:
-        return {
-          label: 'Processing',
-          style: 'bg-[#BF00FF]/20 text-[#00FFFF]',
-          indicator: 'bg-[#BF00FF]'
-        };
+    // Since reports in the database only have id, userId, createdAt, and articles array,
+    // determine status based on available data
+    const hasArticles = report.articles && Array.isArray(report.articles) && report.articles.length > 0;
+    const createdAt = report.createdAt ? new Date(report.createdAt) : null;
+    const now = new Date();
+    const ageInMinutes = createdAt ? (now.getTime() - createdAt.getTime()) / (1000 * 60) : 0;
+    
+    if (hasArticles) {
+      // Report has articles - assume processed
+      return { 
+        label: 'Processed', 
+        style: 'bg-emerald-500/20 text-emerald-400', 
+        indicator: 'bg-emerald-400' 
+      };
+    } else if (ageInMinutes < 10) {
+      // Recent report without articles - might still be processing
+      return { 
+        label: 'Processing', 
+        style: 'bg-blue-500/20 text-blue-400', 
+        indicator: 'bg-blue-400 animate-pulse' 
+      };
+    } else {
+      // Older report without articles - might be empty or failed
+      return { 
+        label: 'Empty', 
+        style: 'bg-gray-500/20 text-gray-400', 
+        indicator: 'bg-gray-400' 
+      };
     }
   };
 
@@ -614,19 +607,20 @@ export default function Dashboard() {
                       </div>
                       
                       <h4 className="text-xs font-medium text-white mb-1 line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
-                        {report.title || report.summary?.substring(0, 60) + '...' || 'Executive Report'}
+                        Executive Report #{report.id?.substring(0, 8) || 'Unknown'}
                       </h4>
                       
-                      {report.summary && (
-                        <p className="text-xs text-gray-300 line-clamp-2">
-                          {report.summary}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-300 line-clamp-2">
+                        {report.articles && report.articles.length > 0 
+                          ? `Analysis of ${report.articles.length} article${report.articles.length !== 1 ? 's' : ''} processed`
+                          : 'Report generated from processed articles'
+                        }
+                      </p>
                       
-                      {report.articleCount && (
+                      {report.articles && report.articles.length > 0 && (
                         <div className="flex items-center gap-1 mt-2">
                           <span className="text-xs text-[#BF00FF]">
-                            {report.articleCount} articles processed
+                            {report.articles.length} articles processed
                           </span>
                         </div>
                       )}
