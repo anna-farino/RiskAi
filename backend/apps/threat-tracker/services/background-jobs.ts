@@ -1,6 +1,6 @@
 import { storage } from "../queries/threat-tracker";
 import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./openai";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../../../utils/scraper";
+import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl } from "./url-utils";
@@ -55,7 +55,7 @@ async function processArticle(
     const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
     
     // Extract content using the detected structure
-    const articleData = extractArticleContent(articleHtml, htmlStructure);
+    const articleData = await extractArticleContent(articleHtml, htmlStructure);
     
     // If we couldn't extract content, skip this article
     if (!articleData.content || articleData.content.length < 100) {
@@ -247,7 +247,7 @@ export async function scrapeSource(source: ThreatSource) {
 
     if (!source.userId) {
       console.error("No source.userId")
-      return []
+      return
     }
     
     if (htmlStructure) {

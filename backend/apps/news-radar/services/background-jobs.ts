@@ -2,7 +2,7 @@ import {
   scrapeUrl,
   extractArticleLinks,
   extractArticleContent,
-} from "../../../utils/scraper";
+} from "./scraper";
 import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
 import { analyzeContent, detectHtmlStructure } from "./openai";
