@@ -2,6 +2,25 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 // Store real articles at module level, allowing more articles for pagination
 // Increased limit to support pagination functionality
@@ -61,6 +80,14 @@ export default function Research() {
   const [currentPage, setCurrentPage] = useState(1);
   const [articlesPerPage] = useState(10);
   const [reportTopic, setReportTopic] = useState("");
+  
+  // Dialog state
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmDescription, setConfirmDescription] = useState("");
   
   // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
@@ -446,148 +473,56 @@ export default function Research() {
         console.log("Updated reports saved to localStorage:", savedReports.length);
         
         // Success message
-        alert("Articles successfully added to report!");
+        setSuccessMessage("Articles successfully added to report!");
+        setShowSuccessDialog(true);
         setIsLoading(false);
       };
       
       // If there are today's reports, show a dialog to select which report to add to
       if (todaysReports.length > 0) {
         // First ask if user wants to add to existing or create new
-        const useExistingReport = window.confirm(
-          "There are already reports for today. Would you like to add these articles to an existing report? Click OK to add to an existing report, or Cancel to create a new version."
-        );
+        setConfirmTitle("Add to Existing Report?");
+        setConfirmDescription("There are already reports for today. Would you like to add these articles to an existing report?");
+        setConfirmAction(() => () => {
+          // User chose to add to existing report
+          handleExistingReportSelection();
+        });
+        setShowConfirmDialog(true);
+        return;
+      }
+      
+      // If no reports today, create new one
+      await processReport(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleExistingReportSelection = async () => {
+    try {
+      // Get fresh reports data
+      const localStorageReports = localStorage.getItem('newsCapsuleReports');
+      if (localStorageReports) {
+        const savedReports = JSON.parse(localStorageReports);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         
-        if (useExistingReport) {
+        const todaysReports = savedReports.filter((report: any) => {
+          const reportDate = new Date(report.createdAt);
+          const reportDay = new Date(reportDate);
+          reportDay.setHours(0, 0, 0, 0);
+          return reportDay.getTime() === today.getTime();
+        });
+        
+        if (todaysReports.length === 1) {
           // If there's only one report today, use that
-          if (todaysReports.length === 1) {
-            await processReport(true, todaysReports[0].id);
-          } else {
-            // Multiple reports exist, create a selection dialog
-            return new Promise<void>((resolve) => {
-              const selectDialog = document.createElement('div');
-              selectDialog.style.position = 'fixed';
-              selectDialog.style.top = '0';
-              selectDialog.style.left = '0';
-              selectDialog.style.width = '100%';
-              selectDialog.style.height = '100%';
-              selectDialog.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-              selectDialog.style.zIndex = '9999';
-              selectDialog.style.display = 'flex';
-              selectDialog.style.alignItems = 'center';
-              selectDialog.style.justifyContent = 'center';
-              
-              // Create dialog content
-              const dialogContent = document.createElement('div');
-              dialogContent.style.backgroundColor = '#1e293b';
-              dialogContent.style.border = '1px solid #475569';
-              dialogContent.style.borderRadius = '8px';
-              dialogContent.style.padding = '24px';
-              dialogContent.style.width = '500px';
-              dialogContent.style.maxWidth = '90%';
-              
-              // Create dialog title
-              const title = document.createElement('h3');
-              title.textContent = 'Select a Report to Add Articles To';
-              title.style.fontSize = '18px';
-              title.style.fontWeight = 'bold';
-              title.style.marginBottom = '16px';
-              title.style.color = 'white';
-              
-              // Create description
-              const description = document.createElement('p');
-              description.textContent = 'Choose which report version you want to add these articles to:';
-              description.style.fontSize = '14px';
-              description.style.marginBottom = '16px';
-              description.style.color = '#e2e8f0';
-              
-              // Create select element
-              const select = document.createElement('select');
-              select.style.width = '100%';
-              select.style.padding = '8px 12px';
-              select.style.backgroundColor = '#0f172a';
-              select.style.color = 'white';
-              select.style.border = '1px solid #475569';
-              select.style.borderRadius = '4px';
-              select.style.marginBottom = '20px';
-              
-              // Sort reports with newest on top
-              const sortedReports = [...todaysReports].sort((a: any, b: any) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              );
-              
-              // Add options for each report
-              sortedReports.forEach((report: any) => {
-                const option = document.createElement('option');
-                option.value = report.id;
-                
-                const createdDate = new Date(report.createdAt);
-                const time = `${createdDate.getHours().toString().padStart(2, '0')}:${createdDate.getMinutes().toString().padStart(2, '0')}`;
-                const versionText = report.versionNumber && report.versionNumber > 1 ? 
-                  `Version ${report.versionNumber}` : 'Version 1';
-                
-                option.textContent = `${time} - ${versionText} (${report.articles ? report.articles.length : 0} articles)`;
-                select.appendChild(option);
-              });
-              
-              // Create button container
-              const buttonContainer = document.createElement('div');
-              buttonContainer.style.display = 'flex';
-              buttonContainer.style.gap = '12px';
-              buttonContainer.style.justifyContent = 'flex-end';
-              
-              // Create cancel button (creates new report)
-              const cancelButton = document.createElement('button');
-              cancelButton.textContent = 'Create New Version';
-              cancelButton.style.padding = '8px 16px';
-              cancelButton.style.backgroundColor = '#334155';
-              cancelButton.style.color = 'white';
-              cancelButton.style.border = 'none';
-              cancelButton.style.borderRadius = '4px';
-              cancelButton.style.cursor = 'pointer';
-              
-              // Create select button
-              const selectButton = document.createElement('button');
-              selectButton.textContent = 'Add to Selected Report';
-              selectButton.style.padding = '8px 16px';
-              selectButton.style.backgroundColor = '#2563eb';
-              selectButton.style.color = 'white';
-              selectButton.style.border = 'none';
-              selectButton.style.borderRadius = '4px';
-              selectButton.style.cursor = 'pointer';
-              
-              // Add event listeners
-              cancelButton.addEventListener('click', async () => {
-                document.body.removeChild(selectDialog);
-                await processReport(false, null);
-                resolve();
-              });
-              
-              selectButton.addEventListener('click', async () => {
-                const selectedReportId = select.value;
-                document.body.removeChild(selectDialog);
-                
-                if (selectedReportId) {
-                  await processReport(true, selectedReportId);
-                  resolve();
-                }
-              });
-              
-              // Assemble dialog
-              buttonContainer.appendChild(cancelButton);
-              buttonContainer.appendChild(selectButton);
-              dialogContent.appendChild(title);
-              dialogContent.appendChild(description);
-              dialogContent.appendChild(select);
-              dialogContent.appendChild(buttonContainer);
-              selectDialog.appendChild(dialogContent);
-              
-              // Add dialog to document
-              document.body.appendChild(selectDialog);
-            });
-          }
+          await processReport(true, todaysReports[0].id);
         } else {
-          // Create new report
-          await processReport(false, null);
+          // Multiple reports exist - for now just use the first one
+          // TODO: Add selection dialog for multiple reports
+          await processReport(true, todaysReports[0].id);
         }
       } else {
         // No reports today, create a new one
