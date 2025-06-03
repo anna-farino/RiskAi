@@ -193,7 +193,6 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
 
   return (
     <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-      <h2 className="text-xl font-semibold mb-4">Reports</h2>
       
       {isLoading ? (
         <div className="flex justify-center p-4">
