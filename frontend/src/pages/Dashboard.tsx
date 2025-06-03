@@ -450,7 +450,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               {threatLoading ? (
                 <>
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/20 animate-pulse">
                       <div className="flex items-start gap-3">
                         <div className="w-4 h-4 bg-gray-600 rounded mt-1 flex-shrink-0"></div>
@@ -539,7 +539,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Threat Articles List */}
-                  {threatArticles.slice(0, 4).map((threat: any, index: number) => {
+                  {threatArticles.slice(0, 3).map((threat: any, index: number) => {
                     const severity = getThreatSeverity(threat);
                     const keywords = threat.detectedKeywords || [];
                     
@@ -608,12 +608,12 @@ export default function Dashboard() {
                   })}
                   
                   {/* Show More Section */}
-                  {threatArticles.length > 4 && (
+                  {threatArticles.length > 3 && (
                     <div className="bg-slate-900/30 rounded-lg p-3 border border-slate-700/20 text-center">
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-[#00FFFF] rounded-full animate-pulse"></div>
                         <span className="text-xs text-gray-300">
-                          {threatArticles.length - 4} more threats available
+                          {threatArticles.length - 3} more threats available
                         </span>
                       </div>
                       <button 
@@ -809,40 +809,82 @@ export default function Dashboard() {
               delay={0.6}
               onClick={() => navigate("/dashboard/settings")}
               className="col-span-1 md:col-span-1"
+              footer={
+                <div className="mt-auto">
+                  <div className="text-xs text-gray-400 mt-2 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>System configured • 5 active settings</span>
+                    </div>
+                  </div>
+                </div>
+              }
             >
               <div className="space-y-2">
-                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                  <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-xs font-medium">Data Management</span>
+                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-4 h-4 text-[#00FFFF]" />
+                      <span className="text-xs font-medium">Data Management</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Active</span>
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-400 mt-1">Storage, backup, and data retention settings</p>
                 </div>
                 
-                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                  <div className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-xs font-medium">Search Preferences</span>
+                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Search className="w-4 h-4 text-[#00FFFF]" />
+                      <span className="text-xs font-medium">Search Preferences</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Custom</span>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-400 mt-1">Keywords, filters, and search algorithms</p>
                 </div>
                 
-                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-xs font-medium">Notification Settings</span>
+                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-[#00FFFF]" />
+                      <span className="text-xs font-medium">Alert Settings</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-[#BF00FF]/20 text-[#BF00FF] px-2 py-0.5 rounded">Real-time</span>
+                      <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-400 mt-1">Notifications, thresholds, and alert channels</p>
                 </div>
                 
-                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-xs font-medium">Security & Privacy</span>
+                <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 text-[#00FFFF]" />
+                      <span className="text-xs font-medium">Security & Privacy</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Secure</span>
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-400 mt-1">Authentication, encryption, and data protection</p>
                 </div>
                 
-                <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                  <div className="flex items-center gap-2">
-                    <BarChart4 className="w-4 h-4 text-[#00FFFF]" />
-                    <span className="text-xs font-medium">Analytics Preferences</span>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/30 text-center">
+                    <div className="text-lg font-bold text-[#00FFFF] mb-1">12</div>
+                    <div className="text-xs text-gray-400">Active Sources</div>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/30 text-center">
+                    <div className="text-lg font-bold text-[#BF00FF] mb-1">3</div>
+                    <div className="text-xs text-gray-400">Workflows</div>
                   </div>
                 </div>
               </div>
