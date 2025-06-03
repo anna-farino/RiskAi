@@ -483,9 +483,36 @@ export default function Research() {
         // First ask if user wants to add to existing or create new
         setConfirmTitle("Add to Existing Report?");
         setConfirmDescription("There are already reports for today. Would you like to add these articles to an existing report?");
-        setConfirmAction(() => () => {
-          // User chose to add to existing report
-          handleExistingReportSelection();
+        setConfirmAction(() => async () => {
+          // User chose to add to existing report - handle it directly here
+          try {
+            const localStorageReports = localStorage.getItem('newsCapsuleReports');
+            if (localStorageReports) {
+              const savedReports = JSON.parse(localStorageReports);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              const todaysReports = savedReports.filter((report: any) => {
+                const reportDate = new Date(report.createdAt);
+                const reportDay = new Date(reportDate);
+                reportDay.setHours(0, 0, 0, 0);
+                return reportDay.getTime() === today.getTime();
+              });
+              
+              if (todaysReports.length >= 1) {
+                // Use the most recent report today
+                await processReport(true, todaysReports[0].id);
+              } else {
+                // No reports today, create a new one
+                await processReport(false, null);
+              }
+            } else {
+              // No reports exist, create a new one
+              await processReport(false, null);
+            }
+          } catch (err) {
+            console.error("Error handling existing report selection:", err);
+          }
         });
         setShowConfirmDialog(true);
         return;
@@ -496,40 +523,6 @@ export default function Research() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleExistingReportSelection = async () => {
-    try {
-      // Get fresh reports data
-      const localStorageReports = localStorage.getItem('newsCapsuleReports');
-      if (localStorageReports) {
-        const savedReports = JSON.parse(localStorageReports);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todaysReports = savedReports.filter((report: any) => {
-          const reportDate = new Date(report.createdAt);
-          const reportDay = new Date(reportDate);
-          reportDay.setHours(0, 0, 0, 0);
-          return reportDay.getTime() === today.getTime();
-        });
-        
-        if (todaysReports.length === 1) {
-          // If there's only one report today, use that
-          await processReport(true, todaysReports[0].id);
-        } else {
-          // Multiple reports exist - for now just use the first one
-          // TODO: Add selection dialog for multiple reports
-          await processReport(true, todaysReports[0].id);
-        }
-      } else {
-        // No reports today, create a new one
-        await processReport(false, null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
     }
   };
@@ -867,10 +860,11 @@ export default function Research() {
                   
                   // Success message
                   if (selectedArticles.length > 0) {
-                    alert(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
+                    setSuccessMessage(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
                   } else {
-                    alert(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
+                    setSuccessMessage(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
                   }
+                  setShowSuccessDialog(true);
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "An error occurred");
                 } finally {
@@ -1005,6 +999,46 @@ export default function Research() {
           </button>
         </div>
       )}
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Success</DialogTitle>
+            <DialogDescription>
+              {successMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowSuccessDialog(false)}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDescription}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>
+              Create New Version
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              confirmAction();
+              setShowConfirmDialog(false);
+            }}>
+              Add to Existing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
