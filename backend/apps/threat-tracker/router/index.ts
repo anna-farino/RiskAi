@@ -4,7 +4,7 @@ import { storage } from "../queries/threat-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getUserScrapeSchedule, JobInterval, updateUserScrapeSchedule, initializeScheduler } from "../services/scheduler";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
+import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../../../utils/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
