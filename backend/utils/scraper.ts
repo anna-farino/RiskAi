@@ -1,8 +1,7 @@
 import * as cheerio from "cheerio";
 import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";
-import { detectArticleLinks } from "./openai";
-import { scrapePuppeteer } from "./puppeteer-scraper";
-
+import { runPuppeteerWorker } from './puppeteer-worker-executor';
+import { simpleFallbackScraper } from './simple-scraper-fallback';
 
 // Rotating User-Agent list to appear more natural
 const userAgents = [
@@ -53,7 +52,7 @@ interface BotProtection {
   details?: string;
 }
 
-// Added logging function (implementation might need adjustment based on your logging setup)
+// Logging function
 function log(message: string, source: string = "scraper"): void {
   console.log(`[${new Date().toISOString()}] [${source}] ${message}`);
 }
@@ -280,6 +279,10 @@ async function delay(ms: number): Promise<void> {
 
 let cookieJar: string[] = [];
 
+/**
+ * Shared scraping function that handles both article pages and source pages
+ * Uses sophisticated detection and multi-attempt strategy from News Radar
+ */
 export async function scrapeUrl(
   url: string,
   isSourceUrl: boolean = false,
@@ -336,7 +339,11 @@ export async function scrapeUrl(
             `[Scraping] Bot protection detected (${protection.type}): ${protection.details}`,
             "scraper",
           );
-          return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
+          return await runPuppeteerWorker({
+            url,
+            isArticlePage: !isSourceUrl,
+            scrapingConfig: config || {}
+          });
         }
 
         // Then independently check for React app and lazy loading
@@ -349,7 +356,11 @@ export async function scrapeUrl(
             `[Scraping] Dynamic content detected (React: ${isReactApp}, LazyLoad: ${hasLazyLoad}), switching to Puppeteer`,
             "scraper",
           );
-          return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
+          return await runPuppeteerWorker({
+            url,
+            isArticlePage: !isSourceUrl,
+            scrapingConfig: config || {}
+          });
         }
 
         // If we got here, we can safely return the HTML
@@ -380,17 +391,55 @@ export async function scrapeUrl(
   }
 }
 
+/**
+ * Enhanced article link extraction compatible with both News Radar and Threat Tracker
+ * Incorporates logic from the old TT scraper for better link detection
+ */
 export async function extractArticleLinks(
   html: string,
   baseUrl: string,
+  detectArticleLinksFunction?: (linksText: string) => Promise<string[]>
 ): Promise<string[]> {
   try {
     const urlObject = new URL(baseUrl);
     const baseDomain = `${urlObject.protocol}//${urlObject.host}`;
     log(`[Link Detection] Using base domain: ${baseDomain}`, "scraper");
 
-    // Check for dynamic content indicators
+    // Check if we're dealing with the structured HTML from puppeteer (TT style)
+    const isStructuredHtml = html.includes('<div class="extracted-article-links">');
+    
+    let articleUrls: string[] = [];
+    
+    if (isStructuredHtml) {
+      log(`[Link Detection] Processing structured HTML from Puppeteer (TT style)`, "scraper");
+      
+      // For TT: Use OpenAI to identify article links if function is available
+      if (detectArticleLinksFunction) {
+        log(`[Link Detection] Using AI to identify article links from structured HTML`, "scraper");
+        articleUrls = await detectArticleLinksFunction(html);
+        
+        // Make all URLs absolute
+        articleUrls = articleUrls.map(url => getAbsoluteUrl(baseUrl, url));
+      } else {
+        // Fallback: Extract links from structured HTML format
+        log(`[Link Detection] Extracting links directly from structured HTML`, "scraper");
+        const linkMatches = html.match(/href="([^"]+)"/g);
+        if (linkMatches) {
+          articleUrls = linkMatches.map(match => {
+            const url = match.replace('href="', '').replace('"', '');
+            return getAbsoluteUrl(baseUrl, url);
+          });
+        }
+      }
+      
+      log(`[Link Detection] Extracted ${articleUrls.length} article links from structured HTML`, "scraper");
+      return articleUrls;
+    }
+
+    // For regular HTML (News Radar style or fallback)
     const $ = cheerio.load(html);
+    
+    // Check for dynamic content indicators
     const isDynamic =
       // Check for framework root elements
       $("#__next").length > 0 ||
@@ -414,13 +463,16 @@ export async function extractArticleLinks(
         `[Link Detection] Dynamic content detected, switching to Puppeteer`,
         "scraper",
       );
-      const puppeteerHtml = await scrapePuppeteer(baseUrl, false, {});
-      html = puppeteerHtml;
-      return
+      const puppeteerHtml = await runPuppeteerWorker({
+        url: baseUrl,
+        isArticlePage: false,
+        scrapingConfig: {}
+      });
+      // Recursively call this function with the new HTML
+      return await extractArticleLinks(puppeteerHtml, baseUrl, detectArticleLinksFunction);
     }
 
-    // Update the link extraction section to include better filtering and logging
-    // Extract all links for AI analysis
+    // Extract all links for analysis
     interface LinkData {
       href: string;
       text: string;
@@ -432,24 +484,32 @@ export async function extractArticleLinks(
       const text = $(element).text().trim();
       const parentText = $(element).parent().text().trim();
 
-      // Skip obvious navigation/utility links
-      if (href && text && text.length > 20) {
-        // Article titles tend to be longer
+      // More flexible filtering based on TT logic - accept links with any text or reasonable href
+      if (href && (text.length > 0 || href.includes('/'))) {
+        const fullUrl = getAbsoluteUrl(baseUrl, href);
 
-        const fullUrl = href.startsWith("http")
-          ? href
-          : `${baseDomain}${href.startsWith("/") ? "" : "/"}${href}`;
+        // Skip obvious non-article links (improved from TT logic)
+        if (!fullUrl.includes('#') && 
+            !fullUrl.includes('mailto:') && 
+            !fullUrl.includes('javascript:') &&
+            !fullUrl.includes('.css') &&
+            !fullUrl.includes('.js') &&
+            !fullUrl.includes('.png') &&
+            !fullUrl.includes('.jpg') &&
+            !fullUrl.includes('.gif') &&
+            !fullUrl.includes('.pdf')) {
+          
+          links.push({
+            href: fullUrl,
+            text: text,
+            context: parentText,
+          });
 
-        links.push({
-          href: fullUrl,
-          text: text,
-          context: parentText,
-        });
-
-        log(
-          `[Link Detection] Potential article link found: ${fullUrl}`,
-          "scraper",
-        );
+          log(
+            `[Link Detection] Potential article link found: ${fullUrl}`,
+            "scraper",
+          );
+        }
       }
     });
 
@@ -458,69 +518,69 @@ export async function extractArticleLinks(
       "scraper",
     );
 
-    // Create a more structured representation for AI analysis
-    const linksText = links
-      .map(
-        (link) =>
-          `Title: ${link.text}\nURL: ${link.href}\nContext: ${link.context}\n---`,
-      )
-      .join("\n");
-
-    log(
-      `[Link Detection] Sending structured link data to OpenAI for analysis`,
-      "scraper",
-    );
-
-    // Try AI-powered detection with pre-filtered, structured link set
-    const aiDetectedLinks = await detectArticleLinks(linksText);
-
-    if (aiDetectedLinks && aiDetectedLinks.length > 0) {
-      // Process each detected link
-      const processedLinks = aiDetectedLinks.map((link) => {
-        // Check if the link is absolute (starts with http:// or https://)
-        if (link.startsWith("http://") || link.startsWith("https://")) {
-          const decodedUrl = link.replace(/&amp;/g, "&");
-          log(`[Link Detection] Found absolute URL: ${decodedUrl}`, "scraper");
-          return decodedUrl;
-        } else {
-          // For relative URLs, combine with base domain
-          const absoluteUrl = link.startsWith("/")
-            ? `${baseDomain}${link}`
-            : `${baseDomain}/${link}`;
-          const decodedUrl = absoluteUrl.replace(/&amp;/g, "&");
-          log(
-            `[Link Detection] Converted relative URL to absolute: ${decodedUrl}`,
-            "scraper",
-          );
-          return decodedUrl;
-        }
-      });
-
+    // For News Radar: Try AI-powered detection if function is provided
+    if (detectArticleLinksFunction && links.length > 0) {
       log(
-        `[Link Detection] Processed ${processedLinks.length} article URLs`,
+        `[Link Detection] Sending structured link data to AI for analysis`,
         "scraper",
       );
-      return processedLinks;
+
+      // Create a more structured representation for AI analysis
+      const linksText = links
+        .map(
+          (link) =>
+            `Title: ${link.text}\nURL: ${link.href}\nContext: ${link.context}\n---`,
+        )
+        .join("\n");
+
+      const aiDetectedLinks = await detectArticleLinksFunction(linksText);
+
+      if (aiDetectedLinks && aiDetectedLinks.length > 0) {
+        // Process each detected link
+        const processedLinks = aiDetectedLinks.map((link) => {
+          return getAbsoluteUrl(baseUrl, link.replace(/&amp;/g, "&"));
+        });
+
+        log(
+          `[Link Detection] Processed ${processedLinks.length} article URLs via AI`,
+          "scraper",
+        );
+        return processedLinks;
+      }
     }
 
-    // Fallback to pattern matching
+    // Fallback to pattern matching (improved from original)
     log(`[Link Detection] Falling back to pattern matching`);
-    const linksFallback = $("a[href]")
-      .map((_, element) => {
-        let href = $(element).attr("href");
-        if (!href) return null;
-        let processedUrl = href.startsWith("http")
-          ? href
-          : href.startsWith("/")
-            ? `${baseDomain}${href}`
-            : `${baseDomain}/${href}`;
-        processedUrl = processedUrl.replace(/&amp;/g, "&");
-        return processedUrl;
-      })
-      .get();
+    const linksFallback = links.map(link => link.href);
 
-    // Log the total number of links found
-    console.log(`[Link Detection] Found ${linksFallback.length} total links`);
+    // If we still don't have many links, try a more permissive extraction
+    if (linksFallback.length < 5) {
+      log(`[Link Detection] Very few links found, trying more permissive extraction`, "scraper");
+      const allLinks = $("a[href]")
+        .map((_, element) => {
+          let href = $(element).attr("href");
+          if (!href) return null;
+          
+          const processedUrl = getAbsoluteUrl(baseUrl, href);
+          
+          // Only filter out the most obvious non-article links
+          if (processedUrl.includes('mailto:') || 
+              processedUrl.includes('javascript:') ||
+              processedUrl.includes('.css') ||
+              processedUrl.includes('.js')) {
+            return null;
+          }
+          
+          return processedUrl.replace(/&amp;/g, "&");
+        })
+        .get()
+        .filter(url => url !== null);
+      
+      log(`[Link Detection] Permissive extraction found ${allLinks.length} total links`);
+      return allLinks;
+    }
+
+    log(`[Link Detection] Found ${linksFallback.length} total links`);
     return linksFallback;
   } catch (error: unknown) {
     const errorMessage =
@@ -533,7 +593,7 @@ export async function extractArticleLinks(
   }
 }
 
-// Add this helper function near the top of the file
+// Add this helper function for sanitizing selectors
 function sanitizeSelector(selector: string): string {
   if (!selector) return "";
 
@@ -569,19 +629,34 @@ function sanitizeSelector(selector: string): string {
       // Remove :has(...) pseudo-class
       .replace(/\:has\([^\)]+\)/g, "")
       // Remove other non-standard pseudo-classes (anything after : that's not a standard pseudo-class)
-      .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+      .replace(/\:[^(\s|:|>|\.|\\[)]+(?=[\s,\\]]|$)/g, "")
       // Clean up any resulting double spaces
       .replace(/\s+/g, " ")
       .trim()
   );
 }
 
-// Modify the extractArticleContent function to use sanitized selectors
-export function extractArticleContent(html: string, config: ScrapingConfig) {
+/**
+ * Enhanced article content extraction compatible with both News Radar and Threat Tracker
+ * Incorporates logic from the old TT scraper for better content detection
+ */
+export function extractArticleContent(html: string, config: ScrapingConfig | any) {
+  log(`[Scraping] Extracting article content using HTML structure`, "scraper");
+  
   const $ = cheerio.load(html);
+  
+  // Check if this is already a processed HTML from Puppeteer worker (TT style)
+  if (html.includes('<div class="content">')) {
+    log(`[Scraping] Processing structured HTML from Puppeteer worker`, "scraper");
+    return {
+      title: $('h1').first().text().trim(),
+      content: $('.content').text().trim(),
+      author: $('.author').text().trim() || undefined,
+      publishDate: $('.date').text().trim() || undefined
+    };
+  }
 
-  // First, remove navigation, header, footer, and similar elements that might contain false matches
-  // Remove elements that are likely navigation, advertisements, or unrelated to the article
+  // Remove navigation, header, footer, and similar elements that might contain false matches
   $(
     "nav, header, footer, aside, .nav, .navigation, .menu, .sidebar, .advert, .ad, .ads, .advertisement, .banner, .cookie-banner, .consent",
   ).remove();
@@ -591,110 +666,223 @@ export function extractArticleContent(html: string, config: ScrapingConfig) {
     ".main-nav, .top-nav, .bottom-nav, .footer-nav, .site-nav, .navbar, .main-menu, .sub-menu, .social-links, .share-buttons",
   ).remove();
 
-  // Sanitize all selectors before use
-  const sanitizedConfig = {
-    titleSelector: sanitizeSelector(config.titleSelector),
-    contentSelector: sanitizeSelector(config.contentSelector),
-    authorSelector: config.authorSelector
-      ? sanitizeSelector(config.authorSelector)
-      : undefined,
-    dateSelector: config.dateSelector
-      ? sanitizeSelector(config.dateSelector)
-      : undefined,
+  // Initialize result object
+  const result: {
+    title: string;
+    content: string;
+    author?: string;
+    publishDate?: string | undefined;
+  } = {
+    title: "",
+    content: "",
   };
 
-  // Log the original and sanitized selectors for debugging
-  log(`[Scraping] Original selectors: ${JSON.stringify(config)}`, "scraper");
-  log(
-    `[Scraping] Sanitized selectors: ${JSON.stringify(sanitizedConfig)}`,
-    "scraper",
-  );
-
-  const title = sanitizedConfig.titleSelector
-    ? $(sanitizedConfig.titleSelector).first().text().trim()
-    : "";
-  // Handle content more robustly
-  let content = "";
-  if (sanitizedConfig.contentSelector) {
-    content = $(sanitizedConfig.contentSelector).text().trim();
+  // For News Radar compatibility: Sanitize selectors if they exist
+  let sanitizedConfig: any = {};
+  if (config && typeof config === 'object') {
+    sanitizedConfig = {
+      titleSelector: config.titleSelector ? sanitizeSelector(config.titleSelector) : undefined,
+      contentSelector: config.contentSelector ? sanitizeSelector(config.contentSelector) : undefined,
+      authorSelector: config.authorSelector ? sanitizeSelector(config.authorSelector) : undefined,
+      dateSelector: config.dateSelector ? sanitizeSelector(config.dateSelector) : undefined,
+    };
     
-    // If content is empty but we have an articleSelector, try using it
-    if (content.length === 0 && config.articleSelector) {
-      const articleSelector = sanitizeSelector(config.articleSelector);
-      if (articleSelector) {
-        // Get all paragraph elements within articleSelector
-        content = $(articleSelector).find('p').text().trim();
-        
-        // If still empty, get all text
-        if (content.length === 0) {
-          content = $(articleSelector).text().trim();
+    // Log the original and sanitized selectors for debugging
+    log(`[Scraping] Original selectors: ${JSON.stringify(config)}`, "scraper");
+    log(`[Scraping] Sanitized selectors: ${JSON.stringify(sanitizedConfig)}`, "scraper");
+  }
+
+  // Extract title using the provided selector or alternatives (TT + NR compatible)
+  const titleSelector = sanitizedConfig.titleSelector || config?.titleSelector || config?.title;
+  if (titleSelector) {
+    result.title = $(titleSelector).first().text().trim();
+  }
+  if (!result.title) {
+    // Try common title selectors (from TT logic)
+    const titleFallbacks = ['h1', '.article-title', '.post-title', '.title', 'h1.title'];
+    for (const selector of titleFallbacks) {
+      if (!result.title) {
+        const titleText = $(selector).first().text().trim();
+        if (titleText) {
+          result.title = titleText;
+          log(`[Scraping] Found title using fallback selector: ${selector}`, "scraper");
+          break;
+        }
+      }
+    }
+  }
+
+  // Extract content using the provided selector or alternatives (TT + NR compatible)
+  const contentSelector = sanitizedConfig.contentSelector || config?.contentSelector || config?.content;
+  if (contentSelector) {
+    result.content = $(contentSelector).text().replace(/\s+/g, " ").trim();
+  }
+  
+  // Enhanced content fallback logic (from TT)
+  if (!result.content || result.content.length < 100) {
+    log(`[Scraping] Content extraction failed with configured selectors, trying enhanced fallbacks`, "scraper");
+    
+    // Try common content selectors with better logic
+    const contentFallbacks = [
+      'article', '.article-content', '.article-body', 'main .content', '.post-content',
+      '.content', '#content', '#main-content', '.main-content', '.entry-content',
+      '.post-body', '.article', '.post', '.entry', 'main'
+    ];
+    
+    for (const selector of contentFallbacks) {
+      if (result.content && result.content.length >= 100) break;
+      
+      const element = $(selector).first();
+      if (element.length > 0) {
+        const contentText = element.text().replace(/\s+/g, " ").trim();
+        if (contentText.length > 100) {
+          result.content = contentText;
+          log(`[Scraping] Found content using fallback selector: ${selector}`, "scraper");
+          break;
         }
       }
     }
     
-    // If still empty and we have a config.contentSelector with :contains
-    // which was sanitized away, use a more direct approach
-    if (content.length === 0 && config.contentSelector && config.contentSelector.includes(':contains')) {
-      // Extract base selector without the :contains part
-      const baseSelector = config.contentSelector.split(':contains')[0].trim();
-      if (baseSelector) {
-        content = $(baseSelector).text().trim();
-      }
-    }
-  }
-  // Handle author - check if it's a selector or direct text
-  let author;
-  if (sanitizedConfig.authorSelector) {
-    // It's a valid CSS selector
-    author = $(sanitizedConfig.authorSelector).first().text().trim();
-  } else if (config.authorSelector && config.authorSelector.startsWith("By ")) {
-    // It's direct text
-    author = config.authorSelector.trim();
-  }
-
-  // Skip date extraction entirely as requested by user
-  // Date will be set to current date in article creation
-
-  // Fallback method if content is still empty - use main content area or body
-  if (content.length === 0) {
-    log(`[Scraping] Content extraction failed with configured selectors, trying fallbacks`, "scraper");
-    
-    // Try common content area selectors
-    const fallbackSelectors = [
-      "article", ".article", ".post", ".entry", "main", 
-      "#content", ".content", "#main-content", ".main-content",
-      ".article-content", ".post-content", ".entry-content"
-    ];
-    
-    for (const selector of fallbackSelectors) {
-      if (content.length > 0) break;
-      
-      const element = $(selector).first();
-      if (element.length > 0) {
-        content = element.text().trim();
-        log(`[Scraping] Found content using fallback selector: ${selector}`, "scraper");
+    // If still empty but we have an articleSelector, try using it (NR compatibility)
+    if ((!result.content || result.content.length < 100) && config?.articleSelector) {
+      const articleSelector = sanitizeSelector(config.articleSelector);
+      if (articleSelector) {
+        // Get all paragraph elements within articleSelector
+        const paragraphContent = $(articleSelector).find('p').text().trim();
+        if (paragraphContent.length > 100) {
+          result.content = paragraphContent;
+        } else {
+          // If still empty, get all text
+          const allContent = $(articleSelector).text().trim();
+          if (allContent.length > 100) {
+            result.content = allContent;
+          }
+        }
       }
     }
     
-    // Last resort - get all paragraph text from body
-    if (content.length === 0) {
-      content = $("body p").text().trim();
-      log(`[Scraping] Using all paragraph text from body as fallback`, "scraper");
+    // Last resort - get main content or body paragraphs
+    if (!result.content || result.content.length < 100) {
+      const bodyContent = $("body p").text().replace(/\s+/g, " ").trim();
+      if (bodyContent.length > 100) {
+        result.content = bodyContent;
+        log(`[Scraping] Using all paragraph text from body as fallback`, "scraper");
+      } else {
+        // Very last resort - get body content
+        const fullBodyContent = $("body").text().replace(/\s+/g, " ").trim();
+        if (fullBodyContent.length > 100) {
+          result.content = fullBodyContent;
+          log(`[Scraping] Using full body text as final fallback`, "scraper");
+        }
+      }
     }
+  }
+
+  // Extract author if available (TT + NR compatible)
+  const authorSelector = sanitizedConfig.authorSelector || config?.authorSelector || config?.author;
+  if (authorSelector) {
+    const authorText = $(authorSelector).first().text().trim();
+    if (authorText) {
+      result.author = authorText;
+    }
+  } else if (config?.authorSelector && config.authorSelector.startsWith("By ")) {
+    // Handle direct text format (NR compatibility)
+    result.author = config.authorSelector.trim();
+  }
+
+  // Extract date if available (TT compatibility)
+  const dateSelector = sanitizedConfig.dateSelector || config?.dateSelector || config?.date;
+  if (dateSelector) {
+    const dateText = $(dateSelector).first().text().trim();
+    if (dateText) {
+      result.publishDate = dateText;
+    }
+  }
+
+  // For News Radar compatibility: always use undefined for publishDate
+  if (!result.publishDate) {
+    result.publishDate = undefined;
   }
   
   // Log extraction results
-  log(`[Scraping] Extracted title length: ${title.length}`, "scraper");
-  log(`[Scraping] Extracted content length: ${content.length}`, "scraper");
-
-  // Skip date parsing entirely per user request - always use undefined
-  // and let the application use current date
-  const publishDate = undefined;
+  log(`[Scraping] Extraction complete: title=${result.title ? 'found' : 'not found'}, content=${result.content.length} chars`, "scraper");
 
   return {
-    title,
-    content,
-    author,
-    publishDate,
+    title: result.title,
+    content: result.content,
+    author: result.author,
+    publishDate: result.publishDate,
   };
+}
+
+/**
+ * Get absolute URL from relative URL
+ */
+export function getAbsoluteUrl(baseUrl: string, relativeUrl: string): string {
+  try {
+    // If already absolute URL
+    if (relativeUrl.match(/^https?:\/\//i)) {
+      return relativeUrl;
+    }
+    
+    // Handle case where URL begins with //
+    if (relativeUrl.startsWith('//')) {
+      const baseUrlProtocol = baseUrl.split('://')[0];
+      return `${baseUrlProtocol}:${relativeUrl}`;
+    }
+    
+    // If baseUrl doesn't end with a slash, add one for proper joining
+    const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    // If relative URL starts with a slash, remove it to avoid double slashes
+    const relative = relativeUrl.startsWith('/') ? relativeUrl.substring(1) : relativeUrl;
+    
+    return new URL(relative, base).toString();
+  } catch (error) {
+    // In case of any errors, use simple string concat as fallback
+    const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const relative = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+    return `${base}${relative}`;
+  }
+}
+
+/**
+ * Alternative scraper function using Puppeteer directly (fallback)
+ * This mimics the ThreatTracker approach but with fallback handling
+ */
+export async function scrapePuppeteer(
+  url: string,
+  isArticlePage: boolean = false,
+  scrapingConfig: any,
+): Promise<string> {
+  log(`[scrapePuppeteer] Starting Puppeteer scraping for URL: ${url}`, "scraper");
+
+  // Simple URL validation
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
+  }
+
+  try {
+    // Try Puppeteer worker first
+    log('[scrapePuppeteer] Starting Puppeteer worker process', "scraper");
+    try {
+      const result = await runPuppeteerWorker({
+        url,
+        isArticlePage,
+        scrapingConfig
+      });
+      
+      log('[scrapePuppeteer] Worker process completed successfully', "scraper");
+      return result;
+    } catch (workerError: any) {
+      log(`[scrapePuppeteer] Worker failed: ${workerError.message}, trying fallback scraper`, "scraper");
+      
+      // Fallback to simple HTTP scraper
+      const fallbackResult = await simpleFallbackScraper(url, isArticlePage);
+      log('[scrapePuppeteer] Fallback scraper completed', "scraper");
+      return fallbackResult;
+    }
+  } catch (error: any) {
+    log(`[scrapePuppeteer] All scraping methods failed for ${url}: ${error?.message || String(error)}`, "scraper");
+    throw new Error(`Puppeteer scraping failed: ${error?.message || String(error)}`);
+  }
 }

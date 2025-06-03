@@ -1,6 +1,6 @@
 import { storage } from "../queries/threat-tracker";
 import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./openai";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
+import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../../../utils/scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl } from "./url-utils";
