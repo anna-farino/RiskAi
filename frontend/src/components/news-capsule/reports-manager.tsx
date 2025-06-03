@@ -22,6 +22,7 @@ export interface Report {
   createdAt: string;
   articles: ArticleSummary[];
   versionNumber?: number;
+  topic?: string;
 }
 
 interface ReportsManagerProps {
@@ -36,8 +37,8 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  // Load reports from localStorage on component mount
-  useEffect(() => {
+  // Function to load reports from localStorage
+  const loadReports = () => {
     try {
       setIsLoading(true);
       // First check localStorage for saved reports
@@ -69,7 +70,29 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Load reports on component mount
+  useEffect(() => {
+    loadReports();
   }, []);
+
+  // Poll for changes in localStorage every 2 seconds to catch new reports
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const savedReports = localStorage.getItem('newsCapsuleReports');
+      if (savedReports) {
+        const parsedReports = JSON.parse(savedReports);
+        // Only update if the number of reports has changed
+        if (parsedReports.length !== reports.length) {
+          console.log("Detected new reports, refreshing...");
+          loadReports();
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [reports.length]);
 
   // Save reports to localStorage whenever they change
   useEffect(() => {
@@ -170,7 +193,6 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
 
   return (
     <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-      <h2 className="text-xl font-semibold mb-4">Reports</h2>
       
       {isLoading ? (
         <div className="flex justify-center p-4">
@@ -200,6 +222,11 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
                 <p className="text-xs text-blue-400">
                   {formatTime(report.createdAt)}
                 </p>
+                {report.topic && (
+                  <p className="text-xs text-slate-300 italic">
+                    Topic: {report.topic}
+                  </p>
+                )}
                 <p className="text-xs text-slate-400">
                   {report.articles.length} articles
                 </p>
