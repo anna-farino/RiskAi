@@ -447,7 +447,7 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-2 max-h-80 overflow-y-auto">
+            <div className="space-y-2">
               {threatLoading ? (
                 <>
                   {[1, 2, 3, 4, 5, 6].map((i) => (
