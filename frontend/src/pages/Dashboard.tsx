@@ -196,16 +196,16 @@ export default function Dashboard() {
                       className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
                       onClick={() => handleArticleClick(article)}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex gap-1.5">
-                          <span className={`text-xs px-1.5 py-0.5 rounded border ${priorityBadge.style}`}>
+                      <div className="flex justify-between items-start mb-2 gap-2">
+                        <div className="flex gap-1.5 flex-wrap min-w-0">
+                          <span className={`text-xs px-1.5 py-0.5 rounded border ${priorityBadge.style} whitespace-nowrap`}>
                             {priorityBadge.level}
                           </span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${sourceBadge.style}`}>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${sourceBadge.style} whitespace-nowrap`}>
                             {sourceBadge.name}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
                           {article.createdAt ? formatTimeAgo(article.createdAt) : 'Recently'}
                         </span>
                       </div>
