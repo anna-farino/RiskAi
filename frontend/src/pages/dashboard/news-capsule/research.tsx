@@ -130,8 +130,9 @@ export default function Research() {
         const articles = await response.json();
         console.log('Fetched articles from database:', articles.length);
         
-        // Remove duplicates automatically using title as criteria
-        const uniqueArticles = articles.filter((article, index, self) => 
+        // Filter out articles marked for deletion and remove duplicates
+        const activeArticles = articles.filter(article => !article.markedForDeletion);
+        const uniqueArticles = activeArticles.filter((article, index, self) => 
           index === self.findIndex(a => a.title === article.title)
         );
         
