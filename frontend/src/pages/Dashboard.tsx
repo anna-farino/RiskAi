@@ -447,78 +447,209 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-80 overflow-y-auto">
               {threatLoading ? (
                 <>
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex items-center gap-2 bg-slate-800/30 p-2 rounded-lg border border-slate-700/20 animate-pulse">
-                      <div className="w-4 h-4 bg-gray-600 rounded flex-shrink-0"></div>
-                      <div className="flex-1">
-                        <div className="w-3/4 h-3 bg-gray-600 rounded mb-1"></div>
-                        <div className="w-1/2 h-2 bg-gray-600 rounded"></div>
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/20 animate-pulse">
+                      <div className="flex items-start gap-3">
+                        <div className="w-4 h-4 bg-gray-600 rounded mt-1 flex-shrink-0"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div className="w-16 h-3 bg-gray-600 rounded"></div>
+                            <div className="w-12 h-2 bg-gray-600 rounded"></div>
+                          </div>
+                          <div className="w-full h-2 bg-gray-600 rounded"></div>
+                          <div className="flex gap-1">
+                            <div className="w-14 h-4 bg-gray-600 rounded"></div>
+                            <div className="w-10 h-4 bg-gray-600 rounded"></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </>
               ) : threatError ? (
-                <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20 text-center">
-                  <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
-                  <p className="text-xs text-red-400">Failed to load threat data</p>
-                  <p className="text-xs text-gray-500 mt-1">Check API connection</p>
+                <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20 text-center">
+                  <AlertTriangle className="w-6 h-6 text-red-400 mx-auto mb-2" />
+                  <p className="text-xs text-red-400 font-medium mb-1">Failed to load threat data</p>
+                  <p className="text-xs text-gray-500 mb-3">API connection error detected</p>
+                  <button 
+                    onClick={() => refetchThreats()} 
+                    className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors font-medium"
+                  >
+                    Retry Connection →
+                  </button>
                 </div>
               ) : threatArticles && threatArticles.length > 0 ? (
-                threatArticles.slice(0, 4).map((threat: any, index: number) => {
-                  const severity = getThreatSeverity(threat);
-                  const keywords = threat.detectedKeywords || [];
-                  
-                  return (
-                    <div 
-                      key={threat.id || index}
-                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer hover:border-opacity-60 transition-all duration-200 group ${severity.style}`}
-                      onClick={() => handleThreatClick(threat)}
-                    >
-                      <div className={`flex-shrink-0 ${severity.icon === 'red' ? 'text-red-400' : severity.icon === 'yellow' ? 'text-yellow-400' : severity.icon === 'purple' ? 'text-purple-400' : 'text-blue-400'}`}>
-                        <AlertTriangle className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-xs text-white group-hover:text-[#00FFFF] transition-colors line-clamp-1">
-                            {threat.title || 'Security Alert'}
-                          </h4>
-                          <span className="text-xs text-gray-400 whitespace-nowrap">
-                            {threat.createdAt ? formatTimeAgo(threat.createdAt) : 'Recent'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400 line-clamp-1">
-                          {threat.summary || keywords.slice(0, 2).map((k: any) => k.keyword || k).join(', ') || 'Threat detected'}
-                        </p>
-                        {keywords.length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {keywords.slice(0, 2).map((keyword: any, kidx: number) => (
-                              <span 
-                                key={kidx}
-                                className={`text-xs px-1 py-0.5 rounded ${severity.icon === 'red' ? 'bg-red-500/20 text-red-300' : severity.icon === 'yellow' ? 'bg-yellow-500/20 text-yellow-300' : severity.icon === 'purple' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}
-                              >
-                                {keyword.keyword || keyword}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                <>
+                  {/* Threat Level Summary Bar */}
+                  <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/30 mb-3">
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-gray-300 font-medium">Threat Overview</span>
+                      <span className="text-gray-400">{threatArticles.length} detected</span>
                     </div>
-                  );
-                })
+                    <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-slate-800">
+                      {(() => {
+                        const levels = threatArticles.reduce((acc: any, threat: any) => {
+                          const severity = getThreatSeverity(threat);
+                          acc[severity.level] = (acc[severity.level] || 0) + 1;
+                          return acc;
+                        }, {});
+                        const total = threatArticles.length;
+                        
+                        return (
+                          <>
+                            {levels.CRITICAL > 0 && (
+                              <div 
+                                className="bg-red-500 h-full" 
+                                style={{ width: `${(levels.CRITICAL / total) * 100}%` }}
+                                title={`${levels.CRITICAL} Critical threats`}
+                              />
+                            )}
+                            {levels.HIGH > 0 && (
+                              <div 
+                                className="bg-yellow-500 h-full" 
+                                style={{ width: `${(levels.HIGH / total) * 100}%` }}
+                                title={`${levels.HIGH} High threats`}
+                              />
+                            )}
+                            {levels.MEDIUM > 0 && (
+                              <div 
+                                className="bg-purple-500 h-full" 
+                                style={{ width: `${(levels.MEDIUM / total) * 100}%` }}
+                                title={`${levels.MEDIUM} Medium threats`}
+                              />
+                            )}
+                            {levels.INFO > 0 && (
+                              <div 
+                                className="bg-blue-500 h-full" 
+                                style={{ width: `${(levels.INFO / total) * 100}%` }}
+                                title={`${levels.INFO} Info threats`}
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex justify-between text-xs mt-1 text-gray-400">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+
+                  {/* Threat Articles List */}
+                  {threatArticles.slice(0, 6).map((threat: any, index: number) => {
+                    const severity = getThreatSeverity(threat);
+                    const keywords = threat.detectedKeywords || [];
+                    
+                    return (
+                      <div 
+                        key={threat.id || index}
+                        className={`rounded-lg p-3 border cursor-pointer hover:border-opacity-60 transition-all duration-200 group relative ${severity.style}`}
+                        onClick={() => handleThreatClick(threat)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`flex-shrink-0 ${severity.icon === 'red' ? 'text-red-400' : severity.icon === 'yellow' ? 'text-yellow-400' : severity.icon === 'purple' ? 'text-purple-400' : 'text-blue-400'}`}>
+                            <AlertTriangle className="w-4 h-4 mt-0.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                  severity.level === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                  severity.level === 'HIGH' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                                  severity.level === 'MEDIUM' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                                  'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                }`}>
+                                  {severity.level}
+                                </span>
+                                <div className={`w-2 h-2 rounded-full ${
+                                  severity.icon === 'red' ? 'bg-red-400 animate-pulse' : 
+                                  severity.icon === 'yellow' ? 'bg-yellow-400' : 
+                                  severity.icon === 'purple' ? 'bg-purple-400' : 
+                                  'bg-blue-400'
+                                }`}></div>
+                              </div>
+                              <span className="text-xs text-gray-400 whitespace-nowrap">
+                                {threat.createdAt ? formatTimeAgo(threat.createdAt) : 'Recent'}
+                              </span>
+                            </div>
+                            
+                            <h4 className="font-medium text-xs text-white group-hover:text-[#00FFFF] transition-colors line-clamp-1 mb-1">
+                              {threat.title || 'Security Alert'}
+                            </h4>
+                            
+                            <p className="text-xs text-gray-400 line-clamp-2 mb-2">
+                              {threat.summary || keywords.slice(0, 3).map((k: any) => k.keyword || k).join(', ') || 'Threat detected requiring immediate attention'}
+                            </p>
+                            
+                            {keywords.length > 0 && (
+                              <div className="flex gap-1 flex-wrap">
+                                {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
+                                  <span 
+                                    key={kidx}
+                                    className={`text-xs px-1.5 py-0.5 rounded-full ${severity.icon === 'red' ? 'bg-red-500/15 text-red-300 border border-red-500/20' : severity.icon === 'yellow' ? 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/20' : severity.icon === 'purple' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'bg-blue-500/15 text-blue-300 border border-blue-500/20'}`}
+                                  >
+                                    {keyword.keyword || keyword}
+                                  </span>
+                                ))}
+                                {keywords.length > 3 && (
+                                  <span className="text-xs text-gray-500">
+                                    +{keywords.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show More Section */}
+                  {threatArticles.length > 6 && (
+                    <div className="bg-slate-900/30 rounded-lg p-3 border border-slate-700/20 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-[#00FFFF] rounded-full animate-pulse"></div>
+                        <span className="text-xs text-gray-300">
+                          {threatArticles.length - 6} more threats available
+                        </span>
+                      </div>
+                      <button 
+                        onClick={() => navigate('/dashboard/threat/home')}
+                        className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors font-medium"
+                      >
+                        View All Threats →
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/20 text-center">
-                  <AlertTriangle className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400 mb-1">No active threats detected</p>
-                  <p className="text-xs text-gray-500 mb-3">Configure threat monitoring sources</p>
-                  <button 
-                    onClick={() => navigate('/dashboard/threat/keywords')}
-                    className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
-                  >
-                    Configure Monitoring →
-                  </button>
+                  <div className="flex flex-col items-center">
+                    <div className="relative mb-3">
+                      <AlertTriangle className="w-8 h-8 text-gray-400" />
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-1 font-medium">No active threats detected</p>
+                    <p className="text-xs text-gray-500 mb-4">Your security monitoring is active</p>
+                    <div className="flex gap-2 text-xs">
+                      <button 
+                        onClick={() => navigate('/dashboard/threat/sources')}
+                        className="text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                      >
+                        Add Sources →
+                      </button>
+                      <span className="text-gray-600">|</span>
+                      <button 
+                        onClick={() => navigate('/dashboard/threat/keywords')}
+                        className="text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                      >
+                        Set Keywords →
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
