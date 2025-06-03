@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { processUrl } from './process-url';
 import { addToReport } from './add-to-report';
 import { getReports } from './get-reports';
+import { createExecutiveNote, getExecutiveNotes, updateExecutiveNote, deleteExecutiveNote } from './executive-notes';
 import { db } from '../../db/db';
 import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
 import { eq, desc } from 'drizzle-orm';
@@ -73,5 +74,11 @@ router.delete('/articles/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete article', details: error.message });
   }
 });
+
+// Executive Notes routes
+router.post('/executive-notes', createExecutiveNote);
+router.get('/executive-notes/:reportId', getExecutiveNotes);
+router.put('/executive-notes', updateExecutiveNote);
+router.delete('/executive-notes/:noteId', deleteExecutiveNote);
 
 export { router as newsCapsuleRouter };

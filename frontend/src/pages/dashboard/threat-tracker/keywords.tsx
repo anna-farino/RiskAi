@@ -254,8 +254,10 @@ export default function Keywords() {
     },
     onMutate: async (newKeyword) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
-      
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+
       // Create optimistic keyword with temporary ID
       const optimisticKeyword = {
         id: `temp-${Date.now()}`,
@@ -263,22 +265,24 @@ export default function Keywords() {
         category: newKeyword.category,
         active: newKeyword.active,
         isDefault: false,
-        userId: 'current-user'
+        userId: "current-user",
       };
-      
+
       // Add to local state immediately
-      setLocalKeywords(prev => [...prev, optimisticKeyword]);
-      
+      setLocalKeywords((prev) => [...prev, optimisticKeyword]);
+
       // Store previous state for rollback
-      const previousKeywords = queryClient.getQueryData([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousKeywords = queryClient.getQueryData([
+        `${serverUrl}/api/threat-tracker/keywords`,
+      ]);
       return { previousKeywords, optimisticKeyword };
     },
     onSuccess: (data, _, context) => {
       // Replace optimistic keyword with real one
-      setLocalKeywords(prev => 
-        prev.map(keyword => 
-          keyword.id === context?.optimisticKeyword.id ? data : keyword
-        )
+      setLocalKeywords((prev) =>
+        prev.map((keyword) =>
+          keyword.id === context?.optimisticKeyword.id ? data : keyword,
+        ),
       );
       toast({
         title: "Keyword created",
@@ -293,8 +297,8 @@ export default function Keywords() {
     onError: (error, _, context) => {
       // Rollback optimistic update
       if (context?.optimisticKeyword) {
-        setLocalKeywords(prev => 
-          prev.filter(keyword => keyword.id !== context.optimisticKeyword.id)
+        setLocalKeywords((prev) =>
+          prev.filter((keyword) => keyword.id !== context.optimisticKeyword.id),
         );
       }
       console.error("Error creating keyword:", error);
@@ -355,12 +359,16 @@ export default function Keywords() {
     },
     onMutate: async (deletedId) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
-      
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+
       // Remove from local state immediately
       const previousKeywords = [...localKeywords];
-      setLocalKeywords(prev => prev.filter(keyword => keyword.id !== deletedId));
-      
+      setLocalKeywords((prev) =>
+        prev.filter((keyword) => keyword.id !== deletedId),
+      );
+
       return { previousKeywords, deletedId };
     },
     onSuccess: () => {
@@ -567,7 +575,10 @@ export default function Keywords() {
             {selectedCategory === "hardware" &&
               "Add custom hardware/software to monitor for security issues."}
           </p>
-          <Button onClick={handleNewKeyword}>
+          <Button
+            onClick={handleNewKeyword}
+            className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add{" "}
             {selectedCategory === "threat"
@@ -655,7 +666,7 @@ export default function Keywords() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditKeyword(keyword)}
-                          className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-blue-400 hover:bg-blue-400/10"
+                          className="h-8 w-8"
                         >
                           <PencilLine className="h-3.5 w-3.5" />
                           <span className="sr-only">Edit</span>
@@ -666,9 +677,9 @@ export default function Keywords() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-fit w-fit p-2 border border-slate-700 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+                              className="text-destructive hover:text-destructive h-8 w-8"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Delete</span>
                             </Button>
                           </AlertDialogTrigger>
@@ -704,12 +715,12 @@ export default function Keywords() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-2 sm:px-6">
+    <div className="flex flex-col gap-4 sm:gap-6 px-4 sm:px-6 max-w-full">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
           Keywords
         </h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
+        <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
           Manage keywords used for threat monitoring and cross-referencing.
         </p>
       </div>
@@ -720,85 +731,93 @@ export default function Keywords() {
         onValueChange={setSelectedCategory}
         className="w-full"
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="w-full overflow-x-auto pb-2">
-            <TabsList className="w-full sm:w-auto flex">
+        <div className="flex flex-col space-y-4">
+          <div className="w-full overflow-hidden">
+            <TabsList className="w-full h-auto grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:flex xl:w-auto gap-1 p-1">
               <TabsTrigger
                 value="threat"
-                className="relative whitespace-nowrap"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <span className="sm:inline hidden">Threat Keywords</span>
-                <span className="sm:hidden inline">Threats</span>
-                {categoryCounts.threat > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.threat}
-                  </Badge>
-                )}
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span className="md:inline hidden">Threat Keywords</span>
+                  <span className="md:hidden inline">Threats</span>
+                  {categoryCounts.threat > 0 && (
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                      {categoryCounts.threat}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
               <TabsTrigger
                 value="vendor"
-                className="relative whitespace-nowrap"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                Vendors
-                {categoryCounts.vendor > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.vendor}
-                  </Badge>
-                )}
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span>Vendors</span>
+                  {categoryCounts.vendor > 0 && (
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                      {categoryCounts.vendor}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
               <TabsTrigger
                 value="client"
-                className="relative whitespace-nowrap"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                Clients
-                {categoryCounts.client > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.client}
-                  </Badge>
-                )}
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span>Clients</span>
+                  {categoryCounts.client > 0 && (
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                      {categoryCounts.client}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
               <TabsTrigger
                 value="hardware"
-                className="relative whitespace-nowrap"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <span className="sm:inline hidden">Hardware/Software</span>
-                <span className="sm:hidden inline">H/W S/W</span>
-                {categoryCounts.hardware > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {categoryCounts.hardware}
-                  </Badge>
-                )}
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span className="md:inline hidden">Hardware/Software</span>
+                  <span className="md:hidden inline">H/W S/W</span>
+                  {categoryCounts.hardware > 0 && (
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                      {categoryCounts.hardware}
+                    </Badge>
+                  )}
+                </div>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-row gap-2 w-full sm:w-auto sm:self-end">
             <Button
               onClick={handleBulkKeywords}
               disabled={createBulkKeywords.isPending}
               variant="outline"
-              className="h-9 px-2 sm:px-4"
+              className="h-9 px-3 sm:px-4 text-xs sm:text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial"
             >
               {createBulkKeywords.isPending ? (
-                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
               ) : (
-                <Plus className="sm:mr-2 h-4 w-4" />
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
               )}
-              <span className="sm:inline hidden">Bulk Import</span>
-              <span className="sm:hidden inline">Bulk</span>
+              <span className="md:inline hidden">Bulk Import</span>
+              <span className="md:hidden inline">Bulk</span>
             </Button>
 
             <Button
               onClick={handleNewKeyword}
               disabled={createKeyword.isPending}
-              className="h-9 px-2 sm:px-4"
+              className="h-9 px-3 sm:px-4 text-xs sm:text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial"
             >
               {createKeyword.isPending ? (
-                <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
               ) : (
-                <Plus className="sm:mr-2 h-4 w-4" />
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
               )}
-              <span className="sm:inline hidden">
+              <span className="md:inline hidden">
                 Add{" "}
                 {selectedCategory === "threat"
                   ? "Keyword"
@@ -808,23 +827,23 @@ export default function Keywords() {
                       ? "Client"
                       : "Hardware/Software"}
               </span>
-              <span className="sm:hidden inline">Add</span>
+              <span className="md:hidden inline">Add</span>
             </Button>
           </div>
         </div>
 
-        <TabsContent value="threat" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">
+        <TabsContent value="threat" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">
                 Threat Keywords
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
                 Keywords related to cybersecurity threats (e.g., malware,
                 breach, zero-day)
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-6">
+            <CardContent className="p-1 sm:p-3 lg:p-6">
               {renderDefaultKeywords(
                 defaultKeywords.filter((k) => k.category === "threat"),
                 "threat",
@@ -846,15 +865,17 @@ export default function Keywords() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="vendor" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Vendors</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+        <TabsContent value="vendor" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">
+                Vendors
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
                 Technology vendors to monitor for security threats
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-6">
+            <CardContent className="p-1 sm:p-3 lg:p-6">
               {renderDefaultKeywords(
                 defaultKeywords.filter((k) => k.category === "vendor"),
                 "vendor",
@@ -876,15 +897,17 @@ export default function Keywords() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="client" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Clients</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+        <TabsContent value="client" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">
+                Clients
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
                 Your client organizations to monitor for security threats
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-6">
+            <CardContent className="p-1 sm:p-3 lg:p-6">
               {renderDefaultKeywords(
                 defaultKeywords.filter((k) => k.category === "client"),
                 "client",
@@ -906,17 +929,17 @@ export default function Keywords() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="hardware" className="mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">
+        <TabsContent value="hardware" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">
                 Hardware/Software
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
                 Specific hardware or software to monitor for security threats
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-6">
+            <CardContent className="p-1 sm:p-3 lg:p-6">
               {renderDefaultKeywords(
                 defaultKeywords.filter((k) => k.category === "hardware"),
                 "hardware",

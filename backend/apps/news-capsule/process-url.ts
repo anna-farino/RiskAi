@@ -173,36 +173,102 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
     
     const page = await browser.newPage();
     
-    // Set user agent to avoid being detected as a bot
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36');
+    // Enhanced anti-detection measures
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1366, height: 768 });
     
-    // Navigate to the URL
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    // Set additional headers to appear more like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    });
     
-    // Extract the relevant content from the page
+    // Navigate to the URL with longer timeout and different wait strategy
+    console.log(`Navigating to: ${url}`);
+    await page.goto(url, { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 45000 
+    });
+    
+    // Wait for content to load
+    await page.waitForTimeout(2000);
+    
+    // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
-      // Get the article title
-      const title = document.querySelector('h1')?.innerText || '';
+      // Get the article title with multiple fallbacks
+      const title = 
+        document.querySelector('h1')?.innerText ||
+        document.querySelector('.entry-title')?.innerText ||
+        document.querySelector('.post-title')?.innerText ||
+        document.querySelector('title')?.innerText ||
+        '';
       
-      // Get the content of the article
-      // This is a basic implementation and might need customization based on the structure of target sites
-      const paragraphs = Array.from(document.querySelectorAll('p')).map(p => p.innerText).join(' ');
+      // Get content with multiple selectors for different site structures
+      let articleContent = '';
       
-      // Get the publication name
-      const publication = document.querySelector('meta[property="og:site_name"]')?.getAttribute('content') || new URL(window.location.href).hostname;
+      // Try article tag first
+      const articleElement = document.querySelector('article');
+      if (articleElement) {
+        const paragraphs = Array.from(articleElement.querySelectorAll('p')).map(p => p.innerText);
+        articleContent = paragraphs.join(' ');
+      }
+      
+      // Fallback to common content selectors
+      if (!articleContent || articleContent.length < 100) {
+        const contentSelectors = [
+          '.entry-content p',
+          '.post-content p',
+          '.article-content p',
+          '.content p',
+          '.story-body p',
+          'main p',
+          'p'
+        ];
+        
+        for (const selector of contentSelectors) {
+          const paragraphs = Array.from(document.querySelectorAll(selector))
+            .map(p => p.innerText)
+            .filter(text => text.length > 20); // Filter out short paragraphs
+          
+          if (paragraphs.length > 0) {
+            articleContent = paragraphs.join(' ');
+            break;
+          }
+        }
+      }
+      
+      // Get publication name with multiple fallbacks
+      const publication = 
+        document.querySelector('meta[property="og:site_name"]')?.getAttribute('content') ||
+        document.querySelector('meta[name="site_name"]')?.getAttribute('content') ||
+        document.querySelector('.site-name')?.innerText ||
+        new URL(window.location.href).hostname;
       
       return {
-        title,
-        content: paragraphs,
-        publication
+        title: title.trim(),
+        content: articleContent.trim(),
+        publication: publication.trim()
       };
     });
     
+    // Validate that we got meaningful content
+    if (!content.title || !content.content || content.content.length < 50) {
+      console.log('Insufficient content extracted:', { 
+        titleLength: content.title?.length || 0, 
+        contentLength: content.content?.length || 0 
+      });
+      throw new Error('Insufficient content extracted from page');
+    }
+    
+    console.log(`Successfully extracted content: ${content.title.substring(0, 50)}...`);
     return JSON.stringify(content);
+    
   } catch (error) {
-    browser = null
-    console.error('Error scraping article:', error);
-    throw new Error('Failed to scrape article content')
+    console.error('Error scraping article:', error.message);
+    throw new Error(`Failed to scrape article content: ${error.message}`);
   } finally {
     if (browser) {
       await browser.close();

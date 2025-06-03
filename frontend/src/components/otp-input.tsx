@@ -126,7 +126,7 @@ export function InputOTPForm({ pParam }: Props) {
           )}
         />
 
-        <Button disabled={showLoader} type="submit" className="gap-x-2 min-w-[140px] bg-primary hover:bg-primary/90 text-white">
+        <Button disabled={showLoader} type="submit" className="gap-x-2 min-w-[140px] bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0">
           {showLoader && <Loader2 className="animate-spin"/>}
           {showLoader ? "Verifying..." : "Submit"}
         </Button>

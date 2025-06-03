@@ -3,6 +3,9 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
+import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -10,9 +13,138 @@ export default function Reports() {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
+  const [showAddNote, setShowAddNote] = useState<string | null>(null);
   
   const handleReportSelect = (report: Report) => {
     setSelectedReport(report);
+    loadExecutiveNotes(report.id);
+  };
+
+  // Load executive notes for the selected report
+  const loadExecutiveNotes = async (reportId: string) => {
+    try {
+      const response = await fetch(`/api/news-capsule/executive-notes/${reportId}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const notesMap: Record<string, string> = {};
+        data.notes.forEach((note: any) => {
+          notesMap[note.articleId] = note.note;
+        });
+        setExecutiveNotes(notesMap);
+      }
+    } catch (error) {
+      console.error('Error loading executive notes:', error);
+    }
+  };
+
+  // Save or update an executive note
+  const saveExecutiveNote = async (articleId: string, note: string) => {
+    if (!selectedReport) return;
+
+    try {
+      const response = await fetch('/api/news-capsule/executive-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          articleId,
+          reportId: selectedReport.id,
+          note
+        })
+      });
+
+      if (response.ok) {
+        setExecutiveNotes(prev => ({ ...prev, [articleId]: note }));
+        setEditingNote(null);
+        setShowAddNote(null);
+        setNoteText('');
+      }
+    } catch (error) {
+      console.error('Error saving executive note:', error);
+    }
+  };
+
+  // Start editing a note
+  const startEditingNote = (articleId: string) => {
+    setEditingNote(articleId);
+    setNoteText(executiveNotes[articleId] || '');
+  };
+
+  // Cancel editing a note
+  const cancelEditingNote = () => {
+    setEditingNote(null);
+    setShowAddNote(null);
+    setNoteText('');
+  };
+
+  const removeArticleFromReport = (articleId: string) => {
+    if (!selectedReport) return;
+
+    // Create updated report with article removed
+    const updatedReport = {
+      ...selectedReport,
+      articles: selectedReport.articles.filter(article => article.id !== articleId)
+    };
+
+    // Update localStorage
+    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
+    const updatedReports = savedReports.map((report: Report) => 
+      report.id === selectedReport.id ? updatedReport : report
+    );
+    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+
+    // Update selected report
+    setSelectedReport(updatedReport);
+  };
+
+  const handleDragStart = (e: React.DragEvent, articleId: string) => {
+    setDraggedArticle(articleId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (!selectedReport || !draggedArticle) return;
+
+    const draggedIndex = selectedReport.articles.findIndex(article => article.id === draggedArticle);
+    if (draggedIndex === -1 || draggedIndex === dropIndex) return;
+
+    // Create new articles array with reordered items
+    const newArticles = [...selectedReport.articles];
+    const [draggedItem] = newArticles.splice(draggedIndex, 1);
+    newArticles.splice(dropIndex, 0, draggedItem);
+
+    // Update report with new order
+    const updatedReport = {
+      ...selectedReport,
+      articles: newArticles
+    };
+
+    // Update localStorage
+    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
+    const updatedReports = savedReports.map((report: Report) => 
+      report.id === selectedReport.id ? updatedReport : report
+    );
+    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+
+    // Update selected report
+    setSelectedReport(updatedReport);
+    setDraggedArticle(null);
+    setDragOverIndex(null);
   };
   
   const formatDate = (dateString: string) => {
@@ -53,7 +185,8 @@ export default function Reports() {
           sourcePublication: article.sourcePublication,
           originalUrl: article.originalUrl,
           targetOS: article.targetOS,
-          createdAt: article.createdAt
+          createdAt: article.createdAt,
+          executiveNote: executiveNotes[article.id] || null
         }))
       }
     };
@@ -78,18 +211,24 @@ export default function Reports() {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        {/* Reports List */}
-        <div className="md:col-span-1">
-          <ReportsManager 
-            onReportSelect={handleReportSelect}
-            selectedReportId={selectedReport?.id}
-          />
+      <div className="flex gap-6 h-[calc(100vh-12rem)]">
+        {/* Report Library - Fixed Width, No Scroll */}
+        <div className="w-80 flex-shrink-0">
+          <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl h-full">
+            <h2 className="text-xl font-semibold mb-4">Report Library</h2>
+            <div className="overflow-y-auto h-[calc(100%-3rem)]">
+              <ReportsManager 
+                onReportSelect={handleReportSelect}
+                selectedReportId={selectedReport?.id}
+              />
+            </div>
+          </div>
         </div>
         
-        {/* Report Details */}
-        <div className="md:col-span-4 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          {selectedReport ? (
+        {/* Executive Report Content - Flexible Width, Independent Scroll */}
+        <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+          <div className="h-full overflow-y-auto p-5">
+            {selectedReport ? (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -360,7 +499,35 @@ export default function Reports() {
                                 })
                               );
                               
-
+                              // Executive Note if exists
+                              if (executiveNotes[article.id]) {
+                                sections.push(
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: "Executive Note:",
+                                        font: "Cambria",
+                                        size: 22,
+                                        bold: true
+                                      })
+                                    ],
+                                    spacing: { after: 60 }
+                                  })
+                                );
+                                
+                                sections.push(
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: executiveNotes[article.id],
+                                        font: "Cambria",
+                                        size: 22
+                                      })
+                                    ],
+                                    spacing: { after: 120 }
+                                  })
+                                );
+                              }
                               
                               // Original URL
                               sections.push(
@@ -378,7 +545,7 @@ export default function Reports() {
                                       size: 22
                                     })
                                   ],
-                                  spacing: { after: 240 }
+                                  spacing: { after: 360 }
                                 })
                               );
                             });
@@ -423,7 +590,7 @@ export default function Reports() {
                             @media print {
                               @page {
                                 size: letter;
-                                margin: 0.75in 0.5in;
+                                margin: 1in 0.75in 1in 0.75in;
                               }
                               body {
                                 font-family: Cambria, serif !important;
@@ -434,15 +601,56 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide navigation and controls */
-                              nav, header, aside, .md\\:col-span-1, button, 
-                              input, select, .flex.gap-2, .flex.justify-between {
+                              /* Hide navigation and interactive elements */
+                              header, aside, nav, 
+                              button, input, select, textarea,
+                              .w-80.flex-shrink-0 {
                                 display: none !important;
                               }
-                              /* Make the report container full width */
-                              .md\\:col-span-4 {
+                              /* Hide the top navigation tabs specifically */
+                              .flex.gap-8,
+                              .flex.gap-8 *,
+                              a[href*="/dashboard/news-capsule"] {
+                                display: none !important;
+                              }
+                              /* Hide any element containing "Home", "Research", "Executive Reports" */
+                              *:contains("Home"):not(h2):not(h3):not(p),
+                              *:contains("Research"):not(h2):not(h3):not(p),
+                              *:contains("Executive Reports"):not(h2):not(h3):not(p) {
+                                display: none !important;
+                              }
+                              /* Reset layout margins for print */
+                              main {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                              }
+                              /* Remove all layout spacing and positioning */
+                              .min-h-screen, .pt-\\[88px\\], .flex, .p-4, .md\\:p-6,
+                              .space-y-6, .space-y-8, .mb-8, .mt-8, .py-4, .px-2,
+                              .gap-6, .gap-2, .gap-4, .gap-8 {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                gap: 0 !important;
+                              }
+                              /* Force content to start at top */
+                              * {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                              }
+                              /* Only allow bottom spacing between articles */
+                              .space-y-6 > div {
+                                margin-bottom: 0.3in !important;
+                                margin-top: 0 !important;
+                              }
+                              /* Hide the main layout flex container and make report full width */
+                              .flex.gap-6 {
+                                display: block !important;
+                              }
+                              /* Make the Executive Report content full width */
+                              .flex-1 {
                                 width: 100% !important;
                                 max-width: 100% !important;
+                                flex: none !important;
                               }
                               .grid.grid-cols-1 {
                                 display: block !important;
@@ -469,11 +677,26 @@ export default function Reports() {
                                 line-height: 1.4 !important;
                                 color: black !important;
                               }
-                              /* Format grid layouts */
-                              .grid-cols-2 {
-                                display: grid !important;
-                                grid-template-columns: 1fr 1fr !important;
-                                gap: 0.2in !important;
+                              /* Single column layout for print - force all grids to block */
+                              .grid, .grid-cols-1, .grid-cols-2 {
+                                display: block !important;
+                                grid-template-columns: none !important;
+                              }
+                              /* Remove card styling for print and ensure single column */
+                              .space-y-6 > div, .space-y-8 > div {
+                                border: none !important;
+                                border-radius: 0 !important;
+                                background: none !important;
+                                padding: 0 !important;
+                                margin-bottom: 0.3in !important;
+                                page-break-inside: avoid;
+                                width: 100% !important;
+                                display: block !important;
+                              }
+                              /* Ensure story content flows in single column */
+                              .space-y-6, .space-y-8 {
+                                display: block !important;
+                                width: 100% !important;
                               }
                               /* Hide interactive elements */
                               .group, .absolute, .cursor-grab, .opacity-0, 
@@ -503,6 +726,127 @@ export default function Reports() {
                         }}
                       >
                         Print
+                      </button>
+                      
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        onClick={async () => {
+                          setShowExportDropdown(false);
+                          try {
+                            // Create a temporary container for PDF generation
+                            const container = document.createElement('div');
+                            container.style.position = 'absolute';
+                            container.style.left = '-9999px';
+                            container.style.top = '0';
+                            container.style.width = '7in';
+                            container.style.background = 'white';
+                            container.style.fontFamily = 'Cambria, serif';
+                            container.style.fontSize = '11pt';
+                            container.style.lineHeight = '1.3';
+                            container.style.color = 'black';
+                            container.style.padding = '20px';
+                            
+                            let htmlContent = `
+                              <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.3; color: black; max-width: 100%;">
+                                <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24px;">RisqAI News Capsule Reporting</h1>
+                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</h2>
+                            `;
+                            
+                            if (selectedReport.topic) {
+                              htmlContent += `<p style="margin-bottom: 16px;"><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
+                            }
+                            
+                            selectedReport.articles.forEach((article, index) => {
+                              htmlContent += `
+                                <div style="page-break-inside: avoid; page-break-before: ${index > 0 ? 'auto' : 'avoid'}; margin-bottom: 32px; border: 1px solid #e0e0e0; padding: 20px; background-color: #fafafa;">
+                                  <h3 style="font-size: 13pt; font-weight: bold; margin-bottom: 16px; color: #222; border-bottom: 2px solid #007bff; padding-bottom: 8px;">Article ${index + 1}: ${article.title}</h3>
+                                  
+                                  <div style="margin-bottom: 16px;">
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Threat Name:</strong> ${article.threatName}</p>
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Target OS:</strong> ${article.targetOS}</p>
+                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Source:</strong> ${article.sourcePublication}</p>
+                                  </div>
+                                  
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Summary:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.summary}</p>
+                                  </div>
+                                  
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Impacts:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.impacts}</p>
+                                  </div>
+                                  
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Attack Vector:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.attackVector}</p>
+                                  </div>
+                              `;
+                              
+                              if (executiveNotes[article.id]) {
+                                htmlContent += `
+                                  <div style="margin-bottom: 16px;">
+                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Executive Note:</h4>
+                                    <p style="margin-bottom: 12px; line-height: 1.5; background-color: #e3f2fd; padding: 12px; border-left: 4px solid #1976d2; text-align: justify;">${executiveNotes[article.id]}</p>
+                                  </div>
+                                `;
+                              }
+                              
+                              htmlContent += `
+                                  <div style="border-top: 1px solid #ccc; padding-top: 8px; margin-top: 16px;">
+                                    <p style="margin-bottom: 0; font-size: 9pt; color: #888;"><strong>Source URL:</strong> ${article.originalUrl}</p>
+                                  </div>
+                                </div>`;
+                            });
+                            
+                            htmlContent += '</div>';
+                            container.innerHTML = htmlContent;
+                            document.body.appendChild(container);
+                            
+                            // Generate PDF using html2canvas and jsPDF
+                            const canvas = await html2canvas(container, {
+                              scale: 2,
+                              useCORS: true,
+                              backgroundColor: '#ffffff'
+                            });
+                            
+                            const pdf = new jsPDF('p', 'mm', 'a4');
+                            const pageWidth = 210; // A4 width in mm
+                            const pageHeight = 297; // A4 height in mm
+                            const margins = { top: 25, bottom: 25, left: 20, right: 20 }; // 1 inch = 25.4mm
+                            const contentWidth = pageWidth - margins.left - margins.right;
+                            const contentHeight = pageHeight - margins.top - margins.bottom;
+                            
+                            const imgWidth = contentWidth;
+                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                            let heightLeft = imgHeight;
+                            let position = 0;
+                            
+                            // Add first page with margins
+                            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margins.left, margins.top + position, imgWidth, imgHeight);
+                            heightLeft -= contentHeight;
+                            
+                            while (heightLeft >= 0) {
+                              position = heightLeft - imgHeight;
+                              pdf.addPage();
+                              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margins.left, margins.top + position, imgWidth, imgHeight);
+                              heightLeft -= contentHeight;
+                            }
+                            
+                            // Download the PDF
+                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.pdf`);
+                            
+                            // Clean up
+                            document.body.removeChild(container);
+                            
+                          } catch (error) {
+                            console.error('Error creating PDF:', error);
+                            alert('Error creating PDF. Please try again.');
+                          }
+                        }}
+                      >
+                        Export to PDF
                       </button>
                       
                       <button
@@ -543,6 +887,12 @@ export default function Reports() {
                             
                             textContent += "Attack Vector:\n";
                             textContent += article.attackVector + "\n\n";
+                            
+                            // Add executive note if exists
+                            if (executiveNotes[article.id]) {
+                              textContent += "Executive Note:\n";
+                              textContent += executiveNotes[article.id] + "\n\n";
+                            }
                             
                             textContent += `Original URL: ${article.originalUrl}\n\n`;
                             textContent += "-".repeat(50) + "\n\n";
@@ -587,9 +937,30 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                      className={`relative cursor-move pb-6 mb-6 ${
+                        dragOverIndex === index 
+                          ? 'bg-blue-900/10 p-2 rounded-lg' 
+                          : ''
+                      } ${index < selectedReport.articles.length - 1 ? 'border-b border-slate-700/30' : ''}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, article.id)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, index)}
                     >
-                      <h3 className="text-lg font-medium mb-3">{article.title}</h3>
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="p-1 text-slate-400 hover:text-slate-300 cursor-grab active:cursor-grabbing">
+                          <GripVerticalIcon className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-lg font-medium flex-1">{article.title}</h3>
+                        <button
+                          onClick={() => removeArticleFromReport(article.id)}
+                          className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
+                          title="Remove article from report"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -625,6 +996,28 @@ export default function Reports() {
                           <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
                           <p className="text-sm leading-relaxed">{article.attackVector}</p>
                         </div>
+                        
+                        {/* Executive Notes Section */}
+                        <div className="mt-4 pt-4 border-t border-slate-700/30">
+                          <p className="text-xs text-slate-400 mb-2">Executive Note</p>
+                          
+                          <textarea
+                            value={executiveNotes[article.id] || ''}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              setExecutiveNotes(prev => ({ ...prev, [article.id]: newValue }));
+                              // Auto-save after 1 second of no typing
+                              clearTimeout((window as any)[`noteTimer_${article.id}`]);
+                              (window as any)[`noteTimer_${article.id}`] = setTimeout(() => {
+                                if (newValue.trim()) {
+                                  saveExecutiveNote(article.id, newValue);
+                                }
+                              }, 1000);
+                            }}
+                            placeholder="Add your executive note for this article..."
+                            className="w-full p-3 bg-slate-800/50 border border-slate-700/50 rounded-md text-sm text-slate-200 placeholder-slate-400 focus:border-blue-500 focus:outline-none resize-vertical min-h-[80px]"
+                          />
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -636,6 +1029,7 @@ export default function Reports() {
               <p>Select a report to view its details</p>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

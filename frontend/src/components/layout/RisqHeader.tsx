@@ -71,30 +71,21 @@ export function RisqHeader() {
         {/* Rest of the header in a separate container */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
           
-          {/* Search bar for all screen sizes */}
-          <div className="flex items-center flex-1 mr-3 sm:mr-4 md:mr-6">
-            <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md">
-              <div className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <Search className="h-3 w-3 sm:h-4 sm:w-4" />
+          {/* Search bar for desktop only - Hidden for now */}
+          {/* <div className="hidden lg:flex items-center mr-6">
+            <div className="relative w-80">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Search className="h-4 w-4" />
               </div>
               <Input 
                 placeholder="Search..."
-                className="pl-7 sm:pl-10 h-8 sm:h-9 w-full bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 text-xs sm:text-sm"
+                className="pl-10 h-9 w-full bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 text-sm"
               />
             </div>
-          </div>
-          <div className="h-3 sm:h-4"></div> {/* Increased spacer on mobile for better spacing */}
-          <p className="block text-sm sm:text-xs text-white font-light italic tracking-wide ml-0.5 sm:ml-1 leading-tight sm:leading-normal opacity-90">
-            AI-Powered Risk Intelligence
-          </p>
-        </div>
-        
-        {/* Rest of the header in a separate container */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-1 pr-[18px] md:pr-6 lg:pr-8">
+          </div> */}
           
-          {/* User account and theme toggle */}
+          {/* User account section */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
-            <ModeToggle />
             {userData && (
               <div className="relative group">
                 <button className="flex items-center text-sm font-medium text-white rounded-full hover:bg-[#BF00FF]/10 p-1.5">
