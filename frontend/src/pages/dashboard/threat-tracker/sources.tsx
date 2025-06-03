@@ -713,123 +713,130 @@ export default function Sources() {
     }
 
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>URL</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Last Scraped</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {localSources.map((source) => (
-            <TableRow key={source.id}>
-              <TableCell className="font-medium">{source.name}</TableCell>
-              <TableCell>
-                <a 
-                  href={source.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center text-primary hover:underline"
-                >
-                  {source.url.length > 35 
-                    ? source.url.substring(0, 35) + '...' 
-                    : source.url}
-                  <ExternalLink className="ml-1 h-3 w-3" />
-                </a>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  {source.active ? (
-                    <Badge variant="default" className="flex items-center gap-1 bg-green-500">
-                      <Check className="h-3 w-3" />
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
-                      <X className="h-3 w-3" />
-                      Inactive
-                    </Badge>
-                  )}
-                  {source.includeInAutoScrape && source.active && (
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <RotateCw className="h-3 w-3" />
-                      Auto
-                    </Badge>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                {formatLastScraped(source.lastScraped)}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => scrapeSingleSource.mutate(source.id)}
-                    disabled={
-                      !source.active || 
-                      scrapingSourceId === source.id || 
-                      scrapeJobRunning
-                    }
-                    className="h-8 px-2 text-xs"
-                  >
-                    {scrapingSourceId === source.id ? (
-                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-1 h-3 w-3" />
-                    )}
-                    Scrape
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEditSource(source)}
-                  >
-                    <PencilLine className="h-4 w-4" />
-                    <span className="sr-only">Edit</span>
-                  </Button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-full">
+          <Table className="table-fixed w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
+                <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
+                <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
+                <TableHead className="w-[15%] min-w-[100px]">Last Scraped</TableHead>
+                <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {localSources.map((source) => (
+                <TableRow key={source.id}>
+                  <TableCell className="font-medium truncate pr-2">{source.name}</TableCell>
+                  <TableCell className="pr-2">
+                    <a 
+                      href={source.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center text-primary hover:underline truncate"
+                    >
+                      <span className="truncate">
+                        {source.url.length > 30 
+                          ? source.url.substring(0, 30) + '...' 
+                          : source.url}
+                      </span>
+                      <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                    </a>
+                  </TableCell>
+                  <TableCell className="pr-2">
+                    <div className="flex flex-col gap-1">
+                      {source.active ? (
+                        <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit">
+                          <Check className="h-2 w-2" />
+                          Active
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit">
+                          <X className="h-2 w-2" />
+                          Inactive
+                        </Badge>
+                      )}
+                      {source.includeInAutoScrape && source.active && (
+                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit">
+                          <RotateCw className="h-2 w-2" />
+                          Auto
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs truncate pr-2">
+                    {formatLastScraped(source.lastScraped)}
+                  </TableCell>
+                  <TableCell className="text-right pr-0">
+                    <div className="flex justify-end gap-1 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => scrapeSingleSource.mutate(source.id)}
+                        disabled={
+                          !source.active || 
+                          scrapingSourceId === source.id || 
+                          scrapeJobRunning
+                        }
+                        className="h-7 px-2 text-xs"
+                      >
+                        {scrapingSourceId === source.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                        <span className="hidden sm:inline ml-1">Scrape</span>
+                      </Button>
+                      
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
+                        size="sm"
+                        onClick={() => handleEditSource(source)}
+                        className="h-7 w-7 p-0"
                       >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
+                        <PencilLine className="h-3 w-3" />
+                        <span className="sr-only">Edit</span>
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete the source "{source.name}".
-                          This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteSource.mutate(source.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the source "{source.name}".
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteSource.mutate(source.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     );
   }
 }
