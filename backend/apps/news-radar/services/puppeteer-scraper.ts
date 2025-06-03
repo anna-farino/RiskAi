@@ -1,4 +1,4 @@
-import { runPuppeteerWorker } from '../../../utils/puppeteer-worker-executor';
+import { puppeteerClusterService } from '../../../utils/puppeteer-cluster';
 import { simpleFallbackScraper } from '../../../utils/simple-scraper-fallback';
 import { log } from 'console';
 import dotenv from 'dotenv';
@@ -11,7 +11,7 @@ export async function scrapePuppeteer(
   isArticlePage: boolean = false,
   scrapingConfig: any,
 ): Promise<string> {
-  log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
+  log(`[scrapePuppeteer] 🚀 Function started with URL: ${url}`);
 
   // Simple URL validation
   if (!url || typeof url !== 'string' || !url.startsWith('http')) {
@@ -19,19 +19,15 @@ export async function scrapePuppeteer(
   }
 
   try {
-    // Try Puppeteer worker first
-    log('[scrapePuppeteer] 🟢 Starting Puppeteer worker process');
+    // Try Puppeteer cluster first (much faster than worker processes)
+    log('[scrapePuppeteer] 🚀 Using Puppeteer cluster for scraping');
     try {
-      const result = await runPuppeteerWorker({
-        url,
-        isArticlePage,
-        scrapingConfig
-      });
+      const result = await puppeteerClusterService.scrapeUrl(url, isArticlePage, scrapingConfig);
       
-      log('[scrapePuppeteer] ✅ Worker process completed successfully');
+      log('[scrapePuppeteer] ✅ Cluster scraping completed successfully');
       return result;
-    } catch (workerError: any) {
-      log(`[scrapePuppeteer] Worker failed: ${workerError.message}, trying fallback scraper`);
+    } catch (clusterError: any) {
+      log(`[scrapePuppeteer] Cluster failed: ${clusterError.message}, trying fallback scraper`);
       
       // Fallback to simple HTTP scraper
       const fallbackResult = await simpleFallbackScraper(url, isArticlePage);
@@ -44,4 +40,39 @@ export async function scrapePuppeteer(
   }
 }
 
+/**
+ * Scrape multiple URLs concurrently using Puppeteer cluster for maximum performance
+ * Returns results for all URLs, including failures  
+ */
+export async function scrapePuppeteerBatch(
+  urls: string[], 
+  isArticlePage: boolean = false, 
+  scrapingConfig?: any
+): Promise<Array<{url: string, html: string, success: boolean, error?: string}>> {
+  log(`[scrapePuppeteerBatch] 🚀 Starting concurrent scraping of ${urls.length} URLs`);
+  
+  try {
+    const tasks = urls.map(url => ({
+      url: url.startsWith("http") ? url : "https://" + url,
+      isArticlePage,
+      scrapingConfig: scrapingConfig || {}
+    }));
+
+    log('[scrapePuppeteerBatch] 🚀 Using Puppeteer cluster for batch scraping');
+    const results = await puppeteerClusterService.scrapeMultipleUrls(tasks);
+    
+    const successCount = results.filter(r => r.success).length;
+    log(`[scrapePuppeteerBatch] ✅ Batch scraping completed: ${successCount}/${urls.length} successful`);
+    
+    return results.map(result => ({
+      url: result.url,
+      html: result.html,
+      success: result.success,
+      error: result.error
+    }));
+  } catch (error: any) {
+    log(`[scrapePuppeteerBatch] Batch scraping failed: ${error.message}`);
+    throw error;
+  }
+}
 

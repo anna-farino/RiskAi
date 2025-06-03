@@ -1,4 +1,4 @@
-import { runPuppeteerWorker } from '../../../utils/puppeteer-worker-executor';
+import { puppeteerClusterService } from '../../../utils/puppeteer-cluster';
 import { simpleFallbackScraper } from '../../../utils/simple-scraper-fallback';
 import * as cheerio from 'cheerio';
 import { log } from "backend/utils/log";
@@ -7,7 +7,7 @@ import { identifyArticleLinks } from './openai';
 
 
 /**
- * Scrapes a URL using Puppeteer worker process to avoid memory leaks
+ * Scrapes a URL using Puppeteer cluster for better performance and concurrency
  * If isArticlePage is true, it will process the page as an article
  * Otherwise, it will extract possible article links
  */
@@ -20,19 +20,15 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       url = "https://" + url;
     }
 
-    // Try Puppeteer worker first
-    log('[ThreatTracker] 🟢 Starting Puppeteer worker process', "scraper");
+    // Try Puppeteer cluster first (much faster than worker processes)
+    log('[ThreatTracker] 🚀 Using Puppeteer cluster for scraping', "scraper");
     try {
-      const result = await runPuppeteerWorker({
-        url,
-        isArticlePage,
-        scrapingConfig
-      });
+      const result = await puppeteerClusterService.scrapeUrl(url, isArticlePage, scrapingConfig);
       
-      log('[ThreatTracker] ✅ Worker process completed successfully', "scraper");
+      log('[ThreatTracker] ✅ Cluster scraping completed successfully', "scraper");
       return result;
-    } catch (workerError: any) {
-      log(`[ThreatTracker] Worker failed: ${workerError.message}, trying fallback scraper`, "scraper");
+    } catch (clusterError: any) {
+      log(`[ThreatTracker] Cluster failed: ${clusterError.message}, trying fallback scraper`, "scraper");
       
       // Fallback to simple HTTP scraper
       const fallbackResult = await simpleFallbackScraper(url, isArticlePage);
@@ -41,6 +37,42 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     }
   } catch (error: any) {
     log(`[ThreatTracker] All scraping methods failed for ${url}: ${error.message}`, "scraper-error");
+    throw error;
+  }
+}
+
+/**
+ * Scrape multiple URLs concurrently using Puppeteer cluster for maximum performance
+ * Returns results for all URLs, including failures
+ */
+export async function scrapeMultipleUrls(
+  urls: string[], 
+  isArticlePage: boolean = false, 
+  scrapingConfig?: any
+): Promise<Array<{url: string, html: string, success: boolean, error?: string}>> {
+  log(`[ThreatTracker] Starting concurrent scraping of ${urls.length} URLs`, "scraper");
+  
+  try {
+    const tasks = urls.map(url => ({
+      url: url.startsWith("http") ? url : "https://" + url,
+      isArticlePage,
+      scrapingConfig
+    }));
+
+    log('[ThreatTracker] 🚀 Using Puppeteer cluster for batch scraping', "scraper");
+    const results = await puppeteerClusterService.scrapeMultipleUrls(tasks);
+    
+    const successCount = results.filter(r => r.success).length;
+    log(`[ThreatTracker] ✅ Batch scraping completed: ${successCount}/${urls.length} successful`, "scraper");
+    
+    return results.map(result => ({
+      url: result.url,
+      html: result.html,
+      success: result.success,
+      error: result.error
+    }));
+  } catch (error: any) {
+    log(`[ThreatTracker] Batch scraping failed: ${error.message}`, "scraper-error");
     throw error;
   }
 }

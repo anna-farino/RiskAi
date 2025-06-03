@@ -47,6 +47,7 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "puppeteer": "^24.9.0",
+    "puppeteer-cluster": "^0.24.0",
     "puppeteer-extra": "^3.3.6",
     "resend": "^4.2.0",
     "ts-node": "^10.9.2",
