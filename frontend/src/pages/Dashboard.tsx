@@ -60,6 +60,32 @@ export default function Dashboard() {
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  // Fetch News Capsule reports with real-time updates
+  const { data: capsuleReports, isLoading: capsuleLoading, error: capsuleError, refetch: refetchCapsule } = useQuery({
+    queryKey: ['news-capsule-reports-dashboard'],
+    queryFn: async () => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports?limit=6&sortBy=createdAt&order=desc`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch capsule reports: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    refetchInterval: 45000, // Refresh every 45 seconds for report processing updates
+    staleTime: 20000, // Consider data stale after 20 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    retry: 3, // Retry failed requests up to 3 times
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
   
   // Format time ago helper
   const formatTimeAgo = (dateString: string) => {
@@ -187,6 +213,54 @@ export default function Dashboard() {
   const handleThreatClick = (article: any) => {
     sessionStorage.setItem('selectedThreatArticle', JSON.stringify(article));
     navigate('/dashboard/threat/home', { state: { selectedArticle: article } });
+  };
+
+  // Get report status styling and information
+  const getReportStatus = (report: any) => {
+    const status = report.status?.toLowerCase() || 'unknown';
+    
+    switch (status) {
+      case 'completed':
+      case 'processed':
+        return {
+          label: 'Processed',
+          style: 'bg-emerald-500/20 text-emerald-400',
+          indicator: 'bg-emerald-400'
+        };
+      case 'processing':
+      case 'analyzing':
+        return {
+          label: 'Analyzing',
+          style: 'bg-blue-500/20 text-blue-400',
+          indicator: 'bg-blue-400 animate-pulse'
+        };
+      case 'queued':
+      case 'pending':
+        return {
+          label: 'Queued',
+          style: 'bg-orange-500/20 text-orange-400',
+          indicator: 'bg-orange-400'
+        };
+      case 'failed':
+      case 'error':
+        return {
+          label: 'Failed',
+          style: 'bg-red-500/20 text-red-400',
+          indicator: 'bg-red-400'
+        };
+      default:
+        return {
+          label: 'Processing',
+          style: 'bg-[#BF00FF]/20 text-[#00FFFF]',
+          indicator: 'bg-[#BF00FF]'
+        };
+    }
+  };
+
+  // Enhanced capsule report click handler
+  const handleCapsuleClick = (report: any) => {
+    sessionStorage.setItem('selectedCapsuleReport', JSON.stringify(report));
+    navigate('/dashboard/news-capsule/home', { state: { selectedReport: report } });
   };
   
   return (
@@ -469,43 +543,109 @@ export default function Dashboard() {
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  4 articles processed today
+                  {capsuleLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Loading reports...
+                    </div>
+                  ) : capsuleError ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-3 h-3 text-red-400" />
+                      <span className="text-red-400">Reports API offline</span>
+                      <button 
+                        onClick={() => refetchCapsule()} 
+                        className="text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
+                      <span>{capsuleReports?.length || 0} reports • Sync 45s</span>
+                    </div>
+                  )}
                 </div>
               </div>
             }
           >
             <div className="space-y-2">
-              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">Processed</span>
-                  <span className="text-xs text-gray-400">15m ago</span>
+              {capsuleLoading ? (
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 animate-pulse">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="w-16 h-4 bg-gray-600 rounded"></div>
+                        <div className="w-12 h-3 bg-gray-600 rounded"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="w-full h-3 bg-gray-600 rounded"></div>
+                        <div className="w-3/4 h-3 bg-gray-600 rounded"></div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : capsuleError ? (
+                <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20 text-center">
+                  <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
+                  <p className="text-xs text-red-400">Failed to load reports</p>
+                  <p className="text-xs text-gray-500 mt-1">Check API connection</p>
                 </div>
-                <p className="text-xs text-gray-300">Critical infrastructure security analysis from federal advisory report</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Analyzing</span>
-                  <span className="text-xs text-gray-400">45m ago</span>
+              ) : capsuleReports && capsuleReports.length > 0 ? (
+                capsuleReports.slice(0, 4).map((report: any, index: number) => {
+                  const status = getReportStatus(report);
+                  
+                  return (
+                    <div 
+                      key={report.id || index}
+                      className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                      onClick={() => handleCapsuleClick(report)}
+                    >
+                      <div className="flex justify-between items-start mb-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${status.style}`}>
+                            {status.label}
+                          </span>
+                          <div className={`w-2 h-2 rounded-full ${status.indicator}`}></div>
+                        </div>
+                        <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                          {report.createdAt ? formatTimeAgo(report.createdAt) : 'Recent'}
+                        </span>
+                      </div>
+                      
+                      <h4 className="text-xs font-medium text-white mb-1 line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
+                        {report.title || report.summary?.substring(0, 60) + '...' || 'Executive Report'}
+                      </h4>
+                      
+                      {report.summary && (
+                        <p className="text-xs text-gray-300 line-clamp-2">
+                          {report.summary}
+                        </p>
+                      )}
+                      
+                      {report.articleCount && (
+                        <div className="flex items-center gap-1 mt-2">
+                          <span className="text-xs text-[#BF00FF]">
+                            {report.articleCount} articles processed
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-black/30 rounded-lg p-4 border border-[#BF00FF]/10 text-center">
+                  <Radar className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400 mb-1">No reports generated yet</p>
+                  <p className="text-xs text-gray-500 mb-3">Start processing articles to create executive reports</p>
+                  <button 
+                    onClick={() => navigate('/dashboard/news-capsule/home')}
+                    className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                  >
+                    Process Articles →
+                  </button>
                 </div>
-                <p className="text-xs text-gray-300">Enterprise ransomware trends and mitigation strategies study</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-0.5 rounded">Processed</span>
-                  <span className="text-xs text-gray-400">1h ago</span>
-                </div>
-                <p className="text-xs text-gray-300">Zero-day vulnerability disclosure impact on supply chain security</p>
-              </div>
-              
-              <div className="bg-black/30 rounded-lg p-2 border border-[#BF00FF]/10">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded">Queued</span>
-                  <span className="text-xs text-gray-400">2h ago</span>
-                </div>
-                <p className="text-xs text-gray-300">Financial sector cybersecurity regulatory compliance framework analysis</p>
-              </div>
+              )}
             </div>
           </RisqWidget>
 
