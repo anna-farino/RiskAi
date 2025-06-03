@@ -115,7 +115,7 @@ export default function Dashboard() {
 
   // Get priority badge based on keywords or content
   const getPriorityBadge = (article: any) => {
-    const keywords = article.detectedKeywords || [];
+    const keywords = Array.isArray(article.detectedKeywords) ? article.detectedKeywords : [];
     const title = article.title?.toLowerCase() || '';
     const summary = article.summary?.toLowerCase() || '';
     
@@ -153,7 +153,7 @@ export default function Dashboard() {
 
   // Get threat severity based on content analysis
   const getThreatSeverity = (article: any) => {
-    const keywords = article.detectedKeywords || [];
+    const keywords = Array.isArray(article.detectedKeywords) ? article.detectedKeywords : [];
     const title = article.title?.toLowerCase() || '';
     const summary = article.summary?.toLowerCase() || '';
     
