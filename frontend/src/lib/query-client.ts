@@ -31,16 +31,6 @@ export async function apiRequest<T = any>(
     console.log(`API Response status: ${res.status} ${res.statusText}`);
     
     await throwIfResNotOk(res);
-    
-    // Check if response has content before parsing JSON
-    const contentLength = res.headers.get('content-length');
-    const contentType = res.headers.get('content-type');
-    
-    if (res.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
-      console.log("API Response: Empty response (no content)");
-      return {} as T;
-    }
-    
     const responseData = await res.json();
     console.log("API Response data:", responseData);
     return responseData;

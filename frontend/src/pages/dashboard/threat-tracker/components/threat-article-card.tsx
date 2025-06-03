@@ -137,15 +137,9 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
         
         <div className="flex-1 p-5 flex flex-col">
           <div className="flex justify-between items-start mb-3">
-            <a 
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2 hover:underline cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <h3 className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2">
               {article.title}
-            </a>
+            </h3>
             
             {/* Threat severity score badge */}
             <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
@@ -201,16 +195,10 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
               </div>
             )}
             
-            {/* Show publish date if available, otherwise show scrape date */}
-            {(article.publishDate || article.scrapeDate) && (
+            {article.publishDate && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <Clock className="h-3 w-3" />
-                <span>
-                  {article.publishDate 
-                    ? `Published ${formatDistanceToNow(new Date(article.publishDate))} ago`
-                    : `Scraped ${formatDistanceToNow(new Date(article.scrapeDate))} ago`
-                  }
-                </span>
+                <span>{formatDistanceToNow(new Date(article.publishDate))} ago</span>
               </div>
             )}
           </div>
@@ -319,7 +307,17 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
             </div>
           )}
           
-          <div className="flex items-center justify-end mt-auto pt-3 border-t border-slate-700/50">
+          <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
+            <a 
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:text-primary/80 underline underline-offset-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View Source
+            </a>
+            
             <div className="flex items-center gap-2">
               {onSendToCapsule && (
                 <Button

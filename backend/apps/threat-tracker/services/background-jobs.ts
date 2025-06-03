@@ -3,7 +3,6 @@ import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./ope
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
-import { normalizeUrl } from "./url-utils";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
@@ -32,23 +31,15 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
     
-    // Check if we already have this article FOR THIS USER using exact URL match
-    const normalizedUrl = normalizeUrl(articleUrl);
-    const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
+    // Check if we already have this article FOR THIS USER
+    const existingArticles = await storage.getArticles({
+      search: articleUrl,
+      userId: userId
+    });
     
-    if (existingArticle) {
+    if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
       return null;
-    }
-    
-    // Additional check: look for articles with normalized URL match
-    // This catches cases where URLs might have slight variations (tracking params, etc.)
-    if (normalizedUrl !== articleUrl) {
-      const existingNormalizedArticle = await storage.getArticleByUrl(normalizedUrl, userId);
-      if (existingNormalizedArticle) {
-        log(`[ThreatTracker] Article with normalized URL already exists for this user: ${normalizedUrl}`, "scraper");
-        return null;
-      }
     }
     
     // Scrape the article page with article-specific flag
@@ -130,15 +121,12 @@ async function processArticle(
       }
     }
     
-    // Store the normalized URL to prevent future duplicates
-    const urlToStore = normalizeUrl(articleUrl);
-    
     // Store the article in the database
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-      url: urlToStore,
+      url: articleUrl,
       author: articleData.author,
       publishDate: publishDate,
       summary: analysis.summary,

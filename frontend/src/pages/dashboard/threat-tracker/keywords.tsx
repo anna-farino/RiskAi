@@ -140,7 +140,7 @@ export default function Keywords() {
     },
   });
 
-  // Fetch keywords with refetch on window focus for navigation remounting
+  // Fetch keywords
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
@@ -163,9 +163,7 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 0, // Always fetch fresh data
-    refetchOnWindowFocus: true, // Refetch when returning to page
-    refetchOnMount: true, // Always refetch on component mount
+    staleTime: 60000, // Reduce refetching frequency (1 minute)
   });
 
   // Update local state whenever query data changes
@@ -252,38 +250,7 @@ export default function Keywords() {
         values,
       );
     },
-    onMutate: async (newKeyword) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-
-      // Create optimistic keyword with temporary ID
-      const optimisticKeyword = {
-        id: `temp-${Date.now()}`,
-        term: newKeyword.term,
-        category: newKeyword.category,
-        active: newKeyword.active,
-        isDefault: false,
-        userId: "current-user",
-      };
-
-      // Add to local state immediately
-      setLocalKeywords((prev) => [...prev, optimisticKeyword]);
-
-      // Store previous state for rollback
-      const previousKeywords = queryClient.getQueryData([
-        `${serverUrl}/api/threat-tracker/keywords`,
-      ]);
-      return { previousKeywords, optimisticKeyword };
-    },
-    onSuccess: (data, _, context) => {
-      // Replace optimistic keyword with real one
-      setLocalKeywords((prev) =>
-        prev.map((keyword) =>
-          keyword.id === context?.optimisticKeyword.id ? data : keyword,
-        ),
-      );
+    onSuccess: () => {
       toast({
         title: "Keyword created",
         description: "Your keyword has been added successfully.",
@@ -294,13 +261,7 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error, _, context) => {
-      // Rollback optimistic update
-      if (context?.optimisticKeyword) {
-        setLocalKeywords((prev) =>
-          prev.filter((keyword) => keyword.id !== context.optimisticKeyword.id),
-        );
-      }
+    onError: (error) => {
       console.error("Error creating keyword:", error);
       toast({
         title: "Error creating keyword",
@@ -357,20 +318,6 @@ export default function Keywords() {
         `${serverUrl}/api/threat-tracker/keywords/${id}`,
       );
     },
-    onMutate: async (deletedId) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-
-      // Remove from local state immediately
-      const previousKeywords = [...localKeywords];
-      setLocalKeywords((prev) =>
-        prev.filter((keyword) => keyword.id !== deletedId),
-      );
-
-      return { previousKeywords, deletedId };
-    },
     onSuccess: () => {
       toast({
         title: "Keyword deleted",
@@ -380,11 +327,7 @@ export default function Keywords() {
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error, _, context) => {
-      // Rollback optimistic update
-      if (context?.previousKeywords) {
-        setLocalKeywords(context.previousKeywords);
-      }
+    onError: (error) => {
       console.error("Error deleting keyword:", error);
       toast({
         title: "Error deleting keyword",
@@ -575,10 +518,7 @@ export default function Keywords() {
             {selectedCategory === "hardware" &&
               "Add custom hardware/software to monitor for security issues."}
           </p>
-          <Button
-            onClick={handleNewKeyword}
-            className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
-          >
+          <Button onClick={handleNewKeyword} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0">
             <Plus className="mr-2 h-4 w-4" />
             Add{" "}
             {selectedCategory === "threat"
@@ -668,7 +608,7 @@ export default function Keywords() {
                           onClick={() => handleEditKeyword(keyword)}
                           className="h-8 w-8"
                         >
-                          <PencilLine className="h-3.5 w-3.5" />
+                          <PencilLine className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
 
@@ -868,9 +808,7 @@ export default function Keywords() {
         <TabsContent value="vendor" className="mt-4 sm:mt-6">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">
-                Vendors
-              </CardTitle>
+              <CardTitle className="text-base sm:text-lg lg:text-xl">Vendors</CardTitle>
               <CardDescription className="text-xs sm:text-sm leading-relaxed">
                 Technology vendors to monitor for security threats
               </CardDescription>
@@ -900,9 +838,7 @@ export default function Keywords() {
         <TabsContent value="client" className="mt-4 sm:mt-6">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">
-                Clients
-              </CardTitle>
+              <CardTitle className="text-base sm:text-lg lg:text-xl">Clients</CardTitle>
               <CardDescription className="text-xs sm:text-sm leading-relaxed">
                 Your client organizations to monitor for security threats
               </CardDescription>
