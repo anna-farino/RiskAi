@@ -484,34 +484,39 @@ export default function Research() {
         setConfirmTitle("Add to Existing Report?");
         setConfirmDescription("There are already reports for today. Would you like to add these articles to an existing report?");
         setConfirmAction(() => async () => {
-          // User chose to add to existing report - handle it directly here
+          // User chose to add to existing report - add to the most recent one
           try {
-            const localStorageReports = localStorage.getItem('newsCapsuleReports');
-            if (localStorageReports) {
-              const savedReports = JSON.parse(localStorageReports);
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
+            // Find the most recent report from today
+            const existingReportId = todaysReports[0]?.id;
+            
+            // Find the existing report and add articles to it
+            const existingReport = savedReports.find((r: any) => r.id === existingReportId);
+            if (existingReport) {
+              // Add new articles to existing report
+              const updatedArticles = [...(existingReport.articles || []), ...selectedArticles];
+              existingReport.articles = updatedArticles;
+              existingReport.updatedAt = new Date().toISOString();
               
-              const todaysReports = savedReports.filter((report: any) => {
-                const reportDate = new Date(report.createdAt);
-                const reportDay = new Date(reportDate);
-                reportDay.setHours(0, 0, 0, 0);
-                return reportDay.getTime() === today.getTime();
-              });
+              // Update the reports array
+              const updatedReports = savedReports.map((r: any) => 
+                r.id === existingReportId ? existingReport : r
+              );
               
-              if (todaysReports.length >= 1) {
-                // Use the most recent report today
-                await processReport(true, todaysReports[0].id);
-              } else {
-                // No reports today, create a new one
-                await processReport(false, null);
-              }
-            } else {
-              // No reports exist, create a new one
-              await processReport(false, null);
+              // Save to localStorage
+              localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+              
+              // Clear selected articles
+              setSelectedArticles([]);
+              storedSelectedArticles.length = 0;
+              localStorage.removeItem('savedSelectedArticles');
+              
+              // Show success message
+              setSuccessMessage("Articles successfully added to existing report!");
+              setShowSuccessDialog(true);
             }
-          } catch (err) {
-            console.error("Error handling existing report selection:", err);
+          } catch (error) {
+            console.error("Error adding to existing report:", error);
+            setError("Failed to add articles to existing report");
           }
         });
         setShowConfirmDialog(true);
@@ -519,7 +524,31 @@ export default function Research() {
       }
       
       // If no reports today, create new one
-      await processReport(false);
+      // Create the new report directly
+      const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const newReport = {
+        id: newReportId,
+        createdAt: new Date().toISOString(),
+        articles: [...selectedArticles],
+        versionNumber: versionNumber,
+        topic: reportTopic.trim() || undefined
+      };
+      
+      // Add to beginning of reports array
+      savedReports.unshift(newReport);
+      
+      // Save updated reports to localStorage
+      localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
+      console.log("Created new report with", selectedArticles.length, "articles, version", versionNumber);
+      
+      // Clear selected articles
+      setSelectedArticles([]);
+      storedSelectedArticles.length = 0;
+      localStorage.removeItem('savedSelectedArticles');
+      
+      // Show success message
+      setSuccessMessage("Articles successfully added to report!");
+      setShowSuccessDialog(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
