@@ -342,7 +342,7 @@ export default function Research() {
         if (localStorageReports) {
           savedReports = JSON.parse(localStorageReports);
           
-          // Find reports from today
+          // Find reports from today for potential merging options
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
@@ -353,9 +353,8 @@ export default function Research() {
             return reportDay.getTime() === today.getTime();
           });
           
-          // Find the highest version number among today's reports
-          const highestVersion = todaysReports.reduce((max: number, report: any) => {
-            // Make sure to use the actual version number that was stored
+          // Find the highest version number among ALL reports (not just today's)
+          const highestVersion = savedReports.reduce((max: number, report: any) => {
             const reportVersion = parseInt(report.versionNumber) || 0;
             return reportVersion > max ? reportVersion : max;
           }, 0);
