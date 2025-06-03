@@ -77,7 +77,7 @@ async function main() {
     // Ultra-minimal browser launch for production environments
     console.error(`[Worker] Launching browser with minimal settings`);
     browser = await puppeteer.launch({
-      headless: 'new',  // Use new headless mode
+      headless: true,  // Use new headless mode
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -117,7 +117,7 @@ async function main() {
     // Navigate to URL with very short timeout
     const response = await page.goto(inputData.url, { 
       waitUntil: 'domcontentloaded',  // Faster than networkidle2
-      timeout: 45000  // Very short timeout
+      timeout: 90 * 1000  // Very short timeout
     });
 
     // Minimal wait for page to stabilize
