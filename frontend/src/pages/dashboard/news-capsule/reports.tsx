@@ -212,10 +212,10 @@ export default function Reports() {
       </div>
       
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
-        {/* Reports Panel - Fixed Width, No Scroll */}
+        {/* Report Library - Fixed Width, No Scroll */}
         <div className="w-80 flex-shrink-0">
           <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl h-full">
-            <h2 className="text-xl font-semibold mb-4">Reports Panel</h2>
+            <h2 className="text-xl font-semibold mb-4">Report Library</h2>
             <div className="overflow-y-auto h-[calc(100%-3rem)]">
               <ReportsManager 
                 onReportSelect={handleReportSelect}
