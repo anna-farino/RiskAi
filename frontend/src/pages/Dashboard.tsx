@@ -34,6 +34,32 @@ export default function Dashboard() {
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  // Fetch Threat Tracker articles with real-time updates
+  const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
+    queryKey: ['threat-tracker-articles-dashboard'],
+    queryFn: async () => {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles?limit=8&sortBy=createdAt&order=desc`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch threat articles: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    refetchInterval: 20000, // Refresh every 20 seconds for critical threat data
+    staleTime: 10000, // Consider data stale after 10 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    retry: 3, // Retry failed requests up to 3 times
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
   
   // Format time ago helper
   const formatTimeAgo = (dateString: string) => {
@@ -97,6 +123,70 @@ export default function Dashboard() {
     // Store selected article data and navigate
     sessionStorage.setItem('selectedArticle', JSON.stringify(article));
     navigate('/dashboard/news/home', { state: { selectedArticle: article } });
+  };
+
+  // Get threat severity based on content analysis
+  const getThreatSeverity = (article: any) => {
+    const keywords = article.detectedKeywords || [];
+    const title = article.title?.toLowerCase() || '';
+    const summary = article.summary?.toLowerCase() || '';
+    
+    // Critical threat indicators
+    const criticalKeywords = ['zero-day', 'ransomware', 'breach', 'exploit', 'critical', 'urgent', 'active'];
+    const hasCritical = criticalKeywords.some(keyword => 
+      title.includes(keyword) || summary.includes(keyword) || 
+      keywords.some((k: any) => k.keyword?.toLowerCase().includes(keyword))
+    );
+    
+    if (hasCritical) {
+      return { 
+        level: 'CRITICAL', 
+        style: 'bg-red-500/10 border-red-500/20 text-red-400',
+        icon: 'red'
+      };
+    }
+    
+    // High threat indicators
+    const highKeywords = ['vulnerability', 'malware', 'attack', 'compromise', 'phishing'];
+    const hasHigh = highKeywords.some(keyword => 
+      title.includes(keyword) || summary.includes(keyword) || 
+      keywords.some((k: any) => k.keyword?.toLowerCase().includes(keyword))
+    );
+    
+    if (hasHigh) {
+      return { 
+        level: 'HIGH', 
+        style: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400',
+        icon: 'yellow'
+      };
+    }
+    
+    // Medium threat indicators
+    const mediumKeywords = ['security', 'warning', 'patch', 'update'];
+    const hasMedium = mediumKeywords.some(keyword => 
+      title.includes(keyword) || summary.includes(keyword) || 
+      keywords.some((k: any) => k.keyword?.toLowerCase().includes(keyword))
+    );
+    
+    if (hasMedium) {
+      return { 
+        level: 'MEDIUM', 
+        style: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
+        icon: 'purple'
+      };
+    }
+    
+    return { 
+      level: 'INFO', 
+      style: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+      icon: 'blue'
+    };
+  };
+
+  // Enhanced threat article click handler
+  const handleThreatClick = (article: any) => {
+    sessionStorage.setItem('selectedThreatArticle', JSON.stringify(article));
+    navigate('/dashboard/threat/home', { state: { selectedArticle: article } });
   };
   
   return (
@@ -264,51 +354,106 @@ export default function Dashboard() {
             footer={
               <div className="mt-auto">
                 <div className="text-xs text-gray-400 mt-2 text-center">
-                  3 new alerts detected today
+                  {threatLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Scanning for threats...
+                    </div>
+                  ) : threatError ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-3 h-3 text-red-400" />
+                      <span className="text-red-400">Threat API offline</span>
+                      <button 
+                        onClick={() => refetchThreats()} 
+                        className="text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                      <span>{threatArticles?.length || 0} active threats • Monitor 20s</span>
+                    </div>
+                  )}
                 </div>
               </div>
             }
           >
             <div className="space-y-2">
-              <div className="flex items-center gap-2 bg-red-500/10 p-2 rounded-lg border border-red-500/20">
-                <div className="text-red-400 flex-shrink-0">
-                  <AlertTriangle className="w-4 h-4" />
+              {threatLoading ? (
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-2 bg-slate-800/30 p-2 rounded-lg border border-slate-700/20 animate-pulse">
+                      <div className="w-4 h-4 bg-gray-600 rounded flex-shrink-0"></div>
+                      <div className="flex-1">
+                        <div className="w-3/4 h-3 bg-gray-600 rounded mb-1"></div>
+                        <div className="w-1/2 h-2 bg-gray-600 rounded"></div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : threatError ? (
+                <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20 text-center">
+                  <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
+                  <p className="text-xs text-red-400">Failed to load threat data</p>
+                  <p className="text-xs text-gray-500 mt-1">Check API connection</p>
                 </div>
-                <div>
-                  <h4 className="font-medium text-xs">Critical Ransomware Alert</h4>
-                  <p className="text-xs text-gray-400">Financial systems affected</p>
+              ) : threatArticles && threatArticles.length > 0 ? (
+                threatArticles.slice(0, 4).map((threat: any, index: number) => {
+                  const severity = getThreatSeverity(threat);
+                  const keywords = threat.detectedKeywords || [];
+                  
+                  return (
+                    <div 
+                      key={threat.id || index}
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer hover:border-opacity-60 transition-all duration-200 group ${severity.style}`}
+                      onClick={() => handleThreatClick(threat)}
+                    >
+                      <div className={`flex-shrink-0 ${severity.icon === 'red' ? 'text-red-400' : severity.icon === 'yellow' ? 'text-yellow-400' : severity.icon === 'purple' ? 'text-purple-400' : 'text-blue-400'}`}>
+                        <AlertTriangle className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-xs text-white group-hover:text-[#00FFFF] transition-colors line-clamp-1">
+                            {threat.title || 'Security Alert'}
+                          </h4>
+                          <span className="text-xs text-gray-400 whitespace-nowrap">
+                            {threat.createdAt ? formatTimeAgo(threat.createdAt) : 'Recent'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 line-clamp-1">
+                          {threat.summary || keywords.slice(0, 2).map((k: any) => k.keyword || k).join(', ') || 'Threat detected'}
+                        </p>
+                        {keywords.length > 0 && (
+                          <div className="flex gap-1 mt-1">
+                            {keywords.slice(0, 2).map((keyword: any, kidx: number) => (
+                              <span 
+                                key={kidx}
+                                className={`text-xs px-1 py-0.5 rounded ${severity.icon === 'red' ? 'bg-red-500/20 text-red-300' : severity.icon === 'yellow' ? 'bg-yellow-500/20 text-yellow-300' : severity.icon === 'purple' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}
+                              >
+                                {keyword.keyword || keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/20 text-center">
+                  <AlertTriangle className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400 mb-1">No active threats detected</p>
+                  <p className="text-xs text-gray-500 mb-3">Configure threat monitoring sources</p>
+                  <button 
+                    onClick={() => navigate('/dashboard/threat/keywords')}
+                    className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors"
+                  >
+                    Configure Monitoring →
+                  </button>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20">
-                <div className="text-yellow-400 flex-shrink-0">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-xs">Supply Chain Compromise</h4>
-                  <p className="text-xs text-gray-400">Multiple vendors affected</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 bg-purple-500/10 p-2 rounded-lg border border-purple-500/20">
-                <div className="text-purple-400 flex-shrink-0">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-xs">New Zero-Day Vulnerability</h4>
-                  <p className="text-xs text-gray-400">Remote execution risk</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20">
-                <div className="text-blue-400 flex-shrink-0">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-xs">Phishing Campaign Detected</h4>
-                  <p className="text-xs text-gray-400">Targeting healthcare sector</p>
-                </div>
-              </div>
+              )}
             </div>
           </RisqWidget>
           
