@@ -9,7 +9,7 @@ const openai = new OpenAI({
 /**
  * Uses OpenAI to detect the HTML structure of an article
  */
-export async function detectHtmlStructure(html: string, sourceUrl: string) {
+export async function detectHtmlStructure(html: string, sourceUrl: string, retryCount = 0) {
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not configured");
@@ -48,10 +48,12 @@ Analyze this HTML and tell me the CSS selector I should use to get:
 3. The author (if available)
 4. The publish date (if available)
 
-Return your answer in valid JSON format like this:
+IMPORTANT: Respond ONLY with valid JSON. Do not include any code, explanations, or other text.
+
+Return your answer in this exact JSON format:
 {
   "title": "CSS selector for title",
-  "content": "CSS selector for main content",
+  "content": "CSS selector for main content", 
   "author": "CSS selector for author, or null if not found",
   "date": "CSS selector for publish date, or null if not found"
 }
@@ -63,7 +65,7 @@ Return your answer in valid JSON format like this:
         {
           role: "system",
           content:
-            "You are a helpful assistant that identifies HTML structure.",
+            "You are a helpful assistant that identifies HTML structure. You MUST respond with valid JSON only. Never include Python code, explanations, or any other text outside the JSON response.",
         },
         {
           role: "user",
@@ -77,8 +79,45 @@ Return your answer in valid JSON format like this:
     const response = completion.choices[0].message.content || "";
     log(`[ThreatTracker] HTML structure detected for ${sourceUrl}`, "openai");
 
-    // With response_format: { type: "json_object" }, the response should already be valid JSON
-    return JSON.parse(response);
+    // Validate and sanitize the response before parsing
+    if (!response || typeof response !== 'string') {
+      throw new Error('Invalid response from OpenAI');
+    }
+
+    // Check if response contains Python code patterns
+    if (response.includes('__name') || response.includes('if __name__') || response.includes('def ')) {
+      log(`[ThreatTracker] OpenAI returned Python code instead of JSON, attempt ${retryCount + 1}`, "openai-error");
+      
+      if (retryCount < 2) {
+        log(`[ThreatTracker] Retrying HTML structure detection with simplified prompt`, "openai");
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay
+        return detectHtmlStructure(html, sourceUrl, retryCount + 1);
+      }
+      
+      log(`[ThreatTracker] Max retries reached, returning fallback structure`, "openai-error");
+      return {
+        title: "h1",
+        content: "article, .article-content, .content, main",
+        author: ".author, .byline, .article-author",
+        date: "time, .date, .article-date, [datetime]"
+      };
+    }
+
+    // Try to extract JSON if the response contains extra text
+    let jsonResponse = response.trim();
+    const jsonStart = jsonResponse.indexOf('{');
+    const jsonEnd = jsonResponse.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      jsonResponse = jsonResponse.substring(jsonStart, jsonEnd + 1);
+    }
+
+    try {
+      return JSON.parse(jsonResponse);
+    } catch (parseError) {
+      log(`[ThreatTracker] Failed to parse OpenAI response as JSON: ${jsonResponse}`, "openai-error");
+      throw new Error(`Invalid JSON response from OpenAI: ${parseError}`);
+    }
   } catch (error: any) {
     log(
       `[ThreatTracker] Error detecting HTML structure: ${error.message}`,
