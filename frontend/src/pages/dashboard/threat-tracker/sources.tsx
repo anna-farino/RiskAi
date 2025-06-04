@@ -594,22 +594,29 @@ export default function Sources() {
   }
 
   // Handle delete source with confirmation for associated articles
-  function handleDeleteSource(source: ThreatSource) {
-    // Try to delete the source first to check if there are associated articles
-    deleteSource.mutate(
-      { id: source.id },
-      {
-        onError: (error: any) => {
-          if (error?.response?.data?.error === "ARTICLES_EXIST") {
-            // Show confirmation dialog
-            setDeleteConfirmation({
-              source,
-              articleCount: error.response.data.articleCount,
-            });
-          }
-        },
+  async function handleDeleteSource(source: ThreatSource) {
+    try {
+      // Try to delete the source first to check if there are associated articles
+      await deleteSource.mutateAsync({ id: source.id });
+    } catch (error: any) {
+      console.log("Caught error:", error);
+      
+      // Check for ARTICLES_EXIST error - the error data is attached to the error object
+      const errorData = error?.data || {};
+      const errorMessage = errorData?.error || error?.message;
+      
+      if (errorMessage === "ARTICLES_EXIST") {
+        // Show confirmation dialog
+        setDeleteConfirmation({
+          source,
+          articleCount: parseInt(errorData.articleCount || '0'),
+        });
+        return; // Don't show error toast
       }
-    );
+      
+      // For other errors, let the mutation's onError handle it
+      throw error;
+    }
   }
 
   // Handle confirmed deletion with articles
