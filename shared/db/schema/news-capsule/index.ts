@@ -14,7 +14,7 @@ export const capsuleArticles = pgTable("capsule_articles", {
   microsoftConnection: text("microsoft_connection").notNull(),
   sourcePublication: text("source_publication").notNull(),
   originalUrl: text("original_url").notNull(),
-  targetOS: text("target_os").default("Unspecified").notNull(),
+  targetOS: text("target_os").default("Microsoft / Windows").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   markedForReporting: boolean("marked_for_reporting").default(true).notNull(),
   markedForDeletion: boolean("marked_for_deletion").default(false).notNull(),
@@ -34,7 +34,7 @@ export const insertCapsuleArticleSchema = z.object({
   microsoftConnection: z.string(),
   sourcePublication: z.string(),
   originalUrl: z.string(),
-  targetOS: z.string().default("Unspecified"),
+  targetOS: z.string().default("Microsoft / Windows"),
   markedForReporting: z.boolean().default(true),
   markedForDeletion: z.boolean().default(false),
   userId: z.string().uuid(),
@@ -42,6 +42,7 @@ export const insertCapsuleArticleSchema = z.object({
 
 export type InsertCapsuleArticle = z.infer<typeof insertCapsuleArticleSchema>;
 export type CapsuleArticle = typeof capsuleArticles.$inferSelect;
+
 
 // Executive Notes table for adding custom notes to articles in reports
 //export const executiveNotes = pgTable("executive_notes", {
@@ -63,4 +64,3 @@ export type CapsuleArticle = typeof capsuleArticles.$inferSelect;
 //
 //export type InsertExecutiveNote = z.infer<typeof insertExecutiveNoteSchema>;
 //export type ExecutiveNote = typeof executiveNotes.$inferSelect;
-

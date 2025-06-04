@@ -8,6 +8,7 @@ interface ArticleSummary {
   summary: string;
   impacts: string;
   attackVector: string;
+  microsoftConnection: string;
   sourcePublication: string;
   originalUrl: string;
   targetOS: string;
@@ -21,7 +22,6 @@ interface Report {
   createdAt: string;
   articles: ArticleSummary[];
   versionNumber?: number;
-  topic?: string;
 }
 
 interface NewsCapsuleContextType {

@@ -3,8 +3,24 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorData;
+    try {
+      // Try to parse JSON error response first
+      const contentType = res.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        errorData = await res.json();
+      } else {
+        errorData = { message: await res.text() || res.statusText };
+      }
+    } catch {
+      errorData = { message: res.statusText };
+    }
+    
+    // Create error with parsed data attached
+    const error = new Error(`${res.status}: ${errorData.message || errorData.error || res.statusText}`);
+    (error as any).data = errorData;
+    (error as any).status = res.status;
+    throw error;
   }
 }
 
@@ -31,16 +47,6 @@ export async function apiRequest<T = any>(
     console.log(`API Response status: ${res.status} ${res.statusText}`);
     
     await throwIfResNotOk(res);
-    
-    // Check if response has content before parsing JSON
-    const contentLength = res.headers.get('content-length');
-    const contentType = res.headers.get('content-type');
-    
-    if (res.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
-      console.log("API Response: Empty response (no content)");
-      return {} as T;
-    }
-    
     const responseData = await res.json();
     console.log("API Response data:", responseData);
     return responseData;

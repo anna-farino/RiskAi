@@ -2,10 +2,10 @@ import { Router } from 'express';
 import { processUrl } from './process-url';
 import { addToReport } from './add-to-report';
 import { getReports } from './get-reports';
-import { createExecutiveNote, getExecutiveNotes, updateExecutiveNote, deleteExecutiveNote } from './executive-notes';
 import { db } from '../../db/db';
 import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { FullRequest } from '../../middleware';
 
 const router = Router();
@@ -26,15 +26,13 @@ router.get('/articles', async (req, res) => {
     const articles = await db
       .select()
       .from(capsuleArticles)
-      .where(
-        and(
-          eq(capsuleArticles.userId, userId),
-          eq(capsuleArticles.markedForDeletion, false)
-        )
-      )
+      .where(eq(capsuleArticles.userId, userId))
       .orderBy(desc(capsuleArticles.createdAt));
     
-    res.json(articles);
+    // Filter out articles marked for deletion from processed articles view
+    const visibleArticles = articles.filter(article => !article.markedForDeletion);
+    
+    res.json(visibleArticles);
   } catch (error) {
     console.error('Error fetching capsule articles:', error);
     res.status(500).json({ error: 'Failed to fetch articles' });
@@ -62,24 +60,15 @@ router.delete('/articles/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
-    // Always mark article as deleted for processing list but keep in database for reports
     await db
-      .update(capsuleArticles)
-      .set({ markedForDeletion: true })
+      .delete(capsuleArticles)
       .where(eq(capsuleArticles.id, articleId));
     
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting capsule article:', error);
-    console.error('Error details:', error.message);
-    res.status(500).json({ error: 'Failed to delete article', details: error.message });
+    res.status(500).json({ error: 'Failed to delete article' });
   }
 });
-
-// Executive Notes routes
-router.post('/executive-notes', createExecutiveNote);
-router.get('/executive-notes/:reportId', getExecutiveNotes);
-router.put('/executive-notes', updateExecutiveNote);
-router.delete('/executive-notes/:noteId', deleteExecutiveNote);
 
 export { router as newsCapsuleRouter };

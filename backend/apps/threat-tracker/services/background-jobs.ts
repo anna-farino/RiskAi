@@ -32,23 +32,15 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
     
-    // Check if we already have this article FOR THIS USER using exact URL match
-    const normalizedUrl = normalizeUrl(articleUrl);
-    const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
+    // Check if we already have this article FOR THIS USER
+    const existingArticles = await storage.getArticles({
+      search: articleUrl,
+      userId: userId
+    });
     
-    if (existingArticle) {
+    if (existingArticles.some(a => a.url === articleUrl && a.userId === userId)) {
       log(`[ThreatTracker] Article already exists for this user: ${articleUrl}`, "scraper");
       return null;
-    }
-    
-    // Additional check: look for articles with normalized URL match
-    // This catches cases where URLs might have slight variations (tracking params, etc.)
-    if (normalizedUrl !== articleUrl) {
-      const existingNormalizedArticle = await storage.getArticleByUrl(normalizedUrl, userId);
-      if (existingNormalizedArticle) {
-        log(`[ThreatTracker] Article with normalized URL already exists for this user: ${normalizedUrl}`, "scraper");
-        return null;
-      }
     }
     
     // Scrape the article page with article-specific flag
@@ -130,6 +122,28 @@ async function processArticle(
       }
     }
     
+    // Fix the author field - if it looks like a date, clear it and use the date field instead
+    let actualAuthor = articleData.author;
+    if (actualAuthor && actualAuthor.match(/^\w{3}\s+\d{1,2},?\s+\d{4}$/)) {
+      // This looks like a date (e.g., "Jun 03, 2025" or "May 23 2025"), not an author
+      log(`[ThreatTracker] Detected date in author field: ${actualAuthor}`, "scraper");
+      
+      // If we don't have a publishDate yet, try to parse this as the date
+      if (!publishDate) {
+        try {
+          publishDate = new Date(actualAuthor);
+          if (isNaN(publishDate.getTime())) {
+            publishDate = null;
+          }
+        } catch (e) {
+          publishDate = null;
+        }
+      }
+      
+      // Clear the author field since it's actually a date
+      actualAuthor = undefined;
+    }
+    
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
     
@@ -139,7 +153,7 @@ async function processArticle(
       title: articleData.title,
       content: articleData.content,
       url: urlToStore,
-      author: articleData.author,
+      author: actualAuthor,
       publishDate: publishDate,
       summary: analysis.summary,
       relevanceScore: analysis.relevanceScore.toString(),

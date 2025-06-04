@@ -730,22 +730,48 @@ export default function Dashboard() {
                           <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${status.style}`}>
                             {status.label}
                           </span>
+                          {report.versionNumber && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#00FFFF]/20 text-[#00FFFF] font-medium">
+                              v{report.versionNumber}
+                            </span>
+                          )}
                           <div className={`w-2 h-2 rounded-full ${status.indicator}`}></div>
                         </div>
                         <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-                          {report.createdAt ? formatTimeAgo(report.createdAt) : 'Recent'}
+                          {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: new Date(report.createdAt).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                          }) : 'Recent'}
                         </span>
                       </div>
                       
-                      <h4 className="text-xs font-medium text-white mb-1 line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
-                        Executive Report #{report.id?.substring(0, 8) || 'Unknown'}
+                      <h4 className="text-xs font-medium text-white mb-1 line-clamp-1 group-hover:text-[#00FFFF] transition-colors">
+                        Executive Report: {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          year: 'numeric'
+                        }) : 'Recent'}
+                        {report.versionNumber && (
+                          <span className="text-blue-400 ml-1">
+                            (Version: {report.versionNumber})
+                          </span>
+                        )}
                       </h4>
                       
                       <p className="text-xs text-gray-300 line-clamp-2">
-                        {report.articles && report.articles.length > 0 
-                          ? `Analysis of ${report.articles.length} article${report.articles.length !== 1 ? 's' : ''} processed`
-                          : 'Report generated from processed articles'
-                        }
+                        <span className="text-gray-400">Topic:</span> {(() => {
+                          // Generate brief topic from articles
+                          if (report.articles && report.articles.length > 0) {
+                            const threats = report.articles.map((a: any) => a.threatName || a.title?.split(' ')[0] || 'Security').slice(0, 2);
+                            const uniqueThreats = [...new Set(threats)];
+                            const topic = uniqueThreats.length > 1 
+                              ? `${uniqueThreats[0]} & ${uniqueThreats.length - 1} more threats`
+                              : `${uniqueThreats[0]} analysis`;
+                            return `${topic} • ${report.articles.length} threat${report.articles.length !== 1 ? 's' : ''} processed`;
+                          }
+                          return 'Security report generated';
+                        })()}
                       </p>
                       
                       {report.articles && report.articles.length > 0 && (
@@ -801,8 +827,8 @@ export default function Dashboard() {
               </div>
             </div>
           </RisqWidget>}
-          <RisqWidget
-              title="Settings & Preferences"
+          {false && <RisqWidget
+              title="Settings"
               description="Configure your News Radar experience"
               icon={<Settings className="w-10 h-10 text-gray-300" />}
               variant="interactive"
@@ -888,7 +914,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            </RisqWidget>
+            </RisqWidget>}
         </WidgetGrid>
         
         {/* Additional widgets row */}

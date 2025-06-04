@@ -3,7 +3,7 @@ import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
-import { getUserScrapeSchedule, JobInterval, updateUserScrapeSchedule, initializeScheduler } from "../services/scheduler";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
@@ -88,6 +88,47 @@ threatRouter.delete("/sources/:id", async (req, res) => {
   try {
     const sourceId = req.params.id;
     const userId = getUserId(req);
+    const deleteArticles = req.query.deleteArticles === 'true';
+    
+    // Check if the source exists and belongs to the user
+    const existingSource = await storage.getSource(sourceId);
+    if (!existingSource) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Prevent deletion of default sources
+    if (existingSource.isDefault) {
+      return res.status(403).json({ error: "Cannot delete default sources" });
+    }
+    
+    if (existingSource.userId && existingSource.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to delete this source" });
+    }
+    
+    await storage.deleteSource(sourceId, deleteArticles);
+    res.status(204).send();
+  } catch (error: any) {
+    console.error("Error deleting source:", error);
+    
+    // Handle special case for articles existing
+    if (error.message === "ARTICLES_EXIST") {
+      return res.status(409).json({ 
+        error: "ARTICLES_EXIST",
+        articleCount: error.articleCount,
+        message: `This source has ${error.articleCount} associated articles. Would you like to delete them as well?`
+      });
+    }
+    
+    res.status(500).json({ error: error.message || "Failed to delete source" });
+  }
+});
+
+// Add endpoint to get article count for a source
+threatRouter.get("/sources/:id/articles/count", async (req, res) => {
+  reqLog(req, `GET /sources/${req.params.id}/articles/count`);
+  try {
+    const sourceId = req.params.id;
+    const userId = getUserId(req);
     
     // Check if the source exists and belongs to the user
     const existingSource = await storage.getSource(sourceId);
@@ -96,14 +137,14 @@ threatRouter.delete("/sources/:id", async (req, res) => {
     }
     
     if (existingSource.userId && existingSource.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to delete this source" });
+      return res.status(403).json({ error: "Not authorized to access this source" });
     }
     
-    await storage.deleteSource(sourceId);
-    res.status(204).send();
+    const count = await storage.getSourceArticleCount(sourceId);
+    res.json({ count });
   } catch (error: any) {
-    console.error("Error deleting source:", error);
-    res.status(500).json({ error: error.message || "Failed to delete source" });
+    console.error("Error getting source article count:", error);
+    res.status(500).json({ error: error.message || "Failed to get article count" });
   }
 });
 
@@ -442,8 +483,9 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
       return res.status(403).json({ error: "Not authorized to scrape this source" });
     }
     
-    // Scrape the source
-    const newArticles = await scrapeSource(source);
+    // Scrape the source - for default sources, pass the current user ID for article attribution
+    const sourceWithUserContext = source.userId ? source : { ...source, userId };
+    const newArticles = await scrapeSource(sourceWithUserContext);
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,
@@ -453,54 +495,6 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
   } catch (error: any) {
     console.error("Error scraping source:", error);
     res.status(500).json({ error: error.message || "Failed to scrape source" });
-  }
-});
-
-// Duplicate management API
-threatRouter.get("/duplicates", async (req, res) => {
-  reqLog(req, "GET /duplicates");
-  try {
-    const userId = getUserId(req);
-    const { findDuplicatesForUser } = await import("../services/duplicate-cleanup");
-    
-    const result = await findDuplicatesForUser(userId);
-    
-    res.json({
-      duplicateGroups: result.duplicateGroups,
-      totalDuplicates: result.totalDuplicates,
-      message: `Found ${result.totalDuplicates} duplicate articles in ${result.duplicateGroups.length} groups`
-    });
-  } catch (error: any) {
-    console.error("Error finding duplicates:", error);
-    res.status(500).json({ error: error.message || "Failed to find duplicates" });
-  }
-});
-
-threatRouter.post("/duplicates/remove", async (req, res) => {
-  reqLog(req, "POST /duplicates/remove");
-  try {
-    const userId = getUserId(req);
-    const { removeDuplicatesForUser } = await import("../services/duplicate-cleanup");
-    
-    const result = await removeDuplicatesForUser(userId);
-    
-    if (result.errors.length > 0) {
-      res.status(207).json({
-        message: `Removed ${result.duplicatesRemoved} duplicates with ${result.errors.length} errors`,
-        duplicatesFound: result.duplicatesFound,
-        duplicatesRemoved: result.duplicatesRemoved,
-        errors: result.errors
-      });
-    } else {
-      res.json({
-        message: `Successfully removed ${result.duplicatesRemoved} duplicate articles`,
-        duplicatesFound: result.duplicatesFound,
-        duplicatesRemoved: result.duplicatesRemoved
-      });
-    }
-  } catch (error: any) {
-    console.error("Error removing duplicates:", error);
-    res.status(500).json({ error: error.message || "Failed to remove duplicates" });
   }
 });
 
@@ -553,8 +547,7 @@ threatRouter.get("/scrape/status", async (req, res) => {
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");
   try {
-    const userId = getUserId(req);
-    const settings = await getUserScrapeSchedule(userId);
+    const settings = await getGlobalScrapeSchedule();
     res.json(settings);
   } catch (error: any) {
     console.error("Error fetching auto-scrape settings:", error);
@@ -565,7 +558,6 @@ threatRouter.get("/settings/auto-scrape", async (req, res) => {
 threatRouter.put("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "PUT /settings/auto-scrape");
   try {
-    const userId = getUserId(req);
     const { enabled, interval } = req.body;
     
     // Validate the interval
@@ -573,9 +565,8 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
       return res.status(400).json({ error: "Invalid interval value" });
     }
     
-    // Update the user's schedule
-    const settings = await updateUserScrapeSchedule(
-      userId,
+    // Update the schedule
+    const settings = await updateGlobalScrapeSchedule(
       Boolean(enabled), 
       interval || JobInterval.DAILY
     );

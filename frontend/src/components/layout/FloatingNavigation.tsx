@@ -103,7 +103,7 @@ export default function FloatingNavigation() {
                 </nav>
                 
                 <div className="flex items-center space-x-3">
-                  <ModeToggle />
+                  {false && <ModeToggle />}
                   <button
                     onClick={logout}
                     className="flex items-center space-x-1 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
@@ -157,7 +157,7 @@ export default function FloatingNavigation() {
                       <LogOut className="h-4 w-4 mr-1" />
                       <span className="text-sm">Logout</span>
                     </button>
-                    <ModeToggle />
+                    {false && <ModeToggle />}
                   </div>
                 </div>
               </div>

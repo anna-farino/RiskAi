@@ -2,7 +2,7 @@ import { insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
-import { getUserScrapeSchedule, JobInterval, updateUserScrapeSchedule, initializeScheduler } from "../services/scheduler";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -355,11 +355,10 @@ newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
   }
 });
 
-// Scheduler Settings - User specific
-newsRouter.get("/settings/auto-scrape", async (req, res) => {
+// Scheduler Settings - Admin only
+newsRouter.get("/settings/auto-scrape", async (_req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const settings = await getUserScrapeSchedule(userId);
+    const settings = await getGlobalScrapeSchedule();
     res.json(settings);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -369,16 +368,15 @@ newsRouter.get("/settings/auto-scrape", async (req, res) => {
 
 newsRouter.post("/settings/auto-scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
     const schema = z.object({
       enabled: z.boolean(),
       interval: z.nativeEnum(JobInterval)
     });
     
     const { enabled, interval } = schema.parse(req.body);
-    await updateUserScrapeSchedule(userId, enabled, interval);
+    await updateGlobalScrapeSchedule(enabled, interval);
     
-    const settings = await getUserScrapeSchedule(userId);
+    const settings = await getGlobalScrapeSchedule();
     res.json(settings);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
