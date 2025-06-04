@@ -996,8 +996,6 @@ export default function Reports() {
                           <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
                           <p className="text-sm leading-relaxed">{article.attackVector}</p>
                         </div>
-                        
-
                       </div>
                     </motion.div>
                   ))}
