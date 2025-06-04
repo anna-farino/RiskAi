@@ -483,8 +483,9 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
       return res.status(403).json({ error: "Not authorized to scrape this source" });
     }
     
-    // Scrape the source
-    const newArticles = await scrapeSource(source);
+    // Scrape the source - for default sources, pass the current user ID for article attribution
+    const sourceWithUserContext = source.userId ? source : { ...source, userId };
+    const newArticles = await scrapeSource(sourceWithUserContext);
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,

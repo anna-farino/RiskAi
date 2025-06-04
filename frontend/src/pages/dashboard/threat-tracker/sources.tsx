@@ -55,6 +55,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -71,6 +78,7 @@ import {
   RotateCw,
   Check,
   X,
+  Globe,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals
@@ -1034,6 +1042,20 @@ export default function Sources() {
                     <div className="text-xs text-muted-foreground">
                       {formatLastScraped(source.lastScraped)}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => scrapeSingleSource.mutate(source.id)}
+                      disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
+                      className="h-7 w-7 p-0"
+                    >
+                      {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Globe className="h-3 w-3" />
+                      )}
+                      <span className="sr-only">Scrape</span>
+                    </Button>
                     <Switch
                       checked={source.active}
                       onCheckedChange={(checked) => 
