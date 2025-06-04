@@ -88,6 +88,7 @@ export default function Research() {
   const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmDescription, setConfirmDescription] = useState("");
+
   
   // Load saved URLs from localStorage and fetch articles from database
   useEffect(() => {
