@@ -1027,7 +1027,7 @@ export default function Sources() {
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
-                    <TableCell className="font-medium text-white w-[25%] p-2 sm:p-4">
+                    <TableCell className="font-medium text-white w-[30%] sm:w-[25%] p-2 sm:p-4">
                       <div className="flex items-center gap-1 overflow-hidden">
                         <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           {pendingItems.has(source.id) 
@@ -1038,7 +1038,7 @@ export default function Sources() {
                         <span className="truncate text-xs sm:text-sm">{source.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="w-[35%] p-2 sm:p-4">
+                    <TableCell className="w-[35%] sm:w-[35%] p-2 sm:p-4">
                       <div className="flex items-center gap-1 overflow-hidden">
                         <Link2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
                         <a 
@@ -1051,7 +1051,7 @@ export default function Sources() {
                         </a>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center w-[15%] p-2 sm:p-4">
+                    <TableCell className="text-center w-[10%] sm:w-[15%] p-2 sm:p-4">
                       <div className="flex justify-center">
                         <Switch
                           id={`auto-scrape-${source.id}`}
@@ -1064,8 +1064,8 @@ export default function Sources() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right w-[25%] p-2 sm:p-4">
-                      <div className="flex justify-end gap-2">
+                    <TableCell className="text-right w-[25%] sm:w-[25%] p-2 sm:p-4">
+                      <div className="flex flex-col sm:flex-row justify-end gap-1 sm:gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
