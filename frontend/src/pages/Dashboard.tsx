@@ -255,6 +255,7 @@ export default function Dashboard() {
     sessionStorage.setItem('selectedCapsuleReport', JSON.stringify(report));
     navigate('/dashboard/news-capsule/home', { state: { selectedReport: report } });
   };
+
   
   return (
     <div className="min-h-screen bg-black">
