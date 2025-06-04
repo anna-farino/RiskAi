@@ -150,37 +150,35 @@ export default function ThreatHome() {
     },
   });
   
-  // Sort articles function - Frontend sorting is now handled by backend, but keeping for consistency
+  // Sort articles function
   const sortArticles = (articles: ThreatArticle[]): ThreatArticle[] => {
-    // Backend now handles all sorting correctly, but we'll do a light frontend sort as backup
     if (sortBy === 'publishDate') {
-      // Sort ONLY by publish date, articles without publish date go to end
-      return [...articles].sort((a, b) => {
-        if (!a.publishDate && !b.publishDate) return 0;
-        if (!a.publishDate) return 1; // a goes to end
-        if (!b.publishDate) return -1; // b goes to end
-        
-        const aDate = new Date(a.publishDate);
-        const bDate = new Date(b.publishDate);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-    } else if (sortBy === 'scrapeDate') {
-      // Sort ONLY by scrape date
-      return [...articles].sort((a, b) => {
+      // Separate articles with and without publish dates
+      const articlesWithoutPublishDate = articles.filter(article => !article.publishDate);
+      const articlesWithPublishDate = articles.filter(article => article.publishDate);
+      
+      // Sort articles without publish date by scrape date
+      const sortedWithoutPublishDate = [...articlesWithoutPublishDate].sort((a, b) => {
         const aDate = new Date(a.scrapeDate || 0);
         const bDate = new Date(b.scrapeDate || 0);
         return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
       });
+      
+      // Sort articles with publish date by publish date
+      const sortedWithPublishDate = [...articlesWithPublishDate].sort((a, b) => {
+        const aDate = new Date(a.publishDate!);
+        const bDate = new Date(b.publishDate!);
+        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
+      });
+      
+      // Articles without publish date first, then articles with publish date
+      return [...sortedWithoutPublishDate, ...sortedWithPublishDate];
     } else {
-      // Default: sort by publish date desc, nulls last
+      // Sort by scrape date
       return [...articles].sort((a, b) => {
-        if (!a.publishDate && !b.publishDate) return 0;
-        if (!a.publishDate) return 1;
-        if (!b.publishDate) return -1;
-        
-        const aDate = new Date(a.publishDate);
-        const bDate = new Date(b.publishDate);
-        return bDate.getTime() - aDate.getTime(); // Always newest first for default
+        const aDate = new Date(a.scrapeDate || 0);
+        const bDate = new Date(b.scrapeDate || 0);
+        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
       });
     }
   };
