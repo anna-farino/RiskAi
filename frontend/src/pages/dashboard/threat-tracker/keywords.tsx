@@ -595,7 +595,7 @@ export default function Keywords() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right p-2 sm:p-4">
-                  <div className="flex justify-end gap-1 sm:gap-2">
+                  <div className="flex justify-end gap-2">
                     {keyword.isDefault ? (
                       <div className="text-xs text-muted-foreground py-2">
                         Default keyword
@@ -606,7 +606,8 @@ export default function Keywords() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditKeyword(keyword)}
-                          className="h-8 w-8"
+                          className="h-9 w-9 text-[#00FFFF] hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 transition-all duration-200"
+                          title="Edit keyword"
                         >
                           <PencilLine className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
@@ -617,7 +618,8 @@ export default function Keywords() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-destructive hover:text-destructive h-8 w-8"
+                              className="h-9 w-9 text-[#BF00FF] hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 transition-all duration-200"
+                              title="Delete keyword"
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Delete</span>
