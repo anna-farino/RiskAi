@@ -90,7 +90,14 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
+          '--disable-blink-features=AutomationControlled',
+          '--disable-features=VizDisplayCompositor',
+          '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+          '--disable-default-apps',
+          '--no-first-run',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         timeout: 180000 // 3 minute timeout on browser launch
@@ -135,27 +142,33 @@ async function setupPage(): Promise<Page> {
   page.setDefaultNavigationTimeout(30000);
   page.setDefaultTimeout(30000);
   
-  // Enable request interception to debug network issues
-  await page.setRequestInterception(true);
+  // Disable request interception to avoid interference with Cloudflare
+  // await page.setRequestInterception(true);
   
-  page.on('request', (request) => {
-    const url = request.url();
-    log(`[ThreatTracker][Request] ${request.method()} ${url}`, "scraper-debug");
-    request.continue();
-  });
-  
-  page.on('response', (response) => {
-    const url = response.url();
-    const status = response.status();
-    if (url.includes('bleepingcomputer.com')) {
-      log(`[ThreatTracker][Response] ${status} ${url}`, "scraper-debug");
-    }
-  });
-  
-  page.on('requestfailed', (request) => {
-    const url = request.url();
-    const failure = request.failure();
-    log(`[ThreatTracker][RequestFailed] ${url} - ${failure?.errorText || 'Unknown error'}`, "scraper-error");
+  // Add Cloudflare bypass headers and behavior
+  await page.evaluateOnNewDocument(() => {
+    // Hide webdriver property
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => false,
+    });
+    
+    // Override chrome property
+    Object.defineProperty(window, 'chrome', {
+      get: () => ({
+        runtime: {},
+        // Add other chrome properties as needed
+      }),
+    });
+    
+    // Override plugins property
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => [1, 2, 3, 4, 5],
+    });
+    
+    // Override languages property
+    Object.defineProperty(navigator, 'languages', {
+      get: () => ['en-US', 'en'],
+    });
   });
 
   return page;
@@ -443,6 +456,15 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     if (!url.startsWith("http")) {
       url = "https://" + url;
     }
+    
+    // Validate URL format
+    try {
+      new URL(url);
+      log(`[ThreatTracker] URL validation passed: ${url}`, "scraper");
+    } catch (urlError) {
+      log(`[ThreatTracker] Invalid URL format: ${url}`, "scraper-error");
+      throw new Error(`Invalid URL format: ${url}`);
+    }
 
     page = await setupPage();
     
@@ -450,44 +472,68 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     let response;
     
     if (isArticlePage) {
-      // For article pages, use more comprehensive loading strategy
+      // Test basic connectivity first
+      log(`[ThreatTracker] Testing navigation to simple page first...`, "scraper");
       try {
-        log(`[ThreatTracker] Attempting to navigate to article URL: ${url}`, "scraper");
+        await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 10000 });
+        const testUrl = await page.url();
+        log(`[ThreatTracker] Test navigation successful to: ${testUrl}`, "scraper");
+      } catch (testError) {
+        log(`[ThreatTracker] Basic navigation test failed: ${testError.message}`, "scraper-error");
+        throw new Error(`Browser navigation is completely broken`);
+      }
+      
+      // Navigate to main site first to establish session
+      try {
+        log(`[ThreatTracker] Establishing session via main site first...`, "scraper");
+        await page.goto('https://www.bleepingcomputer.com', { 
+          waitUntil: "domcontentloaded",
+          timeout: 15000
+        });
+        
+        // Wait for any Cloudflare checks to complete
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        const mainUrl = await page.url();
+        log(`[ThreatTracker] Main site loaded: ${mainUrl}`, "scraper");
+        
+        // Now navigate to the article URL
+        log(`[ThreatTracker] Navigating to article URL: ${url}`, "scraper");
         response = await page.goto(url, { 
           waitUntil: "domcontentloaded",
-          timeout: 30000
+          timeout: 25000
         });
-        log(`[ThreatTracker] Article page navigation completed. Status: ${response?.status()}`, "scraper");
         
-        // Verify we actually reached the target URL
         const currentUrl = await page.url();
-        log(`[ThreatTracker] Current page URL after navigation: ${currentUrl}`, "scraper");
+        log(`[ThreatTracker] Article page result - Status: ${response?.status()}, URL: ${currentUrl}`, "scraper");
         
-        if (currentUrl === "about:blank" || !currentUrl.includes("bleepingcomputer.com")) {
-          throw new Error(`Navigation failed - page stuck at: ${currentUrl}`);
+        if (currentUrl === "about:blank") {
+          log(`[ThreatTracker] Still stuck at about:blank after session establishment`, "scraper-error");
+          throw new Error(`Navigation failed - cannot reach article page`);
+        }
+        
+        // Check for Cloudflare challenge page
+        const isChallenge = await page.evaluate(() => {
+          const bodyText = document.body?.textContent?.toLowerCase() || '';
+          const title = document.title.toLowerCase();
+          return bodyText.includes('checking your browser') || 
+                 bodyText.includes('please wait') ||
+                 title.includes('just a moment') ||
+                 title.includes('attention required');
+        });
+        
+        if (isChallenge) {
+          log(`[ThreatTracker] Detected Cloudflare challenge, waiting for completion...`, "scraper");
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          
+          // Check if challenge was solved
+          const finalUrl = await page.url();
+          log(`[ThreatTracker] After challenge wait, final URL: ${finalUrl}`, "scraper");
         }
         
       } catch (navigationError) {
-        log(`[ThreatTracker] Navigation error: ${navigationError.message}`, "scraper-error");
-        
-        // Try a completely fresh approach
-        try {
-          log(`[ThreatTracker] Retrying with fresh page setup`, "scraper");
-          await page.close();
-          page = await setupPage();
-          
-          response = await page.goto(url, { 
-            waitUntil: "load",
-            timeout: 20000
-          });
-          
-          const retryUrl = await page.url();
-          log(`[ThreatTracker] Retry navigation URL: ${retryUrl}`, "scraper");
-          
-        } catch (retryError) {
-          log(`[ThreatTracker] Retry also failed: ${retryError.message}`, "scraper-error");
-          throw new Error(`Complete navigation failure for ${url}`);
-        }
+        log(`[ThreatTracker] Article navigation failed: ${navigationError.message}`, "scraper-error");
+        throw new Error(`Cannot access article page: ${navigationError.message}`);
       }
     } else {
       // For listing pages, use faster strategy
@@ -825,7 +871,22 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     return await extractArticleLinksStructured(page, extractedLinkData);
     
   } catch (error: any) {
-    log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
+    log(`[ThreatTracker] Puppeteer scraping failed for ${url}: ${error.message}`, "scraper-error");
+    
+    // If this is an article page and Puppeteer failed, try HTTP fallback
+    if (isArticlePage) {
+      log(`[ThreatTracker] Attempting HTTP fallback for article: ${url}`, "scraper");
+      try {
+        const httpContent = await httpFallbackScrape(url);
+        if (httpContent && httpContent.length > 100) {
+          log(`[ThreatTracker] HTTP fallback successful, content length: ${httpContent.length}`, "scraper");
+          return httpContent;
+        }
+      } catch (httpError: any) {
+        log(`[ThreatTracker] HTTP fallback also failed: ${httpError.message}`, "scraper-error");
+      }
+    }
+    
     throw error;
   } finally {
     if (page) {
@@ -837,6 +898,130 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       }
     }
   }
+}
+
+/**
+ * HTTP fallback scraping for when Puppeteer fails (e.g., Cloudflare protection)
+ */
+async function httpFallbackScrape(url: string): Promise<string> {
+  const https = await import('https');
+  const http = await import('http');
+  const cheerio = await import('cheerio');
+  
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const client = parsedUrl.protocol === 'https:' ? https : http;
+    
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none'
+      }
+    };
+    
+    const req = client.request(options, (res) => {
+      let data = '';
+      
+      // Handle gzip/deflate compression
+      let stream = res;
+      if (res.headers['content-encoding'] === 'gzip') {
+        const zlib = require('zlib');
+        stream = res.pipe(zlib.createGunzip());
+      } else if (res.headers['content-encoding'] === 'deflate') {
+        const zlib = require('zlib');
+        stream = res.pipe(zlib.createInflate());
+      }
+      
+      stream.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      stream.on('end', () => {
+        try {
+          // Parse HTML and extract article content
+          const $ = cheerio.load(data);
+          
+          // Remove script and style elements
+          $('script, style, nav, header, footer, aside, .navigation, .sidebar').remove();
+          
+          // Try to find article content using common selectors
+          let content = '';
+          let title = '';
+          
+          // Extract title
+          title = $('h1').first().text().trim() || 
+                  $('.article-title').first().text().trim() || 
+                  $('title').text().trim();
+          
+          // Extract content
+          const contentSelectors = [
+            'article .articleBody',
+            '.articleBody',
+            'article',
+            '.article-content',
+            '.article-body',
+            '.entry-content',
+            'main .content',
+            '.post-content'
+          ];
+          
+          for (const selector of contentSelectors) {
+            const element = $(selector);
+            if (element.length && element.text().trim().length > 200) {
+              content = element.text().trim();
+              break;
+            }
+          }
+          
+          // If no specific content found, try extracting paragraphs
+          if (!content || content.length < 200) {
+            const paragraphs = $('p').map((i, el) => $(el).text().trim()).get();
+            const meaningfulParagraphs = paragraphs.filter(p => p.length > 50);
+            if (meaningfulParagraphs.length > 0) {
+              content = meaningfulParagraphs.join('\n\n');
+            }
+          }
+          
+          if (content && content.length > 100) {
+            const htmlContent = `<html><body>
+              <h1>${title}</h1>
+              <div class="content">${content}</div>
+            </body></html>`;
+            resolve(htmlContent);
+          } else {
+            reject(new Error('No substantial content found in HTTP response'));
+          }
+          
+        } catch (parseError) {
+          reject(new Error(`Failed to parse HTTP response: ${parseError.message}`));
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+    
+    req.setTimeout(30000, () => {
+      req.destroy();
+      reject(new Error('HTTP request timeout'));
+    });
+    
+    req.end();
+  });
 }
 
 /**

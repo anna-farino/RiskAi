@@ -239,13 +239,25 @@ export async function scrapeSource(source: ThreatSource) {
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
       try {
-        // Scrape the first article to get its HTML
+        // Try scraping the first article to get its HTML
+        log(`[ThreatTracker] Attempting to scrape first article for structure detection`, "scraper");
         const firstArticleHtml = await scrapeUrl(firstArticleUrl, true);
         
-        // Use OpenAI to detect the HTML structure from this article
-        htmlStructure = await detectHtmlStructure(firstArticleHtml, firstArticleUrl);
-        
-        log(`[ThreatTracker] Step 7: Detected HTML structure for articles`, "scraper");
+        if (!firstArticleHtml || firstArticleHtml.includes('about:blank') || firstArticleHtml.length < 100) {
+          log(`[ThreatTracker] Article scraping failed, using fallback approach`, "scraper");
+          // Use a generic HTML structure for Bleeping Computer
+          htmlStructure = {
+            titleSelector: 'h1, .article-title, .post-title',
+            contentSelector: 'article, .articleBody, .article-content, .entry-content',
+            authorSelector: '.author, .byline, .article-author',
+            dateSelector: 'time, .date, .article-date, .published-date, [datetime]'
+          };
+          log(`[ThreatTracker] Using fallback HTML structure for Bleeping Computer`, "scraper");
+        } else {
+          // Use OpenAI to detect the HTML structure from this article
+          htmlStructure = await detectHtmlStructure(firstArticleHtml, firstArticleUrl);
+          log(`[ThreatTracker] Step 7: Detected HTML structure for articles`, "scraper");
+        }
         
         // Save the detected structure for future use
         await storage.updateSource(source.id, {
