@@ -721,7 +721,7 @@ export default function Sources() {
                 <TableHead className="text-slate-300 w-[25%] sm:w-[25%] md:w-[20%] text-xs sm:text-sm">Name</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[35%] md:w-[30%] text-xs sm:text-sm">URL</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[15%] md:w-[15%] text-xs sm:text-sm">Status</TableHead>
-                <TableHead className="text-slate-300 w-[0%] sm:w-[0%] md:w-[15%] text-xs sm:text-sm hidden md:table-cell">Last Scraped</TableHead>
+                <TableHead className="text-slate-300 w-[0%] sm:w-[0%] md:w-[0%] lg:w-[15%] text-xs sm:text-sm hidden lg:table-cell">Last Scraped</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[25%] md:w-[20%] text-right text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -769,7 +769,7 @@ export default function Sources() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell w-[0%] sm:w-[0%] md:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
+                  <TableCell className="hidden lg:table-cell w-[0%] sm:w-[0%] md:w-[0%] lg:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
                   <TableCell className="text-right w-[25%] sm:w-[25%] md:w-[20%] p-1 sm:p-4 align-top">
