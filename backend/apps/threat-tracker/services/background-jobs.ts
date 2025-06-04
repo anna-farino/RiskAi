@@ -108,41 +108,27 @@ async function processArticle(
     
     log(`[ThreatTracker] Article meets criteria with ${validThreatKeywords.length} threats and ${validVendorKeywords.length + validClientKeywords.length + validHardwareKeywords.length} other keywords`, "scraper");
     
-    // Create a date object from the extracted date, if available
+    // Parse the extracted date properly
     let publishDate = null;
     if (articleData.date) {
       try {
+        // If it's already an ISO string from our enhanced extraction, use it directly
         publishDate = new Date(articleData.date);
         // If the date is invalid, set to null
         if (isNaN(publishDate.getTime())) {
           publishDate = null;
         }
+        log(`[ThreatTracker] Successfully parsed publish date: ${publishDate?.toISOString()}`, "scraper");
       } catch (e) {
+        log(`[ThreatTracker] Failed to parse date: ${articleData.date}`, "scraper-error");
         publishDate = null;
       }
+    } else {
+      log(`[ThreatTracker] No publish date extracted from article`, "scraper");
     }
     
-    // Fix the author field - if it looks like a date, clear it and use the date field instead
+    // Use the cleaned author field (date/author separation is now handled in extractArticleContent)
     let actualAuthor = articleData.author;
-    if (actualAuthor && actualAuthor.match(/^\w{3}\s+\d{1,2},?\s+\d{4}$/)) {
-      // This looks like a date (e.g., "Jun 03, 2025" or "May 23 2025"), not an author
-      log(`[ThreatTracker] Detected date in author field: ${actualAuthor}`, "scraper");
-      
-      // If we don't have a publishDate yet, try to parse this as the date
-      if (!publishDate) {
-        try {
-          publishDate = new Date(actualAuthor);
-          if (isNaN(publishDate.getTime())) {
-            publishDate = null;
-          }
-        } catch (e) {
-          publishDate = null;
-        }
-      }
-      
-      // Clear the author field since it's actually a date
-      actualAuthor = undefined;
-    }
     
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);

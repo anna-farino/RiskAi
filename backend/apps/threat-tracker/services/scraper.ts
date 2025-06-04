@@ -8,6 +8,7 @@ import { log } from "backend/utils/log";
 import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
+import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -730,11 +731,14 @@ export async function extractArticleContent(
     if (html.includes('<div class="content">')) {
       const $ = cheerio.load(html);
       
+      // Use comprehensive date extraction for processed HTML too
+      const publishDate = await extractPublishDate(html, htmlStructure);
+      
       return {
         title: $('h1').first().text().trim(),
         content: $('.content').text().trim(),
         author: $('.author').text().trim() || undefined,
-        date: $('.date').text().trim() || undefined
+        date: publishDate ? publishDate.toISOString() : undefined
       };
     }
     
@@ -784,25 +788,37 @@ export async function extractArticleContent(
       });
     }
 
-    // Extract author if available
+    // Use comprehensive date extraction
+    log(`[ThreatTracker] Starting comprehensive date extraction`, "scraper");
+    const publishDate = await extractPublishDate(html, htmlStructure);
+    if (publishDate) {
+      result.date = publishDate.toISOString();
+      log(`[ThreatTracker] Successfully extracted publish date: ${result.date}`, "scraper");
+    } else {
+      log(`[ThreatTracker] No valid publish date found`, "scraper");
+    }
+
+    // Extract author with improved handling
     const authorSelector = htmlStructure.authorSelector || htmlStructure.author;
     if (authorSelector) {
       const authorText = $(authorSelector).first().text().trim();
       if (authorText) {
-        result.author = authorText;
+        // Use the date/author separator utility to clean up mixed content
+        const separated = separateDateFromAuthor(authorText);
+        result.author = separated.author || authorText;
+        
+        // If we found a date in the author field and don't have a date yet, use it
+        if (separated.date && !result.date) {
+          const fallbackDate = await extractPublishDate(`<div class="date">${separated.date}</div>`, {});
+          if (fallbackDate) {
+            result.date = fallbackDate.toISOString();
+            log(`[ThreatTracker] Extracted date from author field: ${result.date}`, "scraper");
+          }
+        }
       }
     }
 
-    // Extract date if available
-    const dateSelector = htmlStructure.dateSelector || htmlStructure.date;
-    if (dateSelector) {
-      const dateText = $(dateSelector).first().text().trim();
-      if (dateText) {
-        result.date = dateText;
-      }
-    }
-
-    log(`[ThreatTracker] Extraction complete: title=${result.title ? 'found' : 'not found'}, content=${result.content.length} chars`, "scraper");
+    log(`[ThreatTracker] Extraction complete: title=${result.title ? 'found' : 'not found'}, content=${result.content.length} chars, date=${result.date ? 'found' : 'not found'}`, "scraper");
     return result;
   } catch (error: any) {
     log(`[ThreatTracker] Error extracting article content: ${error.message}`, "scraper-error");
