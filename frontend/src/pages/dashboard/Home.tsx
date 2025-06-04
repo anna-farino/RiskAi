@@ -1,5 +1,5 @@
 import { useAuthCheck } from "@/hooks/use-auth-check";
-import { RisqLoader } from "@/components/ui/loading";
+import { RisqLoader, RisqSpinner } from "@/components/ui/loading";
 
 export default function Home() {
   const { isLoading: authLoading, isError } = useAuthCheck();
@@ -24,7 +24,7 @@ export default function Home() {
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {authLoading ? (
           <div className="col-span-full flex justify-center">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <RisqSpinner size="lg" />
           </div>
         ) :  
           <>
