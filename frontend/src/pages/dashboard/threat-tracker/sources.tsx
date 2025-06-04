@@ -718,17 +718,17 @@ export default function Sources() {
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="text-slate-300 w-[18%] sm:w-[25%] text-xs sm:text-sm">Name</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Name</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
-                <TableHead className="text-slate-300 w-[22%] sm:w-[15%] text-xs sm:text-sm">Status</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-xs sm:text-sm">Status</TableHead>
                 <TableHead className="text-slate-300 w-[15%] sm:w-[15%] text-xs sm:text-sm hidden sm:table-cell">Last Scraped</TableHead>
-                <TableHead className="text-slate-300 w-[35%] sm:w-[10%] text-right text-xs sm:text-sm">Actions</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[10%] text-right text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {localSources.map((source) => (
                 <TableRow key={source.id}>
-                  <TableCell className="font-medium text-white w-[18%] sm:w-[25%] p-2 sm:p-4">
+                  <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
                     <span className="truncate text-xs sm:text-sm">{source.name}</span>
                   </TableCell>
                   <TableCell className="w-[25%] sm:w-[35%] p-2 sm:p-4">
@@ -744,7 +744,7 @@ export default function Sources() {
                       <ExternalLink className="ml-1 h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
                     </a>
                   </TableCell>
-                  <TableCell className="w-[22%] sm:w-[15%] p-2 sm:p-4">
+                  <TableCell className="w-[25%] sm:w-[15%] p-2 sm:p-4">
                     <div className="flex flex-col gap-1">
                       {source.active ? (
                         <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit">
@@ -770,7 +770,7 @@ export default function Sources() {
                   <TableCell className="hidden sm:table-cell w-[15%] sm:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
-                  <TableCell className="text-right w-[35%] sm:w-[10%] p-1 sm:p-4 align-top">
+                  <TableCell className="text-right w-[25%] sm:w-[10%] p-1 sm:p-4 align-top">
                     {/* Mobile Layout - Stacked vertically */}
                     <div className="flex flex-col gap-1 items-end sm:hidden">
                       <Button
