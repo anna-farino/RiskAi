@@ -101,9 +101,9 @@ export const MainNavigation = ({ className }: { className?: string }) => {
       return true;
     }
     
-    // Special case for threat tracker
-    if (path === '/dashboard/threat/home' && pathname.startsWith('/dashboard/threat')) {
-      return true;
+    // Exact match for parent navigation items when on sub-pages
+    if (path.endsWith('/home') && pathname.startsWith(path.replace('/home', ''))) {
+      return pathname === path;
     }
     
     return pathname.startsWith(path) && path !== '/dashboard';
