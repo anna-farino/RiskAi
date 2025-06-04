@@ -87,6 +87,9 @@ import {
   ChevronRight,
   ChevronDown,
   Shield,
+  Eye,
+  EyeOff,
+  Edit,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals
