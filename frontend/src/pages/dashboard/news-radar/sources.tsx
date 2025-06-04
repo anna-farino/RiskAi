@@ -1009,12 +1009,23 @@ export default function Sources() {
               <Table className="w-full table-auto sm:table-fixed">
                 <TableHeader>
                   <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                    <TableHead className="text-slate-300 w-[30%] sm:w-[25%] text-xs sm:text-sm">Source</TableHead>
-                    <TableHead className="text-slate-300 w-[35%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
-                    <TableHead className="text-slate-300 w-[10%] sm:w-[15%] text-center text-xs sm:text-sm">
-                      <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" title="Auto-scrape" />
+                    <TableHead className="text-slate-300 w-[25%] sm:w-[20%] text-xs sm:text-sm">Source</TableHead>
+                    <TableHead className="text-slate-300 w-[30%] sm:w-[30%] text-xs sm:text-sm">URL</TableHead>
+                    <TableHead className="text-slate-300 w-[8%] sm:w-[12%] text-center text-xs sm:text-sm">
+                      <div title="Auto-scrape">
+                        <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" />
+                      </div>
                     </TableHead>
-                    <TableHead className="text-right text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Actions</TableHead>
+                    <TableHead className="text-slate-300 w-[15%] sm:w-[15%] text-center text-xs sm:text-sm">
+                      <div title="Last scraped">
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right text-slate-300 w-[22%] sm:w-[23%] text-xs sm:text-sm">
+                      <div title="Actions">
+                        <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" />
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
@@ -1026,7 +1037,7 @@ export default function Sources() {
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
-                    <TableCell className="font-medium text-white w-[30%] sm:w-[25%] p-2 sm:p-4">
+                    <TableCell className="font-medium text-white w-[25%] sm:w-[20%] p-2 sm:p-4">
                       <div className="flex items-center gap-1 overflow-hidden">
                         <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           {pendingItems.has(source.id) 
@@ -1037,7 +1048,7 @@ export default function Sources() {
                         <span className="truncate text-xs sm:text-sm">{source.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="w-[35%] sm:w-[35%] p-2 sm:p-4">
+                    <TableCell className="w-[30%] sm:w-[30%] p-2 sm:p-4">
                       <div className="flex items-center gap-1 overflow-hidden">
                         <Link2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
                         <a 
@@ -1050,7 +1061,7 @@ export default function Sources() {
                         </a>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center w-[10%] sm:w-[15%] p-2 sm:p-4">
+                    <TableCell className="text-center w-[8%] sm:w-[12%] p-2 sm:p-4">
                       <div className="flex justify-center">
                         <Switch
                           id={`auto-scrape-${source.id}`}
@@ -1063,7 +1074,19 @@ export default function Sources() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right w-[25%] sm:w-[25%] p-1 sm:p-4 align-top">
+                    <TableCell className="text-center w-[15%] sm:w-[15%] p-2 sm:p-4">
+                      <div className="text-xs sm:text-sm text-slate-400">
+                        {source.lastScraped 
+                          ? new Date(source.lastScraped).toLocaleDateString('en-US', {
+                              month: 'numeric',
+                              day: 'numeric',
+                              year: '2-digit'
+                            }).replace(/\//g, '.')
+                          : '-'
+                        }
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right w-[22%] sm:w-[23%] p-1 sm:p-4 align-top">
                       {/* Mobile Layout - Stacked vertically */}
                       <div className="flex flex-col gap-1 items-end sm:hidden">
                         <Button
