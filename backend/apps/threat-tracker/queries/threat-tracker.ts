@@ -66,8 +66,6 @@ export interface IStorage {
     startDate?: Date;
     endDate?: Date;
     userId?: string;
-    sortBy?: string;
-    sortOrder?: string;
     limit?: number;
   }): Promise<ThreatArticle[]>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
@@ -435,7 +433,7 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId, sortBy = 'publishDate', sortOrder = 'desc', limit } = options;
+      const { search, keywordIds, startDate, endDate, userId, limit } = options;
       let query = db.select().from(threatArticles);
 
       // Build WHERE clause based on search parameters
@@ -517,49 +515,8 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Dynamic sorting based on parameters
-      let orderedQuery;
-      if (sortBy === 'publishDate') {
-        // Prioritize articles with publish_date first, then by publish_date, then fallback to scrape_date
-        // Articles without either date appear first (NULL values sort first in PostgreSQL with DESC)
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(
-              sql`CASE 
-                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2 
-                ELSE 0 
-              END ASC`,
-              sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate}) ASC`
-            )
-          : query.orderBy(
-              sql`CASE 
-                WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
-                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
-                ELSE 3
-              END ASC`,
-              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
-            );
-      } else if (sortBy === 'scrapeDate') {
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(threatArticles.scrapeDate)
-          : query.orderBy(desc(threatArticles.scrapeDate));
-      } else if (sortBy === 'title') {
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(threatArticles.title)
-          : query.orderBy(desc(threatArticles.title));
-      } else {
-        // Default to publishDate prioritization with fallback
-        orderedQuery = query.orderBy(
-          sql`CASE 
-            WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
-            WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-            WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
-            ELSE 3
-          END ASC`,
-          desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
-        );
-      }
+      // Default ordering by scrape date (most recent first)
+      const orderedQuery = query.orderBy(desc(threatArticles.scrapeDate));
 
       // Add limit if specified
       const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;

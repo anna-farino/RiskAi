@@ -17,9 +17,7 @@ import {
   X,
   Plus,
   Check,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
+  
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,9 +54,7 @@ export default function ThreatHome() {
   const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // Sort state
-  const [sortBy, setSortBy] = useState<'publishDate' | 'scrapeDate'>('publishDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
   
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
@@ -87,7 +83,7 @@ export default function ThreatHome() {
     },
   });
   
-  // Build query string for filtering and sorting
+  // Build query string for filtering
   const buildQueryString = () => {
     const params = new URLSearchParams();
     
@@ -108,28 +104,19 @@ export default function ThreatHome() {
     if (dateRange.endDate) {
       params.append("endDate", dateRange.endDate.toISOString());
     }
-
-    // Add sorting parameters
-    params.append("sortBy", sortBy);
-    params.append("sortOrder", sortOrder);
     
     return params.toString();
   };
   
-  // Articles query with filtering and sorting
+  // Articles query with filtering
   const articles = useQuery<ThreatArticle[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange, sortBy, sortOrder],
+    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange],
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
         const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ''}`;
         
         console.log("Fetching articles with URL:", url);
-        console.log("Filter parameters:", {
-          search: searchTerm,
-          keywordIds: selectedKeywordIds,
-          ...dateRange
-        });
         
         const response = await fetch(url, {
           method: "GET",
@@ -150,45 +137,12 @@ export default function ThreatHome() {
     },
   });
   
-  // Sort articles function
-  const sortArticles = (articles: ThreatArticle[]): ThreatArticle[] => {
-    if (sortBy === 'publishDate') {
-      // Separate articles with and without publish dates
-      const articlesWithoutPublishDate = articles.filter(article => !article.publishDate);
-      const articlesWithPublishDate = articles.filter(article => article.publishDate);
-      
-      // Sort articles without publish date by scrape date
-      const sortedWithoutPublishDate = [...articlesWithoutPublishDate].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-      
-      // Sort articles with publish date by publish date
-      const sortedWithPublishDate = [...articlesWithPublishDate].sort((a, b) => {
-        const aDate = new Date(a.publishDate!);
-        const bDate = new Date(b.publishDate!);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-      
-      // Articles without publish date first, then articles with publish date
-      return [...sortedWithoutPublishDate, ...sortedWithPublishDate];
-    } else {
-      // Sort by scrape date
-      return [...articles].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-    }
-  };
-
-  // Sync local state with query data when it changes, applying sort
+  // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(sortArticles(articles.data));
+      setLocalArticles(articles.data);
     }
-  }, [articles.data, sortBy, sortOrder]);
+  }, [articles.data]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
@@ -287,13 +241,13 @@ export default function ThreatHome() {
     onMutate: ({ id, marked }) => {
       // Add to pending operations
       setPendingItems(prev => new Set(prev).add(id));
-      // Optimistic update with sorting maintained
+      // Optimistic update
       setLocalArticles(prev => 
-        sortArticles(prev.map(article => 
+        prev.map(article => 
           article.id === id 
             ? { ...article, markedForCapsule: marked } 
             : article
-        ))
+        )
       );
     },
     onSuccess: (_, { id, marked }) => {
@@ -496,59 +450,7 @@ export default function ThreatHome() {
               )}
             </Button>
             
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5"
-                onClick={() => {
-                  if (sortBy === 'publishDate') {
-                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-                  } else {
-                    setSortBy('publishDate');
-                    setSortOrder('desc');
-                  }
-                }}
-              >
-                {sortBy === 'publishDate' ? (
-                  sortOrder === 'desc' ? (
-                    <ArrowDown className="h-4 w-4" />
-                  ) : (
-                    <ArrowUp className="h-4 w-4" />
-                  )
-                ) : (
-                  <ArrowUpDown className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Publish Date</span>
-                <span className="sm:hidden">Date</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5"
-                onClick={() => {
-                  if (sortBy === 'scrapeDate') {
-                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-                  } else {
-                    setSortBy('scrapeDate');
-                    setSortOrder('desc');
-                  }
-                }}
-              >
-                {sortBy === 'scrapeDate' ? (
-                  sortOrder === 'desc' ? (
-                    <ArrowDown className="h-4 w-4" />
-                  ) : (
-                    <ArrowUp className="h-4 w-4" />
-                  )
-                ) : (
-                  <ArrowUpDown className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Scrape Date</span>
-                <span className="sm:hidden">Scrape</span>
-              </Button>
-            </div>
+            
             
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -689,17 +591,7 @@ export default function ThreatHome() {
           </div>
         )}
         
-        {/* Sort status indicator */}
-        {localArticles.length > 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-2 rounded-md">
-            <ArrowUpDown className="h-4 w-4" />
-            <span>
-              Sorted by {sortBy === 'publishDate' ? 'publish date' : 'scrape date'} 
-              ({sortOrder === 'desc' ? 'newest first' : 'oldest first'})
-              {sortBy === 'publishDate' && ' - Articles without publish dates appear first'}
-            </span>
-          </div>
-        )}
+        
 
         {/* Articles display */}
         <div className="space-y-4">
