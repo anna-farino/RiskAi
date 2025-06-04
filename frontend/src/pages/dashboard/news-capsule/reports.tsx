@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { X } from "lucide-react";
 import {
   Report,
   ReportsManager,
@@ -457,7 +458,7 @@ export default function Reports() {
                           className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
                           title="Remove article from report"
                         >
-                          <XIcon className="w-4 h-4" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
 
