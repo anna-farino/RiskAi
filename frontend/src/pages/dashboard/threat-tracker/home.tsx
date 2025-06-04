@@ -163,9 +163,15 @@ export default function ThreatHome() {
   // Delete all articles mutation
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      return await apiRequest(`${serverUrl}/api/threat-tracker/articles`, {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles`, {
         method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
+      if (!response.ok) throw new Error('Failed to delete articles');
+      return response.json();
     },
     onSuccess: () => {
       setLocalArticles([]);
@@ -191,9 +197,15 @@ export default function ThreatHome() {
   // Delete individual article mutation
   const deleteArticle = useMutation({
     mutationFn: async (articleId: string) => {
-      return await apiRequest(`${serverUrl}/api/threat-tracker/articles/${articleId}`, {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles/${articleId}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
+      if (!response.ok) throw new Error('Failed to delete article');
+      return response.json();
     },
     onMutate: async (articleId) => {
       // Optimistically remove from local state
@@ -235,9 +247,15 @@ export default function ThreatHome() {
   // Mark for News Capsule mutation
   const markForCapsule = useMutation({
     mutationFn: async (articleId: string) => {
-      return await apiRequest(`${serverUrl}/api/threat-tracker/articles/${articleId}/mark-for-capsule`, {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles/${articleId}/mark-for-capsule`, {
         method: "POST",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
+      if (!response.ok) throw new Error('Failed to mark article for capsule');
+      return response.json();
     },
     onMutate: async (articleId) => {
       // Optimistically update local state
@@ -285,9 +303,15 @@ export default function ThreatHome() {
   // Unmark from News Capsule mutation
   const unmarkFromCapsule = useMutation({
     mutationFn: async (articleId: string) => {
-      return await apiRequest(`${serverUrl}/api/threat-tracker/articles/${articleId}/unmark-for-capsule`, {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles/${articleId}/unmark-for-capsule`, {
         method: "POST",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
+      if (!response.ok) throw new Error('Failed to unmark article from capsule');
+      return response.json();
     },
     onMutate: async (articleId) => {
       // Optimistically update local state
