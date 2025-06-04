@@ -95,7 +95,9 @@ export const storage: IStorage = {
       const defaultSources = await db
         .select()
         .from(threatSources)
-        .where(and(eq(threatSources.isDefault, true), isNull(threatSources.userId)))
+        .where(
+          and(eq(threatSources.isDefault, true), isNull(threatSources.userId)),
+        )
         .execute();
 
       let userSources: ThreatSource[] = [];
@@ -135,12 +137,14 @@ export const storage: IStorage = {
       const defaultSources = await db
         .select()
         .from(threatSources)
-        .where(and(
-          eq(threatSources.isDefault, true),
-          isNull(threatSources.userId),
-          eq(threatSources.active, true),
-          eq(threatSources.includeInAutoScrape, true)
-        ))
+        .where(
+          and(
+            eq(threatSources.isDefault, true),
+            isNull(threatSources.userId),
+            eq(threatSources.active, true),
+            eq(threatSources.includeInAutoScrape, true),
+          ),
+        )
         .execute();
 
       let userSources: ThreatSource[] = [];
@@ -148,11 +152,13 @@ export const storage: IStorage = {
         userSources = await db
           .select()
           .from(threatSources)
-          .where(and(
-            eq(threatSources.userId, userId),
-            eq(threatSources.active, true),
-            eq(threatSources.includeInAutoScrape, true)
-          ))
+          .where(
+            and(
+              eq(threatSources.userId, userId),
+              eq(threatSources.active, true),
+              eq(threatSources.includeInAutoScrape, true),
+            ),
+          )
           .execute();
       }
 
@@ -200,32 +206,32 @@ export const storage: IStorage = {
         .from(threatSources)
         .where(eq(threatSources.id, id))
         .execute();
-      
+
       if (source.length > 0 && source[0].isDefault) {
         throw new Error("Cannot delete default sources");
       }
-      
+
       // Check if there are associated threat articles
       const associatedArticles = await db
         .select({ count: sql<number>`count(*)` })
         .from(threatArticles)
         .where(eq(threatArticles.sourceId, id))
         .execute();
-      
+
       const articleCount = associatedArticles[0]?.count || 0;
-      
+
       if (articleCount > 0 && !deleteArticles) {
         // Return special error object with article count for frontend handling
         const error = new Error(`ARTICLES_EXIST`);
         (error as any).articleCount = articleCount;
         throw error;
       }
-      
+
       // Delete associated articles if requested
       if (deleteArticles && articleCount > 0) {
         await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
       }
-      
+
       // Delete the source
       await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
@@ -242,7 +248,7 @@ export const storage: IStorage = {
         .from(threatArticles)
         .where(eq(threatArticles.sourceId, id))
         .execute();
-      
+
       return result[0]?.count || 0;
     } catch (error) {
       console.error("Error getting source article count:", error);
@@ -515,8 +521,8 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Default ordering by publish date (most recent first), fallback to scrape date
-      const orderedQuery = query.orderBy(desc(threatArticles.publishDate), desc(threatArticles.scrapeDate));
+      // Default ordering by publish date (most recent first)
+      const orderedQuery = query.orderBy(desc(threatArticles.publishDate));
 
       // Add limit if specified
       const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
