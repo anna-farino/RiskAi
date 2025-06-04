@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function BackToTopButton() {
@@ -8,26 +7,18 @@ export function BackToTopButton() {
 
   useEffect(() => {
     const toggleVisibility = () => {
-      // Show button when page is scrolled down 400px
-      if (window.pageYOffset > 400) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setIsVisible(scrollTop > 300);
     };
 
-    // Throttle scroll events for performance
-    let timeoutId: NodeJS.Timeout;
-    const handleScroll = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(toggleVisibility, 100);
-    };
+    // Check on mount
+    toggleVisibility();
 
-    window.addEventListener("scroll", handleScroll);
+    // Add scroll listener
+    window.addEventListener("scroll", toggleVisibility, { passive: true });
     
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      clearTimeout(timeoutId);
+      window.removeEventListener("scroll", toggleVisibility);
     };
   }, []);
 
@@ -38,24 +29,25 @@ export function BackToTopButton() {
     });
   };
 
+  if (!isVisible) return null;
+
   return (
-    <Button
+    <button
       onClick={scrollToTop}
-      size="icon"
       className={cn(
-        "fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 transition-all duration-300",
-        "h-12 w-12 sm:h-10 sm:w-10 rounded-full shadow-lg",
-        "bg-slate-900/80 backdrop-blur-sm border border-slate-700/50",
-        "text-[#00FFFF] hover:text-white hover:bg-slate-800/90",
-        "hover:scale-110 active:scale-95",
-        isVisible
-          ? "opacity-100 translate-y-0 pointer-events-auto"
-          : "opacity-0 translate-y-2 pointer-events-none"
+        "fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60]",
+        "h-12 w-12 sm:h-10 sm:w-10 rounded-full shadow-xl",
+        "bg-slate-900/90 backdrop-blur-sm border border-slate-700/50",
+        "text-[#00FFFF] hover:text-white hover:bg-slate-800",
+        "transition-all duration-200 ease-in-out",
+        "hover:scale-105 active:scale-95",
+        "flex items-center justify-center",
+        "focus:outline-none focus:ring-2 focus:ring-[#00FFFF]/50"
       )}
       aria-label="Back to top"
       title="Back to top"
     >
       <ChevronUp className="h-5 w-5 sm:h-4 sm:w-4" />
-    </Button>
+    </button>
   );
 }
