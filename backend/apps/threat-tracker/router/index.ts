@@ -397,7 +397,7 @@ threatRouter.delete("/articles", async (req, res) => {
       return res.status(500).json({ error: "Failed to delete all articles" });
     }
     
-    res.status(204).send();
+    res.status(200).json({ message: "All articles deleted successfully" });
   } catch (error: any) {
     console.error("Error deleting all articles:", error);
     res.status(500).json({ error: error.message || "Failed to delete all articles" });
