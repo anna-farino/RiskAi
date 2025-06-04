@@ -1066,19 +1066,19 @@ export default function Sources() {
                         <div className="text-xs text-muted-foreground">
                           {formatLastScraped(source.lastScraped)}
                         </div>
-                        <Button
-                          variant="ghost"
+                          <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => scrapeSingleSource.mutate(source.id)}
                           disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
-                          className="h-7 w-7 p-0"
+                          className="h-7 px-2 text-xs"
                         >
                           {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                          <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Globe className="h-3 w-3" />
+                          <RefreshCw className="h-3 w-3" />
                           )}
-                          <span className="sr-only">Scrape</span>
+                          <span className="hidden sm:inline ml-1">Scrape</span>
                         </Button>
                         <Switch
                           checked={source.active}
