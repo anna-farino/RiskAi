@@ -748,24 +748,24 @@ export default function Sources() {
                       </a>
                     </div>
                   </TableCell>
-                  <TableCell className="w-[25%] sm:w-[15%] p-2 sm:p-4">
-                    <div className="flex flex-col gap-1 min-w-0">
+                  <TableCell className="w-[25%] sm:w-[15%] p-1 sm:p-4">
+                    <div className="flex flex-col gap-0.5 min-w-0 items-start">
                       {source.active ? (
-                        <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit flex-shrink-0">
-                          <Check className="h-2 w-2" />
+                        <Badge variant="default" className="flex items-center gap-0.5 bg-green-500 text-[10px] sm:text-xs px-1 py-0 h-4 sm:h-5 w-fit flex-shrink-0">
+                          <Check className="h-1.5 w-1.5 sm:h-2 sm:w-2" />
                           <span className="hidden sm:inline">Active</span>
                           <span className="sm:hidden">A</span>
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit flex-shrink-0">
-                          <X className="h-2 w-2" />
+                        <Badge variant="outline" className="flex items-center gap-0.5 text-muted-foreground text-[10px] sm:text-xs px-1 py-0 h-4 sm:h-5 w-fit flex-shrink-0">
+                          <X className="h-1.5 w-1.5 sm:h-2 sm:w-2" />
                           <span className="hidden sm:inline">Inactive</span>
                           <span className="sm:hidden">I</span>
                         </Badge>
                       )}
                       {source.includeInAutoScrape && source.active && (
-                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit flex-shrink-0">
-                          <RotateCw className="h-2 w-2" />
+                        <Badge variant="outline" className="flex items-center gap-0.5 text-[10px] sm:text-xs px-1 py-0 h-4 sm:h-5 w-fit flex-shrink-0">
+                          <RotateCw className="h-1.5 w-1.5 sm:h-2 sm:w-2" />
                           <span className="hidden sm:inline">Auto</span>
                         </Badge>
                       )}
