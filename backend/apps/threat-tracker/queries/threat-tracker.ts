@@ -41,7 +41,8 @@ export interface IStorage {
     id: string,
     source: Partial<ThreatSource>,
   ): Promise<ThreatSource>;
-  deleteSource(id: string): Promise<void>;
+  deleteSource(id: string, deleteArticles?: boolean): Promise<void>;
+  getSourceArticleCount(id: string): Promise<number>;
 
   // Keywords
   getKeywords(category?: string, userId?: string): Promise<ThreatKeyword[]>;
@@ -191,7 +192,7 @@ export const storage: IStorage = {
     }
   },
 
-  deleteSource: async (id: string) => {
+  deleteSource: async (id: string, deleteArticles = false) => {
     try {
       // First check if this is a default source
       const source = await db
@@ -204,10 +205,48 @@ export const storage: IStorage = {
         throw new Error("Cannot delete default sources");
       }
       
+      // Check if there are associated threat articles
+      const associatedArticles = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+      
+      const articleCount = associatedArticles[0]?.count || 0;
+      
+      if (articleCount > 0 && !deleteArticles) {
+        // Return special error object with article count for frontend handling
+        const error = new Error(`ARTICLES_EXIST`);
+        (error as any).articleCount = articleCount;
+        throw error;
+      }
+      
+      // Delete associated articles if requested
+      if (deleteArticles && articleCount > 0) {
+        await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
+      }
+      
+      // Delete the source
       await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
       console.error("Error deleting threat source:", error);
       throw error;
+    }
+  },
+
+  // Add method to get article count for a source
+  getSourceArticleCount: async (id: string) => {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+      
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error("Error getting source article count:", error);
+      return 0;
     }
   },
 
