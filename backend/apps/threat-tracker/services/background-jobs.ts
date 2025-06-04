@@ -3,6 +3,7 @@ import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./ope
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
+import { normalizeUrl } from "./url-utils";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
@@ -121,8 +122,6 @@ async function processArticle(
       }
     }
     
-<<<<<<< HEAD
-=======
     // Fix the author field - if it looks like a date, clear it and use the date field instead
     let actualAuthor = articleData.author;
     if (actualAuthor && actualAuthor.match(/^\w{3}\s+\d{1,2},?\s+\d{4}$/)) {
@@ -148,19 +147,13 @@ async function processArticle(
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
     
->>>>>>> anna
     // Store the article in the database
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-<<<<<<< HEAD
-      url: articleUrl,
-      author: articleData.author,
-=======
       url: urlToStore,
       author: actualAuthor,
->>>>>>> anna
       publishDate: publishDate,
       summary: analysis.summary,
       relevanceScore: analysis.relevanceScore.toString(),

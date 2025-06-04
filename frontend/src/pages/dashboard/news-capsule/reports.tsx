@@ -5,6 +5,7 @@ import {
   Report,
   ReportsManager,
 } from "@/components/news-capsule/reports-manager";
+import { XIcon } from "lucide-react";
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -12,14 +13,9 @@ export default function Reports() {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>("");
   const [showExportDropdown, setShowExportDropdown] = useState(false);
-<<<<<<< HEAD
   const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>(
     {},
   );
-=======
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
->>>>>>> anna
   const [showAddNote, setShowAddNote] = useState<string | null>(null);
 
   const handleReportSelect = (report: Report) => {
@@ -113,55 +109,6 @@ export default function Reports() {
     setSelectedReport(updatedReport);
   };
 
-<<<<<<< HEAD
-=======
-  const handleDragStart = (e: React.DragEvent, articleId: string) => {
-    setDraggedArticle(articleId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (!selectedReport || !draggedArticle) return;
-
-    const draggedIndex = selectedReport.articles.findIndex(article => article.id === draggedArticle);
-    if (draggedIndex === -1 || draggedIndex === dropIndex) return;
-
-    // Create new articles array with reordered items
-    const newArticles = [...selectedReport.articles];
-    const [draggedItem] = newArticles.splice(draggedIndex, 1);
-    newArticles.splice(dropIndex, 0, draggedItem);
-
-    // Update report with new order
-    const updatedReport = {
-      ...selectedReport,
-      articles: newArticles
-    };
-
-    // Update localStorage
-    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
-    const updatedReports = savedReports.map((report: Report) => 
-      report.id === selectedReport.id ? updatedReport : report
-    );
-    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
-
-    // Update selected report
-    setSelectedReport(updatedReport);
-    setDraggedArticle(null);
-    setDragOverIndex(null);
-  };
-  
->>>>>>> anna
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), "MMM d, yyyy");
@@ -233,7 +180,7 @@ export default function Reports() {
 
                         // Find all reports from the same day
                         const reportsFromSameDay = savedReports.filter(
-                          (report) => {
+                          (report: any) => {
                             const reportDate = new Date(report.createdAt);
                             const reportDay = new Date(reportDate);
                             reportDay.setHours(0, 0, 0, 0);
@@ -350,7 +297,7 @@ export default function Reports() {
                           exportButton.addEventListener("click", () => {
                             const selectedReportId = select.value;
                             const reportToExport = savedReports.find(
-                              (r) => r.id === selectedReportId,
+                              (r: any) => r.id === selectedReportId,
                             );
 
                             // Remove dialog
@@ -375,7 +322,7 @@ export default function Reports() {
                               reportContent += `====================================================\n\n`;
 
                               reportToExport.articles.forEach(
-                                (article, index) => {
+                                (article: any, index: any) => {
                                   reportContent += `ARTICLE ${index + 1}\n`;
                                   reportContent += `TITLE: ${article.title}\n`;
                                   reportContent += `THREAT: ${article.threatName}\n`;
@@ -501,31 +448,12 @@ export default function Reports() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-<<<<<<< HEAD
                       className={`relative pb-6 mb-6 ${index < selectedReport.articles.length - 1 ? "border-b border-slate-700/30" : ""}`}
                     >
                       <div className="flex items-start gap-3 mb-3">
                         <h3 className="text-lg font-medium flex-1">
                           {article.title}
                         </h3>
-=======
-                      className={`relative cursor-move pb-6 mb-6 ${
-                        dragOverIndex === index 
-                          ? 'bg-blue-900/10 p-2 rounded-lg' 
-                          : ''
-                      } ${index < selectedReport.articles.length - 1 ? 'border-b border-slate-700/30' : ''}`}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, article.id)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, index)}
-                    >
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="p-1 text-slate-400 hover:text-slate-300 cursor-grab active:cursor-grabbing">
-                          <GripVerticalIcon className="w-4 h-4" />
-                        </div>
-                        <h3 className="text-lg font-medium flex-1">{article.title}</h3>
->>>>>>> anna
                         <button
                           onClick={() => removeArticleFromReport(article.id)}
                           className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
@@ -578,7 +506,6 @@ export default function Reports() {
                           </p>
                         </div>
                       </div>
-<<<<<<< HEAD
 
                       <div className="mt-3 pt-3 border-t border-slate-700/40">
                         <a
@@ -589,46 +516,6 @@ export default function Reports() {
                         >
                           View original article
                         </a>
-=======
-                      
-                      <div className="mt-4 space-y-3">
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Summary</p>
-                          <p className="text-sm leading-relaxed">{article.summary}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Impacts</p>
-                          <p className="text-sm leading-relaxed">{article.impacts}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
-                          <p className="text-sm leading-relaxed">{article.attackVector}</p>
-                        </div>
-                        
-                        {/* Executive Notes Section */}
-                        <div className="mt-4 pt-4 border-t border-slate-700/30">
-                          <p className="text-xs text-slate-400 mb-2">Executive Note</p>
-                          
-                          <textarea
-                            value={executiveNotes[article.id] || ''}
-                            onChange={(e) => {
-                              const newValue = e.target.value;
-                              setExecutiveNotes(prev => ({ ...prev, [article.id]: newValue }));
-                              // Auto-save after 1 second of no typing
-                              clearTimeout((window as any)[`noteTimer_${article.id}`]);
-                              (window as any)[`noteTimer_${article.id}`] = setTimeout(() => {
-                                if (newValue.trim()) {
-                                  saveExecutiveNote(article.id, newValue);
-                                }
-                              }, 1000);
-                            }}
-                            placeholder="Add your executive note for this article..."
-                            className="w-full p-3 bg-slate-800/50 border border-slate-700/50 rounded-md text-sm text-slate-200 placeholder-slate-400 focus:border-blue-500 focus:outline-none resize-vertical min-h-[80px]"
-                          />
-                        </div>
->>>>>>> anna
                       </div>
                     </motion.div>
                   ))}

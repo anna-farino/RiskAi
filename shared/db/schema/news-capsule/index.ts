@@ -45,7 +45,6 @@ export type CapsuleArticle = typeof capsuleArticles.$inferSelect;
 
 
 // Executive Notes table for adding custom notes to articles in reports
-<<<<<<< HEAD
 //export const executiveNotes = pgTable("executive_notes", {
 //  id: uuid("id").defaultRandom().primaryKey(),
 //  articleId: uuid("article_id").notNull().references(() => capsuleArticles.id),
@@ -65,25 +64,3 @@ export type CapsuleArticle = typeof capsuleArticles.$inferSelect;
 //
 //export type InsertExecutiveNote = z.infer<typeof insertExecutiveNoteSchema>;
 //export type ExecutiveNote = typeof executiveNotes.$inferSelect;
-=======
-export const executiveNotes = pgTable("executive_notes", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  articleId: uuid("article_id").notNull().references(() => capsuleArticles.id),
-  reportId: uuid("report_id").notNull(),
-  note: text("note").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  userId: uuid("user_id").notNull().references(() => users.id),
-});
-
-export const insertExecutiveNoteSchema = z.object({
-  articleId: z.string().uuid(),
-  reportId: z.string().uuid(),
-  note: z.string().min(1, "Note cannot be empty"),
-  userId: z.string().uuid(),
-});
-
-export type InsertExecutiveNote = z.infer<typeof insertExecutiveNoteSchema>;
-export type ExecutiveNote = typeof executiveNotes.$inferSelect;
-
->>>>>>> anna
