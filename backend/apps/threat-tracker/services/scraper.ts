@@ -181,11 +181,6 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
 
     // Simple wait for dynamic content (no complex HTMX logic)
     await new Promise(resolve => setTimeout(resolve, 1000));
-        );
-        return loadingElements.length === 0;
-      },
-      { timeout: 10000 }
-    ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
     // Extract all links after ensuring content is loaded
     articleLinkData = await page.evaluate(() => {
@@ -199,20 +194,6 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     });
 
     log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
-
-    // Debug log: Print the extracted links data
-    log(
-      `[ThreatTracker] Extracted links data:\n${JSON.stringify(articleLinkData, null, 2)}`,
-      "scraper-debug",
-    );
-
-    // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
-    if (articleLinkData.length < 20) {
-    log(`[ThreatTracker] Fewer than 20 links found, trying additional techniques...`, "scraper");
-    
-    // For HTMX pages: Special handling of dynamic content
-    if (hasHtmx.hasHxAttributes) {
-      log(`[ThreatTracker] Attempting to interact with HTMX elements to load more content`, "scraper");
       
       // First try: Click on any "load more" or pagination buttons that might trigger HTMX loading
       const clickedButtons = await page.evaluate(() => {
