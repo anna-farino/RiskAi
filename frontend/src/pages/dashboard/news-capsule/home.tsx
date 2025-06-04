@@ -13,7 +13,8 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex justify-center">
+        <div className="w-full max-w-md">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -33,26 +34,7 @@ export default function Home() {
             </Link>
           </div>
         </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex flex-col h-full p-6 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl"
-        >
-          <h2 className="text-xl font-semibold mb-2">Executive Reports</h2>
-          <p className="text-slate-300 mb-4">
-            Create comprehensive daily reports from analyzed articles for executive review.
-          </p>
-          <div className="mt-auto">
-            <Link 
-              to="/dashboard/news-capsule/reports" 
-              className="inline-flex items-center px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md"
-            >
-              View Reports
-            </Link>
-          </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

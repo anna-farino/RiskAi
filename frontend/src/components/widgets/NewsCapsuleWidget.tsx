@@ -15,15 +15,12 @@ export function NewsCapsuleWidget() {
     >
       <RisqWidget
         title="News Capsule"
-        description="Process articles for executive reports"
+        description="Process articles for intelligent analysis"
         icon={<Newspaper className="w-10 h-10" />}
         variant="interactive"
         footer={
           <WidgetActions explanation="Intelligent news analysis">
-            <WidgetButton variant="ghost" onClick={() => navigate('/dashboard/news-capsule/reports')}>
-              <FileText className="mr-2 h-4 w-4" />
-              Reports
-            </WidgetButton>
+
             <WidgetButton variant="secondary" onClick={() => navigate('/dashboard/news-capsule/research')}>
               <Upload className="mr-2 h-4 w-4" />
               Research
@@ -49,18 +46,7 @@ export function NewsCapsuleWidget() {
             </span>
           </div>
           
-          <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
-            <div className="flex items-center">
-              <FileText className="w-5 h-5 mr-3 text-[#00FFFF]" />
-              <div>
-                <h4 className="text-sm font-medium">Executive Reports</h4>
-                <p className="text-xs text-gray-400">Compile daily insights</p>
-              </div>
-            </div>
-            <span className="text-xs px-2 py-1 rounded-full bg-blue-900/30 text-blue-400 border border-blue-500/20">
-              Ready
-            </span>
-          </div>
+
         </div>
       </RisqWidget>
     </motion.div>
