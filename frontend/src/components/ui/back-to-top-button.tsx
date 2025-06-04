@@ -38,7 +38,7 @@ export function BackToTopButton() {
         "fixed bottom-4 right-[100px] sm:bottom-6 sm:right-[100px] z-[60]",
         "h-12 w-12 sm:h-10 sm:w-10 rounded-full shadow-xl",
         "bg-slate-900/90 backdrop-blur-sm border border-slate-700/50",
-        "text-white hover:text-[#00FFFF] hover:bg-slate-800",
+        "text-[#BF00FF] hover:text-[#00FFFF] hover:bg-slate-800",
         "transition-all duration-200 ease-in-out",
         "hover:scale-105 active:scale-95",
         "flex items-center justify-center",
@@ -47,7 +47,7 @@ export function BackToTopButton() {
       aria-label="Back to top"
       title="Back to top"
     >
-      <ChevronUp className="h-6 w-6" />
+      <ChevronUp className="h-8 w-8" />
     </button>
   );
 }
