@@ -193,8 +193,13 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       timeout: 45000 
     });
     
-    // Wait for content to load
-    await page.waitForTimeout(2000);
+    // Wait for content to load with fallback for different Puppeteer versions
+    try {
+      await page.waitForDelay(2000);
+    } catch (e) {
+      // Fallback for older Puppeteer versions or use setTimeout
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
     
     // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
