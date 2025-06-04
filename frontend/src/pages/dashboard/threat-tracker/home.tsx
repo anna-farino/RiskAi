@@ -56,9 +56,7 @@ export default function ThreatHome() {
   const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // Sort state
-  const [sortBy, setSortBy] = useState<'publishDate' | 'scrapeDate'>('publishDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
   
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
@@ -109,16 +107,14 @@ export default function ThreatHome() {
       params.append("endDate", dateRange.endDate.toISOString());
     }
 
-    // Add sorting parameters
-    params.append("sortBy", sortBy);
-    params.append("sortOrder", sortOrder);
+
     
     return params.toString();
   };
   
-  // Articles query with filtering and sorting
+  // Articles query with filtering
   const articles = useQuery<ThreatArticle[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange, sortBy, sortOrder],
+    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange],
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
@@ -150,45 +146,12 @@ export default function ThreatHome() {
     },
   });
   
-  // Sort articles function
-  const sortArticles = (articles: ThreatArticle[]): ThreatArticle[] => {
-    if (sortBy === 'publishDate') {
-      // Separate articles with and without publish dates
-      const articlesWithoutPublishDate = articles.filter(article => !article.publishDate);
-      const articlesWithPublishDate = articles.filter(article => article.publishDate);
-      
-      // Sort articles without publish date by scrape date
-      const sortedWithoutPublishDate = [...articlesWithoutPublishDate].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-      
-      // Sort articles with publish date by publish date
-      const sortedWithPublishDate = [...articlesWithPublishDate].sort((a, b) => {
-        const aDate = new Date(a.publishDate!);
-        const bDate = new Date(b.publishDate!);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-      
-      // Articles without publish date first, then articles with publish date
-      return [...sortedWithoutPublishDate, ...sortedWithPublishDate];
-    } else {
-      // Sort by scrape date
-      return [...articles].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-    }
-  };
-
-  // Sync local state with query data when it changes, applying sort
+  // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(sortArticles(articles.data));
+      setLocalArticles(articles.data);
     }
-  }, [articles.data, sortBy, sortOrder]);
+  }, [articles.data]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
