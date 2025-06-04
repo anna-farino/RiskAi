@@ -301,8 +301,8 @@ export default function Research() {
         }
       }
       
-      // Refresh articles from database to get latest state
-      await fetchArticlesFromDatabase();
+      // Don't refresh from database to preserve user deletions
+      // Articles are added via optimistic updates during processing
       
       // Set detailed success or error message
       if (errorCount > 0) {
