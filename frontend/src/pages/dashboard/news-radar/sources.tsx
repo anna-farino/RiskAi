@@ -1005,17 +1005,17 @@ export default function Sources() {
           </div>
         ) : (
           <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0">
-            <div className="px-3 sm:px-4 lg:px-0 min-w-[280px]">
-              <Table className="w-full table-fixed">
+            <div className="px-3 sm:px-4 lg:px-0 min-w-[320px] sm:min-w-[280px]">
+              <Table className="w-full table-auto sm:table-fixed">
                 <TableHeader>
                   <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                    <TableHead className="text-slate-300 w-[25%] text-xs sm:text-sm">Source</TableHead>
-                    <TableHead className="text-slate-300 w-[35%] text-xs sm:text-sm">URL</TableHead>
-                    <TableHead className="text-slate-300 w-[15%] text-center text-xs sm:text-sm">
+                    <TableHead className="text-slate-300 w-[30%] sm:w-[25%] text-xs sm:text-sm">Source</TableHead>
+                    <TableHead className="text-slate-300 w-[35%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
+                    <TableHead className="text-slate-300 w-[10%] sm:w-[15%] text-center text-xs sm:text-sm">
                       <span className="hidden sm:inline">Auto</span>
                       <span className="sm:hidden">A</span>
                     </TableHead>
-                    <TableHead className="text-right text-slate-300 w-[25%] text-xs sm:text-sm">Actions</TableHead>
+                    <TableHead className="text-right text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
@@ -1064,8 +1064,8 @@ export default function Sources() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right w-[25%] sm:w-[25%] p-2 sm:p-4">
-                      <div className="flex flex-col sm:flex-row justify-end gap-1 sm:gap-2">
+                    <TableCell className="text-right w-[25%] sm:w-[25%] p-1 sm:p-4 align-top">
+                      <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-2 sm:gap-2 min-w-0">
                         <Button
                           variant="ghost"
                           size="icon"
