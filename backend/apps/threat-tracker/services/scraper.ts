@@ -124,9 +124,9 @@ async function setupPage(): Promise<Page> {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   });
 
-  // Set longer timeouts
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(60000);
+  // Set shorter, more realistic timeouts
+  page.setDefaultNavigationTimeout(30000);
+  page.setDefaultTimeout(30000);
 
   return page;
 }
@@ -416,17 +416,48 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
     page = await setupPage();
     
-    // Navigate to the page
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
-    log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    // Navigate to the page with more forgiving strategy
+    let response;
+    try {
+      // First try with domcontentloaded (faster)
+      response = await page.goto(url, { 
+        waitUntil: "domcontentloaded",
+        timeout: 30000 // Reduced timeout
+      });
+      log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    } catch (timeoutError) {
+      log(`[ThreatTracker] Page load timed out, trying alternative navigation strategy`, "scraper");
+      
+      // Fallback: Try with load event only
+      try {
+        response = await page.goto(url, { 
+          waitUntil: "load",
+          timeout: 20000 // Even shorter timeout
+        });
+        log(`[ThreatTracker] Fallback navigation successful`, "scraper");
+      } catch (secondError) {
+        log(`[ThreatTracker] Both navigation attempts failed, continuing with partial load`, "scraper");
+        // Continue anyway - sometimes the page content is still accessible
+      }
+    }
     
     if (response && !response.ok()) {
       log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Wait for potential challenges to be processed
-    log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for essential content to load with faster detection
+    log('[ThreatTracker] Waiting for page content to load...', "scraper");
+    
+    // Wait for either articles to appear or a reasonable timeout
+    try {
+      await Promise.race([
+        page.waitForSelector('article, .article, [class*="article"], [class*="post"], .content, main', { timeout: 10000 }),
+        new Promise(resolve => setTimeout(resolve, 5000)) // Max 5 second wait
+      ]);
+      log('[ThreatTracker] Content detected on page', "scraper");
+    } catch (contentError) {
+      log('[ThreatTracker] No specific content selectors found, proceeding with page as-is', "scraper");
+    }
 
     // Check for bot protection
     const botProtectionCheck = await page.evaluate(() => {
@@ -496,16 +527,19 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           }
         }
 
-        // Fallback selectors if config fails
+        // Fallback selectors if config fails - optimized for Bleeping Computer
         const fallbackSelectors = {
           content: [
             'article',
+            '.articleBody', // Bleeping Computer specific
             '.article-content',
             '.article-body',
+            '.article_body', // Alternative pattern
             'main .content',
             '.post-content',
             '#article-content',
-            '.story-content'
+            '.story-content',
+            '.entry-content' // WordPress pattern
           ],
           title: ['h1', '.article-title', '.post-title'],
           author: ['.author', '.byline', '.article-author'],
