@@ -520,10 +520,26 @@ export const storage: IStorage = {
       // Dynamic sorting based on parameters
       let orderedQuery;
       if (sortBy === 'publishDate') {
-        // Use publishDate with fallback to scrapeDate
+        // Prioritize articles with publish_date first, then by publish_date, then fallback to scrape_date
+        // Articles without either date appear first (NULL values sort first in PostgreSQL with DESC)
         orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate}) ASC`)
-          : query.orderBy(desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`));
+          ? query.orderBy(
+              sql`CASE 
+                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
+                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2 
+                ELSE 0 
+              END ASC`,
+              sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate}) ASC`
+            )
+          : query.orderBy(
+              sql`CASE 
+                WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
+                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
+                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
+                ELSE 3
+              END ASC`,
+              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
+            );
       } else if (sortBy === 'scrapeDate') {
         orderedQuery = sortOrder === 'asc' 
           ? query.orderBy(threatArticles.scrapeDate)
@@ -533,8 +549,16 @@ export const storage: IStorage = {
           ? query.orderBy(threatArticles.title)
           : query.orderBy(desc(threatArticles.title));
       } else {
-        // Default to publishDate with fallback
-        orderedQuery = query.orderBy(desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`));
+        // Default to publishDate prioritization with fallback
+        orderedQuery = query.orderBy(
+          sql`CASE 
+            WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
+            WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
+            WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
+            ELSE 3
+          END ASC`,
+          desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
+        );
       }
 
       // Add limit if specified
