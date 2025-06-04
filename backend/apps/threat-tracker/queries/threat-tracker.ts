@@ -90,16 +90,24 @@ export const storage: IStorage = {
   // SOURCES
   getSources: async (userId?: string) => {
     try {
-      const conditions = [];
-      if (userId) conditions.push(eq(threatSources.userId, userId));
+      // Get default sources (is_default = true, userId = null) and user-specific sources
+      const defaultSources = await db
+        .select()
+        .from(threatSources)
+        .where(and(eq(threatSources.isDefault, true), isNull(threatSources.userId)))
+        .execute();
 
-      const query = db.select().from(threatSources);
+      let userSources: ThreatSource[] = [];
+      if (userId) {
+        userSources = await db
+          .select()
+          .from(threatSources)
+          .where(eq(threatSources.userId, userId))
+          .execute();
+      }
 
-      const finalQuery = conditions.length
-        ? query.where(and(...conditions))
-        : query;
-
-      return await finalQuery.execute();
+      // Combine default and user sources
+      return [...defaultSources, ...userSources];
     } catch (error) {
       console.error("Error fetching threat sources:", error);
       return [];
@@ -122,17 +130,33 @@ export const storage: IStorage = {
 
   getAutoScrapeSources: async (userId?: string) => {
     try {
-      const conditions = [
-        eq(threatSources.active, true),
-        eq(threatSources.includeInAutoScrape, true),
-      ];
-      if (userId) conditions.push(eq(threatSources.userId, userId));
-
-      return await db
+      // Get default sources that are active and included in auto-scrape
+      const defaultSources = await db
         .select()
         .from(threatSources)
-        .where(and(...conditions))
+        .where(and(
+          eq(threatSources.isDefault, true),
+          isNull(threatSources.userId),
+          eq(threatSources.active, true),
+          eq(threatSources.includeInAutoScrape, true)
+        ))
         .execute();
+
+      let userSources: ThreatSource[] = [];
+      if (userId) {
+        userSources = await db
+          .select()
+          .from(threatSources)
+          .where(and(
+            eq(threatSources.userId, userId),
+            eq(threatSources.active, true),
+            eq(threatSources.includeInAutoScrape, true)
+          ))
+          .execute();
+      }
+
+      // Combine default and user sources
+      return [...defaultSources, ...userSources];
     } catch (error) {
       console.error("Error fetching auto-scrape threat sources:", error);
       return [];
@@ -169,6 +193,17 @@ export const storage: IStorage = {
 
   deleteSource: async (id: string) => {
     try {
+      // First check if this is a default source
+      const source = await db
+        .select()
+        .from(threatSources)
+        .where(eq(threatSources.id, id))
+        .execute();
+      
+      if (source.length > 0 && source[0].isDefault) {
+        throw new Error("Cannot delete default sources");
+      }
+      
       await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
       console.error("Error deleting threat source:", error);

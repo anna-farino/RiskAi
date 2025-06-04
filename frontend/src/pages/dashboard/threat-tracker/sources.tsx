@@ -248,6 +248,7 @@ export default function Sources() {
         lastScraped: null,
         userId: "current-user",
         scrapingConfig: null,
+        isDefault: false, // User-created sources are never default
       };
 
       // Add to local state immediately
@@ -926,8 +927,9 @@ export default function Sources() {
           <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
-                <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
+                <TableHead className="w-[20%] min-w-[120px]">Name</TableHead>
+                <TableHead className="w-[30%] min-w-[180px]">URL</TableHead>
+                <TableHead className="w-[10%] min-w-[80px]">Type</TableHead>
                 <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
                 <TableHead className="w-[15%] min-w-[100px]">
                   Last Scraped
@@ -957,6 +959,23 @@ export default function Sources() {
                       </span>
                       <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
                     </a>
+                  </TableCell>
+                  <TableCell className="pr-2">
+                    {source.isDefault ? (
+                      <Badge
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-1 py-0.5 w-fit"
+                      >
+                        Default
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit"
+                      >
+                        Custom
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="pr-2">
                     <div className="flex flex-col gap-1">
@@ -1022,36 +1041,49 @@ export default function Sources() {
                         <span className="sr-only">Edit</span>
                       </Button>
 
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive h-7 w-7 p-0"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the source "
-                              {source.name}". This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteSource.mutate(source.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      {source.isDefault ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled
+                          className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed"
+                          title="Cannot delete default sources"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span className="sr-only">Delete (disabled)</span>
+                        </Button>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive h-7 w-7 p-0"
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="h-3 w-3" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the source "
+                                {source.name}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteSource.mutate(source.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

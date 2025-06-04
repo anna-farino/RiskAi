@@ -95,6 +95,11 @@ threatRouter.delete("/sources/:id", async (req, res) => {
       return res.status(404).json({ error: "Source not found" });
     }
     
+    // Prevent deletion of default sources
+    if (existingSource.isDefault) {
+      return res.status(403).json({ error: "Cannot delete default sources" });
+    }
+    
     if (existingSource.userId && existingSource.userId !== userId) {
       return res.status(403).json({ error: "Not authorized to delete this source" });
     }
