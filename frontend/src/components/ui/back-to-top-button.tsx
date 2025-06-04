@@ -47,7 +47,7 @@ export function BackToTopButton() {
       aria-label="Back to top"
       title="Back to top"
     >
-      <ChevronUp className="h-5 w-5 sm:h-4 sm:w-4" />
+      <ChevronUp className="h-5 w-5" />
     </button>
   );
 }
