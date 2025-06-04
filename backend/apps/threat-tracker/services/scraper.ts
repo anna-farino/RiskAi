@@ -336,7 +336,9 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
                   const div = document.createElement('div');
                   div.className = 'scraper-injected-content';
                   div.innerHTML = html;
-                  document.body.appendChild(div);
+                  if (document.body) {
+                    document.body.appendChild(div);
+                  }
                 }
               } catch (e) {
                 console.error(`Error fetching ${endpoint.url}:`, e);
@@ -598,25 +600,26 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
+        // Helper function to safely extract text content
+        const safeTextContent = (selector) => {
+          if (!selector) return '';
+          try {
+            const element = document.querySelector(selector);
+            return element?.textContent?.trim() || '';
+          } catch (e) {
+            console.log(`Error with selector ${selector}:`, e);
+            return '';
+          }
+        };
+
         // First try using the provided selectors
         if (config) {
-          const title = config.titleSelector || config.title 
-            ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
-            : '';
-            
-          const content = config.contentSelector || config.content 
-            ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
-            : '';
-            
-          const author = config.authorSelector || config.author 
-            ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
-            : '';
-            
-          const date = config.dateSelector || config.date 
-            ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
-            : '';
+          const title = safeTextContent(config.titleSelector || config.title);
+          const content = safeTextContent(config.contentSelector || config.content);
+          const author = safeTextContent(config.authorSelector || config.author);
+          const date = safeTextContent(config.dateSelector || config.date);
 
-          if (content) {
+          if (content && content.length > 10) {
             return { title, content, author, date };
           }
         }
@@ -644,55 +647,86 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           ]
         };
 
-        // Try fallback selectors
+        // Try fallback selectors with safe extraction
         let content = '';
         for (const selector of fallbackSelectors.content) {
-          const element = document.querySelector(selector);
-          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
-            content = element.textContent?.trim() || '';
-            break;
+          try {
+            const element = document.querySelector(selector);
+            const textContent = element?.textContent?.trim();
+            if (element && textContent && textContent.length > 100) {
+              content = textContent;
+              break;
+            }
+          } catch (e) {
+            console.log(`Error with content selector ${selector}:`, e);
+            continue;
           }
         }
 
-        // If still no content, get the main content or body
+        // If still no content, get the main content or body safely
         if (!content || content.length < 100) {
-          const main = document.querySelector('main');
-          if (main) {
-            content = main.textContent?.trim() || '';
+          try {
+            const main = document.querySelector('main');
+            if (main?.textContent) {
+              content = main.textContent.trim();
+            }
+          } catch (e) {
+            console.log('Error extracting main content:', e);
           }
           
           if (!content || content.length < 100) {
-            content = document.body.textContent?.trim() || '';
+            try {
+              if (document.body?.textContent) {
+                content = document.body.textContent.trim();
+              }
+            } catch (e) {
+              console.log('Error extracting body content:', e);
+            }
           }
         }
 
-        // Try to get title
+        // Try to get title safely
         let title = '';
         for (const selector of fallbackSelectors.title) {
-          const element = document.querySelector(selector);
-          if (element) {
-            title = element.textContent?.trim() || '';
-            break;
+          try {
+            const element = document.querySelector(selector);
+            if (element?.textContent) {
+              title = element.textContent.trim();
+              break;
+            }
+          } catch (e) {
+            console.log(`Error with title selector ${selector}:`, e);
+            continue;
           }
         }
 
-        // Try to get author
+        // Try to get author safely
         let author = '';
         for (const selector of fallbackSelectors.author) {
-          const element = document.querySelector(selector);
-          if (element) {
-            author = element.textContent?.trim() || '';
-            break;
+          try {
+            const element = document.querySelector(selector);
+            if (element?.textContent) {
+              author = element.textContent.trim();
+              break;
+            }
+          } catch (e) {
+            console.log(`Error with author selector ${selector}:`, e);
+            continue;
           }
         }
 
-        // Try to get date
+        // Try to get date safely
         let date = '';
         for (const selector of fallbackSelectors.date) {
-          const element = document.querySelector(selector);
-          if (element) {
-            date = element.textContent?.trim() || '';
-            break;
+          try {
+            const element = document.querySelector(selector);
+            if (element?.textContent) {
+              date = element.textContent.trim();
+              break;
+            }
+          } catch (e) {
+            console.log(`Error with date selector ${selector}:`, e);
+            continue;
           }
         }
 
