@@ -130,6 +130,28 @@ async function processArticle(
       }
     }
     
+    // Fix the author field - if it looks like a date, clear it and use the date field instead
+    let actualAuthor = articleData.author;
+    if (actualAuthor && actualAuthor.match(/^\w{3}\s+\d{1,2},?\s+\d{4}$/)) {
+      // This looks like a date (e.g., "Jun 03, 2025" or "May 23 2025"), not an author
+      log(`[ThreatTracker] Detected date in author field: ${actualAuthor}`, "scraper");
+      
+      // If we don't have a publishDate yet, try to parse this as the date
+      if (!publishDate) {
+        try {
+          publishDate = new Date(actualAuthor);
+          if (isNaN(publishDate.getTime())) {
+            publishDate = null;
+          }
+        } catch (e) {
+          publishDate = null;
+        }
+      }
+      
+      // Clear the author field since it's actually a date
+      actualAuthor = undefined;
+    }
+    
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
     
@@ -139,7 +161,7 @@ async function processArticle(
       title: articleData.title,
       content: articleData.content,
       url: urlToStore,
-      author: articleData.author,
+      author: actualAuthor,
       publishDate: publishDate,
       summary: analysis.summary,
       relevanceScore: analysis.relevanceScore.toString(),
