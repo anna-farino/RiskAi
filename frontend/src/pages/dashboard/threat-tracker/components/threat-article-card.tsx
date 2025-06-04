@@ -26,12 +26,10 @@ interface ExtendedThreatArticle extends ThreatArticle {
 
 interface ThreatArticleCardProps {
   article: ExtendedThreatArticle;
-  onDelete: () => void;
+  onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string, category: string) => void;
   onSendToCapsule?: (url: string) => void;
-  onMarkForCapsule?: () => void;
-  onUnmarkFromCapsule?: () => void;
 }
 
 interface KeywordCategories {
@@ -47,8 +45,6 @@ export function ThreatArticleCard({
   isPending = false,
   onKeywordClick,
   onSendToCapsule,
-  onMarkForCapsule,
-  onUnmarkFromCapsule,
 }: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
@@ -56,7 +52,7 @@ export function ThreatArticleCard({
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onDelete();
+    onDelete(article.id);
   };
 
   const handleSendToCapsule = async (e: React.MouseEvent) => {
