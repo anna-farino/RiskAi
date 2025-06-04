@@ -36,7 +36,7 @@ export function BackToTopButton() {
       onClick={scrollToTop}
       className={cn(
         "fixed bottom-4 right-[100px] sm:bottom-6 sm:right-[100px] z-[60]",
-        "h-16 w-16 sm:h-14 sm:w-14 rounded-full shadow-xl",
+        "h-14 w-14 sm:h-14 sm:w-14 rounded-full shadow-xl",
         "bg-[#BF00FF] backdrop-blur-sm border border-[#BF00FF]/50",
         "text-white hover:text-white hover:bg-[#00FFFF]",
         "transition-all duration-200 ease-in-out",
