@@ -97,7 +97,9 @@ export const storage: IStorage = {
       const defaultSources = await db
         .select()
         .from(threatSources)
-        .where(and(eq(threatSources.isDefault, true), isNull(threatSources.userId)))
+        .where(
+          and(eq(threatSources.isDefault, true), isNull(threatSources.userId)),
+        )
         .execute();
 
       let userSources: ThreatSource[] = [];
@@ -137,12 +139,14 @@ export const storage: IStorage = {
       const defaultSources = await db
         .select()
         .from(threatSources)
-        .where(and(
-          eq(threatSources.isDefault, true),
-          isNull(threatSources.userId),
-          eq(threatSources.active, true),
-          eq(threatSources.includeInAutoScrape, true)
-        ))
+        .where(
+          and(
+            eq(threatSources.isDefault, true),
+            isNull(threatSources.userId),
+            eq(threatSources.active, true),
+            eq(threatSources.includeInAutoScrape, true),
+          ),
+        )
         .execute();
 
       let userSources: ThreatSource[] = [];
@@ -150,11 +154,13 @@ export const storage: IStorage = {
         userSources = await db
           .select()
           .from(threatSources)
-          .where(and(
-            eq(threatSources.userId, userId),
-            eq(threatSources.active, true),
-            eq(threatSources.includeInAutoScrape, true)
-          ))
+          .where(
+            and(
+              eq(threatSources.userId, userId),
+              eq(threatSources.active, true),
+              eq(threatSources.includeInAutoScrape, true),
+            ),
+          )
           .execute();
       }
 
@@ -202,32 +208,32 @@ export const storage: IStorage = {
         .from(threatSources)
         .where(eq(threatSources.id, id))
         .execute();
-      
+
       if (source.length > 0 && source[0].isDefault) {
         throw new Error("Cannot delete default sources");
       }
-      
+
       // Check if there are associated threat articles
       const associatedArticles = await db
         .select({ count: sql<number>`count(*)` })
         .from(threatArticles)
         .where(eq(threatArticles.sourceId, id))
         .execute();
-      
+
       const articleCount = associatedArticles[0]?.count || 0;
-      
+
       if (articleCount > 0 && !deleteArticles) {
         // Return special error object with article count for frontend handling
         const error = new Error(`ARTICLES_EXIST`);
         (error as any).articleCount = articleCount;
         throw error;
       }
-      
+
       // Delete associated articles if requested
       if (deleteArticles && articleCount > 0) {
         await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
       }
-      
+
       // Delete the source
       await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
@@ -244,7 +250,7 @@ export const storage: IStorage = {
         .from(threatArticles)
         .where(eq(threatArticles.sourceId, id))
         .execute();
-      
+
       return result[0]?.count || 0;
     } catch (error) {
       console.error("Error getting source article count:", error);
@@ -435,7 +441,16 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId, sortBy = 'publishDate', sortOrder = 'desc', limit } = options;
+      const {
+        search,
+        keywordIds,
+        startDate,
+        endDate,
+        userId,
+        sortBy = "publishDate",
+        sortOrder = "desc",
+        limit,
+      } = options;
       let query = db.select().from(threatArticles);
 
       // Build WHERE clause based on search parameters
@@ -519,45 +534,31 @@ export const storage: IStorage = {
 
       // Dynamic sorting based on parameters
       let orderedQuery;
-      if (sortBy === 'publishDate') {
-        // Prioritize articles with publish_date first, then by publish_date, then fallback to scrape_date
-        // Articles without either date appear first (NULL values sort first in PostgreSQL with DESC)
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(
-              sql`CASE 
-                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2 
-                ELSE 0 
-              END ASC`,
-              sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate}) ASC`
-            )
-          : query.orderBy(
-              sql`CASE 
-                WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
-                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
-                ELSE 3
-              END ASC`,
-              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
-            );
-      } else if (sortBy === 'scrapeDate') {
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(threatArticles.scrapeDate)
-          : query.orderBy(desc(threatArticles.scrapeDate));
-      } else if (sortBy === 'title') {
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(threatArticles.title)
-          : query.orderBy(desc(threatArticles.title));
+      if (sortBy === "publishDate") {
+        // Sort ONLY by publish date, with nulls at the end
+        orderedQuery =
+          sortOrder === "asc"
+            ? query.orderBy(
+                sql`${threatArticles.publishDate} ASC NULLS LAST`
+              )
+            : query.orderBy(
+                sql`${threatArticles.publishDate} DESC NULLS LAST`
+              );
+      } else if (sortBy === "scrapeDate") {
+        // Sort ONLY by scrape date
+        orderedQuery =
+          sortOrder === "asc"
+            ? query.orderBy(threatArticles.scrapeDate)
+            : query.orderBy(desc(threatArticles.scrapeDate));
+      } else if (sortBy === "title") {
+        orderedQuery =
+          sortOrder === "asc"
+            ? query.orderBy(threatArticles.title)
+            : query.orderBy(desc(threatArticles.title));
       } else {
-        // Default to publishDate prioritization with fallback
+        // Default to publishDate DESC (newest first), with nulls at the end
         orderedQuery = query.orderBy(
-          sql`CASE 
-            WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
-            WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-            WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
-            ELSE 3
-          END ASC`,
-          desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
+          sql`${threatArticles.publishDate} DESC NULLS LAST`
         );
       }
 
