@@ -122,37 +122,11 @@ async function setupPage(): Promise<Page> {
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache'
   });
 
-  // Block unnecessary resources to speed up loading
-  await page.setRequestInterception(true);
-  page.on('request', (request) => {
-    const resourceType = request.resourceType();
-    const url = request.url();
-    
-    // Block images, stylesheets, fonts, and other non-essential resources
-    if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-      request.abort();
-    }
-    // Block known ad/tracking domains
-    else if (url.includes('googletagmanager') || 
-             url.includes('google-analytics') || 
-             url.includes('googlesyndication') ||
-             url.includes('doubleclick') ||
-             url.includes('facebook.com') ||
-             url.includes('twitter.com')) {
-      request.abort();
-    }
-    else {
-      request.continue();
-    }
-  });
-
-  // Set more aggressive timeouts for better reliability
-  page.setDefaultNavigationTimeout(30000); // Reduce to 30 seconds
-  page.setDefaultTimeout(30000);
+  // Set longer timeouts
+  page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(60000);
 
   return page;
 }
@@ -336,9 +310,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
                   const div = document.createElement('div');
                   div.className = 'scraper-injected-content';
                   div.innerHTML = html;
-                  if (document.body) {
-                    document.body.appendChild(div);
-                  }
+                  document.body.appendChild(div);
                 }
               } catch (e) {
                 console.error(`Error fetching ${endpoint.url}:`, e);
@@ -358,34 +330,15 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     // Standard approach: Scroll through the page to trigger lazy loading
     log(`[ThreatTracker] Scrolling page to trigger lazy loading...`, "scraper");
     await page.evaluate(() => {
-      if (!document.body) {
-        console.log('Document body not available for lazy loading scroll');
-        return Promise.resolve();
-      }
-      const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
-      if (scrollHeight > 0) {
-        window.scrollTo(0, scrollHeight / 3);
-      }
+      window.scrollTo(0, document.body.scrollHeight / 3);
       return new Promise(resolve => setTimeout(resolve, 1000));
     });
     await page.evaluate(() => {
-      if (!document.body) {
-        return Promise.resolve();
-      }
-      const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
-      if (scrollHeight > 0) {
-        window.scrollTo(0, scrollHeight * 2 / 3);
-      }
+      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
       return new Promise(resolve => setTimeout(resolve, 1000));
     });
     await page.evaluate(() => {
-      if (!document.body) {
-        return Promise.resolve();
-      }
-      const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
-      if (scrollHeight > 0) {
-        window.scrollTo(0, scrollHeight);
-      }
+      window.scrollTo(0, document.body.scrollHeight);
       return new Promise(resolve => setTimeout(resolve, 1000));
     });
     
@@ -463,43 +416,9 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
     page = await setupPage();
     
-    // Navigate to the page with more lenient wait conditions
-    let response;
-    try {
-      // Try with domcontentloaded first (faster)
-      response = await page.goto(url, { 
-        waitUntil: "domcontentloaded",
-        timeout: 20000 
-      });
-      log(`[ThreatTracker] DOM content loaded for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
-      
-      // Wait a bit more for dynamic content
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-    } catch (error: any) {
-      if (error.message.includes('timeout')) {
-        log(`[ThreatTracker] Timeout with domcontentloaded, trying load event`, "scraper");
-        try {
-          // Fallback to basic load event
-          response = await page.goto(url, { 
-            waitUntil: "load",
-            timeout: 15000 
-          });
-        } catch (fallbackError: any) {
-          log(`[ThreatTracker] Both navigation attempts failed, trying direct navigation`, "scraper");
-          // Last resort: try direct navigation without wait conditions
-          try {
-            response = await page.goto(url, { timeout: 10000 });
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } catch (finalError: any) {
-            log(`[ThreatTracker] All navigation attempts failed, proceeding with current page state`, "scraper");
-            // Continue with whatever page state we have
-          }
-        }
-      } else {
-        throw error;
-      }
-    }
+    // Navigate to the page
+    const response = await page.goto(url, { waitUntil: "networkidle2" });
+    log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
     
     if (response && !response.ok()) {
       log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
@@ -509,56 +428,29 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Ensure DOM is ready before proceeding
-    await page.evaluate(() => {
-      return new Promise((resolve) => {
-        if (document.readyState === 'complete') {
-          resolve(true);
-        } else {
-          window.addEventListener('load', () => resolve(true));
-          // Fallback timeout
-          setTimeout(() => resolve(true), 5000);
-        }
-      });
+    // Check for bot protection
+    const botProtectionCheck = await page.evaluate(() => {
+      return (
+        document.body.innerHTML.includes('_Incapsula_Resource') ||
+        document.body.innerHTML.includes('Incapsula') ||
+        document.body.innerHTML.includes('captcha') ||
+        document.body.innerHTML.includes('Captcha') ||
+        document.body.innerHTML.includes('cloudflare') ||
+        document.body.innerHTML.includes('CloudFlare')
+      );
     });
 
-    // Check for bot protection and handle it more gracefully
-    try {
-      const botProtectionCheck = await page.evaluate(() => {
-        const bodyText = document.body.innerHTML.toLowerCase();
-        return (
-          bodyText.includes('_incapsula_resource') ||
-          bodyText.includes('incapsula') ||
-          bodyText.includes('captcha') ||
-          bodyText.includes('cloudflare') ||
-          bodyText.includes('checking your browser') ||
-          bodyText.includes('please wait') ||
-          bodyText.includes('verifying you are human')
-        );
-      });
-
-      if (botProtectionCheck) {
-        log('[ThreatTracker] Bot protection detected, attempting to bypass', "scraper");
-        
-        // Wait for the challenge to potentially resolve itself
-        await new Promise(resolve => setTimeout(resolve, 8000));
-        
-        // Check if we can now access the content
-        const contentCheck = await page.evaluate(() => {
-          return document.querySelectorAll('article, .article, .content, main').length > 0;
-        });
-        
-        if (!contentCheck) {
-          log('[ThreatTracker] Bot protection still active, skipping this URL', "scraper");
-          throw new Error('Bot protection active - skipping URL');
-        }
-      }
-    } catch (error: any) {
-      if (error.message.includes('Bot protection active')) {
-        throw error;
-      }
-      // Continue if evaluation fails
-      log('[ThreatTracker] Bot protection check failed, continuing', "scraper");
+    if (botProtectionCheck) {
+      log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
+      // Perform some human-like actions
+      await page.mouse.move(50, 50);
+      await page.mouse.down();
+      await page.mouse.move(100, 100);
+      await page.mouse.up();
+      
+      // Reload the page and wait again
+      await page.reload({ waitUntil: 'networkidle2' });
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     // For article pages, extract the content based on selectors
@@ -567,59 +459,39 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
-        if (!document.body) {
-          console.log('Document body not available, skipping scroll');
-          return Promise.resolve();
-        }
-        const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
-        if (scrollHeight > 0) {
-          window.scrollTo(0, scrollHeight / 3);
-        }
+        window.scrollTo(0, document.body.scrollHeight / 3);
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        if (!document.body) {
-          return Promise.resolve();
-        }
-        const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
-        if (scrollHeight > 0) {
-          window.scrollTo(0, scrollHeight * 2 / 3);
-        }
+        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        if (!document.body) {
-          return Promise.resolve();
-        }
-        const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
-        if (scrollHeight > 0) {
-          window.scrollTo(0, scrollHeight);
-        }
+        window.scrollTo(0, document.body.scrollHeight);
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
-        // Helper function to safely extract text content
-        const safeTextContent = (selector) => {
-          if (!selector) return '';
-          try {
-            const element = document.querySelector(selector);
-            return element?.textContent?.trim() || '';
-          } catch (e) {
-            console.log(`Error with selector ${selector}:`, e);
-            return '';
-          }
-        };
-
         // First try using the provided selectors
         if (config) {
-          const title = safeTextContent(config.titleSelector || config.title);
-          const content = safeTextContent(config.contentSelector || config.content);
-          const author = safeTextContent(config.authorSelector || config.author);
-          const date = safeTextContent(config.dateSelector || config.date);
+          const title = config.titleSelector || config.title 
+            ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
+            : '';
+            
+          const content = config.contentSelector || config.content 
+            ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
+            : '';
+            
+          const author = config.authorSelector || config.author 
+            ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
+            : '';
+            
+          const date = config.dateSelector || config.date 
+            ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
+            : '';
 
-          if (content && content.length > 10) {
+          if (content) {
             return { title, content, author, date };
           }
         }
@@ -647,86 +519,55 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           ]
         };
 
-        // Try fallback selectors with safe extraction
+        // Try fallback selectors
         let content = '';
         for (const selector of fallbackSelectors.content) {
-          try {
-            const element = document.querySelector(selector);
-            const textContent = element?.textContent?.trim();
-            if (element && textContent && textContent.length > 100) {
-              content = textContent;
-              break;
-            }
-          } catch (e) {
-            console.log(`Error with content selector ${selector}:`, e);
-            continue;
+          const element = document.querySelector(selector);
+          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
+            content = element.textContent?.trim() || '';
+            break;
           }
         }
 
-        // If still no content, get the main content or body safely
+        // If still no content, get the main content or body
         if (!content || content.length < 100) {
-          try {
-            const main = document.querySelector('main');
-            if (main?.textContent) {
-              content = main.textContent.trim();
-            }
-          } catch (e) {
-            console.log('Error extracting main content:', e);
+          const main = document.querySelector('main');
+          if (main) {
+            content = main.textContent?.trim() || '';
           }
           
           if (!content || content.length < 100) {
-            try {
-              if (document.body?.textContent) {
-                content = document.body.textContent.trim();
-              }
-            } catch (e) {
-              console.log('Error extracting body content:', e);
-            }
+            content = document.body.textContent?.trim() || '';
           }
         }
 
-        // Try to get title safely
+        // Try to get title
         let title = '';
         for (const selector of fallbackSelectors.title) {
-          try {
-            const element = document.querySelector(selector);
-            if (element?.textContent) {
-              title = element.textContent.trim();
-              break;
-            }
-          } catch (e) {
-            console.log(`Error with title selector ${selector}:`, e);
-            continue;
+          const element = document.querySelector(selector);
+          if (element) {
+            title = element.textContent?.trim() || '';
+            break;
           }
         }
 
-        // Try to get author safely
+        // Try to get author
         let author = '';
         for (const selector of fallbackSelectors.author) {
-          try {
-            const element = document.querySelector(selector);
-            if (element?.textContent) {
-              author = element.textContent.trim();
-              break;
-            }
-          } catch (e) {
-            console.log(`Error with author selector ${selector}:`, e);
-            continue;
+          const element = document.querySelector(selector);
+          if (element) {
+            author = element.textContent?.trim() || '';
+            break;
           }
         }
 
-        // Try to get date safely
+        // Try to get date
         let date = '';
         for (const selector of fallbackSelectors.date) {
-          try {
-            const element = document.querySelector(selector);
-            if (element?.textContent) {
-              date = element.textContent.trim();
-              break;
-            }
-          } catch (e) {
-            console.log(`Error with date selector ${selector}:`, e);
-            continue;
+          const element = document.querySelector(selector);
+          if (element) {
+            date = element.textContent?.trim() || '';
+            break;
           }
         }
 
