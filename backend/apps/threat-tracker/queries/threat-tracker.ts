@@ -515,8 +515,8 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Default ordering by scrape date (most recent first)
-      const orderedQuery = query.orderBy(desc(threatArticles.scrapeDate));
+      // Default ordering by publish date (most recent first), fallback to scrape date
+      const orderedQuery = query.orderBy(desc(threatArticles.publishDate), desc(threatArticles.scrapeDate));
 
       // Add limit if specified
       const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
