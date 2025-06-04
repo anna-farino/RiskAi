@@ -1314,14 +1314,14 @@ export default function Sources() {
           <div className="flex items-center space-x-2">
             <Switch
               id="auto-scrape"
-              checked={autoScrapeSettings.data?.enabled || false}
+              checked={autoScrapeSettings.data?.enabled ?? false}
               onCheckedChange={handleToggleAutoScrape}
             />
             <label htmlFor="auto-scrape" className="text-sm font-medium">
               Enable automatic scraping
             </label>
           </div>
-          {autoScrapeSettings.data?.enabled && (
+          {autoScrapeSettings.data?.enabled && autoScrapeSettings.data && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Scrape Interval</label>
               <Select
@@ -1351,7 +1351,7 @@ export default function Sources() {
       {renderSourcesTable()}
 
       {/* Add/Edit Source Dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
