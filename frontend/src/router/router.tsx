@@ -18,7 +18,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoutesWrapper>
         <DashboardLayout/>
       </ProtectedRoutesWrapper>,
-    hydrateFallbackElement: <h1>Loading...</h1>,
+    hydrateFallbackElement: <LoadingScreen />,
     children: dashboardChildren 
   },
   {
