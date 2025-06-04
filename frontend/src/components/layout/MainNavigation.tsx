@@ -206,7 +206,14 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           Research
         </NavItem>
         
-
+        <NavItem 
+          href="/dashboard/news-capsule/reports" 
+          icon={<FileText size={16} className="text-[#BF00FF]/60" />} 
+          active={isActive('/dashboard/news-capsule/reports')}
+          isChild={true}
+        >
+          Executive Reports
+        </NavItem>
         
         <div className="mt-4"></div>
         

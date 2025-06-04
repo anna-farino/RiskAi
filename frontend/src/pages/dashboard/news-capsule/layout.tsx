@@ -12,7 +12,10 @@ const buttons = [
     label: 'Research',
     url: '/dashboard/news-capsule/research'
   },
-
+  {
+    label: 'Executive Reports',
+    url: '/dashboard/news-capsule/reports'
+  },
 ]
 
 export default function NewsCapsuleLayout() {
