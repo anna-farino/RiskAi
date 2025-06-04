@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Loader2 } from "lucide-react"
+import { RisqSpinner } from "@/components/ui/loading"
 import { useState } from "react"
 import PasswordEye from "@/components/password-eye"
 import useLogin from "@/hooks/use-login"
@@ -125,7 +126,7 @@ export default function Login() {
               >
                 {loginIsPending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <RisqSpinner size="sm" className="mr-2" />
                     Logging in...
                   </>
                 ) : (

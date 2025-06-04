@@ -1,10 +1,13 @@
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "./hooks/use-auth"
 import { useEffect } from "react"
+import { RisqLoader } from "./components/ui/loading"
+import { useLoadingState } from "./hooks/use-loading-state"
 
 export default function Redirect() {
   const { data, isLoading } = useAuth();
   const navigate = useNavigate();
+  const showLoading = useLoadingState(isLoading, { minimumLoadingTime: 1000 });
 
   useEffect(() => {
     if (isLoading) return;
@@ -17,6 +20,10 @@ export default function Redirect() {
       navigate("/auth/login");
     }
   }, [data, isLoading, navigate]);
+
+  if (showLoading) {
+    return <RisqLoader message="Authenticating your session..." />;
+  }
 
   return null;
 }
