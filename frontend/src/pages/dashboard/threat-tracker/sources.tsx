@@ -757,7 +757,7 @@ export default function Sources() {
           <div>
             <CardTitle>Threat Sources</CardTitle>
             <CardDescription>
-              Websites to monitor for security threat information
+              Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
             </CardDescription>
           </div>
           <Button
