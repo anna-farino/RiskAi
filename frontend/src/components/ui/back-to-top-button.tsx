@@ -47,11 +47,7 @@ export function BackToTopButton() {
       aria-label="Back to top"
       title="Back to top"
     >
-      <div className="flex flex-col items-center justify-center -space-y-2">
-        <ChevronUp className="h-4 w-4" />
-        <ChevronUp className="h-4 w-4" />
-        <ChevronUp className="h-4 w-4" />
-      </div>
+      <ChevronUp className="h-10 w-10" />
     </button>
   );
 }
