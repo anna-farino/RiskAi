@@ -150,45 +150,30 @@ export default function ThreatHome() {
     },
   });
   
-  // Sort articles function
-  const sortArticles = (articles: ThreatArticle[]): ThreatArticle[] => {
-    if (sortBy === 'publishDate') {
-      // Separate articles with and without publish dates
-      const articlesWithoutPublishDate = articles.filter(article => !article.publishDate);
-      const articlesWithPublishDate = articles.filter(article => article.publishDate);
-      
-      // Sort articles without publish date by scrape date
-      const sortedWithoutPublishDate = [...articlesWithoutPublishDate].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
+  // Utility function to format dates for local display
+  const formatDateForDisplay = (dateString: string | null | undefined): string => {
+    if (!dateString) return 'No date';
+    
+    try {
+      const date = new Date(dateString);
+      // Convert to local timezone and format
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
-      
-      // Sort articles with publish date by publish date
-      const sortedWithPublishDate = [...articlesWithPublishDate].sort((a, b) => {
-        const aDate = new Date(a.publishDate!);
-        const bDate = new Date(b.publishDate!);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-      
-      // Articles without publish date first, then articles with publish date
-      return [...sortedWithoutPublishDate, ...sortedWithPublishDate];
-    } else {
-      // Sort by scrape date
-      return [...articles].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
+    } catch (error) {
+      return 'Invalid date';
     }
   };
 
-  // Sync local state with query data when it changes, applying sort
+  // Sync local state with query data - backend handles all sorting
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(sortArticles(articles.data));
+      setLocalArticles(articles.data);
     }
-  }, [articles.data, sortBy, sortOrder]);
+  }, [articles.data]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
@@ -287,13 +272,13 @@ export default function ThreatHome() {
     onMutate: ({ id, marked }) => {
       // Add to pending operations
       setPendingItems(prev => new Set(prev).add(id));
-      // Optimistic update with sorting maintained
+      // Optimistic update - backend handles sorting
       setLocalArticles(prev => 
-        sortArticles(prev.map(article => 
+        prev.map(article => 
           article.id === id 
             ? { ...article, markedForCapsule: marked } 
             : article
-        ))
+        )
       );
     },
     onSuccess: (_, { id, marked }) => {
