@@ -32,6 +32,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -79,6 +84,9 @@ import {
   Check,
   X,
   Globe,
+  ChevronRight,
+  ChevronDown,
+  Shield,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals
@@ -119,6 +127,7 @@ export default function Sources() {
     source: ThreatSource;
     articleCount: number;
   } | null>(null);
+  const [isDefaultSourcesCollapsed, setIsDefaultSourcesCollapsed] = useState(false);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -1016,64 +1025,81 @@ export default function Sources() {
       <div className="space-y-6">
         {/* Default Sources Section - Compact Display */}
         {defaultSources.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Default Sources</h3>
-              <Badge variant="outline" className="text-xs">
-                {defaultSources.length} sources
-              </Badge>
-            </div>
-            <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-              {defaultSources.map((source) => (
-                <div key={source.id} className="flex items-center justify-between py-2 px-3 bg-background rounded border">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">{source.name}</span>
-                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5">Default</Badge>
+          <div className="mb-6">
+            <Collapsible
+              open={!isDefaultSourcesCollapsed}
+              onOpenChange={(open) => setIsDefaultSourcesCollapsed(!open)}
+            >
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
+                  {isDefaultSourcesCollapsed ? (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Default Sources
+                  </h3>
+                  <Badge variant="outline" className="text-xs px-2 py-0">
+                    {defaultSources.length}
+                  </Badge>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                  {defaultSources.map((source) => (
+                    <div key={source.id} className="flex items-center justify-between py-2 px-3 bg-background rounded border">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{source.name}</span>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">Default</Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate mt-0.5">
+                            {source.url}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">
-                        {source.url}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="text-xs text-muted-foreground">
-                      {formatLastScraped(source.lastScraped)}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => scrapeSingleSource.mutate(source.id)}
-                      disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
-                      className="h-7 w-7 p-0"
-                    >
-                      {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Globe className="h-3 w-3" />
-                      )}
-                      <span className="sr-only">Scrape</span>
-                    </Button>
-                    <Switch
-                      checked={source.active}
-                      onCheckedChange={(checked) => 
-                        updateSource.mutate({
-                          id: source.id,
-                          values: {
-                            name: source.name,
-                            url: source.url,
-                            active: checked,
-                            includeInAutoScrape: source.includeInAutoScrape
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-xs text-muted-foreground">
+                          {formatLastScraped(source.lastScraped)}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => scrapeSingleSource.mutate(source.id)}
+                          disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
+                          className="h-7 w-7 p-0"
+                        >
+                          {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Globe className="h-3 w-3" />
+                          )}
+                          <span className="sr-only">Scrape</span>
+                        </Button>
+                        <Switch
+                          checked={source.active}
+                          onCheckedChange={(checked) => 
+                            updateSource.mutate({
+                              id: source.id,
+                              values: {
+                                name: source.name,
+                                url: source.url,
+                                active: checked,
+                                includeInAutoScrape: source.includeInAutoScrape
+                              }
+                            })
                           }
-                        })
-                      }
-                    />
-                  </div>
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         )}
 
