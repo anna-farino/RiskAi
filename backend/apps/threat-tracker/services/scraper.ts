@@ -356,15 +356,34 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     // Standard approach: Scroll through the page to trigger lazy loading
     log(`[ThreatTracker] Scrolling page to trigger lazy loading...`, "scraper");
     await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight / 3);
+      if (!document.body) {
+        console.log('Document body not available for lazy loading scroll');
+        return Promise.resolve();
+      }
+      const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
+      if (scrollHeight > 0) {
+        window.scrollTo(0, scrollHeight / 3);
+      }
       return new Promise(resolve => setTimeout(resolve, 1000));
     });
     await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+      if (!document.body) {
+        return Promise.resolve();
+      }
+      const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
+      if (scrollHeight > 0) {
+        window.scrollTo(0, scrollHeight * 2 / 3);
+      }
       return new Promise(resolve => setTimeout(resolve, 1000));
     });
     await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
+      if (!document.body) {
+        return Promise.resolve();
+      }
+      const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
+      if (scrollHeight > 0) {
+        window.scrollTo(0, scrollHeight);
+      }
       return new Promise(resolve => setTimeout(resolve, 1000));
     });
     
@@ -488,6 +507,19 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
+    // Ensure DOM is ready before proceeding
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        if (document.readyState === 'complete') {
+          resolve(true);
+        } else {
+          window.addEventListener('load', () => resolve(true));
+          // Fallback timeout
+          setTimeout(() => resolve(true), 5000);
+        }
+      });
+    });
+
     // Check for bot protection and handle it more gracefully
     try {
       const botProtectionCheck = await page.evaluate(() => {
@@ -533,15 +565,34 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight / 3);
+        if (!document.body) {
+          console.log('Document body not available, skipping scroll');
+          return Promise.resolve();
+        }
+        const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
+        if (scrollHeight > 0) {
+          window.scrollTo(0, scrollHeight / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        if (!document.body) {
+          return Promise.resolve();
+        }
+        const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
+        if (scrollHeight > 0) {
+          window.scrollTo(0, scrollHeight * 2 / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
+        if (!document.body) {
+          return Promise.resolve();
+        }
+        const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 0;
+        if (scrollHeight > 0) {
+          window.scrollTo(0, scrollHeight);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
