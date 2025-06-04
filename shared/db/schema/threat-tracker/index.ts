@@ -13,6 +13,7 @@ export const threatSources = pgTable("threat_sources", {
   scrapingConfig: jsonb("scraping_config"),
   lastScraped: timestamp("last_scraped"),
   userId: uuid("user_id").references(() => users.id),
+  isDefault: boolean("is_default").notNull().default(false),
 });
 
 // Different keyword categories for threats
