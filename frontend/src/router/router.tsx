@@ -5,6 +5,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { authChildren } from './auth/auth-children.tsx'
 import { dashboardChildren } from './dashboard/dashboardChildren.tsx'
 import DashboardLayout from '@/components/layout/DashboardLayout.tsx'
+import LoadingScreen from '@/components/LoadingScreen'
 
 export const router = createBrowserRouter([
   {
