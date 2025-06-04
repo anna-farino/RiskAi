@@ -425,8 +425,8 @@ export default function ThreatHome() {
       </div>
 
       <div className="flex flex-col w-full gap-4">
-        <div className="flex flex-col md:flex-row justify-between gap-4">
-          <div className="relative w-full md:w-1/2">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search articles..."
@@ -436,7 +436,7 @@ export default function ThreatHome() {
             />
           </div>
           
-          <div className="flex flex-row gap-2">
+          <div className="flex flex-row gap-2 flex-shrink-0">
             <Button
               variant="outline"
               size="sm"

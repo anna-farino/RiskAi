@@ -215,11 +215,11 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                     <AlertTriangle className="h-3 w-3" /> Threats
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.threats.map((keyword: string) => (
+                    {detectedKeywords.threats.slice(0, 3).map((keyword: string) => (
                       <Badge 
                         key={`threat-${keyword}`} 
                         variant="outline"
-                        className="bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-300 border-red-500/30 cursor-pointer transition-colors"
+                        className="bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-300 border-red-500/30 cursor-pointer transition-colors truncate max-w-24"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -229,6 +229,9 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                         {keyword}
                       </Badge>
                     ))}
+                    {detectedKeywords.threats.length > 3 && (
+                      <span className="text-xs text-red-400">+{detectedKeywords.threats.length - 3}</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -239,11 +242,11 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                     <Shield className="h-3 w-3" /> Vendors
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.vendors.map((keyword: string) => (
+                    {detectedKeywords.vendors.slice(0, 3).map((keyword: string) => (
                       <Badge 
                         key={`vendor-${keyword}`} 
                         variant="outline"
-                        className="bg-blue-500/10 text-xs text-blue-300 hover:bg-blue-500/20 hover:text-blue-300 border-blue-500/30 cursor-pointer transition-colors"
+                        className="bg-blue-500/10 text-xs text-blue-300 hover:bg-blue-500/20 hover:text-blue-300 border-blue-500/30 cursor-pointer transition-colors truncate max-w-24"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -253,6 +256,9 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                         {keyword}
                       </Badge>
                     ))}
+                    {detectedKeywords.vendors.length > 3 && (
+                      <span className="text-xs text-blue-400">+{detectedKeywords.vendors.length - 3}</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -263,11 +269,11 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                     <CheckCircle2 className="h-3 w-3" /> Clients
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.clients.map((keyword: string) => (
+                    {detectedKeywords.clients.slice(0, 3).map((keyword: string) => (
                       <Badge 
                         key={`client-${keyword}`} 
                         variant="outline"
-                        className="bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/30 cursor-pointer transition-colors"
+                        className="bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/30 cursor-pointer transition-colors truncate max-w-24"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -277,6 +283,9 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                         {keyword}
                       </Badge>
                     ))}
+                    {detectedKeywords.clients.length > 3 && (
+                      <span className="text-xs text-purple-400">+{detectedKeywords.clients.length - 3}</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -307,18 +316,18 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
             </div>
           )}
           
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
             <a 
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-primary hover:text-primary/80 underline underline-offset-2"
+              className="text-xs text-primary hover:text-primary/80 underline underline-offset-2 flex-shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
               View Source
             </a>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {onSendToCapsule && (
                 <Button
                   variant="ghost"

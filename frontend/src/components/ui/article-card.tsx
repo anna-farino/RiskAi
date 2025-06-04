@@ -99,13 +99,13 @@ export function ArticleCard({ article, onDelete, isPending = false, onKeywordCli
             {article.summary}
           </p>
           
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-700/50">
-            <div className="flex flex-wrap gap-1.5">
-              {Array.isArray(keywords) && keywords.slice(0, 3).map((keyword: string) => (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
+            <div className="flex flex-wrap gap-1.5 min-w-0 flex-1">
+              {Array.isArray(keywords) && keywords.slice(0, 2).map((keyword: string) => (
                 <Badge 
                   key={keyword} 
                   variant="outline"
-                  className="bg-white/5 text-xs text-slate-300 hover:bg-primary/20 hover:text-primary hover:border-primary/30 border-slate-700 cursor-pointer transition-colors"
+                  className="bg-white/5 text-xs text-slate-300 hover:bg-primary/20 hover:text-primary hover:border-primary/30 border-slate-700 cursor-pointer transition-colors truncate max-w-20"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -116,13 +116,12 @@ export function ArticleCard({ article, onDelete, isPending = false, onKeywordCli
                 </Badge>
               ))}
               
-              {Array.isArray(keywords) && keywords.length > 3 && (
-                <span className="text-xs text-slate-500">+{keywords.length - 3} more</span>
-
+              {Array.isArray(keywords) && keywords.length > 2 && (
+                <span className="text-xs text-slate-500">+{keywords.length - 2} more</span>
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {onSendToCapsule && (
                 <Button
                   variant="ghost"
