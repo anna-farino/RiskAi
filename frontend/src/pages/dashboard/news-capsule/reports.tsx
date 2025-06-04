@@ -146,8 +146,8 @@ export default function Reports() {
         <div className="md:col-span-4 p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
           {selectedReport ? (
             <div>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-6">
+                <h2 className="text-xl font-semibold flex-1">
                   Executive Report: {formatDate(selectedReport.createdAt)}
                   {selectedReport.versionNumber &&
                     selectedReport.versionNumber > 1 && (
@@ -156,7 +156,7 @@ export default function Reports() {
                       </span>
                     )}
                 </h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                   <button
                     className="px-3 py-1 text-sm bg-slate-800 hover:bg-slate-700 rounded-md"
                     onClick={() => {

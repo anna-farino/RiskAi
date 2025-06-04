@@ -296,11 +296,11 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                     <Shield className="h-3 w-3" /> Hardware/Software
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.hardware.map((keyword: string) => (
+                    {detectedKeywords.hardware.slice(0, 3).map((keyword: string) => (
                       <Badge 
                         key={`hardware-${keyword}`} 
                         variant="outline"
-                        className="bg-amber-500/10 text-xs text-amber-300 hover:bg-amber-500/20 hover:text-amber-300 border-amber-500/30 cursor-pointer transition-colors"
+                        className="bg-amber-500/10 text-xs text-amber-300 hover:bg-amber-500/20 hover:text-amber-300 border-amber-500/30 cursor-pointer transition-colors truncate max-w-24"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -310,6 +310,9 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                         {keyword}
                       </Badge>
                     ))}
+                    {detectedKeywords.hardware.length > 3 && (
+                      <span className="text-xs text-amber-400">+{detectedKeywords.hardware.length - 3}</span>
+                    )}
                   </div>
                 </div>
               )}
