@@ -195,12 +195,17 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
               </div>
             )}
             
-            {article.publishDate && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Clock className="h-3 w-3" />
-                <span>{formatDistanceToNow(new Date(article.publishDate))} ago</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <Clock className="h-3 w-3" />
+              <span>
+                {article.publishDate 
+                  ? `${formatDistanceToNow(new Date(article.publishDate))} ago`
+                  : article.scrapeDate 
+                    ? `Scraped ${formatDistanceToNow(new Date(article.scrapeDate))} ago`
+                    : 'Unknown date'
+                }
+              </span>
+            </div>
           </div>
           
           <p className="text-sm text-slate-300 mb-4 line-clamp-3 flex-1">

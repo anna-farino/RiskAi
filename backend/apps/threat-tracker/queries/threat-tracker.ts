@@ -66,6 +66,9 @@ export interface IStorage {
     startDate?: Date;
     endDate?: Date;
     userId?: string;
+    sortBy?: string;
+    sortOrder?: string;
+    limit?: number;
   }): Promise<ThreatArticle[]>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(
@@ -501,12 +504,12 @@ export const storage: IStorage = {
         }
       }
 
-      // Add date range filters
+      // Add date range filters - use publishDate for filtering
       if (startDate) {
-        conditions.push(sql`${threatArticles.scrapeDate} >= ${startDate}`);
+        conditions.push(sql`${threatArticles.publishDate} >= ${startDate}`);
       }
       if (endDate) {
-        conditions.push(sql`${threatArticles.scrapeDate} <= ${endDate}`);
+        conditions.push(sql`${threatArticles.publishDate} <= ${endDate}`);
       }
 
       // Apply conditions if any exist
@@ -514,8 +517,8 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Order by most recent
-      const orderedQuery = query.orderBy(desc(threatArticles.scrapeDate));
+      // Order by publish date (most recent first), fallback to scrape date if publish date is null
+      const orderedQuery = query.orderBy(desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`));
 
       // Execute the query
       const result = await orderedQuery.execute();

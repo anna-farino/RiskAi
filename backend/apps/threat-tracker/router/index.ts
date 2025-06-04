@@ -313,6 +313,11 @@ threatRouter.get("/articles", async (req, res) => {
         : [req.query.keywordIds as string]
       : undefined;
     
+    // Parse sorting parameters
+    const sortBy = req.query.sortBy as string || 'publishDate';
+    const sortOrder = req.query.sortOrder as string || 'desc';
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    
     let startDate: Date | undefined;
     let endDate: Date | undefined;
     
@@ -330,7 +335,10 @@ threatRouter.get("/articles", async (req, res) => {
       keywordIds,
       startDate,
       endDate,
-      userId
+      userId,
+      sortBy,
+      sortOrder,
+      limit
     });
     
     res.json(articles);
