@@ -54,26 +54,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             {/* Error Content */}
             <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 text-center">
               <h2 className="text-xl font-semibold text-white mb-3">
-                Something went wrong
+                Oops! Something went wrong
               </h2>
               
               <p className="text-slate-300 mb-6">
-                We encountered an unexpected error. This has been logged and our team will investigate.
+                Don't worry - we're working to fix this. Try refreshing the page or return to your dashboard.
               </p>
-
-              {/* Error Details (collapsed by default) */}
-              {this.state.error && process.env.NODE_ENV === 'development' && (
-                <details className="mb-6 text-left">
-                  <summary className="text-sm text-slate-400 cursor-pointer hover:text-slate-300 mb-2">
-                    Error Details (Development)
-                  </summary>
-                  <div className="bg-slate-800/70 border border-slate-700/50 rounded-lg p-3">
-                    <pre className="text-xs text-red-300 overflow-auto max-h-32">
-                      {this.state.error.stack}
-                    </pre>
-                  </div>
-                </details>
-              )}
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
@@ -82,7 +68,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg transition-all duration-200"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  Reload Page
+                  Try Again
                 </button>
                 
                 <button
@@ -90,16 +76,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all duration-200"
                 >
                   <Home className="w-4 h-4" />
-                  Go to Dashboard
+                  Dashboard
                 </button>
               </div>
-            </div>
-
-            {/* Support Information */}
-            <div className="mt-6 text-center">
-              <p className="text-xs text-slate-400">
-                If this problem persists, please contact support with the error details above.
-              </p>
             </div>
           </div>
         </div>
