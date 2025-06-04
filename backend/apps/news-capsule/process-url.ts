@@ -205,10 +205,10 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
     const content = await page.evaluate(() => {
       // Get the article title with multiple fallbacks
       const title = 
-        document.querySelector('h1')?.innerText ||
-        document.querySelector('.entry-title')?.innerText ||
-        document.querySelector('.post-title')?.innerText ||
-        document.querySelector('title')?.innerText ||
+        (document.querySelector('h1') as HTMLElement)?.innerText ||
+        (document.querySelector('.entry-title') as HTMLElement)?.innerText ||
+        (document.querySelector('.post-title') as HTMLElement)?.innerText ||
+        (document.querySelector('title') as HTMLElement)?.innerText ||
         '';
       
       // Get content with multiple selectors for different site structures
