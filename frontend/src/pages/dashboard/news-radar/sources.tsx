@@ -1065,47 +1065,50 @@ export default function Sources() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right w-[25%] p-2 sm:p-4">
-                      <div className="flex justify-end gap-0.5 sm:gap-1">
+                      <div className="flex justify-end gap-2">
                         <Button
-                          size="sm"
                           variant="ghost"
+                          size="icon"
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending}
-                          className="hover:bg-slate-700/50 text-slate-400 hover:text-white h-6 w-6 sm:h-7 sm:w-7 p-0"
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                          title="Scrape source"
                         >
                           {scrapeSource.isPending ? (
-                            <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <RotateCw className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                            <RotateCw className="h-4 w-4" />
                           )}
                         </Button>
                         <Button
-                          size="sm"
                           variant="ghost"
+                          size="icon"
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending}
-                          className="hover:bg-red-500/20 text-red-400 hover:text-red-300 h-6 w-6 sm:h-7 sm:w-7 p-0"
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                          title="Stop scraping"
                         >
                           {stopScraping.isPending ? (
-                            <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <X className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                            <X className="h-4 w-4" />
                           )}
                         </Button>
                         <Button
-                          size="sm"
                           variant="ghost"
+                          size="icon"
                           onClick={() => {
                             setSourceToDelete(source.id);
                             setDeleteDialogOpen(true);
                           }}
                           disabled={deleteSource.isPending}
-                          className="hover:bg-red-500/20 text-red-400 hover:text-red-300 h-6 w-6 sm:h-7 sm:w-7 p-0"
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                          title="Delete source"
                         >
                           {deleteSource.isPending ? (
-                            <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <Trash2 className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                            <Trash2 className="h-4 w-4" />
                           )}
                         </Button>
                       </div>
