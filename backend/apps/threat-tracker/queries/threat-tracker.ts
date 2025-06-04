@@ -520,44 +520,32 @@ export const storage: IStorage = {
       // Dynamic sorting based on parameters
       let orderedQuery;
       if (sortBy === 'publishDate') {
-        // Prioritize articles with publish_date first, then by publish_date, then fallback to scrape_date
-        // Articles without either date appear first (NULL values sort first in PostgreSQL with DESC)
-        orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(
-              sql`CASE 
-                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2 
-                ELSE 0 
-              END ASC`,
-              sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate}) ASC`
-            )
-          : query.orderBy(
-              sql`CASE 
-                WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
-                WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-                WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
-                ELSE 3
-              END ASC`,
-              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
-            );
+        if (sortOrder === 'asc') {
+          // Oldest publish dates first, then by scrape date for articles without publish dates
+          orderedQuery = query.orderBy(
+            sql`${threatArticles.publishDate} ASC NULLS LAST`,
+            sql`${threatArticles.scrapeDate} ASC`
+          );
+        } else {
+          // Newest publish dates first, then by scrape date for articles without publish dates
+          orderedQuery = query.orderBy(
+            sql`${threatArticles.publishDate} DESC NULLS LAST`,
+            sql`${threatArticles.scrapeDate} DESC`
+          );
+        }
       } else if (sortBy === 'scrapeDate') {
         orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(threatArticles.scrapeDate)
-          : query.orderBy(desc(threatArticles.scrapeDate));
+          ? query.orderBy(sql`${threatArticles.scrapeDate} ASC`)
+          : query.orderBy(sql`${threatArticles.scrapeDate} DESC`);
       } else if (sortBy === 'title') {
         orderedQuery = sortOrder === 'asc' 
-          ? query.orderBy(threatArticles.title)
-          : query.orderBy(desc(threatArticles.title));
+          ? query.orderBy(sql`${threatArticles.title} ASC`)
+          : query.orderBy(sql`${threatArticles.title} DESC`);
       } else {
-        // Default to publishDate prioritization with fallback
+        // Default to publishDate DESC with scrapeDate as secondary sort
         orderedQuery = query.orderBy(
-          sql`CASE 
-            WHEN ${threatArticles.publishDate} IS NULL AND ${threatArticles.scrapeDate} IS NULL THEN 0
-            WHEN ${threatArticles.publishDate} IS NOT NULL THEN 1 
-            WHEN ${threatArticles.scrapeDate} IS NOT NULL THEN 2
-            ELSE 3
-          END ASC`,
-          desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`)
+          sql`${threatArticles.publishDate} DESC NULLS LAST`,
+          sql`${threatArticles.scrapeDate} DESC`
         );
       }
 
