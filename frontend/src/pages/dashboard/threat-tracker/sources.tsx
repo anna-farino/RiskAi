@@ -32,6 +32,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -55,6 +60,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -70,7 +82,15 @@ import {
   PlayCircle,
   RotateCw,
   Check,
+<<<<<<< HEAD
   X
+=======
+  X,
+  Globe,
+  ChevronRight,
+  ChevronDown,
+  Shield,
+>>>>>>> anna
 } from "lucide-react";
 
 // Enum for auto-scrape intervals
@@ -104,6 +124,17 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
   const [scrapeJobRunning, setScrapeJobRunning] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
+<<<<<<< HEAD
+=======
+  const [localAutoScrapeEnabled, setLocalAutoScrapeEnabled] = useState<
+    boolean | null
+  >(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    source: ThreatSource;
+    articleCount: number;
+  } | null>(null);
+  const [isDefaultSourcesCollapsed, setIsDefaultSourcesCollapsed] = useState(false);
+>>>>>>> anna
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -205,7 +236,45 @@ export default function Sources() {
     mutationFn: async (values: SourceFormValues) => {
       return apiRequest("POST", `${serverUrl}/api/threat-tracker/sources`, values);
     },
+<<<<<<< HEAD
     onSuccess: () => {
+=======
+    onMutate: async (newSource) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Create optimistic source with temporary ID
+      const optimisticSource: ThreatSource = {
+        id: `temp-${Date.now()}`,
+        name: newSource.name,
+        url: newSource.url,
+        active: newSource.active,
+        includeInAutoScrape: newSource.includeInAutoScrape,
+        lastScraped: null,
+        userId: "current-user",
+        scrapingConfig: null,
+        isDefault: false, // User-created sources are never default
+      };
+
+      // Add to local state immediately
+      setLocalSources((prev) => [...prev, optimisticSource]);
+
+      // Store previous state for rollback
+      const previousSources = queryClient.getQueryData([
+        `${serverUrl}/api/threat-tracker/sources`,
+      ]);
+      return { previousSources, optimisticSource };
+    },
+    onSuccess: (data, _, context) => {
+      // Replace optimistic source with real one
+      setLocalSources((prev) =>
+        prev.map((source) =>
+          source.id === context?.optimisticSource.id ? data : source,
+        ),
+      );
+>>>>>>> anna
       toast({
         title: "Source created",
         description: "Your source has been added successfully.",
@@ -251,8 +320,30 @@ export default function Sources() {
 
   // Delete source mutation
   const deleteSource = useMutation({
+<<<<<<< HEAD
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/sources/${id}`);
+=======
+    mutationFn: async ({ id, deleteArticles = false }: { id: string; deleteArticles?: boolean }) => {
+      const url = deleteArticles 
+        ? `${serverUrl}/api/threat-tracker/sources/${id}?deleteArticles=true`
+        : `${serverUrl}/api/threat-tracker/sources/${id}`;
+      return apiRequest("DELETE", url);
+    },
+    onMutate: async ({ id: deletedId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Remove from local state immediately
+      const previousSources = [...localSources];
+      setLocalSources((prev) =>
+        prev.filter((source) => source.id !== deletedId),
+      );
+
+      return { previousSources, deletedId };
+>>>>>>> anna
     },
     onSuccess: () => {
       toast({
@@ -261,6 +352,7 @@ export default function Sources() {
       });
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
+<<<<<<< HEAD
     onError: (error) => {
       console.error("Error deleting source:", error);
       toast({
@@ -268,6 +360,24 @@ export default function Sources() {
         description: "There was an error deleting your source. Please try again.",
         variant: "destructive",
       });
+=======
+    onError: (error: any, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
+      
+      console.error("Error deleting source:", error);
+      
+      // Don't show error toast for ARTICLES_EXIST - this will be handled by the confirmation dialog
+      if (error?.response?.data?.error !== "ARTICLES_EXIST") {
+        toast({
+          title: "Error deleting source",
+          description: error?.response?.data?.message || "There was an error deleting your source. Please try again.",
+          variant: "destructive",
+        });
+      }
+>>>>>>> anna
     },
   });
 
@@ -420,6 +530,45 @@ export default function Sources() {
     }
   }
 
+  // Handle delete source with confirmation for associated articles
+  async function handleDeleteSource(source: ThreatSource) {
+    try {
+      // Try to delete the source first to check if there are associated articles
+      await deleteSource.mutateAsync({ id: source.id });
+    } catch (error: any) {
+      console.log("Caught error:", error);
+      
+      // Check for ARTICLES_EXIST error - the error data is attached to the error object
+      const errorData = error?.data || {};
+      const errorMessage = errorData?.error || error?.message;
+      
+      if (errorMessage === "ARTICLES_EXIST") {
+        // Show confirmation dialog
+        setDeleteConfirmation({
+          source,
+          articleCount: parseInt(errorData.articleCount || '0'),
+        });
+        return; // Don't show error toast
+      }
+      
+      // For other errors, let the mutation's onError handle it
+      throw error;
+    }
+  }
+
+  // Handle confirmed deletion with articles
+  function handleConfirmedDelete(deleteArticles: boolean) {
+    if (deleteConfirmation) {
+      if (deleteArticles) {
+        deleteSource.mutate({ 
+          id: deleteConfirmation.source.id, 
+          deleteArticles: true 
+        });
+      }
+      setDeleteConfirmation(null);
+    }
+  }
+
   // Format the last scraped date
   function formatLastScraped(date: Date | null | undefined) {
     if (!date) return "Never";
@@ -553,7 +702,7 @@ export default function Sources() {
           <div>
             <CardTitle>Threat Sources</CardTitle>
             <CardDescription>
-              Websites to monitor for security threat information
+              Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
             </CardDescription>
           </div>
           <Button onClick={handleNewSource} disabled={createSource.isPending} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
@@ -683,6 +832,38 @@ export default function Sources() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog for Sources with Articles */}
+      <AlertDialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Source with Associated Articles</AlertDialogTitle>
+            <AlertDialogDescription>
+              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated threat articles.
+              <br /><br />
+              Would you like to delete the associated articles as well? If you choose "No", the source will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleConfirmedDelete(false)}
+              className="mr-2"
+            >
+              Keep Articles, Cancel Delete
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleConfirmedDelete(true)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Source & {deleteConfirmation?.articleCount} Articles
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
@@ -712,6 +893,118 @@ export default function Sources() {
       );
     }
 
+    // Separate default and user sources
+    const defaultSources = localSources.filter(source => source.isDefault);
+    const userSources = localSources.filter(source => !source.isDefault);
+
+    return (
+      <div className="space-y-6">
+        {/* Default Sources Section - Compact Display */}
+        {defaultSources.length > 0 && (
+          <div className="mb-6">
+            <Collapsible
+              open={!isDefaultSourcesCollapsed}
+              onOpenChange={(open) => setIsDefaultSourcesCollapsed(!open)}
+            >
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
+                  {isDefaultSourcesCollapsed ? (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Default Sources
+                  </h3>
+                  <Badge variant="outline" className="text-xs px-2 py-0">
+                    {defaultSources.length}
+                  </Badge>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                  {defaultSources.map((source) => (
+                    <div key={source.id} className="flex items-center justify-between py-2 px-3 bg-background rounded border">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{source.name}</span>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">Default</Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate mt-0.5">
+                            {source.url}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-xs text-muted-foreground">
+                          {formatLastScraped(source.lastScraped)}
+                        </div>
+                          <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => scrapeSingleSource.mutate(source.id)}
+                          disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
+                          className="h-7 px-2 text-xs"
+                        >
+                          {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                          <RefreshCw className="h-3 w-3" />
+                          )}
+                          <span className="hidden sm:inline ml-1">Scrape</span>
+                        </Button>
+                        <Switch
+                          checked={source.active}
+                          onCheckedChange={(checked) => 
+                            updateSource.mutate({
+                              id: source.id,
+                              values: {
+                                name: source.name,
+                                url: source.url,
+                                active: checked,
+                                includeInAutoScrape: source.includeInAutoScrape
+                              }
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )}
+
+        {/* User Sources Section - Full Display */}
+        {userSources.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium">Your Sources</h3>
+              <Badge variant="outline" className="text-xs">
+                {userSources.length} sources
+              </Badge>
+            </div>
+            {renderUserSourcesTable(userSources)}
+          </div>
+        )}
+
+        {/* Show message if only default sources exist */}
+        {defaultSources.length > 0 && userSources.length === 0 && (
+          <div className="text-center py-6 text-muted-foreground">
+            <p>No custom sources yet. Add your first source to get started.</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Helper function to render user sources table
+  function renderUserSourcesTable(userSources: ThreatSource[]) {
+
     return (
       <div className="w-full overflow-x-auto">
         <div className="min-w-full">
@@ -726,7 +1019,7 @@ export default function Sources() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {localSources.map((source) => (
+              {userSources.map((source) => (
                 <TableRow key={source.id}>
                   <TableCell className="font-medium truncate pr-2">{source.name}</TableCell>
                   <TableCell className="pr-2">
@@ -798,6 +1091,7 @@ export default function Sources() {
                         <PencilLine className="h-3 w-3" />
                         <span className="sr-only">Edit</span>
                       </Button>
+<<<<<<< HEAD
                       
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -823,12 +1117,52 @@ export default function Sources() {
                             <AlertDialogAction
                               onClick={() => deleteSource.mutate(source.id)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+=======
+
+                      {source.isDefault ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled
+                          className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed"
+                          title="Cannot delete default sources"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span className="sr-only">Delete (disabled)</span>
+                        </Button>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive h-7 w-7 p-0"
+>>>>>>> anna
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="h-3 w-3" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the source "
+                                {source.name}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSource(source)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -839,4 +1173,208 @@ export default function Sources() {
       </div>
     );
   }
+<<<<<<< HEAD
 }
+=======
+
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Threat Sources</h1>
+          <p className="text-muted-foreground">
+            Manage threat intelligence data sources
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleNewSource} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Source
+          </Button>
+        </div>
+      </div>
+
+      {/* Auto-scrape Settings */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Auto-Scrape Settings</CardTitle>
+          <CardDescription>
+            Configure automatic scraping for all active sources
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="auto-scrape"
+              checked={autoScrapeSettings.data?.enabled || false}
+              onCheckedChange={handleToggleAutoScrape}
+            />
+            <label htmlFor="auto-scrape" className="text-sm font-medium">
+              Enable automatic scraping
+            </label>
+          </div>
+          {autoScrapeSettings.data?.enabled && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Scrape Interval</label>
+              <Select
+                value={autoScrapeSettings.data.interval}
+                onValueChange={(value) =>
+                  handleChangeAutoScrapeInterval(value as JobInterval)
+                }
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select interval" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={JobInterval.HOURLY}>Hourly</SelectItem>
+                  <SelectItem value={JobInterval.DAILY}>Daily</SelectItem>
+                  <SelectItem value={JobInterval.WEEKLY}>Weekly</SelectItem>
+                  <SelectItem value={JobInterval.DISABLED}>
+                    Disabled
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sources Display */}
+      {renderSourcesTable()}
+
+      {/* Add/Edit Source Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSource ? "Edit Source" : "Add New Source"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSource
+                ? "Update the threat source details"
+                : "Add a new threat intelligence source"}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Security News Blog"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://example.com"
+                        type="url"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Active</FormLabel>
+                      <FormDescription>
+                        Enable this source for monitoring
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="includeInAutoScrape"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Include in Auto-Scrape</FormLabel>
+                      <FormDescription>
+                        Include this source in automatic scraping
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={createSource.isPending || updateSource.isPending}>
+                  {(createSource.isPending || updateSource.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {editingSource ? "Update" : "Add"} Source
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog for Sources with Articles */}
+      <AlertDialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Source with Associated Articles</AlertDialogTitle>
+            <AlertDialogDescription>
+              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated threat articles.
+              <br /><br />
+              Would you like to delete the associated articles as well? If you choose "No", the source will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleConfirmedDelete(false)}
+              className="mr-2"
+            >
+              Keep Articles, Cancel Delete
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleConfirmedDelete(true)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Source & {deleteConfirmation?.articleCount} Articles
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+>>>>>>> anna

@@ -223,6 +223,8 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         (document.querySelector("title") as HTMLElement)?.innerText ||
         "";
 
+      let articleContent = '';
+
       // Get the content of the article
       // This is a basic implementation and might need customization based on the structure of target sites
       const paragraphs = Array.from(document.querySelectorAll("p"))

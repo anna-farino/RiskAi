@@ -108,9 +108,9 @@ export default function Research() {
         setProcessedArticles(articles);
         
         // Filter out articles marked for deletion and remove duplicates
-        const activeArticles = articles.filter((article: any) => !article.markedForDeletion);
-        const uniqueArticles = activeArticles.filter((article: any, index: number, self: any[]) => 
-          index === self.findIndex((a: any) => a.title === article.title)
+        const activeArticles = articles.filter(article => !article.markedForDeletion);
+        const uniqueArticles = activeArticles.filter((article, index, self) => 
+          index === self.findIndex(a => a.title === article.title)
         );
         
         console.log('Setting processed articles:', uniqueArticles.length);
@@ -234,26 +234,8 @@ export default function Research() {
         }
       }
       
-      // Add newly processed articles to the display immediately
-      if (newArticles.length > 0) {
-        setProcessedArticles(prev => {
-          // Add new articles to the beginning, avoiding duplicates
-          const existingIds = new Set(prev.map(a => a.id));
-          const uniqueNewArticles = newArticles.filter(a => !existingIds.has(a.id));
-          return [...uniqueNewArticles, ...prev];
-        });
-        
-        // Update localStorage with new articles
-        try {
-          const updatedArticles = [...newArticles, ...processedArticles];
-          const uniqueArticles = updatedArticles.filter((article, index, self) => 
-            index === self.findIndex(a => a.id === article.id)
-          );
-          localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueArticles));
-        } catch (e) {
-          console.error("Failed to update localStorage", e);
-        }
-      }
+      // Refresh articles from database to get latest state
+      await fetchArticlesFromDatabase();
       
       // Set detailed success or error message
       if (errorCount > 0) {
