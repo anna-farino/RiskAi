@@ -193,22 +193,17 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       timeout: 45000 
     });
     
-    // Wait for content to load with fallback for different Puppeteer versions
-    try {
-      await page.waitForDelay(2000);
-    } catch (e) {
-      // Fallback for older Puppeteer versions or use setTimeout
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
+    // Wait for content to load
+    await page.waitForTimeout(2000);
     
     // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
       // Get the article title with multiple fallbacks
       const title = 
-        (document.querySelector('h1') as HTMLElement)?.innerText ||
-        (document.querySelector('.entry-title') as HTMLElement)?.innerText ||
-        (document.querySelector('.post-title') as HTMLElement)?.innerText ||
-        (document.querySelector('title') as HTMLElement)?.innerText ||
+        document.querySelector('h1')?.innerText ||
+        document.querySelector('.entry-title')?.innerText ||
+        document.querySelector('.post-title')?.innerText ||
+        document.querySelector('title')?.innerText ||
         '';
       
       // Get content with multiple selectors for different site structures
@@ -235,7 +230,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         
         for (const selector of contentSelectors) {
           const paragraphs = Array.from(document.querySelectorAll(selector))
-            .map(p => (p as HTMLElement).innerText)
+            .map(p => p.innerText)
             .filter(text => text.length > 20); // Filter out short paragraphs
           
           if (paragraphs.length > 0) {
@@ -249,7 +244,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       const publication = 
         document.querySelector('meta[property="og:site_name"]')?.getAttribute('content') ||
         document.querySelector('meta[name="site_name"]')?.getAttribute('content') ||
-        (document.querySelector('.site-name') as HTMLElement)?.innerText ||
+        document.querySelector('.site-name')?.innerText ||
         new URL(window.location.href).hostname;
       
       return {

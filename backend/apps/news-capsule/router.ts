@@ -5,7 +5,8 @@ import { getReports } from './get-reports';
 import { createExecutiveNote, getExecutiveNotes, updateExecutiveNote, deleteExecutiveNote } from './executive-notes';
 import { db } from '../../db/db';
 import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { FullRequest } from '../../middleware';
 
 const router = Router();
@@ -26,15 +27,13 @@ router.get('/articles', async (req, res) => {
     const articles = await db
       .select()
       .from(capsuleArticles)
-      .where(
-        and(
-          eq(capsuleArticles.userId, userId),
-          eq(capsuleArticles.markedForDeletion, false)
-        )
-      )
+      .where(eq(capsuleArticles.userId, userId))
       .orderBy(desc(capsuleArticles.createdAt));
     
-    res.json(articles);
+    // Filter out articles marked for deletion from processed articles view
+    const visibleArticles = articles.filter(article => !article.markedForDeletion);
+    
+    res.json(visibleArticles);
   } catch (error) {
     console.error('Error fetching capsule articles:', error);
     res.status(500).json({ error: 'Failed to fetch articles' });
