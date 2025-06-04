@@ -587,26 +587,4 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
   }
 });
 
-// Test endpoint for date extraction functionality
-threatRouter.get("/test/date-extraction", async (req, res) => {
-  reqLog(req, "GET /test/date-extraction");
-  try {
-    log("[ThreatTracker] Running date extraction tests", "test");
-    
-    const results = await runDateExtractionTests();
-    
-    res.json({
-      success: true,
-      message: `Date extraction tests completed: ${results.passed}/${results.total} passed`,
-      results: results,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error: any) {
-    log(`[ThreatTracker] Error running date extraction tests: ${error.message}`, "test-error");
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+
