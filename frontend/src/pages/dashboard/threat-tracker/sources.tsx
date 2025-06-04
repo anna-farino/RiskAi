@@ -317,6 +317,9 @@ export default function Sources() {
       const response = await fetch(`${serverUrl}/api/threat-tracker/sources/${id}${deleteArticles ? '?deleteArticles=true' : ''}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: {
+          ...csfrHeaderObject()
+        }
       });
 
       if (!response.ok) {
