@@ -87,9 +87,6 @@ import {
   ChevronRight,
   ChevronDown,
   Shield,
-  Eye,
-  EyeOff,
-  Edit,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals
@@ -664,6 +661,333 @@ export default function Sources() {
     }
   }
 
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
+        <p className="text-muted-foreground">
+          Manage sources for threat monitoring and configure auto-scrape
+          settings.
+        </p>
+      </div>
+
+      {/* Auto-scrape settings card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            Auto-Scrape Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure automatic scraping of threat sources to stay updated on
+            security vulnerabilities
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-scrape"
+                checked={
+                  localAutoScrapeEnabled ??
+                  autoScrapeSettings.data?.enabled ??
+                  false
+                }
+                onCheckedChange={handleToggleAutoScrape}
+                disabled={updateAutoScrapeSettings.isPending}
+              />
+              <div className="grid gap-0.5">
+                <label
+                  htmlFor="auto-scrape"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {(localAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled)
+                    ? "Enabled"
+                    : "Disabled"}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {autoScrapeSettings.data?.enabled
+                    ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
+                    : "Enable to automatically scrape sources for new threats"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant={
+                  autoScrapeSettings.data?.interval === JobInterval.HOURLY
+                    ? "default"
+                    : "outline"
+                }
+                size="sm"
+                onClick={() =>
+                  handleChangeAutoScrapeInterval(JobInterval.HOURLY)
+                }
+                disabled={
+                  !autoScrapeSettings.data?.enabled ||
+                  updateAutoScrapeSettings.isPending
+                }
+              >
+                Hourly
+              </Button>
+              <Button
+                variant={
+                  autoScrapeSettings.data?.interval === JobInterval.DAILY
+                    ? "default"
+                    : "outline"
+                }
+                size="sm"
+                onClick={() =>
+                  handleChangeAutoScrapeInterval(JobInterval.DAILY)
+                }
+                disabled={
+                  !autoScrapeSettings.data?.enabled ||
+                  updateAutoScrapeSettings.isPending
+                }
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              >
+                Daily
+              </Button>
+              <Button
+                variant={
+                  autoScrapeSettings.data?.interval === JobInterval.WEEKLY
+                    ? "default"
+                    : "outline"
+                }
+                size="sm"
+                onClick={() =>
+                  handleChangeAutoScrapeInterval(JobInterval.WEEKLY)
+                }
+                disabled={
+                  !autoScrapeSettings.data?.enabled ||
+                  updateAutoScrapeSettings.isPending
+                }
+              >
+                Weekly
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <div className="text-sm text-muted-foreground">
+            {scrapeJobRunning ? (
+              <span className="flex items-center text-primary">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Scrape job is currently running...
+              </span>
+            ) : (
+              <span>
+                Manual scrape allows you to immediately check for new threats
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {scrapeJobRunning ? (
+              <Button
+                variant="outline"
+                onClick={() => stopScrapeJob.mutate()}
+                disabled={stopScrapeJob.isPending}
+              >
+                {stopScrapeJob.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Stop Scraping
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                onClick={() => scrapeAllSources.mutate()}
+                disabled={
+                  scrapeAllSources.isPending || localSources.length === 0
+                }
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              >
+                {scrapeAllSources.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                )}
+                Scrape All Sources
+              </Button>
+            )}
+          </div>
+        </CardFooter>
+      </Card>
+
+      {/* Sources card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Threat Sources</CardTitle>
+            <CardDescription>
+              Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
+            </CardDescription>
+          </div>
+          <Button
+            onClick={handleNewSource}
+            disabled={createSource.isPending}
+            className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+          >
+            {createSource.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            Add Source
+          </Button>
+        </CardHeader>
+        <CardContent>{renderSourcesTable()}</CardContent>
+      </Card>
+
+      {/* Add/Edit Source Dialog */}
+      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingSource ? "Edit Source" : "Add New Source"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSource
+                ? "Update the source details below."
+                : "Enter the details for your new threat source."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter source name..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://..." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Enter the full URL of the source website
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Active</FormLabel>
+                        <FormDescription>
+                          Inactive sources won't be scraped
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="includeInAutoScrape"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Auto-Scrape</FormLabel>
+                        <FormDescription>
+                          Include in automatic scraping
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSourceDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createSource.isPending || updateSource.isPending}
+                >
+                  {(createSource.isPending || updateSource.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {editingSource ? "Update" : "Add"} Source
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog for Sources with Articles */}
+      <AlertDialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Source with Associated Articles</AlertDialogTitle>
+            <AlertDialogDescription>
+              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated threat articles.
+              <br /><br />
+              Would you like to delete the associated articles as well? If you choose "No", the source will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleConfirmedDelete(false)}
+              className="mr-2"
+            >
+              Keep Articles, Cancel Delete
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleConfirmedDelete(true)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Source & {deleteConfirmation?.articleCount} Articles
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+
   // Helper function to render the sources table
   function renderSourcesTable() {
     if (sources.isLoading) {
@@ -804,6 +1128,7 @@ export default function Sources() {
 
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
+
     return (
       <div className="w-full overflow-x-auto">
         <div className="min-w-full">
@@ -989,14 +1314,14 @@ export default function Sources() {
           <div className="flex items-center space-x-2">
             <Switch
               id="auto-scrape"
-              checked={autoScrapeSettings.data?.enabled ?? false}
+              checked={autoScrapeSettings.data?.enabled || false}
               onCheckedChange={handleToggleAutoScrape}
             />
             <label htmlFor="auto-scrape" className="text-sm font-medium">
               Enable automatic scraping
             </label>
           </div>
-          {autoScrapeSettings.data?.enabled && autoScrapeSettings.data && (
+          {autoScrapeSettings.data?.enabled && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Scrape Interval</label>
               <Select
@@ -1026,7 +1351,7 @@ export default function Sources() {
       {renderSourcesTable()}
 
       {/* Add/Edit Source Dialog */}
-      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
@@ -1115,569 +1440,6 @@ export default function Sources() {
               />
               <DialogFooter>
                 <Button type="submit" disabled={createSource.isPending || updateSource.isPending}>
-                  {(createSource.isPending || updateSource.isPending) && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {editingSource ? "Update" : "Add"} Source
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog for Sources with Articles */}
-      <AlertDialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Source with Associated Articles</AlertDialogTitle>
-            <AlertDialogDescription>
-              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated threat articles.
-              <br /><br />
-              Would you like to delete the associated articles as well? If you choose "No", the source will not be deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              variant="outline"
-              onClick={() => handleConfirmedDelete(false)}
-              className="mr-2"
-            >
-              Keep Articles, Cancel Delete
-            </Button>
-            <AlertDialogAction
-              onClick={() => handleConfirmedDelete(true)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Source & {deleteConfirmation?.articleCount} Articles
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-
-  // Helper function to render the sources table
-  function renderSourcesTable() {
-    if (sources.isLoading) {
-      return (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
-    }
-
-    if (sources.error) {
-      return (
-        <div className="flex justify-center py-8 text-destructive">
-          Error loading sources: {sources.error.message}
-        </div>
-      );
-    }
-
-    if (!sources.data || sources.data.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Globe className="h-12 w-12 mb-4 opacity-50" />
-          <p>No sources configured yet</p>
-          <p className="text-sm">Add your first source to start monitoring threats</p>
-        </div>
-      );
-    }
-
-    // Separate default and user sources
-    const defaultSources = sources.data.filter(source => source.isDefault);
-    const userSources = sources.data.filter(source => !source.isDefault);
-
-    return (
-      <div className="space-y-6">
-        {/* Default Sources Section - Collapsible */}
-        {defaultSources.length > 0 && (
-          <Collapsible 
-            open={!isDefaultSourcesCollapsed} 
-            onOpenChange={setIsDefaultSourcesCollapsed}
-          >
-            <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-between p-0 h-auto hover:bg-transparent"
-              >
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Default Sources</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {defaultSources.length}
-                  </Badge>
-                </div>
-                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
-                  isDefaultSourcesCollapsed ? "rotate-180" : ""
-                }`} />
-              </Button>
-            </CollapsibleTrigger>
-            
-            <CollapsibleContent className="mt-4">
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {defaultSources.map((source) => (
-                  <Card key={source.id} className="border-l-4 border-l-primary/20">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium truncate">{source.name}</h4>
-                          <p className="text-xs text-muted-foreground truncate">{source.url}</p>
-                          <div className="flex items-center gap-1 mt-2">
-                            <Badge 
-                              variant={source.active ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {source.active ? "Active" : "Inactive"}
-                            </Badge>
-                            {source.includeInAutoScrape && (
-                              <Badge variant="outline" className="text-xs">
-                                Auto-scrape
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleSource(source)}
-                            disabled={updateSource.isPending}
-                            className="h-8 w-8 p-0"
-                          >
-                            {updateSource.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : source.active ? (
-                              <EyeOff className="h-3 w-3" />
-                            ) : (
-                              <Eye className="h-3 w-3" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleScrapeSource(source)}
-                            disabled={scrapingSourceId === source.id || !source.active}
-                            className="h-8 w-8 p-0"
-                          >
-                            {scrapingSourceId === source.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Globe className="h-3 w-3" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {/* User Sources Section */}
-        {userSources.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <h3 className="text-lg font-semibold">My Sources</h3>
-              <Badge variant="outline">{userSources.length}</Badge>
-            </div>
-            {renderUserSourcesTable(userSources)}
-          </div>
-        )}
-
-        {/* Show message when only default sources exist */}
-        {userSources.length === 0 && defaultSources.length > 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>You haven't created any custom sources yet.</p>
-            <p className="text-sm">Click "Add Source" to create your first custom threat source.</p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function renderUserSourcesTable(userSources: ThreatSource[]) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Scraped</TableHead>
-              <TableHead>Articles</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {userSources.map((source) => (
-              <TableRow key={source.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{source.name}</div>
-                    <div className="text-sm text-muted-foreground truncate max-w-xs">
-                      {source.url}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-1">
-                    <Badge 
-                      variant={source.active ? "default" : "secondary"}
-                      className="w-fit"
-                    >
-                      {source.active ? "Active" : "Inactive"}
-                    </Badge>
-                    {source.includeInAutoScrape && (
-                      <Badge variant="outline" className="w-fit text-xs">
-                        Auto-scrape
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    {formatLastScraped(source.lastScrapedAt)}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {threatArticles.data?.filter(
-                      (article) => article.sourceId === source.id
-                    ).length || 0}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleScrapeSource(source)}
-                      disabled={scrapingSourceId === source.id || !source.active}
-                    >
-                      {scrapingSourceId === source.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Globe className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditSource(source)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteSource(source)}
-                      disabled={deleteSource.isPending}
-                    >
-                      {deleteSource.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
-          <p className="text-muted-foreground">
-            Manage sources for threat monitoring and configure auto-scrape settings.
-          </p>
-        </div>
-        <Button
-          onClick={handleNewSource}
-          disabled={createSource.isPending}
-          className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-        >
-          {createSource.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="mr-2 h-4 w-4" />
-          )}
-          Add Source
-        </Button>
-      </div>
-
-      {/* Auto-scrape settings card */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
-            Auto-Scrape Configuration
-          </CardTitle>
-          <CardDescription>
-            Configure automatic scraping of threat sources to stay updated on security vulnerabilities
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="auto-scrape"
-                checked={
-                  localAutoScrapeEnabled ??
-                  autoScrapeSettings.data?.enabled ??
-                  false
-                }
-                onCheckedChange={handleToggleAutoScrape}
-                disabled={updateAutoScrapeSettings.isPending}
-              />
-              <div className="grid gap-0.5">
-                <label
-                  htmlFor="auto-scrape"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {(localAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled)
-                    ? "Enabled"
-                    : "Disabled"}
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  {autoScrapeSettings.data?.enabled
-                    ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
-                    : "Enable to automatically scrape sources for new threats"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant={
-                  autoScrapeSettings.data?.interval === JobInterval.HOURLY
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  handleChangeAutoScrapeInterval(JobInterval.HOURLY)
-                }
-                disabled={
-                  !autoScrapeSettings.data?.enabled ||
-                  updateAutoScrapeSettings.isPending
-                }
-              >
-                Hourly
-              </Button>
-              <Button
-                variant={
-                  autoScrapeSettings.data?.interval === JobInterval.DAILY
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  handleChangeAutoScrapeInterval(JobInterval.DAILY)
-                }
-                disabled={
-                  !autoScrapeSettings.data?.enabled ||
-                  updateAutoScrapeSettings.isPending
-                }
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              >
-                Daily
-              </Button>
-              <Button
-                variant={
-                  autoScrapeSettings.data?.interval === JobInterval.WEEKLY
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  handleChangeAutoScrapeInterval(JobInterval.WEEKLY)
-                }
-                disabled={
-                  !autoScrapeSettings.data?.enabled ||
-                  updateAutoScrapeSettings.isPending
-                }
-              >
-                Weekly
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <div className="text-sm text-muted-foreground">
-            {scrapeJobRunning ? (
-              <span className="flex items-center text-primary">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scrape job is currently running...
-              </span>
-            ) : (
-              <span>
-                Manual scrape allows you to immediately check for new threats
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {scrapeJobRunning ? (
-              <Button
-                variant="outline"
-                onClick={() => stopScrapeJob.mutate()}
-                disabled={stopScrapeJob.isPending}
-              >
-                {stopScrapeJob.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Stop Scraping
-              </Button>
-            ) : (
-              <Button
-                variant="default"
-                onClick={() => scrapeAllSources.mutate()}
-                disabled={
-                  scrapeAllSources.isPending || localSources.length === 0
-                }
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              >
-                {scrapeAllSources.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                )}
-                Scrape All Sources
-              </Button>
-            )}
-          </div>
-        </CardFooter>
-      </Card>
-
-      {/* Sources card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Threat Sources</CardTitle>
-            <CardDescription>
-              Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>{renderSourcesTable()}</CardContent>
-      </Card>
-
-      {/* Add/Edit Source Dialog */}
-      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingSource ? "Edit Source" : "Add New Source"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingSource
-                ? "Update the source details below."
-                : "Enter the details for your new threat source."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Source Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter source name..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Enter the full URL of the source website
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Active</FormLabel>
-                        <FormDescription>
-                          Inactive sources won't be scraped
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="includeInAutoScrape"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Auto-Scrape</FormLabel>
-                        <FormDescription>
-                          Include in automatic scraping
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSourceDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createSource.isPending || updateSource.isPending}
-                >
                   {(createSource.isPending || updateSource.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
