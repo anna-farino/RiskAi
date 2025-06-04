@@ -721,7 +721,7 @@ export default function Sources() {
                 <TableHead className="text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Name</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-xs sm:text-sm">Status</TableHead>
-                <TableHead className="text-slate-300 w-[15%] sm:w-[15%] text-xs sm:text-sm hidden sm:table-cell">Last Scraped</TableHead>
+                <TableHead className="text-slate-300 w-[0%] sm:w-[15%] text-xs sm:text-sm hidden sm:table-cell">Last Scraped</TableHead>
                 <TableHead className="text-slate-300 w-[25%] sm:w-[10%] text-right text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -729,50 +729,54 @@ export default function Sources() {
               {localSources.map((source) => (
                 <TableRow key={source.id}>
                   <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
-                    <span className="truncate text-xs sm:text-sm">{source.name}</span>
+                    <div className="overflow-hidden min-w-0">
+                      <span className="truncate text-xs sm:text-sm min-w-0 block">{source.name}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="w-[25%] sm:w-[35%] p-2 sm:p-4">
-                    <a 
-                      href={source.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center text-slate-300 hover:text-primary transition-colors truncate"
-                    >
-                      <span className="truncate text-xs sm:text-sm">
-                        {source.url.replace(/^https?:\/\/(www\.)?/, '')}
-                      </span>
-                      <ExternalLink className="ml-1 h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
-                    </a>
+                    <div className="overflow-hidden min-w-0">
+                      <a 
+                        href={source.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center text-slate-300 hover:text-primary transition-colors min-w-0"
+                      >
+                        <span className="truncate text-xs sm:text-sm min-w-0">
+                          {source.url.replace(/^https?:\/\/(www\.)?/, '')}
+                        </span>
+                        <ExternalLink className="ml-1 h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
+                      </a>
+                    </div>
                   </TableCell>
                   <TableCell className="w-[25%] sm:w-[15%] p-2 sm:p-4">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-w-0">
                       {source.active ? (
-                        <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit">
+                        <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit flex-shrink-0">
                           <Check className="h-2 w-2" />
                           <span className="hidden sm:inline">Active</span>
                           <span className="sm:hidden">A</span>
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit">
+                        <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit flex-shrink-0">
                           <X className="h-2 w-2" />
                           <span className="hidden sm:inline">Inactive</span>
                           <span className="sm:hidden">I</span>
                         </Badge>
                       )}
                       {source.includeInAutoScrape && source.active && (
-                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit">
+                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit flex-shrink-0">
                           <RotateCw className="h-2 w-2" />
                           <span className="hidden sm:inline">Auto</span>
                         </Badge>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell w-[15%] sm:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
+                  <TableCell className="hidden sm:table-cell w-[0%] sm:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
                   <TableCell className="text-right w-[25%] sm:w-[10%] p-1 sm:p-4 align-top">
                     {/* Mobile Layout - Stacked vertically */}
-                    <div className="flex flex-col gap-1 items-end sm:hidden">
+                    <div className="flex flex-col gap-1 items-end sm:hidden min-w-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -782,13 +786,13 @@ export default function Sources() {
                           scrapingSourceId === source.id || 
                           scrapeJobRunning
                         }
-                        className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                        className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
                         title="Scrape source"
                       >
                         {scrapingSourceId === source.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                          <RefreshCw className="h-4 w-4" />
+                          <RefreshCw className="h-3 w-3" />
                         )}
                       </Button>
                       
@@ -796,10 +800,10 @@ export default function Sources() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEditSource(source)}
-                        className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                        className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
                         title="Edit source"
                       >
-                        <PencilLine className="h-4 w-4" />
+                        <PencilLine className="h-3 w-3" />
                       </Button>
                       
                       <AlertDialog>
@@ -807,10 +811,10 @@ export default function Sources() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                            className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                             title="Delete source"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
