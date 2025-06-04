@@ -6,6 +6,7 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } fro
 import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { serverUrl } from "@/utils/server-url";
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -23,7 +24,7 @@ export default function Reports() {
   // Load executive notes for the selected report
   const loadExecutiveNotes = async (reportId: string) => {
     try {
-      const response = await fetch(`/api/news-capsule/executive-notes/${reportId}`, {
+      const response = await fetch(serverUrl + `/api/news-capsule/executive-notes/${reportId}`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -44,7 +45,7 @@ export default function Reports() {
     if (!selectedReport) return;
 
     try {
-      const response = await fetch('/api/news-capsule/executive-notes', {
+      const response = await fetch(serverUrl + '/api/news-capsule/executive-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
