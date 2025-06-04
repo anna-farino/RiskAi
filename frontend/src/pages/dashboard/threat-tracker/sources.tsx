@@ -1128,7 +1128,6 @@ export default function Sources() {
 
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
-
     return (
       <div className="w-full overflow-x-auto">
         <div className="min-w-full">
