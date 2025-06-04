@@ -769,7 +769,7 @@ export default function Sources() {
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
                   <TableCell className="text-right pr-0">
-                    <div className="flex justify-end gap-1 flex-wrap">
+                    <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -779,23 +779,24 @@ export default function Sources() {
                           scrapingSourceId === source.id || 
                           scrapeJobRunning
                         }
-                        className="h-7 px-2 text-xs"
+                        className="h-fit px-2 py-1 text-xs"
                       >
                         {scrapingSourceId === source.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <RefreshCw className="h-3 w-3" />
+                          <RefreshCw className="h-4 w-4" />
                         )}
                         <span className="hidden sm:inline ml-1">Scrape</span>
                       </Button>
                       
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleEditSource(source)}
-                        className="h-7 w-7 p-0"
+                        className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                        title="Edit source"
                       >
-                        <PencilLine className="h-3 w-3" />
+                        <PencilLine className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
                       
@@ -803,10 +804,11 @@ export default function Sources() {
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                            size="icon"
+                            className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                            title="Delete source"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Delete</span>
                           </Button>
                         </AlertDialogTrigger>
