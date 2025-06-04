@@ -718,22 +718,22 @@ export default function Sources() {
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="text-slate-300 w-[25%] sm:w-[20%] text-xs sm:text-sm">Name</TableHead>
-                <TableHead className="text-slate-300 w-[25%] sm:w-[30%] text-xs sm:text-sm">URL</TableHead>
-                <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-xs sm:text-sm">Status</TableHead>
-                <TableHead className="text-slate-300 w-[0%] sm:w-[15%] text-xs sm:text-sm hidden sm:table-cell">Last Scraped</TableHead>
-                <TableHead className="text-slate-300 w-[25%] sm:w-[20%] text-right text-xs sm:text-sm">Actions</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[25%] md:w-[20%] text-xs sm:text-sm">Name</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[35%] md:w-[30%] text-xs sm:text-sm">URL</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[15%] md:w-[15%] text-xs sm:text-sm">Status</TableHead>
+                <TableHead className="text-slate-300 w-[0%] sm:w-[0%] md:w-[15%] text-xs sm:text-sm hidden md:table-cell">Last Scraped</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[25%] md:w-[20%] text-right text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {localSources.map((source) => (
                 <TableRow key={source.id}>
-                  <TableCell className="font-medium text-white w-[25%] sm:w-[20%] p-2 sm:p-4">
+                  <TableCell className="font-medium text-white w-[25%] sm:w-[25%] md:w-[20%] p-2 sm:p-4">
                     <div className="overflow-hidden min-w-0">
                       <span className="truncate text-xs sm:text-sm min-w-0 block">{source.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="w-[25%] sm:w-[30%] p-2 sm:p-4">
+                  <TableCell className="w-[25%] sm:w-[35%] md:w-[30%] p-2 sm:p-4">
                     <div className="overflow-hidden min-w-0">
                       <a 
                         href={source.url} 
@@ -748,7 +748,7 @@ export default function Sources() {
                       </a>
                     </div>
                   </TableCell>
-                  <TableCell className="w-[25%] sm:w-[15%] p-1 sm:p-4">
+                  <TableCell className="w-[25%] sm:w-[15%] md:w-[15%] p-1 sm:p-4">
                     <div className="flex flex-col gap-0.5 min-w-0 items-start">
                       {source.active ? (
                         <Badge variant="default" className="flex items-center gap-0.5 bg-green-500 text-[10px] sm:text-xs px-1.5 py-0.5 h-5 sm:h-5 w-fit flex-shrink-0">
@@ -769,10 +769,10 @@ export default function Sources() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell w-[0%] sm:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
+                  <TableCell className="hidden md:table-cell w-[0%] sm:w-[0%] md:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
-                  <TableCell className="text-right w-[25%] sm:w-[20%] p-1 sm:p-4 align-top">
+                  <TableCell className="text-right w-[25%] sm:w-[25%] md:w-[20%] p-1 sm:p-4 align-top">
                     {/* Mobile Layout - Stacked vertically */}
                     <div className="flex flex-col gap-1 items-end sm:hidden min-w-0">
                       <Button
