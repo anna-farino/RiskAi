@@ -122,11 +122,41 @@ async function setupPage(): Promise<Page> {
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Upgrade-Insecure-Requests': '1'
   });
 
   // Set shorter, more realistic timeouts
   page.setDefaultNavigationTimeout(30000);
   page.setDefaultTimeout(30000);
+  
+  // Enable request interception to debug network issues
+  await page.setRequestInterception(true);
+  
+  page.on('request', (request) => {
+    const url = request.url();
+    log(`[ThreatTracker][Request] ${request.method()} ${url}`, "scraper-debug");
+    request.continue();
+  });
+  
+  page.on('response', (response) => {
+    const url = response.url();
+    const status = response.status();
+    if (url.includes('bleepingcomputer.com')) {
+      log(`[ThreatTracker][Response] ${status} ${url}`, "scraper-debug");
+    }
+  });
+  
+  page.on('requestfailed', (request) => {
+    const url = request.url();
+    const failure = request.failure();
+    log(`[ThreatTracker][RequestFailed] ${url} - ${failure?.errorText || 'Unknown error'}`, "scraper-error");
+  });
 
   return page;
 }
@@ -416,28 +446,67 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
     page = await setupPage();
     
-    // Navigate to the page with more forgiving strategy
+    // Navigate to the page with strategy based on page type
     let response;
-    try {
-      // First try with domcontentloaded (faster)
-      response = await page.goto(url, { 
-        waitUntil: "domcontentloaded",
-        timeout: 30000 // Reduced timeout
-      });
-      log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
-    } catch (timeoutError) {
-      log(`[ThreatTracker] Page load timed out, trying alternative navigation strategy`, "scraper");
-      
-      // Fallback: Try with load event only
+    
+    if (isArticlePage) {
+      // For article pages, use more comprehensive loading strategy
+      try {
+        log(`[ThreatTracker] Attempting to navigate to article URL: ${url}`, "scraper");
+        response = await page.goto(url, { 
+          waitUntil: "domcontentloaded",
+          timeout: 30000
+        });
+        log(`[ThreatTracker] Article page navigation completed. Status: ${response?.status()}`, "scraper");
+        
+        // Verify we actually reached the target URL
+        const currentUrl = await page.url();
+        log(`[ThreatTracker] Current page URL after navigation: ${currentUrl}`, "scraper");
+        
+        if (currentUrl === "about:blank" || !currentUrl.includes("bleepingcomputer.com")) {
+          throw new Error(`Navigation failed - page stuck at: ${currentUrl}`);
+        }
+        
+      } catch (navigationError) {
+        log(`[ThreatTracker] Navigation error: ${navigationError.message}`, "scraper-error");
+        
+        // Try a completely fresh approach
+        try {
+          log(`[ThreatTracker] Retrying with fresh page setup`, "scraper");
+          await page.close();
+          page = await setupPage();
+          
+          response = await page.goto(url, { 
+            waitUntil: "load",
+            timeout: 20000
+          });
+          
+          const retryUrl = await page.url();
+          log(`[ThreatTracker] Retry navigation URL: ${retryUrl}`, "scraper");
+          
+        } catch (retryError) {
+          log(`[ThreatTracker] Retry also failed: ${retryError.message}`, "scraper-error");
+          throw new Error(`Complete navigation failure for ${url}`);
+        }
+      }
+    } else {
+      // For listing pages, use faster strategy
       try {
         response = await page.goto(url, { 
-          waitUntil: "load",
-          timeout: 20000 // Even shorter timeout
+          waitUntil: "domcontentloaded",
+          timeout: 30000
         });
-        log(`[ThreatTracker] Fallback navigation successful`, "scraper");
-      } catch (secondError) {
-        log(`[ThreatTracker] Both navigation attempts failed, continuing with partial load`, "scraper");
-        // Continue anyway - sometimes the page content is still accessible
+        log(`[ThreatTracker] Listing page loaded successfully`, "scraper");
+      } catch (timeoutError) {
+        log(`[ThreatTracker] Domcontentloaded failed for listing page`, "scraper");
+        try {
+          response = await page.goto(url, { 
+            waitUntil: "load",
+            timeout: 20000
+          });
+        } catch (secondError) {
+          log(`[ThreatTracker] All navigation attempts failed for listing`, "scraper");
+        }
       }
     }
     
@@ -488,25 +557,38 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     if (isArticlePage) {
       log('[ThreatTracker] Extracting article content', "scraper");
 
-      // Wait for document body to be ready before scrolling
-      await page.waitForFunction(() => {
-        return document.body !== null && document.readyState !== 'loading';
-      }, { timeout: 10000 }).catch(() => {
-        log('[ThreatTracker] Timeout waiting for document body, continuing anyway', "scraper");
-      });
-
-      // Additional check for DOM readiness
-      await page.evaluate(() => {
-        return new Promise((resolve) => {
-          if (document.readyState === 'complete') {
-            resolve(true);
-          } else {
-            window.addEventListener('load', () => resolve(true));
-            // Fallback timeout
-            setTimeout(() => resolve(true), 5000);
-          }
+      // Special handling for potential bot protection on article pages
+      try {
+        // Wait longer for content to load on article pages
+        await page.waitForFunction(() => {
+          return document.body !== null && 
+                 document.readyState !== 'loading' && 
+                 document.body.textContent && 
+                 document.body.textContent.length > 1000;
+        }, { timeout: 15000 });
+        log('[ThreatTracker] Article content detected', "scraper");
+      } catch (contentTimeout) {
+        log('[ThreatTracker] Timeout waiting for full content, checking for protection...', "scraper");
+        
+        // Check if we're being redirected or blocked
+        const isBlocked = await page.evaluate(() => {
+          const bodyText = document.body?.textContent?.toLowerCase() || '';
+          return bodyText.includes('checking your browser') || 
+                 bodyText.includes('cloudflare') || 
+                 bodyText.includes('just a moment') ||
+                 bodyText.includes('please wait') ||
+                 bodyText.includes('security check') ||
+                 document.title.toLowerCase().includes('attention required');
         });
-      });
+        
+        if (isBlocked) {
+          log('[ThreatTracker] Detected security check, waiting and retrying...', "scraper");
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          // Try refreshing the page
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      }
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
@@ -530,6 +612,16 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
+        // Debug: Log all available selectors on the page
+        const availableSelectors = {
+          articles: document.querySelectorAll('article').length,
+          articleBodies: document.querySelectorAll('.articleBody').length,
+          h1s: document.querySelectorAll('h1').length,
+          mains: document.querySelectorAll('main').length,
+          contentDivs: document.querySelectorAll('.content').length
+        };
+        console.log('[ThreatTracker-Debug] Available selectors:', availableSelectors);
+        
         // First try using the provided selectors
         if (config) {
           const title = config.titleSelector || config.title 
@@ -548,7 +640,8 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
             ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
             : '';
 
-          if (content) {
+          if (content && content.length > 50) {
+            console.log('[ThreatTracker-Debug] Using provided config selectors');
             return { title, content, author, date };
           }
         }
@@ -556,16 +649,19 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         // Fallback selectors if config fails - optimized for Bleeping Computer
         const fallbackSelectors = {
           content: [
+            'article .articleBody',
+            '.articleBody',
             'article',
-            '.articleBody', // Bleeping Computer specific
             '.article-content',
-            '.article-body',
-            '.article_body', // Alternative pattern
+            '.article-body', 
+            '.article_body',
+            '#articleBody',
+            '.content-article',
             'main .content',
-            '.post-content',
+            '.post-content', 
             '#article-content',
             '.story-content',
-            '.entry-content' // WordPress pattern
+            '.entry-content'
           ],
           title: ['h1', '.article-title', '.post-title'],
           author: ['.author', '.byline', '.article-author'],
@@ -581,23 +677,44 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
         // Try fallback selectors
         let content = '';
+        console.log('[ThreatTracker-Debug] Trying fallback selectors...');
         for (const selector of fallbackSelectors.content) {
           const element = document.querySelector(selector);
-          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
-            content = element.textContent?.trim() || '';
-            break;
+          console.log(`[ThreatTracker-Debug] Selector "${selector}": ${element ? 'found' : 'not found'}`);
+          if (element) {
+            const textContent = element.textContent?.trim() || '';
+            console.log(`[ThreatTracker-Debug] Content length for "${selector}": ${textContent.length}`);
+            if (textContent.length > 100) {
+              content = textContent;
+              console.log(`[ThreatTracker-Debug] Using content from selector: ${selector}`);
+              break;
+            }
           }
         }
 
         // If still no content, get the main content or body
         if (!content || content.length < 100) {
+          console.log('[ThreatTracker-Debug] Trying main element...');
           const main = document.querySelector('main');
-          if (main) {
-            content = main.textContent?.trim() || '';
+          if (main && main.textContent?.trim()) {
+            content = main.textContent.trim();
+            console.log(`[ThreatTracker-Debug] Main content length: ${content.length}`);
           }
           
           if (!content || content.length < 100) {
-            content = document.body?.textContent?.trim() || '';
+            console.log('[ThreatTracker-Debug] Trying body content as last resort...');
+            const bodyContent = document.body?.textContent?.trim() || '';
+            if (bodyContent.length > 1000) {
+              // Extract meaningful content from body, removing navigation and footer
+              const paragraphs = Array.from(document.querySelectorAll('p')).map(p => p.textContent?.trim()).filter(text => text && text.length > 50);
+              if (paragraphs.length > 0) {
+                content = paragraphs.join('\n\n');
+                console.log(`[ThreatTracker-Debug] Extracted paragraphs, total length: ${content.length}`);
+              } else {
+                content = bodyContent;
+                console.log(`[ThreatTracker-Debug] Using full body content: ${content.length}`);
+              }
+            }
           }
         }
 
@@ -635,6 +752,47 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       }, scrapingConfig);
 
       log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
+      
+      // Debug: Log what we actually found on the page
+      const pageInfo = await page.evaluate(() => {
+        const allClasses = Array.from(document.querySelectorAll('*')).map(el => el.className).filter(c => c && c.includes('article')).slice(0, 10);
+        const allIds = Array.from(document.querySelectorAll('*')).map(el => el.id).filter(id => id && id.includes('article')).slice(0, 10);
+        
+        return {
+          title: document.title,
+          bodyLength: document.body?.textContent?.length || 0,
+          hasArticleTag: !!document.querySelector('article'),
+          hasArticleClass: !!document.querySelector('.article, .articleBody'),
+          hasMainTag: !!document.querySelector('main'),
+          url: window.location.href,
+          readyState: document.readyState,
+          articleClasses: allClasses,
+          articleIds: allIds,
+          bodyHTML: document.body?.innerHTML?.substring(0, 500) || '',
+          isRedirected: window.location.href !== document.querySelector('base')?.href
+        };
+      });
+      log(`[ThreatTracker] Page debug info: ${JSON.stringify(pageInfo)}`, "scraper");
+      
+      // If no content found, capture the HTML structure for analysis
+      if ((articleContent.content?.length || 0) < 50) {
+        const htmlStructure = await page.evaluate(() => {
+          const structure = [];
+          document.querySelectorAll('*').forEach(el => {
+            if (el.textContent && el.textContent.length > 200 && el.children.length < 5) {
+              structure.push({
+                tag: el.tagName.toLowerCase(),
+                className: el.className,
+                id: el.id,
+                textLength: el.textContent.length,
+                text: el.textContent.substring(0, 100)
+              });
+            }
+          });
+          return structure.slice(0, 10);
+        });
+        log(`[ThreatTracker] HTML structure with content: ${JSON.stringify(htmlStructure)}`, "scraper");
+      }
 
       // Return the content in HTML format
       return `<html><body>
