@@ -5,6 +5,7 @@ import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJ
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
+import { runDateExtractionTests } from "../services/date-extractor.test";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -583,5 +584,29 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
   } catch (error: any) {
     console.error("Error updating auto-scrape settings:", error);
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
+  }
+});
+
+// Test endpoint for date extraction functionality
+threatRouter.get("/test/date-extraction", async (req, res) => {
+  reqLog(req, "GET /test/date-extraction");
+  try {
+    log("[ThreatTracker] Running date extraction tests", "test");
+    
+    const results = await runDateExtractionTests();
+    
+    res.json({
+      success: true,
+      message: `Date extraction tests completed: ${results.passed}/${results.total} passed`,
+      results: results,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    log(`[ThreatTracker] Error running date extraction tests: ${error.message}`, "test-error");
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
