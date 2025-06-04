@@ -122,11 +122,37 @@ async function setupPage(): Promise<Page> {
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache'
   });
 
-  // Set longer timeouts
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(60000);
+  // Block unnecessary resources to speed up loading
+  await page.setRequestInterception(true);
+  page.on('request', (request) => {
+    const resourceType = request.resourceType();
+    const url = request.url();
+    
+    // Block images, stylesheets, fonts, and other non-essential resources
+    if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+      request.abort();
+    }
+    // Block known ad/tracking domains
+    else if (url.includes('googletagmanager') || 
+             url.includes('google-analytics') || 
+             url.includes('googlesyndication') ||
+             url.includes('doubleclick') ||
+             url.includes('facebook.com') ||
+             url.includes('twitter.com')) {
+      request.abort();
+    }
+    else {
+      request.continue();
+    }
+  });
+
+  // Set more aggressive timeouts for better reliability
+  page.setDefaultNavigationTimeout(30000); // Reduce to 30 seconds
+  page.setDefaultTimeout(30000);
 
   return page;
 }
@@ -416,9 +442,43 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
     page = await setupPage();
     
-    // Navigate to the page
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
-    log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    // Navigate to the page with more lenient wait conditions
+    let response;
+    try {
+      // Try with domcontentloaded first (faster)
+      response = await page.goto(url, { 
+        waitUntil: "domcontentloaded",
+        timeout: 20000 
+      });
+      log(`[ThreatTracker] DOM content loaded for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      
+      // Wait a bit more for dynamic content
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+    } catch (error: any) {
+      if (error.message.includes('timeout')) {
+        log(`[ThreatTracker] Timeout with domcontentloaded, trying load event`, "scraper");
+        try {
+          // Fallback to basic load event
+          response = await page.goto(url, { 
+            waitUntil: "load",
+            timeout: 15000 
+          });
+        } catch (fallbackError: any) {
+          log(`[ThreatTracker] Both navigation attempts failed, trying direct navigation`, "scraper");
+          // Last resort: try direct navigation without wait conditions
+          try {
+            response = await page.goto(url, { timeout: 10000 });
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } catch (finalError: any) {
+            log(`[ThreatTracker] All navigation attempts failed, proceeding with current page state`, "scraper");
+            // Continue with whatever page state we have
+          }
+        }
+      } else {
+        throw error;
+      }
+    }
     
     if (response && !response.ok()) {
       log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
@@ -428,29 +488,43 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Check for bot protection
-    const botProtectionCheck = await page.evaluate(() => {
-      return (
-        document.body.innerHTML.includes('_Incapsula_Resource') ||
-        document.body.innerHTML.includes('Incapsula') ||
-        document.body.innerHTML.includes('captcha') ||
-        document.body.innerHTML.includes('Captcha') ||
-        document.body.innerHTML.includes('cloudflare') ||
-        document.body.innerHTML.includes('CloudFlare')
-      );
-    });
+    // Check for bot protection and handle it more gracefully
+    try {
+      const botProtectionCheck = await page.evaluate(() => {
+        const bodyText = document.body.innerHTML.toLowerCase();
+        return (
+          bodyText.includes('_incapsula_resource') ||
+          bodyText.includes('incapsula') ||
+          bodyText.includes('captcha') ||
+          bodyText.includes('cloudflare') ||
+          bodyText.includes('checking your browser') ||
+          bodyText.includes('please wait') ||
+          bodyText.includes('verifying you are human')
+        );
+      });
 
-    if (botProtectionCheck) {
-      log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
-      // Perform some human-like actions
-      await page.mouse.move(50, 50);
-      await page.mouse.down();
-      await page.mouse.move(100, 100);
-      await page.mouse.up();
-      
-      // Reload the page and wait again
-      await page.reload({ waitUntil: 'networkidle2' });
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      if (botProtectionCheck) {
+        log('[ThreatTracker] Bot protection detected, attempting to bypass', "scraper");
+        
+        // Wait for the challenge to potentially resolve itself
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        
+        // Check if we can now access the content
+        const contentCheck = await page.evaluate(() => {
+          return document.querySelectorAll('article, .article, .content, main').length > 0;
+        });
+        
+        if (!contentCheck) {
+          log('[ThreatTracker] Bot protection still active, skipping this URL', "scraper");
+          throw new Error('Bot protection active - skipping URL');
+        }
+      }
+    } catch (error: any) {
+      if (error.message.includes('Bot protection active')) {
+        throw error;
+      }
+      // Continue if evaluation fails
+      log('[ThreatTracker] Bot protection check failed, continuing', "scraper");
     }
 
     // For article pages, extract the content based on selectors
