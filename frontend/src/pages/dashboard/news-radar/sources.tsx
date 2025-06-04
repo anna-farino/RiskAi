@@ -1005,13 +1005,13 @@ export default function Sources() {
           </div>
         ) : (
           <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0">
-            <div className="px-3 sm:px-4 lg:px-0 min-w-[320px] sm:min-w-[280px]">
-              <Table className="w-full table-auto sm:table-fixed">
+            <div className="px-3 sm:px-4 lg:px-0 min-w-[400px] sm:min-w-[280px]">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
-                    <TableHead className="text-slate-300 w-[30%] sm:w-[25%] text-xs sm:text-sm">Source</TableHead>
-                    <TableHead className="text-slate-300 w-[35%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
-                    <TableHead className="text-slate-300 w-[10%] sm:w-[15%] text-center text-xs sm:text-sm">
+                    <TableHead className="text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Source</TableHead>
+                    <TableHead className="text-slate-300 w-[25%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
+                    <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-center text-xs sm:text-sm">
                       <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" />
                     </TableHead>
                     <TableHead className="text-right text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Actions</TableHead>
@@ -1026,32 +1026,32 @@ export default function Sources() {
                       pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
-                    <TableCell className="font-medium text-white w-[30%] sm:w-[25%] p-2 sm:p-4">
-                      <div className="flex items-center gap-1 overflow-hidden">
-                        <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
+                      <div className="flex items-center gap-1 overflow-hidden min-w-0">
+                        <div className="h-3 w-3 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           {pendingItems.has(source.id) 
                             ? <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary animate-spin" />
                             : <Globe className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary" />
                           }
                         </div>
-                        <span className="truncate text-xs sm:text-sm">{source.name}</span>
+                        <span className="truncate text-xs sm:text-sm min-w-0">{source.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="w-[35%] sm:w-[35%] p-2 sm:p-4">
-                      <div className="flex items-center gap-1 overflow-hidden">
+                    <TableCell className="w-[25%] sm:w-[35%] p-2 sm:p-4">
+                      <div className="flex items-center gap-1 overflow-hidden min-w-0">
                         <Link2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
                         <a 
                           href={source.url} 
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-300 hover:text-primary transition-colors truncate text-xs sm:text-sm"
+                          className="text-slate-300 hover:text-primary transition-colors truncate text-xs sm:text-sm min-w-0"
                         >
                           {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </a>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center w-[10%] sm:w-[15%] p-2 sm:p-4">
-                      <div className="flex justify-center">
+                    <TableCell className="text-center w-[25%] sm:w-[15%] p-2 sm:p-4">
+                      <div className="flex justify-center items-center min-w-0">
                         <Switch
                           id={`auto-scrape-${source.id}`}
                           checked={source.includeInAutoScrape || false}
@@ -1059,25 +1059,25 @@ export default function Sources() {
                             toggleAutoScrape.mutate({ id: source.id, include: checked })
                           }
                           disabled={toggleAutoScrape.isPending}
-                          className="scale-75 sm:scale-100"
+                          className="scale-75 sm:scale-100 flex-shrink-0"
                         />
                       </div>
                     </TableCell>
                     <TableCell className="text-right w-[25%] sm:w-[25%] p-1 sm:p-4 align-top">
                       {/* Mobile Layout - Stacked vertically */}
-                      <div className="flex flex-col gap-1 items-end sm:hidden">
+                      <div className="flex flex-col gap-1 items-end sm:hidden min-w-0">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending}
-                          className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                          className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
                           title="Scrape source"
                         >
                           {scrapeSource.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <RotateCw className="h-4 w-4" />
+                            <RotateCw className="h-3 w-3" />
                           )}
                         </Button>
                         <Button
@@ -1085,13 +1085,13 @@ export default function Sources() {
                           size="icon"
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending}
-                          className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                          className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Stop scraping"
                         >
                           {stopScraping.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                           )}
                         </Button>
                         <Button
@@ -1102,13 +1102,13 @@ export default function Sources() {
                             setDeleteDialogOpen(true);
                           }}
                           disabled={deleteSource.isPending}
-                          className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                          className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Delete source"
                         >
                           {deleteSource.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           )}
                         </Button>
                       </div>
