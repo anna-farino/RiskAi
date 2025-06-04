@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Zap,
   Send,
-  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
@@ -67,13 +66,6 @@ export function ThreatArticleCard({
         setSendingToCapsule(false);
       }
     }
-  };
-
-  const handleTitleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Open the original article URL in a new tab
-    window.open(article.url, '_blank', 'noopener,noreferrer');
   };
 
   // Parse the relevance score (either string or number)
@@ -173,15 +165,9 @@ export function ThreatArticleCard({
 
         <div className="flex-1 p-5 flex flex-col">
           <div className="flex justify-between items-start mb-3">
-            <button
-              onClick={handleTitleClick}
-              className="text-left flex-1 pr-2 group/title"
-            >
-              <h3 className="text-lg font-medium text-white line-clamp-2 group-hover/title:text-cyan-400 transition-colors cursor-pointer flex items-start gap-2">
-                {article.title}
-                <ExternalLink className="h-4 w-4 text-slate-400 opacity-0 group-hover/title:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
-              </h3>
-            </button>
+            <h3 className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2">
+              {article.title}
+            </h3>
 
             {/* Threat severity score badge */}
             <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">

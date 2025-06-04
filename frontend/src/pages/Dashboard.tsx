@@ -215,14 +215,6 @@ export default function Dashboard() {
     navigate('/dashboard/threat/home', { state: { selectedArticle: article } });
   };
 
-  // Handle clicking on threat article title to open original URL
-  const handleThreatTitleClick = (e: React.MouseEvent, article: any) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Open the original article URL in a new tab
-    window.open(article.url, '_blank', 'noopener,noreferrer');
-  };
-
   // Get report status styling and information
   const getReportStatus = (report: any) => {
     if (!report) return { label: 'Unknown', style: 'bg-gray-500/20 text-gray-400', indicator: 'bg-gray-400' };
@@ -584,17 +576,9 @@ export default function Dashboard() {
                               </span>
                             </div>
                             
-                            <button
-                              onClick={(e) => handleThreatTitleClick(e, threat)}
-                              className="text-left w-full group/title"
-                            >
-                              <h4 className="font-medium text-xs text-white group-hover/title:text-cyan-400 transition-colors line-clamp-1 mb-1 flex items-center gap-1">
-                                {threat.title || 'Security Alert'}
-                                <svg className="w-3 h-3 opacity-0 group-hover/title:opacity-100 transition-opacity flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </h4>
-                            </button>
+                            <h4 className="font-medium text-xs text-white group-hover:text-[#00FFFF] transition-colors line-clamp-1 mb-1">
+                              {threat.title || 'Security Alert'}
+                            </h4>
                             
                             <p className="text-xs text-gray-400 line-clamp-2 mb-2">
                               {threat.summary || keywords.slice(0, 3).map((k: any) => k.keyword || k).join(', ') || 'Threat detected requiring immediate attention'}
