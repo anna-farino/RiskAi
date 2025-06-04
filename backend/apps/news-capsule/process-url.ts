@@ -235,7 +235,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         
         for (const selector of contentSelectors) {
           const paragraphs = Array.from(document.querySelectorAll(selector))
-            .map(p => p.innerText)
+            .map(p => (p as HTMLElement).innerText)
             .filter(text => text.length > 20); // Filter out short paragraphs
           
           if (paragraphs.length > 0) {
@@ -249,7 +249,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       const publication = 
         document.querySelector('meta[property="og:site_name"]')?.getAttribute('content') ||
         document.querySelector('meta[name="site_name"]')?.getAttribute('content') ||
-        document.querySelector('.site-name')?.innerText ||
+        (document.querySelector('.site-name') as HTMLElement)?.innerText ||
         new URL(window.location.href).hostname;
       
       return {
