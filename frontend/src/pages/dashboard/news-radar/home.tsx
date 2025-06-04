@@ -470,14 +470,14 @@ export default function NewsHome() {
                 {localArticles.length}
               </span>
             </div>
-            <div className="flex items-center gap-2 w-[100%] justify-end">
+            <div className="flex items-center gap-2 flex-shrink-0 justify-end">
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                 <Input
                   placeholder="Search articles..."
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  className="h-9 w-[200px] lg:w-[250px] pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
+                  className="h-9 w-[160px] md:w-[200px] lg:w-[250px] pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
                 />
                 {searchTerm && (
                   <Button
