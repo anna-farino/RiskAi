@@ -150,37 +150,13 @@ export default function ThreatHome() {
     },
   });
 
-  // Sort articles function
+  // Sort articles function - now relies on backend sorting
   const sortArticles = (articles: ThreatArticle[]): ThreatArticle[] => {
-    if (sortBy === 'publishDate') {
-      // Separate articles with and without publish dates
-      const articlesWithoutPublishDate = articles.filter(article => !article.publishDate);
-      const articlesWithPublishDate = articles.filter(article => article.publishDate);
-
-      // Sort articles without publish date by scrape date
-      const sortedWithoutPublishDate = [...articlesWithoutPublishDate].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-
-      // Sort articles with publish date by publish date
-      const sortedWithPublishDate = [...articlesWithPublishDate].sort((a, b) => {
-        const aDate = new Date(a.publishDate!);
-        const bDate = new Date(b.publishDate!);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-
-      // Articles without publish date first, then articles with publish date
-      return [...sortedWithoutPublishDate, ...sortedWithPublishDate];
-    } else {
-      // Sort by scrape date
-      return [...articles].sort((a, b) => {
-        const aDate = new Date(a.scrapeDate || 0);
-        const bDate = new Date(b.scrapeDate || 0);
-        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
-      });
-    }
+    // Since we've fixed the backend sorting to handle publish dates correctly,
+    // we can simply return the articles as they come from the backend.
+    // The backend now properly sorts by publish_date first, then scrape_date,
+    // with NULLS LAST for articles without publish dates.
+    return articles;
   };
 
   // Sync local state with query data when it changes, applying sort
