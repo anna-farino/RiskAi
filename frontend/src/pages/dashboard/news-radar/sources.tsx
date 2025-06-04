@@ -1065,7 +1065,57 @@ export default function Sources() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right w-[25%] sm:w-[25%] p-1 sm:p-4 align-top">
-                      <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-2 sm:gap-2 min-w-0">
+                      {/* Mobile Layout - Stacked vertically */}
+                      <div className="flex flex-col gap-1 items-end sm:hidden">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => scrapeSource.mutate(source.id)}
+                          disabled={scrapeSource.isPending}
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                          title="Scrape source"
+                        >
+                          {scrapeSource.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RotateCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => stopScraping.mutate(source.id)}
+                          disabled={stopScraping.isPending}
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                          title="Stop scraping"
+                        >
+                          {stopScraping.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <X className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSourceToDelete(source.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                          disabled={deleteSource.isPending}
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                          title="Delete source"
+                        >
+                          {deleteSource.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {/* Desktop Layout - Horizontal */}
+                      <div className="hidden sm:flex flex-row justify-end items-center gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
