@@ -827,7 +827,7 @@ export default function Dashboard() {
               </div>
             </div>
           </RisqWidget>}
-          <RisqWidget
+          {false && <RisqWidget
               title="Settings"
               description="Configure your News Radar experience"
               icon={<Settings className="w-10 h-10 text-gray-300" />}
@@ -914,7 +914,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            </RisqWidget>
+            </RisqWidget>}
         </WidgetGrid>
         
         {/* Additional widgets row */}
