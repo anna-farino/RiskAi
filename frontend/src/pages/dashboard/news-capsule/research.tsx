@@ -880,7 +880,7 @@ export default function Research() {
                 setIsLoading(false);
               }
             }}
-            className="mt-2 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
+            className="mt-2 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 hover:text-[#00FFFF] rounded-md disabled:opacity-50"
           >
             New Report
           </button>
