@@ -713,80 +713,83 @@ export default function Sources() {
     }
 
     return (
-      <div className="w-full overflow-x-auto">
-        <div className="min-w-full">
-          <Table className="table-fixed w-full">
+      <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0">
+        <div className="px-3 sm:px-4 lg:px-0 min-w-[320px] sm:min-w-[280px]">
+          <Table className="w-full table-auto sm:table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
-                <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
-                <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
-                <TableHead className="w-[15%] min-w-[100px]">Last Scraped</TableHead>
-                <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
+                <TableHead className="text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Name</TableHead>
+                <TableHead className="text-slate-300 w-[30%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
+                <TableHead className="text-slate-300 w-[15%] sm:w-[15%] text-xs sm:text-sm">Status</TableHead>
+                <TableHead className="text-slate-300 w-[15%] sm:w-[15%] text-xs sm:text-sm hidden sm:table-cell">Last Scraped</TableHead>
+                <TableHead className="text-slate-300 w-[15%] sm:w-[10%] text-right text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {localSources.map((source) => (
                 <TableRow key={source.id}>
-                  <TableCell className="font-medium truncate pr-2">{source.name}</TableCell>
-                  <TableCell className="pr-2">
+                  <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
+                    <span className="truncate text-xs sm:text-sm">{source.name}</span>
+                  </TableCell>
+                  <TableCell className="w-[30%] sm:w-[35%] p-2 sm:p-4">
                     <a 
                       href={source.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center text-primary hover:underline truncate"
+                      className="flex items-center text-slate-300 hover:text-primary transition-colors truncate"
                     >
-                      <span className="truncate">
-                        {source.url.length > 30 
-                          ? source.url.substring(0, 30) + '...' 
-                          : source.url}
+                      <span className="truncate text-xs sm:text-sm">
+                        {source.url.replace(/^https?:\/\/(www\.)?/, '')}
                       </span>
-                      <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                      <ExternalLink className="ml-1 h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
                     </a>
                   </TableCell>
-                  <TableCell className="pr-2">
+                  <TableCell className="w-[15%] sm:w-[15%] p-2 sm:p-4">
                     <div className="flex flex-col gap-1">
                       {source.active ? (
                         <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit">
                           <Check className="h-2 w-2" />
-                          Active
+                          <span className="hidden sm:inline">Active</span>
+                          <span className="sm:hidden">A</span>
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit">
                           <X className="h-2 w-2" />
-                          Inactive
+                          <span className="hidden sm:inline">Inactive</span>
+                          <span className="sm:hidden">I</span>
                         </Badge>
                       )}
                       {source.includeInAutoScrape && source.active && (
                         <Badge variant="outline" className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit">
                           <RotateCw className="h-2 w-2" />
-                          Auto
+                          <span className="hidden sm:inline">Auto</span>
                         </Badge>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs truncate pr-2">
+                  <TableCell className="hidden sm:table-cell w-[15%] sm:w-[15%] p-2 sm:p-4 text-xs text-slate-400">
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
-                  <TableCell className="text-right pr-0">
-                    <div className="flex justify-end gap-2">
+                  <TableCell className="text-right w-[15%] sm:w-[10%] p-1 sm:p-4 align-top">
+                    {/* Mobile Layout - Stacked vertically */}
+                    <div className="flex flex-col gap-1 items-end sm:hidden">
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => scrapeSingleSource.mutate(source.id)}
                         disabled={
                           !source.active || 
                           scrapingSourceId === source.id || 
                           scrapeJobRunning
                         }
-                        className="h-fit px-2 py-1 text-xs"
+                        className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                        title="Scrape source"
                       >
                         {scrapingSourceId === source.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <RefreshCw className="h-4 w-4" />
                         )}
-                        <span className="hidden sm:inline ml-1">Scrape</span>
                       </Button>
                       
                       <Button
@@ -797,7 +800,6 @@ export default function Sources() {
                         title="Edit source"
                       >
                         <PencilLine className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
                       </Button>
                       
                       <AlertDialog>
@@ -809,7 +811,69 @@ export default function Sources() {
                             title="Delete source"
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the source "{source.name}".
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteSource.mutate(source.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                    
+                    {/* Desktop Layout - Horizontal */}
+                    <div className="hidden sm:flex flex-row justify-end items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => scrapeSingleSource.mutate(source.id)}
+                        disabled={
+                          !source.active || 
+                          scrapingSourceId === source.id || 
+                          scrapeJobRunning
+                        }
+                        className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                        title="Scrape source"
+                      >
+                        {scrapingSourceId === source.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditSource(source)}
+                        className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                        title="Edit source"
+                      >
+                        <PencilLine className="h-4 w-4" />
+                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                            title="Delete source"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
