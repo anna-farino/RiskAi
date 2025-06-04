@@ -15,7 +15,7 @@ async function throwIfResNotOk(res: Response) {
     } catch {
       errorData = { message: res.statusText };
     }
-
+    
     // Create error with parsed data attached
     const error = new Error(`${res.status}: ${errorData.message || errorData.error || res.statusText}`);
     (error as any).data = errorData;
@@ -31,7 +31,7 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   try {
     console.log(`API Request: ${method} ${url}`, data);
-
+    
     const res = await fetch(url, {
       method,
       headers: data ? { 
@@ -43,31 +43,13 @@ export async function apiRequest<T = any>(
       body: data ? JSON.stringify(data) : undefined,
       credentials: "include",
     });
-
+    
     console.log(`API Response status: ${res.status} ${res.statusText}`);
-
+    
     await throwIfResNotOk(res);
-    // Handle 204 No Content responses - return null instead of trying to parse JSON
-    if (res.status === 204) {
-      return null;
-    }
-
-    // Check if response has content before trying to parse JSON
-    const contentLength = res.headers.get('content-length');
-    if (contentLength === '0') {
-      return null;
-    }
-
-    // Check content type to ensure it's JSON
-    const contentType = res.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        const responseData = await res.json();
-        console.log("API Response data:", responseData);
-        return responseData;
-    }
-
-    // If no JSON content type, return null
-    return null;
+    const responseData = await res.json();
+    console.log("API Response data:", responseData);
+    return responseData;
   } catch (error) {
     console.error("API Request error:", error);
     throw error;
@@ -106,3 +88,4 @@ export const queryClient = new QueryClient({
     },
   },
 });
+

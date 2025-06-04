@@ -107,7 +107,7 @@ threatRouter.delete("/sources/:id", async (req, res) => {
     }
     
     await storage.deleteSource(sourceId, deleteArticles);
-    res.status(200).json({ message: "Source deleted successfully" });
+    res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting source:", error);
     
@@ -380,7 +380,7 @@ threatRouter.delete("/articles/:id", async (req, res) => {
     }
     
     await storage.deleteArticle(articleId, userId);
-    res.status(200).json({ message: "Article deleted successfully" });
+    res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting article:", error);
     res.status(500).json({ error: error.message || "Failed to delete article" });
@@ -397,7 +397,7 @@ threatRouter.delete("/articles", async (req, res) => {
       return res.status(500).json({ error: "Failed to delete all articles" });
     }
     
-    res.status(200).json({ message: "All articles deleted successfully" });
+    res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting all articles:", error);
     res.status(500).json({ error: error.message || "Failed to delete all articles" });
@@ -427,7 +427,7 @@ threatRouter.post("/articles/:id/mark-for-capsule", async (req, res) => {
       return res.status(500).json({ error: "Failed to mark article for capsule" });
     }
     
-    res.status(200).json({ message: "Article marked for capsule successfully" });
+    res.status(204).send();
   } catch (error: any) {
     console.error("Error marking article for capsule:", error);
     res.status(500).json({ error: error.message || "Failed to mark article for capsule" });
@@ -456,7 +456,7 @@ threatRouter.post("/articles/:id/unmark-for-capsule", async (req, res) => {
       return res.status(500).json({ error: "Failed to unmark article for capsule" });
     }
     
-    res.status(200).json({ message: "Article unmarked for capsule successfully" });
+    res.status(204).send();
   } catch (error: any) {
     console.error("Error unmarking article for capsule:", error);
     res.status(500).json({ error: error.message || "Failed to unmark article for capsule" });

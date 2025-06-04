@@ -43,7 +43,7 @@ import { ThreatArticleCard } from "./components/threat-article-card";
 
 export default function ThreatHome() {
   const { toast } = useToast();
-
+  
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
@@ -55,16 +55,16 @@ export default function ThreatHome() {
   const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] = useState<boolean>(false);
   const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
-
+  
   // Sort state
   const [sortBy, setSortBy] = useState<'publishDate' | 'scrapeDate'>('publishDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
+  
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
-
+  
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
@@ -86,25 +86,25 @@ export default function ThreatHome() {
       }
     },
   });
-
+  
   // Build query string for filtering and sorting
   const buildQueryString = () => {
     const params = new URLSearchParams();
-
+    
     if (searchTerm) {
       params.append("search", searchTerm);
     }
-
+    
     if (selectedKeywordIds.length > 0) {
       selectedKeywordIds.forEach(id => {
         params.append("keywordIds", id);
       });
     }
-
+    
     if (dateRange.startDate) {
       params.append("startDate", dateRange.startDate.toISOString());
     }
-
+    
     if (dateRange.endDate) {
       params.append("endDate", dateRange.endDate.toISOString());
     }
@@ -112,10 +112,10 @@ export default function ThreatHome() {
     // Add sorting parameters
     params.append("sortBy", sortBy);
     params.append("sortOrder", sortOrder);
-
+    
     return params.toString();
   };
-
+  
   // Articles query with filtering and sorting
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange, sortBy, sortOrder],
@@ -123,14 +123,14 @@ export default function ThreatHome() {
       try {
         const queryString = buildQueryString();
         const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ''}`;
-
+        
         console.log("Fetching articles with URL:", url);
         console.log("Filter parameters:", {
           search: searchTerm,
           keywordIds: selectedKeywordIds,
           ...dateRange
         });
-
+        
         const response = await fetch(url, {
           method: "GET",
           credentials: "include",
@@ -138,7 +138,7 @@ export default function ThreatHome() {
             ...csfrHeaderObject(),
           },
         });
-
+        
         if (!response.ok) throw new Error('Failed to fetch articles');
         const data = await response.json();
         console.log("Received filtered articles:", data.length);
@@ -149,14 +149,38 @@ export default function ThreatHome() {
       }
     },
   });
-
-  // Sort articles function - now relies on backend sorting
+  
+  // Sort articles function
   const sortArticles = (articles: ThreatArticle[]): ThreatArticle[] => {
-    // Since we've fixed the backend sorting to handle publish dates correctly,
-    // we can simply return the articles as they come from the backend.
-    // The backend now properly sorts by publish_date first, then scrape_date,
-    // with NULLS LAST for articles without publish dates.
-    return articles;
+    if (sortBy === 'publishDate') {
+      // Separate articles with and without publish dates
+      const articlesWithoutPublishDate = articles.filter(article => !article.publishDate);
+      const articlesWithPublishDate = articles.filter(article => article.publishDate);
+      
+      // Sort articles without publish date by scrape date
+      const sortedWithoutPublishDate = [...articlesWithoutPublishDate].sort((a, b) => {
+        const aDate = new Date(a.scrapeDate || 0);
+        const bDate = new Date(b.scrapeDate || 0);
+        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
+      });
+      
+      // Sort articles with publish date by publish date
+      const sortedWithPublishDate = [...articlesWithPublishDate].sort((a, b) => {
+        const aDate = new Date(a.publishDate!);
+        const bDate = new Date(b.publishDate!);
+        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
+      });
+      
+      // Articles without publish date first, then articles with publish date
+      return [...sortedWithoutPublishDate, ...sortedWithPublishDate];
+    } else {
+      // Sort by scrape date
+      return [...articles].sort((a, b) => {
+        const aDate = new Date(a.scrapeDate || 0);
+        const bDate = new Date(b.scrapeDate || 0);
+        return sortOrder === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
+      });
+    }
   };
 
   // Sync local state with query data when it changes, applying sort
@@ -179,7 +203,7 @@ export default function ThreatHome() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
+  
   // Delete article mutation
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
@@ -222,41 +246,11 @@ export default function ThreatHome() {
       });
     },
   });
-
+  
   // Delete all articles mutation
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      try {
-      console.log('API Request: DELETE', `${serverUrl}/api/threat-tracker/articles`, null);
-      const response = await fetch(`${serverUrl}/api/threat-tracker/articles`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      console.log('API Response status:', response.status, response.statusText);
-
-      if (!response.ok) {
-        let errorData = {};
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          // Ignore JSON parsing errors for error responses
-        }
-        throw new Error(errorData.message || `Failed to delete articles: ${response.statusText}`);
-      }
-
-      // Handle successful response - could be 200 with JSON or 204 with no content
-      let result = null;
-      if (response.status !== 204) {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          result = await response.json();
-        }
-      }
-    } catch (error) {
-        console.error("API request failed:", error);
-        throw error; // Re-throw to be caught by the mutation's onError
-    }
+      return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/articles`);
     },
     onMutate: () => {
       // Optimistic update - clear local articles
@@ -281,7 +275,7 @@ export default function ThreatHome() {
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
     },
   });
-
+  
   // Mark article for capsule mutation
   const markArticleForCapsule = useMutation({
     mutationFn: async ({ id, marked }: { id: string; marked: boolean }) => {
@@ -366,7 +360,7 @@ export default function ThreatHome() {
       });
     }
   };
-
+  
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
     setSelectedKeywordIds(prev => 
@@ -375,29 +369,29 @@ export default function ThreatHome() {
         : [...prev, keywordId]
     );
   };
-
+  
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedKeywordIds([]);
     setDateRange({});
   };
-
+  
   // Function to handle article deletion
   const handleDeleteArticle = (id: string) => {
     deleteArticle.mutate(id);
   };
-
+  
   // Function to handle marking for capsule
   const handleMarkForCapsule = (id: string, currentlyMarked: boolean) => {
     markArticleForCapsule.mutate({ id, marked: !currentlyMarked });
   };
-
+  
   // Handle delete all articles
   const handleDeleteAllArticles = () => {
     deleteAllArticles.mutate();
   };
-
+  
   // Group keywords by category
   const keywordsByCategory = {
     threat: keywords.data?.filter(k => k.category === 'threat') || [],
@@ -409,7 +403,7 @@ export default function ThreatHome() {
   // Filter keywords for autocomplete based on search term and only show keywords detected in articles
   const filteredKeywords = useMemo(() => {
     if (!keywords.data || !articles.data) return [];
-
+    
     // Get all detected keywords from articles
     const detectedKeywordTerms = new Set<string>();
     articles.data.forEach(article => {
@@ -429,7 +423,7 @@ export default function ThreatHome() {
         });
       }
     });
-
+    
     return keywords.data.filter((keyword) => {
       const matchesSearch = keywordSearchTerm === "" || 
         keyword.term.toLowerCase().includes(keywordSearchTerm.toLowerCase());
@@ -458,7 +452,7 @@ export default function ThreatHome() {
   const removeKeywordFromFilter = (keywordId: string) => {
     setSelectedKeywordIds(prev => prev.filter(id => id !== keywordId));
   };
-
+  
   return (
     <>
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
@@ -485,7 +479,7 @@ export default function ThreatHome() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-
+          
           <div className="flex flex-row gap-2">
             <Button
               variant="outline"
@@ -501,7 +495,7 @@ export default function ThreatHome() {
                 </Badge>
               )}
             </Button>
-
+            
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
@@ -528,7 +522,7 @@ export default function ThreatHome() {
                 <span className="hidden sm:inline">Publish Date</span>
                 <span className="sm:hidden">Date</span>
               </Button>
-
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -555,7 +549,7 @@ export default function ThreatHome() {
                 <span className="sm:hidden">Scrape</span>
               </Button>
             </div>
-
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
@@ -589,7 +583,7 @@ export default function ThreatHome() {
             </AlertDialog>
           </div>
         </div>
-
+        
         {/* Filters section */}
         {isFilterOpen && (
           <div className="p-4 border rounded-lg bg-card">
@@ -614,7 +608,7 @@ export default function ThreatHome() {
                 </Button>
               </div>
             </div>
-
+            
             <div className="space-y-4">
               {/* Simple Keyword Filter */}
               <div>
@@ -690,11 +684,11 @@ export default function ThreatHome() {
                   </div>
                 </div>
               )}
-
+              
             </div>
           </div>
         )}
-
+        
         {/* Sort status indicator */}
         {localArticles.length > 0 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-2 rounded-md">
