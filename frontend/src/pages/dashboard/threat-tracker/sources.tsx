@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import React from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
@@ -293,9 +294,9 @@ export default function Sources() {
             </TableHeader>
             <TableBody>
               {localSources.map((source) => (
-                <>
+                <React.Fragment key={source.id}>
                   {/* First row - Name and URL (and all desktop columns) */}
-                  <TableRow key={`${source.id}-main`} className="border-b sm:border-b">
+                  <TableRow className="border-b sm:border-b">
                     <TableCell className="font-medium text-white w-[50%] sm:w-[25%] p-2 sm:p-4">
                       <span className="truncate text-xs sm:text-sm">{source.name}</span>
                     </TableCell>
@@ -493,7 +494,7 @@ export default function Sources() {
                       </div>
                     </TableCell>
                   </TableRow>
-                </>
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
