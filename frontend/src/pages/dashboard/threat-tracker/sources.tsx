@@ -107,6 +107,10 @@ export default function Sources() {
   const [localAutoScrapeEnabled, setLocalAutoScrapeEnabled] = useState<
     boolean | null
   >(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    source: ThreatSource;
+    articleCount: number;
+  } | null>(null);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -334,13 +338,13 @@ export default function Sources() {
 
   // Delete source mutation with optimistic updates
   const deleteSource = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest(
-        "DELETE",
-        `${serverUrl}/api/threat-tracker/sources/${id}`,
-      );
+    mutationFn: async ({ id, deleteArticles = false }: { id: string; deleteArticles?: boolean }) => {
+      const url = deleteArticles 
+        ? `${serverUrl}/api/threat-tracker/sources/${id}?deleteArticles=true`
+        : `${serverUrl}/api/threat-tracker/sources/${id}`;
+      return apiRequest("DELETE", url);
     },
-    onMutate: async (deletedId) => {
+    onMutate: async ({ id: deletedId }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
@@ -363,18 +367,22 @@ export default function Sources() {
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
     },
-    onError: (error, _, context) => {
+    onError: (error: any, _, context) => {
       // Rollback optimistic update
       if (context?.previousSources) {
         setLocalSources(context.previousSources);
       }
+      
       console.error("Error deleting source:", error);
-      toast({
-        title: "Error deleting source",
-        description:
-          "There was an error deleting your source. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Don't show error toast for ARTICLES_EXIST - this will be handled by the confirmation dialog
+      if (error?.response?.data?.error !== "ARTICLES_EXIST") {
+        toast({
+          title: "Error deleting source",
+          description: error?.response?.data?.message || "There was an error deleting your source. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -582,6 +590,38 @@ export default function Sources() {
         enabled: autoScrapeSettings.data.enabled,
         interval,
       });
+    }
+  }
+
+  // Handle delete source with confirmation for associated articles
+  function handleDeleteSource(source: ThreatSource) {
+    // Try to delete the source first to check if there are associated articles
+    deleteSource.mutate(
+      { id: source.id },
+      {
+        onError: (error: any) => {
+          if (error?.response?.data?.error === "ARTICLES_EXIST") {
+            // Show confirmation dialog
+            setDeleteConfirmation({
+              source,
+              articleCount: error.response.data.articleCount,
+            });
+          }
+        },
+      }
+    );
+  }
+
+  // Handle confirmed deletion with articles
+  function handleConfirmedDelete(deleteArticles: boolean) {
+    if (deleteConfirmation) {
+      if (deleteArticles) {
+        deleteSource.mutate({ 
+          id: deleteConfirmation.source.id, 
+          deleteArticles: true 
+        });
+      }
+      setDeleteConfirmation(null);
     }
   }
 
@@ -889,6 +929,38 @@ export default function Sources() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog for Sources with Articles */}
+      <AlertDialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Source with Associated Articles</AlertDialogTitle>
+            <AlertDialogDescription>
+              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated threat articles.
+              <br /><br />
+              Would you like to delete the associated articles as well? If you choose "No", the source will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleConfirmedDelete(false)}
+              className="mr-2"
+            >
+              Keep Articles, Cancel Delete
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleConfirmedDelete(true)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Source & {deleteConfirmation?.articleCount} Articles
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
@@ -1075,7 +1147,7 @@ export default function Sources() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => deleteSource.mutate(source.id)}
+                                onClick={() => handleDeleteSource(source)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 Delete
