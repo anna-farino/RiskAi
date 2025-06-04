@@ -63,11 +63,36 @@ log(`[ThreatTracker][Puppeteer] Using Chrome at: ${CHROME_PATH}`, "scraper");
 
 // Shared browser instance to reuse across requests
 let browser: Browser | null = null;
+let browserPageCount = 0;
+const MAX_PAGES_PER_BROWSER = 10; // Restart browser after 10 pages to prevent memory issues
+
+/**
+ * Close and cleanup browser
+ */
+async function closeBrowser(): Promise<void> {
+  if (browser) {
+    try {
+      await browser.close();
+      log("[ThreatTracker][closeBrowser] Browser closed successfully", "scraper");
+    } catch (error: any) {
+      log(`[ThreatTracker][closeBrowser] Error closing browser: ${error.message}`, "scraper-error");
+    } finally {
+      browser = null;
+      browserPageCount = 0;
+    }
+  }
+}
 
 /**
  * Get or create a browser instance
  */
 async function getBrowser(): Promise<Browser> {
+  // Restart browser if we've used too many pages
+  if (browser && browserPageCount >= MAX_PAGES_PER_BROWSER) {
+    log("[ThreatTracker][getBrowser] Restarting browser due to page count limit", "scraper");
+    await closeBrowser();
+  }
+
   if (!browser) {
     try {
       browser = await puppeteer.launch({
@@ -93,9 +118,10 @@ async function getBrowser(): Promise<Browser> {
           '--disable-blink-features=AutomationControlled'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 180000 // 3 minute timeout on browser launch
+        timeout: 60000 // Reduced browser launch timeout
       });
       log("[ThreatTracker][getBrowser] Browser launched successfully", "scraper");
+      browserPageCount = 0;
     } catch (error: any) {
       log(`[ThreatTracker][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
       throw error;
@@ -111,6 +137,10 @@ async function setupPage(): Promise<Page> {
   log(`[ThreatTracker][setupPage] Setting up new page`, "scraper");
   const browser = await getBrowser();
   const page = await browser.newPage();
+  
+  // Increment page count for browser management
+  browserPageCount++;
+  log(`[ThreatTracker][setupPage] Page count: ${browserPageCount}`, "scraper");
 
   // Set viewport
   await page.setViewport({ width: 1920, height: 1080 });
@@ -124,19 +154,19 @@ async function setupPage(): Promise<Page> {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   });
 
-  // Set longer timeouts
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(60000);
+  // Set reduced timeouts for faster failure detection
+  page.setDefaultNavigationTimeout(30000); // Reduced from 60s to 30s
+  page.setDefaultTimeout(30000);
 
   return page;
 }
 
 /**
- * Extract article links as a structured HTML
+ * Extract article links as a structured HTML (simplified version)
  */
 async function extractArticleLinksStructured(page: Page, existingLinkData?: Array<{href: string, text: string, parentText: string, parentClass: string}>): Promise<string> {
   // Wait for any links to appear
-  await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
+  await page.waitForSelector('a', { timeout: 3000 }).catch(() => {
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
@@ -147,47 +177,10 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
     articleLinkData = existingLinkData;
   } else {
-    log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
+    log('[ThreatTracker] Extracting links from page', "scraper");
 
-    // Check for HTMX usage on the page
-    const hasHtmx = await page.evaluate(() => {
-      return {
-        scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
-        hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
-        hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-          url: el.getAttribute('hx-get'),
-          trigger: el.getAttribute('hx-trigger') || 'click'
-        }))
-      };
-    });
-
-    if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
-      log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
-      
-      // Wait longer for initial HTMX content to load (some triggers on page load)
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      // For HTMX elements with 'load' trigger, content should already be loaded
-      // But HTMX may use other triggers (click, etc.), so we'll need to check
-      
-      // Get all HTMX load endpoints that should have been triggered
-      const loadTriggers = hasHtmx.hxGetElements.filter(el => 
-        el.trigger === 'load' || el.trigger.includes('load')
-      );
-      
-      if (loadTriggers.length > 0) {
-        log(`[ThreatTracker] Found ${loadTriggers.length} HTMX endpoints triggered on load`, "scraper");
-        
-        // Wait a bit longer for these load-triggered requests to complete
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-    }
-    
-    // Wait for any remaining dynamic content to load
-    await page.waitForFunction(
-      () => {
-        const loadingElements = document.querySelectorAll(
-          '.loading, .spinner, [data-loading="true"], .skeleton'
+    // Simple wait for dynamic content (no complex HTMX logic)
+    await new Promise(resolve => setTimeout(resolve, 1000));
         );
         return loadingElements.length === 0;
       },
@@ -416,60 +409,45 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
     page = await setupPage();
     
-    // Navigate to the page
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
+    // Navigate to the page with reduced timeout for faster failure detection
+    const response = await page.goto(url, { 
+      waitUntil: "domcontentloaded", // Changed from networkidle2 to domcontentloaded for faster loading
+      timeout: 30000 // Reduced timeout from default 60s to 30s
+    });
     log(`[ThreatTracker] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
     
     if (response && !response.ok()) {
       log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
+      // Don't continue with bad responses
+      if (response.status() >= 400) {
+        throw new Error(`HTTP ${response.status()}: ${response.statusText()}`);
+      }
     }
 
-    // Wait for potential challenges to be processed
+    // Reduced wait time for page stabilization
     log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 3000ms to 1000ms
 
-    // Check for bot protection
+    // Quick bot protection check (simplified)
     const botProtectionCheck = await page.evaluate(() => {
-      return (
-        document.body.innerHTML.includes('_Incapsula_Resource') ||
-        document.body.innerHTML.includes('Incapsula') ||
-        document.body.innerHTML.includes('captcha') ||
-        document.body.innerHTML.includes('Captcha') ||
-        document.body.innerHTML.includes('cloudflare') ||
-        document.body.innerHTML.includes('CloudFlare')
-      );
+      const bodyText = document.body.innerHTML.toLowerCase();
+      return bodyText.includes('captcha') || bodyText.includes('cloudflare');
     });
 
     if (botProtectionCheck) {
-      log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
-      // Perform some human-like actions
-      await page.mouse.move(50, 50);
-      await page.mouse.down();
-      await page.mouse.move(100, 100);
-      await page.mouse.up();
-      
-      // Reload the page and wait again
-      await page.reload({ waitUntil: 'networkidle2' });
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      log('[ThreatTracker] Bot protection detected, waiting briefly', "scraper");
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     // For article pages, extract the content based on selectors
     if (isArticlePage) {
       log('[ThreatTracker] Extracting article content', "scraper");
 
-      // Scroll through the page to ensure all content is loaded
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight / 3);
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
+      // Simple scroll to load lazy content (reduced complexity)
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight);
-        return new Promise(resolve => setTimeout(resolve, 1000));
       });
+      await new Promise(resolve => setTimeout(resolve, 500)); // Reduced wait time
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
