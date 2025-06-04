@@ -435,7 +435,7 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId } = options;
+      const { search, keywordIds, startDate, endDate, userId, sortBy = 'publishDate', sortOrder = 'desc', limit } = options;
       let query = db.select().from(threatArticles);
 
       // Build WHERE clause based on search parameters
@@ -517,11 +517,31 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Order by publish date (most recent first), fallback to scrape date if publish date is null
-      const orderedQuery = query.orderBy(desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`));
+      // Dynamic sorting based on parameters
+      let orderedQuery;
+      if (sortBy === 'publishDate') {
+        // Use publishDate with fallback to scrapeDate
+        orderedQuery = sortOrder === 'asc' 
+          ? query.orderBy(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate}) ASC`)
+          : query.orderBy(desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`));
+      } else if (sortBy === 'scrapeDate') {
+        orderedQuery = sortOrder === 'asc' 
+          ? query.orderBy(threatArticles.scrapeDate)
+          : query.orderBy(desc(threatArticles.scrapeDate));
+      } else if (sortBy === 'title') {
+        orderedQuery = sortOrder === 'asc' 
+          ? query.orderBy(threatArticles.title)
+          : query.orderBy(desc(threatArticles.title));
+      } else {
+        // Default to publishDate with fallback
+        orderedQuery = query.orderBy(desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`));
+      }
+
+      // Add limit if specified
+      const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
 
       // Execute the query
-      const result = await orderedQuery.execute();
+      const result = await finalQuery.execute();
       return result;
     } catch (error) {
       console.error("Error fetching threat articles:", error);

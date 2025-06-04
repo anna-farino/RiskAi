@@ -87,7 +87,7 @@ export default function ThreatHome() {
     },
   });
   
-  // Build query string for filtering
+  // Build query string for filtering and sorting
   const buildQueryString = () => {
     const params = new URLSearchParams();
     
@@ -108,13 +108,17 @@ export default function ThreatHome() {
     if (dateRange.endDate) {
       params.append("endDate", dateRange.endDate.toISOString());
     }
+
+    // Add sorting parameters
+    params.append("sortBy", sortBy);
+    params.append("sortOrder", sortOrder);
     
     return params.toString();
   };
   
-  // Articles query with filtering
+  // Articles query with filtering and sorting
   const articles = useQuery<ThreatArticle[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange],
+    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange, sortBy, sortOrder],
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
