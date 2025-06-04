@@ -425,5 +425,13 @@ export function separateDateFromAuthor(text: string): { date: string | null, aut
     return { date: null, author: text };
   }
   
-  return { date: text, author: null };
+  // Check if the text looks like a date (month names, date patterns, etc.)
+  const dateIndicators = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}|\d{1,2}\s+(days?|weeks?|months?|years?)\s+ago)\b/i;
+  
+  if (dateIndicators.test(text)) {
+    return { date: text, author: null };
+  }
+  
+  // If it doesn't look like a date, treat it as an author
+  return { date: null, author: text };
 }

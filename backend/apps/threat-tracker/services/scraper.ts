@@ -805,7 +805,6 @@ export async function extractArticleContent(
       if (authorText) {
         // Use the date/author separator utility to clean up mixed content
         const separated = separateDateFromAuthor(authorText);
-        result.author = separated.author || authorText;
         
         // If we found a date in the author field and don't have a date yet, use it
         if (separated.date && !result.date) {
@@ -813,6 +812,17 @@ export async function extractArticleContent(
           if (fallbackDate) {
             result.date = fallbackDate.toISOString();
             log(`[ThreatTracker] Extracted date from author field: ${result.date}`, "scraper");
+          }
+        }
+        
+        // Only set author if we have a valid author name (not a date)
+        if (separated.author) {
+          result.author = separated.author;
+        } else if (!separated.date) {
+          // Only use the original text as author if it doesn't look like a date
+          const dateIndicators = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}|\d{1,2}\s+(days?|weeks?|months?|years?)\s+ago)\b/i;
+          if (!dateIndicators.test(authorText)) {
+            result.author = authorText;
           }
         }
       }
