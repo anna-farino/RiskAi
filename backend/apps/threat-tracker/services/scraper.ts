@@ -488,17 +488,43 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     if (isArticlePage) {
       log('[ThreatTracker] Extracting article content', "scraper");
 
+      // Wait for document body to be ready before scrolling
+      await page.waitForFunction(() => {
+        return document.body !== null && document.readyState !== 'loading';
+      }, { timeout: 10000 }).catch(() => {
+        log('[ThreatTracker] Timeout waiting for document body, continuing anyway', "scraper");
+      });
+
+      // Additional check for DOM readiness
+      await page.evaluate(() => {
+        return new Promise((resolve) => {
+          if (document.readyState === 'complete') {
+            resolve(true);
+          } else {
+            window.addEventListener('load', () => resolve(true));
+            // Fallback timeout
+            setTimeout(() => resolve(true), 5000);
+          }
+        });
+      });
+
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight / 3);
+        if (document.body && document.body.scrollHeight) {
+          window.scrollTo(0, document.body.scrollHeight / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        if (document.body && document.body.scrollHeight) {
+          window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
+        if (document.body && document.body.scrollHeight) {
+          window.scrollTo(0, document.body.scrollHeight);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
@@ -571,7 +597,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           }
           
           if (!content || content.length < 100) {
-            content = document.body.textContent?.trim() || '';
+            content = document.body?.textContent?.trim() || '';
           }
         }
 

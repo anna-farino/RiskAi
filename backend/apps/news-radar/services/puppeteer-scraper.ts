@@ -231,19 +231,25 @@ export async function scrapePuppeteer(
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
-        console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
-        window.scrollTo(0, document.body.scrollHeight / 3);
+        if (document.body && document.body.scrollHeight) {
+          console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
+          console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
+          window.scrollTo(0, document.body.scrollHeight / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        if (document.body && document.body.scrollHeight) {
+          console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
+          window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Scrolling to bottom of page');
-        window.scrollTo(0, document.body.scrollHeight);
+        if (document.body && document.body.scrollHeight) {
+          console.log('[Puppeteer-Debug] Scrolling to bottom of page');
+          window.scrollTo(0, document.body.scrollHeight);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
@@ -316,7 +322,7 @@ export async function scrapePuppeteer(
 
         // If still no content, get the body content
         if (!content) {
-          content = document.body.textContent?.trim() || '';
+          content = document.body?.textContent?.trim() || '';
           console.log('[Puppeteer-Debug] Using body content as fallback');
           console.log('[Puppeteer-Debug] Content length:', content.length);
         }
