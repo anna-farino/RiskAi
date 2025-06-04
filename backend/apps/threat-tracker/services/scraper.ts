@@ -966,10 +966,10 @@ async function httpFallbackScrape(url: string): Promise<string> {
                   $('.article-title').first().text().trim() || 
                   $('title').text().trim();
           
-          // Extract content
+          // Extract content - prioritize Bleeping Computer specific selectors
           const contentSelectors = [
-            'article .articleBody',
             '.articleBody',
+            'article .articleBody',
             'article',
             '.article-content',
             '.article-body',
