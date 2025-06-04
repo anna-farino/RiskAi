@@ -773,8 +773,8 @@ export default function Sources() {
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
                   <TableCell className="text-right w-[25%] sm:w-[25%] md:w-[20%] p-1 sm:p-4 align-top">
-                    {/* Mobile Layout - Stacked vertically */}
-                    <div className="flex flex-col gap-1 items-end sm:hidden min-w-0">
+                    {/* Mobile & Tablet Layout - Stacked vertically */}
+                    <div className="flex flex-col gap-1 items-end lg:hidden min-w-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -836,8 +836,8 @@ export default function Sources() {
                       </AlertDialog>
                     </div>
                     
-                    {/* Desktop Layout - Horizontal */}
-                    <div className="hidden sm:flex flex-row justify-end items-center gap-2">
+                    {/* Large Desktop Layout - Horizontal */}
+                    <div className="hidden lg:flex flex-row justify-end items-center gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
