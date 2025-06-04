@@ -389,7 +389,7 @@ export default function NewsHome() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
           <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
             <div className="flex justify-between items-start mb-2 sm:mb-3">
               <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
@@ -642,7 +642,7 @@ export default function NewsHome() {
           </div>
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
               {/* Adjust number of skeleton items based on screen size */}
               {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
                 <div
@@ -676,7 +676,7 @@ export default function NewsHome() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
               {localArticles.map((article) => (
                 <a
                   href={article.url}

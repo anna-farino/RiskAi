@@ -24,7 +24,7 @@ export default function NewsLayout() {
   // Check if we're on mobile for responsive rendering
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 640);
+      setIsMobile(window.innerWidth < 768);
     };
     
     handleResize();
@@ -38,7 +38,7 @@ export default function NewsLayout() {
         "flex w-full rounded-md bg-slate-900/70 dark:bg-slate-900/70 border border-slate-700/50 backdrop-blur-sm font-light overflow-x-auto",
         isMobile 
           ? "p-2 px-3 min-h-[36px] items-center gap-x-4 text-sm"
-          : "p-4 min-h-[40px] items-center gap-x-10"
+          : "p-3 md:p-4 min-h-[38px] md:min-h-[40px] items-center gap-x-6 md:gap-x-10 text-sm md:text-base"
       )}>
         {buttons.map(button => {
           const selected = location === button.label.toLowerCase();
