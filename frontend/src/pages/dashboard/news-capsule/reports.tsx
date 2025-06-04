@@ -997,27 +997,7 @@ export default function Reports() {
                           <p className="text-sm leading-relaxed">{article.attackVector}</p>
                         </div>
                         
-                        {/* Executive Notes Section */}
-                        <div className="mt-4 pt-4 border-t border-slate-700/30">
-                          <p className="text-xs text-slate-400 mb-2">Executive Note</p>
-                          
-                          <textarea
-                            value={executiveNotes[article.id] || ''}
-                            onChange={(e) => {
-                              const newValue = e.target.value;
-                              setExecutiveNotes(prev => ({ ...prev, [article.id]: newValue }));
-                              // Auto-save after 1 second of no typing
-                              clearTimeout((window as any)[`noteTimer_${article.id}`]);
-                              (window as any)[`noteTimer_${article.id}`] = setTimeout(() => {
-                                if (newValue.trim()) {
-                                  saveExecutiveNote(article.id, newValue);
-                                }
-                              }, 1000);
-                            }}
-                            placeholder="Add your executive note for this article..."
-                            className="w-full p-3 bg-slate-800/50 border border-slate-700/50 rounded-md text-sm text-slate-200 placeholder-slate-400 focus:border-blue-500 focus:outline-none resize-vertical min-h-[80px]"
-                          />
-                        </div>
+
                       </div>
                     </motion.div>
                   ))}
