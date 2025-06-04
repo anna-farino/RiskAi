@@ -10,7 +10,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useSignup } from "@/hooks/use-signup"
 import { Loader2 } from "lucide-react"
-import { RisqSpinner } from "@/components/ui/loading"
 import PasswordEye from "@/components/password-eye"
 import { useState } from "react"
 
@@ -118,7 +117,7 @@ export default function Signup() {
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={isPending}>
               {isPending ? (
                 <>
-                  <RisqSpinner size="sm" className="mr-2" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...
                 </>
               ) : (

@@ -1,11 +1,15 @@
 import { useAuthCheck } from "@/hooks/use-auth-check";
-import { RisqLoader, RisqSpinner } from "@/components/ui/loading";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const { isLoading: authLoading, isError } = useAuthCheck();
 
   if (authLoading) {
-    return <RisqLoader message="Loading security dashboard..." />;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (isError) {
@@ -24,7 +28,7 @@ export default function Home() {
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {authLoading ? (
           <div className="col-span-full flex justify-center">
-            <RisqSpinner size="lg" />
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) :  
           <>
