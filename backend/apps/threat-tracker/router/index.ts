@@ -5,7 +5,6 @@ import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJ
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
-import { runDateExtractionTests } from "../services/date-extractor.test";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -448,7 +447,7 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
     }
     
     // Scrape the source
-    const newArticles = await scrapeSource(source);
+    const newArticles = await scrapeSource(source, userId);
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,
