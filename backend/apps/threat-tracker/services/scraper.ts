@@ -167,7 +167,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
       log('[ThreatTracker] HTMX detected on page, using enhanced HTMX scraping...', "scraper");
       
       // Use the enhanced HTMX scraper for comprehensive content loading
-      await enhancedHTMXScraping(page, url);
+      await enhancedHTMXScraping(page, page.url());
       
       // For HTMX elements with 'load' trigger, content should already be loaded
       // But HTMX may use other triggers (click, etc.), so we'll need to check
