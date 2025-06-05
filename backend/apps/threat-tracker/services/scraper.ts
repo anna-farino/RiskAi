@@ -9,6 +9,7 @@ import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
+import { FoorillaScraper } from './foorilla-scraper';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -141,6 +142,14 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
+  // Check if this is a foorilla.com site and handle specially
+  const isFoorillaUrl = FoorillaScraper.isFoorillaUrl(url);
+  
+  if (isFoorillaUrl) {
+    log('[ThreatTracker] Detected foorilla.com site, using specialized handling', "scraper");
+    await FoorillaScraper.handleFoorillaHtmx(page, url);
+  }
+
   // Check for HTMX usage on the page (do this regardless of existing link data)
   const hasHtmx = await page.evaluate(() => {
     return {
