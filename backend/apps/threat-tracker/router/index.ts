@@ -509,7 +509,8 @@ threatRouter.get("/scrape/status", async (req, res) => {
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");
   try {
-    const settings = await getGlobalScrapeSchedule();
+    const userId = getUserId(req);
+    const settings = await getGlobalScrapeSchedule(userId);
     res.json(settings);
   } catch (error: any) {
     console.error("Error fetching auto-scrape settings:", error);
@@ -520,6 +521,7 @@ threatRouter.get("/settings/auto-scrape", async (req, res) => {
 threatRouter.put("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "PUT /settings/auto-scrape");
   try {
+    const userId = getUserId(req);
     const { enabled, interval } = req.body;
     
     // Validate the interval
@@ -527,10 +529,11 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
       return res.status(400).json({ error: "Invalid interval value" });
     }
     
-    // Update the schedule
+    // Update the schedule for this user
     const settings = await updateGlobalScrapeSchedule(
       Boolean(enabled), 
-      interval || JobInterval.DAILY
+      interval || JobInterval.DAILY,
+      userId
     );
     
     res.json(settings);
