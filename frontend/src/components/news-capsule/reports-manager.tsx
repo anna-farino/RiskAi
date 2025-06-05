@@ -1,152 +1,45 @@
 import React, { useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
+import type { Report } from "@shared/db/schema/reports";
+import type { CapsuleArticle } from "@shared/db/schema/news-capsule";
 
-interface ArticleSummary {
-  id: string;
-  title: string;
-  threatName: string;
-  vulnerabilityId: string;
-  summary: string;
-  impacts: string;
-  attackVector: string;
-  microsoftConnection: string;
-  sourcePublication: string;
-  originalUrl: string;
-  targetOS: string;
-  createdAt: string;
-}
-
-export interface Report {
-  id: string;
-  createdAt: string;
-  articles: ArticleSummary[];
-  versionNumber?: number;
+interface ReportWithArticles extends Report {
+  articles: CapsuleArticle[];
 }
 
 interface ReportsManagerProps {
-  onReportSelect: (report: Report) => void;
+  reports: ReportWithArticles[];
+  onReportSelect: (report: ReportWithArticles) => void;
+  onDeleteReport: (reportId: string) => void;
   selectedReportId?: string;
+  isLoading?: boolean;
+  isDeleting?: boolean;
 }
 
-export function ReportsManager({ onReportSelect, selectedReportId }: ReportsManagerProps) {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+export function ReportsManager({ 
+  reports, 
+  onReportSelect, 
+  onDeleteReport, 
+  selectedReportId, 
+  isLoading = false, 
+  isDeleting = false 
+}: ReportsManagerProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  // Load reports from localStorage on component mount
+  // Auto-select first report if no report is selected
   useEffect(() => {
-    try {
-      setIsLoading(true);
-      // First check localStorage for saved reports
-      const savedReports = localStorage.getItem('newsCapsuleReports');
-      if (savedReports) {
-        const parsedReports = JSON.parse(savedReports);
-        console.log("Loaded reports from localStorage:", parsedReports.length);
-        setReports(parsedReports);
-        
-        // Auto-select first report if no report is selected
-        if (parsedReports.length > 0 && !selectedReportId) {
-          onReportSelect(parsedReports[0]);
-        } else if (selectedReportId) {
-          // Find and select the report with the matching ID
-          const selectedReport = parsedReports.find((r: Report) => r.id === selectedReportId);
-          if (selectedReport) {
-            onReportSelect(selectedReport);
-          }
-        }
-      } else {
-        // If no reports in localStorage, initialize with an empty array
-        console.log("No reports found in localStorage, initializing empty array");
-        setReports([]);
-        localStorage.setItem('newsCapsuleReports', JSON.stringify([]));
-      }
-    } catch (err) {
-      console.error("Error loading reports from localStorage:", err);
-      setError("Failed to load saved reports");
-    } finally {
-      setIsLoading(false);
+    if (reports.length > 0 && !selectedReportId) {
+      onReportSelect(reports[0]);
     }
-  }, []);
+  }, [reports, selectedReportId, onReportSelect]);
 
-  // Save reports to localStorage whenever they change
-  useEffect(() => {
-    if (reports.length > 0) {
-      localStorage.setItem('newsCapsuleReports', JSON.stringify(reports));
-    }
-  }, [reports]);
-
-  // Display reports with their version numbers
-  const getReportsWithVersions = () => {
-    // First, ensure all reports have a versionNumber field
-    const reportsWithVersions = reports.map(report => {
-      // If a report already has a versionNumber, preserve it
-      if (report.versionNumber) {
-        return report;
-      }
-      
-      // For reports without a versionNumber, determine if we need to calculate one
-      // Group reports by date to find ones from the same day
-      const sameDay = reports.filter(r => {
-        const rDate = new Date(r.createdAt);
-        const reportDate = new Date(report.createdAt);
-        return rDate.toDateString() === reportDate.toDateString();
-      });
-      
-      // If this is the only report for this day, it's version 1
-      if (sameDay.length === 1) {
-        return { ...report, versionNumber: 1 };
-      }
-      
-      // Multiple reports on same day - need to assign version based on creation time
-      // Sort by creation time (newest first)
-      const sortedSameDay = [...sameDay].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      // Find position of current report in the sorted list
-      const position = sortedSameDay.findIndex(r => r.id === report.id);
-      
-      // Version is position + 1 (to start at 1 instead of 0)
-      // But we want newest to have highest version number
-      const version = sortedSameDay.length - position;
-      
-      return { ...report, versionNumber: version };
-    });
-    
-    return reportsWithVersions;
-  };
-
-  const handleReportSelect = (report: Report) => {
+  const handleReportSelect = (report: ReportWithArticles) => {
     onReportSelect(report);
   };
 
-  const deleteReport = (reportId: string) => {
-    try {
-      setIsDeleting(true);
-      
-      // Remove report from local state
-      setReports(reports.filter(report => report.id !== reportId));
-      
-      // If the deleted report was selected, clear the selection
-      if (selectedReportId === reportId) {
-        // Find the next available report to select
-        const remainingReports = reports.filter(report => report.id !== reportId);
-        if (remainingReports.length > 0) {
-          onReportSelect(remainingReports[0]);
-        } else {
-          onReportSelect(null as any); // No reports left
-        }
-      }
-      
-      setShowDeleteConfirm(null);
-    } catch (err) {
-      setError('Error deleting report: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleDeleteReport = (reportId: string) => {
+    onDeleteReport(reportId);
+    setShowDeleteConfirm(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -165,26 +58,16 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
     }
   };
 
-  // Get reports with version numbers
-  const reportsWithVersions = getReportsWithVersions();
-
   return (
-    <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-      <h2 className="text-xl font-semibold mb-4">Reports</h2>
-      
+    <div className="flex flex-col gap-2">
       {isLoading ? (
         <div className="flex justify-center p-4">
           <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
         </div>
-      ) : error ? (
-        <div className="p-3 bg-red-900/20 border border-red-700/50 rounded-md text-red-400 text-sm">
-          {error}
-        </div>
-      ) : reportsWithVersions.length === 0 ? (
+      ) : reports.length === 0 ? (
         <p className="text-sm text-slate-400 italic">No reports available</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {reportsWithVersions.map((report) => (
+        reports.map((report) => (
             <div key={report.id} className="relative group">
               <button
                 onClick={() => handleReportSelect(report)}
@@ -195,7 +78,7 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
                 }`}
               >
                 <p className="font-medium">
-                  Report {formatDate(report.createdAt)} {report.versionNumber && report.versionNumber > 1 ? `(Version: ${report.versionNumber})` : ''}
+                  Report {formatDate(report.createdAt)} {report.topic ? `- ${report.topic}` : ''}
                 </p>
                 <p className="text-xs text-blue-400">
                   {formatTime(report.createdAt)}
@@ -230,7 +113,7 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteReport(report.id);
+                          handleDeleteReport(report.id);
                         }}
                         disabled={isDeleting}
                         className="text-xs px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-white"
@@ -251,8 +134,7 @@ export function ReportsManager({ onReportSelect, selectedReportId }: ReportsMana
                 </div>
               )}
             </div>
-          ))}
-        </div>
+          ))
       )}
     </div>
   );

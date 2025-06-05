@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { CapsuleArticle } from "@shared/db/schema/news-capsule";
+import type { Report } from "@shared/db/schema/reports";
 import {
   Dialog,
   DialogContent,
@@ -22,13 +25,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-// Store real articles at module level, allowing more articles for pagination
-// Increased limit to support pagination functionality
-const MAX_STORED_ARTICLES = 100;
-const storedArticles: ArticleSummary[] = [];
-const storedSelectedArticles: ArticleSummary[] = [];
+interface ReportWithArticles extends Report {
+  articles: CapsuleArticle[];
+}
 
-// Store recent user-entered URLs (up to 5)
+// Store recent user-entered URLs (up to 5) - in memory only
 const MAX_RECENT_URLS = 5;
 const recentUrls: string[] = [];
 
@@ -42,25 +43,8 @@ const excludedUrls = [
   "https://gbhackers.com/fortinet-zero-day-poc/"
 ];
 
-interface ArticleSummary {
-  id: string;
-  title: string;
-  threatName: string;
-  vulnerabilityId: string;
-  summary: string;
-  impacts: string;
-  attackVector: string;
-  sourcePublication: string;
-  originalUrl: string;
-  targetOS: string;
-  createdAt: string;
-  markedForReporting: boolean;
-  markedForDeletion: boolean;
-
-}
-
 // Function to determine which app sent the article
-const getSourceAppIndicator = (article: ArticleSummary) => {
+const getSourceAppIndicator = (article: CapsuleArticle) => {
   // Articles processed through News Capsule research page show 'NC'
   // Other manually entered articles show 'M'
   return { label: 'NC', color: 'bg-purple-600', textColor: 'text-purple-100' };
@@ -69,11 +53,11 @@ const getSourceAppIndicator = (article: ArticleSummary) => {
 
 
 export default function Research() {
+  const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [processedArticles, setProcessedArticles] = useState<ArticleSummary[]>([]);
-  const [selectedArticles, setSelectedArticles] = useState<ArticleSummary[]>([]);
+  const [selectedArticles, setSelectedArticles] = useState<CapsuleArticle[]>([]);
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   const [bulkMode, setBulkMode] = useState(true);
@@ -89,99 +73,53 @@ export default function Research() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmDescription, setConfirmDescription] = useState("");
 
-  
-  // Load saved URLs from localStorage and fetch articles from database
-  useEffect(() => {
-    // Load saved URLs from localStorage
-    try {
-      const savedUrlsStr = localStorage.getItem('userSavedUrls');
-      if (savedUrlsStr) {
-        const parsed = JSON.parse(savedUrlsStr);
-        if (Array.isArray(parsed)) {
-          // Filter out any excluded URLs
-          const filteredUrls = parsed.filter(url => !excludedUrls.includes(url));
-          setSavedUrls(filteredUrls);
-          
-          // Also update the module-level array
-          recentUrls.length = 0;
-          recentUrls.push(...filteredUrls);
-        }
-      }
-      
-      // Load selected articles from localStorage
-      const savedSelectedStr = localStorage.getItem('savedSelectedArticles');
-      if (savedSelectedStr) {
-        try {
-          const parsed = JSON.parse(savedSelectedStr);
-          if (Array.isArray(parsed)) {
-            // Remove duplicates before setting using title as criteria
-            const uniqueSelected = parsed.filter((article, index, self) => 
-              index === self.findIndex(a => a.title === article.title)
-            );
-            setSelectedArticles(uniqueSelected);
-            
-            // Update module-level array and save cleaned data
-            storedSelectedArticles.length = 0;
-            storedSelectedArticles.push(...uniqueSelected);
-            localStorage.setItem('savedSelectedArticles', JSON.stringify(uniqueSelected));
-          }
-        } catch (e) {
-          console.error("Failed to parse saved selected articles", e);
-        }
-      }
-      
-      // Load report topic
-      const savedTopic = localStorage.getItem('reportTopic');
-      if (savedTopic) {
-        setReportTopic(savedTopic);
-      }
-    } catch (e) {
-      console.error("Failed to load saved data", e);
-    }
-    
-    // Fetch articles from database
-    fetchArticlesFromDatabase();
-  }, []);
-
-  // Function to fetch articles from the database
-  const fetchArticlesFromDatabase = async () => {
-    try {
+  // Fetch articles from database
+  const { data: processedArticles = [], isLoading: articlesLoading, refetch: refetchArticles } = useQuery<CapsuleArticle[]>({
+    queryKey: ["/api/news-capsule/articles"],
+    queryFn: async () => {
       const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
-        method: 'GET',
-        credentials: 'include',
+        method: "GET",
+        credentials: "include",
         headers: {
           ...csfrHeaderObject(),
         },
       });
+      if (!response.ok) throw new Error('Failed to fetch articles');
+      return response.json();
+    },
+  });
 
-      if (response.ok) {
-        const articles = await response.json();
-        console.log('Fetched articles from database:', articles.length);
-        
-        // Filter out articles marked for deletion and remove duplicates
-        const activeArticles = articles.filter((article: any) => !article.markedForDeletion);
-        const uniqueArticles = activeArticles.filter((article: any, index: number, self: any[]) => 
-          index === self.findIndex((a: any) => a.title === article.title)
-        );
-        
-        console.log('Setting processed articles:', uniqueArticles.length);
-        setProcessedArticles(uniqueArticles);
-        
-        // Update module-level array and save cleaned data
-        storedArticles.length = 0;
-        storedArticles.push(...uniqueArticles);
-        localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueArticles));
-        
-        if (uniqueArticles.length !== articles.length) {
-          console.log('Automatically removed duplicates:', articles.length - uniqueArticles.length);
-        }
-      } else {
-        console.error('Failed to fetch articles from database');
-      }
-    } catch (error) {
-      console.error('Error fetching articles:', error);
-    }
-  };
+  // Create report mutation
+  const createReportMutation = useMutation({
+    mutationFn: async ({ articleIds, topic }: { articleIds: string[]; topic?: string }) => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/add-to-report`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...csfrHeaderObject(),
+        },
+        body: JSON.stringify({ 
+          articleIds,
+          topic,
+          useExistingReport: false,
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to create report');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
+      setSelectedArticles([]);
+      setSuccessMessage("Articles successfully added to report!");
+      setShowSuccessDialog(true);
+    },
+    onError: (error) => {
+      setError(error instanceof Error ? error.message : "Failed to create report");
+    },
+  });
+  
+
   
   const clearUrl = () => {
     setUrl("");
@@ -199,19 +137,12 @@ export default function Research() {
     // Add the URL to the beginning of the array
     const newSavedUrls = [urlToSave, ...filteredUrls].slice(0, MAX_RECENT_URLS);
     
-    // Update state and localStorage
+    // Update state only
     setSavedUrls(newSavedUrls);
     
     // Update module level array
     recentUrls.length = 0;
     recentUrls.push(...newSavedUrls);
-    
-    // Save to localStorage
-    try {
-      localStorage.setItem('userSavedUrls', JSON.stringify(newSavedUrls));
-    } catch (e) {
-      console.error("Failed to save URLs", e);
-    }
   };
   
   // Handle selection from dropdown
@@ -302,25 +233,9 @@ export default function Research() {
         }
       }
       
-      // Add newly processed articles to the display immediately
+      // Refetch articles after processing
       if (newArticles.length > 0) {
-        setProcessedArticles(prev => {
-          // Add new articles to the beginning, avoiding duplicates
-          const existingIds = new Set(prev.map(a => a.id));
-          const uniqueNewArticles = newArticles.filter(a => !existingIds.has(a.id));
-          return [...uniqueNewArticles, ...prev];
-        });
-        
-        // Update localStorage with new articles
-        try {
-          const updatedArticles = [...newArticles, ...processedArticles];
-          const uniqueArticles = updatedArticles.filter((article, index, self) => 
-            index === self.findIndex(a => a.id === article.id)
-          );
-          localStorage.setItem('savedArticleSummaries', JSON.stringify(uniqueArticles));
-        } catch (e) {
-          console.error("Failed to update localStorage", e);
-        }
+        refetchArticles();
       }
       
       // Set detailed success or error message
@@ -344,7 +259,7 @@ export default function Research() {
     }
   };
   
-  const selectForReport = (article: ArticleSummary) => {
+  const selectForReport = (article: CapsuleArticle) => {
     // Check if article with same title already exists
     const alreadySelected = selectedArticles.some(selected => selected.title === article.title);
     
@@ -355,282 +270,53 @@ export default function Research() {
     
     const newSelectedArticles = [...selectedArticles, article];
     setSelectedArticles(newSelectedArticles);
-    
-    // Update module variable
-    storedSelectedArticles.length = 0;
-    storedSelectedArticles.push(...newSelectedArticles);
-    
-    // Save selected articles to localStorage
-    try {
-      localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelectedArticles));
-    } catch (e) {
-      console.error("Failed to save selected articles", e);
-    }
   };
   
-  const sendToExecutiveReport = async () => {
+  const sendToExecutiveReport = () => {
     if (selectedArticles.length === 0) {
       setError("No articles selected for the report");
       return;
     }
     
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Check if localStorage already has reports
-      let savedReports = [];
-      let todaysReports = [];
-      let versionNumber = 1;
-      
-      try {
-        const localStorageReports = localStorage.getItem('newsCapsuleReports');
-        if (localStorageReports) {
-          savedReports = JSON.parse(localStorageReports);
-          
-          // Find reports from today
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          todaysReports = savedReports.filter((report: any) => {
-            const reportDate = new Date(report.createdAt);
-            const reportDay = new Date(reportDate);
-            reportDay.setHours(0, 0, 0, 0);
-            return reportDay.getTime() === today.getTime();
-          });
-          
-          // Find the highest version number among today's reports only
-          const highestVersion = todaysReports.reduce((max: number, report: any) => {
-            const reportVersion = parseInt(report.versionNumber) || 0;
-            return reportVersion > max ? reportVersion : max;
-          }, 0);
-          
-          // Set the next version number as one higher than the highest existing version
-          versionNumber = highestVersion + 1;
-          console.log("Next version number will be:", versionNumber, "highest found was:", highestVersion);
-        }
-      } catch (e) {
-        console.error("Failed to check localStorage for reports", e);
-        // Continue with empty arrays if localStorage fails
-      }
-      
-      // Function to handle the actual report creation/update process
-      const processReport = async (useExisting = false, reportId: string | null = null) => {
-        let useExistingReport = useExisting;
-        let existingReportId = reportId;
-        
-        try {
-          // First try to save to server
-          const response = await fetch(serverUrl + "/api/news-capsule/add-to-report", {
-            method: "POST",
-            credentials: 'include',
-            headers: {
-              "Content-Type": "application/json",
-              ...csfrHeaderObject(),
-            },
-            body: JSON.stringify({ 
-              articleIds: selectedArticles.map(article => article.id),
-              useExistingReport: useExistingReport,
-              existingReportId: existingReportId,
-              versionNumber: versionNumber
-            }),
-            // Add a timeout to prevent long waiting
-            signal: AbortSignal.timeout(5000)
-          });
-          
-          if (response.ok) {
-            const result = await response.json();
-            console.log("Articles added to report on server:", result);
-          }
-        } catch (serverError) {
-          console.error("Server error, will save locally only:", serverError);
-          // Continue to save locally if server fails
-        }
-        
-        // IMPORTANT: Always save to localStorage as a backup
-        const newReportId = useExistingReport && existingReportId 
-          ? existingReportId 
-          : `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        
-        if (useExistingReport && existingReportId) {
-          // Update existing report in localStorage
-          const reportIndex = savedReports.findIndex((r: any) => r.id === existingReportId);
-          if (reportIndex !== -1) {
-            // Combine articles, avoiding duplicates
-            const existingArticles = savedReports[reportIndex].articles || [];
-            const newArticles = selectedArticles;
-            const combinedArticles = [...existingArticles];
-            
-            // Add only articles that don't already exist in the report
-            for (const article of newArticles) {
-              if (!combinedArticles.some((a: any) => a.id === article.id)) {
-                combinedArticles.push(article);
-              }
-            }
-            
-            savedReports[reportIndex] = {
-              ...savedReports[reportIndex],
-              articles: combinedArticles
-            };
-          }
-        } else {
-          // Create new report
-          const newReport = {
-            id: newReportId,
-            createdAt: new Date().toISOString(),
-            articles: [...selectedArticles],
-            versionNumber: versionNumber,
-            topic: reportTopic.trim() || undefined
-          };
-          
-          // Add to beginning of reports array
-          savedReports.unshift(newReport);
-        }
-        
-        // Save updated reports to localStorage
-        localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-        console.log("Updated reports saved to localStorage:", savedReports.length);
-        
-        // Success message
-        setSuccessMessage("Articles successfully added to report!");
-        setShowSuccessDialog(true);
-        setIsLoading(false);
-      };
-      
-      // If there are today's reports, show a dialog to select which report to add to
-      if (todaysReports.length > 0) {
-        // First ask if user wants to add to existing or create new
-        setConfirmTitle("Add to Existing Report?");
-        setConfirmDescription("There are already reports for today. Would you like to add these articles to an existing report?");
-        setConfirmAction(() => async () => {
-          // User chose to add to existing report - add to the most recent one
-          try {
-            // Find the most recent report from today
-            const existingReportId = todaysReports[0]?.id;
-            
-            // Find the existing report and add articles to it
-            const existingReport = savedReports.find((r: any) => r.id === existingReportId);
-            if (existingReport) {
-              // Add new articles to existing report
-              const updatedArticles = [...(existingReport.articles || []), ...selectedArticles];
-              existingReport.articles = updatedArticles;
-              existingReport.updatedAt = new Date().toISOString();
-              
-              // Update the reports array
-              const updatedReports = savedReports.map((r: any) => 
-                r.id === existingReportId ? existingReport : r
-              );
-              
-              // Save to localStorage
-              localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
-              
-              // Clear selected articles
-              setSelectedArticles([]);
-              storedSelectedArticles.length = 0;
-              localStorage.removeItem('savedSelectedArticles');
-              
-              // Show success message
-              setSuccessMessage("Articles successfully added to existing report!");
-              setShowSuccessDialog(true);
-            }
-          } catch (error) {
-            console.error("Error adding to existing report:", error);
-            setError("Failed to add articles to existing report");
-          }
-        });
-        setShowConfirmDialog(true);
-        return;
-      }
-      
-      // If no reports today, create new one
-      // Create the new report directly
-      const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      const newReport = {
-        id: newReportId,
-        createdAt: new Date().toISOString(),
-        articles: [...selectedArticles],
-        versionNumber: versionNumber,
-        topic: reportTopic.trim() || undefined
-      };
-      
-      // Add to beginning of reports array
-      savedReports.unshift(newReport);
-      
-      // Save updated reports to localStorage
-      localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-      console.log("Created new report with", selectedArticles.length, "articles, version", versionNumber);
-      
-      // Clear selected articles
-      setSelectedArticles([]);
-      storedSelectedArticles.length = 0;
-      localStorage.removeItem('savedSelectedArticles');
-      
-      // Show success message
-      setSuccessMessage("Articles successfully added to report!");
-      setShowSuccessDialog(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
+    const articleIds = selectedArticles.map(article => article.id);
+    const topic = reportTopic.trim() || undefined;
+    
+    createReportMutation.mutate({ articleIds, topic });
   };
   
   const removeSelectedArticle = (id: string) => {
     const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
     setSelectedArticles(newSelectedArticles);
-    
-    // Update module variable
-    storedSelectedArticles.length = 0;
-    storedSelectedArticles.push(...newSelectedArticles);
-    
-    // Update localStorage to persist selection
-    try {
-      localStorage.setItem('savedSelectedArticles', JSON.stringify(newSelectedArticles));
-    } catch (e) {
-      console.error("Failed to update selected articles in storage", e);
-    }
   };
   
-  const removeProcessedArticle = async (id: string) => {
-    // Optimistic update - remove from UI immediately
-    const originalArticles = [...processedArticles];
-    const optimisticArticles = processedArticles.filter(article => article.id !== id);
-    setProcessedArticles(optimisticArticles);
-    
-    // Also remove from selected if present (optimistically)
-    if (selectedArticles.some(article => article.id === id)) {
-      removeSelectedArticle(id);
-    }
-
-    try {
-      // Delete from database
-      const response = await fetch(`${serverUrl}/api/news-capsule/articles/${id}`, {
+  // Delete article mutation
+  const deleteArticleMutation = useMutation({
+    mutationFn: async (articleId: string) => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles/${articleId}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
           ...csfrHeaderObject(),
         },
       });
+      if (!response.ok) throw new Error('Failed to delete article');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/articles"] });
+    },
+    onError: (error) => {
+      setError(error instanceof Error ? error.message : "Failed to delete article");
+    },
+  });
 
-      if (response.ok) {
-        console.log('Article deleted successfully');
-        // Update localStorage with the optimistic state
-        try {
-          localStorage.setItem('savedArticleSummaries', JSON.stringify(optimisticArticles));
-        } catch (e) {
-          console.error("Failed to update article summaries in storage", e);
-        }
-      } else {
-        // Revert optimistic update on failure
-        const responseText = await response.text();
-        console.error('Failed to delete article from database:', response.status, responseText);
-        setProcessedArticles(originalArticles);
-      }
-    } catch (error) {
-      // Revert optimistic update on error
-      console.error('Error deleting article:', error);
-      setProcessedArticles(originalArticles);
+  const removeProcessedArticle = (id: string) => {
+    // Also remove from selected if present
+    if (selectedArticles.some(article => article.id === id)) {
+      removeSelectedArticle(id);
     }
+    
+    deleteArticleMutation.mutate(id);
   };
   
   return (
@@ -841,87 +527,22 @@ export default function Research() {
             {/* Action Buttons */}
             <button
               onClick={sendToExecutiveReport}
-              disabled={selectedArticles.length === 0 || isLoading}
+              disabled={selectedArticles.length === 0 || createReportMutation.isPending}
               className="mb-2 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white"
             >
-              {isLoading ? "Processing..." : "Send to Executive Report"}
+              {createReportMutation.isPending ? "Processing..." : "Send to Executive Report"}
             </button>
             
             <button
-              onClick={async () => {
-                // Create a new report version - include selected articles if any exist
-                try {
-                  setIsLoading(true);
-                  setError(null);
-                  
-                  // Check if localStorage already has reports
-                  let savedReports = [];
-                  let versionNumber = 1;
-                  
-                  try {
-                    const localStorageReports = localStorage.getItem('newsCapsuleReports');
-                    if (localStorageReports) {
-                      savedReports = JSON.parse(localStorageReports);
-                      
-                      // Find reports from today
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      
-                      const todaysReports = savedReports.filter((report: any) => {
-                        const reportDate = new Date(report.createdAt);
-                        const reportDay = new Date(reportDate);
-                        reportDay.setHours(0, 0, 0, 0);
-                        return reportDay.getTime() === today.getTime();
-                      });
-                      
-                      // Find the highest version number among today's reports only
-                      const highestVersion = todaysReports.reduce((max: number, report: any) => {
-                        const reportVersion = parseInt(report.versionNumber) || 0;
-                        return reportVersion > max ? reportVersion : max;
-                      }, 0);
-                      
-                      // Set the next version number as one higher than the highest existing version
-                      versionNumber = highestVersion + 1;
-                      console.log("Next version number will be:", versionNumber, "highest found was:", highestVersion);
-                    }
-                  } catch (e) {
-                    console.error("Failed to check localStorage for reports", e);
-                    // Continue with default values if localStorage fails
-                  }
-                  
-                  // Create the new report - include selected articles if any exist
-                  const newReportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                  const newReport = {
-                    id: newReportId,
-                    createdAt: new Date().toISOString(),
-                    articles: [...selectedArticles], // Include selected articles
-                    versionNumber: versionNumber,
-                    topic: reportTopic.trim() || undefined
-                  };
-                  
-                  // Add to beginning of reports array
-                  savedReports.unshift(newReport);
-                  
-                  // Save updated reports to localStorage
-                  localStorage.setItem('newsCapsuleReports', JSON.stringify(savedReports));
-                  console.log("Created new report version", versionNumber, "with", selectedArticles.length, "articles");
-                  
-                  // Success message
-                  if (selectedArticles.length > 0) {
-                    setSuccessMessage(`Successfully created new Executive Report (Version ${versionNumber}) with ${selectedArticles.length} articles`);
-                  } else {
-                    setSuccessMessage(`Successfully created empty Executive Report (Version ${versionNumber}). Add articles from the Research page to populate it.`);
-                  }
-                  setShowSuccessDialog(true);
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : "An error occurred");
-                } finally {
-                  setIsLoading(false);
-                }
+              onClick={() => {
+                const articleIds = selectedArticles.map(article => article.id);
+                const topic = reportTopic.trim() || undefined;
+                createReportMutation.mutate({ articleIds, topic });
               }}
+              disabled={createReportMutation.isPending}
               className="mb-4 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
             >
-              New Report
+              {createReportMutation.isPending ? "Creating..." : "New Report"}
             </button>
             
             <div className="flex justify-between items-center mb-4">
@@ -942,7 +563,6 @@ export default function Research() {
               value={reportTopic}
               onChange={(e) => {
                 setReportTopic(e.target.value);
-                localStorage.setItem('reportTopic', e.target.value);
               }}
               placeholder="Enter a topic (Optional)"
               className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

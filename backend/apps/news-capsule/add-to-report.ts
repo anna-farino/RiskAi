@@ -6,7 +6,7 @@ import { FullRequest } from '../../middleware';
 
 export async function addToReport(req: Request, res: Response) {
   try {
-    const { articleIds, useExistingReport, existingReportId, versionNumber } = req.body;
+    const { articleIds, useExistingReport, existingReportId, versionNumber, topic } = req.body;
     
     if (!articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
       return res.status(400).json({ error: 'Article IDs are required' });
@@ -49,11 +49,12 @@ export async function addToReport(req: Request, res: Response) {
         version: reportVersion
       };
       
-      // Create a new report (database schema doesn't have title field yet)
+      // Create a new report
       const [newReport] = await db
         .insert(reports)
         .values({
           userId,
+          topic: topic || null,
           createdAt: currentDate
         })
         .returning();

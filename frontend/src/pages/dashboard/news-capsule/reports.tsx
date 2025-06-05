@@ -1,22 +1,66 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
+import { ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { serverUrl } from "@/utils/server-url";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { csfrHeaderObject } from "@/utils/csrf-header";
+import type { Report } from "@shared/db/schema/reports";
+import type { CapsuleArticle } from "@shared/db/schema/news-capsule";
+
+interface ReportWithArticles extends Report {
+  articles: CapsuleArticle[];
+}
 
 export default function Reports() {
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const queryClient = useQueryClient();
+  const [selectedReport, setSelectedReport] = useState<ReportWithArticles | null>(null);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
   const [showAddNote, setShowAddNote] = useState<string | null>(null);
-  
-  const handleReportSelect = (report: Report) => {
+
+  // Fetch reports from database
+  const { data: reports = [], isLoading: reportsLoading } = useQuery<ReportWithArticles[]>({
+    queryKey: ["/api/news-capsule/reports"],
+    queryFn: async () => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch reports');
+      return response.json();
+    },
+  });
+
+  // Delete report mutation
+  const deleteReportMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to delete report');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
+      setSelectedReport(null);
+    },
+  });
+
+  const handleReportSelect = (report: ReportWithArticles) => {
     setSelectedReport(report);
     loadExecutiveNotes(report.id);
   };
@@ -80,24 +124,35 @@ export default function Reports() {
     setNoteText('');
   };
 
+  // Remove article from report mutation
+  const removeArticleFromReportMutation = useMutation({
+    mutationFn: async ({ reportId, articleId }: { reportId: string; articleId: string }) => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}/articles/${articleId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to remove article from report');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
+      // Update selected report optimistically
+      if (selectedReport) {
+        const updatedReport = {
+          ...selectedReport,
+          articles: selectedReport.articles.filter(article => article.id !== removeArticleFromReportMutation.variables?.articleId)
+        };
+        setSelectedReport(updatedReport);
+      }
+    },
+  });
+
   const removeArticleFromReport = (articleId: string) => {
     if (!selectedReport) return;
-
-    // Create updated report with article removed
-    const updatedReport = {
-      ...selectedReport,
-      articles: selectedReport.articles.filter(article => article.id !== articleId)
-    };
-
-    // Update localStorage
-    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
-    const updatedReports = savedReports.map((report: Report) => 
-      report.id === selectedReport.id ? updatedReport : report
-    );
-    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
-
-    // Update selected report
-    setSelectedReport(updatedReport);
+    removeArticleFromReportMutation.mutate({ reportId: selectedReport.id, articleId });
   };
   
   const formatDate = (dateString: string) => {
@@ -124,7 +179,6 @@ export default function Reports() {
       report: {
         id: selectedReport.id,
         createdAt: selectedReport.createdAt,
-        versionNumber: selectedReport.versionNumber,
         topic: selectedReport.topic,
         articles: selectedReport.articles.map(article => ({
           id: article.id,
@@ -148,7 +202,7 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.json`;
+    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -171,8 +225,12 @@ export default function Reports() {
             <h2 className="text-xl font-semibold mb-4">Report Library</h2>
             <div className="overflow-y-auto h-[calc(100%-3rem)]">
               <ReportsManager 
+                reports={reports}
                 onReportSelect={handleReportSelect}
+                onDeleteReport={(reportId) => deleteReportMutation.mutate(reportId)}
                 selectedReportId={selectedReport?.id}
+                isLoading={reportsLoading}
+                isDeleting={deleteReportMutation.isPending}
               />
             </div>
           </div>
@@ -187,9 +245,6 @@ export default function Reports() {
                 <div>
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
-                    {selectedReport.versionNumber && selectedReport.versionNumber > 1 && 
-                      <span className="ml-2 text-blue-400 text-sm">(Version: {selectedReport.versionNumber})</span>
-                    }
                   </h2>
                   {selectedReport.topic && (
                     <p className="text-slate-300 text-sm mt-1">
@@ -239,7 +294,7 @@ export default function Reports() {
                               new Paragraph({
                                 children: [
                                   new TextRun({
-                                    text: `Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}`,
+                                    text: `Executive Report: ${formatDate(selectedReport.createdAt)}`,
                                     font: "Cambria",
                                     size: 22
                                   })
@@ -518,7 +573,7 @@ export default function Reports() {
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');
                             link.href = url;
-                            link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.docx`;
+                            link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.docx`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
@@ -702,7 +757,7 @@ export default function Reports() {
                             let htmlContent = `
                               <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.3; color: black; max-width: 100%;">
                                 <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24px;">RisqAI News Capsule Reporting</h1>
-                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</h2>
+                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}</h2>
                             `;
                             
                             if (selectedReport.topic) {
@@ -788,7 +843,7 @@ export default function Reports() {
                             }
                             
                             // Download the PDF
-                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.pdf`);
+                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.pdf`);
                             
                             // Clean up
                             document.body.removeChild(container);
@@ -810,11 +865,7 @@ export default function Reports() {
                           let textContent = "RisqAI News Capsule Reporting\n";
                           textContent += "=".repeat(50) + "\n\n";
                           
-                          textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}`;
-                          if (selectedReport.versionNumber && selectedReport.versionNumber > 1) {
-                            textContent += ` (Version: ${selectedReport.versionNumber})`;
-                          }
-                          textContent += "\n\n";
+                          textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}\n\n`;
                           
                           if (selectedReport.topic) {
                             textContent += `Report Topic: ${selectedReport.topic}\n\n`;
@@ -856,7 +907,7 @@ export default function Reports() {
                           const url = URL.createObjectURL(blob);
                           const link = document.createElement('a');
                           link.href = url;
-                          link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.txt`;
+                          link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.txt`;
                           document.body.appendChild(link);
                           link.click();
                           document.body.removeChild(link);
