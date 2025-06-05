@@ -1,8 +1,7 @@
-import { extractArticleLinksStructured } from './backend/apps/threat-tracker/services/scraper.js';
 import puppeteer from 'puppeteer';
 
 async function testFooJobsHTMX() {
-  console.log('Testing FooJobs HTMX scraping...');
+  console.log('Testing FooJobs HTMX detection...');
   
   const browser = await puppeteer.launch({
     headless: true,
@@ -30,19 +29,55 @@ async function testFooJobsHTMX() {
       timeout: 60000
     });
     
-    console.log('Extracting article links...');
-    const extractedHTML = await extractArticleLinksStructured(page);
+    console.log('Checking for HTMX usage...');
     
-    console.log('Extracted HTML length:', extractedHTML.length);
-    console.log('First 1000 characters:', extractedHTML.substring(0, 1000));
+    // Check for HTMX usage on the page - same logic as in scraper
+    const hasHtmx = await page.evaluate(() => {
+      // Check if HTMX script is loaded
+      const htmxScript = document.querySelector('script[src*="htmx"]');
+      const scriptLoaded = !!htmxScript;
+      
+      // Check for HTMX attributes
+      const htmxElements = document.querySelectorAll('[hx-get], [hx-post], [hx-put], [hx-delete], [hx-patch], [hx-trigger], [hx-target], [hx-swap]');
+      const hasHxAttributes = htmxElements.length > 0;
+      
+      console.log('HTMX script found:', scriptLoaded, htmxScript?.getAttribute('src'));
+      console.log('HTMX elements found:', hasHxAttributes, htmxElements.length);
+      
+      return { scriptLoaded, hasHxAttributes, elementCount: htmxElements.length };
+    });
     
-    // Count how many article links were found
-    const linkMatches = extractedHTML.match(/<a[^>]*href[^>]*>/g) || [];
-    console.log('Total links found:', linkMatches.length);
+    console.log('HTMX Detection Results:', hasHtmx);
     
-    // Look for HTMX-specific patterns
-    const htmxMatches = extractedHTML.match(/htmx|hx-/gi) || [];
-    console.log('HTMX references found:', htmxMatches.length);
+    // Count initial links
+    const initialLinks = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.length;
+    });
+    
+    console.log('Initial links found:', initialLinks);
+    
+    // Wait for potential HTMX content to load
+    console.log('Waiting for HTMX content to load...');
+    await page.waitForTimeout(8000);
+    
+    // Count links after waiting
+    const finalLinks = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.length;
+    });
+    
+    console.log('Final links found:', finalLinks);
+    console.log('Links added by HTMX:', finalLinks - initialLinks);
+    
+    // Check for specific HTMX endpoints
+    const htmxEndpoints = await page.evaluate(() => {
+      const elements = document.querySelectorAll('[hx-get]');
+      const endpoints = Array.from(elements).map(el => el.getAttribute('hx-get'));
+      return endpoints;
+    });
+    
+    console.log('HTMX endpoints found:', htmxEndpoints);
     
   } catch (error) {
     console.error('Error testing FooJobs HTMX:', error);
