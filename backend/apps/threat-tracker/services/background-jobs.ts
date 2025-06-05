@@ -193,29 +193,30 @@ async function processArticle(
 }
 
 // Scrape a single source
-export async function scrapeSource(source: ThreatSource) {
+export async function scrapeSource(source: ThreatSource, userId: string) {
   log(
     `[ThreatTracker] Starting scrape job for source: ${source.name}`,
     "scraper",
   );
+  const keywordUserId = source.userId || userId
 
   try {
     // Get all threat-related keywords for analysis, filtered by the source's userId
     const threatKeywords = await storage.getKeywordsByCategory(
       "threat",
-      source.userId || undefined,
+      keywordUserId
     );
     const vendorKeywords = await storage.getKeywordsByCategory(
       "vendor",
-      source.userId || undefined,
+      keywordUserId
     );
     const clientKeywords = await storage.getKeywordsByCategory(
       "client",
-      source.userId || undefined,
+      keywordUserId
     );
     const hardwareKeywords = await storage.getKeywordsByCategory(
       "hardware",
-      source.userId || undefined,
+      keywordUserId
     );
 
     // Extract keyword terms
@@ -410,7 +411,7 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
-        const newArticles = await scrapeSource(source);
+        const newArticles = await scrapeSource(source, userId);
         if (!newArticles?.length) continue;
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
