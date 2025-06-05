@@ -1077,8 +1077,8 @@ export default function Sources() {
                           variant="outline"
                           size="sm"
                           onClick={() => scrapeSingleSource.mutate(source.id)}
-                          disabled={!source.active || (scrapeSingleSource.isPending && scrapingSourceId === source.id)}
-                          className={`h-7 px-2 text-xs ${!source.active ? 'hover:bg-transparent' : ''}`}
+                          disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
+                          className="h-7 px-2 text-xs"
                         >
                           {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -1200,7 +1200,7 @@ export default function Sources() {
                           scrapingSourceId === source.id || 
                           scrapeJobRunning
                         }
-                        className={`h-7 px-2 text-xs ${!source.active ? 'hover:bg-transparent' : ''}`}
+                        className="h-7 px-2 text-xs"
                       >
                         {scrapingSourceId === source.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
