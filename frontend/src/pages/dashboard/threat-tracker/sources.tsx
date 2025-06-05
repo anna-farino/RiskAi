@@ -1006,9 +1006,24 @@ export default function Sources() {
       );
     }
 
-    // Separate default and user sources
-    const defaultSources = localSources.filter(source => source.isDefault);
-    const userSources = localSources.filter(source => !source.isDefault);
+    // Separate default and user sources, then sort by active status (active first)
+    const defaultSources = localSources
+      .filter(source => source.isDefault)
+      .sort((a, b) => {
+        // Active sources first, then inactive
+        if (a.active && !b.active) return -1;
+        if (!a.active && b.active) return 1;
+        return 0;
+      });
+    
+    const userSources = localSources
+      .filter(source => !source.isDefault)
+      .sort((a, b) => {
+        // Active sources first, then inactive
+        if (a.active && !b.active) return -1;
+        if (!a.active && b.active) return 1;
+        return 0;
+      });
 
     console.log(localSources)
     console.log(defaultSources)
