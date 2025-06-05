@@ -287,17 +287,55 @@ export default function Sources() {
     mutationFn: async ({ id, values }: { id: string; values: SourceFormValues }) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/sources/${id}`, values);
     },
-    onSuccess: () => {
-      toast({
-        title: "Source updated",
-        description: "Your source has been updated successfully.",
+    onMutate: async ({ id, values }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
-      setSourceDialogOpen(false);
-      setEditingSource(null);
-      form.reset();
+
+      // Snapshot previous value
+      const previousSources = [...localSources];
+
+      // Optimistically update source in local state
+      setLocalSources((prev) =>
+        prev.map((source) =>
+          source.id === id
+            ? { ...source, ...values }
+            : source
+        )
+      );
+
+      return { previousSources, updatedId: id };
+    },
+    onSuccess: (data, variables) => {
+      // Update with actual server response if available
+      if (data) {
+        setLocalSources((prev) =>
+          prev.map((source) =>
+            source.id === variables.id ? data : source
+          )
+        );
+      }
+
+      // Only show toast for dialog-based updates (not quick toggles)
+      if (sourceDialogOpen) {
+        toast({
+          title: "Source updated",
+          description: "Your source has been updated successfully.",
+        });
+        setSourceDialogOpen(false);
+        setEditingSource(null);
+        form.reset();
+      }
+      
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
+
       console.error("Error updating source:", error);
       toast({
         title: "Error updating source",
@@ -444,6 +482,28 @@ export default function Sources() {
     mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
+    onMutate: async (newSettings) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+      });
+
+      // Snapshot previous value
+      const previousSettings = queryClient.getQueryData([
+        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
+      ]);
+
+      // Optimistically update to new value
+      queryClient.setQueryData(
+        [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        newSettings
+      );
+
+      // Update local state for immediate UI feedback
+      setLocalAutoScrapeEnabled(newSettings.enabled);
+
+      return { previousSettings };
+    },
     onSuccess: (data) => {
       toast({
         title: "Auto-scrape settings updated",
@@ -453,11 +513,78 @@ export default function Sources() {
       });
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSettings) {
+        queryClient.setQueryData(
+          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+          context.previousSettings
+        );
+        setLocalAutoScrapeEnabled(
+          (context.previousSettings as AutoScrapeSettings)?.enabled || false
+        );
+      }
+
       console.error("Error updating auto-scrape settings:", error);
       toast({
         title: "Error updating settings",
         description: "There was an error updating auto-scrape settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Quick toggle source active status mutation (for immediate feedback)
+  const toggleSourceActive = useMutation({
+    mutationFn: async ({ id, active, source }: { id: string; active: boolean; source: ThreatSource }) => {
+      return apiRequest("PUT", `${serverUrl}/api/threat-tracker/sources/${id}`, {
+        name: source.name,
+        url: source.url,
+        active,
+        includeInAutoScrape: source.includeInAutoScrape
+      });
+    },
+    onMutate: async ({ id, active }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Snapshot previous value
+      const previousSources = [...localSources];
+
+      // Optimistically update source active status
+      setLocalSources((prev) =>
+        prev.map((source) =>
+          source.id === id
+            ? { ...source, active }
+            : source
+        )
+      );
+
+      return { previousSources, toggledId: id };
+    },
+    onSuccess: (data, variables) => {
+      // Update with actual server response
+      if (data) {
+        setLocalSources((prev) =>
+          prev.map((source) =>
+            source.id === variables.id ? data : source
+          )
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+    },
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
+
+      console.error("Error toggling source:", error);
+      toast({
+        title: "Error updating source",
+        description: "Failed to update source status. Please try again.",
         variant: "destructive",
       });
     },
@@ -948,16 +1075,13 @@ export default function Sources() {
                         <Switch
                           checked={source.active}
                           onCheckedChange={(checked) => 
-                            updateSource.mutate({
+                            toggleSourceActive.mutate({
                               id: source.id,
-                              values: {
-                                name: source.name,
-                                url: source.url,
-                                active: checked,
-                                includeInAutoScrape: source.includeInAutoScrape
-                              }
+                              active: checked,
+                              source
                             })
                           }
+                          disabled={toggleSourceActive.isPending}
                         />
                       </div>
                     </div>
