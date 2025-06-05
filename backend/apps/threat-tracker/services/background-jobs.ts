@@ -164,7 +164,7 @@ async function processArticle(
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
 
-    log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}`)
+    log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}`);
 
     // Store the article in the database
     const newArticle = await storage.createArticle({
@@ -342,7 +342,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       const firstArticleResult = await processArticle(
         firstArticleUrl,
         source.id,
-        source.userId,
+        userId,
         htmlStructure,
         keywords,
       );
@@ -361,7 +361,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       const articleResult = await processArticle(
         processedLinks[i],
         source.id,
-        source.userId,
+        userId,
         htmlStructure,
         keywords,
       );
@@ -414,7 +414,7 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
-        const newArticles = await scrapeSource(source, userId);
+        const newArticles = await scrapeSource(source, userId || source.userId);
         if (!newArticles?.length) continue;
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
