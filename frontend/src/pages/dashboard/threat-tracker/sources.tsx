@@ -328,11 +328,22 @@ export default function Sources() {
     },
     onError: (error) => {
       console.error("Error scraping source:", error);
+      let specialTitle: null | string = null;
+      let specialDescription: null | string = null;
+      const specialErrorParts = [
+        "timed out"
+      ]
+      for (let i=0; i<specialErrorParts.length; i++) {
+        if (error.message.includes(specialErrorParts[i])) {
+          specialTitle = "This source is unsupported!";
+          specialDescription = "The source you scraped is currently unsupported and results may be limited. Check back soon as we roll out improvements for this feature!"
+        }
+        break
+      }
       toast({
-        title: "Error scraping source",
-        description:
-          "There was an error scraping this source. Please try again.",
-        variant: "destructive",
+        title: specialTitle || "Error scraping source",
+        description: specialDescription || "There was an error scraping this source. Please try again.",
+        variant: specialTitle ? "default" : "destructive",
       });
       setScrapingSourceId(null);
     },
