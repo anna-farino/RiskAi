@@ -183,6 +183,100 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
   }
 }
 
+export async function extractPublishDate(
+  articleContent: string,
+  articleTitle: string = "",
+  htmlContent: string = "",
+): Promise<Date | null> {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not configured");
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a precise date extraction assistant. Extract the publish date from the article content.
+
+CRITICAL REQUIREMENTS:
+1. Look for the ACTUAL PUBLICATION DATE of the article, not any other dates mentioned in the content
+2. Common patterns include:
+   - "Published on [date]"
+   - "Posted [date]"
+   - "[Month] [Day], [Year]"
+   - Date near the author's name
+   - Date in article metadata
+3. IGNORE dates that are:
+   - Event dates mentioned in the article
+   - Historical dates referenced in content
+   - Future dates or deadlines
+   - Company founding dates
+   - Any dates that are clearly NOT the publication date
+4. Return ONLY the publication date in ISO format (YYYY-MM-DD)
+5. If no clear publication date is found, return null
+6. Be extremely conservative - only return a date if you're confident it's the publication date
+
+Return JSON in format: { "publishDate": "YYYY-MM-DD" | null, "confidence": "high" | "medium" | "low", "context": "brief explanation of where the date was found" }`,
+        },
+        {
+          role: "user",
+          content: `Article Title: ${articleTitle}
+
+Article Content: ${articleContent.substring(0, 4000)}
+
+${htmlContent ? `HTML Context: ${htmlContent.substring(0, 2000)}` : ""}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    });
+
+    const responseText = response.choices[0].message.content;
+    if (!responseText) {
+      return null;
+    }
+
+    const result = JSON.parse(responseText);
+    
+    if (!result.publishDate) {
+      console.log(`[OpenAI Date Extraction] No publish date found for article: ${articleTitle}`);
+      return null;
+    }
+
+    // Validate the extracted date
+    const extractedDate = new Date(result.publishDate);
+    if (isNaN(extractedDate.getTime())) {
+      console.log(`[OpenAI Date Extraction] Invalid date format: ${result.publishDate}`);
+      return null;
+    }
+
+    // Sanity check: date should be reasonable (not in the future, not too old)
+    const now = new Date();
+    const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    if (extractedDate > tomorrow) {
+      console.log(`[OpenAI Date Extraction] Date is in the future, rejecting: ${result.publishDate}`);
+      return null;
+    }
+
+    if (extractedDate < twoYearsAgo) {
+      console.log(`[OpenAI Date Extraction] Date is too old (>2 years), rejecting: ${result.publishDate}`);
+      return null;
+    }
+
+    console.log(`[OpenAI Date Extraction] Successfully extracted publish date: ${result.publishDate} (confidence: ${result.confidence}, context: ${result.context})`);
+    return extractedDate;
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.log(`[OpenAI Date Extraction] Error extracting publish date: ${errorMessage}`);
+    return null;
+  }
+}
+
 export async function detectHtmlStructure(
   html: string,
 ): Promise<ScrapingConfig> {

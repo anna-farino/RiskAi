@@ -48,12 +48,21 @@ Analyze this HTML and tell me the CSS selector I should use to get:
 3. The author (if available)
 4. The publish date (if available)
 
+For the publish date, look for:
+- <time> elements with datetime attributes
+- Elements with classes like "date", "published", "publish-date", "article-date", "timestamp"
+- Elements with data attributes like "data-date", "data-published", "data-timestamp"
+- Meta tags with property="article:published_time" or name="date"
+- JSON-LD structured data with datePublished
+- Elements containing text that looks like dates (but be careful not to confuse with author names)
+
 Return your answer in valid JSON format like this:
 {
   "title": "CSS selector for title",
   "content": "CSS selector for main content",
   "author": "CSS selector for author, or null if not found",
-  "date": "CSS selector for publish date, or null if not found"
+  "date": "CSS selector for publish date, or null if not found",
+  "dateAlternatives": ["alternative CSS selector 1", "alternative CSS selector 2"]
 }
 `;
 

@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";
-import { detectArticleLinks } from "./openai";
+import { detectArticleLinks, extractPublishDate } from "./openai";
 import { scrapePuppeteer } from "./puppeteer-scraper";
 
 // Rotating User-Agent list to appear more natural
@@ -576,7 +576,7 @@ function sanitizeSelector(selector: string): string {
 }
 
 // Modify the extractArticleContent function to use sanitized selectors
-export function extractArticleContent(html: string, config: ScrapingConfig) {
+export async function extractArticleContent(html: string, config: ScrapingConfig) {
   const $ = cheerio.load(html);
 
   // First, remove navigation, header, footer, and similar elements that might contain false matches
@@ -686,9 +686,15 @@ export function extractArticleContent(html: string, config: ScrapingConfig) {
   log(`[Scraping] Extracted title length: ${title.length}`, "scraper");
   log(`[Scraping] Extracted content length: ${content.length}`, "scraper");
 
-  // Skip date parsing entirely per user request - always use undefined
-  // and let the application use current date
-  const publishDate = undefined;
+  // Extract publish date using OpenAI
+  log(`[Scraping] Extracting publish date using OpenAI`, "scraper");
+  const publishDate = await extractPublishDate(content, title, html);
+  
+  if (publishDate) {
+    log(`[Scraping] Successfully extracted publish date: ${publishDate.toISOString()}`, "scraper");
+  } else {
+    log(`[Scraping] Could not extract publish date, will use null`, "scraper");
+  }
 
   return {
     title,

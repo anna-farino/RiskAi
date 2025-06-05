@@ -39,7 +39,7 @@ export default function Dashboard() {
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
     queryKey: ['threat-tracker-articles-dashboard'],
     queryFn: async () => {
-      const response = await fetch(`${serverUrl}/api/threat-tracker/articles?limit=8&sortBy=createdAt&order=desc`, {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles?limit=8`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -87,21 +87,14 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
   
-  // Format time ago helper
-  const formatTimeAgo = (dateString: string) => {
+  // Format publish date helper
+  const formatPublishDate = (dateString: string) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-      return diffInMinutes <= 1 ? 'Just now' : `${diffInMinutes}m ago`;
-    }
-    if (diffInHours < 24) {
-      return `${diffInHours}h ago`;
-    }
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays}d ago`;
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
   };
   
   // Get source badge styling
@@ -255,6 +248,7 @@ export default function Dashboard() {
     sessionStorage.setItem('selectedCapsuleReport', JSON.stringify(report));
     navigate('/dashboard/news-capsule/home', { state: { selectedReport: report } });
   };
+
   
   return (
     <div className="min-h-screen bg-black">
@@ -363,7 +357,7 @@ export default function Dashboard() {
                           </span>
                         </div>
                         <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-                          {article.createdAt ? formatTimeAgo(article.createdAt) : 'Recently'}
+                          {article.publishDate ? formatPublishDate(article.publishDate) : 'Unknown date'}
                         </span>
                       </div>
                       
@@ -572,7 +566,7 @@ export default function Dashboard() {
                                 }`}></div>
                               </div>
                               <span className="text-xs text-gray-400 whitespace-nowrap">
-                                {threat.createdAt ? formatTimeAgo(threat.createdAt) : 'Recent'}
+                                {threat.publishDate ? formatPublishDate(threat.publishDate) : 'Unknown date'}
                               </span>
                             </div>
                             
