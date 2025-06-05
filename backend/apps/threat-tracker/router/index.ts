@@ -89,63 +89,22 @@ threatRouter.delete("/sources/:id", async (req, res) => {
   try {
     const sourceId = req.params.id;
     const userId = getUserId(req);
-    const deleteArticles = req.query.deleteArticles === 'true';
     
     // Check if the source exists and belongs to the user
     const existingSource = await storage.getSource(sourceId);
     if (!existingSource) {
       return res.status(404).json({ error: "Source not found" });
-    }
-    
-    // Prevent deletion of default sources
-    if (existingSource.isDefault) {
-      return res.status(403).json({ error: "Cannot delete default sources" });
     }
     
     if (existingSource.userId && existingSource.userId !== userId) {
       return res.status(403).json({ error: "Not authorized to delete this source" });
     }
     
-    await storage.deleteSource(sourceId, deleteArticles);
+    await storage.deleteSource(sourceId);
     res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting source:", error);
-    
-    // Handle special case for articles existing
-    if (error.message === "ARTICLES_EXIST") {
-      return res.status(409).json({ 
-        error: "ARTICLES_EXIST",
-        articleCount: error.articleCount,
-        message: `This source has ${error.articleCount} associated articles. Would you like to delete them as well?`
-      });
-    }
-    
     res.status(500).json({ error: error.message || "Failed to delete source" });
-  }
-});
-
-// Add endpoint to get article count for a source
-threatRouter.get("/sources/:id/articles/count", async (req, res) => {
-  reqLog(req, `GET /sources/${req.params.id}/articles/count`);
-  try {
-    const sourceId = req.params.id;
-    const userId = getUserId(req);
-    
-    // Check if the source exists and belongs to the user
-    const existingSource = await storage.getSource(sourceId);
-    if (!existingSource) {
-      return res.status(404).json({ error: "Source not found" });
-    }
-    
-    if (existingSource.userId && existingSource.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to access this source" });
-    }
-    
-    const count = await storage.getSourceArticleCount(sourceId);
-    res.json({ count });
-  } catch (error: any) {
-    console.error("Error getting source article count:", error);
-    res.status(500).json({ error: error.message || "Failed to get article count" });
   }
 });
 
@@ -487,9 +446,8 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
       return res.status(403).json({ error: "Not authorized to scrape this source" });
     }
     
-    // Scrape the source - for default sources, pass the current user ID for article attribution
-    const sourceWithUserContext = source.userId ? source : { ...source, userId };
-    const newArticles = await scrapeSource(sourceWithUserContext);
+    // Scrape the source
+    const newArticles = await scrapeSource(source);
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,

@@ -3,6 +3,8 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from './components/theme-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { BackToTopButton } from '@/components/ui/back-to-top-button'
 import { router } from './router/router'
 
 
@@ -12,15 +14,18 @@ const queryClient = new QueryClient()
 export default function App() {
   
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <RouterProvider router={router} />
-        <Toaster />
-      </ThemeProvider>
-      {
-        true && <ReactQueryDevtools position='right'/> // change to "false" to hide//
-      }
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+          <RouterProvider router={router} />
+          <BackToTopButton />
+          <Toaster />
+        </ThemeProvider>
+        {
+          true && <ReactQueryDevtools position='right'/> // change to "false" to hide//
+        }
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

@@ -41,8 +41,7 @@ export interface IStorage {
     id: string,
     source: Partial<ThreatSource>,
   ): Promise<ThreatSource>;
-  deleteSource(id: string, deleteArticles?: boolean): Promise<void>;
-  getSourceArticleCount(id: string): Promise<number>;
+  deleteSource(id: string): Promise<void>;
 
   // Keywords
   getKeywords(category?: string, userId?: string): Promise<ThreatKeyword[]>;
@@ -100,17 +99,13 @@ export const storage: IStorage = {
         )
         .execute();
 
-      let userSources: ThreatSource[] = [];
-      if (userId) {
-        userSources = await db
-          .select()
-          .from(threatSources)
-          .where(eq(threatSources.userId, userId))
-          .execute();
-      }
+      const query = db.select().from(threatSources);
 
-      // Combine default and user sources
-      return [...defaultSources, ...userSources];
+      const finalQuery = conditions.length
+        ? query.where(and(...conditions))
+        : query;
+
+      return await finalQuery.execute();
     } catch (error) {
       console.error("Error fetching threat sources:", error);
       return [];
@@ -133,10 +128,16 @@ export const storage: IStorage = {
 
   getAutoScrapeSources: async (userId?: string) => {
     try {
-      // Get default sources that are active and included in auto-scrape
-      const defaultSources = await db
+      const conditions = [
+        eq(threatSources.active, true),
+        eq(threatSources.includeInAutoScrape, true),
+      ];
+      if (userId) conditions.push(eq(threatSources.userId, userId));
+
+      return await db
         .select()
         .from(threatSources)
+
         .where(
           and(
             eq(threatSources.isDefault, true),
@@ -198,7 +199,7 @@ export const storage: IStorage = {
     }
   },
 
-  deleteSource: async (id: string, deleteArticles = false) => {
+  deleteSource: async (id: string) => {
     try {
       // First check if this is a default source
       const source = await db
