@@ -77,6 +77,7 @@ export interface IStorage {
   deleteAllArticles(userId?: string): Promise<boolean>;
   toggleArticleForCapsule(id: string, marked: boolean): Promise<boolean>;
   getArticlesMarkedForCapsule(userId?: string): Promise<ThreatArticle[]>;
+  getSourceArticleCount(id: string): Promise<number>
 
   // Settings
   getSetting(key: string, userId?: string): Promise<ThreatSetting | undefined>;
@@ -139,6 +140,7 @@ export const storage: IStorage = {
     try {
       // Get default sources (available to all users when they scrape)
       const defaultSources = await db
+
         .select()
         .from(threatSources)
         .where(
@@ -174,13 +176,25 @@ export const storage: IStorage = {
     }
   },
 
-  createSource: async (source: InsertThreatSource) => {
+  createSource: async (source: {
+    url: string;
+    name: string;
+    active?: boolean;
+    includeInAutoScrape?: boolean;
+    scrapingConfig?: any;
+    lastScraped?: Date;
+    userId?: string;
+    isDefault?: boolean;
+}) => {
     try {
       if (!source.name || !source.url) {
         throw new Error("Source must have a name and URL");
       }
 
-      const results = await db.insert(threatSources).values(source).returning();
+      const results = await db
+        .insert(threatSources)
+        .values(source)
+        .returning();
       return results[0];
     } catch (error) {
       console.error("Error creating threat source:", error);
@@ -229,6 +243,11 @@ export const storage: IStorage = {
         const error = new Error(`ARTICLES_EXIST`);
         (error as any).articleCount = articleCount;
         throw error;
+      }
+
+      // Delete associated articles if requested
+      if (articleCount > 0) {
+        await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
       }
 
       // Delete the source
@@ -338,6 +357,25 @@ export const storage: IStorage = {
       if (!keyword.term || !keyword.category) {
         throw new Error("Keyword must have a term and category");
       }
+
+      // Prevent creation of default keywords by regular users
+      if (keyword.isDefault === true) {
+        throw new Error("Cannot create default keywords through this endpoint");
+      }
+
+      // Ensure isDefault is set to false for user keywords
+      const keywordToCreate: {
+          active?: boolean;
+          userId?: string;
+          isDefault?: boolean;
+          term: string;
+          category: "threat" | "vendor" | "client" | "hardware";
+      } = {
+        ...keyword,
+        term: keyword.term!,
+        category: keyword.category!,
+        isDefault: false,
+      };
 
       const results = await db
         .insert(threatKeywords)
@@ -527,7 +565,20 @@ export const storage: IStorage = {
     }
   },
 
-  createArticle: async (article: InsertThreatArticle) => {
+  createArticle: async (article: {
+      url: string;
+      userId?: string;
+      sourceId?: string;
+      title: string;
+      content: string;
+      author?: string;
+      publishDate?: Date;
+      summary?: string;
+      relevanceScore?: string;
+      securityScore?: string;
+      detectedKeywords?: any;
+      markedForCapsule?: boolean;
+  }) => {
     try {
       // CRITICAL FIX: Ensure userId is always provided when creating articles
       if (!article.userId) {

@@ -414,6 +414,7 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
+
         // For default sources (source.userId is null), use the provided userId
         // For user sources, use the source's userId (which should match the provided userId anyway)
         const targetUserId = source.userId || userId;
@@ -432,6 +433,7 @@ export async function runGlobalScrapeJob(userId?: string) {
         );
         
         const newArticles = await scrapeSource(source, targetUserId);
+
         if (!newArticles?.length) continue;
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
