@@ -46,26 +46,25 @@ export async function getGlobalScrapeSchedule(userId?: string) {
 }
 
 /**
- * Update the auto-scrape schedule
+ * Update the auto-scrape schedule for a specific user
  */
-export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval) {
+export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId?: string) {
   try {
-    // Save the new schedule to settings
+    // Save the new schedule to settings with user context
     await storage.upsertSetting("auto-scrape", {
       enabled,
       interval,
-    });
+    }, userId);
     
-    // Re-initialize the scheduler with the new settings
-    await initializeScheduler();
+    // Note: Scheduler is global but respects per-user settings during execution
     
     return {
       enabled,
       interval,
     };
   } catch (error: any) {
-    log(`[ThreatTracker] Error updating global scrape schedule: ${error.message}`, "scheduler-error");
-    console.error("Error updating global scrape schedule:", error);
+    log(`[ThreatTracker] Error updating auto-scrape schedule: ${error.message}`, "scheduler-error");
+    console.error("Error updating auto-scrape schedule:", error);
     throw error;
   }
 }
