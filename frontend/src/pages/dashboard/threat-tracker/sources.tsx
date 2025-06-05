@@ -1056,7 +1056,7 @@ export default function Sources() {
               <CollapsibleContent>
                 <div className="bg-muted/30 rounded-lg p-3 space-y-2">
                   {defaultSources.map((source) => (
-                    <div key={source.id} className="flex items-center justify-between py-2 px-3 bg-background rounded border">
+                    <div key={source.id} className={`flex items-center justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
                         <div className="min-w-0 flex-1">
@@ -1148,7 +1148,7 @@ export default function Sources() {
             </TableHeader>
             <TableBody>
               {userSources.map((source) => (
-                <TableRow key={source.id}>
+                <TableRow key={source.id} className={`transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
                   <TableCell className="font-medium truncate pr-2">{source.name}</TableCell>
                   <TableCell className="pr-2">
                     <a 
