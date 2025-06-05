@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Clock, User, Loader2, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Article } from "@shared/db/schema/news-tracker/index";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DeleteAlertDialog } from "../delete-alert-dialog";
@@ -109,7 +109,7 @@ export function ArticleCard({
               <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-slate-400">
                 <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 <span className="text-[10px] sm:text-xs">
-                  {formatDistanceToNow(new Date(article.publishDate))} ago
+                  {format(new Date(article.publishDate), "MMM d, yyyy")}
                 </span>
               </div>
             )}

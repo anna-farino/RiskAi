@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
@@ -259,9 +259,9 @@ export function ThreatArticleCard({
               <Clock className="h-3 w-3" />
               <span>
                 {article.publishDate
-                  ? `Published ${formatDistanceToNow(new Date(article.publishDate))} ago`
+                  ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
                   : article.scrapeDate
-                    ? `Scraped ${formatDistanceToNow(new Date(article.scrapeDate))} ago`
+                    ? `Scraped ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
                     : "Unknown date"}
               </span>
             </div>
