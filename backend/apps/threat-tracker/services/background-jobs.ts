@@ -164,7 +164,7 @@ async function processArticle(
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
 
-    log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}`);
+    log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}, sourceId: ${sourceId}`);
 
     // Store the article in the database
     const newArticle = await storage.createArticle({
@@ -398,7 +398,7 @@ export async function runGlobalScrapeJob(userId?: string) {
   }
 
   globalScrapeJobRunning = true;
-  log("[ThreatTracker] Starting global scrape job", "scraper");
+  log(`[ThreatTracker] Starting global scrape job${userId ? ` for user ${userId}` : ' (automated)'}`, "scraper");
 
   try {
     // Get all active sources for auto-scraping
@@ -414,7 +414,24 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
-        const newArticles = await scrapeSource(source, userId || source.userId);
+        // For default sources (source.userId is null), use the provided userId
+        // For user sources, use the source's userId (which should match the provided userId anyway)
+        const targetUserId = source.userId || userId;
+        
+        if (!targetUserId) {
+          log(
+            `[ThreatTracker] Skipping source ${source.name} - no target user ID available`,
+            "scraper-error",
+          );
+          continue;
+        }
+        
+        log(
+          `[ThreatTracker] Scraping source ${source.name} for user ${targetUserId}`,
+          "scraper",
+        );
+        
+        const newArticles = await scrapeSource(source, targetUserId);
         if (!newArticles?.length) continue;
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
