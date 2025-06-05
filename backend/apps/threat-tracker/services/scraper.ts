@@ -9,7 +9,6 @@ import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
-import { enhancedHTMXScraping, extractHTMXContent } from './htmx-scraper';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -164,10 +163,10 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
 
     if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
-      log('[ThreatTracker] HTMX detected on page, using enhanced HTMX scraping...', "scraper");
+      log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
       
-      // Use the enhanced HTMX scraper for comprehensive content loading
-      await enhancedHTMXScraping(page, page.url());
+      // Wait longer for initial HTMX content to load (some triggers on page load)
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
       // For HTMX elements with 'load' trigger, content should already be loaded
       // But HTMX may use other triggers (click, etc.), so we'll need to check
@@ -197,119 +196,17 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
     // Extract all links after ensuring content is loaded
-    if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
-      // Use enhanced HTMX extraction for comprehensive link discovery
-      const htmxLinks = await extractHTMXContent(page);
-      articleLinkData = htmxLinks.map(link => ({
-        href: link.href,
-        text: link.text,
-        parentText: `${link.source}: ${link.text}`,
-        parentClass: link.source
-      }));
-      log(`[ThreatTracker] Enhanced HTMX extraction found ${articleLinkData.length} links`, "scraper");
-    } else {
-      // Standard link extraction for non-HTMX sites
-      articleLinkData = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a'));
-        return links.map(link => ({
-          href: link.getAttribute('href'),
-          text: link.textContent?.trim() || '',
-          parentText: link.parentElement?.textContent?.trim() || '',
-          parentClass: link.parentElement?.className || ''
-        })).filter(link => link.href); // Only keep links with href attribute
-      });
-    }
+    articleLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href); // Only keep links with href attribute
+    });
 
     log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
-
-    // Retry mechanism: If less than 20 potential article links are extracted, wait and try again
-    if (articleLinkData.length < 20) {
-      log(`[ThreatTracker] Only ${articleLinkData.length} links found, applying enhanced loading strategies...`, "scraper");
-      
-      // Strategy 1: Scroll to trigger any scroll-based HTMX loading
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight / 2);
-      });
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Strategy 2: Try to trigger any "load more" or pagination buttons
-      const loadMoreTriggered = await page.evaluate(() => {
-        const loadMoreSelectors = [
-          'button[hx-get]',
-          '.load-more',
-          '[data-load-more]',
-          'a[hx-get*="items"]',
-          'button:contains("More")',
-          'button:contains("Load")',
-          '.pagination a:last-child'
-        ];
-        
-        let triggered = false;
-        for (const selector of loadMoreSelectors) {
-          const elements = document.querySelectorAll(selector);
-          for (const element of elements) {
-            if (element instanceof HTMLElement && element.offsetParent !== null) {
-              element.click();
-              triggered = true;
-              console.log(`[ThreatTracker] Triggered: ${selector}`);
-              break;
-            }
-          }
-          if (triggered) break;
-        }
-        return triggered;
-      });
-      
-      if (loadMoreTriggered) {
-        log(`[ThreatTracker] Triggered interactive loading element, waiting...`, "scraper");
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-      
-      // Strategy 3: Wait additional time for HTMX content to fully load
-      log(`[ThreatTracker] Waiting 10 seconds for HTMX content to stabilize...`, "scraper");
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      
-      // Try extraction again
-      let retryLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}> = [];
-      
-      if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
-        // Use enhanced HTMX extraction for comprehensive link discovery
-        const htmxLinks = await extractHTMXContent(page);
-        retryLinkData = htmxLinks.map(link => ({
-          href: link.href,
-          text: link.text,
-          parentText: `${link.source}: ${link.text}`,
-          parentClass: link.source
-        }));
-        log(`[ThreatTracker] Retry HTMX extraction found ${retryLinkData.length} links`, "scraper");
-      } else {
-        // Standard link extraction for non-HTMX sites
-        retryLinkData = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a'));
-          return links.map(link => ({
-            href: link.getAttribute('href'),
-            text: link.textContent?.trim() || '',
-            parentText: link.parentElement?.textContent?.trim() || '',
-            parentClass: link.parentElement?.className || ''
-          })).filter(link => link.href); // Only keep links with href attribute
-        });
-      }
-      
-      // Use retry results if they're better
-      if (retryLinkData.length > articleLinkData.length) {
-        log(`[ThreatTracker] Enhanced loading improved results: ${retryLinkData.length} vs ${articleLinkData.length} links`, "scraper");
-        articleLinkData = retryLinkData;
-      } else {
-        log(`[ThreatTracker] Enhanced loading did not improve results, keeping original ${articleLinkData.length} links`, "scraper");
-      }
-    }
-
-    log(`[ThreatTracker] Final extraction: ${articleLinkData.length} potential article links`, "scraper");
 
     // Debug log: Print the extracted links data
     log(
@@ -371,13 +268,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
           el.url.includes('article') || 
           el.url.includes('content') ||
           el.url.includes('page') ||
-          el.url.includes('list') ||
-          el.url.includes('media') ||
-          el.url.includes('post') ||
-          el.url.includes('story') ||
-          el.url.includes('news') ||
-          el.url.includes('cybersecurity') ||
-          el.url.includes('security')
+          el.url.includes('list')
         );
         
         if (filteredEndpoints.length > 0) {

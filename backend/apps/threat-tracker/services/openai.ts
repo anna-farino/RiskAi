@@ -132,14 +132,11 @@ export async function identifyArticleLinks(
         });
       }
 
-      // Look for HTMX patterns - expanded to cover more FooJobs-like sites
+      // Look for HTMX patterns
       const htmxPatterns = [
         { pattern: /\/media\/items\/.*-\d+\/?$/i, type: 'foojobs-article' },
-        { pattern: /\/media\/cybersecurity\/.*\/?$/i, type: 'foojobs-cyber' },
         { pattern: /\/items\/[^/]+\/$/i, type: 'htmx-item' },
-        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' },
-        { pattern: /\/post\/.*\/?$/i, type: 'htmx-post' },
-        { pattern: /\/story\/.*\/?$/i, type: 'htmx-story' }
+        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' }
       ];
 
       // Perform initial pattern matching to identify likely article links
@@ -182,9 +179,9 @@ export async function identifyArticleLinks(
           });
 
           // Auto-include links that match specific HTMX patterns (like FooJobs)
-          if (htmxMatch.type.includes('foojobs') || htmxMatch.type.includes('htmx') || url.includes('/media/')) {
+          if (htmxMatch.type === 'foojobs-article' || url.includes('/media/items/')) {
             potentialArticleUrls.push(url);
-            log(`[ThreatTracker] Auto-detected HTMX article (${htmxMatch.type}): ${url}`, "openai");
+            log(`[ThreatTracker] Auto-detected HTMX article: ${url}`, "openai");
           }
         }
 
@@ -202,14 +199,13 @@ export async function identifyArticleLinks(
       log(`[ThreatTracker] Found ${htmxLinks.length} potential HTMX links`, "openai");
       log(`[ThreatTracker] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`, "openai");
 
-      // If we found HTMX article links, consider using pattern-based results
-      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern.includes('foojobs'))) {
-        log(`[ThreatTracker] HTMX pattern detected (${htmxLinks[0].pattern}), using enhanced handling`, "openai");
+      // If we found HTMX article links, prioritize those and skip AI processing in some cases
+      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern === 'foojobs-article')) {
+        log(`[ThreatTracker] FooJobs article pattern detected, using HTMX-specific handling`, "openai");
 
-        // For reliable HTMX patterns, return all found articles if we have sufficient coverage
-        // This prevents AI processing bottlenecks while ensuring comprehensive article discovery
-        if (potentialArticleUrls.length >= 15) {
-          log(`[ThreatTracker] Found ${potentialArticleUrls.length} articles via reliable pattern matching - returning all`, "openai");
+        // Return immediately if we found enough HTMX articles
+        if (potentialArticleUrls.length >= 5) {
+          log(`[ThreatTracker] Found ${potentialArticleUrls.length} FooJobs articles via pattern matching`, "openai");
           return potentialArticleUrls;
         }
       }
