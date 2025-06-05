@@ -143,15 +143,71 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
   
   // Check for HTMX usage on the page (do this regardless of existing link data)
   const hasHtmx = await page.evaluate(() => {
+    // More comprehensive HTMX detection
+    const htmxScriptPatterns = [
+      'script[src*="htmx"]',
+      'script[src*="hx."]',
+      'script:contains("htmx")',
+      'script[data-turbo-track*="htmx"]'
+    ];
+    
+    const htmxAttributePatterns = [
+      '[hx-get]', '[hx-post]', '[hx-put]', '[hx-patch]', '[hx-delete]',
+      '[hx-trigger]', '[hx-target]', '[hx-swap]', '[hx-include]',
+      '[hx-push-url]', '[hx-select]', '[hx-vals]', '[hx-confirm]',
+      '[hx-disable]', '[hx-indicator]', '[hx-params]', '[hx-encoding]',
+      '[data-hx-get]', '[data-hx-post]', '[data-hx-trigger]'
+    ];
+
+    // Check for script tags
+    let scriptLoaded = false;
+    for (const pattern of htmxScriptPatterns) {
+      if (document.querySelector(pattern)) {
+        scriptLoaded = true;
+        break;
+      }
+    }
+    
+    // Check for HTMX in window object
+    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+    
+    // Check for any HTMX attributes
+    let hasHxAttributes = false;
+    for (const pattern of htmxAttributePatterns) {
+      if (document.querySelector(pattern)) {
+        hasHxAttributes = true;
+        break;
+      }
+    }
+    
+    // Get all hx-get elements (most common)
+    const hxGetElements = Array.from(document.querySelectorAll('[hx-get], [data-hx-get]')).map(el => ({
+      url: el.getAttribute('hx-get') || el.getAttribute('data-hx-get'),
+      trigger: el.getAttribute('hx-trigger') || el.getAttribute('data-hx-trigger') || 'click'
+    }));
+    
+    // Additional debug info
+    const allScripts = Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline').slice(0, 10);
+    const sampleElements = Array.from(document.querySelectorAll('*')).slice(0, 50).map(el => ({
+      tag: el.tagName,
+      attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).slice(0, 5)
+    }));
+    
     return {
-      scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
-      hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
-      hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-        url: el.getAttribute('hx-get'),
-        trigger: el.getAttribute('hx-trigger') || 'click'
-      }))
+      scriptLoaded,
+      htmxInWindow,
+      hasHxAttributes,
+      hxGetElements,
+      debug: {
+        totalElements: document.querySelectorAll('*').length,
+        scripts: allScripts,
+        sampleElements: sampleElements.slice(0, 10)
+      }
     };
   });
+
+  log(`[ThreatTracker] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`, "scraper");
+  log(`[ThreatTracker] Page Debug Info: totalElements=${hasHtmx.debug.totalElements}, scripts=[${hasHtmx.debug.scripts.join(', ')}]`, "scraper-debug");
 
   // Use existing link data if provided, otherwise extract from page
   let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
@@ -162,7 +218,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
   } else {
     log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
 
-    if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
       
       // Wait longer for initial HTMX content to load (some triggers on page load)
@@ -219,7 +275,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log(`[ThreatTracker] Fewer than 20 links found, trying additional techniques...`, "scraper");
     
     // For HTMX pages: Special handling of dynamic content
-    if (hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log(`[ThreatTracker] Attempting to interact with HTMX elements to load more content`, "scraper");
       
       // First try: Click on any "load more" or pagination buttons that might trigger HTMX loading
