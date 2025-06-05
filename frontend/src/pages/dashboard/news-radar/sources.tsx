@@ -764,6 +764,16 @@ export default function Sources() {
   });
 
   const onSubmit = form.handleSubmit((data) => {
+    // Validate that both fields are not empty or just whitespace
+    if (!data.name?.trim() || !data.url?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Both source name and URL are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     addSource.mutate(data);
   });
 
@@ -907,28 +917,43 @@ export default function Sources() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
               <div>
-                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name</label>
+                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name *</label>
                 <Input
                   placeholder="E.g., Tech News Daily"
-                  {...form.register("name")}
+                  {...form.register("name", { 
+                    required: "Source name is required",
+                    validate: value => value?.trim() !== "" || "Source name cannot be empty"
+                  })}
                   className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  required
                 />
+                {form.formState.errors.name && (
+                  <p className="text-xs text-red-400 mt-1">{form.formState.errors.name.message}</p>
+                )}
               </div>
               <div>
-                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source URL</label>
+                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source URL *</label>
                 <Input
                   placeholder="https://example.com"
-                  {...form.register("url")}
+                  type="url"
+                  {...form.register("url", { 
+                    required: "Source URL is required",
+                    validate: value => value?.trim() !== "" || "Source URL cannot be empty"
+                  })}
                   className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  required
                 />
+                {form.formState.errors.url && (
+                  <p className="text-xs text-red-400 mt-1">{form.formState.errors.url.message}</p>
+                )}
               </div>
             </div>
 
             <div className="flex justify-end">
               <Button 
                 type="submit" 
-                disabled={addSource.isPending}
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
+                disabled={addSource.isPending || !form.formState.isValid}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {addSource.isPending ? (
                   <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
