@@ -268,7 +268,13 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
           el.url.includes('article') || 
           el.url.includes('content') ||
           el.url.includes('page') ||
-          el.url.includes('list')
+          el.url.includes('list') ||
+          el.url.includes('media') ||
+          el.url.includes('post') ||
+          el.url.includes('story') ||
+          el.url.includes('news') ||
+          el.url.includes('cybersecurity') ||
+          el.url.includes('security')
         );
         
         if (filteredEndpoints.length > 0) {
