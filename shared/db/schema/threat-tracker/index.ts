@@ -54,30 +54,12 @@ export const threatSettings = pgTable("threat_settings", {
   userId: uuid("user_id").references(() => users.id),
 });
 
-// Schema for inserting a new threat source
-export const insertThreatSourceSchema = createInsertSchema(threatSources)
-  .omit({ id: true });
-
-// Type for inserting a new threat source
-export type InsertThreatSource = z.infer<typeof insertThreatSourceSchema>;
 // Type for a threat source record
 export type ThreatSource = typeof threatSources.$inferSelect;
 
-// Schema for inserting a new threat keyword
-export const insertThreatKeywordSchema = createInsertSchema(threatKeywords)
-  .omit({ id: true });
-
-// Type for inserting a new threat keyword
-export type InsertThreatKeyword = z.infer<typeof insertThreatKeywordSchema>;
 // Type for a threat keyword record
 export type ThreatKeyword = typeof threatKeywords.$inferSelect;
 
-// Schema for inserting a new threat article
-export const insertThreatArticleSchema = createInsertSchema(threatArticles)
-  .omit({ id: true, scrapeDate: true });
-
-// Type for inserting a new threat article
-export type InsertThreatArticle = z.infer<typeof insertThreatArticleSchema>;
 // Type for a threat article record
 export type ThreatArticle = typeof threatArticles.$inferSelect;
 
@@ -89,3 +71,45 @@ export const insertThreatSettingSchema = createInsertSchema(threatSettings)
 export type InsertThreatSetting = z.infer<typeof insertThreatSettingSchema>;
 // Type for a threat setting record
 export type ThreatSetting = typeof threatSettings.$inferSelect;
+
+
+export const insertThreatArticleSchema = z.object({
+  url: z.string().url(),
+  title: z.string(),
+  content: z.string(),
+  sourceId: z.string().uuid().optional(),
+  author: z.string().nullable().optional(),
+  publishDate: z.date().optional(),
+  summary: z.string().nullable().optional(),
+  relevanceScore: z.string().nullable().optional(),
+  securityScore: z.string().nullable().optional(),
+  detectedKeywords: z.any().optional(),
+  userId: z.string().uuid().optional(),
+  markedForCapsule: z.boolean().optional(),
+});
+export type InsertThreatArticle = z.infer<typeof insertThreatArticleSchema>;
+
+export const insertThreatSourceSchema = z.object({
+  url: z.string().url(),
+  name: z.string(),
+  active: z.boolean().optional(), // defaults to true in DB
+  includeInAutoScrape: z.boolean().optional(), // defaults to true in DB
+  scrapingConfig: z.any().optional(), // you can replace `any` with a specific schema if you want
+  lastScraped: z.date().optional(),
+  userId: z.string().uuid().optional(),
+  isDefault: z.boolean().optional(), // defaults to false in DB
+});
+
+export type InsertThreatSource = z.infer<typeof insertThreatSourceSchema>;
+
+
+export const insertThreatKeywordSchema = z.object({
+  term: z.string(),                         // required
+  category: z.enum(['threat', 'vendor', 'client', 'hardware']), // required
+  active: z.boolean().optional(),           // has default in DB
+  userId: z.string().uuid().optional(),     // optional (null for defaults)
+  isDefault: z.boolean().optional(),        // has default in DB
+});
+
+export type InsertThreatKeyword = z.infer<typeof insertThreatKeywordSchema>;
+

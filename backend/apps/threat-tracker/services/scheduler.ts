@@ -15,11 +15,11 @@ export enum JobInterval {
 let autoScrapeIntervalId: NodeJS.Timeout | null = null;
 
 /**
- * Get the auto-scrape schedule from settings
+ * Get the auto-scrape schedule from settings for a specific user
  */
-export async function getGlobalScrapeSchedule() {
+export async function getGlobalScrapeSchedule(userId?: string) {
   try {
-    const setting = await storage.getSetting("auto-scrape");
+    const setting = await storage.getSetting("auto-scrape", userId);
     
     if (!setting || !setting.value) {
       // Default settings if not found
@@ -34,8 +34,8 @@ export async function getGlobalScrapeSchedule() {
       interval: JobInterval;
     };
   } catch (error: any) {
-    log(`[ThreatTracker] Error getting global scrape schedule: ${error.message}`, "scheduler-error");
-    console.error("Error getting global scrape schedule:", error);
+    log(`[ThreatTracker] Error getting auto-scrape schedule: ${error.message}`, "scheduler-error");
+    console.error("Error getting auto-scrape schedule:", error);
     
     // Return default settings on error
     return {
@@ -46,26 +46,25 @@ export async function getGlobalScrapeSchedule() {
 }
 
 /**
- * Update the auto-scrape schedule
+ * Update the auto-scrape schedule for a specific user
  */
-export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval) {
+export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId?: string) {
   try {
-    // Save the new schedule to settings
+    // Save the new schedule to settings with user context
     await storage.upsertSetting("auto-scrape", {
       enabled,
       interval,
-    });
+    }, userId);
     
-    // Re-initialize the scheduler with the new settings
-    await initializeScheduler();
+    // Note: Scheduler is global but respects per-user settings during execution
     
     return {
       enabled,
       interval,
     };
   } catch (error: any) {
-    log(`[ThreatTracker] Error updating global scrape schedule: ${error.message}`, "scheduler-error");
-    console.error("Error updating global scrape schedule:", error);
+    log(`[ThreatTracker] Error updating auto-scrape schedule: ${error.message}`, "scheduler-error");
+    console.error("Error updating auto-scrape schedule:", error);
     throw error;
   }
 }

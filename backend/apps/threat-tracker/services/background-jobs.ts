@@ -8,6 +8,7 @@ import { extractArticleLinks, scrapeUrl } from "./scraper";
 import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
+import { normalizeUrl } from "./url-utils";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
@@ -163,6 +164,8 @@ async function processArticle(
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
 
+    log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}, sourceId: ${sourceId}`);
+
     // Store the article in the database
     const newArticle = await storage.createArticle({
       sourceId,
@@ -193,29 +196,30 @@ async function processArticle(
 }
 
 // Scrape a single source
-export async function scrapeSource(source: ThreatSource) {
+export async function scrapeSource(source: ThreatSource, userId: string) {
   log(
     `[ThreatTracker] Starting scrape job for source: ${source.name}`,
     "scraper",
   );
+  const keywordUserId = source.userId || userId
 
   try {
     // Get all threat-related keywords for analysis, filtered by the source's userId
     const threatKeywords = await storage.getKeywordsByCategory(
       "threat",
-      source.userId || undefined,
+      keywordUserId
     );
     const vendorKeywords = await storage.getKeywordsByCategory(
       "vendor",
-      source.userId || undefined,
+      keywordUserId
     );
     const clientKeywords = await storage.getKeywordsByCategory(
       "client",
-      source.userId || undefined,
+      keywordUserId
     );
     const hardwareKeywords = await storage.getKeywordsByCategory(
       "hardware",
-      source.userId || undefined,
+      keywordUserId
     );
 
     // Extract keyword terms
@@ -328,7 +332,6 @@ export async function scrapeSource(source: ThreatSource) {
 
     if (!source.userId) {
       console.error("No source.userId");
-      return;
     }
 
     if (htmlStructure) {
@@ -339,7 +342,7 @@ export async function scrapeSource(source: ThreatSource) {
       const firstArticleResult = await processArticle(
         firstArticleUrl,
         source.id,
-        source.userId,
+        userId,
         htmlStructure,
         keywords,
       );
@@ -358,7 +361,7 @@ export async function scrapeSource(source: ThreatSource) {
       const articleResult = await processArticle(
         processedLinks[i],
         source.id,
-        source.userId,
+        userId,
         htmlStructure,
         keywords,
       );
@@ -395,7 +398,7 @@ export async function runGlobalScrapeJob(userId?: string) {
   }
 
   globalScrapeJobRunning = true;
-  log("[ThreatTracker] Starting global scrape job", "scraper");
+  log(`[ThreatTracker] Starting global scrape job${userId ? ` for user ${userId}` : ' (automated)'}`, "scraper");
 
   try {
     // Get all active sources for auto-scraping
@@ -411,7 +414,26 @@ export async function runGlobalScrapeJob(userId?: string) {
     // Process each source sequentially
     for (const source of sources) {
       try {
-        const newArticles = await scrapeSource(source);
+
+        // For default sources (source.userId is null), use the provided userId
+        // For user sources, use the source's userId (which should match the provided userId anyway)
+        const targetUserId = source.userId || userId;
+        
+        if (!targetUserId) {
+          log(
+            `[ThreatTracker] Skipping source ${source.name} - no target user ID available`,
+            "scraper-error",
+          );
+          continue;
+        }
+        
+        log(
+          `[ThreatTracker] Scraping source ${source.name} for user ${targetUserId}`,
+          "scraper",
+        );
+        
+        const newArticles = await scrapeSource(source, targetUserId);
+
         if (!newArticles?.length) continue;
         if (newArticles.length > 0) {
           allNewArticles.push(...newArticles);
