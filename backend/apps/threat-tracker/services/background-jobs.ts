@@ -1,6 +1,7 @@
 import { storage } from "../queries/threat-tracker";
 import { detectHtmlStructure, analyzeContent, identifyArticleLinks } from "./openai";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "./scraper";
+import { extractArticleLinks, scrapeUrl } from "./scraper";
+import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl } from "./url-utils";
@@ -46,8 +47,8 @@ async function processArticle(
     // Scrape the article page with article-specific flag
     const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
     
-    // Extract content using the detected structure
-    const articleData = await extractArticleContent(articleHtml, htmlStructure);
+    // Extract content using OpenAI for proper field separation
+    const articleData = await extractArticleContentWithAI(articleHtml, articleUrl);
     
     // If we couldn't extract content, skip this article
     if (!articleData.content || articleData.content.length < 100) {
@@ -108,26 +109,26 @@ async function processArticle(
     
     log(`[ThreatTracker] Article meets criteria with ${validThreatKeywords.length} threats and ${validVendorKeywords.length + validClientKeywords.length + validHardwareKeywords.length} other keywords`, "scraper");
     
-    // Parse the extracted date properly
+    // Parse the extracted date properly (OpenAI extractor returns ISO string or null)
     let publishDate = null;
-    if (articleData.date) {
+    if (articleData.publishDate) {
       try {
-        // If it's already an ISO string from our enhanced extraction, use it directly
-        publishDate = new Date(articleData.date);
+        // The OpenAI extractor already returns a properly formatted ISO string
+        publishDate = new Date(articleData.publishDate);
         // If the date is invalid, set to null
         if (isNaN(publishDate.getTime())) {
           publishDate = null;
         }
         log(`[ThreatTracker] Successfully parsed publish date: ${publishDate?.toISOString()}`, "scraper");
       } catch (e) {
-        log(`[ThreatTracker] Failed to parse date: ${articleData.date}`, "scraper-error");
+        log(`[ThreatTracker] Failed to parse date: ${articleData.publishDate}`, "scraper-error");
         publishDate = null;
       }
     } else {
       log(`[ThreatTracker] No publish date extracted from article`, "scraper");
     }
     
-    // Use the cleaned author field (date/author separation is now handled in extractArticleContent)
+    // Use the cleaned author field (OpenAI extractor ensures proper field separation)
     let actualAuthor = articleData.author;
     
     // Store the normalized URL to prevent future duplicates
