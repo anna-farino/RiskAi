@@ -77,6 +77,7 @@ export interface IStorage {
   deleteAllArticles(userId?: string): Promise<boolean>;
   toggleArticleForCapsule(id: string, marked: boolean): Promise<boolean>;
   getArticlesMarkedForCapsule(userId?: string): Promise<ThreatArticle[]>;
+  getSourceArticleCount(id: string): Promise<number>
 
   // Settings
   getSetting(key: string, userId?: string): Promise<ThreatSetting | undefined>;
@@ -143,10 +144,9 @@ export const storage: IStorage = {
       ];
       if (userId) conditions.push(eq(threatSources.userId, userId));
 
-      return await db
+      let defaultSources = await db
         .select()
         .from(threatSources)
-
         .where(
           and(
             eq(threatSources.isDefault, true),
@@ -180,13 +180,25 @@ export const storage: IStorage = {
     }
   },
 
-  createSource: async (source: InsertThreatSource) => {
+  createSource: async (source: {
+    url: string;
+    name: string;
+    active?: boolean;
+    includeInAutoScrape?: boolean;
+    scrapingConfig?: any;
+    lastScraped?: Date;
+    userId?: string;
+    isDefault?: boolean;
+}) => {
     try {
       if (!source.name || !source.url) {
         throw new Error("Source must have a name and URL");
       }
 
-      const results = await db.insert(threatSources).values(source).returning();
+      const results = await db
+        .insert(threatSources)
+        .values(source)
+        .returning();
       return results[0];
     } catch (error) {
       console.error("Error creating threat source:", error);
@@ -230,7 +242,7 @@ export const storage: IStorage = {
 
       const articleCount = associatedArticles[0]?.count || 0;
 
-      if (articleCount > 0 && !deleteArticles) {
+      if (articleCount > 0) {
         // Return special error object with article count for frontend handling
         const error = new Error(`ARTICLES_EXIST`);
         (error as any).articleCount = articleCount;
@@ -238,7 +250,7 @@ export const storage: IStorage = {
       }
 
       // Delete associated articles if requested
-      if (deleteArticles && articleCount > 0) {
+      if (articleCount > 0) {
         await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
       }
 
@@ -373,8 +385,16 @@ export const storage: IStorage = {
       }
 
       // Ensure isDefault is set to false for user keywords
-      const keywordToCreate: InsertThreatKeyword = {
+      const keywordToCreate: {
+          active?: boolean;
+          userId?: string;
+          isDefault?: boolean;
+          term: string;
+          category: "threat" | "vendor" | "client" | "hardware";
+      } = {
         ...keyword,
+        term: keyword.term!,
+        category: keyword.category!,
         isDefault: false,
       };
 
@@ -565,7 +585,20 @@ export const storage: IStorage = {
     }
   },
 
-  createArticle: async (article: InsertThreatArticle) => {
+  createArticle: async (article: {
+      url: string;
+      userId?: string;
+      sourceId?: string;
+      title: string;
+      content: string;
+      author?: string;
+      publishDate?: Date;
+      summary?: string;
+      relevanceScore?: string;
+      securityScore?: string;
+      detectedKeywords?: any;
+      markedForCapsule?: boolean;
+  }) => {
     try {
       const results = await db
         .insert(threatArticles)
