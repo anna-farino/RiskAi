@@ -287,17 +287,55 @@ export default function Sources() {
     mutationFn: async ({ id, values }: { id: string; values: SourceFormValues }) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/sources/${id}`, values);
     },
-    onSuccess: () => {
-      toast({
-        title: "Source updated",
-        description: "Your source has been updated successfully.",
+    onMutate: async ({ id, values }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
-      setSourceDialogOpen(false);
-      setEditingSource(null);
-      form.reset();
+
+      // Snapshot previous value
+      const previousSources = [...localSources];
+
+      // Optimistically update source in local state
+      setLocalSources((prev) =>
+        prev.map((source) =>
+          source.id === id
+            ? { ...source, ...values }
+            : source
+        )
+      );
+
+      return { previousSources, updatedId: id };
+    },
+    onSuccess: (data, variables) => {
+      // Update with actual server response if available
+      if (data) {
+        setLocalSources((prev) =>
+          prev.map((source) =>
+            source.id === variables.id ? data : source
+          )
+        );
+      }
+
+      // Only show toast for dialog-based updates (not quick toggles)
+      if (sourceDialogOpen) {
+        toast({
+          title: "Source updated",
+          description: "Your source has been updated successfully.",
+        });
+        setSourceDialogOpen(false);
+        setEditingSource(null);
+        form.reset();
+      }
+      
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
+
       console.error("Error updating source:", error);
       toast({
         title: "Error updating source",
@@ -444,6 +482,28 @@ export default function Sources() {
     mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
+    onMutate: async (newSettings) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+      });
+
+      // Snapshot previous value
+      const previousSettings = queryClient.getQueryData([
+        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
+      ]);
+
+      // Optimistically update to new value
+      queryClient.setQueryData(
+        [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        newSettings
+      );
+
+      // Update local state for immediate UI feedback
+      setLocalAutoScrapeEnabled(newSettings.enabled);
+
+      return { previousSettings };
+    },
     onSuccess: (data) => {
       toast({
         title: "Auto-scrape settings updated",
@@ -453,11 +513,78 @@ export default function Sources() {
       });
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSettings) {
+        queryClient.setQueryData(
+          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+          context.previousSettings
+        );
+        setLocalAutoScrapeEnabled(
+          (context.previousSettings as AutoScrapeSettings)?.enabled || false
+        );
+      }
+
       console.error("Error updating auto-scrape settings:", error);
       toast({
         title: "Error updating settings",
         description: "There was an error updating auto-scrape settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Quick toggle source active status mutation (for immediate feedback)
+  const toggleSourceActive = useMutation({
+    mutationFn: async ({ id, active, source }: { id: string; active: boolean; source: ThreatSource }) => {
+      return apiRequest("PUT", `${serverUrl}/api/threat-tracker/sources/${id}`, {
+        name: source.name,
+        url: source.url,
+        active,
+        includeInAutoScrape: source.includeInAutoScrape
+      });
+    },
+    onMutate: async ({ id, active }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Snapshot previous value
+      const previousSources = [...localSources];
+
+      // Optimistically update source active status
+      setLocalSources((prev) =>
+        prev.map((source) =>
+          source.id === id
+            ? { ...source, active }
+            : source
+        )
+      );
+
+      return { previousSources, toggledId: id };
+    },
+    onSuccess: (data, variables) => {
+      // Update with actual server response
+      if (data) {
+        setLocalSources((prev) =>
+          prev.map((source) =>
+            source.id === variables.id ? data : source
+          )
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+    },
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
+
+      console.error("Error toggling source:", error);
+      toast({
+        title: "Error updating source",
+        description: "Failed to update source status. Please try again.",
         variant: "destructive",
       });
     },
@@ -879,9 +1006,24 @@ export default function Sources() {
       );
     }
 
-    // Separate default and user sources
-    const defaultSources = localSources.filter(source => source.isDefault);
-    const userSources = localSources.filter(source => !source.isDefault);
+    // Separate default and user sources, then sort by active status (active first)
+    const defaultSources = localSources
+      .filter(source => source.isDefault)
+      .sort((a, b) => {
+        // Active sources first, then inactive
+        if (a.active && !b.active) return -1;
+        if (!a.active && b.active) return 1;
+        return 0;
+      });
+    
+    const userSources = localSources
+      .filter(source => !source.isDefault)
+      .sort((a, b) => {
+        // Active sources first, then inactive
+        if (a.active && !b.active) return -1;
+        if (!a.active && b.active) return 1;
+        return 0;
+      });
 
     console.log(localSources)
     console.log(defaultSources)
@@ -914,7 +1056,7 @@ export default function Sources() {
               <CollapsibleContent>
                 <div className="bg-muted/30 rounded-lg p-3 space-y-2">
                   {defaultSources.map((source) => (
-                    <div key={source.id} className="flex items-center justify-between py-2 px-3 bg-background rounded border">
+                    <div key={source.id} className={`flex items-center justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
                         <div className="min-w-0 flex-1">
@@ -936,7 +1078,7 @@ export default function Sources() {
                           size="sm"
                           onClick={() => scrapeSingleSource.mutate(source.id)}
                           disabled={scrapeSingleSource.isPending && scrapingSourceId === source.id}
-                          className="h-7 px-2 text-xs"
+                          className={`h-7 px-2 text-xs ${!source.active ? 'hover:bg-transparent' : ''}`}
                         >
                           {scrapeSingleSource.isPending && scrapingSourceId === source.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -948,16 +1090,13 @@ export default function Sources() {
                         <Switch
                           checked={source.active}
                           onCheckedChange={(checked) => 
-                            updateSource.mutate({
+                            toggleSourceActive.mutate({
                               id: source.id,
-                              values: {
-                                name: source.name,
-                                url: source.url,
-                                active: checked,
-                                includeInAutoScrape: source.includeInAutoScrape
-                              }
+                              active: checked,
+                              source
                             })
                           }
+                          disabled={toggleSourceActive.isPending}
                         />
                       </div>
                     </div>
@@ -1009,7 +1148,7 @@ export default function Sources() {
             </TableHeader>
             <TableBody>
               {userSources.map((source) => (
-                <TableRow key={source.id}>
+                <TableRow key={source.id} className={`transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
                   <TableCell className="font-medium truncate pr-2">{source.name}</TableCell>
                   <TableCell className="pr-2">
                     <a 
@@ -1061,7 +1200,7 @@ export default function Sources() {
                           scrapingSourceId === source.id || 
                           scrapeJobRunning
                         }
-                        className="h-7 px-2 text-xs"
+                        className={`h-7 px-2 text-xs ${!source.active ? 'hover:bg-transparent' : ''}`}
                       >
                         {scrapingSourceId === source.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />

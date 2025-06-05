@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Link2, Globe, Plus, RotateCw, Check, X, Clock, Settings, Play, Trash2 } from "lucide-react";
+import { Loader2, Link2, Globe, Plus, RotateCw, Check, X, Clock, Settings, Play, Trash2, Edit } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,10 +21,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
+import { z } from "zod";
 
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
@@ -54,11 +62,21 @@ interface AutoScrapeSettings {
   nextRun?: string;
 }
 
+// Edit source schema
+const editSourceSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  url: z.string().url("Must be a valid URL"),
+});
+
+type EditSourceFormValues = z.infer<typeof editSourceSchema>;
+
 export default function Sources() {
   const { toast } = useToast();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingSource, setEditingSource] = useState<Source | null>(null);
   
   // Local state for optimistic UI updates
   const [localSources, setLocalSources] = useState<Source[]>([]);
@@ -93,6 +111,15 @@ export default function Sources() {
     defaultValues: {
       url: "",
       name: "",
+    },
+  });
+
+  // Edit form
+  const editForm = useForm<EditSourceFormValues>({
+    resolver: zodResolver(editSourceSchema),
+    defaultValues: {
+      name: "",
+      url: "",
     },
   });
 
@@ -485,6 +512,83 @@ export default function Sources() {
     },
   });
   
+  // Edit a source
+  const editSource = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: EditSourceFormValues }) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject()
+          },
+          body: JSON.stringify(data),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to update source: ${response.statusText}`);
+        }
+        
+        const responseData = await response.json();
+        return responseData;
+      } catch (error) {
+        console.error("Edit source error:", error);
+        throw error;
+      }
+    },
+    onMutate: async ({ id, data }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot the previous values
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      const previousLocalSources = [...localSources];
+      
+      // Optimistically update the local state
+      setLocalSources(prev => 
+        prev.map(source => 
+          source.id === id 
+            ? { ...source, name: data.name, url: data.url }
+            : source
+        )
+      );
+      
+      // Update React Query cache
+      queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
+        oldData.map(source => 
+          source.id === id 
+            ? { ...source, name: data.name, url: data.url }
+            : source
+        )
+      );
+      
+      return { previousSources, previousLocalSources, id };
+    },
+    onError: (error: Error, variables, context) => {
+      if (context) {
+        // Revert both local state and React Query cache
+        setLocalSources(context.previousLocalSources);
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
+      }
+      
+      toast({
+        title: "Error updating source",
+        description: error.message || "Failed to update source. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Source updated successfully",
+      });
+      
+      setEditDialogOpen(false);
+      setEditingSource(null);
+      editForm.reset();
+    },
+  });
+
   // Delete a source
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
@@ -764,8 +868,43 @@ export default function Sources() {
   });
 
   const onSubmit = form.handleSubmit((data) => {
+    // Validate that both fields are not empty or just whitespace
+    if (!data.name?.trim() || !data.url?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Both source name and URL are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     addSource.mutate(data);
   });
+
+  const onEditSubmit = editForm.handleSubmit((data) => {
+    if (!editingSource) return;
+    
+    // Validate that both fields are not empty or just whitespace
+    if (!data.name?.trim() || !data.url?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Both source name and URL are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    editSource.mutate({ id: editingSource.id, data });
+  });
+
+  const handleEditSource = (source: Source) => {
+    setEditingSource(source);
+    editForm.reset({
+      name: source.name,
+      url: source.url,
+    });
+    setEditDialogOpen(true);
+  };
 
   return (
     <div className={cn(
@@ -784,6 +923,76 @@ export default function Sources() {
       >
         <span></span>
       </DeleteAlertDialog>
+
+      {/* Edit source dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Source</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={onEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name" className="text-sm font-medium text-white">
+                Source Name
+              </Label>
+              <Input
+                id="edit-name"
+                placeholder="E.g., Tech News Daily"
+                {...editForm.register("name", { 
+                  required: "Source name is required",
+                  validate: value => value?.trim() !== "" || "Source name cannot be empty"
+                })}
+                className="h-9 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+              />
+              {editForm.formState.errors.name && (
+                <p className="text-xs text-red-400">{editForm.formState.errors.name.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-url" className="text-sm font-medium text-white">
+                Source URL
+              </Label>
+              <Input
+                id="edit-url"
+                placeholder="https://example.com"
+                type="url"
+                {...editForm.register("url", { 
+                  required: "Source URL is required",
+                  validate: value => value?.trim() !== "" || "Source URL cannot be empty"
+                })}
+                className="h-9 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+              />
+              {editForm.formState.errors.url && (
+                <p className="text-xs text-red-400">{editForm.formState.errors.url.message}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditDialogOpen(false);
+                  setEditingSource(null);
+                  editForm.reset();
+                }}
+                className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={editSource.isPending || !editForm.formState.isValid}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              >
+                {editSource.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Update Source
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
@@ -907,28 +1116,43 @@ export default function Sources() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
               <div>
-                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name</label>
+                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name *</label>
                 <Input
                   placeholder="E.g., Tech News Daily"
-                  {...form.register("name")}
+                  {...form.register("name", { 
+                    required: "Source name is required",
+                    validate: value => value?.trim() !== "" || "Source name cannot be empty"
+                  })}
                   className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  required
                 />
+                {form.formState.errors.name && (
+                  <p className="text-xs text-red-400 mt-1">{form.formState.errors.name.message}</p>
+                )}
               </div>
               <div>
-                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source URL</label>
+                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source URL *</label>
                 <Input
                   placeholder="https://example.com"
-                  {...form.register("url")}
+                  type="url"
+                  {...form.register("url", { 
+                    required: "Source URL is required",
+                    validate: value => value?.trim() !== "" || "Source URL cannot be empty"
+                  })}
                   className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  required
                 />
+                {form.formState.errors.url && (
+                  <p className="text-xs text-red-400 mt-1">{form.formState.errors.url.message}</p>
+                )}
               </div>
             </div>
 
             <div className="flex justify-end">
               <Button 
                 type="submit" 
-                disabled={addSource.isPending}
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
+                disabled={addSource.isPending || !form.formState.isValid}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {addSource.isPending ? (
                   <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
@@ -1069,6 +1293,15 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleEditSource(source)}
+                          className="h-6 w-6 rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-1 flex-shrink-0"
+                          title="Edit source"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
@@ -1115,6 +1348,15 @@ export default function Sources() {
                       
                       {/* Large Desktop Layout - Horizontal */}
                       <div className="hidden lg:flex flex-row justify-end items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditSource(source)}
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-2"
+                          title="Edit source"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
