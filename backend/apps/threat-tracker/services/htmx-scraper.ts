@@ -13,6 +13,12 @@ export interface HTMXConfig {
 }
 
 export const HTMX_SITE_CONFIGS: Record<string, HTMXConfig> = {
+  'foorilla.com': {
+    waitTime: 10000,
+    maxRetries: 3,
+    endpoints: ['/media/items/', '/media/items/top/', '/media/cybersecurity/'],
+    triggers: ['load', 'click', 'scroll']
+  },
   'foojobs.com': {
     waitTime: 8000,
     maxRetries: 3,
@@ -223,43 +229,125 @@ export async function extractHTMXContent(page: Page): Promise<Array<{href: strin
   return await page.evaluate(() => {
     const allLinks: Array<{href: string, text: string, source: string}> = [];
     
-    // Extract from main page
-    const mainLinks = Array.from(document.querySelectorAll('a[href]'));
-    mainLinks.forEach(link => {
-      const href = link.getAttribute('href');
-      const text = link.textContent?.trim() || '';
-      if (href && text && href.length > 3) {
-        allLinks.push({
-          href: href.startsWith('http') ? href : window.location.origin + href,
-          text,
-          source: 'main-page'
+    // Enhanced selectors for better link discovery
+    const linkSelectors = [
+      'a[href]',
+      '[hx-get] a[href]',
+      '.media-item a[href]',
+      '.article-item a[href]',
+      '.news-item a[href]',
+      '.post-item a[href]',
+      '.content-item a[href]',
+      '[id*="item"] a[href]',
+      '[class*="item"] a[href]'
+    ];
+    
+    // Extract from main page with multiple selectors
+    linkSelectors.forEach(selector => {
+      const links = Array.from(document.querySelectorAll(selector));
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        const text = link.textContent?.trim() || '';
+        if (href && text && href.length > 3 && text.length > 3) {
+          allLinks.push({
+            href: href.startsWith('http') ? href : window.location.origin + href,
+            text,
+            source: 'main-page'
+          });
+        }
+      });
+    });
+    
+    // Extract from HTMX-injected content containers
+    const htmxContainers = [
+      '#htmx-injected-content',
+      '[hx-target]',
+      '[hx-swap-oob]',
+      '.htmx-content',
+      '[id*="htmx"]',
+      '[class*="htmx"]',
+      '[data-hx-content]'
+    ];
+    
+    htmxContainers.forEach(containerSelector => {
+      const container = document.querySelector(containerSelector);
+      if (container) {
+        linkSelectors.forEach(linkSelector => {
+          const htmxLinks = Array.from(container.querySelectorAll(linkSelector));
+          htmxLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            const text = link.textContent?.trim() || '';
+            if (href && text && href.length > 3 && text.length > 3) {
+              allLinks.push({
+                href: href.startsWith('http') ? href : window.location.origin + href,
+                text,
+                source: 'htmx-injected'
+              });
+            }
+          });
         });
       }
     });
     
-    // Extract from HTMX-injected content
-    const htmxContainer = document.getElementById('htmx-injected-content');
-    if (htmxContainer) {
-      const htmxLinks = Array.from(htmxContainer.querySelectorAll('a[href]'));
-      htmxLinks.forEach(link => {
-        const href = link.getAttribute('href');
-        const text = link.textContent?.trim() || '';
-        if (href && text && href.length > 3) {
-          allLinks.push({
-            href: href.startsWith('http') ? href : window.location.origin + href,
-            text,
-            source: 'htmx-injected'
-          });
-        }
-      });
-    }
+    // Special handling for elements that may have been dynamically loaded by HTMX
+    const dynamicSelectors = [
+      '[hx-get="/media/items/"] a[href]',
+      '[hx-get="/media/items/top/"] a[href]',
+      '[data-loaded-by-htmx] a[href]',
+      '.loaded-content a[href]'
+    ];
     
-    // Remove duplicates
+    dynamicSelectors.forEach(selector => {
+      try {
+        const dynamicLinks = Array.from(document.querySelectorAll(selector));
+        dynamicLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          const text = link.textContent?.trim() || '';
+          if (href && text && href.length > 3 && text.length > 3) {
+            allLinks.push({
+              href: href.startsWith('http') ? href : window.location.origin + href,
+              text,
+              source: 'htmx-dynamic'
+            });
+          }
+        });
+      } catch (e) {
+        // Selector might not be valid, continue
+      }
+    });
+    
+    // Remove duplicates based on href
     const uniqueLinks = Array.from(
       new Map(allLinks.map(link => [link.href, link])).values()
     );
     
-    console.log(`[HTMX] Extracted ${uniqueLinks.length} unique links (${allLinks.length} total)`);
-    return uniqueLinks;
+    // Filter out likely non-article links
+    const filteredLinks = uniqueLinks.filter(link => {
+      const href = link.href.toLowerCase();
+      const text = link.text.toLowerCase();
+      
+      // Skip common non-article links
+      if (href.includes('#') || 
+          href.includes('javascript:') ||
+          href.includes('mailto:') ||
+          href.includes('/search') ||
+          href.includes('/login') ||
+          href.includes('/register') ||
+          href.includes('/about') ||
+          href.includes('/contact') ||
+          href.includes('/privacy') ||
+          href.includes('/terms') ||
+          text.includes('login') ||
+          text.includes('register') ||
+          text.includes('subscribe') ||
+          text.length < 10) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log(`[HTMX] Extracted ${filteredLinks.length} filtered links from ${uniqueLinks.length} unique links (${allLinks.length} total)`);
+    return filteredLinks;
   });
 }
