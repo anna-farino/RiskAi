@@ -120,7 +120,7 @@ export async function scrapeSource(
         );
         const articleHtml = await scrapeUrl(link, false);
         // Ensure scrapingConfig is treated as ScrapingConfig type
-        const article = extractArticleContent(
+        const article = await extractArticleContent(
           articleHtml,
           scrapingConfig as ScrapingConfig,
         );
@@ -214,7 +214,7 @@ export async function scrapeSource(
                 content: article.content,
                 url: link,
                 author: article.author || null,
-                publishDate: new Date(), // Always use current date
+                publishDate: article.publishDate || new Date(), // Use extracted date or current date as fallback
                 summary: analysis.summary,
                 relevanceScore: analysis.relevanceScore,
                 detectedKeywords: allKeywords,
