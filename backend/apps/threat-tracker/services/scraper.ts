@@ -136,7 +136,7 @@ async function setupPage(): Promise<Page> {
 /**
  * Extract article links as a structured HTML
  */
-async function extractArticleLinksStructured(page: Page, existingLinkData?: Array<{href: string, text: string, parentText: string, parentClass: string}>): Promise<string> {
+async function extractArticleLinksStructured(page: Page, url: string, existingLinkData?: Array<{href: string, text: string, parentText: string, parentClass: string}>): Promise<string> {
   // Wait for any links to appear
   await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
@@ -205,15 +205,22 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
     // Extract all links after ensuring content is loaded
-    articleLinkData = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a'));
-      return links.map(link => ({
-        href: link.getAttribute('href'),
-        text: link.textContent?.trim() || '',
-        parentText: link.parentElement?.textContent?.trim() || '',
-        parentClass: link.parentElement?.className || ''
-      })).filter(link => link.href); // Only keep links with href attribute
-    });
+    if (isFoorillaUrl) {
+      // Use foorilla-specific link extraction
+      articleLinkData = await FoorillaScraper.extractFoorillaLinks(page);
+      log(`[ThreatTracker] Foorilla-specific extraction found ${articleLinkData.length} links`, "scraper");
+    } else {
+      // Standard link extraction
+      articleLinkData = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll('a'));
+        return links.map(link => ({
+          href: link.getAttribute('href'),
+          text: link.textContent?.trim() || '',
+          parentText: link.parentElement?.textContent?.trim() || '',
+          parentClass: link.parentElement?.className || ''
+        })).filter(link => link.href); // Only keep links with href attribute
+      });
+    }
 
     log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
 
@@ -614,7 +621,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     log(`[ThreatTracker] Primary extraction: Found ${extractedLinkData.length} links`, "scraper");
     
     // Pass the extracted data to extractArticleLinksStructured to avoid duplicate extraction
-    return await extractArticleLinksStructured(page, extractedLinkData);
+    return await extractArticleLinksStructured(page, url, extractedLinkData);
     
   } catch (error: any) {
     log(`[ThreatTracker] Error scraping ${url}: ${error.message}`, "scraper-error");
