@@ -328,7 +328,6 @@ export async function scrapeSource(source: ThreatSource) {
 
     if (!source.userId) {
       console.error("No source.userId");
-      return;
     }
 
     if (htmlStructure) {
