@@ -10,6 +10,7 @@ import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 import { loadHTMXContent, type HTMXDetectionResult } from './htmx-handler';
+import { analyzeDynamicContent, executeDynamicLoadingStrategy } from './dynamic-content-detector';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -142,15 +143,21 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
-  // Use comprehensive HTMX detection and content loading
+  // Analyze page for dynamic content patterns
+  const dynamicAnalysis = await analyzeDynamicContent(page);
+  
+  // Execute appropriate loading strategy based on analysis
+  await executeDynamicLoadingStrategy(page, dynamicAnalysis);
+  
+  // Also run HTMX-specific loading if detected
   const htmxData = await loadHTMXContent(page);
 
   // Use existing link data if provided, otherwise extract from page
-  let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
+  let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string, isInjected?: boolean}>;
   
   if (existingLinkData && existingLinkData.length > 0) {
     log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
-    articleLinkData = existingLinkData;
+    articleLinkData = existingLinkData.map(link => ({ ...link, isInjected: false }));
   } else {
     log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
     
@@ -165,14 +172,33 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
       { timeout: 10000 }
     ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
-    // Extract all links after ensuring content is loaded
+    // Extract all links after ensuring content is loaded, including from injected content
     articleLinkData = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a'));
-      return links.map(link => ({
+      // Get all links from main document and injected content
+      const allSelectors = [
+        'a', // Standard links
+        '.scraper-injected-content a', // From HTMX handler
+        '.scraper-injected-htmx-content a', // From HTMX handler
+        '.dynamic-injected-content a' // From dynamic detector
+      ];
+      
+      const allLinks: HTMLAnchorElement[] = [];
+      allSelectors.forEach(selector => {
+        const links = Array.from(document.querySelectorAll(selector)) as HTMLAnchorElement[];
+        allLinks.push(...links);
+      });
+      
+      // Remove duplicates based on href
+      const uniqueLinks = allLinks.filter((link, index, self) => 
+        index === self.findIndex(l => l.href === link.href)
+      );
+      
+      return uniqueLinks.map(link => ({
         href: link.getAttribute('href'),
         text: link.textContent?.trim() || '',
         parentText: link.parentElement?.textContent?.trim() || '',
-        parentClass: link.parentElement?.className || ''
+        parentClass: link.parentElement?.className || '',
+        isInjected: link.closest('.scraper-injected-content, .scraper-injected-htmx-content, .dynamic-injected-content') !== null
       })).filter(link => link.href); // Only keep links with href attribute
     });
 
@@ -188,12 +214,17 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     if (articleLinkData.length < 20) {
       log(`[ThreatTracker] Fewer than 20 links found (${articleLinkData.length}), trying additional techniques...`, "scraper");
       
-      // For pages with dynamic content (including HTMX), try additional loading strategies
-      if (htmxData.hasHxAttributes || htmxData.scriptLoaded) {
-        log(`[ThreatTracker] Running additional HTMX content loading for sparse results...`, "scraper");
+      // For pages with dynamic content, try additional loading strategies
+      if (dynamicAnalysis.isDynamic) {
+        log(`[ThreatTracker] Running additional dynamic content loading for sparse results...`, "scraper");
         
-        // Try additional HTMX interaction attempts
-        await loadHTMXContent(page);
+        // Run dynamic loading strategy again with extended time
+        await executeDynamicLoadingStrategy(page, dynamicAnalysis);
+        
+        // Try additional HTMX loading if applicable
+        if (htmxData.hasHxAttributes || htmxData.scriptLoaded) {
+          await loadHTMXContent(page);
+        }
         
         // Wait for any additional content to render
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -219,16 +250,40 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
 
     // Try extracting links again after all our techniques
     articleLinkData = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a'));
-      return links.map(link => ({
+      // Get all links from main document and injected content
+      const allSelectors = [
+        'a', // Standard links
+        '.scraper-injected-content a', // From HTMX handler
+        '.scraper-injected-htmx-content a', // From HTMX handler
+        '.dynamic-injected-content a' // From dynamic detector
+      ];
+      
+      const allLinks: HTMLAnchorElement[] = [];
+      allSelectors.forEach(selector => {
+        const links = Array.from(document.querySelectorAll(selector)) as HTMLAnchorElement[];
+        allLinks.push(...links);
+      });
+      
+      // Remove duplicates based on href
+      const uniqueLinks = allLinks.filter((link, index, self) => 
+        index === self.findIndex(l => l.href === link.href)
+      );
+      
+      return uniqueLinks.map(link => ({
         href: link.getAttribute('href'),
         text: link.textContent?.trim() || '',
         parentText: link.parentElement?.textContent?.trim() || '',
-        parentClass: link.parentElement?.className || ''
+        parentClass: link.parentElement?.className || '',
+        isInjected: link.closest('.scraper-injected-content, .scraper-injected-htmx-content, .dynamic-injected-content') !== null
       })).filter(link => link.href); // Only keep links with href attribute
     });
     
     log(`[ThreatTracker] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
+    
+    // Log statistics about injected vs regular content
+    const injectedLinks = articleLinkData.filter(link => link.isInjected);
+    const regularLinks = articleLinkData.filter(link => !link.isInjected);
+    log(`[ThreatTracker] Content breakdown: ${regularLinks.length} regular links, ${injectedLinks.length} injected from dynamic content`, "scraper");
     }
   }
 
