@@ -5,6 +5,7 @@ import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJ
 import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
 import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
+import { runDateExtractionTests } from "../services/date-extractor.test";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -273,6 +274,8 @@ threatRouter.get("/articles", async (req, res) => {
         : [req.query.keywordIds as string]
       : undefined;
     
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    
     let startDate: Date | undefined;
     let endDate: Date | undefined;
     
@@ -290,7 +293,8 @@ threatRouter.get("/articles", async (req, res) => {
       keywordIds,
       startDate,
       endDate,
-      userId
+      userId,
+      limit
     });
     
     res.json(articles);
@@ -536,3 +540,5 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
   }
 });
+
+

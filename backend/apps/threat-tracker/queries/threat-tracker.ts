@@ -66,6 +66,7 @@ export interface IStorage {
     startDate?: Date;
     endDate?: Date;
     userId?: string;
+    limit?: number;
   }): Promise<ThreatArticle[]>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(
@@ -90,12 +91,12 @@ export const storage: IStorage = {
   // SOURCES
   getSources: async (userId: string) => {
     try {
-      console.log("[🔎 SOURCES] userId", userId)
+      console.log("[🔎 SOURCES] userId", userId);
 
       const query = db
         .select()
         .from(threatSources)
-        .where(eq(threatSources.userId,userId))
+        .where(eq(threatSources.userId, userId));
 
       return await query.execute();
     } catch (error) {
@@ -106,12 +107,12 @@ export const storage: IStorage = {
 
   getDefaultSources: async (userId: string) => {
     try {
-      console.log("[🔎 DEFAULT SOURCES] userId", userId)
+      console.log("[🔎 DEFAULT SOURCES] userId", userId);
 
       const query = db
         .select()
         .from(threatSources)
-        .where(eq(threatSources.isDefault,true))
+        .where(eq(threatSources.isDefault, true));
 
       return await query.execute();
     } catch (error) {
@@ -145,8 +146,34 @@ export const storage: IStorage = {
       return await db
         .select()
         .from(threatSources)
-        .where(and(...conditions))
+
+        .where(
+          and(
+            eq(threatSources.isDefault, true),
+            isNull(threatSources.userId),
+            eq(threatSources.active, true),
+            eq(threatSources.includeInAutoScrape, true),
+          ),
+        )
         .execute();
+
+      let userSources: ThreatSource[] = [];
+      if (userId) {
+        userSources = await db
+          .select()
+          .from(threatSources)
+          .where(
+            and(
+              eq(threatSources.userId, userId),
+              eq(threatSources.active, true),
+              eq(threatSources.includeInAutoScrape, true),
+            ),
+          )
+          .execute();
+      }
+
+      // Combine default and user sources
+      return [...defaultSources, ...userSources];
     } catch (error) {
       console.error("Error fetching auto-scrape threat sources:", error);
       return [];
@@ -183,10 +210,59 @@ export const storage: IStorage = {
 
   deleteSource: async (id: string) => {
     try {
+      // First check if this is a default source
+      const source = await db
+        .select()
+        .from(threatSources)
+        .where(eq(threatSources.id, id))
+        .execute();
+
+      if (source.length > 0 && source[0].isDefault) {
+        throw new Error("Cannot delete default sources");
+      }
+
+      // Check if there are associated threat articles
+      const associatedArticles = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+
+      const articleCount = associatedArticles[0]?.count || 0;
+
+      if (articleCount > 0 && !deleteArticles) {
+        // Return special error object with article count for frontend handling
+        const error = new Error(`ARTICLES_EXIST`);
+        (error as any).articleCount = articleCount;
+        throw error;
+      }
+
+      // Delete associated articles if requested
+      if (deleteArticles && articleCount > 0) {
+        await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
+      }
+
+      // Delete the source
       await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
       console.error("Error deleting threat source:", error);
       throw error;
+    }
+  },
+
+  // Add method to get article count for a source
+  getSourceArticleCount: async (id: string) => {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error("Error getting source article count:", error);
+      return 0;
     }
   },
 
@@ -373,7 +449,7 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId } = options;
+      const { search, keywordIds, startDate, endDate, userId, limit } = options;
       let query = db.select().from(threatArticles);
 
       // Build WHERE clause based on search parameters
@@ -442,12 +518,12 @@ export const storage: IStorage = {
         }
       }
 
-      // Add date range filters
+      // Add date range filters - use publishDate for filtering
       if (startDate) {
-        conditions.push(sql`${threatArticles.scrapeDate} >= ${startDate}`);
+        conditions.push(sql`${threatArticles.publishDate} >= ${startDate}`);
       }
       if (endDate) {
-        conditions.push(sql`${threatArticles.scrapeDate} <= ${endDate}`);
+        conditions.push(sql`${threatArticles.publishDate} <= ${endDate}`);
       }
 
       // Apply conditions if any exist
@@ -455,11 +531,14 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Order by most recent
-      const orderedQuery = query.orderBy(desc(threatArticles.scrapeDate));
+      // Default ordering by publish date (most recent first)
+      const orderedQuery = query.orderBy(desc(threatArticles.publishDate));
+
+      // Add limit if specified
+      const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
 
       // Execute the query
-      const result = await orderedQuery.execute();
+      const result = await finalQuery.execute();
       return result;
     } catch (error) {
       console.error("Error fetching threat articles:", error);
