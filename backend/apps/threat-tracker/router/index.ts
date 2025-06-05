@@ -27,11 +27,12 @@ function getUserId(req: any): string | undefined {
 
 // Sources API
 threatRouter.get("/sources", async (req, res) => {
-  reqLog(req, "GET /sources");
+  reqLog(req, "🔎 GET /sources");
   try {
     const userId = getUserId(req);
-    const sources = await storage.getSources(userId);
-    res.json(sources);
+    const user_sources = await storage.getSources(userId);
+    const default_sources = await storage.getDefaultSources(userId);
+    res.json([...user_sources, ...default_sources]);
   } catch (error: any) {
     console.error("Error fetching sources:", error);
     res.status(500).json({ error: error.message || "Failed to fetch sources" });

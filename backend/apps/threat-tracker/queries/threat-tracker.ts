@@ -33,7 +33,8 @@ async function executeRawSql<T>(
 
 export interface IStorage {
   // Sources
-  getSources(userId?: string): Promise<ThreatSource[]>;
+  getSources(userId: string): Promise<ThreatSource[]>;
+  getDefaultSources(userId: string): Promise<ThreatSource[]>;
   getSource(id: string): Promise<ThreatSource | undefined>;
   getAutoScrapeSources(userId?: string): Promise<ThreatSource[]>;
   createSource(source: InsertThreatSource): Promise<ThreatSource>;
@@ -88,24 +89,32 @@ export interface IStorage {
 
 export const storage: IStorage = {
   // SOURCES
-  getSources: async (userId?: string) => {
+  getSources: async (userId: string) => {
     try {
-      // Get default sources (is_default = true, userId = null) and user-specific sources
-      const defaultSources = await db
+      console.log("[🔎 SOURCES] userId", userId);
+
+      const query = db
         .select()
         .from(threatSources)
-        .where(
-          and(eq(threatSources.isDefault, true), isNull(threatSources.userId)),
-        )
-        .execute();
+        .where(eq(threatSources.userId, userId));
 
-      const query = db.select().from(threatSources);
+      return await query.execute();
+    } catch (error) {
+      console.error("Error fetching threat sources:", error);
+      return [];
+    }
+  },
 
-      const finalQuery = conditions.length
-        ? query.where(and(...conditions))
-        : query;
+  getDefaultSources: async (userId: string) => {
+    try {
+      console.log("[🔎 DEFAULT SOURCES] userId", userId);
 
-      return await finalQuery.execute();
+      const query = db
+        .select()
+        .from(threatSources)
+        .where(eq(threatSources.isDefault, true));
+
+      return await query.execute();
     } catch (error) {
       console.error("Error fetching threat sources:", error);
       return [];

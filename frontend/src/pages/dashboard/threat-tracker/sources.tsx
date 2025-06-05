@@ -883,6 +883,9 @@ export default function Sources() {
     const defaultSources = localSources.filter(source => source.isDefault);
     const userSources = localSources.filter(source => !source.isDefault);
 
+    console.log(localSources)
+    console.log(defaultSources)
+
     return (
       <div className="space-y-6">
         {/* Default Sources Section - Compact Display */}
