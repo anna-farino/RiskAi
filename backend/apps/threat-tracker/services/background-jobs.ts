@@ -8,6 +8,7 @@ import { extractArticleLinks, scrapeUrl } from "./scraper";
 import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
+import { normalizeUrl } from "./url-utils";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
@@ -162,6 +163,8 @@ async function processArticle(
 
     // Store the normalized URL to prevent future duplicates
     const urlToStore = normalizeUrl(articleUrl);
+
+    log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}`)
 
     // Store the article in the database
     const newArticle = await storage.createArticle({
