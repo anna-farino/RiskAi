@@ -11,6 +11,7 @@ import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 import { loadHTMXContent, type HTMXDetectionResult } from './htmx-handler';
 import { analyzeDynamicContent, executeDynamicLoadingStrategy } from './dynamic-content-detector';
+import { NavigationHandler } from './navigation-handler';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -138,19 +139,36 @@ async function setupPage(): Promise<Page> {
  * Extract article links as a structured HTML
  */
 async function extractArticleLinksStructured(page: Page, existingLinkData?: Array<{href: string, text: string, parentText: string, parentClass: string}>): Promise<string> {
-  // Wait for any links to appear
-  await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
-    log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
-  });
+  // Create navigation handler for robust execution
+  const navHandler = new NavigationHandler(page);
+
+  // Wait for page to be ready
+  await navHandler.waitForPageReady();
+
+  // Wait for any links to appear with navigation protection
+  await navHandler.safeAction(async () => {
+    await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
+      log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
+    });
+  }, "wait-for-links");
   
-  // Analyze page for dynamic content patterns
-  const dynamicAnalysis = await analyzeDynamicContent(page);
+  // Analyze page for dynamic content patterns with protection
+  const dynamicAnalysis = await navHandler.safeAction(
+    () => analyzeDynamicContent(page),
+    "dynamic-analysis"
+  );
   
-  // Execute appropriate loading strategy based on analysis
-  await executeDynamicLoadingStrategy(page, dynamicAnalysis);
+  // Execute appropriate loading strategy based on analysis with protection
+  await navHandler.safeAction(
+    () => executeDynamicLoadingStrategy(page, dynamicAnalysis),
+    "dynamic-loading-strategy"
+  );
   
-  // Also run HTMX-specific loading if detected
-  const htmxData = await loadHTMXContent(page);
+  // Also run HTMX-specific loading if detected with protection
+  const htmxData = await navHandler.safeAction(
+    () => loadHTMXContent(page),
+    "htmx-loading"
+  );
 
   // Use existing link data if provided, otherwise extract from page
   let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string, isInjected?: boolean}>;
@@ -173,7 +191,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     ).catch(() => log('[ThreatTracker] Timeout waiting for loading indicators', "scraper"));
 
     // Extract all links after ensuring content is loaded, including from injected content
-    articleLinkData = await page.evaluate(() => {
+    articleLinkData = await navHandler.safeEvaluate(() => {
       // Get all links from main document and injected content
       const allSelectors = [
         'a', // Standard links
@@ -200,7 +218,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
         parentClass: link.parentElement?.className || '',
         isInjected: link.closest('.scraper-injected-content, .scraper-injected-htmx-content, .dynamic-injected-content') !== null
       })).filter(link => link.href); // Only keep links with href attribute
-    });
+    }, "extract-links");
 
     log(`[ThreatTracker] Extracted ${articleLinkData.length} potential article links`, "scraper");
 
@@ -219,11 +237,17 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
         log(`[ThreatTracker] Running additional dynamic content loading for sparse results...`, "scraper");
         
         // Run dynamic loading strategy again with extended time
-        await executeDynamicLoadingStrategy(page, dynamicAnalysis);
+        await navHandler.safeAction(
+          () => executeDynamicLoadingStrategy(page, dynamicAnalysis),
+          "additional-dynamic-loading"
+        );
         
         // Try additional HTMX loading if applicable
         if (htmxData.hasHxAttributes || htmxData.scriptLoaded) {
-          await loadHTMXContent(page);
+          await navHandler.safeAction(
+            () => loadHTMXContent(page),
+            "additional-htmx-loading"
+          );
         }
         
         // Wait for any additional content to render
@@ -249,7 +273,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Try extracting links again after all our techniques
-    articleLinkData = await page.evaluate(() => {
+    articleLinkData = await navHandler.safeEvaluate(() => {
       // Get all links from main document and injected content
       const allSelectors = [
         'a', // Standard links
@@ -276,7 +300,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
         parentClass: link.parentElement?.className || '',
         isInjected: link.closest('.scraper-injected-content, .scraper-injected-htmx-content, .dynamic-injected-content') !== null
       })).filter(link => link.href); // Only keep links with href attribute
-    });
+    }, "extract-links-retry");
     
     log(`[ThreatTracker] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
     
