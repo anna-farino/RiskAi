@@ -141,6 +141,18 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
+  // Check for HTMX usage on the page (do this regardless of existing link data)
+  const hasHtmx = await page.evaluate(() => {
+    return {
+      scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
+      hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
+      hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+        url: el.getAttribute('hx-get'),
+        trigger: el.getAttribute('hx-trigger') || 'click'
+      }))
+    };
+  });
+
   // Use existing link data if provided, otherwise extract from page
   let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
   
@@ -149,18 +161,6 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     articleLinkData = existingLinkData;
   } else {
     log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
-
-    // Check for HTMX usage on the page
-    const hasHtmx = await page.evaluate(() => {
-      return {
-        scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
-        hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
-        hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-          url: el.getAttribute('hx-get'),
-          trigger: el.getAttribute('hx-trigger') || 'click'
-        }))
-      };
-    });
 
     if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
       log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
