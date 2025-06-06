@@ -66,7 +66,75 @@ function findChromePath() {
 const CHROME_PATH = findChromePath();
 console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 
-// REMOVED global browser instance and getBrowser/setupPage for per-call browser model
+// Shared browser instance to reuse across requests (like Threat Tracker)
+let browser: Browser | null = null;
+
+/**
+ * Get or create a browser instance (Threat Tracker approach)
+ */
+async function getBrowser(): Promise<Browser> {
+  if (!browser) {
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess',
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--disable-gl-drawing-for-tests',
+          '--mute-audio',
+          '--no-zygote',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--ignore-certificate-errors',
+          '--allow-running-insecure-content',
+          '--disable-web-security',
+          '--disable-blink-features=AutomationControlled'
+        ],
+        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        timeout: 180000 // 3 minute timeout on browser launch
+      });
+      log("[scrapePuppeteer][getBrowser] Browser launched successfully", "scraper");
+    } catch (error: any) {
+      log(`[scrapePuppeteer][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
+      throw error;
+    }
+  }
+  return browser;
+}
+
+/**
+ * Setup a new page with stealth protections (Threat Tracker approach)
+ */
+async function setupPage(): Promise<Page> {
+  log(`[scrapePuppeteer][setupPage] Setting up new page`, "scraper");
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  // Set viewport
+  await page.setViewport({ width: 1920, height: 1080 });
+
+  // Set user agent
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+
+  // Set extra headers
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  });
+
+  // Set longer timeouts
+  page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(60000);
+
+  return page;
+}
 
 // This function expects a fully prepared page and is safe.
 async function extractArticleLinks(page: Page): Promise<string> {
@@ -340,391 +408,53 @@ export async function scrapePuppeteer(
   isArticlePage: boolean = false,
   scrapingConfig: any
 ): Promise<string> {
-  let browser: Browser | null = null;
+  log(`[scrapePuppeteer] Starting to scrape ${url}${isArticlePage ? ' as article page' : ''}`);
+  
   let page: Page | null = null;
-  log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
-
-  // Simple URL validation
-  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-    throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
-  }
-
+  
   try {
-    // Launch the browser afresh for every call for lowest memory use
-    log('[scrapePuppeteer] 🟢 Launching new browser instance');
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080',
-        '--disable-features=site-per-process,AudioServiceOutOfProcess,VizDisplayCompositor',
-        '--disable-software-rasterizer',
-        '--disable-extensions',
-        '--disable-gl-drawing-for-tests',
-        '--mute-audio',
-        '--no-zygote',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--ignore-certificate-errors',
-        '--allow-running-insecure-content',
-        '--disable-web-security',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-        '--disable-features=TranslateUI',
-        '--disable-ipc-flooding-protection',
-        '--disable-hang-monitor',
-        '--disable-client-side-phishing-detection',
-        '--disable-popup-blocking',
-        '--disable-prompt-on-repost',
-        '--disable-sync',
-        '--metrics-recording-only',
-        '--no-crash-upload',
-        '--disable-background-networking'
-      ],
-      executablePath: CHROME_PATH || undefined,
-      timeout: 60000, // Reduce browser launch timeout
-    });
-    log('[scrapePuppeteer] ✅ Browser launched');
-    page = await browser.newPage();
-    log('[scrapePuppeteer] ✅ New page opened');
-
-    // Set up enhanced request interception for stealth
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const resourceType = req.resourceType();
-      const url = req.url();
-      
-      // Allow Cloudflare scripts but block other heavy resources
-      if (url.includes('cloudflare') || url.includes('cf-ray')) {
-        req.continue();
-      } else if (resourceType === 'stylesheet' || 
-          resourceType === 'font' || 
-          resourceType === 'image' || 
-          resourceType === 'media' ||
-          url.includes('google-analytics') ||
-          url.includes('googletagmanager') ||
-          url.includes('facebook.net') ||
-          url.includes('twitter.com') ||
-          url.includes('instagram.com') ||
-          url.includes('youtube.com') ||
-          url.includes('doubleclick') ||
-          url.includes('googlesyndication')) {
-        req.abort();
-      } else {
-        // Add realistic headers to requests
-        const headers = {
-          ...req.headers(),
-          'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-          'sec-ch-ua-mobile': '?0',
-          'sec-ch-ua-platform': '"Windows"',
-          'sec-fetch-dest': 'document',
-          'sec-fetch-mode': 'navigate',
-          'sec-fetch-site': 'none',
-          'sec-fetch-user': '?1',
-          'upgrade-insecure-requests': '1'
-        };
-        req.continue({ headers });
-      }
-    });
-    log('[scrapePuppeteer] ✅ Request interception configured');
-
-    // Set viewport
-    await page.setViewport({ width: 1920, height: 1080 });
-
-    // Enhanced browser fingerprint obfuscation
-    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-    await page.setUserAgent(userAgent);
-    
-    // Set comprehensive headers to mimic real browser
-    await page.setExtraHTTPHeaders({
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Cache-Control': 'max-age=0',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"Windows"'
-    });
-    
-    // Override webdriver detection
-    await page.evaluateOnNewDocument(() => {
-      // Remove webdriver property
-      Object.defineProperty(navigator, 'webdriver', {
-        get: () => undefined,
-      });
-      
-      // Override the plugins property to add fake plugins
-      Object.defineProperty(navigator, 'plugins', {
-        get: () => [1, 2, 3, 4, 5],
-      });
-      
-      // Override the languages property
-      Object.defineProperty(navigator, 'languages', {
-        get: () => ['en-US', 'en'],
-      });
-      
-      // Mock chrome object
-      (window as any).chrome = {
-        runtime: {},
-      };
-      
-      // Override permissions query
-      const originalQuery = window.navigator.permissions.query;
-      window.navigator.permissions.query = (parameters) => {
-        if (parameters.name === 'notifications') {
-          return Promise.resolve({ 
-            state: Notification.permission,
-            name: 'notifications',
-            onchange: null,
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            dispatchEvent: () => true
-          } as PermissionStatus);
-        }
-        return originalQuery(parameters);
-      };
-    });
-    
-    log('[scrapePuppeteer] Page setup complete with enhanced stealth headers');
-
-    // Enable JavaScript and cookies
-    try {
-      await page.setJavaScriptEnabled(true);
-    } catch (error: any) {
-      console.error("[scrapePuppeteer] Error enabling JavaScript (non-critical):", error);
-      // Continue despite this error
+    // Check for common URL errors
+    if (!url.startsWith("http")) {
+      url = "https://" + url;
     }
 
-    // Navigate to URL with progressive fallback strategies
-    let response = null;
-    let navigationSuccess = false;
+    page = await setupPage();
+
+    // Navigate to page using Threat Tracker's proven approach
+    const response = await page.goto(url, { waitUntil: "networkidle2" });
+    log(`[scrapePuppeteer] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`);
     
-    // Strategy 1: Try domcontentloaded first (most reliable for challenging sites)
-    try {
-      console.log('[Puppeteer] Attempting navigation with domcontentloaded...');
-      response = await page.goto(url, { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 20000 
-      });
-      navigationSuccess = true;
-      console.log(`[Puppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`);
-    } catch (error: any) {
-      console.log(`[Puppeteer] domcontentloaded failed: ${error.message}`);
-    }
-    
-    // Strategy 2: Fallback to load event only
-    if (!navigationSuccess) {
-      try {
-        console.log('[Puppeteer] Attempting navigation with load event only...');
-        response = await page.goto(url, { 
-          waitUntil: 'load', 
-          timeout: 15000 
-        });
-        navigationSuccess = true;
-        console.log(`[Puppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`);
-      } catch (error: any) {
-        console.log(`[Puppeteer] load event failed: ${error.message}`);
-      }
-    }
-    
-    // Strategy 3: Try with no wait condition as last resort
-    if (!navigationSuccess) {
-      try {
-        console.log('[Puppeteer] Attempting navigation with no wait condition...');
-        response = await page.goto(url, { 
-          timeout: 10000 
-        });
-        navigationSuccess = true;
-        console.log(`[Puppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`);
-        
-        // Give the page a moment to start loading content
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (error: any) {
-        console.error("[scrapePuppeteer] All navigation strategies failed:", error);
-        throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
-      }
-    }
-    
-    // Check response status
     if (response && !response.ok()) {
-      console.warn(`[Puppeteer] Warning: Response status is not OK: ${response.status()}`);
-      // Don't throw error for 4xx/5xx status codes, continue with scraping
+      log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`);
     }
 
-    // Wait for page to stabilize and check for anti-bot challenges
-    console.log('[Puppeteer] Waiting for page to stabilize...');
-    
-    // Smart wait - check if page is actually ready instead of fixed timeout
-    try {
-      await page.waitForFunction(
-        () => {
-          // Check if document is ready and has meaningful content
-          return document.readyState === 'complete' && 
-                 document.body && 
-                 document.body.children.length > 0;
-        },
-        { timeout: 10000 }
+    // Wait for potential challenges to be processed
+    log('[scrapePuppeteer] Waiting for page to stabilize...', "scraper");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Check for bot protection using Threat Tracker's approach
+    const botProtectionCheck = await page.evaluate(() => {
+      return (
+        document.body.innerHTML.includes('_Incapsula_Resource') ||
+        document.body.innerHTML.includes('Incapsula') ||
+        document.body.innerHTML.includes('captcha') ||
+        document.body.innerHTML.includes('Captcha') ||
+        document.body.innerHTML.includes('cloudflare') ||
+        document.body.innerHTML.includes('CloudFlare')
       );
-      console.log('[Puppeteer] Page appears ready');
-      
-      // Additional wait for content to populate
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-    } catch (error) {
-      console.log('[Puppeteer] Page readiness check timed out, continuing anyway');
-    }
-
-    // Additional short wait for any remaining dynamic content
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Check for various anti-bot protection systems with enhanced detection
-    const protectionCheck = await page.evaluate(() => {
-      const bodyText = (document.body && document.body.textContent) || '';
-      const bodyHTML = (document.body && document.body.innerHTML) || '';
-      const title = document.title || '';
-      
-      // Enhanced Cloudflare detection
-      const cloudflareIndicators = [
-        bodyText.includes('Checking your browser'),
-        bodyText.includes('DDoS protection'),
-        bodyText.includes('Ray ID:'),
-        bodyText.includes('Cloudflare'),
-        bodyHTML.includes('cf-browser-verification'),
-        bodyHTML.includes('__cf_bm'),
-        bodyHTML.includes('cf-ray'),
-        title.includes('Just a moment'),
-        title.includes('Attention Required'),
-        // Check for minimal content that suggests a challenge page
-        (bodyText.trim().length < 500 && bodyHTML.includes('script')),
-        // Check for typical challenge page structure
-        bodyHTML.includes('challenge-platform'),
-        bodyHTML.includes('challenge-stage')
-      ];
-      
-      const cloudflareDetected = cloudflareIndicators.some(indicator => indicator);
-      
-      return {
-        incapsula: bodyHTML.includes('/_Incapsula_Resource') || bodyHTML.includes('Incapsula'),
-        cloudflare: cloudflareDetected,
-        generic: bodyText.includes('Please wait') || bodyText.includes('Verifying you are human'),
-        hasContent: bodyText.trim().length > 500, // Increased threshold
-        title: title,
-        contentLength: bodyText.trim().length,
-        bodyHasScripts: bodyHTML.includes('<script'),
-        suspiciouslyShort: bodyText.trim().length < 500 && bodyHTML.includes('<script')
-      };
     });
 
-    console.log(`[Puppeteer] Protection check: ${JSON.stringify(protectionCheck)}`);
-
-    // Handle detected protection or insufficient content
-    if (protectionCheck.incapsula || protectionCheck.cloudflare || protectionCheck.generic || protectionCheck.suspiciouslyShort) {
-      console.log('[Puppeteer] Protection or insufficient content detected, performing enhanced evasion');
-      console.log(`[Puppeteer] Content length: ${protectionCheck.contentLength}, Cloudflare: ${protectionCheck.cloudflare}`);
+    if (botProtectionCheck) {
+      log('[scrapePuppeteer] Bot protection detected, performing evasive actions', "scraper");
+      // Perform some human-like actions
+      await page.mouse.move(50, 50);
+      await page.mouse.down();
+      await page.mouse.move(100, 100);
+      await page.mouse.up();
       
-      // Enhanced human-like behavior for Cloudflare
-      console.log('[Puppeteer] Performing human simulation...');
-      
-      // Random mouse movements across the page
-      for (let i = 0; i < 3; i++) {
-        await page.mouse.move(
-          Math.random() * 1200 + 100, 
-          Math.random() * 800 + 100
-        );
-        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
-      }
-      
-      // Simulate scrolling behavior
-      await page.evaluate(() => {
-        window.scrollTo(0, Math.random() * 500);
-      });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Try clicking on the page to trigger any hidden challenges
-      try {
-        await page.click('body');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (e) {
-        console.log('[Puppeteer] Click failed, continuing');
-      }
-      
-      // Wait longer for Cloudflare to process
-      console.log('[Puppeteer] Waiting for challenge resolution...');
-      const maxWaitTime = 30000; // 30 seconds
-      const startTime = Date.now();
-      
-      while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Check if content has appeared
-        const currentCheck = await page.evaluate(() => {
-          const text = (document.body && document.body.textContent) || '';
-          const title = document.title || '';
-          return {
-            contentLength: text.trim().length,
-            title: title,
-            hasArticleContent: text.trim().length > 1000,
-            isChallengePage: title.includes('Just a moment') || text.includes('Checking your browser')
-          };
-        });
-        
-        console.log(`[Puppeteer] Current content length: ${currentCheck.contentLength}, title: "${currentCheck.title}"`);
-        
-        if (currentCheck.hasArticleContent && !currentCheck.isChallengePage) {
-          console.log('[Puppeteer] Content successfully loaded after challenge');
-          break;
-        }
-      }
-      
-      // Final attempt: try a different approach if still blocked
-      const finalCheck = await page.evaluate(() => {
-        const text = (document.body && document.body.textContent || '').trim();
-        return {
-          contentLength: text.length,
-          hasCloudflareIndicators: document.title.includes('Just a moment') || 
-                                   text.includes('Checking your browser') ||
-                                   text.includes('Ray ID:'),
-          pageUrl: window.location.href
-        };
-      });
-      
-      if (finalCheck.contentLength < 500 || finalCheck.hasCloudflareIndicators) {
-        console.log('[Puppeteer] Advanced protection detected, attempting alternative approaches');
-        
-        // Try disabling JavaScript to bypass some protections
-        try {
-          await page.setJavaScriptEnabled(false);
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          const noJsCheck = await page.evaluate(() => {
-            return (document.body && document.body.textContent || '').trim().length;
-          });
-          
-          if (noJsCheck > 500) {
-            console.log('[Puppeteer] Success with JavaScript disabled');
-          } else {
-            console.log('[Puppeteer] No improvement with JavaScript disabled, re-enabling');
-            await page.setJavaScriptEnabled(true);
-          }
-        } catch (noJsError) {
-          console.log('[Puppeteer] JavaScript disable attempt failed');
-          await page.setJavaScriptEnabled(true);
-        }
-      }
+      // Reload the page and wait again
+      await page.reload({ waitUntil: 'networkidle2' });
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     // For article pages, just extract the content
@@ -890,25 +620,18 @@ export async function scrapePuppeteer(
     return await extractArticleLinks(page);
 
   } catch (error: any) {
-    console.error("[scrapePuppeteer] Fatal error during scraping:", error);
+    log(`[scrapePuppeteer] Fatal error during scraping: ${error.message}`, "scraper-error");
     throw new Error(`Puppeteer scraping failed: ${error?.message || String(error)}`);
   } finally {
     if (page) {
       try {
         await page.close();
-        console.log('[scrapePuppeteer] 🟡 Page closed successfully');
+        log('[scrapePuppeteer] Page closed successfully', "scraper");
       } catch (closeError: any) {
-        console.error('[scrapePuppeteer] Error closing page:', closeError?.message || String(closeError));
+        log(`[scrapePuppeteer] Error closing page: ${closeError?.message || String(closeError)}`, "scraper-error");
       }
     }
-    if (browser) {
-      try {
-        await browser.close();
-        console.log('[scrapePuppeteer] 🔴 Browser closed successfully');
-      } catch (closeError: any) {
-        console.error('[scrapePuppeteer] Error closing browser:', closeError?.message || String(closeError));
-      }
-    }
+    // Don't close browser - reuse like Threat Tracker
   }
 }
 
