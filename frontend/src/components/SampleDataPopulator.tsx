@@ -86,7 +86,8 @@ export default function SampleDataPopulator() {
   };
 
   const checkEnvironmentSafety = () => {
-    const viteEnv = process.env.NODE_ENV;
+    // Check VITE_ENV environment variable
+    const viteEnv = import.meta.env?.VITE_ENV;
     if (viteEnv === 'production') {
       return {
         safe: false,
