@@ -627,8 +627,25 @@ Content: ${basicContent.content}`;
       }
     }
 
-    // For source/listing pages, extract article links
-    return await extractArticleLinks(page);
+    // For source/listing pages, extract article links with timeout protection
+    log('[scrapePuppeteer] Starting article link extraction for source page', "scraper");
+    
+    try {
+      // Add timeout protection for link extraction
+      const linkExtractionPromise = extractArticleLinks(page);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Link extraction timeout')), 30000)
+      );
+      
+      return await Promise.race([linkExtractionPromise, timeoutPromise]);
+    } catch (error: any) {
+      log(`[scrapePuppeteer] Link extraction failed: ${error.message}`, "scraper");
+      
+      // Fallback: return basic page HTML for link detection
+      const basicHtml = await page.content();
+      log(`[scrapePuppeteer] Returning basic HTML content (${basicHtml.length} chars)`, "scraper");
+      return basicHtml;
+    }
 
   } catch (error: any) {
     log(`[scrapePuppeteer] Fatal error during scraping: ${error.message}`, "scraper-error");
