@@ -474,10 +474,23 @@ export default function Keywords() {
   // Delete keyword mutation with optimistic updates
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(
-        "DELETE",
-        `${serverUrl}/api/threat-tracker/keywords/${id}`,
-      );
+      try {
+        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords/${id}`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete keyword: ${response.statusText}`);
+        }
+        
+        // Don't try to parse JSON - DELETE endpoints typically return empty responses
+        return { success: true, id };
+      } catch (error) {
+        console.error("Delete keyword error:", error);
+        throw error;
+      }
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
