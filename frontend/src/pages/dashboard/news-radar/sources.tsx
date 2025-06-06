@@ -1358,7 +1358,7 @@ toast({
                     <TableCell className="text-center w-[25%] sm:w-[15%] p-2 sm:p-4">
                       <div className="flex justify-center items-center min-w-0">
                         <Switch
-                          id={`auto-scrape-${source.id}`}
+                          id={"auto-scrape-" + source.id}
                           checked={source.includeInAutoScrape || false}
                           onCheckedChange={(checked) => 
                             toggleAutoScrape.mutate({ id: source.id, include: checked })
