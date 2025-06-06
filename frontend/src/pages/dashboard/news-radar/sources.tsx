@@ -932,6 +932,43 @@ export default function Sources() {
     setEditDialogOpen(true);
   };
 
+  // Handle delete source with confirmation for associated articles
+  async function handleDeleteSource(source: Source) {
+    try {
+      // Try to delete the source first to check if there are associated articles
+      await deleteSource.mutateAsync({ id: source.id });
+    } catch (error: any) {
+      // Check for ARTICLES_EXIST error - the error data is attached to the error object
+      const errorData = error?.data || {};
+      const errorMessage = errorData?.error || error?.message;
+      
+      if (errorMessage === "ARTICLES_EXIST") {
+        // Show confirmation dialog
+        setDeleteConfirmation({
+          source,
+          articleCount: parseInt(errorData.articleCount || '0'),
+        });
+        return; // Don't show error toast
+      }
+      
+      // For other errors, let the mutation's onError handle it
+      throw error;
+    }
+  }
+
+  // Handle confirmed deletion with articles
+  function handleConfirmedDelete(deleteArticles: boolean) {
+    if (deleteConfirmation) {
+      if (deleteArticles) {
+        deleteSource.mutate({ 
+          id: deleteConfirmation.source.id, 
+          deleteArticles: true 
+        });
+      }
+      setDeleteConfirmation(null);
+    }
+  }
+
   return (
     <div className={cn(
       "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
@@ -942,13 +979,48 @@ export default function Sources() {
         setOpen={setDeleteDialogOpen}
         action={() => {
           if (sourceToDelete) {
-            deleteSource.mutate(sourceToDelete);
+            deleteSource.mutate({ id: sourceToDelete });
             setSourceToDelete(null);
           }
         }}
       >
         <span></span>
       </DeleteAlertDialog>
+
+      {/* Articles exist confirmation dialog */}
+      <Dialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete Source with Articles</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-300">
+              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated articles.
+            </p>
+            <p className="text-sm text-slate-300">
+              Do you want to delete the source and all its articles?
+            </p>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeleteConfirmation(null)}
+                className="bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => handleConfirmedDelete(true)}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete Source & Articles
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit source dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -1356,10 +1428,7 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setSourceToDelete(source.id);
-                            setDeleteDialogOpen(true);
-                          }}
+                          onClick={() => handleDeleteSource(source)}
                           disabled={deleteSource.isPending}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Delete source"
@@ -1414,10 +1483,7 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setSourceToDelete(source.id);
-                            setDeleteDialogOpen(true);
-                          }}
+                          onClick={() => handleDeleteSource(source)}
                           disabled={deleteSource.isPending}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
                           title="Delete source"
