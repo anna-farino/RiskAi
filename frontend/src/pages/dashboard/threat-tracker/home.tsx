@@ -85,9 +85,12 @@ export default function ThreatHome() {
         return [];
       }
     },
-    staleTime: 0, // Always refetch on component mount
-    refetchOnMount: true, // Force refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when window regains focus
+    staleTime: 30000, // Keep data fresh for 30 seconds to reduce flicker
+    refetchOnMount: "always", // Always refetch but show cached data immediately
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    placeholderData: (previousData) => previousData, // Show previous data while loading
   });
 
   // Build query string for filtering

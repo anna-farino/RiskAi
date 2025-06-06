@@ -163,9 +163,12 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 0, // Always refetch on component mount
-    refetchOnMount: true, // Force refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when window regains focus
+    staleTime: 30000, // Keep data fresh for 30 seconds to reduce flicker
+    refetchOnMount: "always", // Always refetch but show cached data immediately
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    placeholderData: (previousData) => previousData, // Show previous data while loading
   });
 
   // Update local state whenever query data changes
@@ -294,10 +297,7 @@ export default function Keywords() {
         active: true,
       });
       
-      // Invalidate and refetch to ensure all components have fresh data
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
+      // Cache is already updated with actual data, no need for invalidation
     },
   });
 
@@ -363,11 +363,11 @@ export default function Keywords() {
           )
         );
         
-        // Update React Query cache
+        // Update React Query cache with final data
         queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
           prev?.map(keyword => 
             keyword.id === context.tempId ? (data as ThreatKeyword) : keyword
-          ) || []
+          ) || [data as ThreatKeyword]
         );
       }
       
@@ -377,11 +377,6 @@ export default function Keywords() {
       });
       setKeywordDialogOpen(false);
       form.reset();
-      
-      // Invalidate and refetch to ensure all components have fresh data
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
     },
   });
 
@@ -531,10 +526,7 @@ export default function Keywords() {
         description: "Your keyword has been deleted successfully.",
       });
       
-      // Invalidate and refetch to ensure all components have fresh data
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
+      // Cache is already updated in onMutate, no need for invalidation
     },
   });
 
@@ -592,10 +584,7 @@ export default function Keywords() {
         description: "Keyword status has been updated successfully.",
       });
       
-      // Invalidate and refetch to ensure all components have fresh data
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
+      // Cache is already updated in onMutate, no need for invalidation
     },
   });
 
