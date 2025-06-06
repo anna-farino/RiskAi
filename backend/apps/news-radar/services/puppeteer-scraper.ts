@@ -471,9 +471,8 @@ export async function scrapePuppeteer(
       log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Minimal wait to allow page to settle
-    log('[scrapePuppeteer] Brief stabilization wait...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Skip content waiting - extract immediately after navigation
+    log('[scrapePuppeteer] Proceeding directly to content extraction', "scraper");
 
     // For article pages, use immediate extraction to bypass bot detection
     if (isArticlePage) {
@@ -482,87 +481,45 @@ export async function scrapePuppeteer(
       // Immediate content extraction without triggering bot detection
       try {
         const articleContent = await page.evaluate(() => {
-          // Direct extraction from available DOM without complex manipulation
+          // Fast extraction strategy optimized for BleepingComputer and similar sites
           
-          // Get title from multiple sources
+          // Get title - prioritize H1 for speed
           const title = document.querySelector('h1')?.textContent?.trim() || 
                        document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 
                        document.title.split(' - ')[0].trim() ||
                        '(No title found)';
           
-          // Get author from meta tags first (most reliable)
+          // Get author - quick meta tag check first
           const author = document.querySelector('meta[name="author"]')?.getAttribute('content') ||
-                        document.querySelector('meta[property="article:author"]')?.getAttribute('content') ||
-                        document.querySelector('.author, .byline, [rel="author"]')?.textContent?.trim() ||
+                        document.querySelector('.author')?.textContent?.trim() ||
                         '(No author found)';
           
-          // Get date from meta tags
-          const date = document.querySelector('meta[property="article:published_time"]')?.getAttribute('content') ||
-                      document.querySelector('meta[name="datePublished"]')?.getAttribute('content') ||
-                      document.querySelector('time')?.getAttribute('datetime') ||
-                      document.querySelector('time')?.textContent?.trim() ||
-                      '(No date found)';
+          // Skip date extraction for speed
+          const date = '(No date found)';
           
-          // Extract content using a progressive approach
+          // Streamlined content extraction for speed
           let content = '';
           
-          // Try JSON-LD first (fastest)
-          try {
-            const jsonScript = document.querySelector('script[type="application/ld+json"]');
-            if (jsonScript?.textContent) {
-              const data = JSON.parse(jsonScript.textContent);
-              if (data.articleBody && data.articleBody.length > 200) {
-                content = data.articleBody;
-              } else if (data.description && data.description.length > 100) {
-                content = data.description;
-              }
+          // Fast DOM selector approach - check most common patterns first
+          const quickSelectors = ['article', '.articleBody', 'main', '.content'];
+          for (const selector of quickSelectors) {
+            const element = document.querySelector(selector);
+            if (element?.textContent && element.textContent.length > 200) {
+              content = element.textContent.trim();
+              break;
             }
-          } catch (e) {
-            // Continue to DOM extraction
           }
           
-          // If JSON-LD didn't provide content, try comprehensive DOM selectors
+          // Quick paragraph fallback if no container found
           if (!content) {
-            const selectors = [
-              // BleepingComputer specific
-              '.articleBody', '.article_body', '#article_body',
-              // Common article selectors
-              'article', '.article-content', '.article-body', '.post-content', '.entry-content',
-              // Main content areas
-              'main', '.main-content', '#main-content', '.content', '#content',
-              // WordPress and CMS patterns
-              '.post-entry', '.entry', '.single-content', 
-              // Fallback to any substantial text blocks
-              '.text-content', '.body-text', '.article-text'
-            ];
-            
-            for (const selector of selectors) {
-              const element = document.querySelector(selector);
-              if (element?.textContent && element.textContent.length > 200) {
-                content = element.textContent.trim();
-                break;
-              }
-            }
-          }
-          
-          // Enhanced fallback: get all paragraph text if no content container found
-          if (!content || content.length < 100) {
             const paragraphs = Array.from(document.querySelectorAll('p'))
+              .slice(0, 10) // Limit to first 10 paragraphs for speed
               .map(p => p.textContent?.trim())
-              .filter(text => text && text.length > 50)
+              .filter(text => text && text.length > 30)
               .join(' ');
             
-            if (paragraphs.length > 200) {
+            if (paragraphs.length > 100) {
               content = paragraphs;
-            }
-          }
-          
-          // Last resort: try meta description if nothing else works
-          if (!content || content.length < 50) {
-            const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content') ||
-                            document.querySelector('meta[property="og:description"]')?.getAttribute('content');
-            if (metaDesc && metaDesc.length > 50) {
-              content = metaDesc;
             }
           }
           

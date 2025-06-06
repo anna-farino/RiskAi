@@ -324,9 +324,12 @@ export async function scrapeUrl(
           "scraper",
         );
 
-        const delayTime = calculateDelay(attempt);
-        log(`[Scraping] Waiting ${delayTime}ms before attempt`, "scraper");
-        await delay(delayTime);
+        // Skip delay for protected sites to improve performance
+        if (attempt > 1) {
+          const shortDelay = 1000; // Fixed 1 second delay for retries only
+          log(`[Scraping] Waiting ${shortDelay}ms before retry`, "scraper");
+          await delay(shortDelay);
+        }
 
         // Prepare headers with referrer if not first attempt
         const headers = generateHeaders(
