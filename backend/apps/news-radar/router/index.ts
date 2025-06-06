@@ -54,7 +54,6 @@ newsRouter.patch("/sources/:id", async (req, res) => {
 newsRouter.delete("/sources/:id", async (req, res) => {
   const userId = (req.user as User).id as string;
   const id = req.params.id;
-  const deleteArticles = req.query.deleteArticles === 'true';
   
   // Check if source belongs to user
   const source = await storage.getSource(id);
@@ -62,27 +61,9 @@ newsRouter.delete("/sources/:id", async (req, res) => {
     return res.status(404).json({ message: "Source not found" });
   }
   
-  try {
-    await storage.deleteSource(id, deleteArticles);
-    // Return success object instead of empty response to better support optimistic UI updates
-    res.status(200).json({ success: true, id, message: "Source deleted successfully" });
-  } catch (error: any) {
-    console.error("Error deleting source:", error);
-    
-    // Handle the ARTICLES_EXIST error specifically
-    if (error.message === "ARTICLES_EXIST") {
-      return res.status(400).json({ 
-        error: "ARTICLES_EXIST", 
-        articleCount: error.articleCount,
-        message: `Cannot delete source. It has ${error.articleCount} associated articles.`
-      });
-    }
-    
-    // Handle other errors
-    res.status(500).json({ 
-      message: error.message || "Failed to delete source" 
-    });
-  }
+  await storage.deleteSource(id);
+  // Return success object instead of empty response to better support optimistic UI updates
+  res.status(200).json({ success: true, id, message: "Source deleted successfully" });
 });
 
 // Keywords
