@@ -14,7 +14,7 @@ export async function addToReport(req: Request, res: Response) {
     
     const userId = (req as FullRequest).user.id;
     
-    let reportId;
+    let reportId: string;
     let reportVersion = 1;
     
     // If user wants to use an existing report and provided a valid ID

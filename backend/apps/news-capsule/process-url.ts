@@ -10,7 +10,6 @@ import { execSync } from "child_process";
 import { log } from "console";
 import vanillaPuppeteer from "puppeteer";
 import * as fs from "fs";
-import { get } from "http";
 
 const PUPPETEER_EXECUTABLE_PATH =
   "/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium"; // Use our installed Chromium unwrapped
@@ -229,6 +228,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         .map((p) => p.innerText)
         .join(" ");
 
+      let articleContent;
       // Try article tag first
       const articleElement = document.querySelector("article");
       if (articleElement) {

@@ -92,7 +92,7 @@ export function ReportsManager({
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowDeleteConfirm(report.id);
+                  handleDeleteReport(report.id);
                 }}
                 className="absolute right-2 top-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-opacity"
                 title="Delete report"
@@ -104,35 +104,6 @@ export function ReportsManager({
                 </svg>
               </button>
               
-              {/* Delete confirmation */}
-              {showDeleteConfirm === report.id && (
-                <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-slate-800/90 rounded-md z-10">
-                  <div className="p-3 flex flex-col gap-2">
-                    <p className="text-sm text-red-300">Delete this report?</p>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteReport(report.id);
-                        }}
-                        disabled={isDeleting}
-                        className="text-xs px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-white"
-                      >
-                        {isDeleting ? "Deleting..." : "Yes, Delete"}
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDeleteConfirm(null);
-                        }}
-                        className="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           ))
       )}
