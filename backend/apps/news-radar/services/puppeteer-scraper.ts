@@ -120,13 +120,23 @@ async function setupPage(): Promise<Page> {
   // Set viewport
   await page.setViewport({ width: 1920, height: 1080 });
 
-  // Set user agent
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+  // Set user agent (updated to latest Chrome version)
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-  // Set extra headers
+  // Set comprehensive headers to bypass DataDome and other protections
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'max-age=0',
+    'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1'
   });
 
   // Set longer timeouts
@@ -134,6 +144,64 @@ async function setupPage(): Promise<Page> {
   page.setDefaultTimeout(60000);
 
   return page;
+}
+
+/**
+ * Handle DataDome protection challenges
+ */
+async function handleDataDomeChallenge(page: Page): Promise<void> {
+  try {
+    log(`[DataDome] Checking for DataDome protection...`, "scraper");
+    
+    // Check if we're on a DataDome challenge page
+    const isDataDomeChallenge = await page.evaluate(() => {
+      const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
+      const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
+      const hasDataDomeContent = document.documentElement?.innerHTML?.includes('datadome') || false;
+      
+      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent;
+    });
+
+    if (isDataDomeChallenge) {
+      log(`[DataDome] DataDome challenge detected, waiting for completion...`, "scraper");
+      
+      // Wait for the challenge to complete - DataDome typically redirects or updates the page
+      let challengeCompleted = false;
+      const maxWaitTime = 15000; // 15 seconds max wait
+      const checkInterval = 1000; // Check every second
+      let waitTime = 0;
+      
+      while (!challengeCompleted && waitTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waitTime += checkInterval;
+        
+        // Check if we're still on challenge page
+        const stillOnChallenge = await page.evaluate(() => {
+          const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
+          const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
+          
+          return hasDataDomeScript || hasDataDomeMessage;
+        });
+        
+        if (!stillOnChallenge) {
+          challengeCompleted = true;
+          log(`[DataDome] Challenge completed after ${waitTime}ms`, "scraper");
+        }
+      }
+      
+      if (!challengeCompleted) {
+        log(`[DataDome] Challenge did not complete within ${maxWaitTime}ms, proceeding anyway`, "scraper");
+      }
+      
+      // Additional wait for page to stabilize after challenge
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      log(`[DataDome] No DataDome challenge detected`, "scraper");
+    }
+  } catch (error: any) {
+    log(`[DataDome] Error handling DataDome challenge: ${error.message}`, "scraper");
+    // Continue anyway - don't let DataDome handling block the scraping
+  }
 }
 
 // This function expects a fully prepared page and is safe.
@@ -470,6 +538,9 @@ export async function scrapePuppeteer(
     if (response && !response.ok()) {
       log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
+
+    // Check for DataDome protection and wait for challenge completion
+    await handleDataDomeChallenge(page);
 
     // Skip content waiting - extract immediately after navigation
     log('[scrapePuppeteer] Proceeding directly to content extraction', "scraper");

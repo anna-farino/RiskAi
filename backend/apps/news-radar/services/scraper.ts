@@ -165,6 +165,23 @@ function detectBotProtection(html: string, response: Response): BotProtection {
   const $ = cheerio.load(html);
   log(`[Bot Detection] Analyzing response headers and HTML content`, "scraper");
 
+  // Add DataDome detection (high priority since it returns 401)
+  if (
+    response.headers.get("x-datadome") ||
+    response.headers.get("x-dd-b") ||
+    html.includes("captcha-delivery.com") ||
+    html.includes("datadome") ||
+    html.includes("Please enable JS and disable any ad blocker") ||
+    (response.status === 401 && html.includes("geo.captcha-delivery.com"))
+  ) {
+    log(`[Bot Detection] DataDome protection detected`, "scraper");
+    return {
+      hasProtection: true,
+      type: "captcha",
+      details: "DataDome protection detected - requires JavaScript challenge completion",
+    };
+  }
+
   // Add Incapsula detection
   if (
     response.headers.get("x-iinfo") ||
@@ -355,6 +372,14 @@ export async function scrapeUrl(
         }
 
         if (!response.ok) {
+          // Special handling for DataDome 401 errors - switch to Puppeteer immediately
+          if (response.status === 401 && (
+            response.headers.get("x-datadome") || 
+            response.headers.get("x-dd-b")
+          )) {
+            log(`[Scraping] DataDome 401 detected, switching to Puppeteer`, "scraper");
+            return await scrapePuppeteer(url, !isSourceUrl, config || {});
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
