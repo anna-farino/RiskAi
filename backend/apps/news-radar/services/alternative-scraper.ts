@@ -3,7 +3,10 @@
  * Uses RSS feeds and API endpoints when direct scraping fails
  */
 
-import { log } from '../../utils/log';
+// Added logging function
+function log(message: string, source: string = "scraper"): void {
+  console.log(`[${new Date().toISOString()}] [${source}] ${message}`);
+}
 import * as cheerio from 'cheerio';
 
 interface AlternativeSource {
@@ -16,17 +19,16 @@ interface AlternativeSource {
 // Alternative data sources for MarketWatch content
 const marketwatchAlternatives: AlternativeSource[] = [
   {
-    name: 'MarketWatch RSS',
-    rssUrl: 'https://feeds.marketwatch.com/marketwatch/topstories/',
-    fallbackUrl: 'https://www.marketwatch.com/rss'
+    name: 'MarketWatch Top Stories RSS',
+    rssUrl: 'https://feeds.content.dowjones.io/public/rss/mw_topstories'
+  },
+  {
+    name: 'MarketWatch Real Time Headlines RSS', 
+    rssUrl: 'https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines'
   },
   {
     name: 'MarketWatch Breaking News RSS',
-    rssUrl: 'https://feeds.marketwatch.com/marketwatch/breakingnews/'
-  },
-  {
-    name: 'MarketWatch Real Time Headlines RSS',
-    rssUrl: 'https://feeds.marketwatch.com/marketwatch/realtimeheadlines/'
+    rssUrl: 'https://feeds.content.dowjones.io/public/rss/mw_breakingnews'
   }
 ];
 
@@ -70,8 +72,7 @@ async function fetchRSSFeed(rssUrl: string): Promise<string | null> {
         'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0; +http://example.com/bot)',
         'Accept': 'application/rss+xml, application/xml, text/xml',
         'Accept-Language': 'en-US,en;q=0.9'
-      },
-      timeout: 30000
+      }
     });
     
     if (!response.ok) {
@@ -163,8 +164,7 @@ async function minimalistScraping(url: string): Promise<string> {
       headers: {
         'User-Agent': 'curl/7.68.0',
         'Accept': '*/*'
-      },
-      timeout: 15000
+      }
     });
     
     if (response.ok) {
