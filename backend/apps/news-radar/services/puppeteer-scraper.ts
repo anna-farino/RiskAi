@@ -394,14 +394,16 @@ export async function scrapePuppeteer(
     page = await browser.newPage();
     log('[scrapePuppeteer] ✅ New page opened');
 
-    // Set up request interception to block resource-heavy content
+    // Set up enhanced request interception for stealth
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const resourceType = req.resourceType();
       const url = req.url();
       
-      // Block resource-heavy content that can cause timeouts
-      if (resourceType === 'stylesheet' || 
+      // Allow Cloudflare scripts but block other heavy resources
+      if (url.includes('cloudflare') || url.includes('cf-ray')) {
+        req.continue();
+      } else if (resourceType === 'stylesheet' || 
           resourceType === 'font' || 
           resourceType === 'image' || 
           resourceType === 'media' ||
@@ -412,16 +414,22 @@ export async function scrapePuppeteer(
           url.includes('instagram.com') ||
           url.includes('youtube.com') ||
           url.includes('doubleclick') ||
-          url.includes('googlesyndication') ||
-          url.includes('.woff') ||
-          url.includes('.ttf') ||
-          url.includes('.mp4') ||
-          url.includes('.mp3') ||
-          url.includes('.avi') ||
-          url.includes('.mov')) {
+          url.includes('googlesyndication')) {
         req.abort();
       } else {
-        req.continue();
+        // Add realistic headers to requests
+        const headers = {
+          ...req.headers(),
+          'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          'sec-ch-ua-mobile': '?0',
+          'sec-ch-ua-platform': '"Windows"',
+          'sec-fetch-dest': 'document',
+          'sec-fetch-mode': 'navigate',
+          'sec-fetch-site': 'none',
+          'sec-fetch-user': '?1',
+          'upgrade-insecure-requests': '1'
+        };
+        req.continue({ headers });
       }
     });
     log('[scrapePuppeteer] ✅ Request interception configured');
@@ -429,21 +437,68 @@ export async function scrapePuppeteer(
     // Set viewport
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // Set realistic user agent and headers to avoid detection
+    // Enhanced browser fingerprint obfuscation
     const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     await page.setUserAgent(userAgent);
     
-    // Set additional headers to mimic real browser
+    // Set comprehensive headers to mimic real browser
     await page.setExtraHTTPHeaders({
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'max-age=0',
       'DNT': '1',
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"'
     });
     
-    log('[scrapePuppeteer] Page setup complete with enhanced headers');
+    // Override webdriver detection
+    await page.evaluateOnNewDocument(() => {
+      // Remove webdriver property
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+      
+      // Override the plugins property to add fake plugins
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5],
+      });
+      
+      // Override the languages property
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+      });
+      
+      // Mock chrome object
+      (window as any).chrome = {
+        runtime: {},
+      };
+      
+      // Override permissions query
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) => {
+        if (parameters.name === 'notifications') {
+          return Promise.resolve({ 
+            state: Notification.permission,
+            name: 'notifications',
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => true
+          } as PermissionStatus);
+        }
+        return originalQuery(parameters);
+      };
+    });
+    
+    log('[scrapePuppeteer] Page setup complete with enhanced stealth headers');
 
     // Enable JavaScript and cookies
     try {
@@ -535,54 +590,121 @@ export async function scrapePuppeteer(
     // Additional short wait for any remaining dynamic content
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Check for various anti-bot protection systems
+    // Check for various anti-bot protection systems with enhanced detection
     const protectionCheck = await page.evaluate(() => {
       const bodyText = (document.body && document.body.textContent) || '';
       const bodyHTML = (document.body && document.body.innerHTML) || '';
+      const title = document.title || '';
+      
+      // Enhanced Cloudflare detection
+      const cloudflareIndicators = [
+        bodyText.includes('Checking your browser'),
+        bodyText.includes('DDoS protection'),
+        bodyText.includes('Ray ID:'),
+        bodyText.includes('Cloudflare'),
+        bodyHTML.includes('cf-browser-verification'),
+        bodyHTML.includes('__cf_bm'),
+        bodyHTML.includes('cf-ray'),
+        title.includes('Just a moment'),
+        title.includes('Attention Required'),
+        // Check for minimal content that suggests a challenge page
+        (bodyText.trim().length < 500 && bodyHTML.includes('script')),
+        // Check for typical challenge page structure
+        bodyHTML.includes('challenge-platform'),
+        bodyHTML.includes('challenge-stage')
+      ];
+      
+      const cloudflareDetected = cloudflareIndicators.some(indicator => indicator);
       
       return {
         incapsula: bodyHTML.includes('/_Incapsula_Resource') || bodyHTML.includes('Incapsula'),
-        cloudflare: bodyText.includes('Checking your browser') || bodyText.includes('DDoS protection'),
+        cloudflare: cloudflareDetected,
         generic: bodyText.includes('Please wait') || bodyText.includes('Verifying you are human'),
-        hasContent: bodyText.trim().length > 100,
-        title: document.title || ''
+        hasContent: bodyText.trim().length > 500, // Increased threshold
+        title: title,
+        contentLength: bodyText.trim().length,
+        bodyHasScripts: bodyHTML.includes('<script'),
+        suspiciouslyShort: bodyText.trim().length < 500 && bodyHTML.includes('<script')
       };
     });
 
     console.log(`[Puppeteer] Protection check: ${JSON.stringify(protectionCheck)}`);
 
-    if (protectionCheck.incapsula || protectionCheck.cloudflare || protectionCheck.generic) {
-      console.log('[Puppeteer] Anti-bot protection detected, performing evasion actions');
+    // Handle detected protection or insufficient content
+    if (protectionCheck.incapsula || protectionCheck.cloudflare || protectionCheck.generic || protectionCheck.suspiciouslyShort) {
+      console.log('[Puppeteer] Protection or insufficient content detected, performing enhanced evasion');
+      console.log(`[Puppeteer] Content length: ${protectionCheck.contentLength}, Cloudflare: ${protectionCheck.cloudflare}`);
       
-      // Perform human-like mouse movements
-      await page.mouse.move(Math.random() * 100, Math.random() * 100);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      await page.mouse.move(Math.random() * 200 + 100, Math.random() * 200 + 100);
+      // Enhanced human-like behavior for Cloudflare
+      console.log('[Puppeteer] Performing human simulation...');
       
-      // Wait for challenge to potentially resolve
-      console.log('[Puppeteer] Waiting for anti-bot challenge to resolve...');
-      try {
-        await page.waitForFunction(
-          () => {
-            const text = (document.body && document.body.textContent) || '';
-            return !text.includes('Checking your browser') && 
-                   !text.includes('Please wait') && 
-                   !text.includes('Verifying you are human') &&
-                   text.trim().length > 200;
-          },
-          { timeout: 20000 }
+      // Random mouse movements across the page
+      for (let i = 0; i < 3; i++) {
+        await page.mouse.move(
+          Math.random() * 1200 + 100, 
+          Math.random() * 800 + 100
         );
-        console.log('[Puppeteer] Anti-bot challenge appears resolved');
-      } catch (error) {
-        console.log('[Puppeteer] Anti-bot challenge timeout, attempting to continue');
+        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+      }
+      
+      // Simulate scrolling behavior
+      await page.evaluate(() => {
+        window.scrollTo(0, Math.random() * 500);
+      });
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Try clicking on the page to trigger any hidden challenges
+      try {
+        await page.click('body');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (e) {
+        console.log('[Puppeteer] Click failed, continuing');
+      }
+      
+      // Wait longer for Cloudflare to process
+      console.log('[Puppeteer] Waiting for challenge resolution...');
+      const maxWaitTime = 30000; // 30 seconds
+      const startTime = Date.now();
+      
+      while (Date.now() - startTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // If still blocked, try a page reload with basic navigation
+        // Check if content has appeared
+        const currentCheck = await page.evaluate(() => {
+          const text = (document.body && document.body.textContent) || '';
+          const title = document.title || '';
+          return {
+            contentLength: text.trim().length,
+            title: title,
+            hasArticleContent: text.trim().length > 1000,
+            isChallengePage: title.includes('Just a moment') || text.includes('Checking your browser')
+          };
+        });
+        
+        console.log(`[Puppeteer] Current content length: ${currentCheck.contentLength}, title: "${currentCheck.title}"`);
+        
+        if (currentCheck.hasArticleContent && !currentCheck.isChallengePage) {
+          console.log('[Puppeteer] Content successfully loaded after challenge');
+          break;
+        }
+      }
+      
+      // Final attempt: try a different approach if still blocked
+      const finalCheck = await page.evaluate(() => {
+        return (document.body && document.body.textContent || '').trim().length;
+      });
+      
+      if (finalCheck < 500) {
+        console.log('[Puppeteer] Still insufficient content, trying page refresh approach');
         try {
-          console.log('[Puppeteer] Attempting page reload to bypass protection');
-          await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        } catch (reloadError) {
-          console.log('[Puppeteer] Page reload failed, continuing with current state');
+          // Try navigating to the page again with different strategy
+          await page.goto(url, { 
+            waitUntil: 'load', 
+            timeout: 15000 
+          });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } catch (refreshError) {
+          console.log('[Puppeteer] Refresh attempt failed, proceeding with available content');
         }
       }
     }
