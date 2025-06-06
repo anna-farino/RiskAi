@@ -68,40 +68,11 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 
 // Shared browser instance to reuse across requests (like Threat Tracker)
 let browser: Browser | null = null;
-let browserLaunchTime: number = 0;
-const BROWSER_RESTART_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
 /**
- * Get or create a browser instance with health checks
+ * Get or create a browser instance (Threat Tracker approach)
  */
 async function getBrowser(): Promise<Browser> {
-  const now = Date.now();
-  
-  // Check if browser needs to be restarted (health check)
-  if (browser && (now - browserLaunchTime > BROWSER_RESTART_INTERVAL)) {
-    log("[scrapePuppeteer][getBrowser] Browser restart interval reached, closing old browser", "scraper");
-    try {
-      await browser.close();
-    } catch (error) {
-      log(`[scrapePuppeteer][getBrowser] Error closing old browser: ${error}`, "scraper");
-    }
-    browser = null;
-  }
-  
-  // Check if browser is still connected
-  if (browser) {
-    try {
-      const isConnected = browser.isConnected();
-      if (!isConnected) {
-        log("[scrapePuppeteer][getBrowser] Browser disconnected, creating new instance", "scraper");
-        browser = null;
-      }
-    } catch (error) {
-      log(`[scrapePuppeteer][getBrowser] Browser health check failed: ${error}`, "scraper");
-      browser = null;
-    }
-  }
-  
   if (!browser) {
     try {
       browser = await puppeteer.launch({
@@ -124,14 +95,11 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled',
-          '--memory-pressure-off',
-          '--max_old_space_size=4096'
+          '--disable-blink-features=AutomationControlled'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 60000 // Reduced to 1 minute timeout on browser launch
+        timeout: 180000 // 3 minute timeout on browser launch
       });
-      browserLaunchTime = now;
       log("[scrapePuppeteer][getBrowser] Browser launched successfully", "scraper");
     } catch (error: any) {
       log(`[scrapePuppeteer][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
@@ -140,38 +108,6 @@ async function getBrowser(): Promise<Browser> {
   }
   return browser;
 }
-
-/**
- * Clean up browser resources
- */
-async function closeBrowser(): Promise<void> {
-  if (browser) {
-    try {
-      await browser.close();
-      log("[scrapePuppeteer][closeBrowser] Browser closed successfully", "scraper");
-    } catch (error: any) {
-      log(`[scrapePuppeteer][closeBrowser] Error closing browser: ${error.message}`, "scraper");
-    }
-    browser = null;
-  }
-}
-
-// Graceful shutdown handling
-process.on('exit', () => {
-  if (browser) {
-    browser.close().catch(() => {});
-  }
-});
-
-process.on('SIGINT', async () => {
-  await closeBrowser();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  await closeBrowser();
-  process.exit(0);
-});
 
 /**
  * Setup a new page with stealth protections (Threat Tracker approach)
@@ -270,94 +206,116 @@ async function handleDataDomeChallenge(page: Page): Promise<void> {
 
 // This function expects a fully prepared page and is safe.
 async function extractArticleLinks(page: Page): Promise<string> {
-  // Quick check for links with timeout protection
-  try {
-    await page.waitForSelector('a', { timeout: 3000 });
-    console.log('[NewsRadar] Found anchor tags on page');
-  } catch (error) {
-    console.log('[NewsRadar] No anchor tags found within timeout, proceeding anyway');
-  }
+  // Wait for any links to appear
+  await page.waitForSelector('a', { timeout: 5000 });
+  console.log('[NewsRadar] Found anchor tags on page');
 
-  // HTMX Detection with timeout protection
-  let hasHtmx;
-  try {
-    hasHtmx = await Promise.race([
-      page.evaluate(() => {
-        const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
-        const htmxInWindow = typeof (window as any).htmx !== 'undefined';
-        const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
-        
-        // Get all hx-get elements for potential direct fetching
-        const hxGetElements = Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-          url: el.getAttribute('hx-get') || '',
-          trigger: el.getAttribute('hx-trigger') || 'click'
-        }));
+  // HTMX Detection and handling
+  const hasHtmx = await page.evaluate(() => {
+    const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
+    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+    const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
+    
+    // Get all hx-get elements for potential direct fetching
+    const hxGetElements = Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+      url: el.getAttribute('hx-get') || '',
+      trigger: el.getAttribute('hx-trigger') || 'click'
+    }));
 
-        // Debug info
-        const debug = {
-          totalElements: document.querySelectorAll('*').length,
-          scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).slice(0, 5)
-        };
+    // Debug info
+    const debug = {
+      totalElements: document.querySelectorAll('*').length,
+      scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).slice(0, 5)
+    };
 
-        return { scriptLoaded, htmxInWindow, hasHxAttributes, hxGetElements, debug };
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('HTMX detection timeout')), 5000))
-    ]);
-  } catch (error) {
-    console.log('[NewsRadar] HTMX detection timed out, skipping HTMX handling');
-    hasHtmx = { scriptLoaded: false, htmxInWindow: false, hasHxAttributes: false, hxGetElements: [], debug: {} };
-  }
+    return { scriptLoaded, htmxInWindow, hasHxAttributes, hxGetElements, debug };
+  });
 
   console.log(`[NewsRadar] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`);
 
-  // Handle HTMX content if detected - with aggressive timeout protection
+  // Handle HTMX content if detected
   if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
-    console.log('[NewsRadar] HTMX detected, attempting quick content loading...');
+    console.log('[NewsRadar] HTMX detected on page, handling dynamic content...');
     
-    try {
-      // Quick HTMX content loading with strict timeout
-      const htmxContentPromise = page.evaluate(async (baseUrl) => {
-        // Simplified, faster approach for HTMX
-        const endpoints = ['/media/items/', '/news/items/', '/articles/items/'];
-        let totalContentLoaded = 0;
-        
-        for (const endpoint of endpoints.slice(0, 2)) { // Limit to 2 endpoints
-          try {
-            const response = await fetch(`${baseUrl}${endpoint}`, { 
-              headers: { 'HX-Request': 'true' },
-              signal: AbortSignal.timeout(3000) // 3 second timeout per request
-            });
-            
-            if (response.ok) {
-              const html = await response.text();
-              const container = document.createElement('div');
-              container.className = 'htmx-injected-content';
-              container.innerHTML = html;
-              document.body.appendChild(container);
-              totalContentLoaded += html.length;
-            }
-          } catch (e) {
-            // Skip failed endpoints quickly
-            continue;
+    // Wait longer for initial HTMX content to load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Specifically for sites with HTMX, manually fetch HTMX content
+    console.log(`[NewsRadar] Attempting to load HTMX content directly...`);
+    
+    // Get the current page URL to construct proper HTMX endpoints
+    const currentUrl = page.url();
+    const baseUrl = new URL(currentUrl).origin;
+    
+    // Manually fetch HTMX endpoints that contain articles
+    const htmxContent = await page.evaluate(async (baseUrl) => {
+      let totalContentLoaded = 0;
+      
+      // Common HTMX endpoints for article content
+      const endpoints = [
+        '/media/items/',
+        '/media/items/top/',
+        '/media/items/recent/',
+        '/media/items/popular/',
+        '/news/items/',
+        '/news/items/top/',
+        '/articles/items/',
+        '/articles/items/recent/',
+        '/posts/items/',
+        '/content/items/'
+      ];
+      
+      // Get CSRF token from page if available
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                       document.querySelector('input[name="_token"]')?.getAttribute('value') ||
+                       document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+      
+      // Get screen size info for headers
+      const screenType = window.innerWidth < 768 ? 'M' : 'D';
+      
+      for (const endpoint of endpoints) {
+        try {
+          const headers = {
+            'HX-Request': 'true',
+            'HX-Current-URL': window.location.href,
+            'Accept': 'text/html, */*'
+          };
+          
+          // Add CSRF token if available
+          if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
           }
+          
+          // Add screen type header
+          headers['X-Screen'] = screenType;
+          
+          console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
+          const response = await fetch(`${baseUrl}${endpoint}`, { headers });
+          
+          if (response.ok) {
+            const html = await response.text();
+            console.log(`Loaded ${html.length} chars from ${endpoint}`);
+            
+            // Insert content into page
+            const container = document.createElement('div');
+            container.className = 'htmx-injected-content';
+            container.setAttribute('data-source', endpoint);
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            totalContentLoaded += html.length;
+          }
+        } catch (e) {
+          console.error(`Error fetching ${endpoint}:`, e);
         }
-        
-        return totalContentLoaded;
-      }, new URL(page.url()).origin);
-      
-      // Race HTMX loading against timeout
-      const htmxContent = await Promise.race([
-        htmxContentPromise,
-        new Promise<number>((_, reject) => 
-          setTimeout(() => reject(new Error('HTMX content timeout')), 8000)
-        )
-      ]);
-      
-      if (htmxContent > 0) {
-        console.log(`[NewsRadar] Loaded ${htmxContent} chars of HTMX content`);
       }
-    } catch (error) {
-      console.log('[NewsRadar] HTMX content loading timed out, proceeding without it');
+      
+      return totalContentLoaded;
+    }, baseUrl);
+    
+    if (htmxContent > 0) {
+      console.log(`[NewsRadar] Successfully loaded ${htmxContent} characters of HTMX content`);
+      // Wait for any additional processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
     // Try triggering visible HTMX elements
@@ -530,80 +488,47 @@ export async function scrapePuppeteer(
 
     page = await setupPage();
 
-    // Set aggressive timeouts to prevent hanging
-    const SHORT_TIMEOUT = 8000; // 8 seconds
-    const MEDIUM_TIMEOUT = 12000; // 12 seconds
-    
-    page.setDefaultNavigationTimeout(SHORT_TIMEOUT);
-    page.setDefaultTimeout(SHORT_TIMEOUT);
-
-    // Progressive navigation strategy with improved timeout handling
+    // Progressive navigation strategy to handle challenging sites
     let response = null;
     let navigationSuccess = false;
     
-    // Strategy 1: Fast domcontentloaded approach
+    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
     try {
-      log('[scrapePuppeteer] Attempting fast navigation with domcontentloaded...', "scraper");
-      
-      // Race between navigation and timeout to prevent hanging
-      const navigationPromise = page.goto(url, { 
+      log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
+      response = await page.goto(url, { 
         waitUntil: 'domcontentloaded', 
-        timeout: SHORT_TIMEOUT
+        timeout: 15000  // Reduced timeout for faster production performance
       });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Navigation timeout')), SHORT_TIMEOUT + 1000)
-      );
-      
-      response = await Promise.race([navigationPromise, timeoutPromise]) as any;
       navigationSuccess = true;
-      log(`[scrapePuppeteer] Fast navigation successful. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
     } catch (error: any) {
-      log(`[scrapePuppeteer] Fast navigation failed: ${error.message}`, "scraper");
+      log(`[scrapePuppeteer] domcontentloaded failed: ${error.message}`, "scraper");
     }
     
-    // Strategy 2: Minimal wait approach if fast failed
+    // Strategy 2: Fallback to load event with shorter timeout
     if (!navigationSuccess) {
       try {
-        log('[scrapePuppeteer] Attempting minimal wait navigation...', "scraper");
-        
-        const navigationPromise = page.goto(url, { 
-          timeout: SHORT_TIMEOUT
+        log('[scrapePuppeteer] Attempting navigation with load event...', "scraper");
+        response = await page.goto(url, { 
+          waitUntil: 'load', 
+          timeout: 12000  // Reduced timeout
         });
-        
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Minimal navigation timeout')), SHORT_TIMEOUT + 1000)
-        );
-        
-        response = await Promise.race([navigationPromise, timeoutPromise]) as any;
         navigationSuccess = true;
-        log(`[scrapePuppeteer] Minimal navigation successful. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+        log(`[scrapePuppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`, "scraper");
       } catch (error: any) {
-        log(`[scrapePuppeteer] Minimal navigation failed: ${error.message}`, "scraper");
+        log(`[scrapePuppeteer] load event failed: ${error.message}`, "scraper");
       }
     }
     
-    // Strategy 3: Force navigation with page evaluation as last resort
+    // Strategy 3: Try with no wait condition as last resort
     if (!navigationSuccess) {
       try {
-        log('[scrapePuppeteer] Attempting force navigation as last resort...', "scraper");
-        
-        // Try to navigate without waiting, then check if page loaded
-        await page.goto(url, { timeout: 5000 }).catch(() => {
-          log('[scrapePuppeteer] Navigation threw error, checking if page loaded anyway...', "scraper");
+        log('[scrapePuppeteer] Attempting navigation with no wait condition...', "scraper");
+        response = await page.goto(url, { 
+          timeout: 10000  // Reduced timeout
         });
-        
-        // Check if we have any content
-        const hasContent = await page.evaluate(() => {
-          return document.body && document.body.innerHTML.length > 100;
-        }).catch(() => false);
-        
-        if (hasContent) {
-          navigationSuccess = true;
-          log('[scrapePuppeteer] Force navigation succeeded - page has content', "scraper");
-        } else {
-          throw new Error('No content found after force navigation');
-        }
+        navigationSuccess = true;
+        log(`[scrapePuppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`, "scraper");
       } catch (error: any) {
         log(`[scrapePuppeteer] All navigation strategies failed: ${error.message}`, "scraper-error");
         throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
@@ -614,16 +539,8 @@ export async function scrapePuppeteer(
       log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Quick DataDome check with timeout
-    try {
-      await Promise.race([
-        handleDataDomeChallenge(page),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('DataDome check timeout')), 5000))
-      ]);
-    } catch (error: any) {
-      log(`[scrapePuppeteer] DataDome check timed out or failed: ${error.message}`, "scraper");
-      // Continue anyway - don't let DataDome handling block scraping
-    }
+    // Check for DataDome protection and wait for challenge completion
+    await handleDataDomeChallenge(page);
 
     // Skip content waiting - extract immediately after navigation
     log('[scrapePuppeteer] Proceeding directly to content extraction', "scraper");
@@ -716,7 +633,7 @@ Content: ${basicContent.content}`;
     try {
       // Add timeout protection for link extraction
       const linkExtractionPromise = extractArticleLinks(page);
-      const timeoutPromise = new Promise<string>((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Link extraction timeout')), 30000)
       );
       
