@@ -10,7 +10,6 @@ import { execSync } from "child_process";
 import { log } from "console";
 import vanillaPuppeteer from "puppeteer";
 import * as fs from "fs";
-import { get } from "http";
 
 const PUPPETEER_EXECUTABLE_PATH =
   "/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium"; // Use our installed Chromium unwrapped
@@ -258,6 +257,16 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         }
       }
 
+      // Fallback to basic title extraction if enhanced selectors didn't work
+      if (!title) {
+        title =
+          (document.querySelector("h1") as HTMLElement)?.innerText ||
+          (document.querySelector(".entry-title") as HTMLElement)?.innerText ||
+          (document.querySelector(".post-title") as HTMLElement)?.innerText ||
+          (document.querySelector("title") as HTMLElement)?.innerText ||
+          "";
+      }
+
       // Enhanced content selectors including Forbes-specific ones
       const contentSelectors = [
         // Forbes-specific selectors
@@ -316,7 +325,27 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         }
       }
 
-      // Fallback to all paragraphs if still no content
+      // Fallback to basic content extraction methods
+      if (!articleContent || articleContent.length < 200) {
+        // Try article tag first (from original dev branch)
+        const articleElement = document.querySelector("article");
+        if (articleElement) {
+          const paragraphs = Array.from(articleElement.querySelectorAll("p")).map(
+            (p) => p.innerText,
+          );
+          articleContent = paragraphs.join(" ");
+        }
+
+        // Get basic paragraph content if article tag approach didn't work
+        if (!articleContent || articleContent.length < 100) {
+          const paragraphs = Array.from(document.querySelectorAll("p"))
+            .map((p) => p.innerText)
+            .join(" ");
+          articleContent = paragraphs;
+        }
+      }
+
+      // Final fallback to all paragraphs if still no content
       if (!articleContent || articleContent.length < 100) {
         const allParagraphs = Array.from(document.querySelectorAll("p"))
           .map((p) => (p as HTMLElement).innerText?.trim() || "")
