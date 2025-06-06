@@ -61,9 +61,18 @@ export function ReportsManager({
   return (
     <div className="flex flex-col gap-2">
       {isLoading ? (
-        <div className="flex justify-center p-4">
-          <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
-        </div>
+        // Three skeleton loaders
+        <>
+          {[1, 2, 3].map((index) => (
+            <div key={index} className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-md animate-pulse">
+              <div className="space-y-2">
+                <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+                <div className="h-3 bg-slate-700 rounded w-1/2"></div>
+                <div className="h-3 bg-slate-700 rounded w-1/3"></div>
+              </div>
+            </div>
+          ))}
+        </>
       ) : reports.length === 0 ? (
         <p className="text-sm text-slate-400 italic">No reports available</p>
       ) : (

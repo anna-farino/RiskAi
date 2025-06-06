@@ -162,6 +162,7 @@ export default function Research() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
       setSelectedArticles([]);
+      setReportTopic(""); // Clear topic field
       setSuccessMessage("Articles successfully added to report!");
       setShowSuccessDialog(true);
     },
@@ -197,6 +198,7 @@ export default function Research() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
       setSelectedArticles([]);
+      setReportTopic(""); // Clear topic field
       setSuccessMessage("Articles successfully added to existing report!");
       setShowSuccessDialog(true);
     },
@@ -550,7 +552,7 @@ export default function Research() {
                   <button
                     type="button"
                     onClick={clearUrl}
-                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md"
+                    className="px-3 max-h-10 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md"
                     aria-label="Clear input"
                   >
                     Clear
@@ -559,7 +561,7 @@ export default function Research() {
                 <button
                   onClick={processUrl}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50"
+                  className="px-4 max-h-10 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50"
                 >
                   {isLoading ? "Processing..." : "Process"}
                 </button>

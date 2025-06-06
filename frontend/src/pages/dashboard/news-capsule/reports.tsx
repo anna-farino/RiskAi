@@ -42,7 +42,7 @@ export default function Reports() {
   const [showDeleteReportDialog, setShowDeleteReportDialog] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<ReportWithArticles | null>(null);
   const [showRemoveArticleDialog, setShowRemoveArticleDialog] = useState(false);
-  const [articleToRemove, setArticleToRemove] = useState<{ reportId: string; articleId: string; articleTitle: string } | null>(null);
+  const [articleToRemove, setArticleToRemove] = useState<{ reportId: string; articleId: string; articleTitle: string; isLastArticle?: boolean } | null>(null);
 
   // Fetch reports from database
   const { data: reports = [], isLoading: reportsLoading } = useQuery<ReportWithArticles[]>({
@@ -250,10 +250,12 @@ export default function Reports() {
   const confirmRemoveArticleFromReport = (articleId: string) => {
     if (!selectedReport) return;
     const article = selectedReport.articles.find(a => a.id === articleId);
+    const isLastArticle = selectedReport.articles.length === 1;
     setArticleToRemove({ 
       reportId: selectedReport.id, 
       articleId, 
-      articleTitle: article?.title || 'Unknown Article' 
+      articleTitle: article?.title || 'Unknown Article',
+      isLastArticle 
     });
     setShowRemoveArticleDialog(true);
   };
@@ -262,39 +264,61 @@ export default function Reports() {
   const handleRemoveArticleFromReport = async () => {
     if (!articleToRemove) return;
 
-    // Perform optimistic update - remove article from report immediately
-    queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
-      if (!oldData) return oldData;
-      
-      return oldData.map(report => {
-        if (report.id === articleToRemove.reportId) {
-          return {
-            ...report,
-            articles: report.articles.filter(article => article.id !== articleToRemove.articleId)
-          };
-        }
-        return report;
+    if (articleToRemove.isLastArticle) {
+      // If this is the last article, delete the entire report instead
+      queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.filter(report => report.id !== articleToRemove.reportId);
       });
-    });
 
-    // Also update selected report if it's the one affected
-    if (selectedReport && selectedReport.id === articleToRemove.reportId) {
-      setSelectedReport({
-        ...selectedReport,
-        articles: selectedReport.articles.filter(article => article.id !== articleToRemove.articleId)
-      });
-    }
+      // Clear selected report since we're deleting it
+      if (selectedReport?.id === articleToRemove.reportId) {
+        setSelectedReport(null);
+      }
 
-    try {
-      await removeArticleFromReportMutation.mutateAsync({ 
-        reportId: articleToRemove.reportId, 
-        articleId: articleToRemove.articleId 
+      try {
+        await deleteReportMutation.mutateAsync(articleToRemove.reportId);
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      } catch (error) {
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      }
+    } else {
+      // Normal article removal
+      queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+        if (!oldData) return oldData;
+        
+        return oldData.map(report => {
+          if (report.id === articleToRemove.reportId) {
+            return {
+              ...report,
+              articles: report.articles.filter(article => article.id !== articleToRemove.articleId)
+            };
+          }
+          return report;
+        });
       });
-      setShowRemoveArticleDialog(false);
-      setArticleToRemove(null);
-    } catch (error) {
-      setShowRemoveArticleDialog(false);
-      setArticleToRemove(null);
+
+      // Also update selected report if it's the one affected
+      if (selectedReport && selectedReport.id === articleToRemove.reportId) {
+        setSelectedReport({
+          ...selectedReport,
+          articles: selectedReport.articles.filter(article => article.id !== articleToRemove.articleId)
+        });
+      }
+
+      try {
+        await removeArticleFromReportMutation.mutateAsync({ 
+          reportId: articleToRemove.reportId, 
+          articleId: articleToRemove.articleId 
+        });
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      } catch (error) {
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      }
     }
   };
   
@@ -385,7 +409,12 @@ export default function Reports() {
         {/* Executive Report Content - Flexible Width, Independent Scroll */}
         <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
           <div className="h-full overflow-y-auto p-5">
-            {selectedReport ? (
+            {reportsLoading ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="w-8 h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-400 text-sm">Loading report...</p>
+              </div>
+            ) : selectedReport ? (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -1224,13 +1253,31 @@ export default function Reports() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Article from Report</AlertDialogTitle>
+            <AlertDialogTitle>
+              {articleToRemove?.isLastArticle ? "Delete Report" : "Remove Article from Report"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this article from the report? This action cannot be undone.
-              {articleToRemove && (
-                <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
-                  <strong>{articleToRemove.articleTitle}</strong>
-                </div>
+              {articleToRemove?.isLastArticle ? (
+                <>
+                  This is the only article in this report. Removing it will delete the entire report. This action cannot be undone.
+                  {articleToRemove && (
+                    <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
+                      <strong>{articleToRemove.articleTitle}</strong>
+                      <div className="text-slate-400 text-xs mt-1">
+                        This will delete the entire report
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  Are you sure you want to remove this article from the report? This action cannot be undone.
+                  {articleToRemove && (
+                    <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
+                      <strong>{articleToRemove.articleTitle}</strong>
+                    </div>
+                  )}
+                </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1240,19 +1287,19 @@ export default function Reports() {
                 setShowRemoveArticleDialog(false);
                 setArticleToRemove(null);
               }}
-              disabled={removeArticleFromReportMutation.isPending}
+              disabled={removeArticleFromReportMutation.isPending || deleteReportMutation.isPending}
             >
               Cancel
             </AlertDialogCancel>
             <Button 
               onClick={handleRemoveArticleFromReport}
-              disabled={removeArticleFromReportMutation.isPending}
+              disabled={removeArticleFromReportMutation.isPending || deleteReportMutation.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {removeArticleFromReportMutation.isPending ? (
+              {(removeArticleFromReportMutation.isPending || deleteReportMutation.isPending) ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Removing...
+                  {articleToRemove?.isLastArticle ? "Deleting..." : "Removing..."}
                 </div>
               ) : (
                 "Yes"
