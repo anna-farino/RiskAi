@@ -380,6 +380,13 @@ export async function scrapeUrl(
             log(`[Scraping] DataDome 401 detected, switching to Puppeteer`, "scraper");
             return await scrapePuppeteer(url, !isSourceUrl, config || {});
           }
+          
+          // Handle 403 Forbidden as potential bot protection
+          if (response.status === 403) {
+            log(`[Scraping] 403 Forbidden detected, likely bot protection - switching to Puppeteer`, "scraper");
+            return await scrapePuppeteer(url, !isSourceUrl, config || {});
+          }
+          
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
