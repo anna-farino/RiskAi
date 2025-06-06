@@ -653,7 +653,7 @@ export async function scrapePuppeteer(
       try {
         log('[scrapePuppeteer] Final navigation attempt with minimal conditions...', "scraper");
         response = await page.goto(url, { 
-          waitUntil: 'commit',
+          waitUntil: 'networkidle0',
           timeout: 20000
         });
         navigationSuccess = true;
@@ -793,10 +793,10 @@ Content: ${articleContent.content}`;
           };
         });
         
-        return `Title: ${basicContent.title}
-Author: ${basicContent.author}
-Date: ${basicContent.date}
-Content: ${basicContent.content}`;
+        return `Title: ${String(basicContent.title)}
+Author: ${String(basicContent.author)}
+Date: ${String(basicContent.date)}
+Content: ${String(basicContent.content)}`;
       }
     }
 
@@ -806,11 +806,12 @@ Content: ${basicContent.content}`;
     try {
       // Add timeout protection for link extraction
       const linkExtractionPromise = extractArticleLinks(page);
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise<string>((_, reject) => 
         setTimeout(() => reject(new Error('Link extraction timeout')), 30000)
       );
       
-      return await Promise.race([linkExtractionPromise, timeoutPromise]);
+      const result = await Promise.race([linkExtractionPromise, timeoutPromise]);
+      return result;
     } catch (error: any) {
       log(`[scrapePuppeteer] Link extraction failed: ${error.message}`, "scraper");
       
