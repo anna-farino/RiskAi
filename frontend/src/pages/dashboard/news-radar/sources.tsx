@@ -33,6 +33,16 @@ import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Define the JobInterval enum matching the server-side enum
 enum JobInterval {
@@ -73,16 +83,20 @@ type EditSourceFormValues = z.infer<typeof editSourceSchema>;
 export default function Sources() {
   const { toast } = useToast();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<Source | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    source: Source;
+    articleCount: number;
+  } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
-  
+
   // Local state for optimistic UI updates
   const [localSources, setLocalSources] = useState<Source[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
-  
+
   // Get job status
   const autoScrapeStatus = useQuery({
     queryKey: ["/api/news-tracker/jobs/status"],
@@ -105,7 +119,7 @@ export default function Sources() {
     // Add initial data to prevent undefined state
     initialData: { running: false }
   });
-  
+
   const form = useForm({
     resolver: zodResolver(insertSourceSchema),
     defaultValues: {
@@ -135,7 +149,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch sources')
-        
+
         const data = await response.json()
         return data || []
       } catch(error) {
@@ -144,14 +158,14 @@ export default function Sources() {
       }
     }
   });
-  
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (sources.data) {
       setLocalSources(sources.data);
     }
   }, [sources.data]);
-  
+
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
     queryKey: ["/api/news-tracker/settings/auto-scrape"],
@@ -165,7 +179,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
-        
+
         const data = await response.json()
         return data || { enabled: false, interval: JobInterval.DAILY }
       } catch(error) {
@@ -192,11 +206,11 @@ export default function Sources() {
           body: JSON.stringify(data),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to add source: ${response.statusText}`);
         }
-        
+
         // Parse JSON response
         const responseData = await response.json();
         return responseData;
@@ -218,25 +232,25 @@ export default function Sources() {
         lastScraped: null,
         userId: null
       } as Source;
-      
+
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous states for potential rollback
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Update local state immediately for UI feedback
       setLocalSources(prev => [tempSource, ...prev]);
-      
+
       // Add to pendingItems to show loading indicators
       setPendingItems(prev => new Set(prev).add(tempId));
-      
+
       // Update React Query cache 
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         [tempSource, ...oldData]
       );
-      
+
       return { previousSources, previousLocalSources, tempId };
     },
     onError: (err, newSource, context) => {
@@ -244,7 +258,7 @@ export default function Sources() {
         // Revert both local state and React Query cache
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData(["/api/news-tracker/sources"], context.previousSources);
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -252,7 +266,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       toast({
         title: "Error adding source",
         description: "Failed to add source. Please try again.",
@@ -267,14 +281,14 @@ export default function Sources() {
             source.id === context.tempId ? (data as Source) : source
           )
         );
-        
+
         // Update React Query cache with server data
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], prev => 
           prev?.map(source => 
             source.id === context.tempId ? (data as Source) : source
           ) || []
         );
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -282,7 +296,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       form.reset();
       toast({
         title: "Source added successfully",
@@ -298,11 +312,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to scrape source: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -319,10 +333,10 @@ export default function Sources() {
     onMutate: async (id) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      
+
       // Optimistically update the source
       // We can't easily update the status directly as it may be part of scrapingConfig
       // But we can set a temporary visual indication by updating another property
@@ -333,7 +347,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources };
     },
     onError: (err, id, context) => {
@@ -363,11 +377,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to stop scraping: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -384,10 +398,10 @@ export default function Sources() {
     onMutate: async (id) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      
+
       // Optimistically update the source
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -396,7 +410,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources };
     },
     onError: (err, id, context) => {
@@ -415,7 +429,7 @@ export default function Sources() {
       });
     },
   });
-  
+
   // Toggle auto-scrape inclusion for a source
   const toggleAutoScrape = useMutation({
     mutationFn: async ({ id, include }: { id: string, include: boolean }) => {
@@ -429,11 +443,11 @@ export default function Sources() {
           body: JSON.stringify({ includeInAutoScrape: include }),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to update auto-scrape setting: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -450,14 +464,14 @@ export default function Sources() {
     onMutate: async ({ id, include }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Get snapshot of current data
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Add to pendingItems to show loading indicator
       setPendingItems(prev => new Set(prev).add(id));
-      
+
       // Optimistically update local state for UI feedback
       setLocalSources(prev => 
         prev.map(source => 
@@ -466,7 +480,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       // Optimistically update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (old = []) => 
         old.map(source => 
@@ -475,7 +489,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources, previousLocalSources, id };
     },
     onError: (err, variables, context) => {
@@ -483,7 +497,7 @@ export default function Sources() {
         // Revert both local state and React Query cache on error
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -491,7 +505,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       toast({
         title: "Failed to update auto-scrape setting",
         variant: "destructive",
@@ -504,14 +518,14 @@ export default function Sources() {
         updated.delete(variables.id);
         return updated;
       });
-      
+
       // Don't refetch - the optimistic update already handled the UI change
       toast({
         title: "Auto-scrape settings updated",
       });
     },
   });
-  
+
   // Edit a source
   const editSource = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditSourceFormValues }) => {
@@ -525,11 +539,11 @@ export default function Sources() {
           body: JSON.stringify(data),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to update source: ${response.statusText}`);
         }
-        
+
         const responseData = await response.json();
         return responseData;
       } catch (error) {
@@ -540,11 +554,11 @@ export default function Sources() {
     onMutate: async ({ id, data }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Optimistically update the local state
       setLocalSources(prev => 
         prev.map(source => 
@@ -553,7 +567,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       // Update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -562,7 +576,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources, previousLocalSources, id };
     },
     onError: (error: Error, variables, context) => {
@@ -571,7 +585,7 @@ export default function Sources() {
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
       }
-      
+
       toast({
         title: "Error updating source",
         description: error.message || "Failed to update source. Please try again.",
@@ -582,7 +596,7 @@ export default function Sources() {
       toast({
         title: "Source updated successfully",
       });
-      
+
       setEditDialogOpen(false);
       setEditingSource(null);
       editForm.reset();
@@ -591,53 +605,68 @@ export default function Sources() {
 
   // Delete a source
   const deleteSource = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, deleteArticles }: { id: string, deleteArticles?: boolean }) => {
       try {
         // Use fetch directly to handle empty responses properly
-        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
+        let url = `${serverUrl}/api/news-tracker/sources/${id}`;
+        if (deleteArticles) {
+          url += '?deleteArticles=true';
+        }
+
+        const response = await fetch(url, {
           method: "DELETE",
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
-          throw new Error(`Failed to delete source: ${response.statusText}`);
+          const errorData = await response.json();
+          const errorMessage = errorData?.error || `Failed to delete source: ${response.statusText}`;
+
+          if (errorMessage === "ARTICLES_EXIST") {
+            throw {
+              message: errorMessage,
+              data: errorData,
+            };
+          }
+
+          throw new Error(errorMessage);
         }
-        
+
         // Don't try to parse JSON - some DELETE endpoints return empty responses
         return { success: true, id };
-      } catch (error) {
+      } catch (error: any) {
         console.error("Delete source error:", error);
         throw error;
       }
     },
-    onMutate: async (id) => {
+    onMutate: async ({ id }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Add to pendingItems to show loading indicator
       setPendingItems(prev => new Set(prev).add(id));
-      
+
       // Optimistically update the local state for immediate UI feedback
       setLocalSources(prev => prev.filter(source => source.id !== id));
-      
+
       // Update React Query cache optimistically
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.filter(source => source.id !== id)
       );
-      
+
       return { previousSources, previousLocalSources, id };
     },
-    onError: (error: Error, id, context) => {
+    onError: (error: any, { id }, context) => {
       if (context) {
         // If the mutation fails, restore both local state and React Query cache
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -645,32 +674,83 @@ export default function Sources() {
           return updated;
         });
       }
-      
-      toast({
-        title: "Error deleting source",
-        description: error.message || "Failed to delete source. Please try again.",
-        variant: "destructive",
-      });
+
+      // Only show toast if it's not the ARTICLES_EXIST error
+      if (error?.message !== "ARTICLES_EXIST") {
+        toast({
+          title: "Error deleting source",
+          description: error.message || "Failed to delete source. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
-    onSuccess: (data, id) => {
+    onSuccess: (data, { id }) => {
       // Remove from pending items
       setPendingItems(prev => {
         const updated = new Set(prev);
         updated.delete(id);
         return updated;
       });
-      
+
       // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Source deleted successfully",
       });
-      
+
       // Close the delete dialog
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
     },
   });
-  
+
+  // Handle delete click
+  const handleDeleteClick = async (source: Source) => {
+    try {
+      // Try to delete the source first to check if there are associated articles
+      await deleteSource.mutateAsync({ id: source.id });
+    } catch (error: any) {
+      console.log("Caught error:", error);
+
+      // Check for ARTICLES_EXIST error
+      const errorData = error?.data || {};
+      const errorMessage = errorData?.error || error?.message;
+
+      if (errorMessage === "ARTICLES_EXIST") {
+        // Show confirmation dialog
+        setDeleteConfirmation({
+          source,
+          articleCount: parseInt(errorData.articleCount || '0'),
+        });
+        return; // Don't show error toast
+      }
+
+      // For other errors, let the mutation's onError handle it
+      throw error;
+    }
+  };
+
+  // Handle confirm delete
+  const handleConfirmDelete = () => {
+    if (sourceToDelete) {
+      deleteSource.mutate({ id: sourceToDelete.id });
+      setDeleteDialogOpen(false);
+      setSourceToDelete(null);
+    }
+  };
+
+  // Handle confirmed deletion with articles
+  const handleConfirmedDelete = (deleteArticles: boolean) => {
+    if (deleteConfirmation) {
+      if (deleteArticles) {
+        deleteSource.mutate({ 
+          id: deleteConfirmation.source.id, 
+          deleteArticles: true 
+        });
+      }
+      setDeleteConfirmation(null);
+    }
+  };
+
   // Run global scrape job manually
   // Add the stop global scrape mutation
   const stopGlobalScrape = useMutation({
@@ -678,7 +758,7 @@ export default function Sources() {
       try {
         // Add a debugging log before making the request
         console.log("Attempting to stop global scrape job...");
-        
+
         const response = await fetch(`${serverUrl}/api/news-tracker/jobs/stop`, {
           method: "POST",
           headers: {
@@ -687,15 +767,15 @@ export default function Sources() {
           },
           credentials: "include"
         });
-        
+
         console.log("Stop request response status:", response.status);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Error response:", errorText);
           throw new Error(`Failed to stop global scrape: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -737,11 +817,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to start global scrape: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -758,10 +838,10 @@ export default function Sources() {
     onMutate: async () => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous state
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      
+
       // Optimistically update all eligible sources
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -770,7 +850,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources };
     },
     onError: (err, variables, context) => {
@@ -808,7 +888,7 @@ export default function Sources() {
       }, 5000);
     },
   });
-  
+
   // Update auto-scrape settings
   const updateAutoScrapeSettings = useMutation({
     mutationFn: async ({ enabled, interval }: { enabled: boolean, interval: JobInterval }) => {
@@ -822,11 +902,11 @@ export default function Sources() {
           body: JSON.stringify({ enabled, interval }),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to update auto-scrape settings: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -843,12 +923,12 @@ export default function Sources() {
     onMutate: async ({ enabled, interval }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
-      
+
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], {
         enabled,
         interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
       });
-      
+
       return { previousSettings };
     },
     onError: (err, variables, context) => {
@@ -877,23 +957,24 @@ export default function Sources() {
       });
       return;
     }
-    
+
     addSource.mutate(data);
   });
 
   const onEditSubmit = editForm.handleSubmit((data) => {
     if (!editingSource) return;
-    
+
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
-      toast({
+      ```python
+toast({
         title: "Validation Error",
         description: "Both source name and URL are required.",
         variant: "destructive",
       });
       return;
     }
-    
+
     editSource.mutate({ id: editingSource.id, data });
   });
 
@@ -1000,7 +1081,7 @@ export default function Sources() {
             <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">Sources</h1>
             <p className="text-xs sm:text-sm lg:text-base text-slate-300">Manage news sources and control web scraping operations</p>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
             <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <PopoverTrigger asChild>
@@ -1059,7 +1140,7 @@ export default function Sources() {
                 </div>
               </PopoverContent>}
             </Popover>
-            
+
             {autoScrapeStatus?.data?.running ? (
               <Button 
                 onClick={() => stopGlobalScrape.mutate()}
@@ -1093,7 +1174,7 @@ export default function Sources() {
             )}
           </div>
         </div>
-        
+
         {/* Scheduled status indicator */}
         {autoScrapeSettings.data?.enabled && autoScrapeSettings.data?.interval && (
           <div className="flex flex-wrap items-center p-3 bg-primary/10 rounded-lg text-xs sm:text-sm border border-primary/20">
@@ -1113,7 +1194,7 @@ export default function Sources() {
             <div className="flex items-center justify-between mb-1 sm:mb-2">
               <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">Add News Source</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
               <div>
                 <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name *</label>
@@ -1180,7 +1261,7 @@ export default function Sources() {
               </li>
             </ul>
           </div>
-          
+
           <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-700/50">
             <div className="flex items-center gap-1 sm:gap-2">
               <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 rounded-full bg-primary/20 flex items-center justify-center">
@@ -1330,10 +1411,7 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setSourceToDelete(source.id);
-                            setDeleteDialogOpen(true);
-                          }}
+                          onClick={() => handleDeleteClick(source)}
                           disabled={deleteSource.isPending}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Delete source"
@@ -1345,7 +1423,7 @@ export default function Sources() {
                           )}
                         </Button>
                       </div>
-                      
+
                       {/* Large Desktop Layout - Horizontal */}
                       <div className="hidden lg:flex flex-row justify-end items-center gap-2">
                         <Button
@@ -1388,10 +1466,7 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setSourceToDelete(source.id);
-                            setDeleteDialogOpen(true);
-                          }}
+                          onClick={() => handleDeleteClick(source)}
                           disabled={deleteSource.isPending}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
                           title="Delete source"
@@ -1411,6 +1486,38 @@ export default function Sources() {
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog for Sources with Articles */}
+        <AlertDialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Source with Associated Articles</AlertDialogTitle>
+              <AlertDialogDescription>
+                The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated articles.
+                <br /><br />
+                Would you like to delete the associated articles as well? If you choose "Cancel", the source will not be deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
+                Cancel
+              </AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={() => handleConfirmedDelete(false)}
+                className="mr-2"
+              >
+                Keep Articles, Cancel Delete
+              </Button>
+              <AlertDialogAction
+                onClick={() => handleConfirmedDelete(true)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete Source & {deleteConfirmation?.articleCount} Articles
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

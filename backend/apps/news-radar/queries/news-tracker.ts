@@ -38,7 +38,7 @@ export interface IStorage {
   getAutoScrapeSources(userId?: string): Promise<Source[]>;
   createSource(source: InsertSource): Promise<Source>;
   updateSource(id: string, source: Partial<Source>): Promise<Source>;
-  deleteSource(id: string): Promise<void>;
+  deleteSource(id: string, deleteArticles: boolean): Promise<void>;
 
   // Keywords
   getKeywords(userId?: string): Promise<Keyword[]>;
@@ -64,7 +64,7 @@ export interface IStorage {
   createArticle(article: InsertArticle, userId: string): Promise<Article>;
   deleteArticle(id: string, userId: string): Promise<void>;
   deleteAllArticles(userId: string): Promise<number>; // Returns count of deleted articles
-  
+
   // Settings
   getSetting(key: string, userId?: string): Promise<Setting | undefined>;
   setSetting(key: string, value: any, userId?: string): Promise<Setting>;
@@ -87,7 +87,7 @@ export class DatabaseStorage implements IStorage {
     const [source] = await db.select().from(sources).where(eq(sources.id, id));
     return source;
   }
-  
+
   async getAutoScrapeSources(userId?: string): Promise<Source[]> {
     let query = db.select()
       .from(sources)
@@ -97,7 +97,7 @@ export class DatabaseStorage implements IStorage {
           eq(sources.includeInAutoScrape, true)
         )
       );
-    
+
     if (userId) {
       query = db.select()
         .from(sources)
@@ -109,7 +109,7 @@ export class DatabaseStorage implements IStorage {
           )
         );
     }
-    
+
     return await query;
   }
 
@@ -131,8 +131,35 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteSource(id: string): Promise<void> {
-    await db.delete(sources).where(eq(sources.id, id));
+  async deleteSource(id: string, deleteArticles: boolean = false): Promise<void> {
+    try {
+      // Check if there are associated articles
+      const associatedArticles = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(articles)
+        .where(eq(articles.sourceId, id))
+        .execute();
+
+      const articleCount = associatedArticles[0]?.count || 0;
+
+      if (articleCount > 0 && !deleteArticles) {
+        // Return special error object with article count for frontend handling
+        const error = new Error(`ARTICLES_EXIST`);
+        (error as any).articleCount = articleCount;
+        throw error;
+      }
+
+      // Delete associated articles if requested
+      if (articleCount > 0 && deleteArticles) {
+        await db.delete(articles).where(eq(articles.sourceId, id));
+      }
+
+      // Delete the source
+      await db.delete(sources).where(eq(sources.id, id));
+    } catch (error) {
+      console.error("Error deleting source:", error);
+      throw error;
+    }
   }
 
   // Keywords
@@ -145,7 +172,7 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(keywords);
     }
   }
-  
+
   async getKeyword(id: string): Promise<Keyword | undefined> {
     const [keyword] = await db
       .select()
@@ -153,14 +180,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(keywords.id, id));
     return keyword;
   }
-  
+
   async getKeywordTermsById(ids: string[]): Promise<string[]> {
     if (!ids || ids.length === 0) return [];
-    
+
     try {
       const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
       const sqlStr = `SELECT term FROM keywords WHERE id IN (${placeholders})`;
-      
+
       // Use raw SQL query to get terms for the given IDs
       const results = await executeRawSql<{ term: string }>(sqlStr, ids);
       return results.map(row => row.term);
@@ -288,14 +315,14 @@ export class DatabaseStorage implements IStorage {
     )
     return result.length;
   }
-  
+
   // Settings
   async getSetting(key: string, userId?: string): Promise<Setting | undefined> {
     let query = db
       .select()
       .from(settings)
       .where(eq(settings.key, key));
-    
+
     if (userId !== undefined) {
       query = db
         .select()
@@ -314,15 +341,15 @@ export class DatabaseStorage implements IStorage {
           isNull(settings.userId)
         ))
     }
-    
+
     const [setting] = await query;
     return setting;
   }
-  
+
   async setSetting(key: string, value: any, userId?: string): Promise<Setting> {
     // Check if setting exists
     const existing = await this.getSetting(key, userId);
-    
+
     if (existing) {
       // Update existing setting
       const [updated] = await db
