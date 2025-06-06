@@ -77,6 +77,19 @@
             border-left: 4px solid #007bff;
             background-color: #f8f9fa;
         }
+        .safety-banner {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .safety-banner h3 {
+            margin-top: 0;
+            color: #856404;
+        }
     </style>
 </head>
 <body>
@@ -84,6 +97,16 @@
         <div class="header">
             <h1>Sample Data Population Script</h1>
             <p>This script will populate your account with comprehensive sample data for News Radar and Threat Tracker.</p>
+        </div>
+
+        <div class="safety-banner">
+            <h3>⚠️ AUTHORIZATION REQUIRED</h3>
+            <p>This script can only be used by:</p>
+            <ul>
+                <li>Users with <strong>@altairtek.com</strong> email addresses</li>
+                <li>In <strong>non-production</strong> environments only (VITE_ENV ≠ 'production')</li>
+            </ul>
+            <p>The script will automatically verify these requirements before proceeding.</p>
         </div>
 
         <div id="status-container"></div>
@@ -223,11 +246,46 @@
 
         async function checkAuthentication() {
             try {
-                await makeRequest('/auth/check');
-                return true;
+                const authResponse = await makeRequest('/auth/check');
+                return { isAuthenticated: true, user: authResponse.user };
             } catch (error) {
-                return false;
+                return { isAuthenticated: false, user: null };
             }
+        }
+
+        async function checkEnvironmentSafety() {
+            // Check if VITE_ENV is production or undefined
+            const viteEnv = import.meta.env.VITE_ENV;
+            if (viteEnv === 'production') {
+                return {
+                    safe: false,
+                    reason: 'Cannot run in production environment (VITE_ENV=production)'
+                };
+            }
+            
+            if (!viteEnv) {
+                log('Warning: VITE_ENV is not set, proceeding with caution');
+            }
+            
+            return { safe: true };
+        }
+
+        async function checkUserAuthorization(user) {
+            if (!user || !user.email) {
+                return {
+                    authorized: false,
+                    reason: 'User email not found'
+                };
+            }
+            
+            if (!user.email.endsWith('@altairtek.com')) {
+                return {
+                    authorized: false,
+                    reason: 'Only @altairtek.com email addresses are authorized to use this script'
+                };
+            }
+            
+            return { authorized: true };
         }
 
         // Data population functions
@@ -316,11 +374,28 @@
             log('Checking current data status...');
             
             try {
-                const isAuthenticated = await checkAuthentication();
-                if (!isAuthenticated) {
+                // Check environment safety
+                const envCheck = await checkEnvironmentSafety();
+                if (!envCheck.safe) {
+                    showStatus(envCheck.reason, 'error');
+                    return;
+                }
+
+                const authResult = await checkAuthentication();
+                if (!authResult.isAuthenticated) {
                     showStatus('Please log in first to check data status', 'warning');
                     return;
                 }
+
+                // Check user authorization
+                const authCheck = await checkUserAuthorization(authResult.user);
+                if (!authCheck.authorized) {
+                    showStatus(authCheck.reason, 'error');
+                    log(`Access denied: ${authCheck.reason}`);
+                    return;
+                }
+
+                log(`Authorized user: ${authResult.user.email}`);
 
                 // Check News Radar data
                 const sources = await makeRequest('/news-tracker/sources');
@@ -352,6 +427,14 @@
         }
 
         async function populateData() {
+            // Check environment safety first
+            const envCheck = await checkEnvironmentSafety();
+            if (!envCheck.safe) {
+                showStatus(envCheck.reason, 'error');
+                log(`Environment check failed: ${envCheck.reason}`);
+                return;
+            }
+
             // Check if already populated
             if (localStorage.getItem(HAS_BEEN_POPULATED_KEY) === 'true') {
                 const proceed = confirm('Sample data appears to have been populated already. Continue anyway?');
@@ -362,12 +445,22 @@
             }
 
             // Check authentication
-            const isAuthenticated = await checkAuthentication();
-            if (!isAuthenticated) {
+            const authResult = await checkAuthentication();
+            if (!authResult.isAuthenticated) {
                 showStatus('Please log in first to populate data', 'error');
                 log('Authentication required - please log in to your account first');
                 return;
             }
+
+            // Check user authorization
+            const authCheck = await checkUserAuthorization(authResult.user);
+            if (!authCheck.authorized) {
+                showStatus(authCheck.reason, 'error');
+                log(`Access denied: ${authCheck.reason}`);
+                return;
+            }
+
+            log(`Starting population for authorized user: ${authResult.user.email}`);
 
             // Disable button during population
             const populateBtn = document.getElementById('populate-btn');
