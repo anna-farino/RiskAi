@@ -691,20 +691,38 @@ export async function scrapePuppeteer(
       
       // Final attempt: try a different approach if still blocked
       const finalCheck = await page.evaluate(() => {
-        return (document.body && document.body.textContent || '').trim().length;
+        const text = (document.body && document.body.textContent || '').trim();
+        return {
+          contentLength: text.length,
+          hasCloudflareIndicators: document.title.includes('Just a moment') || 
+                                   text.includes('Checking your browser') ||
+                                   text.includes('Ray ID:'),
+          pageUrl: window.location.href
+        };
       });
       
-      if (finalCheck < 500) {
-        console.log('[Puppeteer] Still insufficient content, trying page refresh approach');
+      if (finalCheck.contentLength < 500 || finalCheck.hasCloudflareIndicators) {
+        console.log('[Puppeteer] Advanced protection detected, attempting alternative approaches');
+        
+        // Try disabling JavaScript to bypass some protections
         try {
-          // Try navigating to the page again with different strategy
-          await page.goto(url, { 
-            waitUntil: 'load', 
-            timeout: 15000 
+          await page.setJavaScriptEnabled(false);
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          const noJsCheck = await page.evaluate(() => {
+            return (document.body && document.body.textContent || '').trim().length;
           });
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        } catch (refreshError) {
-          console.log('[Puppeteer] Refresh attempt failed, proceeding with available content');
+          
+          if (noJsCheck > 500) {
+            console.log('[Puppeteer] Success with JavaScript disabled');
+          } else {
+            console.log('[Puppeteer] No improvement with JavaScript disabled, re-enabling');
+            await page.setJavaScriptEnabled(true);
+          }
+        } catch (noJsError) {
+          console.log('[Puppeteer] JavaScript disable attempt failed');
+          await page.setJavaScriptEnabled(true);
         }
       }
     }
