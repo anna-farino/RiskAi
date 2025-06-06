@@ -1363,7 +1363,6 @@ toast({
                           onCheckedChange={(checked) => 
                             toggleAutoScrape.mutate({ id: source.id, include: checked })
                           }
-                          }
                           disabled={toggleAutoScrape.isPending}
                           className="scale-75 sm:scale-100 flex-shrink-0"
                         />
