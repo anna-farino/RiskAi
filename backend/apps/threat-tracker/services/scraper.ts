@@ -609,108 +609,29 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Enhanced bot protection detection and handling
-    const botProtectionData = await page.evaluate(() => {
-      const html = document.body.innerHTML;
-      const title = document.title || '';
-      
-      // Check for various bot protection patterns
-      const protectionPatterns = {
-        incapsula: html.includes('_Incapsula_Resource') || html.includes('Incapsula'),
-        cloudflare: html.includes('cloudflare') || html.includes('CloudFlare') || html.includes('Checking your browser'),
-        captcha: html.includes('captcha') || html.includes('Captcha'),
-        challenge: html.includes('challenge') || html.includes('verify') || html.includes('security check'),
-        blocked: html.includes('blocked') || html.includes('access denied') || html.includes('403'),
-        forbes: html.includes('forbes') && (html.includes('blocked') || html.includes('verify') || title.includes('Forbes') && html.length < 5000)
-      };
-      
-      const hasProtection = Object.values(protectionPatterns).some(Boolean);
-      
-      return {
-        hasProtection,
-        patterns: protectionPatterns,
-        htmlLength: html.length,
-        title: title,
-        url: window.location.href
-      };
+    // Check for bot protection
+    const botProtectionCheck = await page.evaluate(() => {
+      return (
+        document.body.innerHTML.includes('_Incapsula_Resource') ||
+        document.body.innerHTML.includes('Incapsula') ||
+        document.body.innerHTML.includes('captcha') ||
+        document.body.innerHTML.includes('Captcha') ||
+        document.body.innerHTML.includes('cloudflare') ||
+        document.body.innerHTML.includes('CloudFlare')
+      );
     });
 
-    if (botProtectionData.hasProtection) {
-      log(`[ThreatTracker] Bot protection detected: ${JSON.stringify(botProtectionData.patterns)}, HTML length: ${botProtectionData.htmlLength}`, "scraper");
+    if (botProtectionCheck) {
+      log('[ThreatTracker] Bot protection detected, performing evasive actions', "scraper");
+      // Perform some human-like actions
+      await page.mouse.move(50, 50);
+      await page.mouse.down();
+      await page.mouse.move(100, 100);
+      await page.mouse.up();
       
-      // Enhanced evasive actions for different protection types
-      if (botProtectionData.patterns.forbes || botProtectionData.patterns.cloudflare) {
-        log('[ThreatTracker] Performing enhanced evasive actions for Forbes/Cloudflare protection', "scraper");
-        
-        // Clear cookies and storage
-        await page.evaluate(() => {
-          localStorage.clear();
-          sessionStorage.clear();
-        });
-        
-        // Set additional headers to appear more browser-like
-        await page.setExtraHTTPHeaders({
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Sec-Ch-Ua': '"Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"',
-          'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
-          'Sec-Fetch-User': '?1',
-          'Upgrade-Insecure-Requests': '1'
-        });
-        
-        // Simulate more realistic human behavior
-        await page.mouse.move(Math.random() * 200 + 100, Math.random() * 200 + 100);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await page.mouse.move(Math.random() * 300 + 200, Math.random() * 300 + 200);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Scroll to simulate reading
-        await page.evaluate(() => {
-          window.scrollTo(0, 100);
-        });
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Navigate back to the page with new session
-        const currentUrl = page.url();
-        await page.goto(currentUrl, { waitUntil: 'networkidle2' });
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        
-        // Check if protection is still active
-        const secondCheck = await page.evaluate(() => {
-          const html = document.body.innerHTML;
-          return {
-            hasProtection: html.includes('_Incapsula_Resource') || html.includes('Incapsula') || 
-                          html.includes('cloudflare') || html.includes('CloudFlare') ||
-                          html.includes('challenge') || html.includes('verify'),
-            htmlLength: html.length
-          };
-        });
-        
-        if (secondCheck.hasProtection && secondCheck.htmlLength < 10000) {
-          log(`[ThreatTracker] Protection still active after evasive actions, HTML length: ${secondCheck.htmlLength}`, "scraper");
-          
-          // Try one more time with different approach
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          await page.reload({ waitUntil: 'networkidle0' });
-          await new Promise(resolve => setTimeout(resolve, 8000));
-        }
-      } else {
-        // Standard evasive actions for other protection types
-        await page.mouse.move(50, 50);
-        await page.mouse.down();
-        await page.mouse.move(100, 100);
-        await page.mouse.up();
-        
-        await page.reload({ waitUntil: 'networkidle2' });
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+      // Reload the page and wait again
+      await page.reload({ waitUntil: 'networkidle2' });
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     // For article pages, extract the content based on selectors
@@ -732,7 +653,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       });
 
       // Extract article content using the provided scraping config
-      let articleContent = await page.evaluate((config) => {
+      const articleContent = await page.evaluate((config) => {
         // First try using the provided selectors
         if (config) {
           const title = config.titleSelector || config.title 
@@ -765,13 +686,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
             'main .content',
             '.post-content',
             '#article-content',
-            '.story-content',
-            '[data-module="ArticleBody"]',
-            '.ArticleBody-articleBody',
-            '.listicle-page__body',
-            '.block-content',
-            '.fs-article',
-            '.fs-body'
+            '.story-content'
           ],
           title: ['h1', '.article-title', '.post-title'],
           author: ['.author', '.byline', '.article-author'],
@@ -841,100 +756,6 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       }, scrapingConfig);
 
       log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
-
-      // Check if the extracted content is too short (likely bot protection)
-      if (articleContent.content && articleContent.content.length < 500) {
-        log(`[ThreatTracker] Content appears too short (${articleContent.content.length} chars), checking for bot protection`, "scraper");
-        
-        // Check if this looks like a bot protection page
-        const isLikelyBotProtection = await page.evaluate(() => {
-          const html = document.body.innerHTML.toLowerCase();
-          const text = document.body.textContent?.toLowerCase() || '';
-          
-          return (
-            html.includes('bot') ||
-            html.includes('automated') ||
-            html.includes('security') ||
-            html.includes('verify') ||
-            html.includes('challenge') ||
-            html.includes('cloudflare') ||
-            html.includes('incapsula') ||
-            text.includes('please enable javascript') ||
-            text.includes('checking your browser') ||
-            text.includes('please wait') ||
-            text.includes('security check')
-          );
-        });
-        
-        if (isLikelyBotProtection) {
-          log(`[ThreatTracker] Bot protection detected in content extraction, attempting alternative methods`, "scraper");
-          
-          // Try to wait longer and extract again
-          await new Promise(resolve => setTimeout(resolve, 10000));
-          
-          // Try alternative extraction methods
-          const alternativeContent = await page.evaluate((config) => {
-            // Try to find the actual article content with more aggressive selectors
-            const selectors = [
-              '[data-module="ArticleBody"]',
-              '[data-testid="article-body"]',
-              '.article-body-content',
-              '.story-body',
-              '.post-body',
-              '.entry-content',
-              '[role="article"]',
-              'main article',
-              '[itemtype*="Article"]',
-              '.content-body',
-              '.rich-text'
-            ];
-            
-            for (const selector of selectors) {
-              const element = document.querySelector(selector);
-              if (element && element.textContent && element.textContent.trim().length > 500) {
-                return {
-                  title: document.querySelector('h1')?.textContent?.trim() || '',
-                  content: element.textContent.trim(),
-                  author: document.querySelector('.author, .byline, [data-testid="author"]')?.textContent?.trim() || '',
-                  date: document.querySelector('time, .date, [data-testid="date"]')?.textContent?.trim() || ''
-                };
-              }
-            }
-            
-            // If still no good content, try to extract from JSON-LD
-            const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
-            for (const script of scripts) {
-              try {
-                const data = JSON.parse(script.textContent || '');
-                if (data['@type'] === 'Article' || data['@type'] === 'NewsArticle') {
-                  return {
-                    title: data.headline || data.name || '',
-                    content: data.articleBody || data.description || '',
-                    author: data.author?.name || data.author || '',
-                    date: data.datePublished || data.dateModified || ''
-                  };
-                }
-              } catch (e) {
-                // Continue to next script
-              }
-            }
-            
-            return null;
-          }, scrapingConfig);
-          
-          if (alternativeContent && alternativeContent.content.length > 500) {
-            log(`[ThreatTracker] Successfully extracted content using alternative methods: ${alternativeContent.content.length} chars`, "scraper");
-            articleContent = {
-              title: alternativeContent.title,
-              content: alternativeContent.content,
-              author: alternativeContent.author,
-              date: alternativeContent.date
-            };
-          } else {
-            log(`[ThreatTracker] Alternative extraction failed, content may be protected`, "scraper");
-          }
-        }
-      }
 
       // Return the content in HTML format
       return `<html><body>
