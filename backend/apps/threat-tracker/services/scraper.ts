@@ -9,7 +9,6 @@ import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
-import { extractForbesArticleLinks, extractForbesArticleContent, isForbesArticleUrl } from './forbes-extractor';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -219,51 +218,23 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
   log(`[ThreatTracker] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`, "scraper");
   log(`[ThreatTracker] Page Debug Info: totalElements=${hasHtmx.debug.totalElements}, scripts=[${hasHtmx.debug.scripts.join(', ')}]`, "scraper-debug");
 
-  // Check if this is a Forbes site for specialized extraction
-  const currentUrl = page.url();
-  const isForbesSite = currentUrl.includes('forbes.com');
-  
-  // Use existing link data if provided, but force fresh extraction for HTMX sites or Forbes
+  // Use existing link data if provided, but force fresh extraction for HTMX sites
   let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
   
   const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
-  const shouldForceExtraction = (isHtmxSite && existingLinkData && existingLinkData.length < 15) || 
-                               (isForbesSite && (!existingLinkData || existingLinkData.length < 10));
+  const shouldForceExtraction = isHtmxSite && existingLinkData && existingLinkData.length < 15;
   
   if (existingLinkData && existingLinkData.length > 0 && !shouldForceExtraction) {
     log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
     articleLinkData = existingLinkData;
   } else {
     if (shouldForceExtraction) {
-      if (isForbesSite) {
-        log(`[ThreatTracker] Forbes site detected, using specialized extraction`, "scraper");
-      } else {
-        log(`[ThreatTracker] HTMX site detected with insufficient links (${existingLinkData?.length || 0}), forcing fresh extraction`, "scraper");
-      }
+      log(`[ThreatTracker] HTMX site detected with insufficient links (${existingLinkData?.length || 0}), forcing fresh extraction`, "scraper");
     } else {
       log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
     }
 
-    // Use Forbes-specific extraction if it's a Forbes site
-    if (isForbesSite) {
-      try {
-        log('[ThreatTracker] Applying Forbes-specific article link extraction', "scraper");
-        articleLinkData = await extractForbesArticleLinks(page);
-        log(`[ThreatTracker] Forbes extraction completed: ${articleLinkData.length} links found`, "scraper");
-        
-        // If Forbes extraction was successful, skip the general extraction
-        if (articleLinkData.length > 0) {
-          log(`[ThreatTracker] Forbes-specific extraction successful, skipping general extraction`, "scraper");
-        }
-      } catch (error: any) {
-        log(`[ThreatTracker] Forbes extraction failed: ${error.message}, falling back to general extraction`, "scraper-error");
-        articleLinkData = [];
-      }
-    }
-
-    // If we don't have links yet (not Forbes or Forbes extraction failed), use general extraction
-    if (!isForbesSite || articleLinkData.length === 0) {
-      if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
       
       // Wait longer for initial HTMX content to load (some triggers on page load)
@@ -567,7 +538,6 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     });
     
     log(`[ThreatTracker] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
-      }
     }
   }
 
@@ -667,38 +637,6 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
     // For article pages, extract the content based on selectors
     if (isArticlePage) {
       log('[ThreatTracker] Extracting article content', "scraper");
-
-      // Check if this is a Forbes article for specialized extraction
-      if (isForbesArticleUrl(url)) {
-        try {
-          log('[ThreatTracker] Detected Forbes article, using specialized extraction', "scraper");
-          const forbesData = await extractForbesArticleContent(page, url);
-          
-          // Return Forbes article data in expected HTML format
-          const forbesHtml = `
-          <html>
-            <head>
-              <title>${forbesData.title}</title>
-              <meta name="author" content="${forbesData.author || ''}">
-              <meta name="publish-date" content="${forbesData.publishDate || ''}">
-            </head>
-            <body>
-              <article>
-                <h1>${forbesData.title}</h1>
-                <div class="content">${forbesData.content}</div>
-                <div class="metadata">
-                  <span class="author">${forbesData.author || ''}</span>
-                  <span class="date">${forbesData.publishDate || ''}</span>
-                </div>
-              </article>
-            </body>
-          </html>`;
-          
-          return forbesHtml;
-        } catch (error: any) {
-          log(`[ThreatTracker] Forbes extraction failed: ${error.message}, falling back to standard extraction`, "scraper-error");
-        }
-      }
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
@@ -1076,5 +1014,4 @@ export async function extractArticleContent(
     log(`[ThreatTracker] Error extracting article content: ${error.message}`, "scraper-error");
     throw error;
   }
-}
 }
