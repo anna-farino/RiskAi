@@ -9,9 +9,6 @@ import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
-import { DynamicContentExtractor, detectArticleLinksIntelligently } from './dynamic-content-extractor';
-import { AdaptiveScraper, detectWebFramework } from './adaptive-scraper';
-import { ContentPatternDetector, analyzePageStructure } from './content-pattern-detector';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -608,14 +605,9 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Initialize adaptive scraper for enhanced content detection
-    const adaptiveScraper = new AdaptiveScraper();
-    
-    // Detect web frameworks to adjust scraping strategy
-    const frameworks = await detectWebFramework(page);
-    const isSPA = frameworks.some(f => ['React', 'Vue', 'Angular', 'Next.js', 'Nuxt.js', 'Gatsby'].includes(f));
-    
-    log(`[ThreatTracker] Detected frameworks: ${frameworks.join(', ')}${isSPA ? ' (SPA detected)' : ''}`, "scraper");
+    // Wait for potential challenges to be processed
+    log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Check for bot protection
     const botProtectionCheck = await page.evaluate(() => {
@@ -642,21 +634,9 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
-    // Apply adaptive page preparation based on detected technology
-    const adaptiveConfig = {
-      waitForNetworkIdle: true,
-      detectSPA: true,
-      handleInfiniteScroll: !isArticlePage, // Only for listing pages
-      waitForLazyImages: true,
-      maxScrollAttempts: isSPA ? 5 : 3,
-      contentStabilityCheck: isSPA || frameworks.length > 0
-    };
-
-    await adaptiveScraper.preparePage(page, adaptiveConfig);
-
-    // For article pages, extract the content using dynamic extraction
+    // For article pages, extract the content based on selectors
     if (isArticlePage) {
-      log('[ThreatTracker] Extracting article content using dynamic strategies', "scraper");
+      log('[ThreatTracker] Extracting article content', "scraper");
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
@@ -672,56 +652,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
-      // Wait for any lazy-loaded content
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Analyze page structure for better extraction strategy
-      const pageStructure = await analyzePageStructure(page);
-      log(`[ThreatTracker] Page analysis: ${JSON.stringify(pageStructure)}`, "scraper-debug");
-
-      // Try site-specific pattern detection first
-      const patternDetector = new ContentPatternDetector();
-      const patternContent = await adaptiveScraper.extractWithRetry(
-        page,
-        async () => await patternDetector.extractContent(page, url),
-        2
-      );
-
-      if (patternContent && patternContent.content.length > 100) {
-        log(`[ThreatTracker] Pattern-based extraction successful: title length=${patternContent.title?.length || 0}, content length=${patternContent.content?.length || 0}`, "scraper");
-        
-        return `<html><body>
-          <h1>${patternContent.title || ''}</h1>
-          ${patternContent.author ? `<div class="author">${patternContent.author}</div>` : ''}
-          ${patternContent.date ? `<div class="date">${patternContent.date}</div>` : ''}
-          <div class="content">${patternContent.content || ''}</div>
-          <div class="metadata" style="display:none;">${JSON.stringify({extractionMethod: 'pattern-based', ...patternContent.metadata})}</div>
-        </body></html>`;
-      }
-
-      // Try dynamic content extraction with retry mechanism
-      const dynamicExtractor = new DynamicContentExtractor();
-      const dynamicContent = await adaptiveScraper.extractWithRetry(
-        page,
-        async () => await dynamicExtractor.extractContent(page, url),
-        3
-      );
-
-      if (dynamicContent && dynamicContent.content.length > 100) {
-        log(`[ThreatTracker] Dynamic extraction successful: title length=${dynamicContent.title?.length || 0}, content length=${dynamicContent.content?.length || 0}`, "scraper");
-        
-        return `<html><body>
-          <h1>${dynamicContent.title || ''}</h1>
-          ${dynamicContent.author ? `<div class="author">${dynamicContent.author}</div>` : ''}
-          ${dynamicContent.date ? `<div class="date">${dynamicContent.date}</div>` : ''}
-          <div class="content">${dynamicContent.content || ''}</div>
-          ${dynamicContent.metadata ? `<div class="metadata" style="display:none;">${JSON.stringify({extractionMethod: 'dynamic', ...dynamicContent.metadata})}</div>` : ''}
-        </body></html>`;
-      }
-
-      // Fallback to traditional selector-based extraction
-      log('[ThreatTracker] Dynamic extraction failed, using traditional selector-based extraction', "scraper");
-      
+      // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
         // First try using the provided selectors
         if (config) {
@@ -746,69 +677,36 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           }
         }
 
-        // Enhanced fallback selectors
+        // Fallback selectors if config fails
         const fallbackSelectors = {
           content: [
             'article',
             '.article-content',
             '.article-body',
-            '.article-wrap .body',
-            '.fs-responsive-text',
-            '.speakable',
             'main .content',
             '.post-content',
             '#article-content',
-            '.story-content',
-            '.entry-content',
-            '.content-body',
-            '[data-module="ArticleBody"]',
-            '.RichTextArticleBody',
-            '.caas-body'
+            '.story-content'
           ],
-          title: ['h1', '.article-title', '.post-title', '.headline', '.entry-title'],
-          author: ['.author', '.byline', '.article-author', '.contrib-link', '.writer-name', '[rel="author"]'],
+          title: ['h1', '.article-title', '.post-title'],
+          author: ['.author', '.byline', '.article-author'],
           date: [
-            'time[datetime]',
             'time',
             '[datetime]',
             '.article-date',
             '.post-date',
             '.published-date',
-            '.timestamp',
-            '.date-published',
-            '.publish-date'
+            '.timestamp'
           ]
         };
 
-        // Try fallback selectors with enhanced logic
+        // Try fallback selectors
         let content = '';
         for (const selector of fallbackSelectors.content) {
-          const elements = document.querySelectorAll(selector);
-          for (const element of elements) {
-            const text = element.textContent?.trim() || '';
-            if (text.length > 200) { // Require substantial content
-              content = text;
-              break;
-            }
-          }
-          if (content) break;
-        }
-
-        // If still no content, try paragraph-based extraction
-        if (!content || content.length < 200) {
-          const paragraphs = Array.from(document.querySelectorAll('p:not(.disclaimer):not(.byline)'));
-          const filteredParagraphs = paragraphs.filter(p => {
-            const text = p.textContent?.trim() || '';
-            const parentClass = p.parentElement?.className?.toLowerCase() || '';
-            return text.length > 50 && 
-                   !parentClass.includes('nav') && 
-                   !parentClass.includes('sidebar') && 
-                   !parentClass.includes('footer') &&
-                   !parentClass.includes('menu');
-          });
-          
-          if (filteredParagraphs.length > 2) {
-            content = filteredParagraphs.map(p => p.textContent?.trim()).join('\n\n');
+          const element = document.querySelector(selector);
+          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
+            content = element.textContent?.trim() || '';
+            break;
           }
         }
 
@@ -849,15 +747,15 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         for (const selector of fallbackSelectors.date) {
           const element = document.querySelector(selector);
           if (element) {
-            date = element.getAttribute('datetime') || element.textContent?.trim() || '';
-            if (date) break;
+            date = element.textContent?.trim() || '';
+            break;
           }
         }
 
         return { title, content, author, date };
       }, scrapingConfig);
 
-      log(`[ThreatTracker] Traditional extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
+      log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
 
       // Return the content in HTML format
       return `<html><body>
@@ -868,30 +766,11 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       </body></html>`;
     }
     
-    // For source/listing pages, extract potential article links using intelligent detection
+    // For source/listing pages, extract potential article links
+    // First do our own extraction to get all links
     await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
       log('[ThreatTracker] Timeout waiting for links in scrapeUrl, continuing anyway', "scraper");
     });
-    
-    // Use intelligent article link detection first
-    const intelligentLinks = await detectArticleLinksIntelligently(page);
-    
-    if (intelligentLinks.length > 10) {
-      log(`[ThreatTracker] Intelligent detection found ${intelligentLinks.length} relevant article links`, "scraper");
-      
-      // Convert to expected format for extractArticleLinksStructured
-      const formattedLinks = intelligentLinks.map(link => ({
-        href: link.href,
-        text: link.text,
-        parentText: '',
-        parentClass: ''
-      }));
-      
-      return await extractArticleLinksStructured(page, formattedLinks);
-    }
-    
-    // Fallback to traditional extraction
-    log('[ThreatTracker] Intelligent detection found insufficient links, using traditional extraction', "scraper");
     
     const extractedLinkData = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a'));
