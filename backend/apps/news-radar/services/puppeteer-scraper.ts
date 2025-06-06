@@ -505,163 +505,69 @@ export async function scrapePuppeteer(
       log('[scrapePuppeteer] Bot protection check failed, continuing...', "scraper");
     }
 
-    // For article pages, just extract the content
+    // For article pages, extract the content with simplified approach
     if (isArticlePage) {
-      console.log('[Puppeteer] Extracting article content - starting extraction');
-
-      // Scroll through the page to ensure all content is loaded
-      await page.evaluate(() => {
-        if (document.body) {
-          console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
-          console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
-          window.scrollTo(0, document.body.scrollHeight / 3);
-        }
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-      await page.evaluate(() => {
-        if (document.body) {
-          console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
-          window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-        }
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-      await page.evaluate(() => {
-        if (document.body) {
-          console.log('[Puppeteer-Debug] Scrolling to bottom of page');
-          window.scrollTo(0, document.body.scrollHeight);
-        }
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-
-      console.log('[Puppeteer] Finished scrolling; waiting briefly for content to settle');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Extract article content using the detected scrapingConfig with timeout protection
+      log('[scrapePuppeteer] Extracting article content', "scraper");
+      
+      // Quick content extraction with timeout protection
       const articleContent = await Promise.race([
-        page.evaluate((scrapingConfig) => {
-          // Log what selectors we're trying to use
-          console.log('[Puppeteer-Debug] Using selectors:', JSON.stringify(scrapingConfig));
-
-          // First try to get content using the scrapingConfig
-          if (scrapingConfig) {
-            const title = scrapingConfig.titleSelector ? document.querySelector(scrapingConfig.titleSelector)?.textContent?.trim() : '';
-            const content = scrapingConfig.contentSelector ? document.querySelector(scrapingConfig.contentSelector)?.textContent?.trim() : '';
-            const author = scrapingConfig.authorSelector ? document.querySelector(scrapingConfig.authorSelector)?.textContent?.trim() : '';
-            const date = scrapingConfig.dateSelector ? document.querySelector(scrapingConfig.dateSelector)?.textContent?.trim() : '';
-
-            if (content) {
-              console.log('[Puppeteer-Debug] Successfully extracted content using scrapingConfig');
-              console.log('[Puppeteer-Debug] Content length:', content.length);
-              return { title, content, author, date };
-            }
-          }
-
-          // Fallback selectors if scrapingConfig fails
-          const fallbackSelectors = {
-            content: [
-              'article',
-              '.article-content',
-              '.article-body',
-              'main .content',
-              '.post-content',
-              '#article-content',
-              '.story-content'
-            ],
-            title: ['h1', '.article-title', '.post-title'],
-            author: ['.author', '.byline', '.article-author'],
-            date: [
-              'time',
-              '[datetime]',
-              '.article-date',
-              '.post-date',
-              '.published-date',
-              '.timestamp'
-            ]
-          };
-
-          // Try fallback selectors
+        page.evaluate(() => {
+          // Simple extraction focusing on common article selectors
+          const title = document.querySelector('h1')?.textContent?.trim() || 
+                       document.title || 
+                       '(No title found)';
+          
           let content = '';
-          for (const selector of fallbackSelectors.content) {
-            const element = document.querySelector(selector);
-            if (element) {
-              content = element.textContent?.trim() || '';
-              console.log(`[Puppeteer-Debug] Found content using fallback selector: ${selector}`);
-              console.log('[Puppeteer-Debug] Content length:', content.length);
-              break;
+          
+          // Try article tag first
+          const article = document.querySelector('article');
+          if (article && article.textContent) {
+            content = article.textContent.trim();
+          }
+          
+          // Fallback to main content areas
+          if (!content || content.length < 200) {
+            const contentSelectors = [
+              '.article-content', '.article-body', '.post-content', 
+              '.entry-content', 'main', '#content'
+            ];
+            
+            for (const selector of contentSelectors) {
+              const element = document.querySelector(selector);
+              if (element && element.textContent && element.textContent.trim().length > 200) {
+                content = element.textContent.trim();
+                break;
+              }
             }
           }
-
-          // If still no content, try getting main content area
-          if (!content) {
-            const main = document.querySelector('main');
-            if (main) {
-              content = main.textContent?.trim() || '';
-              console.log('[Puppeteer-Debug] Using main element content');
-              console.log('[Puppeteer-Debug] Content length:', content.length);
+          
+          // Last resort - use body content if substantial
+          if (!content && document.body && document.body.textContent) {
+            const bodyText = document.body.textContent.trim();
+            if (bodyText.length > 1000) {
+              content = bodyText;
             }
           }
-
-          // If still no content, get the body content
-          if (!content && document.body) {
-            content = document.body.textContent?.trim() || '';
-            console.log('[Puppeteer-Debug] Using body content as fallback');
-            console.log('[Puppeteer-Debug] Content length:', content.length);
-          }
-
-          // Try to get title
-          let title = '';
-          for (const selector of fallbackSelectors.title) {
-            const element = document.querySelector(selector);
-            if (element) {
-              title = element.textContent?.trim() || '';
-              break;
-            }
-          }
-
-          // Try to get author
-          let author = '';
-          for (const selector of fallbackSelectors.author) {
-            const element = document.querySelector(selector);
-            if (element) {
-              author = element.textContent?.trim() || '';
-              break;
-            }
-          }
-
-          // Try to get date
-          let date = '';
-          for (const selector of fallbackSelectors.date) {
-            const element = document.querySelector(selector);
-            if (element) {
-              date = element.textContent?.trim() || '';
-              break;
-            }
-          }
-
-          return { title, content, author, date };
-        }, scrapingConfig),
-        // Timeout protection - prevent hanging on content extraction
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Content extraction timeout')), 15000)
+          
+          return {
+            title,
+            content: content || '(No content found)',
+            author: '(No author found)',
+            date: '(No date found)'
+          };
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Content extraction timeout')), 8000)
         )
       ]) as { title: string; content: string; author: string; date: string };
 
-      console.log('[Puppeteer] Extraction results:', {
-        hasTitle: !!articleContent.title,
-        titleLength: articleContent.title?.length || 0,
-        hasContent: !!articleContent.content,
-        contentLength: articleContent.content?.length || 0,
-        hasAuthor: !!articleContent.author,
-        hasDate: !!articleContent.date
-      });
+      const formattedContent = `Title: ${articleContent.title}
+Author: ${articleContent.author}
+Date: ${articleContent.date}
+Content: ${articleContent.content}`;
 
-      // Return the content in HTML format
-      return `<html><body>
-        <h1>${articleContent.title || ''}</h1>
-        ${articleContent.author ? `<div class="author">${articleContent.author}</div>` : ''}
-        ${articleContent.date ? `<div class="date">${articleContent.date}</div>` : ''}
-        <div class="content">${articleContent.content || ''}</div>
-      </body></html>`;
+      log(`[scrapePuppeteer] Content extracted - Title: ${articleContent.title.substring(0, 50)}..., Content length: ${articleContent.content.length}`, "scraper");
+      return formattedContent;
     }
 
     // For source/listing pages, extract article links
