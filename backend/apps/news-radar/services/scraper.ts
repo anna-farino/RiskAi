@@ -132,6 +132,35 @@ function detectLazyLoading(html: string): boolean {
   return hasLazyLoad;
 }
 
+function detectHtmx(html: string): boolean {
+  const $ = cheerio.load(html);
+
+  // Check for HTMX patterns
+  const hasHtmx =
+    // HTMX script loaded
+    html.includes("htmx.min.js") ||
+    html.includes("htmx.js") ||
+    $('script[src*="htmx"]').length > 0 ||
+    // HTMX attributes present
+    $('[hx-get]').length > 0 ||
+    $('[hx-post]').length > 0 ||
+    $('[hx-trigger]').length > 0 ||
+    $('[hx-target]').length > 0 ||
+    $('[hx-swap]').length > 0 ||
+    // HTMX indicators in HTML
+    html.includes("hx-") ||
+    html.includes("htmx");
+
+  if (hasHtmx) {
+    log(
+      `[HTMX Detection] HTMX dynamic content loading detected`,
+      "scraper",
+    );
+  }
+
+  return hasHtmx;
+}
+
 function detectBotProtection(html: string, response: Response): BotProtection {
   const $ = cheerio.load(html);
   log(`[Bot Detection] Analyzing response headers and HTML content`, "scraper");
@@ -338,14 +367,15 @@ export async function scrapeUrl(
           return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
         }
 
-        // Then independently check for React app and lazy loading
+        // Then independently check for React app, lazy loading, and HTMX
         const isReactApp = detectReactApp(html);
         const hasLazyLoad = detectLazyLoading(html);
+        const hasHtmx = detectHtmx(html);
 
-        // Switch to Puppeteer if we detect either React or lazy loading
-        if (isReactApp || hasLazyLoad) {
+        // Switch to Puppeteer if we detect React, lazy loading, or HTMX
+        if (isReactApp || hasLazyLoad || hasHtmx) {
           log(
-            `[Scraping] Dynamic content detected (React: ${isReactApp}, LazyLoad: ${hasLazyLoad}), switching to Puppeteer`,
+            `[Scraping] Dynamic content detected (React: ${isReactApp}, LazyLoad: ${hasLazyLoad}, HTMX: ${hasHtmx}), switching to Puppeteer`,
             "scraper",
           );
           return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl

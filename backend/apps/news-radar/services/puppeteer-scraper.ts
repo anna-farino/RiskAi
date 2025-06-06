@@ -72,7 +72,188 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 async function extractArticleLinks(page: Page): Promise<string> {
   // Wait for any links to appear
   await page.waitForSelector('a', { timeout: 5000 });
-  console.log('[Puppeteer] Found anchor tags on page');
+  console.log('[NewsRadar] Found anchor tags on page');
+
+  // HTMX Detection and handling
+  const hasHtmx = await page.evaluate(() => {
+    const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
+    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+    const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
+    
+    // Get all hx-get elements for potential direct fetching
+    const hxGetElements = Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+      url: el.getAttribute('hx-get') || '',
+      trigger: el.getAttribute('hx-trigger') || 'click'
+    }));
+
+    // Debug info
+    const debug = {
+      totalElements: document.querySelectorAll('*').length,
+      scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).slice(0, 5)
+    };
+
+    return { scriptLoaded, htmxInWindow, hasHxAttributes, hxGetElements, debug };
+  });
+
+  console.log(`[NewsRadar] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`);
+
+  // Handle HTMX content if detected
+  if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
+    console.log('[NewsRadar] HTMX detected on page, handling dynamic content...');
+    
+    // Wait longer for initial HTMX content to load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Specifically for sites with HTMX, manually fetch HTMX content
+    console.log(`[NewsRadar] Attempting to load HTMX content directly...`);
+    
+    // Get the current page URL to construct proper HTMX endpoints
+    const currentUrl = page.url();
+    const baseUrl = new URL(currentUrl).origin;
+    
+    // Manually fetch HTMX endpoints that contain articles
+    const htmxContent = await page.evaluate(async (baseUrl) => {
+      let totalContentLoaded = 0;
+      
+      // Common HTMX endpoints for article content
+      const endpoints = [
+        '/media/items/',
+        '/media/items/top/',
+        '/media/items/recent/',
+        '/media/items/popular/',
+        '/news/items/',
+        '/news/items/top/',
+        '/articles/items/',
+        '/articles/items/recent/',
+        '/posts/items/',
+        '/content/items/'
+      ];
+      
+      // Get CSRF token from page if available
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                       document.querySelector('input[name="_token"]')?.getAttribute('value') ||
+                       document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+      
+      // Get screen size info for headers
+      const screenType = window.innerWidth < 768 ? 'M' : 'D';
+      
+      for (const endpoint of endpoints) {
+        try {
+          const headers = {
+            'HX-Request': 'true',
+            'HX-Current-URL': window.location.href,
+            'Accept': 'text/html, */*'
+          };
+          
+          // Add CSRF token if available
+          if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+          }
+          
+          // Add screen type header
+          headers['X-Screen'] = screenType;
+          
+          console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
+          const response = await fetch(`${baseUrl}${endpoint}`, { headers });
+          
+          if (response.ok) {
+            const html = await response.text();
+            console.log(`Loaded ${html.length} chars from ${endpoint}`);
+            
+            // Insert content into page
+            const container = document.createElement('div');
+            container.className = 'htmx-injected-content';
+            container.setAttribute('data-source', endpoint);
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            totalContentLoaded += html.length;
+          }
+        } catch (e) {
+          console.error(`Error fetching ${endpoint}:`, e);
+        }
+      }
+      
+      return totalContentLoaded;
+    }, baseUrl);
+    
+    if (htmxContent > 0) {
+      console.log(`[NewsRadar] Successfully loaded ${htmxContent} characters of HTMX content`);
+      // Wait for any additional processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    // Try triggering visible HTMX elements
+    const triggeredElements = await page.evaluate(() => {
+      let triggered = 0;
+      
+      // Look for clickable HTMX elements
+      const htmxElements = document.querySelectorAll('[hx-get]');
+      htmxElements.forEach((el, index) => {
+        if (index < 10) { // Limit to first 10
+          const url = el.getAttribute('hx-get');
+          const trigger = el.getAttribute('hx-trigger') || 'click';
+          
+          // Skip if it's a load trigger (already processed) or if it looks like a filter/search
+          if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
+            return;
+          }
+          
+          // Check if element is visible
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            console.log(`Clicking HTMX element: ${url}`);
+            (el as HTMLElement).click();
+            triggered++;
+          }
+        }
+      });
+      
+      return triggered;
+    });
+    
+    if (triggeredElements > 0) {
+      console.log(`[NewsRadar] Triggered ${triggeredElements} HTMX elements via click`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    // Try clicking potential "load more" buttons
+    const clickedButtons = await page.evaluate(() => {
+      const buttonSelectors = [
+        'button:not([disabled])', 
+        'a.more', 
+        'a.load-more', 
+        '[hx-get]:not([hx-trigger="load"])',
+        '.pagination a', 
+        '.load-more',
+        '[role="button"]'
+      ];
+      
+      let clicked = 0;
+      buttonSelectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
+          // Check if element is visible and might be a "load more" button
+          const text = el.textContent?.toLowerCase() || '';
+          const isLoadMoreButton = text.includes('more') || 
+                                   text.includes('load') || 
+                                   text.includes('next') ||
+                                   text.includes('pag');
+          
+          if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
+            console.log('Clicking element:', text);
+            (el as HTMLElement).click();
+            clicked++;
+          }
+        });
+      });
+      return clicked;
+    });
+    
+    if (clickedButtons > 0) {
+      console.log(`[NewsRadar] Clicked ${clickedButtons} potential "load more" elements`);
+      // Wait for HTMX to process the click and load content
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+  }
 
   // Wait for any remaining dynamic content to load
   await page.waitForFunction(
@@ -83,7 +264,7 @@ async function extractArticleLinks(page: Page): Promise<string> {
       return loadingElements.length === 0;
     },
     { timeout: 10000 }
-  ).catch(() => console.log('[Puppeteer] Timeout waiting for loading indicators'));
+  ).catch(() => console.log('[NewsRadar] Timeout waiting for loading indicators'));
 
   // Extract all links after ensuring content is loaded
   const articleLinkData = await page.evaluate(() => {
@@ -96,8 +277,47 @@ async function extractArticleLinks(page: Page): Promise<string> {
     })).filter(link => link.href); // Only keep links with href attribute
   });
 
-  console.log(`[Puppeteer] Extracted ${articleLinkData.length} potential article links`);
-  console.log(`[Puppeteer] Page has ${await page.evaluate(() => document.querySelectorAll('a').length)} total anchor tags`);
+  console.log(`[NewsRadar] Extracted ${articleLinkData.length} potential article links`);
+  console.log(`[NewsRadar] Page has ${await page.evaluate(() => document.querySelectorAll('a').length)} total anchor tags`);
+
+  // If fewer than 20 links were found, try scrolling and additional techniques
+  if (articleLinkData.length < 20) {
+    console.log(`[NewsRadar] Fewer than 20 links found, trying additional techniques...`);
+    
+    // Scroll through the page to trigger lazy loading
+    console.log(`[NewsRadar] Scrolling page to trigger lazy loading...`);
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    
+    // Wait for additional time to let dynamic content load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Re-extract links after scrolling
+    const updatedLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href);
+    });
+    
+    if (updatedLinkData.length > articleLinkData.length) {
+      console.log(`[NewsRadar] Found ${updatedLinkData.length - articleLinkData.length} additional links after scrolling`);
+      articleLinkData.push(...updatedLinkData.slice(articleLinkData.length));
+    }
+  }
 
   // Create a simplified HTML with just the extracted links
   return `
