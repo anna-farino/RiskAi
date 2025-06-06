@@ -48,7 +48,9 @@ export default function Keywords() {
         return [] // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 60000 // Reduce refetching frequency (1 minute)
+    staleTime: 0, // Always refetch on component mount
+    refetchOnMount: true, // Force refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
   
   // Update local state whenever query data changes
@@ -157,6 +159,9 @@ export default function Keywords() {
         });
       }
       
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
       form.reset();
       toast({
         title: "Keyword added successfully",
@@ -251,6 +256,9 @@ export default function Keywords() {
         });
       }
       
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
       toast({
         title: "Keyword status updated",
       });
@@ -328,6 +336,9 @@ export default function Keywords() {
           return updated;
         });
       }
+      
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
       
       toast({
         title: "Keyword deleted successfully",
