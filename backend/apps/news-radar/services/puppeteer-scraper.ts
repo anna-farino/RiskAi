@@ -68,9 +68,6 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 
 // Shared browser instance to reuse across requests (like Threat Tracker)
 let browser: Browser | null = null;
-// Session storage for DataDome bypass
-let sessionCookies: string[] = [];
-let sessionStartTime = Date.now();
 
 /**
  * Get or create a browser instance (Threat Tracker approach)
@@ -87,7 +84,7 @@ async function getBrowser(): Promise<Browser> {
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
           '--window-size=1920x1080',
-          '--disable-features=site-per-process,AudioServiceOutOfProcess,VizDisplayCompositor',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess',
           '--disable-software-rasterizer',
           '--disable-extensions',
           '--disable-gl-drawing-for-tests',
@@ -98,23 +95,7 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-ipc-flooding-protection',
-          '--disable-renderer-backgrounding',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-field-trial-config',
-          '--disable-background-timer-throttling',
-          '--disable-hang-monitor',
-          '--disable-prompt-on-repost',
-          '--disable-component-extensions-with-background-pages',
-          '--disable-default-apps',
-          '--disable-sync',
-          '--metrics-recording-only',
-          '--no-pings',
-          '--password-store=basic',
-          '--use-mock-keychain',
-          '--disable-component-update'
+          '--disable-blink-features=AutomationControlled'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         timeout: 180000 // 3 minute timeout on browser launch
@@ -136,63 +117,13 @@ async function setupPage(): Promise<Page> {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  // Set realistic viewport with slight randomization
-  await page.setViewport({ 
-    width: 1920 + Math.floor(Math.random() * 100), 
-    height: 1080 + Math.floor(Math.random() * 100) 
-  });
+  // Set viewport
+  await page.setViewport({ width: 1920, height: 1080 });
 
-  // Set realistic user agent
+  // Set user agent (updated to latest Chrome version)
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-  // Advanced stealth techniques - hide automation markers
-  await page.evaluateOnNewDocument(() => {
-    // Hide webdriver property
-    Object.defineProperty(navigator, 'webdriver', {
-      get: () => undefined,
-    });
-
-    // Override the plugins property to mock real browser
-    Object.defineProperty(navigator, 'plugins', {
-      get: () => [1, 2, 3, 4, 5],
-    });
-
-    // Override the languages property
-    Object.defineProperty(navigator, 'languages', {
-      get: () => ['en-US', 'en'],
-    });
-
-    // Mock chrome runtime
-    (window as any).chrome = {
-      runtime: {},
-    };
-
-    // Override permissions query to avoid detection
-    try {
-      const originalQuery = window.navigator.permissions.query;
-      (window.navigator.permissions as any).query = (parameters: any) => {
-        if (parameters.name === 'notifications') {
-          return Promise.resolve({ 
-            state: 'default',
-            name: 'notifications',
-            onchange: null,
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            dispatchEvent: () => true
-          });
-        }
-        return originalQuery.call(window.navigator.permissions, parameters);
-      };
-    } catch (e) {
-      // Ignore permission override errors
-    }
-
-    // Add realistic screen properties
-    Object.defineProperty(screen, 'availWidth', { get: () => 1920 });
-    Object.defineProperty(screen, 'availHeight', { get: () => 1040 });
-  });
-
-  // Set comprehensive headers to bypass DataDome
+  // Set comprehensive headers to bypass DataDome and other protections
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -205,8 +136,7 @@ async function setupPage(): Promise<Page> {
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',
     'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
-    'DNT': '1'
+    'Upgrade-Insecure-Requests': '1'
   });
 
   // Set longer timeouts
@@ -217,168 +147,53 @@ async function setupPage(): Promise<Page> {
 }
 
 /**
- * Handle DataDome protection challenges with enhanced bypass techniques
+ * Handle DataDome protection challenges
  */
 async function handleDataDomeChallenge(page: Page): Promise<void> {
   try {
     log(`[DataDome] Checking for DataDome protection...`, "scraper");
     
-    // Enhanced DataDome detection
-    const challengeInfo = await page.evaluate(() => {
+    // Check if we're on a DataDome challenge page
+    const isDataDomeChallenge = await page.evaluate(() => {
       const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
       const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
       const hasDataDomeContent = document.documentElement?.innerHTML?.includes('datadome') || false;
-      const hasDataDomeDiv = document.querySelector('#cmsg') !== null;
-      const currentUrl = window.location.href;
-      const pageTitle = document.title;
       
-      return {
-        hasChallenge: hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent || hasDataDomeDiv,
-        details: {
-          script: hasDataDomeScript,
-          message: hasDataDomeMessage,
-          content: hasDataDomeContent,
-          div: hasDataDomeDiv,
-          url: currentUrl,
-          title: pageTitle
-        }
-      };
+      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent;
     });
 
-    if (challengeInfo.hasChallenge) {
-      log(`[DataDome] DataDome challenge detected: ${JSON.stringify(challengeInfo.details)}`, "scraper");
+    if (isDataDomeChallenge) {
+      log(`[DataDome] DataDome challenge detected, waiting for completion...`, "scraper");
       
-      // Enhanced challenge completion strategy
+      // Wait for the challenge to complete - DataDome typically redirects or updates the page
       let challengeCompleted = false;
-      const maxWaitTime = 30000; // Increased to 30 seconds
-      const checkInterval = 500; // Check every 500ms for faster detection
+      const maxWaitTime = 15000; // 15 seconds max wait
+      const checkInterval = 1000; // Check every second
       let waitTime = 0;
-      
-      // First, wait for any immediate redirects
-      await new Promise(resolve => setTimeout(resolve, 3000));
       
       while (!challengeCompleted && waitTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
         
-        // Enhanced challenge completion detection
-        const challengeStatus = await page.evaluate(() => {
+        // Check if we're still on challenge page
+        const stillOnChallenge = await page.evaluate(() => {
           const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
           const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
-          const hasDataDomeDiv = document.querySelector('#cmsg') !== null;
-          const bodyText = document.body?.textContent || '';
-          const hasRealContent = bodyText.length > 200 && !hasDataDomeMessage;
-          const currentUrl = window.location.href;
           
-          return {
-            stillHasChallenge: hasDataDomeScript || hasDataDomeMessage || hasDataDomeDiv,
-            hasContent: hasRealContent,
-            url: currentUrl,
-            contentLength: bodyText.length
-          };
+          return hasDataDomeScript || hasDataDomeMessage;
         });
         
-        log(`[DataDome] Challenge check (${waitTime}ms): stillHasChallenge=${challengeStatus.stillHasChallenge}, hasContent=${challengeStatus.hasContent}, contentLength=${challengeStatus.contentLength}`, "scraper");
-        
-        if (!challengeStatus.stillHasChallenge && challengeStatus.hasContent) {
+        if (!stillOnChallenge) {
           challengeCompleted = true;
-          log(`[DataDome] Challenge completed after ${waitTime}ms - content detected`, "scraper");
-          break;
-        }
-        
-        // If URL changed significantly, consider it resolved
-        if (!challengeStatus.url.includes('marketwatch.com') || challengeStatus.url !== challengeInfo.details.url) {
-          challengeCompleted = true;
-          log(`[DataDome] Challenge completed after ${waitTime}ms - URL changed`, "scraper");
-          break;
+          log(`[DataDome] Challenge completed after ${waitTime}ms`, "scraper");
         }
       }
       
       if (!challengeCompleted) {
-        log(`[DataDome] Challenge did not complete within ${maxWaitTime}ms, attempting alternative strategies`, "scraper");
-        
-        // Strategy 1: Try to reload the page with different approach
-        try {
-          log(`[DataDome] Attempting page reload with referrer`, "scraper");
-          await page.goto(challengeInfo.details.url, { 
-            waitUntil: 'domcontentloaded',
-            timeout: 15000,
-            referer: 'https://www.google.com/'
-          });
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        } catch (error: any) {
-          log(`[DataDome] Page reload failed: ${error.message}`, "scraper");
-        }
-        
-        // Strategy 2: Try to manually trigger challenge completion
-        try {
-          await page.evaluate(() => {
-            // Simulate human-like mouse movements
-            const event = new MouseEvent('mousemove', {
-              view: window,
-              bubbles: true,
-              cancelable: true,
-              clientX: Math.random() * window.innerWidth,
-              clientY: Math.random() * window.innerHeight
-            });
-            document.dispatchEvent(event);
-            
-            // Look for any buttons or elements that might complete the challenge
-            const buttons = document.querySelectorAll('button, input[type="button"], input[type="submit"]');
-            for (const button of buttons) {
-              if (button instanceof HTMLElement) {
-                button.click();
-              }
-            }
-            
-            // Try to trigger any pending DataDome callbacks
-            if ((window as any).dd && typeof (window as any).dd.send === 'function') {
-              try {
-                (window as any).dd.send();
-              } catch (e) {
-                // Ignore errors
-              }
-            }
-            
-            // Try to execute any pending scripts
-            const scripts = document.querySelectorAll('script[src*="captcha-delivery.com"]');
-            scripts.forEach(script => {
-              if (script instanceof HTMLScriptElement && script.src) {
-                // Force reload the script
-                const newScript = document.createElement('script');
-                newScript.src = script.src;
-                document.head.appendChild(newScript);
-              }
-            });
-          });
-          
-          // Wait longer after manual intervention
-          await new Promise(resolve => setTimeout(resolve, 8000));
-          
-          // Check if challenge completed after manual intervention
-          const finalCheck = await page.evaluate(() => {
-            const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
-            const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
-            const bodyText = document.body?.textContent || '';
-            
-            return {
-              stillHasChallenge: hasDataDomeScript || hasDataDomeMessage,
-              contentLength: bodyText.length,
-              hasRealContent: bodyText.length > 500 && !hasDataDomeMessage
-            };
-          });
-          
-          if (finalCheck.hasRealContent) {
-            challengeCompleted = true;
-            log(`[DataDome] Challenge completed after manual intervention`, "scraper");
-          }
-          
-        } catch (error: any) {
-          log(`[DataDome] Manual trigger failed: ${error.message}`, "scraper");
-        }
+        log(`[DataDome] Challenge did not complete within ${maxWaitTime}ms, proceeding anyway`, "scraper");
       }
       
-      // Final wait for page to stabilize
+      // Additional wait for page to stabilize after challenge
       await new Promise(resolve => setTimeout(resolve, 2000));
     } else {
       log(`[DataDome] No DataDome challenge detected`, "scraper");
@@ -673,29 +488,16 @@ export async function scrapePuppeteer(
 
     page = await setupPage();
 
-    // Enhanced navigation strategy with human-like behavior
+    // Progressive navigation strategy to handle challenging sites
     let response = null;
     let navigationSuccess = false;
     
-    // Add random delay to simulate human browsing
-    const humanDelay = 1000 + Math.floor(Math.random() * 2000); // 1-3 seconds
-    log(`[scrapePuppeteer] Adding human-like delay: ${humanDelay}ms`, "scraper");
-    await new Promise(resolve => setTimeout(resolve, humanDelay));
-    
-    // Strategy 1: Try domcontentloaded with enhanced error handling
+    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
     try {
       log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
-      
-      // Set up navigation response handler before navigating
-      page.on('response', (response) => {
-        if (response.url() === url) {
-          log(`[scrapePuppeteer] Navigation response status: ${response.status()}`, "scraper");
-        }
-      });
-      
       response = await page.goto(url, { 
         waitUntil: 'domcontentloaded', 
-        timeout: 20000  // Increased timeout for DataDome challenges
+        timeout: 15000  // Reduced timeout for faster production performance
       });
       navigationSuccess = true;
       log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");

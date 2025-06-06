@@ -2,7 +2,6 @@ import * as cheerio from "cheerio";
 import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";
 import { detectArticleLinks, extractPublishDate } from "./openai";
 import { scrapePuppeteer } from "./puppeteer-scraper";
-import { tryAlternativeScraping, enhancedMarketWatchScraping } from "./alternative-scraper";
 
 // Rotating User-Agent list to appear more natural
 const userAgents = [
@@ -373,28 +372,12 @@ export async function scrapeUrl(
         }
 
         if (!response.ok) {
-          // Special handling for DataDome 401 errors - try alternative methods first
+          // Special handling for DataDome 401 errors - switch to Puppeteer immediately
           if (response.status === 401 && (
             response.headers.get("x-datadome") || 
             response.headers.get("x-dd-b")
           )) {
-            log(`[Scraping] DataDome 401 detected`, "scraper");
-            
-            // For MarketWatch, try RSS feeds first since they're reliable
-            if (url.includes('marketwatch.com')) {
-              log(`[Scraping] Trying MarketWatch RSS feeds for authentic content`, "scraper");
-              try {
-                const rssContent = await tryAlternativeScraping(url);
-                if (rssContent && rssContent.length > 500) {
-                  log(`[Scraping] Successfully retrieved authentic MarketWatch content via RSS`, "scraper");
-                  return rssContent;
-                }
-              } catch (error: any) {
-                log(`[Scraping] RSS fallback failed: ${error.message}`, "scraper");
-              }
-            }
-            
-            log(`[Scraping] Attempting Puppeteer bypass as final option`, "scraper");
+            log(`[Scraping] DataDome 401 detected, switching to Puppeteer`, "scraper");
             return await scrapePuppeteer(url, !isSourceUrl, config || {});
           }
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -409,21 +392,6 @@ export async function scrapeUrl(
             `[Scraping] Bot protection detected (${protection.type}): ${protection.details}`,
             "scraper",
           );
-          
-          // For MarketWatch specifically, try alternative approach first
-          if (url.includes('marketwatch.com')) {
-            log(`[Scraping] MarketWatch detected, trying alternative scraping methods`, "scraper");
-            try {
-              const alternativeContent = await tryAlternativeScraping(url);
-              if (alternativeContent && alternativeContent.length > 500) {
-                log(`[Scraping] Alternative scraping successful for MarketWatch`, "scraper");
-                return alternativeContent;
-              }
-            } catch (error: any) {
-              log(`[Scraping] Alternative scraping failed: ${error.message}`, "scraper");
-            }
-          }
-          
           return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
         }
 
