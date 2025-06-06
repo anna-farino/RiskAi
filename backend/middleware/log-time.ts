@@ -18,9 +18,9 @@ function getCurrentDate() {
 
 export default function logTime(req: Request, _res: Response, next: NextFunction) {
 
-  console.log("")
-  reqLog(req, `${getCurrentDate()} path: ${req.path}, method: ${req.method}
-`)
+  // console.log("")
+  // reqLog(req, `${getCurrentDate()} path: ${req.path}, method: ${req.method}
+// `)
 
   next()
 }

@@ -33,7 +33,7 @@ export async function extractArticleContentWithAI(html: string, url: string): Pr
     }
 
     // Limit content size to stay within token limits
-    const MAX_LENGTH = 25000;
+    const MAX_LENGTH = 50000;
     if (processedHtml.length > MAX_LENGTH) {
       processedHtml = processedHtml.substring(0, MAX_LENGTH) + "... [truncated]";
       log(`[ThreatTracker] Truncated HTML from ${html.length} to ${MAX_LENGTH} characters for OpenAI analysis`, "content-extractor");

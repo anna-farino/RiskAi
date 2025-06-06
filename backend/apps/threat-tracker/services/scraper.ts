@@ -141,28 +141,100 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
-  // Use existing link data if provided, otherwise extract from page
+  // Check for HTMX usage on the page (do this regardless of existing link data)
+  const hasHtmx = await page.evaluate(() => {
+    // More comprehensive HTMX detection
+    const htmxScriptPatterns = [
+      'script[src*="htmx"]',
+      'script[src*="hx."]',
+      'script[data-turbo-track*="htmx"]'
+    ];
+    
+    const htmxAttributePatterns = [
+      '[hx-get]', '[hx-post]', '[hx-put]', '[hx-patch]', '[hx-delete]',
+      '[hx-trigger]', '[hx-target]', '[hx-swap]', '[hx-include]',
+      '[hx-push-url]', '[hx-select]', '[hx-vals]', '[hx-confirm]',
+      '[hx-disable]', '[hx-indicator]', '[hx-params]', '[hx-encoding]',
+      '[data-hx-get]', '[data-hx-post]', '[data-hx-trigger]'
+    ];
+
+    // Check for script tags
+    let scriptLoaded = false;
+    for (const pattern of htmxScriptPatterns) {
+      if (document.querySelector(pattern)) {
+        scriptLoaded = true;
+        break;
+      }
+    }
+    
+    // Check for inline scripts containing "htmx" (since :contains() is not valid in querySelector)
+    if (!scriptLoaded) {
+      const allScripts = Array.from(document.querySelectorAll('script'));
+      scriptLoaded = allScripts.some(script => {
+        const scriptContent = script.textContent || script.innerHTML || '';
+        const scriptSrc = script.src || '';
+        return scriptContent.includes('htmx') || scriptSrc.includes('htmx');
+      });
+    }
+    
+    // Check for HTMX in window object
+    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+    
+    // Check for any HTMX attributes
+    let hasHxAttributes = false;
+    for (const pattern of htmxAttributePatterns) {
+      if (document.querySelector(pattern)) {
+        hasHxAttributes = true;
+        break;
+      }
+    }
+    
+    // Get all hx-get elements (most common)
+    const hxGetElements = Array.from(document.querySelectorAll('[hx-get], [data-hx-get]')).map(el => ({
+      url: el.getAttribute('hx-get') || el.getAttribute('data-hx-get'),
+      trigger: el.getAttribute('hx-trigger') || el.getAttribute('data-hx-trigger') || 'click'
+    }));
+    
+    // Additional debug info
+    const allScripts = Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline').slice(0, 10);
+    const sampleElements = Array.from(document.querySelectorAll('*')).slice(0, 50).map(el => ({
+      tag: el.tagName,
+      attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).slice(0, 5)
+    }));
+    
+    return {
+      scriptLoaded,
+      htmxInWindow,
+      hasHxAttributes,
+      hxGetElements,
+      debug: {
+        totalElements: document.querySelectorAll('*').length,
+        scripts: allScripts,
+        sampleElements: sampleElements.slice(0, 10)
+      }
+    };
+  });
+
+  log(`[ThreatTracker] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`, "scraper");
+  log(`[ThreatTracker] Page Debug Info: totalElements=${hasHtmx.debug.totalElements}, scripts=[${hasHtmx.debug.scripts.join(', ')}]`, "scraper-debug");
+
+  // Use existing link data if provided, but force fresh extraction for HTMX sites
   let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
   
-  if (existingLinkData && existingLinkData.length > 0) {
+  const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
+  const shouldForceExtraction = isHtmxSite && existingLinkData && existingLinkData.length < 15;
+  
+  if (existingLinkData && existingLinkData.length > 0 && !shouldForceExtraction) {
     log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
     articleLinkData = existingLinkData;
   } else {
-    log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
+    if (shouldForceExtraction) {
+      log(`[ThreatTracker] HTMX site detected with insufficient links (${existingLinkData?.length || 0}), forcing fresh extraction`, "scraper");
+    } else {
+      log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
+    }
 
-    // Check for HTMX usage on the page
-    const hasHtmx = await page.evaluate(() => {
-      return {
-        scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
-        hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
-        hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-          url: el.getAttribute('hx-get'),
-          trigger: el.getAttribute('hx-trigger') || 'click'
-        }))
-      };
-    });
-
-    if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
       
       // Wait longer for initial HTMX content to load (some triggers on page load)
@@ -181,6 +253,114 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
         
         // Wait a bit longer for these load-triggered requests to complete
         await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      // Specifically for foorilla.com and similar sites, manually fetch HTMX content
+      log(`[ThreatTracker] Attempting to load HTMX content directly...`, "scraper");
+      
+      // Get the current page URL to construct proper HTMX endpoints
+      const currentUrl = page.url();
+      const baseUrl = new URL(currentUrl).origin;
+      
+      // Manually fetch HTMX endpoints that contain articles
+      const htmxContent = await page.evaluate(async (baseUrl) => {
+        let totalContentLoaded = 0;
+        
+        // Common HTMX endpoints for article content
+        const endpoints = [
+          '/media/items/',
+          '/media/items/top/',
+          '/media/items/recent/',
+          '/media/items/popular/',
+          '/media/cybersecurity/items/',
+          '/media/cybersecurity/items/top/'
+        ];
+        
+        // Get CSRF token from page if available
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                         document.querySelector('input[name="_token"]')?.getAttribute('value') ||
+                         document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+        
+        // Get screen size info for headers
+        const screenType = window.innerWidth < 768 ? 'M' : 'D';
+        
+        for (const endpoint of endpoints) {
+          try {
+            const headers = {
+              'HX-Request': 'true',
+              'HX-Current-URL': window.location.href,
+              'Accept': 'text/html, */*'
+            };
+            
+            // Add CSRF token if available
+            if (csrfToken) {
+              headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            // Add screen type header
+            headers['X-Screen'] = screenType;
+            
+            console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
+            const response = await fetch(`${baseUrl}${endpoint}`, { headers });
+            
+            if (response.ok) {
+              const html = await response.text();
+              console.log(`Loaded ${html.length} chars from ${endpoint}`);
+              
+              // Insert content into page
+              const container = document.createElement('div');
+              container.className = 'htmx-injected-content';
+              container.setAttribute('data-source', endpoint);
+              container.innerHTML = html;
+              document.body.appendChild(container);
+              totalContentLoaded += html.length;
+            }
+          } catch (e) {
+            console.error(`Error fetching ${endpoint}:`, e);
+          }
+        }
+        
+        return totalContentLoaded;
+      }, baseUrl);
+      
+      if (htmxContent > 0) {
+        log(`[ThreatTracker] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
+        // Wait for any additional processing
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      
+      // Also try triggering visible HTMX elements
+      const triggeredElements = await page.evaluate(() => {
+        let triggered = 0;
+        
+        // Look for clickable HTMX elements
+        const htmxElements = document.querySelectorAll('[hx-get]');
+        htmxElements.forEach((el, index) => {
+          if (index < 10) { // Limit to first 10
+            const url = el.getAttribute('hx-get');
+            const trigger = el.getAttribute('hx-trigger') || 'click';
+            
+            // Skip if it's a load trigger (already processed) or if it looks like a filter/search
+            if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
+              return;
+            }
+            
+            // Check if element is visible
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              console.log(`Clicking HTMX element: ${url}`);
+              (el as HTMLElement).click();
+              triggered++;
+            }
+          }
+        });
+        
+        return triggered;
+      });
+      
+      if (triggeredElements > 0) {
+        log(`[ThreatTracker] Triggered ${triggeredElements} HTMX elements via click`, "scraper");
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
     
@@ -219,7 +399,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log(`[ThreatTracker] Fewer than 20 links found, trying additional techniques...`, "scraper");
     
     // For HTMX pages: Special handling of dynamic content
-    if (hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log(`[ThreatTracker] Attempting to interact with HTMX elements to load more content`, "scraper");
       
       // First try: Click on any "load more" or pagination buttons that might trigger HTMX loading
