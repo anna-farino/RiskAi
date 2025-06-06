@@ -772,7 +772,7 @@ export default function Reports() {
                           // Add print-specific styling
                           const printStyle = document.createElement('style');
                           printStyle.id = 'print-style';
-                          printStyle.innerHTML = `
+                      printStyle.innerHTML = `
                             @media print {
                               @page {
                                 size: letter;
@@ -787,69 +787,90 @@ export default function Reports() {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Hide navigation and interactive elements */
-                              header, aside, nav, 
-                              button, input, select, textarea,
-                              .w-80.flex-shrink-0 {
+                              
+                              /* Hide navigation and interactive elements with highest specificity */
+                              body header, body aside, body nav, 
+                              body button, body input, body select, body textarea,
+                              body .w-80.flex-shrink-0,
+                              body div.w-80.flex-shrink-0 {
                                 display: none !important;
+                                visibility: hidden !important;
                               }
+                              
                               /* Hide the top navigation tabs specifically */
-                              .flex.gap-8,
-                              .flex.gap-8 *,
-                              a[href*="/dashboard/news-capsule"] {
+                              body .flex.gap-8,
+                              body .flex.gap-8 *,
+                              body a[href*="/dashboard/news-capsule"] {
                                 display: none !important;
+                                visibility: hidden !important;
                               }
-                              /* Hide any element containing "Home", "Research", "Executive Reports" */
-                              *:contains("Home"):not(h2):not(h3):not(p),
-                              *:contains("Research"):not(h2):not(h3):not(p),
-                              *:contains("Executive Reports"):not(h2):not(h3):not(p) {
+                              
+                              /* Hide any element containing navigation text */
+                              [class*="nav"], [class*="menu"], [class*="header"],
+                              *[aria-label*="nav"], *[role="navigation"] {
                                 display: none !important;
+                                visibility: hidden !important;
                               }
+                              
                               /* Reset layout margins for print */
-                              main {
+                              body main {
                                 margin: 0 !important;
                                 padding: 0 !important;
                               }
-                              /* Remove all layout spacing and positioning */
-                              .min-h-screen, .pt-\\[88px\\], .flex, .p-4, .md\\:p-6,
-                              .space-y-6, .space-y-8, .mb-8, .mt-8, .py-4, .px-2,
-                              .gap-6, .gap-2, .gap-4, .gap-8 {
+                              
+                              /* Remove all layout spacing and positioning with body prefix */
+                              body .min-h-screen, body .pt-\\[88px\\], body .flex, body .p-4, body .md\\:p-6,
+                              body .space-y-6, body .space-y-8, body .mb-8, body .mt-8, body .py-4, body .px-2,
+                              body .gap-6, body .gap-2, body .gap-4, body .gap-8 {
                                 margin: 0 !important;
                                 padding: 0 !important;
                                 gap: 0 !important;
                               }
+                              
                               /* Force content to start at top */
-                              * {
+                              body * {
                                 margin-top: 0 !important;
                                 padding-top: 0 !important;
                               }
+                              
                               /* Only allow bottom spacing between articles */
-                              .space-y-6 > div {
+                              body .space-y-6 > div {
                                 margin-bottom: 0.3in !important;
                                 margin-top: 0 !important;
                               }
+                              
                               /* Hide the main layout flex container and make report full width */
-                              .flex.gap-6 {
+                              body .flex.gap-6,
+                              body div.flex.gap-6 {
                                 display: block !important;
                               }
+                              
                               /* Make the Executive Report content full width */
-                              .flex-1 {
+                              body .flex-1,
+                              body div.flex-1 {
                                 width: 100% !important;
                                 max-width: 100% !important;
                                 flex: none !important;
-                              }
-                              .grid.grid-cols-1 {
                                 display: block !important;
                               }
+                              
+                              body .grid.grid-cols-1,
+                              body .grid.grid-cols-2 {
+                                display: block !important;
+                                grid-template-columns: none !important;
+                              }
+                              
                               /* Reset background and styling */
-                              .p-5, .backdrop-blur-sm, .bg-slate-900\\/50, .border, .rounded-xl {
+                              body .p-5, body .backdrop-blur-sm, body .bg-slate-900\\/50, 
+                              body .border, body .rounded-xl {
                                 background: white !important;
                                 border: none !important;
                                 border-radius: 0 !important;
                                 box-shadow: none !important;
                               }
+                              
                               /* Format headings */
-                              h1, h2, h3 {
+                              body h1, body h2, body h3 {
                                 font-family: Cambria, serif !important;
                                 font-size: 12pt !important;
                                 font-weight: bold !important;
@@ -857,19 +878,22 @@ export default function Reports() {
                                 margin-bottom: 6pt !important;
                                 color: black !important;
                               }
+                              
                               /* Format text */
-                              p, .text-sm {
+                              body p, body .text-sm {
                                 font-size: 10pt !important;
                                 line-height: 1.4 !important;
                                 color: black !important;
                               }
+                              
                               /* Single column layout for print - force all grids to block */
-                              .grid, .grid-cols-1, .grid-cols-2 {
+                              body .grid, body .grid-cols-1, body .grid-cols-2 {
                                 display: block !important;
                                 grid-template-columns: none !important;
                               }
+                              
                               /* Remove card styling for print and ensure single column */
-                              .space-y-6 > div, .space-y-8 > div {
+                              body .space-y-6 > div, body .space-y-8 > div {
                                 border: none !important;
                                 border-radius: 0 !important;
                                 background: none !important;
@@ -879,16 +903,33 @@ export default function Reports() {
                                 width: 100% !important;
                                 display: block !important;
                               }
+                              
                               /* Ensure story content flows in single column */
-                              .space-y-6, .space-y-8 {
+                              body .space-y-6, body .space-y-8 {
                                 display: block !important;
                                 width: 100% !important;
                               }
+                              
                               /* Hide interactive elements */
-                              .group, .absolute, .cursor-grab, .opacity-0, 
-                              .hover\\:opacity-100, .ring-2, .ring-blue-500,
-                              button, textarea, .bg-blue-600 {
+                              body .group, body .absolute, body .cursor-grab, body .opacity-0, 
+                              body .hover\\:opacity-100, body .ring-2, body .ring-blue-500,
+                              body button, body textarea, body .bg-blue-600 {
                                 display: none !important;
+                                visibility: hidden !important;
+                              }
+                              
+                              /* Additional aggressive hiding for common layout elements */
+                              body [class*="sidebar"], body [class*="menu"], body [class*="nav"],
+                              body [class*="header"], body [class*="toolbar"], body [class*="dropdown"] {
+                                display: none !important;
+                                visibility: hidden !important;
+                              }
+                              
+                              /* Force single column for the main content */
+                              body > *, body > div, body main > * {
+                                width: 100% !important;
+                                max-width: 100% !important;
+                                flex: none !important;
                               }
                             }
                           `;
