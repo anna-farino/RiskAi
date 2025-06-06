@@ -11,6 +11,7 @@ import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 import { DynamicContentExtractor, detectArticleLinksIntelligently } from './dynamic-content-extractor';
 import { AdaptiveScraper, detectWebFramework } from './adaptive-scraper';
+import { ContentPatternDetector, analyzePageStructure } from './content-pattern-detector';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -674,6 +675,30 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       // Wait for any lazy-loaded content
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Analyze page structure for better extraction strategy
+      const pageStructure = await analyzePageStructure(page);
+      log(`[ThreatTracker] Page analysis: ${JSON.stringify(pageStructure)}`, "scraper-debug");
+
+      // Try site-specific pattern detection first
+      const patternDetector = new ContentPatternDetector();
+      const patternContent = await adaptiveScraper.extractWithRetry(
+        page,
+        async () => await patternDetector.extractContent(page, url),
+        2
+      );
+
+      if (patternContent && patternContent.content.length > 100) {
+        log(`[ThreatTracker] Pattern-based extraction successful: title length=${patternContent.title?.length || 0}, content length=${patternContent.content?.length || 0}`, "scraper");
+        
+        return `<html><body>
+          <h1>${patternContent.title || ''}</h1>
+          ${patternContent.author ? `<div class="author">${patternContent.author}</div>` : ''}
+          ${patternContent.date ? `<div class="date">${patternContent.date}</div>` : ''}
+          <div class="content">${patternContent.content || ''}</div>
+          <div class="metadata" style="display:none;">${JSON.stringify({extractionMethod: 'pattern-based', ...patternContent.metadata})}</div>
+        </body></html>`;
+      }
+
       // Try dynamic content extraction with retry mechanism
       const dynamicExtractor = new DynamicContentExtractor();
       const dynamicContent = await adaptiveScraper.extractWithRetry(
@@ -690,7 +715,7 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           ${dynamicContent.author ? `<div class="author">${dynamicContent.author}</div>` : ''}
           ${dynamicContent.date ? `<div class="date">${dynamicContent.date}</div>` : ''}
           <div class="content">${dynamicContent.content || ''}</div>
-          ${dynamicContent.metadata ? `<div class="metadata" style="display:none;">${JSON.stringify(dynamicContent.metadata)}</div>` : ''}
+          ${dynamicContent.metadata ? `<div class="metadata" style="display:none;">${JSON.stringify({extractionMethod: 'dynamic', ...dynamicContent.metadata})}</div>` : ''}
         </body></html>`;
       }
 
