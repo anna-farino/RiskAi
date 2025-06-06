@@ -471,103 +471,99 @@ export async function scrapePuppeteer(
       log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Wait for page to stabilize and check for challenges
-    log('[scrapePuppeteer] Waiting for page to stabilize...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Minimal wait to allow page to settle
+    log('[scrapePuppeteer] Brief stabilization wait...', "scraper");
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Quick check for bot protection with timeout
-    try {
-      const botProtectionCheck = await Promise.race([
-        page.evaluate(() => {
-          if (!document.body) return false;
-          const bodyHTML = document.body.innerHTML;
-          return (
-            bodyHTML.includes('_Incapsula_Resource') ||
-            bodyHTML.includes('Incapsula') ||
-            bodyHTML.includes('captcha') ||
-            bodyHTML.includes('Captcha') ||
-            bodyHTML.includes('cloudflare') ||
-            bodyHTML.includes('CloudFlare') ||
-            bodyHTML.includes('Just a moment') ||
-            bodyHTML.includes('Checking your browser')
-          );
-        }),
-        new Promise(resolve => setTimeout(() => resolve(false), 3000))
-      ]);
-
-      if (botProtectionCheck) {
-        log('[scrapePuppeteer] Bot protection detected, performing evasive actions', "scraper");
-        await page.mouse.move(50, 50);
-        await page.mouse.move(100, 100);
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-    } catch (error) {
-      log('[scrapePuppeteer] Bot protection check failed, continuing...', "scraper");
-    }
-
-    // For article pages, extract the content with simplified approach
+    // For article pages, use immediate extraction to bypass bot detection
     if (isArticlePage) {
-      log('[scrapePuppeteer] Extracting article content', "scraper");
+      log('[scrapePuppeteer] Extracting article content with immediate strategy', "scraper");
       
-      // Quick content extraction with timeout protection
-      const articleContent = await Promise.race([
-        page.evaluate(() => {
-          // Simple extraction focusing on common article selectors
+      // Immediate content extraction without triggering bot detection
+      try {
+        const articleContent = await page.evaluate(() => {
+          // Direct extraction from available DOM without complex manipulation
+          
+          // Get title from multiple sources
           const title = document.querySelector('h1')?.textContent?.trim() || 
-                       document.title || 
+                       document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 
+                       document.title.split(' - ')[0].trim() ||
                        '(No title found)';
           
+          // Get author from meta tags first (most reliable)
+          const author = document.querySelector('meta[name="author"]')?.getAttribute('content') ||
+                        document.querySelector('meta[property="article:author"]')?.getAttribute('content') ||
+                        document.querySelector('.author, .byline, [rel="author"]')?.textContent?.trim() ||
+                        '(No author found)';
+          
+          // Get date from meta tags
+          const date = document.querySelector('meta[property="article:published_time"]')?.getAttribute('content') ||
+                      document.querySelector('meta[name="datePublished"]')?.getAttribute('content') ||
+                      document.querySelector('time')?.getAttribute('datetime') ||
+                      document.querySelector('time')?.textContent?.trim() ||
+                      '(No date found)';
+          
+          // Extract content using a progressive approach
           let content = '';
           
-          // Try article tag first
-          const article = document.querySelector('article');
-          if (article && article.textContent) {
-            content = article.textContent.trim();
+          // Try JSON-LD first (fastest)
+          try {
+            const jsonScript = document.querySelector('script[type="application/ld+json"]');
+            if (jsonScript?.textContent) {
+              const data = JSON.parse(jsonScript.textContent);
+              if (data.articleBody && data.articleBody.length > 200) {
+                content = data.articleBody;
+              } else if (data.description && data.description.length > 100) {
+                content = data.description;
+              }
+            }
+          } catch (e) {
+            // Continue to DOM extraction
           }
           
-          // Fallback to main content areas
-          if (!content || content.length < 200) {
-            const contentSelectors = [
-              '.article-content', '.article-body', '.post-content', 
-              '.entry-content', 'main', '#content'
-            ];
-            
-            for (const selector of contentSelectors) {
+          // If JSON-LD didn't provide content, try DOM selectors
+          if (!content) {
+            const selectors = ['article', '.article-content', '.post-content', 'main', '.content'];
+            for (const selector of selectors) {
               const element = document.querySelector(selector);
-              if (element && element.textContent && element.textContent.trim().length > 200) {
+              if (element?.textContent && element.textContent.length > 200) {
                 content = element.textContent.trim();
                 break;
               }
             }
           }
           
-          // Last resort - use body content if substantial
-          if (!content && document.body && document.body.textContent) {
-            const bodyText = document.body.textContent.trim();
-            if (bodyText.length > 1000) {
-              content = bodyText;
-            }
-          }
-          
           return {
             title,
             content: content || '(No content found)',
-            author: '(No author found)',
-            date: '(No date found)'
+            author,
+            date
           };
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Content extraction timeout')), 8000)
-        )
-      ]) as { title: string; content: string; author: string; date: string };
+        });
 
-      const formattedContent = `Title: ${articleContent.title}
+        const formattedContent = `Title: ${articleContent.title}
 Author: ${articleContent.author}
 Date: ${articleContent.date}
 Content: ${articleContent.content}`;
 
-      log(`[scrapePuppeteer] Content extracted - Title: ${articleContent.title.substring(0, 50)}..., Content length: ${articleContent.content.length}`, "scraper");
-      return formattedContent;
+        log(`[scrapePuppeteer] Immediate extraction complete - Title: ${articleContent.title.substring(0, 50)}..., Content length: ${articleContent.content.length}`, "scraper");
+        return formattedContent;
+
+      } catch (error: any) {
+        log(`[scrapePuppeteer] Content extraction failed: ${error.message}`, "scraper-error");
+        // Return basic page info if extraction fails
+        const basicContent = await page.evaluate(() => ({
+          title: document.title || '(No title found)',
+          content: '(Content extraction failed - possible bot detection)',
+          author: '(No author found)',
+          date: '(No date found)'
+        }));
+        
+        return `Title: ${basicContent.title}
+Author: ${basicContent.author}
+Date: ${basicContent.date}
+Content: ${basicContent.content}`;
+      }
     }
 
     // For source/listing pages, extract article links
