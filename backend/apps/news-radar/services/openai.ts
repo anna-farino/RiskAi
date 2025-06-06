@@ -147,6 +147,9 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
             2. URLs containing news-related patterns (/news/, /article/, dates)
             3. Proper article context (not navigation/category pages)
 
+            IMPORTANT: Return URLs exactly as provided - do not modify dates, paths, or any part of the URL.
+            Only filter which URLs to include, never change the URL content itself.
+
             Return only links that are very likely to be actual news articles.
             Exclude:
             - Category pages

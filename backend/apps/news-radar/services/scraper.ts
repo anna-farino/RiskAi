@@ -532,8 +532,14 @@ export async function extractArticleLinks(
     const aiDetectedLinks = await detectArticleLinks(linksText);
 
     if (aiDetectedLinks && aiDetectedLinks.length > 0) {
-      // Process each detected link
+      // Process each detected link with validation
       const processedLinks = aiDetectedLinks.map((link) => {
+        // Validate that AI didn't corrupt the URL
+        const originalLink = links.find(l => l.href === link || l.href.includes(link) || link.includes(l.href));
+        if (originalLink && originalLink.href !== link) {
+          log(`[Link Detection] WARNING: AI may have modified URL from ${originalLink.href} to ${link}`, "scraper");
+        }
+
         // Check if the link is absolute (starts with http:// or https://)
         if (link.startsWith("http://") || link.startsWith("https://")) {
           const decodedUrl = link.replace(/&amp;/g, "&");
