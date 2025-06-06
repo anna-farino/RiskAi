@@ -83,8 +83,8 @@ async function getBrowser(): Promise<Browser> {
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
-          '--window-size=1920x1080',
-          '--disable-features=site-per-process,AudioServiceOutOfProcess',
+          '--window-size=1920,1080',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess,VizDisplayCompositor',
           '--disable-software-rasterizer',
           '--disable-extensions',
           '--disable-gl-drawing-for-tests',
@@ -95,7 +95,22 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
+          '--disable-blink-features=AutomationControlled',
+          '--disable-ipc-flooding-protection',
+          '--disable-renderer-backgrounding',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-field-trial-config',
+          '--disable-back-forward-cache',
+          '--disable-hang-monitor',
+          '--disable-prompt-on-repost',
+          '--disable-background-timer-throttling',
+          '--disable-client-side-phishing-detection',
+          '--disable-default-apps',
+          '--disable-domain-reliability',
+          '--disable-component-extensions-with-background-pages',
+          '--disable-sync',
+          '--no-pings',
+          '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         timeout: 180000 // 3 minute timeout on browser launch
@@ -117,8 +132,43 @@ async function setupPage(): Promise<Page> {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  // Set viewport
+  // Set viewport to match common desktop resolutions
   await page.setViewport({ width: 1920, height: 1080 });
+
+  // Override navigator properties to appear more human-like
+  await page.evaluateOnNewDocument(() => {
+    // Remove webdriver property
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => undefined,
+    });
+    
+    // Override the plugins property to use a non-empty array
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => [1, 2, 3, 4, 5],
+    });
+    
+    // Override the languages property
+    Object.defineProperty(navigator, 'languages', {
+      get: () => ['en-US', 'en'],
+    });
+    
+    // Override chrome property
+    Object.defineProperty(window, 'chrome', {
+      get: () => ({
+        runtime: {},
+        loadTimes: function() {},
+        csi: function() {},
+        app: {}
+      }),
+    });
+    
+    // Add missing properties
+    Object.defineProperty(navigator, 'permissions', {
+      get: () => ({
+        query: () => Promise.resolve({ state: 'granted' }),
+      }),
+    });
+  });
 
   // Set user agent (updated to latest Chrome version)
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
@@ -154,47 +204,113 @@ async function handleDataDomeChallenge(page: Page): Promise<void> {
     log(`[DataDome] Checking for DataDome protection...`, "scraper");
     
     // Check if we're on a DataDome challenge page
-    const isDataDomeChallenge = await page.evaluate(() => {
+    const challengeInfo = await page.evaluate(() => {
       const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
       const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
       const hasDataDomeContent = document.documentElement?.innerHTML?.includes('datadome') || false;
+      const currentUrl = window.location.href;
+      const pageTitle = document.title;
+      const bodyText = document.body?.textContent?.substring(0, 200) || '';
       
-      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent;
+      return {
+        hasChallenge: hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent,
+        currentUrl,
+        pageTitle,
+        bodyText,
+        hasDataDomeScript,
+        hasDataDomeMessage,
+        hasDataDomeContent
+      };
     });
 
-    if (isDataDomeChallenge) {
-      log(`[DataDome] DataDome challenge detected, waiting for completion...`, "scraper");
+    log(`[DataDome] Challenge info: ${JSON.stringify(challengeInfo)}`, "scraper");
+
+    if (challengeInfo.hasChallenge) {
+      log(`[DataDome] DataDome challenge detected, implementing enhanced bypass...`, "scraper");
       
-      // Wait for the challenge to complete - DataDome typically redirects or updates the page
+      // Try to trigger the DataDome challenge scripts by simulating user behavior
+      await page.evaluate(() => {
+        // Simulate mouse movement and clicks
+        const event = new MouseEvent('mousemove', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: Math.random() * window.innerWidth,
+          clientY: Math.random() * window.innerHeight
+        });
+        document.dispatchEvent(event);
+        
+        // Simulate a click on the document
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: Math.random() * window.innerWidth,
+          clientY: Math.random() * window.innerHeight
+        });
+        document.dispatchEvent(clickEvent);
+        
+        // Add some randomness to appear human-like
+        setTimeout(() => {
+          window.scrollTo(0, Math.random() * 100);
+        }, Math.random() * 1000);
+      });
+      
+      // Extended wait with more sophisticated challenge detection
       let challengeCompleted = false;
-      const maxWaitTime = 15000; // 15 seconds max wait
-      const checkInterval = 1000; // Check every second
+      const maxWaitTime = 30000; // Extended to 30 seconds
+      const checkInterval = 2000; // Check every 2 seconds for less aggressive polling
       let waitTime = 0;
       
       while (!challengeCompleted && waitTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
         
-        // Check if we're still on challenge page
-        const stillOnChallenge = await page.evaluate(() => {
+        // More comprehensive check for challenge completion
+        const currentStatus = await page.evaluate(() => {
           const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
           const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
+          const hasContentLoaded = document.body?.textContent && document.body.textContent.length > 100;
+          const hasNavigation = document.querySelector('nav, header, .nav, .header') !== null;
+          const hasArticleContent = document.querySelector('article, .article, main, .main, .content') !== null;
+          const currentUrl = window.location.href;
           
-          return hasDataDomeScript || hasDataDomeMessage;
+          return {
+            stillOnChallenge: hasDataDomeScript || hasDataDomeMessage,
+            hasContentLoaded,
+            hasNavigation,
+            hasArticleContent,
+            currentUrl,
+            bodyLength: document.body?.textContent?.length || 0
+          };
         });
         
-        if (!stillOnChallenge) {
+        log(`[DataDome] Status check (${waitTime}ms): ${JSON.stringify(currentStatus)}`, "scraper");
+        
+        // Challenge is completed if we have real content and no more challenge indicators
+        if (!currentStatus.stillOnChallenge && 
+            (currentStatus.hasContentLoaded || currentStatus.hasNavigation || currentStatus.hasArticleContent) &&
+            currentStatus.bodyLength > 500) {
           challengeCompleted = true;
-          log(`[DataDome] Challenge completed after ${waitTime}ms`, "scraper");
+          log(`[DataDome] Challenge completed after ${waitTime}ms - content detected`, "scraper");
         }
       }
       
       if (!challengeCompleted) {
-        log(`[DataDome] Challenge did not complete within ${maxWaitTime}ms, proceeding anyway`, "scraper");
+        log(`[DataDome] Challenge handling timeout after ${maxWaitTime}ms, attempting to proceed`, "scraper");
+        
+        // Try one more content check before giving up
+        const finalCheck = await page.evaluate(() => ({
+          bodyLength: document.body?.textContent?.length || 0,
+          title: document.title,
+          hasContent: document.body?.textContent && document.body.textContent.length > 100
+        }));
+        
+        log(`[DataDome] Final content check: ${JSON.stringify(finalCheck)}`, "scraper");
       }
       
-      // Additional wait for page to stabilize after challenge
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Additional stabilization wait
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } else {
       log(`[DataDome] No DataDome challenge detected`, "scraper");
     }
@@ -488,47 +604,60 @@ export async function scrapePuppeteer(
 
     page = await setupPage();
 
-    // Progressive navigation strategy to handle challenging sites
+    // Enhanced navigation strategy with DataDome-specific handling
     let response = null;
     let navigationSuccess = false;
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
-    try {
-      log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
-      response = await page.goto(url, { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 15000  // Reduced timeout for faster production performance
-      });
-      navigationSuccess = true;
-      log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
-    } catch (error: any) {
-      log(`[scrapePuppeteer] domcontentloaded failed: ${error.message}`, "scraper");
-    }
-    
-    // Strategy 2: Fallback to load event with shorter timeout
-    if (!navigationSuccess) {
+    while (!navigationSuccess && retryCount < maxRetries) {
+      retryCount++;
+      log(`[scrapePuppeteer] Navigation attempt ${retryCount}/${maxRetries}...`, "scraper");
+      
       try {
-        log('[scrapePuppeteer] Attempting navigation with load event...', "scraper");
+        // Strategy 1: Try domcontentloaded with extended timeout for DataDome
+        log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
         response = await page.goto(url, { 
-          waitUntil: 'load', 
-          timeout: 12000  // Reduced timeout
+          waitUntil: 'domcontentloaded', 
+          timeout: 30000  // Extended timeout for DataDome challenge
         });
         navigationSuccess = true;
-        log(`[scrapePuppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+        log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+        
+        // If we get a 401, this might be DataDome - continue anyway
+        if (response && response.status() === 401) {
+          log('[scrapePuppeteer] Received 401 - likely DataDome challenge, continuing...', "scraper");
+        }
+        
       } catch (error: any) {
-        log(`[scrapePuppeteer] load event failed: ${error.message}`, "scraper");
+        log(`[scrapePuppeteer] Navigation attempt ${retryCount} failed: ${error.message}`, "scraper");
+        
+        if (retryCount < maxRetries) {
+          log(`[scrapePuppeteer] Waiting before retry attempt...`, "scraper");
+          await new Promise(resolve => setTimeout(resolve, 2000 * retryCount)); // Progressive delay
+          
+          // Try reloading the page if we had a partial load
+          try {
+            await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+            navigationSuccess = true;
+            log(`[scrapePuppeteer] Page reload successful on retry ${retryCount}`, "scraper");
+          } catch (reloadError: any) {
+            log(`[scrapePuppeteer] Page reload failed: ${reloadError.message}`, "scraper");
+          }
+        }
       }
     }
     
-    // Strategy 3: Try with no wait condition as last resort
     if (!navigationSuccess) {
+      // Final attempt with minimal wait conditions
       try {
-        log('[scrapePuppeteer] Attempting navigation with no wait condition...', "scraper");
+        log('[scrapePuppeteer] Final navigation attempt with minimal conditions...', "scraper");
         response = await page.goto(url, { 
-          timeout: 10000  // Reduced timeout
+          waitUntil: 'commit',
+          timeout: 20000
         });
         navigationSuccess = true;
-        log(`[scrapePuppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+        log(`[scrapePuppeteer] Final navigation successful. Status: ${response ? response.status() : 'unknown'}`, "scraper");
       } catch (error: any) {
         log(`[scrapePuppeteer] All navigation strategies failed: ${error.message}`, "scraper-error");
         throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
@@ -552,28 +681,44 @@ export async function scrapePuppeteer(
       // Immediate content extraction without triggering bot detection
       try {
         const articleContent = await page.evaluate(() => {
-          // Fast extraction strategy optimized for BleepingComputer and similar sites
+          // Enhanced extraction strategy for MarketWatch and DataDome-protected sites
           
-          // Get title - prioritize H1 for speed
-          const title = document.querySelector('h1')?.textContent?.trim() || 
+          // Get title with MarketWatch-specific selectors
+          const title = document.querySelector('h1.article__headline')?.textContent?.trim() ||
+                       document.querySelector('h1[data-module="ArticleHeader"]')?.textContent?.trim() ||
+                       document.querySelector('h1')?.textContent?.trim() || 
                        document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 
                        document.title.split(' - ')[0].trim() ||
                        '(No title found)';
           
-          // Get author - quick meta tag check first
-          const author = document.querySelector('meta[name="author"]')?.getAttribute('content') ||
+          // Get author with MarketWatch-specific selectors
+          const author = document.querySelector('.author__name')?.textContent?.trim() ||
+                        document.querySelector('[data-module="byline"] .author')?.textContent?.trim() ||
+                        document.querySelector('.byline .author')?.textContent?.trim() ||
+                        document.querySelector('meta[name="author"]')?.getAttribute('content') ||
                         document.querySelector('.author')?.textContent?.trim() ||
                         '(No author found)';
           
-          // Skip date extraction for speed
-          const date = '(No date found)';
+          // Get date with MarketWatch-specific selectors
+          const date = document.querySelector('time[data-module="TimestampDisplay"]')?.getAttribute('datetime') ||
+                      document.querySelector('.timestamp')?.textContent?.trim() ||
+                      document.querySelector('.article__timestamp')?.textContent?.trim() ||
+                      document.querySelector('time')?.getAttribute('datetime') ||
+                      document.querySelector('time')?.textContent?.trim() ||
+                      '(No date found)';
           
-          // Streamlined content extraction for speed
+          // Enhanced content extraction for MarketWatch
           let content = '';
           
-          // Fast DOM selector approach - check most common patterns first
-          const quickSelectors = ['article', '.articleBody', 'main', '.content'];
-          for (const selector of quickSelectors) {
+          // MarketWatch-specific selectors first
+          const marketWatchSelectors = [
+            '.article__body',
+            '[data-module="ArticleBody"]',
+            '.articlebody',
+            '.story-body'
+          ];
+          
+          for (const selector of marketWatchSelectors) {
             const element = document.querySelector(selector);
             if (element?.textContent && element.textContent.length > 200) {
               content = element.textContent.trim();
@@ -581,12 +726,38 @@ export async function scrapePuppeteer(
             }
           }
           
-          // Quick paragraph fallback if no container found
+          // General selectors as fallback
+          if (!content) {
+            const generalSelectors = ['article', 'main', '.content', '.story', '.post-content'];
+            for (const selector of generalSelectors) {
+              const element = document.querySelector(selector);
+              if (element?.textContent && element.textContent.length > 200) {
+                content = element.textContent.trim();
+                break;
+              }
+            }
+          }
+          
+          // Paragraph-based extraction as final fallback
           if (!content) {
             const paragraphs = Array.from(document.querySelectorAll('p'))
-              .slice(0, 10) // Limit to first 10 paragraphs for speed
-              .map(p => p.textContent?.trim())
-              .filter(text => text && text.length > 30)
+              .filter(p => {
+                // Filter out navigation, ads, and other non-content paragraphs
+                const text = p.textContent?.trim() || '';
+                const parent = p.parentElement;
+                const parentClass = parent?.className || '';
+                
+                return text.length > 30 && 
+                       !parentClass.includes('nav') &&
+                       !parentClass.includes('footer') &&
+                       !parentClass.includes('sidebar') &&
+                       !parentClass.includes('ad') &&
+                       !text.toLowerCase().includes('subscribe') &&
+                       !text.toLowerCase().includes('newsletter');
+              })
+              .slice(0, 20) // Increased to get more content
+              .map(p => p.textContent?.trim() || '')
+              .filter(text => text.length > 0)
               .join(' ');
             
             if (paragraphs.length > 100) {
@@ -613,12 +784,14 @@ Content: ${articleContent.content}`;
       } catch (error: any) {
         log(`[scrapePuppeteer] Content extraction failed: ${error.message}`, "scraper-error");
         // Return basic page info if extraction fails
-        const basicContent = await page.evaluate(() => ({
-          title: document.title || '(No title found)',
-          content: '(Content extraction failed - possible bot detection)',
-          author: '(No author found)',
-          date: '(No date found)'
-        }));
+        const basicContent = await page.evaluate(() => {
+          return {
+            title: document.title || '(No title found)',
+            content: '(Content extraction failed - possible bot detection)',
+            author: '(No author found)',
+            date: '(No date found)'
+          };
+        });
         
         return `Title: ${basicContent.title}
 Author: ${basicContent.author}
