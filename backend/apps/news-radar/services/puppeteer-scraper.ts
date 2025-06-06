@@ -95,7 +95,14 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
+          '--disable-blink-features=AutomationControlled',
+          // Enhanced for premium news sites
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-background-networking',
+          '--force-device-scale-factor=1',
+          '--memory-pressure-off'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         timeout: 180000 // 3 minute timeout on browser launch
@@ -147,60 +154,104 @@ async function setupPage(): Promise<Page> {
 }
 
 /**
- * Handle DataDome protection challenges
+ * Handle premium news site protection and challenges
  */
-async function handleDataDomeChallenge(page: Page): Promise<void> {
+async function handlePremiumSiteProtection(page: Page): Promise<void> {
   try {
-    log(`[DataDome] Checking for DataDome protection...`, "scraper");
+    const url = page.url();
+    log(`[Protection] Checking for protection systems on ${url}...`, "scraper");
     
-    // Check if we're on a DataDome challenge page
-    const isDataDomeChallenge = await page.evaluate(() => {
+    // Check for various protection systems
+    const protectionInfo = await page.evaluate(() => {
       const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
       const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
       const hasDataDomeContent = document.documentElement?.innerHTML?.includes('datadome') || false;
       
-      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent;
+      // Check for paywall or subscription barriers
+      const hasPaywall = document.body?.textContent?.includes('Subscribe') || 
+                        document.body?.textContent?.includes('subscription') ||
+                        document.querySelector('.paywall') !== null;
+      
+      // Check for Washington Post specific indicators
+      const isWashingtonPost = window.location.hostname.includes('washingtonpost.com');
+      const hasWPContent = document.querySelector('article') !== null || 
+                          document.querySelector('[data-qa="article"]') !== null;
+      
+      return {
+        hasDataDome: hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent,
+        hasPaywall,
+        isWashingtonPost,
+        hasWPContent,
+        currentUrl: window.location.href
+      };
     });
 
-    if (isDataDomeChallenge) {
-      log(`[DataDome] DataDome challenge detected, waiting for completion...`, "scraper");
+    if (protectionInfo.hasDataDome) {
+      log(`[Protection] DataDome protection detected, waiting for completion...`, "scraper");
       
-      // Wait for the challenge to complete - DataDome typically redirects or updates the page
       let challengeCompleted = false;
-      const maxWaitTime = 15000; // 15 seconds max wait
-      const checkInterval = 1000; // Check every second
+      const maxWaitTime = 15000;
+      const checkInterval = 1000;
       let waitTime = 0;
       
       while (!challengeCompleted && waitTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
         
-        // Check if we're still on challenge page
         const stillOnChallenge = await page.evaluate(() => {
-          const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
-          const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
-          
-          return hasDataDomeScript || hasDataDomeMessage;
+          return document.querySelector('script[src*="captcha-delivery.com"]') !== null ||
+                 document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
         });
         
         if (!stillOnChallenge) {
           challengeCompleted = true;
-          log(`[DataDome] Challenge completed after ${waitTime}ms`, "scraper");
+          log(`[Protection] DataDome challenge completed after ${waitTime}ms`, "scraper");
         }
       }
       
       if (!challengeCompleted) {
-        log(`[DataDome] Challenge did not complete within ${maxWaitTime}ms, proceeding anyway`, "scraper");
+        log(`[Protection] DataDome challenge timeout, proceeding anyway`, "scraper");
+      }
+    }
+    
+    // Special handling for Washington Post
+    if (protectionInfo.isWashingtonPost) {
+      log(`[Protection] Washington Post detected, applying special handling...`, "scraper");
+      
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Try to bypass paywall if present
+      if (protectionInfo.hasPaywall) {
+        log(`[Protection] Paywall detected, attempting bypass...`, "scraper");
+        
+        // Remove paywall overlays and enable scrolling
+        await page.evaluate(() => {
+          // Remove common paywall elements
+          const paywallSelectors = [
+            '.paywall-overlay',
+            '.subscription-barrier',
+            '[data-qa="paywall"]',
+            '.meter-overlay'
+          ];
+          
+          paywallSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => el.remove());
+          });
+          
+          // Re-enable scrolling
+          document.body.style.overflow = 'auto';
+          document.documentElement.style.overflow = 'auto';
+        });
       }
       
-      // Additional wait for page to stabilize after challenge
+      // Additional wait for content stabilization
       await new Promise(resolve => setTimeout(resolve, 2000));
-    } else {
-      log(`[DataDome] No DataDome challenge detected`, "scraper");
     }
+    
   } catch (error: any) {
-    log(`[DataDome] Error handling DataDome challenge: ${error.message}`, "scraper");
-    // Continue anyway - don't let DataDome handling block the scraping
+    log(`[Protection] Error handling protection systems: ${error.message}`, "scraper");
   }
 }
 
@@ -539,8 +590,8 @@ export async function scrapePuppeteer(
       log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Check for DataDome protection and wait for challenge completion
-    await handleDataDomeChallenge(page);
+    // Check for protection systems and wait for challenge completion
+    await handlePremiumSiteProtection(page);
 
     // Skip content waiting - extract immediately after navigation
     log('[scrapePuppeteer] Proceeding directly to content extraction', "scraper");
@@ -637,7 +688,7 @@ Content: ${basicContent.content}`;
         setTimeout(() => reject(new Error('Link extraction timeout')), 30000)
       );
       
-      return await Promise.race([linkExtractionPromise, timeoutPromise]);
+      return await Promise.race([linkExtractionPromise, timeoutPromise]) as string;
     } catch (error: any) {
       log(`[scrapePuppeteer] Link extraction failed: ${error.message}`, "scraper");
       
