@@ -38,7 +38,7 @@ export interface IStorage {
   getAutoScrapeSources(userId?: string): Promise<Source[]>;
   createSource(source: InsertSource): Promise<Source>;
   updateSource(id: string, source: Partial<Source>): Promise<Source>;
-  deleteSource(id: string, deleteArticles?: boolean): Promise<void>;
+  deleteSource(id: string): Promise<void>;
 
   // Keywords
   getKeywords(userId?: string): Promise<Keyword[]>;
@@ -131,36 +131,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteSource(id: string, deleteArticles: boolean = false): Promise<void> {
-    console.log(`[DEBUG] deleteSource called with id=${id}, deleteArticles=${deleteArticles}`);
-    
-    // Use raw SQL to check for associated articles to ensure accuracy
-    const articleCountResult = await pool.query(
-      'SELECT COUNT(*) as count FROM articles WHERE source_id = $1',
-      [id]
-    );
-    
-    const articleCount = parseInt(articleCountResult.rows[0]?.count || '0');
-    console.log(`[DEBUG] Found ${articleCount} associated articles using raw SQL`);
-
-    if (articleCount > 0 && !deleteArticles) {
-      console.log(`[DEBUG] Throwing ARTICLES_EXIST error`);
-      // Return special error object with article count for frontend handling
-      const error = new Error(`ARTICLES_EXIST`);
-      (error as any).articleCount = articleCount;
-      throw error;
-    }
-
-    // Delete associated articles if requested or if they exist
-    if (articleCount > 0) {
-      console.log(`[DEBUG] Deleting ${articleCount} associated articles`);
-      await pool.query('DELETE FROM articles WHERE source_id = $1', [id]);
-    }
-
-    // Delete the source
-    console.log(`[DEBUG] Deleting source`);
-    await pool.query('DELETE FROM sources WHERE id = $1', [id]);
-    console.log(`[DEBUG] Source deleted successfully`);
+  async deleteSource(id: string): Promise<void> {
+    await db.delete(sources).where(eq(sources.id, id));
   }
 
   // Keywords

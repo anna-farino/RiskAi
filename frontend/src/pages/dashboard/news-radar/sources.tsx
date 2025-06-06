@@ -75,10 +75,6 @@ export default function Sources() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{
-    source: Source;
-    articleCount: number;
-  } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   
@@ -595,32 +591,27 @@ export default function Sources() {
 
   // Delete a source
   const deleteSource = useMutation({
-    mutationFn: async ({ id, deleteArticles = false }: { id: string; deleteArticles?: boolean }) => {
+    mutationFn: async (id: string) => {
       try {
-        const url = deleteArticles 
-          ? `${serverUrl}/api/news-tracker/sources/${id}?deleteArticles=true`
-          : `${serverUrl}/api/news-tracker/sources/${id}`;
-        
-        const response = await fetch(url, {
+        // Use fetch directly to handle empty responses properly
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
           method: "DELETE",
           headers: csfrHeaderObject(),
           credentials: "include"
         });
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: response.statusText }));
-          const error = new Error(errorData.message || `Failed to delete source: ${response.statusText}`);
-          (error as any).data = errorData;
-          throw error;
+          throw new Error(`Failed to delete source: ${response.statusText}`);
         }
         
+        // Don't try to parse JSON - some DELETE endpoints return empty responses
         return { success: true, id };
       } catch (error) {
         console.error("Delete source error:", error);
         throw error;
       }
     },
-    onMutate: async ({ id }) => {
+    onMutate: async (id) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
@@ -641,7 +632,7 @@ export default function Sources() {
       
       return { previousSources, previousLocalSources, id };
     },
-    onError: (error: any, variables, context) => {
+    onError: (error: Error, id, context) => {
       if (context) {
         // If the mutation fails, restore both local state and React Query cache
         setLocalSources(context.previousLocalSources);
@@ -650,25 +641,9 @@ export default function Sources() {
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
-          updated.delete(context.id);
+          updated.delete(id);
           return updated;
         });
-      }
-      
-      // Check for ARTICLES_EXIST error - the error data is attached to the error object
-      const errorData = error?.data || {};
-      const errorMessage = errorData?.error || error?.message;
-      
-      if (errorMessage === "ARTICLES_EXIST") {
-        // Show confirmation dialog
-        const source = localSources.find(s => s.id === variables.id);
-        if (source) {
-          setDeleteConfirmation({
-            source,
-            articleCount: parseInt(errorData.articleCount || '0'),
-          });
-        }
-        return; // Don't show error toast
       }
       
       toast({
@@ -677,11 +652,11 @@ export default function Sources() {
         variant: "destructive",
       });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data, id) => {
       // Remove from pending items
       setPendingItems(prev => {
         const updated = new Set(prev);
-        updated.delete(variables.id);
+        updated.delete(id);
         return updated;
       });
       
@@ -693,7 +668,6 @@ export default function Sources() {
       // Close the delete dialog
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
-      setDeleteConfirmation(null);
     },
   });
   
@@ -932,43 +906,6 @@ export default function Sources() {
     setEditDialogOpen(true);
   };
 
-  // Handle delete source with confirmation for associated articles
-  async function handleDeleteSource(source: Source) {
-    try {
-      // Try to delete the source first to check if there are associated articles
-      await deleteSource.mutateAsync({ id: source.id });
-    } catch (error: any) {
-      // Check for ARTICLES_EXIST error - the error data is attached to the error object
-      const errorData = error?.data || {};
-      const errorMessage = errorData?.error || error?.message;
-      
-      if (errorMessage === "ARTICLES_EXIST") {
-        // Show confirmation dialog
-        setDeleteConfirmation({
-          source,
-          articleCount: parseInt(errorData.articleCount || '0'),
-        });
-        return; // Don't show error toast
-      }
-      
-      // For other errors, let the mutation's onError handle it
-      throw error;
-    }
-  }
-
-  // Handle confirmed deletion with articles
-  function handleConfirmedDelete(deleteArticles: boolean) {
-    if (deleteConfirmation) {
-      if (deleteArticles) {
-        deleteSource.mutate({ 
-          id: deleteConfirmation.source.id, 
-          deleteArticles: true 
-        });
-      }
-      setDeleteConfirmation(null);
-    }
-  }
-
   return (
     <div className={cn(
       "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
@@ -979,48 +916,13 @@ export default function Sources() {
         setOpen={setDeleteDialogOpen}
         action={() => {
           if (sourceToDelete) {
-            deleteSource.mutate({ id: sourceToDelete });
+            deleteSource.mutate(sourceToDelete);
             setSourceToDelete(null);
           }
         }}
       >
         <span></span>
       </DeleteAlertDialog>
-
-      {/* Articles exist confirmation dialog */}
-      <Dialog open={!!deleteConfirmation} onOpenChange={() => setDeleteConfirmation(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-white">Delete Source with Articles</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-slate-300">
-              The source "{deleteConfirmation?.source.name}" has {deleteConfirmation?.articleCount} associated articles.
-            </p>
-            <p className="text-sm text-slate-300">
-              Do you want to delete the source and all its articles?
-            </p>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDeleteConfirmation(null)}
-                className="bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => handleConfirmedDelete(true)}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Delete Source & Articles
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit source dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -1428,7 +1330,10 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteSource(source)}
+                          onClick={() => {
+                            setSourceToDelete(source.id);
+                            setDeleteDialogOpen(true);
+                          }}
                           disabled={deleteSource.isPending}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Delete source"
@@ -1483,7 +1388,10 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteSource(source)}
+                          onClick={() => {
+                            setSourceToDelete(source.id);
+                            setDeleteDialogOpen(true);
+                          }}
                           disabled={deleteSource.isPending}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
                           title="Delete source"

@@ -54,41 +54,16 @@ newsRouter.patch("/sources/:id", async (req, res) => {
 newsRouter.delete("/sources/:id", async (req, res) => {
   const userId = (req.user as User).id as string;
   const id = req.params.id;
-  const deleteArticles = req.query.deleteArticles === 'true';
   
-  console.log(`[DEBUG] DELETE /sources/${id} - deleteArticles: ${deleteArticles}`);
-  
-  try {
-    // Check if source belongs to user
-    const source = await storage.getSource(id);
-    if (!source || source.userId !== userId) {
-      console.log(`[DEBUG] Source not found or unauthorized`);
-      return res.status(404).json({ message: "Source not found" });
-    }
-    
-    console.log(`[DEBUG] Calling storage.deleteSource(${id}, ${deleteArticles})`);
-    await storage.deleteSource(id, deleteArticles);
-    console.log(`[DEBUG] Source deleted successfully`);
-    // Return success object instead of empty response to better support optimistic UI updates
-    res.status(200).json({ success: true, id, message: "Source deleted successfully" });
-  } catch (error: any) {
-    console.error("Error deleting source:", error);
-    console.log(`[DEBUG] Error message: ${error.message}`);
-    console.log(`[DEBUG] Error name: ${error.name}`);
-    
-    // Handle the ARTICLES_EXIST error specially
-    if (error.message === "ARTICLES_EXIST") {
-      console.log(`[DEBUG] Handling ARTICLES_EXIST error with count: ${error.articleCount}`);
-      return res.status(409).json({ 
-        error: "ARTICLES_EXIST", 
-        articleCount: error.articleCount,
-        message: `Cannot delete source: ${error.articleCount} articles are associated with this source.` 
-      });
-    }
-    
-    // For other errors, return a generic error
-    res.status(500).json({ error: error.message || "Failed to delete source" });
+  // Check if source belongs to user
+  const source = await storage.getSource(id);
+  if (!source || source.userId !== userId) {
+    return res.status(404).json({ message: "Source not found" });
   }
+  
+  await storage.deleteSource(id);
+  // Return success object instead of empty response to better support optimistic UI updates
+  res.status(200).json({ success: true, id, message: "Source deleted successfully" });
 });
 
 // Keywords
