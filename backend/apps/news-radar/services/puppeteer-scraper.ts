@@ -519,12 +519,15 @@ export async function scrapePuppeteer(
           // Check if document is ready and has meaningful content
           return document.readyState === 'complete' && 
                  document.body && 
-                 document.body.children.length > 0 &&
-                 (document.body.textContent || '').trim().length > 100;
+                 document.body.children.length > 0;
         },
-        { timeout: 15000 }
+        { timeout: 10000 }
       );
-      console.log('[Puppeteer] Page appears ready with content');
+      console.log('[Puppeteer] Page appears ready');
+      
+      // Additional wait for content to populate
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
     } catch (error) {
       console.log('[Puppeteer] Page readiness check timed out, continuing anyway');
     }
@@ -561,7 +564,7 @@ export async function scrapePuppeteer(
       try {
         await page.waitForFunction(
           () => {
-            const text = document.body.textContent || '';
+            const text = (document.body && document.body.textContent) || '';
             return !text.includes('Checking your browser') && 
                    !text.includes('Please wait') && 
                    !text.includes('Verifying you are human') &&
@@ -590,27 +593,34 @@ export async function scrapePuppeteer(
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
-        console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
-        window.scrollTo(0, document.body.scrollHeight / 3);
+        if (document.body) {
+          console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
+          console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
+          window.scrollTo(0, document.body.scrollHeight / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        if (document.body) {
+          console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
+          window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
       await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Scrolling to bottom of page');
-        window.scrollTo(0, document.body.scrollHeight);
+        if (document.body) {
+          console.log('[Puppeteer-Debug] Scrolling to bottom of page');
+          window.scrollTo(0, document.body.scrollHeight);
+        }
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
       console.log('[Puppeteer] Finished scrolling; waiting briefly for content to settle');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Extract article content using the detected scrapingConfig
-      const articleContent = await page.evaluate((scrapingConfig) => {
+      // Extract article content using the detected scrapingConfig with timeout protection
+      const articleContent = await Promise.race([
+        page.evaluate((scrapingConfig) => {
         // Log what selectors we're trying to use
         console.log('[Puppeteer-Debug] Using selectors:', JSON.stringify(scrapingConfig));
 
@@ -674,7 +684,7 @@ export async function scrapePuppeteer(
         }
 
         // If still no content, get the body content
-        if (!content) {
+        if (!content && document.body) {
           content = document.body.textContent?.trim() || '';
           console.log('[Puppeteer-Debug] Using body content as fallback');
           console.log('[Puppeteer-Debug] Content length:', content.length);
@@ -711,7 +721,12 @@ export async function scrapePuppeteer(
         }
 
         return { title, content, author, date };
-      }, scrapingConfig);
+      }, scrapingConfig),
+      // Timeout protection - prevent hanging on content extraction
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Content extraction timeout')), 15000)
+      )
+    ]);
 
       console.log('[Puppeteer] Extraction results:', {
         hasTitle: !!articleContent.title,
