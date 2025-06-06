@@ -765,7 +765,13 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
             'main .content',
             '.post-content',
             '#article-content',
-            '.story-content'
+            '.story-content',
+            '[data-module="ArticleBody"]',
+            '.ArticleBody-articleBody',
+            '.listicle-page__body',
+            '.block-content',
+            '.fs-article',
+            '.fs-body'
           ],
           title: ['h1', '.article-title', '.post-title'],
           author: ['.author', '.byline', '.article-author'],
