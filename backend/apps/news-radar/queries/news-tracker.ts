@@ -38,7 +38,7 @@ export interface IStorage {
   getAutoScrapeSources(userId?: string): Promise<Source[]>;
   createSource(source: InsertSource): Promise<Source>;
   updateSource(id: string, source: Partial<Source>): Promise<Source>;
-  deleteSource(id: string): Promise<void>;
+  deleteSource(id: string, deleteArticles?: boolean): Promise<void>;
 
   // Keywords
   getKeywords(userId?: string): Promise<Keyword[]>;
@@ -131,11 +131,29 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteSource(id: string): Promise<void> {
-    // First delete all articles associated with this source
-    await db.delete(articles).where(eq(articles.sourceId, id));
-    
-    // Then delete the source
+  async deleteSource(id: string, deleteArticles: boolean = false): Promise<void> {
+    // Check if there are associated articles
+    const associatedArticles = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(articles)
+      .where(eq(articles.sourceId, id))
+      .execute();
+
+    const articleCount = associatedArticles[0]?.count || 0;
+
+    if (articleCount > 0 && !deleteArticles) {
+      // Return special error object with article count for frontend handling
+      const error = new Error(`ARTICLES_EXIST`);
+      (error as any).articleCount = articleCount;
+      throw error;
+    }
+
+    // Delete associated articles if requested or if they exist
+    if (articleCount > 0) {
+      await db.delete(articles).where(eq(articles.sourceId, id));
+    }
+
+    // Delete the source
     await db.delete(sources).where(eq(sources.id, id));
   }
 

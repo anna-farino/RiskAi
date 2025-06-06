@@ -75,6 +75,10 @@ export default function Sources() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    source: Source;
+    articleCount: number;
+  } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   
@@ -591,27 +595,32 @@ export default function Sources() {
 
   // Delete a source
   const deleteSource = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, deleteArticles = false }: { id: string; deleteArticles?: boolean }) => {
       try {
-        // Use fetch directly to handle empty responses properly
-        const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
+        const url = deleteArticles 
+          ? `${serverUrl}/api/news-tracker/sources/${id}?deleteArticles=true`
+          : `${serverUrl}/api/news-tracker/sources/${id}`;
+        
+        const response = await fetch(url, {
           method: "DELETE",
           headers: csfrHeaderObject(),
           credentials: "include"
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to delete source: ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({ error: response.statusText }));
+          const error = new Error(errorData.message || `Failed to delete source: ${response.statusText}`);
+          (error as any).data = errorData;
+          throw error;
         }
         
-        // Don't try to parse JSON - some DELETE endpoints return empty responses
         return { success: true, id };
       } catch (error) {
         console.error("Delete source error:", error);
         throw error;
       }
     },
-    onMutate: async (id) => {
+    onMutate: async ({ id }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
@@ -632,7 +641,7 @@ export default function Sources() {
       
       return { previousSources, previousLocalSources, id };
     },
-    onError: (error: Error, id, context) => {
+    onError: (error: any, variables, context) => {
       if (context) {
         // If the mutation fails, restore both local state and React Query cache
         setLocalSources(context.previousLocalSources);
@@ -641,9 +650,25 @@ export default function Sources() {
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
-          updated.delete(id);
+          updated.delete(context.id);
           return updated;
         });
+      }
+      
+      // Check for ARTICLES_EXIST error - the error data is attached to the error object
+      const errorData = error?.data || {};
+      const errorMessage = errorData?.error || error?.message;
+      
+      if (errorMessage === "ARTICLES_EXIST") {
+        // Show confirmation dialog
+        const source = localSources.find(s => s.id === variables.id);
+        if (source) {
+          setDeleteConfirmation({
+            source,
+            articleCount: parseInt(errorData.articleCount || '0'),
+          });
+        }
+        return; // Don't show error toast
       }
       
       toast({
@@ -652,11 +677,11 @@ export default function Sources() {
         variant: "destructive",
       });
     },
-    onSuccess: (data, id) => {
+    onSuccess: (data, variables) => {
       // Remove from pending items
       setPendingItems(prev => {
         const updated = new Set(prev);
-        updated.delete(id);
+        updated.delete(variables.id);
         return updated;
       });
       
@@ -668,6 +693,7 @@ export default function Sources() {
       // Close the delete dialog
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
+      setDeleteConfirmation(null);
     },
   });
   
