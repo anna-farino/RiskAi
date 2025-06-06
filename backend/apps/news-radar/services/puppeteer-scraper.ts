@@ -424,12 +424,12 @@ export async function scrapePuppeteer(
     let response = null;
     let navigationSuccess = false;
     
-    // Strategy 1: Try domcontentloaded first (fastest, works for most sites)
+    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
     try {
       log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
       response = await page.goto(url, { 
         waitUntil: 'domcontentloaded', 
-        timeout: 25000 
+        timeout: 15000  // Reduced timeout for faster production performance
       });
       navigationSuccess = true;
       log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
@@ -437,13 +437,13 @@ export async function scrapePuppeteer(
       log(`[scrapePuppeteer] domcontentloaded failed: ${error.message}`, "scraper");
     }
     
-    // Strategy 2: Fallback to load event
+    // Strategy 2: Fallback to load event with shorter timeout
     if (!navigationSuccess) {
       try {
         log('[scrapePuppeteer] Attempting navigation with load event...', "scraper");
         response = await page.goto(url, { 
           waitUntil: 'load', 
-          timeout: 20000 
+          timeout: 12000  // Reduced timeout
         });
         navigationSuccess = true;
         log(`[scrapePuppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`, "scraper");
@@ -457,7 +457,7 @@ export async function scrapePuppeteer(
       try {
         log('[scrapePuppeteer] Attempting navigation with no wait condition...', "scraper");
         response = await page.goto(url, { 
-          timeout: 15000 
+          timeout: 10000  // Reduced timeout
         });
         navigationSuccess = true;
         log(`[scrapePuppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`, "scraper");
@@ -521,15 +521,48 @@ export async function scrapePuppeteer(
             // Continue to DOM extraction
           }
           
-          // If JSON-LD didn't provide content, try DOM selectors
+          // If JSON-LD didn't provide content, try comprehensive DOM selectors
           if (!content) {
-            const selectors = ['article', '.article-content', '.post-content', 'main', '.content'];
+            const selectors = [
+              // BleepingComputer specific
+              '.articleBody', '.article_body', '#article_body',
+              // Common article selectors
+              'article', '.article-content', '.article-body', '.post-content', '.entry-content',
+              // Main content areas
+              'main', '.main-content', '#main-content', '.content', '#content',
+              // WordPress and CMS patterns
+              '.post-entry', '.entry', '.single-content', 
+              // Fallback to any substantial text blocks
+              '.text-content', '.body-text', '.article-text'
+            ];
+            
             for (const selector of selectors) {
               const element = document.querySelector(selector);
               if (element?.textContent && element.textContent.length > 200) {
                 content = element.textContent.trim();
                 break;
               }
+            }
+          }
+          
+          // Enhanced fallback: get all paragraph text if no content container found
+          if (!content || content.length < 100) {
+            const paragraphs = Array.from(document.querySelectorAll('p'))
+              .map(p => p.textContent?.trim())
+              .filter(text => text && text.length > 50)
+              .join(' ');
+            
+            if (paragraphs.length > 200) {
+              content = paragraphs;
+            }
+          }
+          
+          // Last resort: try meta description if nothing else works
+          if (!content || content.length < 50) {
+            const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content') ||
+                            document.querySelector('meta[property="og:description"]')?.getAttribute('content');
+            if (metaDesc && metaDesc.length > 50) {
+              content = metaDesc;
             }
           }
           
