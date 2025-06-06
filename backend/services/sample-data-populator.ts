@@ -223,16 +223,24 @@ export async function populateSampleDataForNewUser(userId: string, userEmail: st
  */
 export async function userHasExistingData(userId: string): Promise<boolean> {
   try {
-    const [sources, keywords, threatKeywords] = await Promise.all([
+    // Get user-specific data only (excluding defaults)
+    const [sources, keywords] = await Promise.all([
       newsStorage.getSources(userId),
-      newsStorage.getKeywords(userId),
-      threatStorage.getKeywords(undefined, userId)
+      newsStorage.getKeywords(userId)
     ]);
 
-    const hasData = sources.length > 0 || keywords.length > 0 || threatKeywords.length > 0;
+    // For threat keywords, we need to filter out default keywords
+    const allThreatKeywords = await threatStorage.getKeywords(undefined, userId);
+    const userThreatKeywords = allThreatKeywords.filter(k => k.userId === userId && !k.isDefault);
+
+    log(`[SampleData] Data check for user ${userId}: sources=${sources.length}, keywords=${keywords.length}, userThreatKeywords=${userThreatKeywords.length}`, "sample-data");
+
+    const hasData = sources.length > 0 || keywords.length > 0 || userThreatKeywords.length > 0;
     
     if (hasData) {
       log(`[SampleData] User ${userId} already has existing data, skipping population`, "sample-data");
+    } else {
+      log(`[SampleData] User ${userId} has no existing data, proceeding with population`, "sample-data");
     }
     
     return hasData;
