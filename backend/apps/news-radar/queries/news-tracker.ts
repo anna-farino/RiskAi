@@ -132,6 +132,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSource(id: string): Promise<void> {
+    // First delete all articles associated with this source
+    await db.delete(articles).where(eq(articles.sourceId, id));
+    
+    // Then delete the source
     await db.delete(sources).where(eq(sources.id, id));
   }
 
