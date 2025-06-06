@@ -1,4 +1,3 @@
-import React from "react";
 import Home from "../home";
 import Research from "../research";
 import Reports from "../reports";

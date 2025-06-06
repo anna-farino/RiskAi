@@ -1,29 +1,106 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { Report, ReportsManager } from "@/components/news-capsule/reports-manager";
+import { ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { serverUrl } from "@/utils/server-url";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { csfrHeaderObject } from "@/utils/csrf-header";
+import type { Report } from "@shared/db/schema/reports";
+import type { CapsuleArticle } from "@shared/db/schema/news-capsule";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+
+interface ReportWithArticles extends Report {
+  articles: CapsuleArticle[];
+}
 
 export default function Reports() {
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [selectedReport, setSelectedReport] = useState<ReportWithArticles | null>(null);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
   const [showAddNote, setShowAddNote] = useState<string | null>(null);
   
-  const handleReportSelect = (report: Report) => {
+  // Dialog state for confirmations
+  const [showDeleteReportDialog, setShowDeleteReportDialog] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<ReportWithArticles | null>(null);
+  const [showRemoveArticleDialog, setShowRemoveArticleDialog] = useState(false);
+  const [articleToRemove, setArticleToRemove] = useState<{ reportId: string; articleId: string; articleTitle: string; isLastArticle?: boolean } | null>(null);
+
+  // Fetch reports from database
+  const { data: reports = [], isLoading: reportsLoading } = useQuery<ReportWithArticles[]>({
+    queryKey: ["/api/news-capsule/reports"],
+    queryFn: async () => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch reports');
+      return response.json();
+    },
+  });
+
+  // Delete report mutation
+  const deleteReportMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to delete report');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
+    },
+    onError: (error, reportId) => {
+      // Revert optimistic update on error
+      queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+        if (!oldData || !reportToDelete) return oldData;
+        // Add the report back to the list
+        return [...oldData, reportToDelete];
+      });
+      
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete report",
+      });
+    },
+  });
+
+  const handleReportSelect = (report: ReportWithArticles) => {
     setSelectedReport(report);
-    loadExecutiveNotes(report.id);
+    //loadExecutiveNotes(report.id);
   };
 
   // Load executive notes for the selected report
   const loadExecutiveNotes = async (reportId: string) => {
     try {
-      const response = await fetch(`/api/news-capsule/executive-notes/${reportId}`, {
+      const response = await fetch(serverUrl + `/api/news-capsule/executive-notes/${reportId}`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -35,7 +112,11 @@ export default function Reports() {
         setExecutiveNotes(notesMap);
       }
     } catch (error) {
-      console.error('Error loading executive notes:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load executive notes",
+      });
     }
   };
 
@@ -44,7 +125,7 @@ export default function Reports() {
     if (!selectedReport) return;
 
     try {
-      const response = await fetch('/api/news-capsule/executive-notes', {
+      const response = await fetch(serverUrl + '/api/news-capsule/executive-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -62,7 +143,11 @@ export default function Reports() {
         setNoteText('');
       }
     } catch (error) {
-      console.error('Error saving executive note:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save executive note",
+      });
     }
   };
 
@@ -79,24 +164,162 @@ export default function Reports() {
     setNoteText('');
   };
 
-  const removeArticleFromReport = (articleId: string) => {
+  // Remove article from report mutation
+  const removeArticleFromReportMutation = useMutation({
+    mutationFn: async ({ reportId, articleId }: { reportId: string; articleId: string }) => {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}/articles/${articleId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to remove article from report');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
+    },
+    onError: (error, variables) => {
+      // Revert optimistic update on error
+      queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+        if (!oldData || !articleToRemove) return oldData;
+        
+        return oldData.map(report => {
+          if (report.id === variables.reportId) {
+            // Find the article that was removed and add it back
+            const articleToAdd = { id: variables.articleId } as CapsuleArticle; // Simplified, real data would come from articleToRemove
+            return {
+              ...report,
+              articles: [...report.articles, articleToAdd]
+            };
+          }
+          return report;
+        });
+      });
+      
+      // Also update selected report if it's the one affected
+      if (selectedReport && selectedReport.id === variables.reportId && articleToRemove) {
+        const articleToAdd = { id: variables.articleId } as CapsuleArticle;
+        setSelectedReport({
+          ...selectedReport,
+          articles: [...selectedReport.articles, articleToAdd]
+        });
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to remove article from report",
+      });
+    },
+  });
+
+  // Show confirmation dialog for deleting report
+  const confirmDeleteReport = (report: ReportWithArticles) => {
+    setReportToDelete(report);
+    setShowDeleteReportDialog(true);
+  };
+
+  // Handle delete report with optimistic update
+  const handleDeleteReport = async () => {
+    if (!reportToDelete) return;
+
+    // Perform optimistic update - remove report from list immediately
+    queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+      if (!oldData) return oldData;
+      return oldData.filter(report => report.id !== reportToDelete.id);
+    });
+
+    // Clear selected report if it's the one being deleted
+    if (selectedReport?.id === reportToDelete.id) {
+      setSelectedReport(null);
+    }
+
+    try {
+      await deleteReportMutation.mutateAsync(reportToDelete.id);
+      setShowDeleteReportDialog(false);
+      setReportToDelete(null);
+    } catch (error) {
+      setShowDeleteReportDialog(false);
+      setReportToDelete(null);
+    }
+  };
+
+  // Show confirmation dialog for removing article from report
+  const confirmRemoveArticleFromReport = (articleId: string) => {
     if (!selectedReport) return;
+    const article = selectedReport.articles.find(a => a.id === articleId);
+    const isLastArticle = selectedReport.articles.length === 1;
+    setArticleToRemove({ 
+      reportId: selectedReport.id, 
+      articleId, 
+      articleTitle: article?.title || 'Unknown Article',
+      isLastArticle 
+    });
+    setShowRemoveArticleDialog(true);
+  };
 
-    // Create updated report with article removed
-    const updatedReport = {
-      ...selectedReport,
-      articles: selectedReport.articles.filter(article => article.id !== articleId)
-    };
+  // Handle remove article from report with optimistic update
+  const handleRemoveArticleFromReport = async () => {
+    if (!articleToRemove) return;
 
-    // Update localStorage
-    const savedReports = JSON.parse(localStorage.getItem('newsCapsuleReports') || '[]');
-    const updatedReports = savedReports.map((report: Report) => 
-      report.id === selectedReport.id ? updatedReport : report
-    );
-    localStorage.setItem('newsCapsuleReports', JSON.stringify(updatedReports));
+    if (articleToRemove.isLastArticle) {
+      // If this is the last article, delete the entire report instead
+      queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.filter(report => report.id !== articleToRemove.reportId);
+      });
 
-    // Update selected report
-    setSelectedReport(updatedReport);
+      // Clear selected report since we're deleting it
+      if (selectedReport?.id === articleToRemove.reportId) {
+        setSelectedReport(null);
+      }
+
+      try {
+        await deleteReportMutation.mutateAsync(articleToRemove.reportId);
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      } catch (error) {
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      }
+    } else {
+      // Normal article removal
+      queryClient.setQueryData(["/api/news-capsule/reports"], (oldData: ReportWithArticles[] | undefined) => {
+        if (!oldData) return oldData;
+        
+        return oldData.map(report => {
+          if (report.id === articleToRemove.reportId) {
+            return {
+              ...report,
+              articles: report.articles.filter(article => article.id !== articleToRemove.articleId)
+            };
+          }
+          return report;
+        });
+      });
+
+      // Also update selected report if it's the one affected
+      if (selectedReport && selectedReport.id === articleToRemove.reportId) {
+        setSelectedReport({
+          ...selectedReport,
+          articles: selectedReport.articles.filter(article => article.id !== articleToRemove.articleId)
+        });
+      }
+
+      try {
+        await removeArticleFromReportMutation.mutateAsync({ 
+          reportId: articleToRemove.reportId, 
+          articleId: articleToRemove.articleId 
+        });
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      } catch (error) {
+        setShowRemoveArticleDialog(false);
+        setArticleToRemove(null);
+      }
+    }
   };
   
   const formatDate = (dateString: string) => {
@@ -123,7 +346,6 @@ export default function Reports() {
       report: {
         id: selectedReport.id,
         createdAt: selectedReport.createdAt,
-        versionNumber: selectedReport.versionNumber,
         topic: selectedReport.topic,
         articles: selectedReport.articles.map(article => ({
           id: article.id,
@@ -147,7 +369,7 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.json`;
+    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -170,8 +392,15 @@ export default function Reports() {
             <h2 className="text-xl font-semibold mb-4">Report Library</h2>
             <div className="overflow-y-auto h-[calc(100%-3rem)]">
               <ReportsManager 
+                reports={reports}
                 onReportSelect={handleReportSelect}
+                onDeleteReport={(reportId) => {
+                  const report = reports.find(r => r.id === reportId);
+                  if (report) confirmDeleteReport(report);
+                }}
                 selectedReportId={selectedReport?.id}
+                isLoading={reportsLoading}
+                isDeleting={deleteReportMutation.isPending}
               />
             </div>
           </div>
@@ -180,15 +409,17 @@ export default function Reports() {
         {/* Executive Report Content - Flexible Width, Independent Scroll */}
         <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
           <div className="h-full overflow-y-auto p-5">
-            {selectedReport ? (
+            {reportsLoading ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="w-8 h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-400 text-sm">Loading report...</p>
+              </div>
+            ) : selectedReport ? (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
-                    {selectedReport.versionNumber && selectedReport.versionNumber > 1 && 
-                      <span className="ml-2 text-blue-400 text-sm">(Version: {selectedReport.versionNumber})</span>
-                    }
                   </h2>
                   {selectedReport.topic && (
                     <p className="text-slate-300 text-sm mt-1">
@@ -210,7 +441,7 @@ export default function Reports() {
                   {showExportDropdown && (
                     <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
                       <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md"
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md rounded-b-none"
                         onClick={async () => {
                           setShowExportDropdown(false);
                           try {
@@ -238,7 +469,7 @@ export default function Reports() {
                               new Paragraph({
                                 children: [
                                   new TextRun({
-                                    text: `Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}`,
+                                    text: `Executive Report: ${formatDate(selectedReport.createdAt)}`,
                                     font: "Cambria",
                                     size: 22
                                   })
@@ -517,14 +748,17 @@ export default function Reports() {
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');
                             link.href = url;
-                            link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.docx`;
+                            link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.docx`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
                             URL.revokeObjectURL(url);
                           } catch (error) {
-                            console.error('Error creating Word document:', error);
-                            alert('Error creating Word document. Please try again.');
+                            toast({
+                              variant: "destructive",
+                              title: "Export Error",
+                              description: "Error creating Word document. Please try again.",
+                            });
                           }
                         }}
                       >
@@ -532,7 +766,7 @@ export default function Reports() {
                       </button>
                       
                       <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-none"
                         onClick={() => {
                           setShowExportDropdown(false);
                           // Add print-specific styling
@@ -681,7 +915,7 @@ export default function Reports() {
                       </button>
                       
                       <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-none"
                         onClick={async () => {
                           setShowExportDropdown(false);
                           try {
@@ -701,7 +935,7 @@ export default function Reports() {
                             let htmlContent = `
                               <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.3; color: black; max-width: 100%;">
                                 <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24px;">RisqAI News Capsule Reporting</h1>
-                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? ` (Version: ${selectedReport.versionNumber})` : ''}</h2>
+                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}</h2>
                             `;
                             
                             if (selectedReport.topic) {
@@ -787,14 +1021,17 @@ export default function Reports() {
                             }
                             
                             // Download the PDF
-                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.pdf`);
+                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.pdf`);
                             
                             // Clean up
                             document.body.removeChild(container);
                             
                           } catch (error) {
-                            console.error('Error creating PDF:', error);
-                            alert('Error creating PDF. Please try again.');
+                            toast({
+                              variant: "destructive",
+                              title: "Export Error",
+                              description: "Error creating PDF. Please try again.",
+                            });
                           }
                         }}
                       >
@@ -802,18 +1039,14 @@ export default function Reports() {
                       </button>
                       
                       <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700"
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-none"
                         onClick={() => {
                           setShowExportDropdown(false);
                           // Generate text content
                           let textContent = "RisqAI News Capsule Reporting\n";
                           textContent += "=".repeat(50) + "\n\n";
                           
-                          textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}`;
-                          if (selectedReport.versionNumber && selectedReport.versionNumber > 1) {
-                            textContent += ` (Version: ${selectedReport.versionNumber})`;
-                          }
-                          textContent += "\n\n";
+                          textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}\n\n`;
                           
                           if (selectedReport.topic) {
                             textContent += `Report Topic: ${selectedReport.topic}\n\n`;
@@ -855,7 +1088,7 @@ export default function Reports() {
                           const url = URL.createObjectURL(blob);
                           const link = document.createElement('a');
                           link.href = url;
-                          link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}${selectedReport.versionNumber && selectedReport.versionNumber > 1 ? `_v${selectedReport.versionNumber}` : ''}.txt`;
+                          link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.txt`;
                           document.body.appendChild(link);
                           link.click();
                           document.body.removeChild(link);
@@ -866,7 +1099,7 @@ export default function Reports() {
                       </button>
                       
                       <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-b-md"
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-none rounded-b-md"
                         onClick={() => {
                           setShowExportDropdown(false);
                           exportToJSON();
@@ -894,7 +1127,7 @@ export default function Reports() {
                       <div className="flex items-start gap-3 mb-3">
                         <h3 className="text-lg font-medium flex-1">{article.title}</h3>
                         <button
-                          onClick={() => removeArticleFromReport(article.id)}
+                          onClick={() => confirmRemoveArticleFromReport(article.id)}
                           className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
                           title="Remove article from report"
                         >
@@ -950,6 +1183,131 @@ export default function Reports() {
           </div>
         </div>
       </div>
+
+      {/* Delete Report Confirmation Dialog */}
+      <AlertDialog 
+        open={showDeleteReportDialog} 
+        onOpenChange={(open) => {
+          if (!open && deleteReportMutation.isPending) {
+            return;
+          }
+          setShowDeleteReportDialog(open);
+          if (!open) {
+            setReportToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Report</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this report? This action cannot be undone.
+              {reportToDelete && (
+                <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
+                  <strong>Report from {formatDate(reportToDelete.createdAt)}</strong>
+                  {reportToDelete.topic && <div className="text-slate-400">Topic: {reportToDelete.topic}</div>}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setShowDeleteReportDialog(false);
+                setReportToDelete(null);
+              }}
+              disabled={deleteReportMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button 
+              onClick={handleDeleteReport}
+              disabled={deleteReportMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteReportMutation.isPending ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Deleting...
+                </div>
+              ) : (
+                "Yes"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove Article from Report Confirmation Dialog */}
+      <AlertDialog 
+        open={showRemoveArticleDialog} 
+        onOpenChange={(open) => {
+          if (!open && removeArticleFromReportMutation.isPending) {
+            return;
+          }
+          setShowRemoveArticleDialog(open);
+          if (!open) {
+            setArticleToRemove(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {articleToRemove?.isLastArticle ? "Delete Report" : "Remove Article from Report"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {articleToRemove?.isLastArticle ? (
+                <>
+                  This is the only article in this report. Removing it will delete the entire report. This action cannot be undone.
+                  {articleToRemove && (
+                    <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
+                      <strong>{articleToRemove.articleTitle}</strong>
+                      <div className="text-slate-400 text-xs mt-1">
+                        This will delete the entire report
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  Are you sure you want to remove this article from the report? This action cannot be undone.
+                  {articleToRemove && (
+                    <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
+                      <strong>{articleToRemove.articleTitle}</strong>
+                    </div>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setShowRemoveArticleDialog(false);
+                setArticleToRemove(null);
+              }}
+              disabled={removeArticleFromReportMutation.isPending || deleteReportMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button 
+              onClick={handleRemoveArticleFromReport}
+              disabled={removeArticleFromReportMutation.isPending || deleteReportMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {(removeArticleFromReportMutation.isPending || deleteReportMutation.isPending) ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  {articleToRemove?.isLastArticle ? "Deleting..." : "Removing..."}
+                </div>
+              ) : (
+                "Yes"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
