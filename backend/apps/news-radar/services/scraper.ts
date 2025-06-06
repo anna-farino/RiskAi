@@ -325,13 +325,71 @@ async function delay(ms: number): Promise<void> {
 
 let cookieJar: string[] = [];
 
+// List of domains known to block fetch requests and require Puppeteer
+const PUPPETEER_REQUIRED_DOMAINS = [
+  'washingtonpost.com',
+  'nytimes.com',
+  'wsj.com',
+  'ft.com',
+  'economist.com',
+  'bloomberg.com',
+  'reuters.com',
+  'cnn.com',
+  'bbc.com',
+  'guardian.co.uk',
+  'theguardian.com',
+  'marketwatch.com',
+  'techcrunch.com',
+  'wired.com',
+  'arstechnica.com'
+];
+
+// Check if a URL requires Puppeteer based on domain patterns
+function requiresPuppeteer(url: string): boolean {
+  try {
+    const domain = new URL(url).hostname.toLowerCase();
+    return PUPPETEER_REQUIRED_DOMAINS.some(blockedDomain => 
+      domain.includes(blockedDomain) || domain.endsWith(blockedDomain)
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Enhanced fetch with timeout and better error handling
+async function fetchWithTimeout(url: string, options: any, timeoutMs: number = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
 export async function scrapeUrl(
   url: string,
   isSourceUrl: boolean = false,
   config?: any,
 ): Promise<string> {
   try {
-    const maxAttempts = 5;
+    // Check if this domain is known to require Puppeteer
+    if (requiresPuppeteer(url)) {
+      log(`[Scraping] Domain requires Puppeteer, skipping fetch attempts: ${url}`, "scraper");
+      return await scrapePuppeteer(url, !isSourceUrl, config || {});
+    }
+
+    const maxAttempts = 3; // Reduced from 5 to 3 for faster fallback
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -341,9 +399,9 @@ export async function scrapeUrl(
           "scraper",
         );
 
-        // Skip delay for protected sites to improve performance
+        // Only retry with delay after first attempt
         if (attempt > 1) {
-          const shortDelay = 1000; // Fixed 1 second delay for retries only
+          const shortDelay = 500; // Reduced delay for faster recovery
           log(`[Scraping] Waiting ${shortDelay}ms before retry`, "scraper");
           await delay(shortDelay);
         }
@@ -358,7 +416,8 @@ export async function scrapeUrl(
             : {},
         );
 
-        const response = await fetch(url, { headers });
+        // Use timeout-enabled fetch
+        const response = await fetchWithTimeout(url, { headers }, 8000); // 8 second timeout
         log(
           `[Scraping] Received response with status: ${response.status}`,
           "scraper",
@@ -372,7 +431,7 @@ export async function scrapeUrl(
         }
 
         if (!response.ok) {
-          // Special handling for DataDome 401 errors - switch to Puppeteer immediately
+          // Special handling for common error codes that indicate bot protection
           if (response.status === 401 && (
             response.headers.get("x-datadome") || 
             response.headers.get("x-dd-b")
@@ -380,6 +439,13 @@ export async function scrapeUrl(
             log(`[Scraping] DataDome 401 detected, switching to Puppeteer`, "scraper");
             return await scrapePuppeteer(url, !isSourceUrl, config || {});
           }
+          
+          // For 403, 429, or 503 errors, switch to Puppeteer immediately
+          if ([403, 429, 503].includes(response.status)) {
+            log(`[Scraping] Bot protection status ${response.status} detected, switching to Puppeteer`, "scraper");
+            return await scrapePuppeteer(url, !isSourceUrl, config || {});
+          }
+          
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -392,7 +458,7 @@ export async function scrapeUrl(
             `[Scraping] Bot protection detected (${protection.type}): ${protection.details}`,
             "scraper",
           );
-          return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
+          return await scrapePuppeteer(url, !isSourceUrl, config || {});
         }
 
         // Then independently check for React app, lazy loading, and HTMX
@@ -406,7 +472,7 @@ export async function scrapeUrl(
             `[Scraping] Dynamic content detected (React: ${isReactApp}, LazyLoad: ${hasLazyLoad}, HTMX: ${hasHtmx}), switching to Puppeteer`,
             "scraper",
           );
-          return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
+          return await scrapePuppeteer(url, !isSourceUrl, config || {});
         }
 
         // If we got here, we can safely return the HTML
@@ -422,18 +488,37 @@ export async function scrapeUrl(
           "scraper",
         );
 
+        // For network errors that suggest bot protection, switch to Puppeteer early
+        if (lastError.message.includes('fetch failed') || 
+            lastError.message.includes('timeout') ||
+            lastError.message.includes('ECONNREFUSED') ||
+            lastError.message.includes('ENOTFOUND')) {
+          log(`[Scraping] Network error suggests bot protection, switching to Puppeteer after attempt ${attempt}`, "scraper");
+          return await scrapePuppeteer(url, !isSourceUrl, config || {});
+        }
+
         if (attempt === maxAttempts) {
-          throw lastError;
+          // Final fallback to Puppeteer
+          log(`[Scraping] All fetch attempts failed, falling back to Puppeteer as last resort`, "scraper");
+          return await scrapePuppeteer(url, !isSourceUrl, config || {});
         }
       }
     }
 
+    // This should never be reached due to the fallback above, but keeping for safety
     throw lastError || new Error("Failed to scrape URL after all attempts");
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     log(`[Scraping] Fatal error: ${errorMessage}`, "scraper");
-    throw new Error(`Failed to scrape URL: ${errorMessage}`);
+    
+    // Final safety net - try Puppeteer if all else fails
+    try {
+      log(`[Scraping] Final fallback to Puppeteer due to fatal error`, "scraper");
+      return await scrapePuppeteer(url, !isSourceUrl, config || {});
+    } catch (puppeteerError) {
+      throw new Error(`All scraping methods failed. Original error: ${errorMessage}`);
+    }
   }
 }
 

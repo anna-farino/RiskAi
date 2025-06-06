@@ -68,11 +68,40 @@ console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 
 // Shared browser instance to reuse across requests (like Threat Tracker)
 let browser: Browser | null = null;
+let browserLaunchTime: number = 0;
+const BROWSER_RESTART_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
 /**
- * Get or create a browser instance (Threat Tracker approach)
+ * Get or create a browser instance with health checks
  */
 async function getBrowser(): Promise<Browser> {
+  const now = Date.now();
+  
+  // Check if browser needs to be restarted (health check)
+  if (browser && (now - browserLaunchTime > BROWSER_RESTART_INTERVAL)) {
+    log("[scrapePuppeteer][getBrowser] Browser restart interval reached, closing old browser", "scraper");
+    try {
+      await browser.close();
+    } catch (error) {
+      log(`[scrapePuppeteer][getBrowser] Error closing old browser: ${error}`, "scraper");
+    }
+    browser = null;
+  }
+  
+  // Check if browser is still connected
+  if (browser) {
+    try {
+      const isConnected = browser.isConnected();
+      if (!isConnected) {
+        log("[scrapePuppeteer][getBrowser] Browser disconnected, creating new instance", "scraper");
+        browser = null;
+      }
+    } catch (error) {
+      log(`[scrapePuppeteer][getBrowser] Browser health check failed: ${error}`, "scraper");
+      browser = null;
+    }
+  }
+  
   if (!browser) {
     try {
       browser = await puppeteer.launch({
@@ -95,11 +124,14 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
+          '--disable-blink-features=AutomationControlled',
+          '--memory-pressure-off',
+          '--max_old_space_size=4096'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 180000 // 3 minute timeout on browser launch
+        timeout: 60000 // Reduced to 1 minute timeout on browser launch
       });
+      browserLaunchTime = now;
       log("[scrapePuppeteer][getBrowser] Browser launched successfully", "scraper");
     } catch (error: any) {
       log(`[scrapePuppeteer][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
@@ -108,6 +140,38 @@ async function getBrowser(): Promise<Browser> {
   }
   return browser;
 }
+
+/**
+ * Clean up browser resources
+ */
+async function closeBrowser(): Promise<void> {
+  if (browser) {
+    try {
+      await browser.close();
+      log("[scrapePuppeteer][closeBrowser] Browser closed successfully", "scraper");
+    } catch (error: any) {
+      log(`[scrapePuppeteer][closeBrowser] Error closing browser: ${error.message}`, "scraper");
+    }
+    browser = null;
+  }
+}
+
+// Graceful shutdown handling
+process.on('exit', () => {
+  if (browser) {
+    browser.close().catch(() => {});
+  }
+});
+
+process.on('SIGINT', async () => {
+  await closeBrowser();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await closeBrowser();
+  process.exit(0);
+});
 
 /**
  * Setup a new page with stealth protections (Threat Tracker approach)
@@ -488,47 +552,80 @@ export async function scrapePuppeteer(
 
     page = await setupPage();
 
-    // Progressive navigation strategy to handle challenging sites
+    // Set aggressive timeouts to prevent hanging
+    const SHORT_TIMEOUT = 8000; // 8 seconds
+    const MEDIUM_TIMEOUT = 12000; // 12 seconds
+    
+    page.setDefaultNavigationTimeout(SHORT_TIMEOUT);
+    page.setDefaultTimeout(SHORT_TIMEOUT);
+
+    // Progressive navigation strategy with improved timeout handling
     let response = null;
     let navigationSuccess = false;
     
-    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
+    // Strategy 1: Fast domcontentloaded approach
     try {
-      log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
-      response = await page.goto(url, { 
+      log('[scrapePuppeteer] Attempting fast navigation with domcontentloaded...', "scraper");
+      
+      // Race between navigation and timeout to prevent hanging
+      const navigationPromise = page.goto(url, { 
         waitUntil: 'domcontentloaded', 
-        timeout: 15000  // Reduced timeout for faster production performance
+        timeout: SHORT_TIMEOUT
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Navigation timeout')), SHORT_TIMEOUT + 1000)
+      );
+      
+      response = await Promise.race([navigationPromise, timeoutPromise]) as any;
       navigationSuccess = true;
-      log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      log(`[scrapePuppeteer] Fast navigation successful. Status: ${response ? response.status() : 'unknown'}`, "scraper");
     } catch (error: any) {
-      log(`[scrapePuppeteer] domcontentloaded failed: ${error.message}`, "scraper");
+      log(`[scrapePuppeteer] Fast navigation failed: ${error.message}`, "scraper");
     }
     
-    // Strategy 2: Fallback to load event with shorter timeout
+    // Strategy 2: Minimal wait approach if fast failed
     if (!navigationSuccess) {
       try {
-        log('[scrapePuppeteer] Attempting navigation with load event...', "scraper");
-        response = await page.goto(url, { 
-          waitUntil: 'load', 
-          timeout: 12000  // Reduced timeout
+        log('[scrapePuppeteer] Attempting minimal wait navigation...', "scraper");
+        
+        const navigationPromise = page.goto(url, { 
+          timeout: SHORT_TIMEOUT
         });
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Minimal navigation timeout')), SHORT_TIMEOUT + 1000)
+        );
+        
+        response = await Promise.race([navigationPromise, timeoutPromise]) as any;
         navigationSuccess = true;
-        log(`[scrapePuppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+        log(`[scrapePuppeteer] Minimal navigation successful. Status: ${response ? response.status() : 'unknown'}`, "scraper");
       } catch (error: any) {
-        log(`[scrapePuppeteer] load event failed: ${error.message}`, "scraper");
+        log(`[scrapePuppeteer] Minimal navigation failed: ${error.message}`, "scraper");
       }
     }
     
-    // Strategy 3: Try with no wait condition as last resort
+    // Strategy 3: Force navigation with page evaluation as last resort
     if (!navigationSuccess) {
       try {
-        log('[scrapePuppeteer] Attempting navigation with no wait condition...', "scraper");
-        response = await page.goto(url, { 
-          timeout: 10000  // Reduced timeout
+        log('[scrapePuppeteer] Attempting force navigation as last resort...', "scraper");
+        
+        // Try to navigate without waiting, then check if page loaded
+        await page.goto(url, { timeout: 5000 }).catch(() => {
+          log('[scrapePuppeteer] Navigation threw error, checking if page loaded anyway...', "scraper");
         });
-        navigationSuccess = true;
-        log(`[scrapePuppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+        
+        // Check if we have any content
+        const hasContent = await page.evaluate(() => {
+          return document.body && document.body.innerHTML.length > 100;
+        }).catch(() => false);
+        
+        if (hasContent) {
+          navigationSuccess = true;
+          log('[scrapePuppeteer] Force navigation succeeded - page has content', "scraper");
+        } else {
+          throw new Error('No content found after force navigation');
+        }
       } catch (error: any) {
         log(`[scrapePuppeteer] All navigation strategies failed: ${error.message}`, "scraper-error");
         throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
@@ -539,8 +636,16 @@ export async function scrapePuppeteer(
       log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Check for DataDome protection and wait for challenge completion
-    await handleDataDomeChallenge(page);
+    // Quick DataDome check with timeout
+    try {
+      await Promise.race([
+        handleDataDomeChallenge(page),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('DataDome check timeout')), 5000))
+      ]);
+    } catch (error: any) {
+      log(`[scrapePuppeteer] DataDome check timed out or failed: ${error.message}`, "scraper");
+      // Continue anyway - don't let DataDome handling block scraping
+    }
 
     // Skip content waiting - extract immediately after navigation
     log('[scrapePuppeteer] Proceeding directly to content extraction', "scraper");
@@ -633,7 +738,7 @@ Content: ${basicContent.content}`;
     try {
       // Add timeout protection for link extraction
       const linkExtractionPromise = extractArticleLinks(page);
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise<string>((_, reject) => 
         setTimeout(() => reject(new Error('Link extraction timeout')), 30000)
       );
       
