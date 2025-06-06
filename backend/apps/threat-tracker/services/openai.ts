@@ -29,7 +29,7 @@ export async function detectHtmlStructure(html: string, sourceUrl: string) {
     }
 
     // If the content is still too large, limit it further
-    const MAX_LENGTH = 20000; // conservative limit to stay under token limits
+    const MAX_LENGTH = 50000; // conservative limit to stay under token limits
     if (processedHtml.length > MAX_LENGTH) {
       log(
         `[ThreatTracker] Truncating HTML from ${processedHtml.length} to ${MAX_LENGTH} characters`,
