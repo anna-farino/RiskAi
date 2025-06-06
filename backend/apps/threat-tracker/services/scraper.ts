@@ -147,7 +147,6 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     const htmxScriptPatterns = [
       'script[src*="htmx"]',
       'script[src*="hx."]',
-      'script:contains("htmx")',
       'script[data-turbo-track*="htmx"]'
     ];
     
@@ -166,6 +165,16 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
         scriptLoaded = true;
         break;
       }
+    }
+    
+    // Check for inline scripts containing "htmx" (since :contains() is not valid in querySelector)
+    if (!scriptLoaded) {
+      const allScripts = Array.from(document.querySelectorAll('script'));
+      scriptLoaded = allScripts.some(script => {
+        const scriptContent = script.textContent || script.innerHTML || '';
+        const scriptSrc = script.src || '';
+        return scriptContent.includes('htmx') || scriptSrc.includes('htmx');
+      });
     }
     
     // Check for HTMX in window object
