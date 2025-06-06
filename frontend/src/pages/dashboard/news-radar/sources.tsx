@@ -148,7 +148,11 @@ export default function Sources() {
   // Sync local state with query data when it changes
   useEffect(() => {
     if (sources.data) {
-      setLocalSources(sources.data);
+      // Sort sources alphabetically by name
+      const sortedSources = [...sources.data].sort((a, b) => 
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      );
+      setLocalSources(sortedSources);
     }
   }, [sources.data]);
   
@@ -226,8 +230,13 @@ export default function Sources() {
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
       
-      // Update local state immediately for UI feedback
-      setLocalSources(prev => [tempSource, ...prev]);
+      // Update local state immediately for UI feedback with alphabetical sorting
+      setLocalSources(prev => {
+        const newSources = [tempSource, ...prev];
+        return newSources.sort((a, b) => 
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+      });
       
       // Add to pendingItems to show loading indicators
       setPendingItems(prev => new Set(prev).add(tempId));
@@ -261,12 +270,15 @@ export default function Sources() {
     },
     onSuccess: (data, variables, context) => {
       if (context?.tempId) {
-        // Update local state with actual server data
-        setLocalSources(prev => 
-          prev.map(source => 
+        // Update local state with actual server data and maintain alphabetical order
+        setLocalSources(prev => {
+          const updatedSources = prev.map(source => 
             source.id === context.tempId ? (data as Source) : source
-          )
-        );
+          );
+          return updatedSources.sort((a, b) => 
+            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+          );
+        });
         
         // Update React Query cache with server data
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], prev => 
@@ -545,14 +557,17 @@ export default function Sources() {
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
       
-      // Optimistically update the local state
-      setLocalSources(prev => 
-        prev.map(source => 
+      // Optimistically update the local state and maintain alphabetical order
+      setLocalSources(prev => {
+        const updatedSources = prev.map(source => 
           source.id === id 
             ? { ...source, name: data.name, url: data.url }
             : source
-        )
-      );
+        );
+        return updatedSources.sort((a, b) => 
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+      });
       
       // Update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
