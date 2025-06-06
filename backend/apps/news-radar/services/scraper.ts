@@ -142,20 +142,17 @@ function detectHtmx(html: string): boolean {
     html.includes("htmx.js") ||
     $('script[src*="htmx"]').length > 0 ||
     // HTMX attributes present
-    $('[hx-get]').length > 0 ||
-    $('[hx-post]').length > 0 ||
-    $('[hx-trigger]').length > 0 ||
-    $('[hx-target]').length > 0 ||
-    $('[hx-swap]').length > 0 ||
+    $("[hx-get]").length > 0 ||
+    $("[hx-post]").length > 0 ||
+    $("[hx-trigger]").length > 0 ||
+    $("[hx-target]").length > 0 ||
+    $("[hx-swap]").length > 0 ||
     // HTMX indicators in HTML
     html.includes("hx-") ||
     html.includes("htmx");
 
   if (hasHtmx) {
-    log(
-      `[HTMX Detection] HTMX dynamic content loading detected`,
-      "scraper",
-    );
+    log(`[HTMX Detection] HTMX dynamic content loading detected`, "scraper");
   }
 
   return hasHtmx;
@@ -447,8 +444,63 @@ export async function extractArticleLinks(
       html = puppeteerHtml;
     }
 
-    // Update the link extraction section to include better filtering and logging
-    // Extract all links for AI analysis
+    // Check if we're dealing with structured HTML from Puppeteer (HTMX-injected content)
+    const isStructuredHtml =
+      html.includes('<div class="extracted-article-links">') ||
+      html.includes("htmx-injected-content");
+
+    if (isStructuredHtml) {
+      log(
+        `[Link Detection] Processing structured HTML with HTMX content`,
+        "scraper",
+      );
+
+      // Extract all links from both regular content and HTMX-injected content with minimal filtering
+      const allLinks: string[] = [];
+
+      // Get links from all content with very basic filtering
+      $("a[href]").each((_, element) => {
+        const href = $(element).attr("href");
+        if (
+          href &&
+          !href.includes("javascript:") &&
+          !href.includes("mailto:") &&
+          !href.includes("tel:") &&
+          !href.startsWith("#")
+        ) {
+          const fullUrl = href.startsWith("http")
+            ? href
+            : `${baseDomain}${href.startsWith("/") ? "" : "/"}${href}`;
+          allLinks.push(fullUrl);
+        }
+      });
+
+      // Remove duplicates and filter out obvious non-article URLs
+      const uniqueLinks = [...new Set(allLinks)].filter((link) => {
+        const url = link.toLowerCase();
+        return (
+          !url.includes("/login") &&
+          !url.includes("/register") &&
+          !url.includes("/privacy") &&
+          !url.includes("/terms") &&
+          !url.includes("/contact") &&
+          !url.includes("/about") &&
+          !url.includes(".css") &&
+          !url.includes(".js") &&
+          !url.includes(".png") &&
+          !url.includes(".jpg") &&
+          !url.includes(".gif")
+        );
+      });
+
+      log(
+        `[Link Detection] Found ${uniqueLinks.length} total links from structured HTML`,
+        "scraper",
+      );
+      return uniqueLinks;
+    }
+
+    // For non-structured HTML, use less restrictive filtering
     interface LinkData {
       href: string;
       text: string;
@@ -460,25 +512,35 @@ export async function extractArticleLinks(
       const text = $(element).text().trim();
       const parentText = $(element).parent().text().trim();
 
-      // Skip obvious navigation/utility links
+      // Much less restrictive filtering - just require href and some text
       if (href && text && text.length > 20) {
-        // Article titles tend to be longer
-
         const fullUrl = href.startsWith("http")
           ? href
           : `${baseDomain}${href.startsWith("/") ? "" : "/"}${href}`;
 
-        links.push({
-          href: fullUrl,
-          text: text,
-          context: parentText,
-        });
+        // Skip obvious non-article links
+        if (
+          !href.includes("#") &&
+          !href.includes("javascript:") &&
+          !href.includes("mailto:") &&
+          !href.includes("tel:") &&
+          !text.toLowerCase().includes("home") &&
+          !text.toLowerCase().includes("about") &&
+          !text.toLowerCase().includes("contact") &&
+          !text.toLowerCase().includes("privacy") &&
+          !text.toLowerCase().includes("terms")
+        ) {
+          links.push({
+            href: fullUrl,
+            text: text,
+            context: parentText,
+          });
 
-        log(
-          `[Link Detection] Potential article link found: ${fullUrl}`,
-          "scraper",
-        );
-        log(`[Link Detection] Link text: ${text}`, "scraper");
+          log(
+            `[Link Detection] Potential article link found: ${fullUrl}`,
+            "scraper",
+          );
+        }
       }
     });
 
@@ -606,7 +668,10 @@ function sanitizeSelector(selector: string): string {
 }
 
 // Modify the extractArticleContent function to use sanitized selectors
-export async function extractArticleContent(html: string, config: ScrapingConfig) {
+export async function extractArticleContent(
+  html: string,
+  config: ScrapingConfig,
+) {
   const $ = cheerio.load(html);
 
   // First, remove navigation, header, footer, and similar elements that might contain false matches
@@ -646,26 +711,30 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
   let content = "";
   if (sanitizedConfig.contentSelector) {
     content = $(sanitizedConfig.contentSelector).text().trim();
-    
+
     // If content is empty but we have an articleSelector, try using it
     if (content.length === 0 && config.articleSelector) {
       const articleSelector = sanitizeSelector(config.articleSelector);
       if (articleSelector) {
         // Get all paragraph elements within articleSelector
-        content = $(articleSelector).find('p').text().trim();
-        
+        content = $(articleSelector).find("p").text().trim();
+
         // If still empty, get all text
         if (content.length === 0) {
           content = $(articleSelector).text().trim();
         }
       }
     }
-    
+
     // If still empty and we have a config.contentSelector with :contains
     // which was sanitized away, use a more direct approach
-    if (content.length === 0 && config.contentSelector && config.contentSelector.includes(':contains')) {
+    if (
+      content.length === 0 &&
+      config.contentSelector &&
+      config.contentSelector.includes(":contains")
+    ) {
       // Extract base selector without the :contains part
-      const baseSelector = config.contentSelector.split(':contains')[0].trim();
+      const baseSelector = config.contentSelector.split(":contains")[0].trim();
       if (baseSelector) {
         content = $(baseSelector).text().trim();
       }
@@ -686,32 +755,50 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
 
   // Fallback method if content is still empty - use main content area or body
   if (content.length === 0) {
-    log(`[Scraping] Content extraction failed with configured selectors, trying fallbacks`, "scraper");
-    
+    log(
+      `[Scraping] Content extraction failed with configured selectors, trying fallbacks`,
+      "scraper",
+    );
+
     // Try common content area selectors
     const fallbackSelectors = [
-      "article", ".article", ".post", ".entry", "main", 
-      "#content", ".content", "#main-content", ".main-content",
-      ".article-content", ".post-content", ".entry-content"
+      "article",
+      ".article",
+      ".post",
+      ".entry",
+      "main",
+      "#content",
+      ".content",
+      "#main-content",
+      ".main-content",
+      ".article-content",
+      ".post-content",
+      ".entry-content",
     ];
-    
+
     for (const selector of fallbackSelectors) {
       if (content.length > 0) break;
-      
+
       const element = $(selector).first();
       if (element.length > 0) {
         content = element.text().trim();
-        log(`[Scraping] Found content using fallback selector: ${selector}`, "scraper");
+        log(
+          `[Scraping] Found content using fallback selector: ${selector}`,
+          "scraper",
+        );
       }
     }
-    
+
     // Last resort - get all paragraph text from body
     if (content.length === 0) {
       content = $("body p").text().trim();
-      log(`[Scraping] Using all paragraph text from body as fallback`, "scraper");
+      log(
+        `[Scraping] Using all paragraph text from body as fallback`,
+        "scraper",
+      );
     }
   }
-  
+
   // Log extraction results
   log(`[Scraping] Extracted title length: ${title.length}`, "scraper");
   log(`[Scraping] Extracted content length: ${content.length}`, "scraper");
@@ -719,9 +806,12 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
   // Extract publish date using OpenAI
   log(`[Scraping] Extracting publish date using OpenAI`, "scraper");
   const publishDate = await extractPublishDate(content, title, html);
-  
+
   if (publishDate) {
-    log(`[Scraping] Successfully extracted publish date: ${publishDate.toISOString()}`, "scraper");
+    log(
+      `[Scraping] Successfully extracted publish date: ${publishDate.toISOString()}`,
+      "scraper",
+    );
   } else {
     log(`[Scraping] Could not extract publish date, will use null`, "scraper");
   }

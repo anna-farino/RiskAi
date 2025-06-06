@@ -274,7 +274,31 @@ async function extractArticleLinks(page: Page): Promise<string> {
       text: link.textContent?.trim() || '',
       parentText: link.parentElement?.textContent?.trim() || '',
       parentClass: link.parentElement?.className || ''
-    })).filter(link => link.href); // Only keep links with href attribute
+    })).filter(link => {
+      // Much less restrictive filtering - just require href and avoid obvious non-article links
+      if (!link.href) return false;
+      
+      const text = link.text.toLowerCase();
+      const href = link.href.toLowerCase();
+      
+      // Skip obvious navigation/utility links
+      if (href.includes('#') || 
+          href.includes('javascript:') || 
+          href.includes('mailto:') ||
+          href.includes('tel:') ||
+          text.includes('home') ||
+          text.includes('about') ||
+          text.includes('contact') ||
+          text.includes('privacy') ||
+          text.includes('terms') ||
+          text.includes('login') ||
+          text.includes('register')) {
+        return false;
+      }
+      
+      // Keep links that have some text or are likely article links
+      return link.text.length > 0 || href.includes('/article') || href.includes('/post') || href.includes('/news');
+    });
   });
 
   console.log(`[NewsRadar] Extracted ${articleLinkData.length} potential article links`);
@@ -302,7 +326,7 @@ async function extractArticleLinks(page: Page): Promise<string> {
     // Wait for additional time to let dynamic content load
     await new Promise(resolve => setTimeout(resolve, 5000));
     
-    // Re-extract links after scrolling
+    // Re-extract links after scrolling with same filtering logic
     const updatedLinkData = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a'));
       return links.map(link => ({
@@ -310,26 +334,56 @@ async function extractArticleLinks(page: Page): Promise<string> {
         text: link.textContent?.trim() || '',
         parentText: link.parentElement?.textContent?.trim() || '',
         parentClass: link.parentElement?.className || ''
-      })).filter(link => link.href);
+      })).filter(link => {
+        // Same filtering logic as before
+        if (!link.href) return false;
+        
+        const text = link.text.toLowerCase();
+        const href = link.href.toLowerCase();
+        
+        // Skip obvious navigation/utility links
+        if (href.includes('#') || 
+            href.includes('javascript:') || 
+            href.includes('mailto:') ||
+            href.includes('tel:') ||
+            text.includes('home') ||
+            text.includes('about') ||
+            text.includes('contact') ||
+            text.includes('privacy') ||
+            text.includes('terms') ||
+            text.includes('login') ||
+            text.includes('register')) {
+          return false;
+        }
+        
+        // Keep links that have some text or are likely article links
+        return link.text.length > 0 || href.includes('/article') || href.includes('/post') || href.includes('/news');
+      });
     });
     
-    if (updatedLinkData.length > articleLinkData.length) {
-      console.log(`[NewsRadar] Found ${updatedLinkData.length - articleLinkData.length} additional links after scrolling`);
-      articleLinkData.push(...updatedLinkData.slice(articleLinkData.length));
+    // Create a set of existing hrefs to avoid duplicates
+    const existingHrefs = new Set(articleLinkData.map(link => link.href));
+    const newLinks = updatedLinkData.filter(link => !existingHrefs.has(link.href));
+    
+    if (newLinks.length > 0) {
+      console.log(`[NewsRadar] Found ${newLinks.length} additional unique links after scrolling`);
+      articleLinkData.push(...newLinks);
     }
   }
 
-  // Create a simplified HTML with just the extracted links
+  // Create a simplified HTML with just the extracted links, including HTMX marker
   return `
   <html>
     <body>
-      <div class="extracted-article-links">
-        ${articleLinkData.map(link =>
-          `<div class="article-link-item">
-            <a href="${link.href}">${link.text}</a>
-            <div class="context">${link.parentText.substring(0, 100)}</div>
-          </div>`
-        ).join('\n')}
+      <div class="htmx-injected-content">
+        <div class="extracted-article-links">
+          ${articleLinkData.map(link =>
+            `<div class="article-link-item">
+              <a href="${link.href}">${link.text}</a>
+              <div class="context">${link.parentText.substring(0, 100)}</div>
+            </div>`
+          ).join('\n')}
+        </div>
       </div>
     </body>
   </html>`;
