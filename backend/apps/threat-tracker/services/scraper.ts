@@ -9,6 +9,7 @@ import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
+import { DynamicContentExtractor, detectArticleLinksIntelligently } from './dynamic-content-extractor';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -634,9 +635,9 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
-    // For article pages, extract the content based on selectors
+    // For article pages, extract the content using dynamic extraction
     if (isArticlePage) {
-      log('[ThreatTracker] Extracting article content', "scraper");
+      log('[ThreatTracker] Extracting article content using dynamic strategies', "scraper");
 
       // Scroll through the page to ensure all content is loaded
       await page.evaluate(() => {
@@ -652,7 +653,28 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         return new Promise(resolve => setTimeout(resolve, 1000));
       });
 
-      // Extract article content using the provided scraping config
+      // Wait for any lazy-loaded content
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Try dynamic content extraction first
+      const dynamicExtractor = new DynamicContentExtractor();
+      const dynamicContent = await dynamicExtractor.extractContent(page, url);
+
+      if (dynamicContent && dynamicContent.content.length > 100) {
+        log(`[ThreatTracker] Dynamic extraction successful: title length=${dynamicContent.title?.length || 0}, content length=${dynamicContent.content?.length || 0}`, "scraper");
+        
+        return `<html><body>
+          <h1>${dynamicContent.title || ''}</h1>
+          ${dynamicContent.author ? `<div class="author">${dynamicContent.author}</div>` : ''}
+          ${dynamicContent.date ? `<div class="date">${dynamicContent.date}</div>` : ''}
+          <div class="content">${dynamicContent.content || ''}</div>
+          ${dynamicContent.metadata ? `<div class="metadata" style="display:none;">${JSON.stringify(dynamicContent.metadata)}</div>` : ''}
+        </body></html>`;
+      }
+
+      // Fallback to traditional selector-based extraction
+      log('[ThreatTracker] Dynamic extraction failed, using traditional selector-based extraction', "scraper");
+      
       const articleContent = await page.evaluate((config) => {
         // First try using the provided selectors
         if (config) {
@@ -677,36 +699,69 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
           }
         }
 
-        // Fallback selectors if config fails
+        // Enhanced fallback selectors
         const fallbackSelectors = {
           content: [
             'article',
             '.article-content',
             '.article-body',
+            '.article-wrap .body',
+            '.fs-responsive-text',
+            '.speakable',
             'main .content',
             '.post-content',
             '#article-content',
-            '.story-content'
+            '.story-content',
+            '.entry-content',
+            '.content-body',
+            '[data-module="ArticleBody"]',
+            '.RichTextArticleBody',
+            '.caas-body'
           ],
-          title: ['h1', '.article-title', '.post-title'],
-          author: ['.author', '.byline', '.article-author'],
+          title: ['h1', '.article-title', '.post-title', '.headline', '.entry-title'],
+          author: ['.author', '.byline', '.article-author', '.contrib-link', '.writer-name', '[rel="author"]'],
           date: [
+            'time[datetime]',
             'time',
             '[datetime]',
             '.article-date',
             '.post-date',
             '.published-date',
-            '.timestamp'
+            '.timestamp',
+            '.date-published',
+            '.publish-date'
           ]
         };
 
-        // Try fallback selectors
+        // Try fallback selectors with enhanced logic
         let content = '';
         for (const selector of fallbackSelectors.content) {
-          const element = document.querySelector(selector);
-          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
-            content = element.textContent?.trim() || '';
-            break;
+          const elements = document.querySelectorAll(selector);
+          for (const element of elements) {
+            const text = element.textContent?.trim() || '';
+            if (text.length > 200) { // Require substantial content
+              content = text;
+              break;
+            }
+          }
+          if (content) break;
+        }
+
+        // If still no content, try paragraph-based extraction
+        if (!content || content.length < 200) {
+          const paragraphs = Array.from(document.querySelectorAll('p:not(.disclaimer):not(.byline)'));
+          const filteredParagraphs = paragraphs.filter(p => {
+            const text = p.textContent?.trim() || '';
+            const parentClass = p.parentElement?.className?.toLowerCase() || '';
+            return text.length > 50 && 
+                   !parentClass.includes('nav') && 
+                   !parentClass.includes('sidebar') && 
+                   !parentClass.includes('footer') &&
+                   !parentClass.includes('menu');
+          });
+          
+          if (filteredParagraphs.length > 2) {
+            content = filteredParagraphs.map(p => p.textContent?.trim()).join('\n\n');
           }
         }
 
@@ -747,15 +802,15 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
         for (const selector of fallbackSelectors.date) {
           const element = document.querySelector(selector);
           if (element) {
-            date = element.textContent?.trim() || '';
-            break;
+            date = element.getAttribute('datetime') || element.textContent?.trim() || '';
+            if (date) break;
           }
         }
 
         return { title, content, author, date };
       }, scrapingConfig);
 
-      log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
+      log(`[ThreatTracker] Traditional extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
 
       // Return the content in HTML format
       return `<html><body>
@@ -766,11 +821,30 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       </body></html>`;
     }
     
-    // For source/listing pages, extract potential article links
-    // First do our own extraction to get all links
+    // For source/listing pages, extract potential article links using intelligent detection
     await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
       log('[ThreatTracker] Timeout waiting for links in scrapeUrl, continuing anyway', "scraper");
     });
+    
+    // Use intelligent article link detection first
+    const intelligentLinks = await detectArticleLinksIntelligently(page);
+    
+    if (intelligentLinks.length > 10) {
+      log(`[ThreatTracker] Intelligent detection found ${intelligentLinks.length} relevant article links`, "scraper");
+      
+      // Convert to expected format for extractArticleLinksStructured
+      const formattedLinks = intelligentLinks.map(link => ({
+        href: link.href,
+        text: link.text,
+        parentText: '',
+        parentClass: ''
+      }));
+      
+      return await extractArticleLinksStructured(page, formattedLinks);
+    }
+    
+    // Fallback to traditional extraction
+    log('[ThreatTracker] Intelligent detection found insufficient links, using traditional extraction', "scraper");
     
     const extractedLinkData = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a'));
