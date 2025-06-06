@@ -165,17 +165,6 @@ function detectBotProtection(html: string, response: Response): BotProtection {
   const $ = cheerio.load(html);
   log(`[Bot Detection] Analyzing response headers and HTML content`, "scraper");
 
-  // Check for premium news sites that require special handling (Washington Post, etc.)
-  const url = response.url || '';
-  if (url.includes('washingtonpost.com') || url.includes('wsj.com') || url.includes('nytimes.com')) {
-    log(`[Bot Detection] Premium news site detected: ${url}`, "scraper");
-    return {
-      hasProtection: true,
-      type: "javascript",
-      details: "Premium news site with advanced protection - requires Puppeteer",
-    };
-  }
-
   // Add DataDome detection (high priority since it returns 401)
   if (
     response.headers.get("x-datadome") ||
