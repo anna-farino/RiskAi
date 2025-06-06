@@ -10,6 +10,7 @@ import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 import { DynamicContentExtractor, detectArticleLinksIntelligently } from './dynamic-content-extractor';
+import { AdaptiveScraper, detectWebFramework } from './adaptive-scraper';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -606,9 +607,14 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       log(`[ThreatTracker] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Wait for potential challenges to be processed
-    log('[ThreatTracker] Waiting for page to stabilize...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Initialize adaptive scraper for enhanced content detection
+    const adaptiveScraper = new AdaptiveScraper();
+    
+    // Detect web frameworks to adjust scraping strategy
+    const frameworks = await detectWebFramework(page);
+    const isSPA = frameworks.some(f => ['React', 'Vue', 'Angular', 'Next.js', 'Nuxt.js', 'Gatsby'].includes(f));
+    
+    log(`[ThreatTracker] Detected frameworks: ${frameworks.join(', ')}${isSPA ? ' (SPA detected)' : ''}`, "scraper");
 
     // Check for bot protection
     const botProtectionCheck = await page.evaluate(() => {
@@ -635,6 +641,18 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
+    // Apply adaptive page preparation based on detected technology
+    const adaptiveConfig = {
+      waitForNetworkIdle: true,
+      detectSPA: true,
+      handleInfiniteScroll: !isArticlePage, // Only for listing pages
+      waitForLazyImages: true,
+      maxScrollAttempts: isSPA ? 5 : 3,
+      contentStabilityCheck: isSPA || frameworks.length > 0
+    };
+
+    await adaptiveScraper.preparePage(page, adaptiveConfig);
+
     // For article pages, extract the content using dynamic extraction
     if (isArticlePage) {
       log('[ThreatTracker] Extracting article content using dynamic strategies', "scraper");
@@ -656,9 +674,13 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
       // Wait for any lazy-loaded content
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Try dynamic content extraction first
+      // Try dynamic content extraction with retry mechanism
       const dynamicExtractor = new DynamicContentExtractor();
-      const dynamicContent = await dynamicExtractor.extractContent(page, url);
+      const dynamicContent = await adaptiveScraper.extractWithRetry(
+        page,
+        async () => await dynamicExtractor.extractContent(page, url),
+        3
+      );
 
       if (dynamicContent && dynamicContent.content.length > 100) {
         log(`[ThreatTracker] Dynamic extraction successful: title length=${dynamicContent.title?.length || 0}, content length=${dynamicContent.content?.length || 0}`, "scraper");
