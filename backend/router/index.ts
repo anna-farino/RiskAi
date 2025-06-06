@@ -14,6 +14,7 @@ import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'bac
 import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
+import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
 import sendGrid from 'backend/utils/sendGrid';
 
 const limiter = rateLimit(rateLimitConfig)
@@ -58,5 +59,9 @@ router.delete('/secrets', deleteSecrets)
 
 // DEV only
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
+
+// Sample Data Population API endpoints
+router.get('/sample-data/status', verifyToken, doubleCsrfProtection, noSimpleRequests, handleCheckSampleDataStatus)
+router.post('/sample-data/populate', verifyToken, doubleCsrfProtection, noSimpleRequests, handlePopulateSampleData)
 
 export default router;

@@ -26,6 +26,10 @@ task = "shell.exec"
 args = "cd backend && npm run dev"
 
 [[ports]]
+localPort = 3000
+externalPort = 3002
+
+[[ports]]
 localPort = 5000
 externalPort = 3000
 
