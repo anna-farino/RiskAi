@@ -66,13 +66,330 @@ function findChromePath() {
 const CHROME_PATH = findChromePath();
 console.log(`[Puppeteer] Using Chrome at: ${CHROME_PATH}`);
 
-// REMOVED global browser instance and getBrowser/setupPage for per-call browser model
+// Shared browser instance to reuse across requests (like Threat Tracker)
+let browser: Browser | null = null;
+
+/**
+ * Get or create a browser instance (Threat Tracker approach)
+ */
+async function getBrowser(): Promise<Browser> {
+  if (!browser) {
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-features=site-per-process,AudioServiceOutOfProcess',
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--disable-gl-drawing-for-tests',
+          '--mute-audio',
+          '--no-zygote',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--ignore-certificate-errors',
+          '--allow-running-insecure-content',
+          '--disable-web-security',
+          '--disable-blink-features=AutomationControlled'
+        ],
+        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
+        timeout: 180000 // 3 minute timeout on browser launch
+      });
+      log("[scrapePuppeteer][getBrowser] Browser launched successfully", "scraper");
+    } catch (error: any) {
+      log(`[scrapePuppeteer][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
+      throw error;
+    }
+  }
+  return browser;
+}
+
+/**
+ * Setup a new page with stealth protections (Threat Tracker approach)
+ */
+async function setupPage(): Promise<Page> {
+  log(`[scrapePuppeteer][setupPage] Setting up new page`, "scraper");
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  // Set viewport
+  await page.setViewport({ width: 1920, height: 1080 });
+
+  // Set user agent (updated to latest Chrome version)
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+  // Set comprehensive headers to bypass DataDome and other protections
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'max-age=0',
+    'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1'
+  });
+
+  // Set longer timeouts
+  page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(60000);
+
+  return page;
+}
+
+/**
+ * Handle DataDome protection challenges
+ */
+async function handleDataDomeChallenge(page: Page): Promise<void> {
+  try {
+    log(`[DataDome] Checking for DataDome protection...`, "scraper");
+    
+    // Check if we're on a DataDome challenge page
+    const isDataDomeChallenge = await page.evaluate(() => {
+      const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
+      const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
+      const hasDataDomeContent = document.documentElement?.innerHTML?.includes('datadome') || false;
+      
+      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent;
+    });
+
+    if (isDataDomeChallenge) {
+      log(`[DataDome] DataDome challenge detected, waiting for completion...`, "scraper");
+      
+      // Wait for the challenge to complete - DataDome typically redirects or updates the page
+      let challengeCompleted = false;
+      const maxWaitTime = 15000; // 15 seconds max wait
+      const checkInterval = 1000; // Check every second
+      let waitTime = 0;
+      
+      while (!challengeCompleted && waitTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waitTime += checkInterval;
+        
+        // Check if we're still on challenge page
+        const stillOnChallenge = await page.evaluate(() => {
+          const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
+          const hasDataDomeMessage = document.body?.textContent?.includes('Please enable JS and disable any ad blocker') || false;
+          
+          return hasDataDomeScript || hasDataDomeMessage;
+        });
+        
+        if (!stillOnChallenge) {
+          challengeCompleted = true;
+          log(`[DataDome] Challenge completed after ${waitTime}ms`, "scraper");
+        }
+      }
+      
+      if (!challengeCompleted) {
+        log(`[DataDome] Challenge did not complete within ${maxWaitTime}ms, proceeding anyway`, "scraper");
+      }
+      
+      // Additional wait for page to stabilize after challenge
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      log(`[DataDome] No DataDome challenge detected`, "scraper");
+    }
+  } catch (error: any) {
+    log(`[DataDome] Error handling DataDome challenge: ${error.message}`, "scraper");
+    // Continue anyway - don't let DataDome handling block the scraping
+  }
+}
 
 // This function expects a fully prepared page and is safe.
 async function extractArticleLinks(page: Page): Promise<string> {
   // Wait for any links to appear
   await page.waitForSelector('a', { timeout: 5000 });
-  console.log('[Puppeteer] Found anchor tags on page');
+  console.log('[NewsRadar] Found anchor tags on page');
+
+  // HTMX Detection and handling
+  const hasHtmx = await page.evaluate(() => {
+    const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
+    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+    const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
+    
+    // Get all hx-get elements for potential direct fetching
+    const hxGetElements = Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+      url: el.getAttribute('hx-get') || '',
+      trigger: el.getAttribute('hx-trigger') || 'click'
+    }));
+
+    // Debug info
+    const debug = {
+      totalElements: document.querySelectorAll('*').length,
+      scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).slice(0, 5)
+    };
+
+    return { scriptLoaded, htmxInWindow, hasHxAttributes, hxGetElements, debug };
+  });
+
+  console.log(`[NewsRadar] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`);
+
+  // Handle HTMX content if detected
+  if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
+    console.log('[NewsRadar] HTMX detected on page, handling dynamic content...');
+    
+    // Wait longer for initial HTMX content to load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Specifically for sites with HTMX, manually fetch HTMX content
+    console.log(`[NewsRadar] Attempting to load HTMX content directly...`);
+    
+    // Get the current page URL to construct proper HTMX endpoints
+    const currentUrl = page.url();
+    const baseUrl = new URL(currentUrl).origin;
+    
+    // Manually fetch HTMX endpoints that contain articles
+    const htmxContent = await page.evaluate(async (baseUrl) => {
+      let totalContentLoaded = 0;
+      
+      // Common HTMX endpoints for article content
+      const endpoints = [
+        '/media/items/',
+        '/media/items/top/',
+        '/media/items/recent/',
+        '/media/items/popular/',
+        '/news/items/',
+        '/news/items/top/',
+        '/articles/items/',
+        '/articles/items/recent/',
+        '/posts/items/',
+        '/content/items/'
+      ];
+      
+      // Get CSRF token from page if available
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                       document.querySelector('input[name="_token"]')?.getAttribute('value') ||
+                       document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+      
+      // Get screen size info for headers
+      const screenType = window.innerWidth < 768 ? 'M' : 'D';
+      
+      for (const endpoint of endpoints) {
+        try {
+          const headers = {
+            'HX-Request': 'true',
+            'HX-Current-URL': window.location.href,
+            'Accept': 'text/html, */*'
+          };
+          
+          // Add CSRF token if available
+          if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+          }
+          
+          // Add screen type header
+          headers['X-Screen'] = screenType;
+          
+          console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
+          const response = await fetch(`${baseUrl}${endpoint}`, { headers });
+          
+          if (response.ok) {
+            const html = await response.text();
+            console.log(`Loaded ${html.length} chars from ${endpoint}`);
+            
+            // Insert content into page
+            const container = document.createElement('div');
+            container.className = 'htmx-injected-content';
+            container.setAttribute('data-source', endpoint);
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            totalContentLoaded += html.length;
+          }
+        } catch (e) {
+          console.error(`Error fetching ${endpoint}:`, e);
+        }
+      }
+      
+      return totalContentLoaded;
+    }, baseUrl);
+    
+    if (htmxContent > 0) {
+      console.log(`[NewsRadar] Successfully loaded ${htmxContent} characters of HTMX content`);
+      // Wait for any additional processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    // Try triggering visible HTMX elements
+    const triggeredElements = await page.evaluate(() => {
+      let triggered = 0;
+      
+      // Look for clickable HTMX elements
+      const htmxElements = document.querySelectorAll('[hx-get]');
+      htmxElements.forEach((el, index) => {
+        if (index < 10) { // Limit to first 10
+          const url = el.getAttribute('hx-get');
+          const trigger = el.getAttribute('hx-trigger') || 'click';
+          
+          // Skip if it's a load trigger (already processed) or if it looks like a filter/search
+          if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
+            return;
+          }
+          
+          // Check if element is visible
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            console.log(`Clicking HTMX element: ${url}`);
+            (el as HTMLElement).click();
+            triggered++;
+          }
+        }
+      });
+      
+      return triggered;
+    });
+    
+    if (triggeredElements > 0) {
+      console.log(`[NewsRadar] Triggered ${triggeredElements} HTMX elements via click`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    // Try clicking potential "load more" buttons
+    const clickedButtons = await page.evaluate(() => {
+      const buttonSelectors = [
+        'button:not([disabled])', 
+        'a.more', 
+        'a.load-more', 
+        '[hx-get]:not([hx-trigger="load"])',
+        '.pagination a', 
+        '.load-more',
+        '[role="button"]'
+      ];
+      
+      let clicked = 0;
+      buttonSelectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
+          // Check if element is visible and might be a "load more" button
+          const text = el.textContent?.toLowerCase() || '';
+          const isLoadMoreButton = text.includes('more') || 
+                                   text.includes('load') || 
+                                   text.includes('next') ||
+                                   text.includes('pag');
+          
+          if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
+            console.log('Clicking element:', text);
+            (el as HTMLElement).click();
+            clicked++;
+          }
+        });
+      });
+      return clicked;
+    });
+    
+    if (clickedButtons > 0) {
+      console.log(`[NewsRadar] Clicked ${clickedButtons} potential "load more" elements`);
+      // Wait for HTMX to process the click and load content
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+  }
 
   // Wait for any remaining dynamic content to load
   await page.waitForFunction(
@@ -83,7 +400,7 @@ async function extractArticleLinks(page: Page): Promise<string> {
       return loadingElements.length === 0;
     },
     { timeout: 10000 }
-  ).catch(() => console.log('[Puppeteer] Timeout waiting for loading indicators'));
+  ).catch(() => console.log('[NewsRadar] Timeout waiting for loading indicators'));
 
   // Extract all links after ensuring content is loaded
   const articleLinkData = await page.evaluate(() => {
@@ -96,8 +413,47 @@ async function extractArticleLinks(page: Page): Promise<string> {
     })).filter(link => link.href); // Only keep links with href attribute
   });
 
-  console.log(`[Puppeteer] Extracted ${articleLinkData.length} potential article links`);
-  console.log(`[Puppeteer] Page has ${await page.evaluate(() => document.querySelectorAll('a').length)} total anchor tags`);
+  console.log(`[NewsRadar] Extracted ${articleLinkData.length} potential article links`);
+  console.log(`[NewsRadar] Page has ${await page.evaluate(() => document.querySelectorAll('a').length)} total anchor tags`);
+
+  // If fewer than 20 links were found, try scrolling and additional techniques
+  if (articleLinkData.length < 20) {
+    console.log(`[NewsRadar] Fewer than 20 links found, trying additional techniques...`);
+    
+    // Scroll through the page to trigger lazy loading
+    console.log(`[NewsRadar] Scrolling page to trigger lazy loading...`);
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    
+    // Wait for additional time to let dynamic content load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Re-extract links after scrolling
+    const updatedLinkData = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      return links.map(link => ({
+        href: link.getAttribute('href'),
+        text: link.textContent?.trim() || '',
+        parentText: link.parentElement?.textContent?.trim() || '',
+        parentClass: link.parentElement?.className || ''
+      })).filter(link => link.href);
+    });
+    
+    if (updatedLinkData.length > articleLinkData.length) {
+      console.log(`[NewsRadar] Found ${updatedLinkData.length - articleLinkData.length} additional links after scrolling`);
+      articleLinkData.push(...updatedLinkData.slice(articleLinkData.length));
+    }
+  }
 
   // Create a simplified HTML with just the extracted links
   return `
@@ -120,281 +476,190 @@ export async function scrapePuppeteer(
   isArticlePage: boolean = false,
   scrapingConfig: any
 ): Promise<string> {
-  let browser: Browser | null = null;
+  log(`[scrapePuppeteer] Starting to scrape ${url}${isArticlePage ? ' as article page' : ''}`);
+  
   let page: Page | null = null;
-  log(`[scrapePuppeteer] 🟢 Function started with URL: ${url}`);
-
-  // Simple URL validation
-  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-    throw new Error(`Puppeteer scraping failed: Invalid URL: ${url}`);
-  }
-
+  
   try {
-    // Launch the browser afresh for every call for lowest memory use
-    log('[scrapePuppeteer] 🟢 Launching new browser instance');
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080',
-        '--disable-features=site-per-process,AudioServiceOutOfProcess',
-        '--disable-software-rasterizer',
-        '--disable-extensions',
-        '--disable-gl-drawing-for-tests',
-        '--mute-audio',
-        '--no-zygote',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--ignore-certificate-errors',
-        '--allow-running-insecure-content',
-        '--disable-web-security',
-        '--disable-blink-features=AutomationControlled',
-      ],
-      executablePath: CHROME_PATH || undefined,
-      timeout: 180000, // 3 minute timeout
-    });
-    log('[scrapePuppeteer] ✅ Browser launched');
-    page = await browser.newPage();
-    log('[scrapePuppeteer] ✅ New page opened');
-
-    // Set viewport
-    await page.setViewport({ width: 1920, height: 1080 });
-
-    // Set user agent
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
-    );
-    log('[scrapePuppeteer] Page setup complete');
-
-    // Set a more realistic user agent
-    try {
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
-      log(`[scrapePuppeteer] User Agent has been set! 👍`);
-    } catch (error: any) {
-      console.error("[scrapePuppeteer] Error setting user agent (non-critical):", error);
-      // Continue despite this error
+    // Check for common URL errors
+    if (!url.startsWith("http")) {
+      url = "https://" + url;
     }
 
-    // Enable JavaScript and cookies
-    try {
-      await page.setJavaScriptEnabled(true);
-    } catch (error: any) {
-      console.error("[scrapePuppeteer] Error enabling JavaScript (non-critical):", error);
-      // Continue despite this error
-    }
+    page = await setupPage();
 
-    // Go to the specified URL with longer timeout
+    // Progressive navigation strategy to handle challenging sites
+    let response = null;
+    let navigationSuccess = false;
+    
+    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
     try {
-      const response = await page.goto(url, { 
-        waitUntil: 'networkidle2', 
-        timeout: 60000 
+      log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
+      response = await page.goto(url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 15000  // Reduced timeout for faster production performance
       });
-      console.log(`[Puppeteer] Initial page load complete. Status: ${response ? response.status() : 'unknown'}`);
-      
-      if (response && !response.ok()) {
-        console.warn(`[Puppeteer] Warning: Response status is not OK: ${response.status()}`);
+      navigationSuccess = true;
+      log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    } catch (error: any) {
+      log(`[scrapePuppeteer] domcontentloaded failed: ${error.message}`, "scraper");
+    }
+    
+    // Strategy 2: Fallback to load event with shorter timeout
+    if (!navigationSuccess) {
+      try {
+        log('[scrapePuppeteer] Attempting navigation with load event...', "scraper");
+        response = await page.goto(url, { 
+          waitUntil: 'load', 
+          timeout: 12000  // Reduced timeout
+        });
+        navigationSuccess = true;
+        log(`[scrapePuppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      } catch (error: any) {
+        log(`[scrapePuppeteer] load event failed: ${error.message}`, "scraper");
       }
-    } catch (error: any) {
-      console.error("[scrapePuppeteer] Error navigating to URL:", error);
-      throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+    }
+    
+    // Strategy 3: Try with no wait condition as last resort
+    if (!navigationSuccess) {
+      try {
+        log('[scrapePuppeteer] Attempting navigation with no wait condition...', "scraper");
+        response = await page.goto(url, { 
+          timeout: 10000  // Reduced timeout
+        });
+        navigationSuccess = true;
+        log(`[scrapePuppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      } catch (error: any) {
+        log(`[scrapePuppeteer] All navigation strategies failed: ${error.message}`, "scraper-error");
+        throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+      }
+    }
+    
+    if (response && !response.ok()) {
+      log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Wait for potential challenges to be processed (shorter timeout for testing)
-    console.log('[Puppeteer] Waiting for page to stabilize...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Check for DataDome protection and wait for challenge completion
+    await handleDataDomeChallenge(page);
 
-    // Check if we're still on the Incapsula page
-    const incapsulaCheck = await page.evaluate(() => {
-      return document.body.innerHTML.includes('/_Incapsula_Resource') ||
-        document.body.innerHTML.includes('Incapsula');
-    });
+    // Skip content waiting - extract immediately after navigation
+    log('[scrapePuppeteer] Proceeding directly to content extraction', "scraper");
 
-    if (incapsulaCheck) {
-      console.log('[Puppeteer] Still on Incapsula challenge page, performing additional actions');
-      // Perform some human-like actions
-      await page.mouse.move(50, 50);
-      await page.mouse.down();
-      await page.mouse.move(100, 100);
-      await page.mouse.up();
-      // Reload the page and wait again
-      await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
-      await new Promise(resolve => setTimeout(resolve, 10000));
-    }
-
-    // For article pages, just extract the content
+    // For article pages, use immediate extraction to bypass bot detection
     if (isArticlePage) {
-      console.log('[Puppeteer] Extracting article content - starting extraction');
-
-      // Scroll through the page to ensure all content is loaded
-      await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Initial page height:', document.body.scrollHeight);
-        console.log('[Puppeteer-Debug] Scrolling to 1/3 of page height');
-        window.scrollTo(0, document.body.scrollHeight / 3);
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-      await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Scrolling to 2/3 of page height');
-        window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-      await page.evaluate(() => {
-        console.log('[Puppeteer-Debug] Scrolling to bottom of page');
-        window.scrollTo(0, document.body.scrollHeight);
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-
-      console.log('[Puppeteer] Finished scrolling; waiting briefly for content to settle');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Extract article content using the detected scrapingConfig
-      const articleContent = await page.evaluate((scrapingConfig) => {
-        // Log what selectors we're trying to use
-        console.log('[Puppeteer-Debug] Using selectors:', JSON.stringify(scrapingConfig));
-
-        // First try to get content using the scrapingConfig
-        if (scrapingConfig) {
-          const title = scrapingConfig.titleSelector ? document.querySelector(scrapingConfig.titleSelector)?.textContent?.trim() : '';
-          const content = scrapingConfig.contentSelector ? document.querySelector(scrapingConfig.contentSelector)?.textContent?.trim() : '';
-          const author = scrapingConfig.authorSelector ? document.querySelector(scrapingConfig.authorSelector)?.textContent?.trim() : '';
-          const date = scrapingConfig.dateSelector ? document.querySelector(scrapingConfig.dateSelector)?.textContent?.trim() : '';
-
-          if (content) {
-            console.log('[Puppeteer-Debug] Successfully extracted content using scrapingConfig');
-            console.log('[Puppeteer-Debug] Content length:', content.length);
-            return { title, content, author, date };
+      log('[scrapePuppeteer] Extracting article content with immediate strategy', "scraper");
+      
+      // Immediate content extraction without triggering bot detection
+      try {
+        const articleContent = await page.evaluate(() => {
+          // Fast extraction strategy optimized for BleepingComputer and similar sites
+          
+          // Get title - prioritize H1 for speed
+          const title = document.querySelector('h1')?.textContent?.trim() || 
+                       document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 
+                       document.title.split(' - ')[0].trim() ||
+                       '(No title found)';
+          
+          // Get author - quick meta tag check first
+          const author = document.querySelector('meta[name="author"]')?.getAttribute('content') ||
+                        document.querySelector('.author')?.textContent?.trim() ||
+                        '(No author found)';
+          
+          // Skip date extraction for speed
+          const date = '(No date found)';
+          
+          // Streamlined content extraction for speed
+          let content = '';
+          
+          // Fast DOM selector approach - check most common patterns first
+          const quickSelectors = ['article', '.articleBody', 'main', '.content'];
+          for (const selector of quickSelectors) {
+            const element = document.querySelector(selector);
+            if (element?.textContent && element.textContent.length > 200) {
+              content = element.textContent.trim();
+              break;
+            }
           }
-        }
-
-        // Fallback selectors if scrapingConfig fails
-        const fallbackSelectors = {
-          content: [
-            'article',
-            '.article-content',
-            '.article-body',
-            'main .content',
-            '.post-content',
-            '#article-content',
-            '.story-content'
-          ],
-          title: ['h1', '.article-title', '.post-title'],
-          author: ['.author', '.byline', '.article-author'],
-          date: [
-            'time',
-            '[datetime]',
-            '.article-date',
-            '.post-date',
-            '.published-date',
-            '.timestamp'
-          ]
-        };
-
-        // Try fallback selectors
-        let content = '';
-        for (const selector of fallbackSelectors.content) {
-          const element = document.querySelector(selector);
-          if (element) {
-            content = element.textContent?.trim() || '';
-            console.log(`[Puppeteer-Debug] Found content using fallback selector: ${selector}`);
-            console.log('[Puppeteer-Debug] Content length:', content.length);
-            break;
+          
+          // Quick paragraph fallback if no container found
+          if (!content) {
+            const paragraphs = Array.from(document.querySelectorAll('p'))
+              .slice(0, 10) // Limit to first 10 paragraphs for speed
+              .map(p => p.textContent?.trim())
+              .filter(text => text && text.length > 30)
+              .join(' ');
+            
+            if (paragraphs.length > 100) {
+              content = paragraphs;
+            }
           }
-        }
+          
+          return {
+            title,
+            content: content || '(No content found)',
+            author,
+            date
+          };
+        });
 
-        // If still no content, try getting main content area
-        if (!content) {
-          const main = document.querySelector('main');
-          if (main) {
-            content = main.textContent?.trim() || '';
-            console.log('[Puppeteer-Debug] Using main element content');
-            console.log('[Puppeteer-Debug] Content length:', content.length);
-          }
-        }
+        const formattedContent = `Title: ${articleContent.title}
+Author: ${articleContent.author}
+Date: ${articleContent.date}
+Content: ${articleContent.content}`;
 
-        // If still no content, get the body content
-        if (!content) {
-          content = document.body.textContent?.trim() || '';
-          console.log('[Puppeteer-Debug] Using body content as fallback');
-          console.log('[Puppeteer-Debug] Content length:', content.length);
-        }
+        log(`[scrapePuppeteer] Immediate extraction complete - Title: ${articleContent.title.substring(0, 50)}..., Content length: ${articleContent.content.length}`, "scraper");
+        return formattedContent;
 
-        // Try to get title
-        let title = '';
-        for (const selector of fallbackSelectors.title) {
-          const element = document.querySelector(selector);
-          if (element) {
-            title = element.textContent?.trim() || '';
-            break;
-          }
-        }
-
-        // Try to get author
-        let author = '';
-        for (const selector of fallbackSelectors.author) {
-          const element = document.querySelector(selector);
-          if (element) {
-            author = element.textContent?.trim() || '';
-            break;
-          }
-        }
-
-        // Try to get date
-        let date = '';
-        for (const selector of fallbackSelectors.date) {
-          const element = document.querySelector(selector);
-          if (element) {
-            date = element.textContent?.trim() || '';
-            break;
-          }
-        }
-
-        return { title, content, author, date };
-      }, scrapingConfig);
-
-      console.log('[Puppeteer] Extraction results:', {
-        hasTitle: !!articleContent.title,
-        titleLength: articleContent.title?.length || 0,
-        hasContent: !!articleContent.content,
-        contentLength: articleContent.content?.length || 0,
-        hasAuthor: !!articleContent.author,
-        hasDate: !!articleContent.date
-      });
-
-      // Return the content in HTML format
-      return `<html><body>
-        <h1>${articleContent.title || ''}</h1>
-        ${articleContent.author ? `<div class="author">${articleContent.author}</div>` : ''}
-        ${articleContent.date ? `<div class="date">${articleContent.date}</div>` : ''}
-        <div class="content">${articleContent.content || ''}</div>
-      </body></html>`;
+      } catch (error: any) {
+        log(`[scrapePuppeteer] Content extraction failed: ${error.message}`, "scraper-error");
+        // Return basic page info if extraction fails
+        const basicContent = await page.evaluate(() => ({
+          title: document.title || '(No title found)',
+          content: '(Content extraction failed - possible bot detection)',
+          author: '(No author found)',
+          date: '(No date found)'
+        }));
+        
+        return `Title: ${basicContent.title}
+Author: ${basicContent.author}
+Date: ${basicContent.date}
+Content: ${basicContent.content}`;
+      }
     }
 
-    // For source/listing pages, extract article links
-    return await extractArticleLinks(page);
+    // For source/listing pages, extract article links with timeout protection
+    log('[scrapePuppeteer] Starting article link extraction for source page', "scraper");
+    
+    try {
+      // Add timeout protection for link extraction
+      const linkExtractionPromise = extractArticleLinks(page);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Link extraction timeout')), 30000)
+      );
+      
+      return await Promise.race([linkExtractionPromise, timeoutPromise]);
+    } catch (error: any) {
+      log(`[scrapePuppeteer] Link extraction failed: ${error.message}`, "scraper");
+      
+      // Fallback: return basic page HTML for link detection
+      const basicHtml = await page.content();
+      log(`[scrapePuppeteer] Returning basic HTML content (${basicHtml.length} chars)`, "scraper");
+      return basicHtml;
+    }
 
   } catch (error: any) {
-    console.error("[scrapePuppeteer] Fatal error during scraping:", error);
+    log(`[scrapePuppeteer] Fatal error during scraping: ${error.message}`, "scraper-error");
     throw new Error(`Puppeteer scraping failed: ${error?.message || String(error)}`);
   } finally {
     if (page) {
       try {
         await page.close();
-        console.log('[scrapePuppeteer] 🟡 Page closed successfully');
+        log('[scrapePuppeteer] Page closed successfully', "scraper");
       } catch (closeError: any) {
-        console.error('[scrapePuppeteer] Error closing page:', closeError?.message || String(closeError));
+        log(`[scrapePuppeteer] Error closing page: ${closeError?.message || String(closeError)}`, "scraper-error");
       }
     }
-    if (browser) {
-      try {
-        await browser.close();
-        console.log('[scrapePuppeteer] 🔴 Browser closed successfully');
-      } catch (closeError: any) {
-        console.error('[scrapePuppeteer] Error closing browser:', closeError?.message || String(closeError));
-      }
-    }
+    // Don't close browser - reuse like Threat Tracker
   }
 }
 

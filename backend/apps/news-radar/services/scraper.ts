@@ -132,9 +132,55 @@ function detectLazyLoading(html: string): boolean {
   return hasLazyLoad;
 }
 
+function detectHtmx(html: string): boolean {
+  const $ = cheerio.load(html);
+
+  // Check for HTMX patterns
+  const hasHtmx =
+    // HTMX script loaded
+    html.includes("htmx.min.js") ||
+    html.includes("htmx.js") ||
+    $('script[src*="htmx"]').length > 0 ||
+    // HTMX attributes present
+    $('[hx-get]').length > 0 ||
+    $('[hx-post]').length > 0 ||
+    $('[hx-trigger]').length > 0 ||
+    $('[hx-target]').length > 0 ||
+    $('[hx-swap]').length > 0 ||
+    // HTMX indicators in HTML
+    html.includes("hx-") ||
+    html.includes("htmx");
+
+  if (hasHtmx) {
+    log(
+      `[HTMX Detection] HTMX dynamic content loading detected`,
+      "scraper",
+    );
+  }
+
+  return hasHtmx;
+}
+
 function detectBotProtection(html: string, response: Response): BotProtection {
   const $ = cheerio.load(html);
   log(`[Bot Detection] Analyzing response headers and HTML content`, "scraper");
+
+  // Add DataDome detection (high priority since it returns 401)
+  if (
+    response.headers.get("x-datadome") ||
+    response.headers.get("x-dd-b") ||
+    html.includes("captcha-delivery.com") ||
+    html.includes("datadome") ||
+    html.includes("Please enable JS and disable any ad blocker") ||
+    (response.status === 401 && html.includes("geo.captcha-delivery.com"))
+  ) {
+    log(`[Bot Detection] DataDome protection detected`, "scraper");
+    return {
+      hasProtection: true,
+      type: "captcha",
+      details: "DataDome protection detected - requires JavaScript challenge completion",
+    };
+  }
 
   // Add Incapsula detection
   if (
@@ -295,9 +341,12 @@ export async function scrapeUrl(
           "scraper",
         );
 
-        const delayTime = calculateDelay(attempt);
-        log(`[Scraping] Waiting ${delayTime}ms before attempt`, "scraper");
-        await delay(delayTime);
+        // Skip delay for protected sites to improve performance
+        if (attempt > 1) {
+          const shortDelay = 1000; // Fixed 1 second delay for retries only
+          log(`[Scraping] Waiting ${shortDelay}ms before retry`, "scraper");
+          await delay(shortDelay);
+        }
 
         // Prepare headers with referrer if not first attempt
         const headers = generateHeaders(
@@ -323,6 +372,14 @@ export async function scrapeUrl(
         }
 
         if (!response.ok) {
+          // Special handling for DataDome 401 errors - switch to Puppeteer immediately
+          if (response.status === 401 && (
+            response.headers.get("x-datadome") || 
+            response.headers.get("x-dd-b")
+          )) {
+            log(`[Scraping] DataDome 401 detected, switching to Puppeteer`, "scraper");
+            return await scrapePuppeteer(url, !isSourceUrl, config || {});
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -338,14 +395,15 @@ export async function scrapeUrl(
           return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
         }
 
-        // Then independently check for React app and lazy loading
+        // Then independently check for React app, lazy loading, and HTMX
         const isReactApp = detectReactApp(html);
         const hasLazyLoad = detectLazyLoading(html);
+        const hasHtmx = detectHtmx(html);
 
-        // Switch to Puppeteer if we detect either React or lazy loading
-        if (isReactApp || hasLazyLoad) {
+        // Switch to Puppeteer if we detect React, lazy loading, or HTMX
+        if (isReactApp || hasLazyLoad || hasHtmx) {
           log(
-            `[Scraping] Dynamic content detected (React: ${isReactApp}, LazyLoad: ${hasLazyLoad}), switching to Puppeteer`,
+            `[Scraping] Dynamic content detected (React: ${isReactApp}, LazyLoad: ${hasLazyLoad}, HTMX: ${hasHtmx}), switching to Puppeteer`,
             "scraper",
           );
           return await scrapePuppeteer(url, !isSourceUrl, config || {}); // Pass isArticlePage as opposite of isSourceUrl
@@ -577,6 +635,49 @@ function sanitizeSelector(selector: string): string {
 
 // Modify the extractArticleContent function to use sanitized selectors
 export async function extractArticleContent(html: string, config: ScrapingConfig) {
+  // Check if this is already processed content from our Puppeteer scraper
+  if (html.includes('Title:') && html.includes('Author:') && html.includes('Content:')) {
+    log(`[Scraping] Detected pre-processed content from Puppeteer, parsing directly`, "scraper");
+    
+    const lines = html.split('\n');
+    let title = '';
+    let author = '';
+    let content = '';
+    let currentSection = '';
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('Title:')) {
+        title = trimmedLine.replace('Title:', '').trim();
+        currentSection = 'title';
+      } else if (trimmedLine.startsWith('Author:')) {
+        author = trimmedLine.replace('Author:', '').trim();
+        currentSection = 'author';
+      } else if (trimmedLine.startsWith('Date:')) {
+        currentSection = 'date';
+      } else if (trimmedLine.startsWith('Content:')) {
+        content = trimmedLine.replace('Content:', '').trim();
+        currentSection = 'content';
+      } else if (currentSection === 'content' && trimmedLine) {
+        content += ' ' + trimmedLine;
+      }
+    }
+    
+    // Clean up extracted values
+    title = title === '(No title found)' ? '' : title;
+    author = author === '(No author found)' ? undefined : author;
+    content = content === '(No content found)' ? '' : content;
+    
+    log(`[Scraping] Parsed pre-processed content - Title: ${title.length} chars, Content: ${content.length} chars`, "scraper");
+    
+    return {
+      title,
+      content,
+      author,
+      publishDate: null, // Will be extracted separately if needed
+    };
+  }
+
   const $ = cheerio.load(html);
 
   // First, remove navigation, header, footer, and similar elements that might contain false matches

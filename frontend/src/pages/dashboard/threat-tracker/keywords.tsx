@@ -163,7 +163,9 @@ export default function Keywords() {
         return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 60000, // Reduce refetching frequency (1 minute)
+    staleTime: 0, // Always refetch on component mount
+    refetchOnMount: true, // Force refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   // Update local state whenever query data changes
@@ -173,7 +175,7 @@ export default function Keywords() {
     }
   }, [keywords.data]);
 
-  // Create bulk keywords mutation
+  // Create bulk keywords mutation with optimistic updates
   const createBulkKeywords = useMutation({
     mutationFn: async (values: BulkKeywordFormValues) => {
       console.log("Submitting bulk keywords:", values);
@@ -214,24 +216,47 @@ export default function Keywords() {
         keywords: createdKeywords,
       };
     },
-    onSuccess: (data) => {
-      const { message, keywords } = data;
-      toast({
-        title: "Keywords added in bulk",
-        description: `Successfully created ${keywords.length} keywords.`,
-      });
-      setBulkKeywordDialogOpen(false);
-      bulkForm.reset({
-        terms: "",
-        category: selectedCategory,
-        active: true,
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
+    onMutate: async (values) => {
+      // Split the terms and create temporary optimistic keywords
+      const keywordTerms = values.terms
+        .split(",")
+        .map((term) => term.trim())
+        .filter((term) => term.length > 0);
+      
+      const tempKeywords: ThreatKeyword[] = keywordTerms.map((term, index) => ({
+        id: `temp-bulk-${Date.now()}-${index}`,
+        term,
+        category: values.category as any,
+        active: values.active,
+        userId: null,
+        isDefault: false,
+      }));
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous state
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Update local state immediately
+      setLocalKeywords(prev => [...tempKeywords, ...prev]);
+      
+      // Update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+        old ? [...tempKeywords, ...old] : tempKeywords
+      );
+      
+      return { previousKeywords, previousLocalKeywords, tempKeywords };
     },
-    onError: (error) => {
-      console.error("Error creating bulk keywords:", error);
+    onError: (err, values, context) => {
+      // Revert both local state and React Query cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error creating bulk keywords:", err);
       toast({
         title: "Error adding keywords",
         description:
@@ -239,9 +264,44 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
+    onSuccess: (data, variables, context) => {
+      const { keywords: createdKeywords } = data;
+      
+      if (context?.tempKeywords && createdKeywords.length > 0) {
+        // Replace temp keywords with actual server data
+        setLocalKeywords(prev => {
+          // Remove temp keywords and add actual ones
+          const withoutTemp = prev.filter(k => !context.tempKeywords.some(temp => temp.id === k.id));
+          return [...createdKeywords, ...withoutTemp];
+        });
+        
+        // Update React Query cache
+        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => {
+          if (!prev) return createdKeywords;
+          const withoutTemp = prev.filter(k => !context.tempKeywords.some(temp => temp.id === k.id));
+          return [...createdKeywords, ...withoutTemp];
+        });
+      }
+      
+      toast({
+        title: "Keywords added in bulk",
+        description: `Successfully created ${createdKeywords.length} keywords.`,
+      });
+      setBulkKeywordDialogOpen(false);
+      bulkForm.reset({
+        terms: "",
+        category: selectedCategory,
+        active: true,
+      });
+      
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+    },
   });
 
-  // Create keyword mutation
+  // Create keyword mutation with optimistic updates
   const createKeyword = useMutation({
     mutationFn: async (values: KeywordFormValues) => {
       return apiRequest(
@@ -250,19 +310,43 @@ export default function Keywords() {
         values,
       );
     },
-    onSuccess: () => {
-      toast({
-        title: "Keyword created",
-        description: "Your keyword has been added successfully.",
-      });
-      setKeywordDialogOpen(false);
-      form.reset();
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
+    onMutate: async (newKeyword) => {
+      // Create a temporary optimistic keyword
+      const tempId = `temp-${Date.now()}`;
+      const tempKeyword: ThreatKeyword = {
+        id: tempId,
+        term: newKeyword.term,
+        category: newKeyword.category as any,
+        active: newKeyword.active,
+        userId: null,
+        isDefault: false,
+      };
+      
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous state for potential rollback
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Update local state immediately for UI
+      setLocalKeywords(prev => [tempKeyword, ...prev]);
+      
+      // Update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+        old ? [tempKeyword, ...old] : [tempKeyword]
+      );
+      
+      return { previousKeywords, previousLocalKeywords, tempId };
     },
-    onError: (error) => {
-      console.error("Error creating keyword:", error);
+    onError: (err, newKeyword, context) => {
+      // Revert both local state and React Query cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error creating keyword:", err);
       toast({
         title: "Error creating keyword",
         description:
@@ -270,9 +354,38 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
+    onSuccess: (data, variables, context) => {
+      if (context?.tempId) {
+        // Update local state with actual server data
+        setLocalKeywords(prev => 
+          prev.map(keyword => 
+            keyword.id === context.tempId ? (data as ThreatKeyword) : keyword
+          )
+        );
+        
+        // Update React Query cache
+        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
+          prev?.map(keyword => 
+            keyword.id === context.tempId ? (data as ThreatKeyword) : keyword
+          ) || []
+        );
+      }
+      
+      toast({
+        title: "Keyword created",
+        description: "Your keyword has been added successfully.",
+      });
+      setKeywordDialogOpen(false);
+      form.reset();
+      
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+    },
   });
 
-  // Update keyword mutation
+  // Update keyword mutation with optimistic updates
   const updateKeyword = useMutation({
     mutationFn: async ({
       id,
@@ -287,20 +400,38 @@ export default function Keywords() {
         values,
       );
     },
-    onSuccess: () => {
-      toast({
-        title: "Keyword updated",
-        description: "Your keyword has been updated successfully.",
-      });
-      setKeywordDialogOpen(false);
-      setEditingKeyword(null);
-      form.reset();
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
+    onMutate: async ({ id, values }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous state
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Update local state immediately
+      setLocalKeywords(prev => 
+        prev.map(keyword => 
+          keyword.id === id ? { ...keyword, ...values } : keyword
+        )
+      );
+      
+      // Update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+        (old || []).map(keyword => 
+          keyword.id === id ? { ...keyword, ...values } : keyword
+        )
+      );
+      
+      return { previousKeywords, previousLocalKeywords, id };
     },
-    onError: (error) => {
-      console.error("Error updating keyword:", error);
+    onError: (err, variables, context) => {
+      // Revert both local state and React Query cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error updating keyword:", err);
       toast({
         title: "Error updating keyword",
         description:
@@ -308,27 +439,85 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-  });
-
-  // Delete keyword mutation
-  const deleteKeyword = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest(
-        "DELETE",
-        `${serverUrl}/api/threat-tracker/keywords/${id}`,
-      );
-    },
-    onSuccess: () => {
+    onSuccess: (data, variables, context) => {
+      if (context?.id) {
+        // Update local state with actual server data
+        setLocalKeywords(prev => 
+          prev.map(keyword => 
+            keyword.id === context.id ? (data as ThreatKeyword) : keyword
+          )
+        );
+        
+        // Update React Query cache
+        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
+          prev?.map(keyword => 
+            keyword.id === context.id ? (data as ThreatKeyword) : keyword
+          ) || []
+        );
+      }
+      
       toast({
-        title: "Keyword deleted",
-        description: "Your keyword has been deleted successfully.",
+        title: "Keyword updated",
+        description: "Your keyword has been updated successfully.",
       });
+      setKeywordDialogOpen(false);
+      setEditingKeyword(null);
+      form.reset();
+      
+      // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
-    onError: (error) => {
-      console.error("Error deleting keyword:", error);
+  });
+
+  // Delete keyword mutation with optimistic updates
+  const deleteKeyword = useMutation({
+    mutationFn: async (id: string) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords/${id}`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete keyword: ${response.statusText}`);
+        }
+        
+        // Don't try to parse JSON - DELETE endpoints typically return empty responses
+        return { success: true, id };
+      } catch (error) {
+        console.error("Delete keyword error:", error);
+        throw error;
+      }
+    },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous data
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Immediately update local state
+      setLocalKeywords(prev => prev.filter(keyword => keyword.id !== id));
+      
+      // Update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], (oldData = []) => 
+        oldData.filter(keyword => keyword.id !== id)
+      );
+      
+      return { previousKeywords, previousLocalKeywords, id };
+    },
+    onError: (err, id, context) => {
+      // Revert both local state and cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error deleting keyword:", err);
       toast({
         title: "Error deleting keyword",
         description:
@@ -336,9 +525,20 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
+    onSuccess: (data, variables, context) => {
+      toast({
+        title: "Keyword deleted",
+        description: "Your keyword has been deleted successfully.",
+      });
+      
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+    },
   });
 
-  // Toggle keyword active status
+  // Toggle keyword active status with optimistic updates
   const toggleKeywordActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       return apiRequest(
@@ -347,27 +547,52 @@ export default function Keywords() {
         { active },
       );
     },
-    onMutate: ({ id, active }) => {
-      // Optimistic update
-      setLocalKeywords((prev) =>
-        prev.map((keyword) =>
-          keyword.id === id ? { ...keyword, active } : keyword,
-        ),
+    onMutate: async ({ id, active }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous values
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Update local state immediately
+      setLocalKeywords(prev => 
+        prev.map(keyword => 
+          keyword.id === id ? { ...keyword, active } : keyword
+        )
       );
+      
+      // Also update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], oldData => 
+        (oldData || []).map(keyword => 
+          keyword.id === id ? { ...keyword, active } : keyword
+        )
+      );
+      
+      return { previousKeywords, previousLocalKeywords, id };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-    },
-    onError: (error) => {
-      console.error("Error toggling keyword active status:", error);
+    onError: (err, variables, context) => {
+      if (context) {
+        // Revert both local state and cache
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error toggling keyword active status:", err);
       toast({
         title: "Error updating keyword",
         description:
           "There was an error updating the keyword status. Please try again.",
         variant: "destructive",
       });
+    },
+    onSuccess: (data, variables, context) => {
+      toast({
+        title: "Keyword status updated",
+        description: "Keyword status has been updated successfully.",
+      });
+      
+      // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
