@@ -112,22 +112,114 @@ export async function analyzeContent(
 
 export async function detectArticleLinks(linksText: string): Promise<string[]> {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not configured");
+    }
+
     // Check if we're dealing with the simplified HTML from puppeteer
     const isSimplifiedHtml = linksText.includes(
       '<div class="extracted-article-links">',
     );
 
-    // For simplified HTML, extract directly
+    // For simplified HTML, extract directly to a more processable format
+    let links = [];
+    let htmxLinks = [];
+    let potentialArticleUrls = [];
+
     if (isSimplifiedHtml) {
+      // Extract all links
       const linkRegex = /<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
       let match;
       const links = [];
+
       while ((match = linkRegex.exec(linksText)) !== null) {
         links.push({
           href: match[1],
           text: match[2].replace(/<[^>]+>/g, "").trim(), // Strip HTML from link text
         });
       }
+
+      // Look for HTMX patterns
+      const htmxPatterns = [
+        { pattern: /\/media\/items\/.*-\d+\/?$/i, type: 'foorilla-article' },
+        { pattern: /\/items\/[^/]+\/$/i, type: 'htmx-item' },
+        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' },
+        { pattern: /\/news\/.*-\d+\/?$/i, type: 'news-article' },
+        { pattern: /\/posts?\/.*\d+/i, type: 'post-article' }
+      ];
+
+      // Perform initial pattern matching to identify likely article links
+      links.forEach(link => {
+        const url = link.href;
+        const text = link.text;
+
+        // Check for common article URL patterns
+        const isArticleByUrl = 
+          url.includes('/article/') || 
+          url.includes('/blog/') || 
+          url.includes('/news/') ||
+          url.match(/\/(posts?|stories?|updates?)\//) ||
+          url.match(/\d{4}\/\d{2}\//) || // Date pattern like /2023/05/
+          url.match(/\/(cve|security|vulnerability|threat)-/) ||
+          url.match(/\.com\/[^/]+\/[^/]+\/[^/]+/); // 3-level path like domain.com/section/topic/article-title
+
+        // Check for article title patterns
+        const isArticleByTitle = 
+          text.length > 10 && // Reduced from 20 to capture more articles
+          (
+            text.includes(': ') || // Title pattern with colon
+            text.match(/^(how|why|what|when)\s+/i) || // "How to..." titles
+            text.match(/[—\-\|]\s/) // Title with separator
+          );
+
+        // Check for news/business keywords in title
+        const newsKeywords = ['market', 'industry', 'company', 'business', 'report', 'analysis', 'study', 'research', 'technology', 'innovation', 'financial', 'economic'];
+        const hasNewsKeyword = newsKeywords.some(keyword => 
+          text.toLowerCase().includes(keyword)
+        );
+
+        // Check if URL matches HTMX patterns
+        const htmxMatch = htmxPatterns.find(pattern => url.match(pattern.pattern));
+        if (htmxMatch) {
+          htmxLinks.push({
+            href: url,
+            text: text,
+            pattern: htmxMatch.type
+          });
+
+          // Auto-include links that match specific HTMX patterns (like Foorilla)
+          if (htmxMatch.type === 'foorilla-article' || url.includes('/media/items/')) {
+            potentialArticleUrls.push(url);
+            console.log(`[NewsRadar] Auto-detected HTMX article: ${url}`);
+          }
+        }
+
+        // Include article-like links for AI processing
+        if (isArticleByUrl || isArticleByTitle || hasNewsKeyword) {
+          // For article URLs that don't match specific patterns, we'll let the AI evaluate them
+          if (!potentialArticleUrls.includes(url)) {
+            potentialArticleUrls.push(url);
+          }
+        }
+      });
+
+      // Log information about the processing
+      console.log(`[NewsRadar] Extracted ${links.length} total links`);
+      console.log(`[NewsRadar] Found ${htmxLinks.length} potential HTMX links`);
+      console.log(`[NewsRadar] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`);
+
+      // If we found HTMX article links, prioritize those and skip AI processing in some cases
+      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern === 'foorilla-article')) {
+        console.log(`[NewsRadar] Foorilla article pattern detected, using HTMX-specific handling`);
+
+        // Return immediately if we found enough HTMX articles
+        if (potentialArticleUrls.length >= 5) {
+          console.log(`[NewsRadar] Found ${potentialArticleUrls.length} Foorilla articles via pattern matching`);
+          return potentialArticleUrls;
+        }
+      }
+
+      // Convert links to format for AI processing
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
         .join("\n");
@@ -142,12 +234,12 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles. Look for:
-            1. Article-style titles (descriptive, news-focused)
-            2. URLs containing news-related patterns (/news/, /article/, dates)
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
+            1. Article-style titles (descriptive)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years)
             3. Proper article context (not navigation/category pages)
 
-            Return only links that are very likely to be actual news articles.
+            Return only links that are very likely to be actual articles.
             Exclude:
             - Category pages
             - Tag pages
@@ -155,6 +247,7 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
             - Navigation links
             - Search results
             - Pagination links
+            - General company information pages
 
             Return JSON in format: { articleUrls: string[] }`,
         },
@@ -163,6 +256,7 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
           content: `Here are the links with their titles and context:\n${linksText}`,
         },
       ],
+      temperature: 0.2,
       response_format: { type: "json_object" },
     });
 
@@ -179,6 +273,7 @@ export async function detectArticleLinks(linksText: string): Promise<string[]> {
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Error detecting article links:", error);
     throw new Error(`Failed to detect article links: ${errorMessage}`);
   }
 }

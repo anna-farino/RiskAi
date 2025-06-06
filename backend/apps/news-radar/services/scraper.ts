@@ -460,25 +460,37 @@ export async function extractArticleLinks(
       const text = $(element).text().trim();
       const parentText = $(element).parent().text().trim();
 
-      // Skip obvious navigation/utility links
-      if (href && text && text.length > 20) {
-        // Article titles tend to be longer
+      // More permissive filtering to capture HTMX-injected content
+      if (href && text && text.length > 5) {
+        // Reduced threshold to capture shorter article titles
 
         const fullUrl = href.startsWith("http")
           ? href
           : `${baseDomain}${href.startsWith("/") ? "" : "/"}${href}`;
 
-        links.push({
-          href: fullUrl,
-          text: text,
-          context: parentText,
-        });
+        // Include more types of links that could be articles
+        const isLikelyArticle = 
+          text.length > 10 || // Longer text is more likely
+          href.includes('/media/items/') || // HTMX pattern for foorilla
+          href.includes('/article/') ||
+          href.includes('/news/') ||
+          href.includes('/blog/') ||
+          href.match(/\d{4}/) || // Contains year
+          text.match(/[a-z]+/i); // Contains actual text (not just symbols)
 
-        log(
-          `[Link Detection] Potential article link found: ${fullUrl}`,
-          "scraper",
-        );
-        log(`[Link Detection] Link text: ${text}`, "scraper");
+        if (isLikelyArticle) {
+          links.push({
+            href: fullUrl,
+            text: text,
+            context: parentText,
+          });
+
+          log(
+            `[Link Detection] Potential article link found: ${fullUrl}`,
+            "scraper",
+          );
+          log(`[Link Detection] Link text: ${text}`, "scraper");
+        }
       }
     });
 
