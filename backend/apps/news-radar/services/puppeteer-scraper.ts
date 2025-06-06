@@ -457,50 +457,20 @@ export async function scrapePuppeteer(
     let response = null;
     let navigationSuccess = false;
     
-    // Strategy 1: Try networkidle2 with shorter timeout first
+    // Strategy 1: Try domcontentloaded first (most reliable for challenging sites)
     try {
-      console.log('[Puppeteer] Attempting navigation with networkidle2...');
+      console.log('[Puppeteer] Attempting navigation with domcontentloaded...');
       response = await page.goto(url, { 
-        waitUntil: 'networkidle2', 
-        timeout: 30000 
+        waitUntil: 'domcontentloaded', 
+        timeout: 20000 
       });
       navigationSuccess = true;
-      console.log(`[Puppeteer] Navigation successful with networkidle2. Status: ${response ? response.status() : 'unknown'}`);
+      console.log(`[Puppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`);
     } catch (error: any) {
-      console.log(`[Puppeteer] networkidle2 failed: ${error.message}`);
+      console.log(`[Puppeteer] domcontentloaded failed: ${error.message}`);
     }
     
-    // Strategy 2: Fallback to networkidle0 if networkidle2 fails
-    if (!navigationSuccess) {
-      try {
-        console.log('[Puppeteer] Attempting navigation with networkidle0...');
-        response = await page.goto(url, { 
-          waitUntil: 'networkidle0', 
-          timeout: 25000 
-        });
-        navigationSuccess = true;
-        console.log(`[Puppeteer] Navigation successful with networkidle0. Status: ${response ? response.status() : 'unknown'}`);
-      } catch (error: any) {
-        console.log(`[Puppeteer] networkidle0 failed: ${error.message}`);
-      }
-    }
-    
-    // Strategy 3: Fallback to domcontentloaded if network strategies fail
-    if (!navigationSuccess) {
-      try {
-        console.log('[Puppeteer] Attempting navigation with domcontentloaded...');
-        response = await page.goto(url, { 
-          waitUntil: 'domcontentloaded', 
-          timeout: 20000 
-        });
-        navigationSuccess = true;
-        console.log(`[Puppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`);
-      } catch (error: any) {
-        console.log(`[Puppeteer] domcontentloaded failed: ${error.message}`);
-      }
-    }
-    
-    // Strategy 4: Final fallback to load event only
+    // Strategy 2: Fallback to load event only
     if (!navigationSuccess) {
       try {
         console.log('[Puppeteer] Attempting navigation with load event only...');
@@ -510,6 +480,23 @@ export async function scrapePuppeteer(
         });
         navigationSuccess = true;
         console.log(`[Puppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`);
+      } catch (error: any) {
+        console.log(`[Puppeteer] load event failed: ${error.message}`);
+      }
+    }
+    
+    // Strategy 3: Try with no wait condition as last resort
+    if (!navigationSuccess) {
+      try {
+        console.log('[Puppeteer] Attempting navigation with no wait condition...');
+        response = await page.goto(url, { 
+          timeout: 10000 
+        });
+        navigationSuccess = true;
+        console.log(`[Puppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`);
+        
+        // Give the page a moment to start loading content
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error: any) {
         console.error("[scrapePuppeteer] All navigation strategies failed:", error);
         throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
@@ -533,7 +520,7 @@ export async function scrapePuppeteer(
           return document.readyState === 'complete' && 
                  document.body && 
                  document.body.children.length > 0 &&
-                 document.body.textContent.trim().length > 100;
+                 (document.body.textContent || '').trim().length > 100;
         },
         { timeout: 15000 }
       );
@@ -547,8 +534,8 @@ export async function scrapePuppeteer(
 
     // Check for various anti-bot protection systems
     const protectionCheck = await page.evaluate(() => {
-      const bodyText = document.body.textContent || '';
-      const bodyHTML = document.body.innerHTML || '';
+      const bodyText = (document.body && document.body.textContent) || '';
+      const bodyHTML = (document.body && document.body.innerHTML) || '';
       
       return {
         incapsula: bodyHTML.includes('/_Incapsula_Resource') || bodyHTML.includes('Incapsula'),
