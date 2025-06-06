@@ -420,41 +420,89 @@ export async function scrapePuppeteer(
 
     page = await setupPage();
 
-    // Navigate to page using Threat Tracker's proven approach
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
-    log(`[scrapePuppeteer] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`);
+    // Progressive navigation strategy to handle challenging sites
+    let response = null;
+    let navigationSuccess = false;
+    
+    // Strategy 1: Try domcontentloaded first (fastest, works for most sites)
+    try {
+      log('[scrapePuppeteer] Attempting navigation with domcontentloaded...', "scraper");
+      response = await page.goto(url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 25000 
+      });
+      navigationSuccess = true;
+      log(`[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    } catch (error: any) {
+      log(`[scrapePuppeteer] domcontentloaded failed: ${error.message}`, "scraper");
+    }
+    
+    // Strategy 2: Fallback to load event
+    if (!navigationSuccess) {
+      try {
+        log('[scrapePuppeteer] Attempting navigation with load event...', "scraper");
+        response = await page.goto(url, { 
+          waitUntil: 'load', 
+          timeout: 20000 
+        });
+        navigationSuccess = true;
+        log(`[scrapePuppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      } catch (error: any) {
+        log(`[scrapePuppeteer] load event failed: ${error.message}`, "scraper");
+      }
+    }
+    
+    // Strategy 3: Try with no wait condition as last resort
+    if (!navigationSuccess) {
+      try {
+        log('[scrapePuppeteer] Attempting navigation with no wait condition...', "scraper");
+        response = await page.goto(url, { 
+          timeout: 15000 
+        });
+        navigationSuccess = true;
+        log(`[scrapePuppeteer] Navigation successful with no wait condition. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+      } catch (error: any) {
+        log(`[scrapePuppeteer] All navigation strategies failed: ${error.message}`, "scraper-error");
+        throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+      }
+    }
     
     if (response && !response.ok()) {
-      log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`);
+      log(`[scrapePuppeteer] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Wait for potential challenges to be processed
+    // Wait for page to stabilize and check for challenges
     log('[scrapePuppeteer] Waiting for page to stabilize...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Check for bot protection using Threat Tracker's approach
-    const botProtectionCheck = await page.evaluate(() => {
-      return (
-        document.body.innerHTML.includes('_Incapsula_Resource') ||
-        document.body.innerHTML.includes('Incapsula') ||
-        document.body.innerHTML.includes('captcha') ||
-        document.body.innerHTML.includes('Captcha') ||
-        document.body.innerHTML.includes('cloudflare') ||
-        document.body.innerHTML.includes('CloudFlare')
-      );
-    });
+    // Quick check for bot protection with timeout
+    try {
+      const botProtectionCheck = await Promise.race([
+        page.evaluate(() => {
+          if (!document.body) return false;
+          const bodyHTML = document.body.innerHTML;
+          return (
+            bodyHTML.includes('_Incapsula_Resource') ||
+            bodyHTML.includes('Incapsula') ||
+            bodyHTML.includes('captcha') ||
+            bodyHTML.includes('Captcha') ||
+            bodyHTML.includes('cloudflare') ||
+            bodyHTML.includes('CloudFlare') ||
+            bodyHTML.includes('Just a moment') ||
+            bodyHTML.includes('Checking your browser')
+          );
+        }),
+        new Promise(resolve => setTimeout(() => resolve(false), 3000))
+      ]);
 
-    if (botProtectionCheck) {
-      log('[scrapePuppeteer] Bot protection detected, performing evasive actions', "scraper");
-      // Perform some human-like actions
-      await page.mouse.move(50, 50);
-      await page.mouse.down();
-      await page.mouse.move(100, 100);
-      await page.mouse.up();
-      
-      // Reload the page and wait again
-      await page.reload({ waitUntil: 'networkidle2' });
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      if (botProtectionCheck) {
+        log('[scrapePuppeteer] Bot protection detected, performing evasive actions', "scraper");
+        await page.mouse.move(50, 50);
+        await page.mouse.move(100, 100);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    } catch (error) {
+      log('[scrapePuppeteer] Bot protection check failed, continuing...', "scraper");
     }
 
     // For article pages, just extract the content
