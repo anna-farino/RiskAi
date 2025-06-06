@@ -270,116 +270,94 @@ async function handleDataDomeChallenge(page: Page): Promise<void> {
 
 // This function expects a fully prepared page and is safe.
 async function extractArticleLinks(page: Page): Promise<string> {
-  // Wait for any links to appear
-  await page.waitForSelector('a', { timeout: 5000 });
-  console.log('[NewsRadar] Found anchor tags on page');
+  // Quick check for links with timeout protection
+  try {
+    await page.waitForSelector('a', { timeout: 3000 });
+    console.log('[NewsRadar] Found anchor tags on page');
+  } catch (error) {
+    console.log('[NewsRadar] No anchor tags found within timeout, proceeding anyway');
+  }
 
-  // HTMX Detection and handling
-  const hasHtmx = await page.evaluate(() => {
-    const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
-    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
-    const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
-    
-    // Get all hx-get elements for potential direct fetching
-    const hxGetElements = Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-      url: el.getAttribute('hx-get') || '',
-      trigger: el.getAttribute('hx-trigger') || 'click'
-    }));
+  // HTMX Detection with timeout protection
+  let hasHtmx;
+  try {
+    hasHtmx = await Promise.race([
+      page.evaluate(() => {
+        const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
+        const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+        const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
+        
+        // Get all hx-get elements for potential direct fetching
+        const hxGetElements = Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
+          url: el.getAttribute('hx-get') || '',
+          trigger: el.getAttribute('hx-trigger') || 'click'
+        }));
 
-    // Debug info
-    const debug = {
-      totalElements: document.querySelectorAll('*').length,
-      scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).slice(0, 5)
-    };
+        // Debug info
+        const debug = {
+          totalElements: document.querySelectorAll('*').length,
+          scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).slice(0, 5)
+        };
 
-    return { scriptLoaded, htmxInWindow, hasHxAttributes, hxGetElements, debug };
-  });
+        return { scriptLoaded, htmxInWindow, hasHxAttributes, hxGetElements, debug };
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('HTMX detection timeout')), 5000))
+    ]);
+  } catch (error) {
+    console.log('[NewsRadar] HTMX detection timed out, skipping HTMX handling');
+    hasHtmx = { scriptLoaded: false, htmxInWindow: false, hasHxAttributes: false, hxGetElements: [], debug: {} };
+  }
 
   console.log(`[NewsRadar] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`);
 
-  // Handle HTMX content if detected
+  // Handle HTMX content if detected - with aggressive timeout protection
   if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
-    console.log('[NewsRadar] HTMX detected on page, handling dynamic content...');
+    console.log('[NewsRadar] HTMX detected, attempting quick content loading...');
     
-    // Wait longer for initial HTMX content to load
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Specifically for sites with HTMX, manually fetch HTMX content
-    console.log(`[NewsRadar] Attempting to load HTMX content directly...`);
-    
-    // Get the current page URL to construct proper HTMX endpoints
-    const currentUrl = page.url();
-    const baseUrl = new URL(currentUrl).origin;
-    
-    // Manually fetch HTMX endpoints that contain articles
-    const htmxContent = await page.evaluate(async (baseUrl) => {
-      let totalContentLoaded = 0;
-      
-      // Common HTMX endpoints for article content
-      const endpoints = [
-        '/media/items/',
-        '/media/items/top/',
-        '/media/items/recent/',
-        '/media/items/popular/',
-        '/news/items/',
-        '/news/items/top/',
-        '/articles/items/',
-        '/articles/items/recent/',
-        '/posts/items/',
-        '/content/items/'
-      ];
-      
-      // Get CSRF token from page if available
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                       document.querySelector('input[name="_token"]')?.getAttribute('value') ||
-                       document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
-      
-      // Get screen size info for headers
-      const screenType = window.innerWidth < 768 ? 'M' : 'D';
-      
-      for (const endpoint of endpoints) {
-        try {
-          const headers = {
-            'HX-Request': 'true',
-            'HX-Current-URL': window.location.href,
-            'Accept': 'text/html, */*'
-          };
-          
-          // Add CSRF token if available
-          if (csrfToken) {
-            headers['X-CSRFToken'] = csrfToken;
-          }
-          
-          // Add screen type header
-          headers['X-Screen'] = screenType;
-          
-          console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
-          const response = await fetch(`${baseUrl}${endpoint}`, { headers });
-          
-          if (response.ok) {
-            const html = await response.text();
-            console.log(`Loaded ${html.length} chars from ${endpoint}`);
+    try {
+      // Quick HTMX content loading with strict timeout
+      const htmxContentPromise = page.evaluate(async (baseUrl) => {
+        // Simplified, faster approach for HTMX
+        const endpoints = ['/media/items/', '/news/items/', '/articles/items/'];
+        let totalContentLoaded = 0;
+        
+        for (const endpoint of endpoints.slice(0, 2)) { // Limit to 2 endpoints
+          try {
+            const response = await fetch(`${baseUrl}${endpoint}`, { 
+              headers: { 'HX-Request': 'true' },
+              signal: AbortSignal.timeout(3000) // 3 second timeout per request
+            });
             
-            // Insert content into page
-            const container = document.createElement('div');
-            container.className = 'htmx-injected-content';
-            container.setAttribute('data-source', endpoint);
-            container.innerHTML = html;
-            document.body.appendChild(container);
-            totalContentLoaded += html.length;
+            if (response.ok) {
+              const html = await response.text();
+              const container = document.createElement('div');
+              container.className = 'htmx-injected-content';
+              container.innerHTML = html;
+              document.body.appendChild(container);
+              totalContentLoaded += html.length;
+            }
+          } catch (e) {
+            // Skip failed endpoints quickly
+            continue;
           }
-        } catch (e) {
-          console.error(`Error fetching ${endpoint}:`, e);
         }
-      }
+        
+        return totalContentLoaded;
+      }, new URL(page.url()).origin);
       
-      return totalContentLoaded;
-    }, baseUrl);
-    
-    if (htmxContent > 0) {
-      console.log(`[NewsRadar] Successfully loaded ${htmxContent} characters of HTMX content`);
-      // Wait for any additional processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Race HTMX loading against timeout
+      const htmxContent = await Promise.race([
+        htmxContentPromise,
+        new Promise<number>((_, reject) => 
+          setTimeout(() => reject(new Error('HTMX content timeout')), 8000)
+        )
+      ]);
+      
+      if (htmxContent > 0) {
+        console.log(`[NewsRadar] Loaded ${htmxContent} chars of HTMX content`);
+      }
+    } catch (error) {
+      console.log('[NewsRadar] HTMX content loading timed out, proceeding without it');
     }
 
     // Try triggering visible HTMX elements
