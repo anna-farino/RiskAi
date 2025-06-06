@@ -361,7 +361,7 @@ export async function scrapePuppeteer(
         '--disable-accelerated-2d-canvas',
         '--disable-gpu',
         '--window-size=1920x1080',
-        '--disable-features=site-per-process,AudioServiceOutOfProcess',
+        '--disable-features=site-per-process,AudioServiceOutOfProcess,VizDisplayCompositor',
         '--disable-software-rasterizer',
         '--disable-extensions',
         '--disable-gl-drawing-for-tests',
@@ -373,31 +373,77 @@ export async function scrapePuppeteer(
         '--allow-running-insecure-content',
         '--disable-web-security',
         '--disable-blink-features=AutomationControlled',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--disable-hang-monitor',
+        '--disable-client-side-phishing-detection',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--no-crash-upload',
+        '--disable-background-networking'
       ],
       executablePath: CHROME_PATH || undefined,
-      timeout: 180000, // 3 minute timeout
+      timeout: 60000, // Reduce browser launch timeout
     });
     log('[scrapePuppeteer] ✅ Browser launched');
     page = await browser.newPage();
     log('[scrapePuppeteer] ✅ New page opened');
 
+    // Set up request interception to block resource-heavy content
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const resourceType = req.resourceType();
+      const url = req.url();
+      
+      // Block resource-heavy content that can cause timeouts
+      if (resourceType === 'stylesheet' || 
+          resourceType === 'font' || 
+          resourceType === 'image' || 
+          resourceType === 'media' ||
+          url.includes('google-analytics') ||
+          url.includes('googletagmanager') ||
+          url.includes('facebook.net') ||
+          url.includes('twitter.com') ||
+          url.includes('instagram.com') ||
+          url.includes('youtube.com') ||
+          url.includes('doubleclick') ||
+          url.includes('googlesyndication') ||
+          url.includes('.woff') ||
+          url.includes('.ttf') ||
+          url.includes('.mp4') ||
+          url.includes('.mp3') ||
+          url.includes('.avi') ||
+          url.includes('.mov')) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+    log('[scrapePuppeteer] ✅ Request interception configured');
+
     // Set viewport
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // Set user agent
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
-    );
-    log('[scrapePuppeteer] Page setup complete');
-
-    // Set a more realistic user agent
-    try {
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
-      log(`[scrapePuppeteer] User Agent has been set! 👍`);
-    } catch (error: any) {
-      console.error("[scrapePuppeteer] Error setting user agent (non-critical):", error);
-      // Continue despite this error
-    }
+    // Set realistic user agent and headers to avoid detection
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    await page.setUserAgent(userAgent);
+    
+    // Set additional headers to mimic real browser
+    await page.setExtraHTTPHeaders({
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    });
+    
+    log('[scrapePuppeteer] Page setup complete with enhanced headers');
 
     // Enable JavaScript and cookies
     try {
@@ -407,42 +453,148 @@ export async function scrapePuppeteer(
       // Continue despite this error
     }
 
-    // Go to the specified URL with longer timeout
+    // Navigate to URL with progressive fallback strategies
+    let response = null;
+    let navigationSuccess = false;
+    
+    // Strategy 1: Try networkidle2 with shorter timeout first
     try {
-      const response = await page.goto(url, { 
+      console.log('[Puppeteer] Attempting navigation with networkidle2...');
+      response = await page.goto(url, { 
         waitUntil: 'networkidle2', 
-        timeout: 60000 
+        timeout: 30000 
       });
-      console.log(`[Puppeteer] Initial page load complete. Status: ${response ? response.status() : 'unknown'}`);
-      
-      if (response && !response.ok()) {
-        console.warn(`[Puppeteer] Warning: Response status is not OK: ${response.status()}`);
-      }
+      navigationSuccess = true;
+      console.log(`[Puppeteer] Navigation successful with networkidle2. Status: ${response ? response.status() : 'unknown'}`);
     } catch (error: any) {
-      console.error("[scrapePuppeteer] Error navigating to URL:", error);
-      throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+      console.log(`[Puppeteer] networkidle2 failed: ${error.message}`);
+    }
+    
+    // Strategy 2: Fallback to networkidle0 if networkidle2 fails
+    if (!navigationSuccess) {
+      try {
+        console.log('[Puppeteer] Attempting navigation with networkidle0...');
+        response = await page.goto(url, { 
+          waitUntil: 'networkidle0', 
+          timeout: 25000 
+        });
+        navigationSuccess = true;
+        console.log(`[Puppeteer] Navigation successful with networkidle0. Status: ${response ? response.status() : 'unknown'}`);
+      } catch (error: any) {
+        console.log(`[Puppeteer] networkidle0 failed: ${error.message}`);
+      }
+    }
+    
+    // Strategy 3: Fallback to domcontentloaded if network strategies fail
+    if (!navigationSuccess) {
+      try {
+        console.log('[Puppeteer] Attempting navigation with domcontentloaded...');
+        response = await page.goto(url, { 
+          waitUntil: 'domcontentloaded', 
+          timeout: 20000 
+        });
+        navigationSuccess = true;
+        console.log(`[Puppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : 'unknown'}`);
+      } catch (error: any) {
+        console.log(`[Puppeteer] domcontentloaded failed: ${error.message}`);
+      }
+    }
+    
+    // Strategy 4: Final fallback to load event only
+    if (!navigationSuccess) {
+      try {
+        console.log('[Puppeteer] Attempting navigation with load event only...');
+        response = await page.goto(url, { 
+          waitUntil: 'load', 
+          timeout: 15000 
+        });
+        navigationSuccess = true;
+        console.log(`[Puppeteer] Navigation successful with load event. Status: ${response ? response.status() : 'unknown'}`);
+      } catch (error: any) {
+        console.error("[scrapePuppeteer] All navigation strategies failed:", error);
+        throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+      }
+    }
+    
+    // Check response status
+    if (response && !response.ok()) {
+      console.warn(`[Puppeteer] Warning: Response status is not OK: ${response.status()}`);
+      // Don't throw error for 4xx/5xx status codes, continue with scraping
     }
 
-    // Wait for potential challenges to be processed (shorter timeout for testing)
+    // Wait for page to stabilize and check for anti-bot challenges
     console.log('[Puppeteer] Waiting for page to stabilize...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Smart wait - check if page is actually ready instead of fixed timeout
+    try {
+      await page.waitForFunction(
+        () => {
+          // Check if document is ready and has meaningful content
+          return document.readyState === 'complete' && 
+                 document.body && 
+                 document.body.children.length > 0 &&
+                 document.body.textContent.trim().length > 100;
+        },
+        { timeout: 15000 }
+      );
+      console.log('[Puppeteer] Page appears ready with content');
+    } catch (error) {
+      console.log('[Puppeteer] Page readiness check timed out, continuing anyway');
+    }
 
-    // Check if we're still on the Incapsula page
-    const incapsulaCheck = await page.evaluate(() => {
-      return document.body.innerHTML.includes('/_Incapsula_Resource') ||
-        document.body.innerHTML.includes('Incapsula');
+    // Additional short wait for any remaining dynamic content
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Check for various anti-bot protection systems
+    const protectionCheck = await page.evaluate(() => {
+      const bodyText = document.body.textContent || '';
+      const bodyHTML = document.body.innerHTML || '';
+      
+      return {
+        incapsula: bodyHTML.includes('/_Incapsula_Resource') || bodyHTML.includes('Incapsula'),
+        cloudflare: bodyText.includes('Checking your browser') || bodyText.includes('DDoS protection'),
+        generic: bodyText.includes('Please wait') || bodyText.includes('Verifying you are human'),
+        hasContent: bodyText.trim().length > 100,
+        title: document.title || ''
+      };
     });
 
-    if (incapsulaCheck) {
-      console.log('[Puppeteer] Still on Incapsula challenge page, performing additional actions');
-      // Perform some human-like actions
-      await page.mouse.move(50, 50);
-      await page.mouse.down();
-      await page.mouse.move(100, 100);
-      await page.mouse.up();
-      // Reload the page and wait again
-      await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
-      await new Promise(resolve => setTimeout(resolve, 10000));
+    console.log(`[Puppeteer] Protection check: ${JSON.stringify(protectionCheck)}`);
+
+    if (protectionCheck.incapsula || protectionCheck.cloudflare || protectionCheck.generic) {
+      console.log('[Puppeteer] Anti-bot protection detected, performing evasion actions');
+      
+      // Perform human-like mouse movements
+      await page.mouse.move(Math.random() * 100, Math.random() * 100);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await page.mouse.move(Math.random() * 200 + 100, Math.random() * 200 + 100);
+      
+      // Wait for challenge to potentially resolve
+      console.log('[Puppeteer] Waiting for anti-bot challenge to resolve...');
+      try {
+        await page.waitForFunction(
+          () => {
+            const text = document.body.textContent || '';
+            return !text.includes('Checking your browser') && 
+                   !text.includes('Please wait') && 
+                   !text.includes('Verifying you are human') &&
+                   text.trim().length > 200;
+          },
+          { timeout: 20000 }
+        );
+        console.log('[Puppeteer] Anti-bot challenge appears resolved');
+      } catch (error) {
+        console.log('[Puppeteer] Anti-bot challenge timeout, attempting to continue');
+        
+        // If still blocked, try a page reload with basic navigation
+        try {
+          console.log('[Puppeteer] Attempting page reload to bypass protection');
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (reloadError) {
+          console.log('[Puppeteer] Page reload failed, continuing with current state');
+        }
+      }
     }
 
     // For article pages, just extract the content
