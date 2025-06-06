@@ -134,15 +134,14 @@ export class DatabaseStorage implements IStorage {
   async deleteSource(id: string, deleteArticles: boolean = false): Promise<void> {
     console.log(`[DEBUG] deleteSource called with id=${id}, deleteArticles=${deleteArticles}`);
     
-    // Check if there are associated articles
-    const associatedArticles = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(articles)
-      .where(eq(articles.sourceId, id))
-      .execute();
-
-    const articleCount = associatedArticles[0]?.count || 0;
-    console.log(`[DEBUG] Found ${articleCount} associated articles`);
+    // Use raw SQL to check for associated articles to ensure accuracy
+    const articleCountResult = await pool.query(
+      'SELECT COUNT(*) as count FROM articles WHERE source_id = $1',
+      [id]
+    );
+    
+    const articleCount = parseInt(articleCountResult.rows[0]?.count || '0');
+    console.log(`[DEBUG] Found ${articleCount} associated articles using raw SQL`);
 
     if (articleCount > 0 && !deleteArticles) {
       console.log(`[DEBUG] Throwing ARTICLES_EXIST error`);
@@ -155,12 +154,12 @@ export class DatabaseStorage implements IStorage {
     // Delete associated articles if requested or if they exist
     if (articleCount > 0) {
       console.log(`[DEBUG] Deleting ${articleCount} associated articles`);
-      await db.delete(articles).where(eq(articles.sourceId, id));
+      await pool.query('DELETE FROM articles WHERE source_id = $1', [id]);
     }
 
     // Delete the source
     console.log(`[DEBUG] Deleting source`);
-    await db.delete(sources).where(eq(sources.id, id));
+    await pool.query('DELETE FROM sources WHERE id = $1', [id]);
     console.log(`[DEBUG] Source deleted successfully`);
   }
 
