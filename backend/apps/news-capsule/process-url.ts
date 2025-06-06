@@ -213,70 +213,190 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
+    // Scroll through the page to ensure all content is loaded
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        let totalHeight = 0;
+        const distance = 100;
+        const timer = setInterval(() => {
+          const scrollHeight = document.body.scrollHeight;
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+
+          if (totalHeight >= scrollHeight) {
+            clearInterval(timer);
+            resolve(null);
+          }
+        }, 100);
+      });
+    });
+
+    // Wait for dynamic content to load
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
     // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
-      // Get the article title with multiple fallbacks
-      const title =
-        (document.querySelector("h1") as HTMLElement)?.innerText ||
-        (document.querySelector(".entry-title") as HTMLElement)?.innerText ||
-        (document.querySelector(".post-title") as HTMLElement)?.innerText ||
-        (document.querySelector("title") as HTMLElement)?.innerText ||
-        "";
+      // Enhanced title selectors including Forbes-specific ones
+      const titleSelectors = [
+        "h1",
+        "[data-module='ArticleTitle'] h1",
+        ".headline",
+        ".entry-title",
+        ".post-title",
+        ".article-title",
+        "[data-testid='headline']",
+        ".fs-headline",
+        "title"
+      ];
 
-      // Get the content of the article
-      // This is a basic implementation and might need customization based on the structure of target sites
-      const paragraphs = Array.from(document.querySelectorAll("p"))
-        .map((p) => p.innerText)
-        .join(" ");
-
-      // Try article tag first
-      const articleElement = document.querySelector("article");
-      if (articleElement) {
-        const paragraphs = Array.from(articleElement.querySelectorAll("p")).map(
-          (p) => p.innerText,
-        );
-        articleContent = paragraphs.join(" ");
+      let title = "";
+      for (const selector of titleSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          title = element.textContent?.trim() || element.innerText?.trim() || "";
+          if (title && title.length > 5) break;
+        }
       }
 
-      // Fallback to common content selectors
-      if (!articleContent || articleContent.length < 100) {
-        const contentSelectors = [
-          ".entry-content p",
-          ".post-content p",
-          ".article-content p",
-          ".content p",
-          ".story-body p",
-          "main p",
-          "p",
-        ];
+      // Enhanced content selectors including Forbes-specific ones
+      const contentSelectors = [
+        // Forbes-specific selectors
+        "[data-module='ArticleBody'] p",
+        ".article-wrap p",
+        ".entry-content p",
+        ".fs-body p",
+        ".article-body p",
+        
+        // General article selectors
+        "article p",
+        ".post-content p",
+        ".article-content p",
+        ".content p",
+        ".story-body p",
+        "main p",
+        
+        // Fallback selectors
+        ".text p",
+        ".body p",
+        "p"
+      ];
 
-        for (const selector of contentSelectors) {
-          const paragraphs = Array.from(document.querySelectorAll(selector))
-            .map((p) => (p as HTMLElement).innerText)
-            .filter((text) => text.length > 20); // Filter out short paragraphs
+      let articleContent = "";
 
-          if (paragraphs.length > 0) {
-            articleContent = paragraphs.join(" ");
-            break;
+      // Try each content selector
+      for (const selector of contentSelectors) {
+        const paragraphs = Array.from(document.querySelectorAll(selector))
+          .map((p) => (p as HTMLElement).innerText?.trim() || (p as HTMLElement).textContent?.trim() || "")
+          .filter((text) => {
+            // Filter out short paragraphs, navigation text, and common noise
+            return text.length > 30 && 
+                   !text.toLowerCase().includes("subscribe") &&
+                   !text.toLowerCase().includes("follow us") &&
+                   !text.toLowerCase().includes("newsletter") &&
+                   !text.toLowerCase().includes("advertisement") &&
+                   !text.toLowerCase().includes("read more") &&
+                   !text.toLowerCase().includes("click here");
+          });
+
+        if (paragraphs.length > 2) { // Need at least 3 substantial paragraphs
+          articleContent = paragraphs.join(" ");
+          break;
+        }
+      }
+
+      // Additional Forbes-specific content extraction
+      if (!articleContent || articleContent.length < 200) {
+        // Try Forbes body content
+        const forbesBody = document.querySelector("[data-module='ArticleBody']");
+        if (forbesBody) {
+          const allText = forbesBody.textContent || forbesBody.innerText || "";
+          if (allText.length > 200) {
+            articleContent = allText.trim();
           }
         }
       }
 
-      // Get publication name with multiple fallbacks
-      const publication =
-        document
-          .querySelector('meta[property="og:site_name"]')
-          ?.getAttribute("content") ||
-        document
-          .querySelector('meta[name="site_name"]')
-          ?.getAttribute("content") ||
-        (document.querySelector(".site-name") as HTMLElement)?.innerText ||
-        new URL(window.location.href).hostname;
+      // Fallback to all paragraphs if still no content
+      if (!articleContent || articleContent.length < 100) {
+        const allParagraphs = Array.from(document.querySelectorAll("p"))
+          .map((p) => (p as HTMLElement).innerText?.trim() || "")
+          .filter((text) => text.length > 20);
+        articleContent = allParagraphs.join(" ");
+      }
+
+      // Enhanced publication name detection
+      const publicationSelectors = [
+        'meta[property="og:site_name"]',
+        'meta[name="site_name"]',
+        'meta[property="twitter:site"]',
+        ".site-name",
+        ".brand-name",
+        ".logo-text"
+      ];
+
+      let publication = "";
+      for (const selector of publicationSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          if (element.tagName === "META") {
+            publication = element.getAttribute("content") || "";
+          } else {
+            publication = element.textContent?.trim() || element.innerText?.trim() || "";
+          }
+          if (publication) break;
+        }
+      }
+
+      // Fallback to hostname
+      if (!publication) {
+        publication = new URL(window.location.href).hostname;
+      }
+
+      // Extract author information
+      const authorSelectors = [
+        "[data-module='ArticleAuthor']",
+        ".author-name",
+        ".byline",
+        ".author",
+        "[rel='author']",
+        ".contributor-name"
+      ];
+
+      let author = "";
+      for (const selector of authorSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          author = element.textContent?.trim() || element.innerText?.trim() || "";
+          if (author) break;
+        }
+      }
+
+      // Extract publish date
+      const dateSelectors = [
+        "[data-module='ArticleDate']",
+        "time[datetime]",
+        ".publish-date",
+        ".date",
+        ".article-date"
+      ];
+
+      let publishDate = "";
+      for (const selector of dateSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          publishDate = element.getAttribute("datetime") || 
+                       element.textContent?.trim() || 
+                       element.innerText?.trim() || "";
+          if (publishDate) break;
+        }
+      }
 
       return {
         title,
-        content: paragraphs,
+        content: articleContent,
         publication,
+        author,
+        publishDate
       };
     });
 
