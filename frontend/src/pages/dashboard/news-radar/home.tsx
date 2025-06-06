@@ -71,6 +71,9 @@ export default function NewsHome() {
         return [];
       }
     },
+    staleTime: 0, // Always refetch on component mount
+    refetchOnMount: true, // Force refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
   
   // Build query string for filtering
