@@ -1,6 +1,7 @@
 
 { pkgs }: {
   deps = [
+    pkgs.gir-rs
     pkgs.libxkbcommon
     pkgs.glib
     pkgs.lsof
