@@ -132,6 +132,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSource(id: string, deleteArticles: boolean = false): Promise<void> {
+    console.log(`[DEBUG] deleteSource called with id=${id}, deleteArticles=${deleteArticles}`);
+    
     // Check if there are associated articles
     const associatedArticles = await db
       .select({ count: sql<number>`count(*)` })
@@ -140,8 +142,10 @@ export class DatabaseStorage implements IStorage {
       .execute();
 
     const articleCount = associatedArticles[0]?.count || 0;
+    console.log(`[DEBUG] Found ${articleCount} associated articles`);
 
     if (articleCount > 0 && !deleteArticles) {
+      console.log(`[DEBUG] Throwing ARTICLES_EXIST error`);
       // Return special error object with article count for frontend handling
       const error = new Error(`ARTICLES_EXIST`);
       (error as any).articleCount = articleCount;
@@ -150,11 +154,14 @@ export class DatabaseStorage implements IStorage {
 
     // Delete associated articles if requested or if they exist
     if (articleCount > 0) {
+      console.log(`[DEBUG] Deleting ${articleCount} associated articles`);
       await db.delete(articles).where(eq(articles.sourceId, id));
     }
 
     // Delete the source
+    console.log(`[DEBUG] Deleting source`);
     await db.delete(sources).where(eq(sources.id, id));
+    console.log(`[DEBUG] Source deleted successfully`);
   }
 
   // Keywords
