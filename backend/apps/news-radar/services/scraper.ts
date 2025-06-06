@@ -607,6 +607,49 @@ function sanitizeSelector(selector: string): string {
 
 // Modify the extractArticleContent function to use sanitized selectors
 export async function extractArticleContent(html: string, config: ScrapingConfig) {
+  // Check if this is already processed content from our Puppeteer scraper
+  if (html.includes('Title:') && html.includes('Author:') && html.includes('Content:')) {
+    log(`[Scraping] Detected pre-processed content from Puppeteer, parsing directly`, "scraper");
+    
+    const lines = html.split('\n');
+    let title = '';
+    let author = '';
+    let content = '';
+    let currentSection = '';
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('Title:')) {
+        title = trimmedLine.replace('Title:', '').trim();
+        currentSection = 'title';
+      } else if (trimmedLine.startsWith('Author:')) {
+        author = trimmedLine.replace('Author:', '').trim();
+        currentSection = 'author';
+      } else if (trimmedLine.startsWith('Date:')) {
+        currentSection = 'date';
+      } else if (trimmedLine.startsWith('Content:')) {
+        content = trimmedLine.replace('Content:', '').trim();
+        currentSection = 'content';
+      } else if (currentSection === 'content' && trimmedLine) {
+        content += ' ' + trimmedLine;
+      }
+    }
+    
+    // Clean up extracted values
+    title = title === '(No title found)' ? '' : title;
+    author = author === '(No author found)' ? undefined : author;
+    content = content === '(No content found)' ? '' : content;
+    
+    log(`[Scraping] Parsed pre-processed content - Title: ${title.length} chars, Content: ${content.length} chars`, "scraper");
+    
+    return {
+      title,
+      content,
+      author,
+      publishDate: null, // Will be extracted separately if needed
+    };
+  }
+
   const $ = cheerio.load(html);
 
   // First, remove navigation, header, footer, and similar elements that might contain false matches
