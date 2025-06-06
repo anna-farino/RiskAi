@@ -11,57 +11,6 @@ import { AlertTriangle, Database, CheckCircle, XCircle, Loader2 } from "lucide-r
 
 const HAS_BEEN_POPULATED_KEY = 'sampleDataPopulated';
 
-// Sample data configuration
-const SAMPLE_DATA = {
-  newsRadar: {
-    sources: [
-      { name: "AM Best", url: "https://news.ambest.com/PR/" },
-      { name: "Cincinnati Business Journal", url: "https://www.bizjournals.com/cincinnati/news/" },
-      { name: "Forbes", url: "https://forbes.com/news/" },
-      { name: "Insurance Insider", url: "https://insuranceinsiderus.com/news" },
-      { name: "Investing.com", url: "https://investing.com/news" },
-      { name: "NY Times", url: "https://nytimes.com/" },
-      { name: "Reinsurance News", url: "https://www.reinsurancene.ws/news" },
-      { name: "The Insurer", url: "https://www.theinsurer.com/ti/news/" },
-      { name: "Yahoo Finance", url: "https://finance.yahoo.com/news/" }
-    ],
-    keywords: [
-      "AIG", "Core Specialty", "Enstar", "Lancer Insurance", "American Surety",
-      "Starstone Specialty", "Starstone National", "Starstone", "Swiss Re",
-      "American Life", "AMBAC", "Vanguard", "OpenAI", "President", "Market",
-      "Dow", "NASDAQ", "S&P500", "Tariff", "Tesla", "Trump", "Musk"
-    ]
-  },
-  threatTracker: {
-    vendors: [
-      "Access Point Technology Consulting, LLC", "Accurate Background", "Automatic Data Processing Group",
-      "alangray", "Altair Integrated Services", "Amazon Web Services", "astound", "atlassian",
-      "bitraser", "Bitsight Technologies", "BlackLine", "Bond-Pro, Inc.", "Chard Snyder",
-      "Cigna", "Cisco", "claraanalytics", "Clearwater Analytics", "Cloudflare",
-      "collectone", "contezza", "contractsafe", "Corporation Service Group of Companies",
-      "darka", "Darktrace", "Datadog", "delinea", "Deloitte U.S.", "Delta Dental of Ohio",
-      "Distinguished Programs Group", "DocuSign", "Duck Creek Technologies", "Dynatrace LLC",
-      "Enghouse Systems", "EQuest LLC", "Flashpoint", "Focused Consulting", "GENPACT",
-      "CARET", "Nitro Software, Inc.", "Green Leaf Consulting Group", "GUIDEWIRE",
-      "harmon.ie", "Arbitration Forums, Inc.", "hyperexponential", "intellectdesign",
-      "Jamf", "jetfiletech", "John Hancock", "Karen Clark & Company", "KEYSYS",
-      "Latitude Subrogation Service", "RELX Ltd.", "Lincoln Financial Group", "Lifesize",
-      "Lucid Software Inc.", "lumivero", "mandiant", "Microsoft", "Mitchell International, Inc.",
-      "Northern Trust Careers", "Ntirety", "Omegablack, Inc.", "omegaconsulting", "One Inc",
-      "Palo Alto Networks, Inc.", "Peakon", "CARET Legal", "profisee", "proofinsurance",
-      "Proofpoint Corporation", "Qualys", "Quick Silver Systems, Inc.", "Qumodity",
-      "rhymetec", "RSM US LLP", "SendGrid", "Sovos Compliance", "thequakerproject",
-      "tinubu", "tkcllcconsulting", "Topbloc, LLC", "Trace3, Inc.", "TriTech Services Inc.",
-      "Vision Service Plan Inc", "Ward Group", "Willis Towers Watson", "Workday",
-      "Workiva Inc.", "Zscaler"
-    ],
-    hardware: [
-      "Windows", "Mackbook", "Surfacebook", "iPhone", "Galaxy", "Dell Latitude",
-      "Active Directory (AD)", "Azure", "AWS", "Entra"
-    ]
-  }
-};
-
 interface PopulationLog {
   timestamp: string;
   message: string;
@@ -85,41 +34,6 @@ export default function SampleDataPopulator() {
     }]);
   };
 
-  const checkEnvironmentSafety = () => {
-    // Check VITE_ENV environment variable
-    const viteEnv = import.meta.env?.VITE_ENV;
-    if (viteEnv === 'production') {
-      return {
-        safe: false,
-        reason: 'Cannot run in production environment (VITE_ENV=production)'
-      };
-    }
-    
-    if (!viteEnv) {
-      addLog('Warning: VITE_ENV is not set, proceeding with caution', 'warning');
-    }
-    
-    return { safe: true };
-  };
-
-  const checkUserAuthorization = () => {
-    if (!user || !user.email) {
-      return {
-        authorized: false,
-        reason: 'User email not found'
-      };
-    }
-    
-    if (!user.email.endsWith('@altairtek.com')) {
-      return {
-        authorized: false,
-        reason: 'Only @altairtek.com email addresses are authorized to use this feature'
-      };
-    }
-    
-    return { authorized: true };
-  };
-
   const makeRequest = async (endpoint: string, options: any = {}) => {
     const response = await fetch(`${serverUrl}/api${endpoint}`, {
       credentials: 'include',
@@ -140,22 +54,14 @@ export default function SampleDataPopulator() {
 
   const checkDataMutation = useMutation({
     mutationFn: async () => {
-      // Check environment safety
-      const envCheck = checkEnvironmentSafety();
-      if (!envCheck.safe) {
-        throw new Error(envCheck.reason);
-      }
+      // Use the new API endpoint for status check
+      const statusResponse = await makeRequest('/sample-data/status');
+      
+      setIsAuthorized(statusResponse.canPopulate);
+      addLog(`User: ${statusResponse.userEmail}, Can populate: ${statusResponse.canPopulate}`, 
+             statusResponse.canPopulate ? 'success' : 'warning');
 
-      // Check user authorization
-      const authCheck = checkUserAuthorization();
-      if (!authCheck.authorized) {
-        throw new Error(authCheck.reason);
-      }
-
-      setIsAuthorized(true);
-      addLog(`Authorized user: ${user?.email}`, 'success');
-
-      // Check current data
+      // Get current data counts
       const [sources, keywords, threatKeywords] = await Promise.all([
         makeRequest('/news-tracker/sources'),
         makeRequest('/news-tracker/keywords'),
@@ -174,7 +80,7 @@ export default function SampleDataPopulator() {
       const hasData = status.newsRadarSources > 0 || status.newsRadarKeywords > 0 || status.threatTrackerKeywords > 0;
       const isPopulated = localStorage.getItem(HAS_BEEN_POPULATED_KEY) === 'true';
       
-      return { hasData, isPopulated, status };
+      return { hasData, isPopulated, status, canPopulate: statusResponse.canPopulate };
     },
     onError: (error: Error) => {
       setIsAuthorized(false);
@@ -184,92 +90,16 @@ export default function SampleDataPopulator() {
 
   const populateMutation = useMutation({
     mutationFn: async () => {
-      // Environment and authorization checks
-      const envCheck = checkEnvironmentSafety();
-      if (!envCheck.safe) {
-        throw new Error(envCheck.reason);
-      }
-
-      const authCheck = checkUserAuthorization();
-      if (!authCheck.authorized) {
-        throw new Error(authCheck.reason);
-      }
-
-      addLog(`Starting population for authorized user: ${user?.email}`);
-      
-      let totalCreated = 0;
-      
-      // Step 1: Populate News Radar Sources
+      addLog(`Starting sample data population...`);
       setProgress(10);
-      setProgressText('Creating News Radar sources...');
-      addLog('Populating News Radar sources...');
-      
-      for (const source of SAMPLE_DATA.newsRadar.sources) {
-        try {
-          await makeRequest('/news-tracker/sources', {
-            method: 'POST',
-            body: JSON.stringify(source)
-          });
-          totalCreated++;
-          addLog(`✓ Created source: ${source.name}`, 'success');
-        } catch (error: any) {
-          addLog(`✗ Failed to create source: ${source.name} - ${error.message}`, 'error');
-        }
-      }
+      setProgressText('Initializing population...');
 
-      // Step 2: Populate News Radar Keywords
-      setProgress(40);
-      setProgressText('Creating News Radar keywords...');
-      addLog('Populating News Radar keywords...');
-      
-      for (const term of SAMPLE_DATA.newsRadar.keywords) {
-        try {
-          await makeRequest('/news-tracker/keywords', {
-            method: 'POST',
-            body: JSON.stringify({ term })
-          });
-          totalCreated++;
-          addLog(`✓ Created keyword: ${term}`, 'success');
-        } catch (error: any) {
-          addLog(`✗ Failed to create keyword: ${term} - ${error.message}`, 'error');
-        }
-      }
-
-      // Step 3: Populate Threat Tracker Keywords (Vendors)
-      setProgress(70);
-      setProgressText('Creating Threat Tracker vendor keywords...');
-      addLog('Populating Threat Tracker vendor keywords...');
-      
-      for (const term of SAMPLE_DATA.threatTracker.vendors) {
-        try {
-          await makeRequest('/threat-tracker/keywords', {
-            method: 'POST',
-            body: JSON.stringify({ term, category: 'vendor' })
-          });
-          totalCreated++;
-          addLog(`✓ Created vendor keyword: ${term}`, 'success');
-        } catch (error: any) {
-          addLog(`✗ Failed to create vendor keyword: ${term} - ${error.message}`, 'error');
-        }
-      }
-
-      // Step 4: Populate Threat Tracker Keywords (Hardware)
-      setProgress(90);
-      setProgressText('Creating Threat Tracker hardware keywords...');
-      addLog('Populating Threat Tracker hardware keywords...');
-      
-      for (const term of SAMPLE_DATA.threatTracker.hardware) {
-        try {
-          await makeRequest('/threat-tracker/keywords', {
-            method: 'POST',
-            body: JSON.stringify({ term, category: 'hardware' })
-          });
-          totalCreated++;
-          addLog(`✓ Created hardware keyword: ${term}`, 'success');
-        } catch (error: any) {
-          addLog(`✗ Failed to create hardware keyword: ${term} - ${error.message}`, 'error');
-        }
-      }
+      // Use the new API endpoint
+      const force = localStorage.getItem(HAS_BEEN_POPULATED_KEY) === 'true';
+      const response = await makeRequest('/sample-data/populate', {
+        method: 'POST',
+        body: JSON.stringify({ force })
+      });
 
       setProgress(100);
       setProgressText('Population complete!');
@@ -277,9 +107,14 @@ export default function SampleDataPopulator() {
       // Mark as populated
       localStorage.setItem(HAS_BEEN_POPULATED_KEY, 'true');
       
-      addLog(`Population completed! Created ${totalCreated} items total.`, 'success');
+      addLog(`Population completed! Created ${response.totalCreated} items total.`, 'success');
+      addLog(`Details: ${response.details.sourcesCreated} sources, ${response.details.newsKeywordsCreated} news keywords, ${response.details.threatKeywordsCreated} threat keywords`, 'info');
       
-      return totalCreated;
+      if (response.errors && response.errors.length > 0) {
+        response.errors.forEach((error: string) => addLog(`Error: ${error}`, 'error'));
+      }
+      
+      return response;
     },
     onError: (error: Error) => {
       addLog(`Population failed: ${error.message}`, 'error');

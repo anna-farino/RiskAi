@@ -8,6 +8,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { cookieOptions, createAndStoreLoginTokens, hashString, verifyHashedString } from "../utils/auth";
 import { users } from "@shared/db/schema/user";
 import dotenvConfig from "../utils/dotenv-config";
+import { populateSampleDataForNewUser, userHasExistingData } from "../services/sample-data-populator";
 
 dotenvConfig(dotenv)
 
@@ -105,6 +106,23 @@ export function handleVerifyOtp({ otpPurpose }: Args) {
           .update(users)
           .set({ verified: true})
           .where(eq(users.id, user.id))
+        
+        // Populate sample data for new users
+        try {
+          const hasExistingData = await userHasExistingData(user.id);
+          if (!hasExistingData) {
+            console.log(`[VERIFY OTP] Starting sample data population for new user: ${user.email}`);
+            // Run sample data population asynchronously to avoid blocking the response
+            populateSampleDataForNewUser(user.id, user.email).catch(error => {
+              console.error(`[VERIFY OTP] Sample data population failed for ${user.email}:`, error);
+            });
+          } else {
+            console.log(`[VERIFY OTP] User ${user.email} already has data, skipping sample population`);
+          }
+        } catch (error) {
+          console.error(`[VERIFY OTP] Error during sample data population for ${user.email}:`, error);
+          // Don't fail the signup process if sample data population fails
+        }
       }
 
       if (purpose === 'login' || purpose === 'signup') {
