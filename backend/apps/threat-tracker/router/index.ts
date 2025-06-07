@@ -101,7 +101,7 @@ threatRouter.delete("/sources/:id", async (req, res) => {
     }
     
     await storage.deleteSource(sourceId);
-    res.status(204).send();
+    res.json({ message: "Source deleted successfully"});
   } catch (error: any) {
     console.error("Error deleting source:", error);
     res.status(500).json({ error: error.message || "Failed to delete source" });
