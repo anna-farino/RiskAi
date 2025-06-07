@@ -115,7 +115,7 @@ async function getUserScrapeSchedule(userId: string): Promise<{
   interval: JobInterval;
   lastRun?: string;
 }> {
-  const setting = await storage.getSetting(`${AUTO_SCRAPE_FREQUENCY_KEY}_${userId}`);
+  const setting = await storage.getSetting(AUTO_SCRAPE_FREQUENCY_KEY, userId);
 
   if (setting) {
     return setting.value as {
@@ -148,11 +148,11 @@ export async function updateGlobalScrapeSchedule(
 ): Promise<void> {
   try {
     // Update settings for this specific user
-    await storage.setSetting(`${AUTO_SCRAPE_FREQUENCY_KEY}_${userId}`, {
+    await storage.setSetting(AUTO_SCRAPE_FREQUENCY_KEY, {
       enabled,
       interval,
       lastRun: enabled ? undefined : new Date().toISOString(), // Reset last run if enabling
-    });
+    }, userId);
 
     // Update schedule for this user
     if (enabled) {
@@ -184,7 +184,7 @@ export async function getGlobalScrapeSchedule(userId: string): Promise<{
   interval: JobInterval;
   lastRun?: string;
 }> {
-  const setting = await storage.getSetting(`${AUTO_SCRAPE_FREQUENCY_KEY}_${userId}`);
+  const setting = await storage.getSetting(AUTO_SCRAPE_FREQUENCY_KEY, userId);
 
   if (setting) {
     return setting.value as {
