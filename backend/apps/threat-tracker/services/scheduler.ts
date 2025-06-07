@@ -19,7 +19,9 @@ const userScheduledJobs = new Map<string, NodeJS.Timeout>();
  */
 export async function getGlobalScrapeSchedule(userId?: string) {
   try {
-    const setting = await storage.getSetting("auto-scrape", userId);
+    // Create user-specific key to avoid unique constraint conflicts
+    const settingKey = userId ? `auto-scrape-${userId}` : "auto-scrape";
+    const setting = await storage.getSetting(settingKey);
     
     if (!setting || !setting.value) {
       // Default settings if not found
@@ -50,11 +52,12 @@ export async function getGlobalScrapeSchedule(userId?: string) {
  */
 export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId: string) {
   try {
-    // Save the new schedule to settings with user context
-    await storage.upsertSetting("auto-scrape", {
+    // Create user-specific key to avoid unique constraint conflicts
+    const settingKey = `auto-scrape-${userId}`;
+    await storage.upsertSetting(settingKey, {
       enabled,
       interval,
-    }, userId);
+    });
     
     // Update the user's specific scheduler
     if (enabled && interval !== JobInterval.DISABLED) {
