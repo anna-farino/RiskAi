@@ -150,6 +150,7 @@ export default function Keywords() {
             keyword.id === context.tempId ? (data as Keyword) : keyword
           ) || []
         );
+        keywords.refetch()
         
         // Remove from pending items
         setPendingItems(prev => {
