@@ -17,10 +17,10 @@ import { useState, useEffect } from "react";
 
 export default function Keywords() {
   const { toast } = useToast();
-  // Local state for immediate UI updates
   const [localKeywords, setLocalKeywords] = useState<Keyword[]>([]);
-  // Track IDs of items with pending actions for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  const [keywordsUpdating, setKeywordsUpdating] = useState(false);
+  const [activeKeywordsUpdating, setActiveKeywordsUpdating] = useState(false);
   
   const form = useForm({
     resolver: zodResolver(insertKeywordSchema),
@@ -135,7 +135,7 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: async (data, variables, context) => {
       if (context?.tempId) {
         // Update local state with actual server data
         setLocalKeywords(prev => 
@@ -150,7 +150,9 @@ export default function Keywords() {
             keyword.id === context.tempId ? (data as Keyword) : keyword
           ) || []
         );
-        keywords.refetch()
+        setKeywordsUpdating(true)
+        await keywords.refetch()
+        setKeywordsUpdating(false)
         
         // Remove from pending items
         setPendingItems(prev => {
@@ -259,6 +261,9 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      setActiveKeywordsUpdating(true)
+      keywords.refetch()
+      setActiveKeywordsUpdating(false)
       
       toast({
         title: "Keyword status updated",
@@ -328,7 +333,7 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: async (data, variables, context) => {
       if (context?.id) {
         // Remove from pending items
         setPendingItems(prev => {
@@ -340,6 +345,9 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      setKeywordsUpdating(true)
+      await keywords.refetch()
+      setKeywordsUpdating(false)
       
       toast({
         title: "Keyword deleted successfully",
@@ -347,6 +355,15 @@ export default function Keywords() {
     },
   });
 
+  const keywordsAreUpdating = 
+    addKeyword.isPending || 
+    deleteKeyword.isPending || 
+    keywordsUpdating
+
+  const activeKeywordsAreUpdating = 
+    toggleKeyword.isPending ||
+    activeKeywordsUpdating ||
+    keywordsAreUpdating
 
   const onSubmit = form.handleSubmit((data) => {
     addKeyword.mutate(data);
@@ -414,7 +431,13 @@ export default function Keywords() {
                   <Tag className="h-3 w-3 text-primary" />
                 </div>
               </div>
-              <p className="text-2xl font-semibold text-white">{keywords.data?.length || 0}</p>
+              <p 
+                className={cn("text-2xl font-semibold text-white ", {
+                  "animate-[pulse_0.5s_ease-in-out_infinite]": keywordsAreUpdating 
+                })}
+              >
+                {keywords.data?.length || 0}
+              </p>
             </div>
             
             <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700/50">
@@ -424,7 +447,11 @@ export default function Keywords() {
                   <CheckCircle className="h-3 w-3 text-green-500" />
                 </div>
               </div>
-              <p className="text-2xl font-semibold text-white">
+              <p className={cn(
+                "text-2xl font-semibold text-white", {
+                  "animate-[pulse_0.5s_ease-in-out_infinite]": activeKeywordsAreUpdating 
+                }
+              )}>
                 {keywords.data?.filter(k => k.active).length || 0}
               </p>
             </div>
@@ -481,7 +508,9 @@ export default function Keywords() {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {/* Use localKeywords for immediate UI updates */}
-            {localKeywords.map((keyword) => {
+            {keywords.data && keywords.data
+              .sort((a,b) => a.term > b.term ? 1 : -1)
+              .map((keyword) => {
               // Check if this item has a pending action
               const isPending = pendingItems.has(keyword.id);
               
