@@ -118,7 +118,37 @@ export async function initializeScheduler() {
     autoScrapeIntervalId = setInterval(async () => {
       log(`[ThreatTracker] Running scheduled global scrape job (interval: ${schedule.interval})`, "scheduler");
       try {
-        await runGlobalScrapeJob();
+        // Get all sources that are eligible for auto-scrape
+        const autoScrapeSources = await storage.getAutoScrapeSources();
+
+        // Collect unique user IDs from these sources
+        const userIdSet = new Set<string>();
+        for (const source of autoScrapeSources) {
+          if (source.userId) {
+            userIdSet.add(source.userId);
+          }
+        }
+        const userIds = Array.from(userIdSet);
+
+        log(
+          `[ThreatTracker] Found ${userIds.length} users with auto-scrape sources`,
+          "scheduler",
+        );
+
+        // Run the job for each user sequentially
+        for (const userId of userIds) {
+          log(
+            `[ThreatTracker] Running scheduled global scrape job for user ${userId}`,
+            "scheduler",
+          );
+          const result = await runGlobalScrapeJob(userId);
+          log(
+            `[ThreatTracker] Completed job for user ${userId}: ${result.message}`,
+            "scheduler",
+          );
+        }
+
+        log(`[ThreatTracker] Scheduled job completed successfully`, "scheduler");
       } catch (error: any) {
         log(`[ThreatTracker] Error in scheduled scrape job: ${error.message}`, "scheduler-error");
       }
