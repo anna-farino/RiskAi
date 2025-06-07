@@ -91,10 +91,20 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
+          '--disable-blink-features=AutomationControlled',
+          // new SETTINGS
+          '--single-process'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 180000 // 3 minute timeout on browser launch
+        // OLD SETTINGS
+        //timeout: 180000 // 3 minute timeout on browser launch
+        // NEW SETTINGS:
+        timeout: 60000, // Reduce from 180000
+        protocolTimeout: 180000, // ADD THIS - prevents "Runtime.callFunctionOn timed out"
+        handleSIGINT: false, // ADD THESE to prevent premature shutdown
+        handleSIGTERM: false,
+        handleSIGHUP: false
+        // END NEW SETTINGS
       });
       log("[ThreatTracker][getBrowser] Browser launched successfully", "scraper");
     } catch (error: any) {
