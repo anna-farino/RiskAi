@@ -49,7 +49,7 @@ export const threatArticles = pgTable("threat_articles", {
 // Additional settings for the Threat Tracker
 export const threatSettings = pgTable("threat_settings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  key: text("key").notNull().unique(),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   userId: uuid("user_id").references(() => users.id),
 });

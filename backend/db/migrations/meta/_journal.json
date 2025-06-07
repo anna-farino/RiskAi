@@ -141,6 +141,13 @@
       "when": 1749133961369,
       "tag": "0019_lying_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1749330969910,
+      "tag": "0020_skinny_falcon",
+      "breakpoints": true
     }
   ]
 }

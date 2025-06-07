@@ -767,148 +767,225 @@ export default function Reports() {
                       
                       <button
                         className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-none"
-                        onClick={() => {
+                        onClick={async () => {
                           setShowExportDropdown(false);
-                          // Add print-specific styling
-                          const printStyle = document.createElement('style');
-                          printStyle.id = 'print-style';
-                          printStyle.innerHTML = `
-                            @media print {
-                              @page {
-                                size: letter;
-                                margin: 1in 0.75in 1in 0.75in;
-                              }
-                              body {
-                                font-family: Cambria, serif !important;
-                                font-size: 11pt !important;
-                                line-height: 1.15 !important;
-                                background: white !important;
-                                color: black !important;
-                                margin: 0 !important;
-                                padding: 0 !important;
-                              }
-                              /* Hide navigation and interactive elements */
-                              header, aside, nav, 
-                              button, input, select, textarea,
-                              .w-80.flex-shrink-0 {
-                                display: none !important;
-                              }
-                              /* Hide the top navigation tabs specifically */
-                              .flex.gap-8,
-                              .flex.gap-8 *,
-                              a[href*="/dashboard/news-capsule"] {
-                                display: none !important;
-                              }
-                              /* Hide any element containing "Home", "Research", "Executive Reports" */
-                              *:contains("Home"):not(h2):not(h3):not(p),
-                              *:contains("Research"):not(h2):not(h3):not(p),
-                              *:contains("Executive Reports"):not(h2):not(h3):not(p) {
-                                display: none !important;
-                              }
-                              /* Reset layout margins for print */
-                              main {
-                                margin: 0 !important;
-                                padding: 0 !important;
-                              }
-                              /* Remove all layout spacing and positioning */
-                              .min-h-screen, .pt-\\[88px\\], .flex, .p-4, .md\\:p-6,
-                              .space-y-6, .space-y-8, .mb-8, .mt-8, .py-4, .px-2,
-                              .gap-6, .gap-2, .gap-4, .gap-8 {
-                                margin: 0 !important;
-                                padding: 0 !important;
-                                gap: 0 !important;
-                              }
-                              /* Force content to start at top */
-                              * {
-                                margin-top: 0 !important;
-                                padding-top: 0 !important;
-                              }
-                              /* Only allow bottom spacing between articles */
-                              .space-y-6 > div {
-                                margin-bottom: 0.3in !important;
-                                margin-top: 0 !important;
-                              }
-                              /* Hide the main layout flex container and make report full width */
-                              .flex.gap-6 {
-                                display: block !important;
-                              }
-                              /* Make the Executive Report content full width */
-                              .flex-1 {
-                                width: 100% !important;
-                                max-width: 100% !important;
-                                flex: none !important;
-                              }
-                              .grid.grid-cols-1 {
-                                display: block !important;
-                              }
-                              /* Reset background and styling */
-                              .p-5, .backdrop-blur-sm, .bg-slate-900\\/50, .border, .rounded-xl {
-                                background: white !important;
-                                border: none !important;
-                                border-radius: 0 !important;
-                                box-shadow: none !important;
-                              }
-                              /* Format headings */
-                              h1, h2, h3 {
-                                font-family: Cambria, serif !important;
-                                font-size: 12pt !important;
-                                font-weight: bold !important;
-                                margin-top: 12pt !important;
-                                margin-bottom: 6pt !important;
-                                color: black !important;
-                              }
-                              /* Format text */
-                              p, .text-sm {
-                                font-size: 10pt !important;
-                                line-height: 1.4 !important;
-                                color: black !important;
-                              }
-                              /* Single column layout for print - force all grids to block */
-                              .grid, .grid-cols-1, .grid-cols-2 {
-                                display: block !important;
-                                grid-template-columns: none !important;
-                              }
-                              /* Remove card styling for print and ensure single column */
-                              .space-y-6 > div, .space-y-8 > div {
-                                border: none !important;
-                                border-radius: 0 !important;
-                                background: none !important;
-                                padding: 0 !important;
-                                margin-bottom: 0.3in !important;
-                                page-break-inside: avoid;
-                                width: 100% !important;
-                                display: block !important;
-                              }
-                              /* Ensure story content flows in single column */
-                              .space-y-6, .space-y-8 {
-                                display: block !important;
-                                width: 100% !important;
-                              }
-                              /* Hide interactive elements */
-                              .group, .absolute, .cursor-grab, .opacity-0, 
-                              .hover\\:opacity-100, .ring-2, .ring-blue-500,
-                              button, textarea, .bg-blue-600 {
-                                display: none !important;
-                              }
+                          try {
+                            // Create a new window with the report content
+                            const printWindow = window.open('', '_blank', 'width=800,height=600');
+                            if (!printWindow) {
+                              toast({
+                                variant: "destructive",
+                                title: "Print Error",
+                                description: "Could not open print window. Please check your browser's popup settings.",
+                              });
+                              return;
                             }
-                          `;
-                          document.head.appendChild(printStyle);
-                          
-                          // Change the document title for printing
-                          const originalTitle = document.title;
-                          document.title = "RisqAI News Capsule Reporting";
-                          
-                          // Print the report
-                          window.print();
-                          
-                          // Remove the print style after printing and restore title
-                          setTimeout(() => {
-                            const styleElement = document.getElementById('print-style');
-                            if (styleElement) {
-                              styleElement.remove();
+
+                            // Generate clean HTML content for printing
+                            let printContent = `
+                              <!DOCTYPE html>
+                              <html>
+                              <head>
+                                <meta charset="utf-8">
+                                <title>RisqAI News Capsule Reporting</title>
+                                <style>
+                                  @page {
+                                    size: letter;
+                                    margin: 1in;
+                                  }
+                                  
+                                  body {
+                                    font-family: Cambria, "Times New Roman", serif;
+                                    font-size: 11pt;
+                                    line-height: 1.4;
+                                    color: black;
+                                    background: white;
+                                    margin: 0;
+                                    padding: 20px;
+                                    max-width: 100%;
+                                  }
+                                  
+                                  h1 {
+                                    text-align: center;
+                                    font-size: 18pt;
+                                    font-weight: bold;
+                                    margin-bottom: 24pt;
+                                    page-break-after: avoid;
+                                  }
+                                  
+                                  h2 {
+                                    font-size: 14pt;
+                                    font-weight: bold;
+                                    margin: 18pt 0 12pt 0;
+                                    page-break-after: avoid;
+                                  }
+                                  
+                                  h3 {
+                                    font-size: 12pt;
+                                    font-weight: bold;
+                                    margin: 12pt 0 8pt 0;
+                                    page-break-after: avoid;
+                                  }
+                                  
+                                  .article {
+                                    margin-bottom: 32pt;
+                                    page-break-inside: avoid;
+                                    border-bottom: 1px solid #ccc;
+                                    padding-bottom: 16pt;
+                                  }
+                                  
+                                  .article:last-child {
+                                    border-bottom: none;
+                                  }
+                                  
+                                  .article-header {
+                                    margin-bottom: 12pt;
+                                  }
+                                  
+                                  .metadata {
+                                    display: grid;
+                                    grid-template-columns: 1fr 1fr;
+                                    gap: 8pt;
+                                    margin-bottom: 12pt;
+                                  }
+                                  
+                                  .metadata-item {
+                                    margin-bottom: 6pt;
+                                  }
+                                  
+                                  .metadata-label {
+                                    font-weight: bold;
+                                    color: #333;
+                                  }
+                                  
+                                  .section {
+                                    margin-bottom: 12pt;
+                                  }
+                                  
+                                  .section-title {
+                                    font-weight: bold;
+                                    margin-bottom: 4pt;
+                                    color: #333;
+                                  }
+                                  
+                                  .section-content {
+                                    text-align: justify;
+                                    line-height: 1.5;
+                                  }
+                                  
+                                  .executive-note {
+                                    background-color: #f5f5f5;
+                                    border-left: 4pt solid #007bff;
+                                    padding: 8pt;
+                                    margin: 8pt 0;
+                                  }
+                                  
+                                  .url {
+                                    font-size: 9pt;
+                                    color: #666;
+                                    word-break: break-all;
+                                  }
+                                  
+                                  @media print {
+                                    body {
+                                      font-size: 10pt;
+                                    }
+                                    
+                                    .article {
+                                      page-break-inside: avoid;
+                                    }
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <h1>RisqAI News Capsule Reporting</h1>
+                                <h2>Executive Report: ${formatDate(selectedReport.createdAt)}</h2>
+                            `;
+
+                            if (selectedReport.topic) {
+                              printContent += `<p><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
                             }
-                            document.title = originalTitle;
-                          }, 1000);
+
+                            selectedReport.articles.forEach((article, index) => {
+                              printContent += `
+                                <div class="article">
+                                  <div class="article-header">
+                                    <h3>Article ${index + 1}: ${article.title}</h3>
+                                  </div>
+                                  
+                                  <div class="metadata">
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Threat Name:</span> ${article.threatName}
+                                    </div>
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Vulnerability ID:</span> ${article.vulnerabilityId}
+                                    </div>
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Target OS:</span> ${article.targetOS}
+                                    </div>
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Source:</span> ${article.sourcePublication}
+                                    </div>
+                                  </div>
+                                  
+                                  <div class="section">
+                                    <div class="section-title">Summary:</div>
+                                    <div class="section-content">${article.summary}</div>
+                                  </div>
+                                  
+                                  <div class="section">
+                                    <div class="section-title">Impacts:</div>
+                                    <div class="section-content">${article.impacts}</div>
+                                  </div>
+                                  
+                                  <div class="section">
+                                    <div class="section-title">Attack Vector:</div>
+                                    <div class="section-content">${article.attackVector}</div>
+                                  </div>
+                              `;
+
+                              if (executiveNotes[article.id]) {
+                                printContent += `
+                                  <div class="section">
+                                    <div class="section-title">Executive Note:</div>
+                                    <div class="executive-note">${executiveNotes[article.id]}</div>
+                                  </div>
+                                `;
+                              }
+
+                              printContent += `
+                                  <div class="section">
+                                    <div class="section-title">Source URL:</div>
+                                    <div class="url">${article.originalUrl}</div>
+                                  </div>
+                                </div>
+                              `;
+                            });
+
+                            printContent += `
+                              </body>
+                              </html>
+                            `;
+
+                            // Write content to new window and print
+                            printWindow.document.write(printContent);
+                            printWindow.document.close();
+                            
+                            // Wait for content to load then print
+                            printWindow.onload = () => {
+                              setTimeout(() => {
+                                printWindow.print();
+                                printWindow.close();
+                              }, 500);
+                            };
+                            
+                          } catch (error) {
+                            toast({
+                              variant: "destructive",
+                              title: "Print Error",
+                              description: "Error generating print preview. Please try again.",
+                            });
+                          }
                         }}
                       >
                         Print

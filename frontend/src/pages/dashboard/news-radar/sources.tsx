@@ -77,6 +77,8 @@ export default function Sources() {
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
+  const [sourcesBeingScraped, setSourcesBeingScraped] = useState<string[]>([]);
+  const [scrapesBeingStopped, setScrapesBeingStopped] = useState<string[]>([]);
   
   // Local state for optimistic UI updates
   const [localSources, setLocalSources] = useState<Source[]>([]);
@@ -286,6 +288,7 @@ export default function Sources() {
             source.id === context.tempId ? (data as Source) : source
           ) || []
         );
+        sources.refetch()
         
         // Remove from pending items
         setPendingItems(prev => {
@@ -329,6 +332,10 @@ export default function Sources() {
       }
     },
     onMutate: async (id) => {
+      console.log("Sources being scraped ", sourcesBeingScraped)
+      if (!sourcesBeingScraped.includes(id)) {
+        setSourcesBeingScraped(prev => [...prev, id])
+      }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
@@ -365,6 +372,9 @@ export default function Sources() {
         title: "Source scraped successfully",
       });
     },
+    onSettled: (id) => {
+      setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
+    }
   });
 
   const stopScraping = useMutation({
@@ -394,6 +404,9 @@ export default function Sources() {
       }
     },
     onMutate: async (id) => {
+      if (!scrapesBeingStopped.includes(id)) {
+        setScrapesBeingStopped(prev => [...prev, id])
+      }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
       
@@ -420,12 +433,18 @@ export default function Sources() {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      console.log("Finished stopping scrape: ", id)
+      setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
       // Don't invalidate - rely on the optimistic update
       toast({
         title: "Scraping stopped successfully",
       });
     },
+    onSettled: (_, __, id) => {
+      console.log(id);
+      setScrapesBeingStopped(prev => prev.filter(sourceId => sourceId != id))
+    }
   });
   
   // Toggle auto-scrape inclusion for a source
@@ -939,6 +958,9 @@ export default function Sources() {
     setEditDialogOpen(true);
   };
 
+
+  console.log("Sources being scraped", sourcesBeingScraped)
+  console.log("Scrapes being stopped", scrapesBeingStopped)
   return (
     <div className={cn(
       "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
@@ -1346,7 +1368,7 @@ export default function Sources() {
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
                           title="Scrape source"
                         >
-                          {scrapeSource.isPending ? (
+                          {scrapeSource.isPending && sourcesBeingScraped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <RotateCw className="h-3 w-3" />
@@ -1356,11 +1378,11 @@ export default function Sources() {
                           variant="ghost"
                           size="icon"
                           onClick={() => stopScraping.mutate(source.id)}
-                          disabled={stopScraping.isPending}
+                          disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Stop scraping"
                         >
-                          {stopScraping.isPending ? (
+                          {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <X className="h-3 w-3" />
@@ -1400,11 +1422,11 @@ export default function Sources() {
                           variant="ghost"
                           size="icon"
                           onClick={() => scrapeSource.mutate(source.id)}
-                          disabled={scrapeSource.isPending}
+                          disabled={scrapeSource.isPending && sourcesBeingScraped.includes(source.id)}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
                           title="Scrape source"
                         >
-                          {scrapeSource.isPending ? (
+                          {scrapeSource.isPending && sourcesBeingScraped.includes(source.id) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <RotateCw className="h-4 w-4" />
@@ -1414,11 +1436,11 @@ export default function Sources() {
                           variant="ghost"
                           size="icon"
                           onClick={() => stopScraping.mutate(source.id)}
-                          disabled={stopScraping.isPending}
+                          disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
                           title="Stop scraping"
                         >
-                          {stopScraping.isPending ? (
+                          {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <X className="h-4 w-4" />
