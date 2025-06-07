@@ -17,176 +17,159 @@ export enum JobInterval {
 // Define the setting key for job frequency
 export const AUTO_SCRAPE_FREQUENCY_KEY = "autoScrapeFrequency";
 
-// Scheduled job intervals
-const scheduledJobs = new Map<string, NodeJS.Timeout>();
+// Track per-user scheduled job timers
+const userScheduledJobs = new Map<string, NodeJS.Timeout>();
 
 /**
- * Initialize scheduler and restore jobs from settings
+ * Initialize scheduler for all users based on their individual settings
  */
 export async function initializeScheduler(): Promise<void> {
-  log("[Scheduler] Initializing scheduler service", "scheduler");
+  log("[NewsRadar] Initializing per-user scheduler service", "scheduler");
 
   try {
-    // Load autoScrape frequency setting
-    const frequencySetting = await storage.getSetting(
-      AUTO_SCRAPE_FREQUENCY_KEY,
-    );
+    // Clear any existing scheduled jobs
+    userScheduledJobs.forEach((job, userId) => {
+      clearInterval(job);
+      log(`[NewsRadar] Cleared existing job for user ${userId}`, "scheduler");
+    });
+    userScheduledJobs.clear();
+    
+    // Get all sources that are eligible for auto-scrape
+    const autoScrapeSources = await storage.getAutoScrapeSources();
 
-    if (frequencySetting) {
-      const frequencyValue = frequencySetting.value as {
-        enabled: boolean;
-        interval: JobInterval;
-        lastRun?: string;
-      };
-
-      log(
-        `[Scheduler] Found auto-scrape frequency setting: ${JSON.stringify(frequencyValue)}`,
-        "scheduler",
-      );
-
-      if (frequencyValue.enabled) {
-        scheduleGlobalScrapeJob(frequencyValue.interval);
-        log(
-          `[Scheduler] Scheduled global scrape job with interval ${frequencyValue.interval}ms`,
-          "scheduler",
-        );
-      } else {
-        log("[Scheduler] Auto-scrape is disabled in settings", "scheduler");
+    // Collect unique user IDs from these sources
+    const userIdSet = new Set<string>();
+    for (const source of autoScrapeSources) {
+      if (source.userId) {
+        userIdSet.add(source.userId);
       }
-    } else {
-      // Create default setting if it doesn't exist
-      const defaultSetting = {
-        enabled: false,
-        interval: JobInterval.DAILY,
-      };
-
-      await storage.setSetting(AUTO_SCRAPE_FREQUENCY_KEY, defaultSetting);
-      log(
-        `[Scheduler] Created default auto-scrape frequency setting: ${JSON.stringify(defaultSetting)}`,
-        "scheduler",
-      );
     }
+    const userIds = Array.from(userIdSet);
+
+    log(`[NewsRadar] Found ${userIds.length} users with auto-scrape sources`, "scheduler");
+
+    // Initialize scheduler for each user based on their individual settings
+    for (const userId of userIds) {
+      try {
+        const userSchedule = await getUserScrapeSchedule(userId);
+        
+        if (userSchedule.enabled) {
+          scheduleUserScrapeJob(userId, userSchedule.interval);
+          log(`[NewsRadar] Initialized auto-scrape for user ${userId}: ${userSchedule.interval}ms`, "scheduler");
+        } else {
+          log(`[NewsRadar] Auto-scrape disabled for user ${userId}`, "scheduler");
+        }
+      } catch (error: any) {
+        log(`[NewsRadar] Error initializing scheduler for user ${userId}: ${error.message}`, "scheduler-error");
+      }
+    }
+    
+    log(`[NewsRadar] Per-user scheduler initialization complete`, "scheduler");
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     log(
-      `[Scheduler] Error initializing scheduler: ${errorMessage}`,
+      `[NewsRadar] Error initializing scheduler: ${errorMessage}`,
       "scheduler",
     );
   }
 }
 
 /**
- * Schedule the global scrape job with a given interval
+ * Schedule an auto-scrape job for a specific user
  */
-export function scheduleGlobalScrapeJob(interval: JobInterval): void {
-  // Clear existing job if it exists
-  if (scheduledJobs.has(AUTO_SCRAPE_FREQUENCY_KEY)) {
-    clearInterval(scheduledJobs.get(AUTO_SCRAPE_FREQUENCY_KEY));
-    scheduledJobs.delete(AUTO_SCRAPE_FREQUENCY_KEY);
-    log("[Scheduler] Cleared existing global scrape job", "scheduler");
-  }
-
-  // Schedule new job
+function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
+  // Clear existing job for this user if it exists
+  clearUserScrapeJob(userId);
+  
+  // Schedule new job for this user
   const job = setInterval(async () => {
-    log("[Scheduler] Running scheduled global scrape job", "scheduler");
-
+    log(`[NewsRadar] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
     try {
-      // Get all sources that are eligible for auto-scrape
-      const autoScrapeSources = await storage.getAutoScrapeSources();
-
-      // Collect unique user IDs from these sources
-      const userIdSet = new Set<string>();
-      for (const source of autoScrapeSources) {
-        if (source.userId) {
-          userIdSet.add(source.userId);
-        }
-      }
-      const userIds = Array.from(userIdSet);
-
-      log(
-        `[Scheduler] Found ${userIds.length} users with auto-scrape sources`,
-        "scheduler",
-      );
-
-      // Run the job for each user sequentially
-      for (const userId of userIds) {
-        log(
-          `[Scheduler] Running scheduled global scrape job for user ${userId}`,
-          "scheduler",
-        );
-        const result = await runGlobalScrapeJob(userId);
-        log(
-          `[Scheduler] Completed job for user ${userId}: ${result.message}`,
-          "scheduler",
-        );
-      }
-
-      // Update last run timestamp in settings
-      const frequencySetting = await storage.getSetting(
-        AUTO_SCRAPE_FREQUENCY_KEY,
-      );
-      if (frequencySetting) {
-        const frequencyValue = frequencySetting.value as {
-          enabled: boolean;
-          interval: JobInterval;
-          lastRun?: string;
-        };
-
-        frequencyValue.lastRun = new Date().toISOString();
-        await storage.setSetting(AUTO_SCRAPE_FREQUENCY_KEY, frequencyValue);
-      }
-
-      log(`[Scheduler] Scheduled job completed successfully`, "scheduler");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      log(`[Scheduler] Error in scheduled job: ${errorMessage}`, "scheduler");
+      await runGlobalScrapeJob(userId);
+    } catch (error: any) {
+      log(`[NewsRadar] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
     }
   }, interval);
-
-  scheduledJobs.set(AUTO_SCRAPE_FREQUENCY_KEY, job);
-  log(
-    `[Scheduler] Global scrape job scheduled with interval ${interval}ms`,
-    "scheduler",
-  );
+  
+  userScheduledJobs.set(userId, job);
+  log(`[NewsRadar] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms`, "scheduler");
 }
 
 /**
- * Update the global scrape job schedule
+ * Clear the auto-scrape job for a specific user
+ */
+function clearUserScrapeJob(userId: string): void {
+  if (userScheduledJobs.has(userId)) {
+    clearInterval(userScheduledJobs.get(userId));
+    userScheduledJobs.delete(userId);
+    log(`[NewsRadar] Cleared auto-scrape job for user ${userId}`, "scheduler");
+  }
+}
+
+/**
+ * Get the auto-scrape schedule for a specific user
+ */
+async function getUserScrapeSchedule(userId: string): Promise<{
+  enabled: boolean;
+  interval: JobInterval;
+  lastRun?: string;
+}> {
+  const setting = await storage.getSetting(`${AUTO_SCRAPE_FREQUENCY_KEY}_${userId}`);
+
+  if (setting) {
+    return setting.value as {
+      enabled: boolean;
+      interval: JobInterval;
+      lastRun?: string;
+    };
+  }
+
+  // Return default if setting doesn't exist
+  return {
+    enabled: false,
+    interval: JobInterval.DAILY,
+  };
+}
+
+/**
+ * Schedule the global scrape job with a given interval
+ * @deprecated Use per-user scheduling instead
+ */
+// This function is deprecated - using per-user scheduling instead
+
+/**
+ * Update the auto-scrape schedule for a specific user
  */
 export async function updateGlobalScrapeSchedule(
   enabled: boolean,
   interval: JobInterval,
+  userId: string,
 ): Promise<void> {
   try {
-    // Update settings
-    await storage.setSetting(AUTO_SCRAPE_FREQUENCY_KEY, {
+    // Update settings for this specific user
+    await storage.setSetting(`${AUTO_SCRAPE_FREQUENCY_KEY}_${userId}`, {
       enabled,
       interval,
       lastRun: enabled ? undefined : new Date().toISOString(), // Reset last run if enabling
     });
 
-    // Update schedule
+    // Update schedule for this user
     if (enabled) {
-      scheduleGlobalScrapeJob(interval);
+      scheduleUserScrapeJob(userId, interval);
       log(
-        `[Scheduler] Updated global scrape job: enabled with interval ${interval}ms`,
+        `[NewsRadar] Updated auto-scrape for user ${userId}: enabled with interval ${interval}ms`,
         "scheduler",
       );
     } else {
-      // Clear existing job if it exists
-      if (scheduledJobs.has(AUTO_SCRAPE_FREQUENCY_KEY)) {
-        clearInterval(scheduledJobs.get(AUTO_SCRAPE_FREQUENCY_KEY));
-        scheduledJobs.delete(AUTO_SCRAPE_FREQUENCY_KEY);
-        log("[Scheduler] Disabled global scrape job", "scheduler");
-      }
+      clearUserScrapeJob(userId);
+      log(`[NewsRadar] Disabled auto-scrape for user ${userId}`, "scheduler");
     }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     log(
-      `[Scheduler] Error updating global scrape schedule: ${errorMessage}`,
+      `[NewsRadar] Error updating auto-scrape schedule for user ${userId}: ${errorMessage}`,
       "scheduler",
     );
     throw error;
@@ -194,14 +177,14 @@ export async function updateGlobalScrapeSchedule(
 }
 
 /**
- * Get the current global scrape job schedule
+ * Get the auto-scrape schedule for a specific user
  */
-export async function getGlobalScrapeSchedule(): Promise<{
+export async function getGlobalScrapeSchedule(userId: string): Promise<{
   enabled: boolean;
   interval: JobInterval;
   lastRun?: string;
 }> {
-  const setting = await storage.getSetting(AUTO_SCRAPE_FREQUENCY_KEY);
+  const setting = await storage.getSetting(`${AUTO_SCRAPE_FREQUENCY_KEY}_${userId}`);
 
   if (setting) {
     return setting.value as {

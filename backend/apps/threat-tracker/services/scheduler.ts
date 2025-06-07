@@ -11,8 +11,8 @@ export enum JobInterval {
   DISABLED = "DISABLED",
 }
 
-// Internally track the scheduled job timer
-let autoScrapeIntervalId: NodeJS.Timeout | null = null;
+// Track per-user scheduled job timers
+const userScheduledJobs = new Map<string, NodeJS.Timeout>();
 
 /**
  * Get the auto-scrape schedule from settings for a specific user
@@ -48,7 +48,7 @@ export async function getGlobalScrapeSchedule(userId?: string) {
 /**
  * Update the auto-scrape schedule for a specific user
  */
-export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId?: string) {
+export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId: string) {
   try {
     // Save the new schedule to settings with user context
     await storage.upsertSetting("auto-scrape", {
@@ -56,7 +56,12 @@ export async function updateGlobalScrapeSchedule(enabled: boolean, interval: Job
       interval,
     }, userId);
     
-    // Note: Scheduler is global but respects per-user settings during execution
+    // Update the user's specific scheduler
+    if (enabled && interval !== JobInterval.DISABLED) {
+      scheduleUserScrapeJob(userId, interval);
+    } else {
+      clearUserScrapeJob(userId);
+    }
     
     return {
       enabled,
@@ -87,74 +92,86 @@ function getIntervalMs(interval: JobInterval): number {
 }
 
 /**
- * Initialize the scheduler based on stored settings
+ * Schedule an auto-scrape job for a specific user
+ */
+function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
+  // Clear existing job for this user if it exists
+  clearUserScrapeJob(userId);
+  
+  const intervalMs = getIntervalMs(interval);
+  if (intervalMs <= 0) {
+    log(`[ThreatTracker] Invalid interval for user ${userId}, not scheduling`, "scheduler");
+    return;
+  }
+  
+  // Schedule new job for this user
+  const job = setInterval(async () => {
+    log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval})`, "scheduler");
+    try {
+      await runGlobalScrapeJob(userId);
+    } catch (error: any) {
+      log(`[ThreatTracker] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
+    }
+  }, intervalMs);
+  
+  userScheduledJobs.set(userId, job);
+  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}`, "scheduler");
+}
+
+/**
+ * Clear the auto-scrape job for a specific user
+ */
+function clearUserScrapeJob(userId: string): void {
+  if (userScheduledJobs.has(userId)) {
+    clearInterval(userScheduledJobs.get(userId));
+    userScheduledJobs.delete(userId);
+    log(`[ThreatTracker] Cleared auto-scrape job for user ${userId}`, "scheduler");
+  }
+}
+
+/**
+ * Initialize the scheduler by loading settings for all users
  */
 export async function initializeScheduler() {
   try {
-    // Clear any existing scheduled job
-    if (autoScrapeIntervalId) {
-      clearInterval(autoScrapeIntervalId);
-      autoScrapeIntervalId = null;
-    }
+    // Clear any existing scheduled jobs
+    userScheduledJobs.forEach((job, userId) => {
+      clearInterval(job);
+      log(`[ThreatTracker] Cleared existing job for user ${userId}`, "scheduler");
+    });
+    userScheduledJobs.clear();
     
-    // Get the current schedule
-    const schedule = await getGlobalScrapeSchedule();
-    
-    // If auto-scrape is not enabled, do nothing
-    if (!schedule.enabled || schedule.interval === JobInterval.DISABLED) {
-      log("[ThreatTracker] Auto-scrape scheduler is disabled", "scheduler");
-      return false;
-    }
-    
-    // Calculate the interval in milliseconds
-    const intervalMs = getIntervalMs(schedule.interval);
-    
-    if (intervalMs <= 0) {
-      log("[ThreatTracker] Invalid scheduler interval, auto-scrape disabled", "scheduler");
-      return false;
-    }
-    
-    // Schedule the job
-    autoScrapeIntervalId = setInterval(async () => {
-      log(`[ThreatTracker] Running scheduled global scrape job (interval: ${schedule.interval})`, "scheduler");
-      try {
-        // Get all sources that are eligible for auto-scrape
-        const autoScrapeSources = await storage.getAutoScrapeSources();
+    // Get all sources that are eligible for auto-scrape
+    const autoScrapeSources = await storage.getAutoScrapeSources();
 
-        // Collect unique user IDs from these sources
-        const userIdSet = new Set<string>();
-        for (const source of autoScrapeSources) {
-          if (source.userId) {
-            userIdSet.add(source.userId);
-          }
-        }
-        const userIds = Array.from(userIdSet);
-
-        log(
-          `[ThreatTracker] Found ${userIds.length} users with auto-scrape sources`,
-          "scheduler",
-        );
-
-        // Run the job for each user sequentially
-        for (const userId of userIds) {
-          log(
-            `[ThreatTracker] Running scheduled global scrape job for user ${userId}`,
-            "scheduler",
-          );
-          const result = await runGlobalScrapeJob(userId);
-          log(
-            `[ThreatTracker] Completed job for user ${userId}: ${result.message}`,
-            "scheduler",
-          );
-        }
-
-        log(`[ThreatTracker] Scheduled job completed successfully`, "scheduler");
-      } catch (error: any) {
-        log(`[ThreatTracker] Error in scheduled scrape job: ${error.message}`, "scheduler-error");
+    // Collect unique user IDs from these sources
+    const userIdSet = new Set<string>();
+    for (const source of autoScrapeSources) {
+      if (source.userId) {
+        userIdSet.add(source.userId);
       }
-    }, intervalMs);
+    }
+    const userIds = Array.from(userIdSet);
+
+    log(`[ThreatTracker] Found ${userIds.length} users with auto-scrape sources`, "scheduler");
+
+    // Initialize scheduler for each user based on their individual settings
+    for (const userId of userIds) {
+      try {
+        const userSchedule = await getGlobalScrapeSchedule(userId);
+        
+        if (userSchedule.enabled && userSchedule.interval !== JobInterval.DISABLED) {
+          scheduleUserScrapeJob(userId, userSchedule.interval);
+          log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${userSchedule.interval}`, "scheduler");
+        } else {
+          log(`[ThreatTracker] Auto-scrape disabled for user ${userId}`, "scheduler");
+        }
+      } catch (error: any) {
+        log(`[ThreatTracker] Error initializing scheduler for user ${userId}: ${error.message}`, "scheduler-error");
+      }
+    }
     
-    log(`[ThreatTracker] Auto-scrape scheduler initialized with interval: ${schedule.interval}`, "scheduler");
+    log(`[ThreatTracker] Auto-scrape scheduler initialization complete`, "scheduler");
     return true;
   } catch (error: any) {
     log(`[ThreatTracker] Error initializing scheduler: ${error.message}`, "scheduler-error");
