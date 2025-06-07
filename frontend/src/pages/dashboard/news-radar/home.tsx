@@ -15,6 +15,7 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ export default function NewsHome() {
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  // Track last visit timestamp for "new" badge functionality
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -195,6 +198,16 @@ export default function NewsHome() {
     }
   };
   
+  // Initialize last visit timestamp from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('news-radar-last-visit');
+    setLastVisitTimestamp(stored);
+    
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('news-radar-last-visit', currentTime);
+  }, []);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
@@ -347,6 +360,14 @@ export default function NewsHome() {
       });
     },
   });
+
+  // Function to check if an article is new
+  const isArticleNew = (article: Article): boolean => {
+    if (!lastVisitTimestamp || !article.publishDate) return false;
+    const lastVisit = new Date(lastVisitTimestamp);
+    const publishDate = new Date(article.publishDate);
+    return publishDate > lastVisit;
+  };
 
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
@@ -681,24 +702,33 @@ export default function NewsHome() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
               {localArticles.map((article) => (
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  key={article.id}
-                  className={cn(
-                    "group transition-opacity duration-200",
-                    pendingItems.has(article.id) && "opacity-60"
+                <div key={article.id} className="relative">
+                  {isArticleNew(article) && (
+                    <div className="absolute -top-1 -right-1 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
+                        <Star className="h-2.5 w-2.5 mr-1" />
+                        NEW
+                      </Badge>
+                    </div>
                   )}
-                >
-                  <ArticleCard
-                    article={article}
-                    onDelete={(id: any) => deleteArticle.mutate(id)}
-                    isPending={pendingItems.has(article.id)}
-                    onKeywordClick={handleKeywordClick}
-                    onSendToCapsule={sendToCapsule}
-                  />
-                </a>
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "group transition-opacity duration-200 block",
+                      pendingItems.has(article.id) && "opacity-60"
+                    )}
+                  >
+                    <ArticleCard
+                      article={article}
+                      onDelete={(id: any) => deleteArticle.mutate(id)}
+                      isPending={pendingItems.has(article.id)}
+                      onKeywordClick={handleKeywordClick}
+                      onSendToCapsule={sendToCapsule}
+                    />
+                  </a>
+                </div>
               ))}
             </div>
           )}
