@@ -490,10 +490,19 @@ export default function ThreatHome() {
     <>
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-              Threat Tracker
-            </h1>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
+            Threat Tracker
+          </h1>
+          <p className="text-lg text-slate-300 max-w-3xl">
+            Monitor cybersecurity threats affecting your vendors, clients, and
+            hardware/software to stay ahead of potential vulnerabilities.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col w-full gap-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-4 flex-1">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2 border border-slate-700/30">
                 <FileText className="h-4 w-4 text-slate-400" />
@@ -513,24 +522,15 @@ export default function ThreatHome() {
                 </div>
               )}
             </div>
-          </div>
-          <p className="text-lg text-slate-300 max-w-3xl">
-            Monitor cybersecurity threats affecting your vendors, clients, and
-            hardware/software to stay ahead of potential vulnerabilities.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col w-full gap-4">
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search articles..."
-              className="pl-9 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search articles..."
+                className="pl-9 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex flex-row gap-2 flex-shrink-0">
