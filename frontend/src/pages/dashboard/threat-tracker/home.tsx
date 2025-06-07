@@ -504,9 +504,9 @@ export default function ThreatHome() {
         <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-4 flex-1">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2 border border-slate-700/30">
+              <div className="flex items-center gap-2 text-slate-300">
                 <FileText className="h-4 w-4 text-slate-400" />
-                <span className="text-sm font-medium text-slate-300">
+                <span className="text-sm font-medium">
                   {localArticles.length} {localArticles.length === 1 ? 'article' : 'articles'}
                 </span>
               </div>
