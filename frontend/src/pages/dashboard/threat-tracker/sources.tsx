@@ -153,7 +153,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch sources')
-        
+
         const data = await response.json()
         return data || []
       } catch(error) {
@@ -162,14 +162,14 @@ export default function Sources() {
       }
     }
   });
-  
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (sources.data) {
       setLocalSources(sources.data);
     }
   }, [sources.data]);
-  
+
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
     queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
@@ -183,7 +183,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
-        
+
         const data = await response.json()
         return data || { enabled: false, interval: JobInterval.DAILY }
       } catch(error) {
@@ -192,7 +192,7 @@ export default function Sources() {
       }
     }
   });
-  
+
   // Check scrape job status
   const checkScrapeStatus = useQuery<{ running: boolean }>({
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
@@ -206,7 +206,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch scrape status')
-        
+
         const data = await response.json()
         return data
       } catch(error) {
@@ -216,7 +216,7 @@ export default function Sources() {
     },
     refetchInterval: scrapeJobRunning ? 5000 : false, // Poll every 5 seconds when job is running
   });
-  
+
   // Update scrapeJobRunning state when status changes
   useEffect(() => {
     if (checkScrapeStatus.data) {
@@ -327,7 +327,7 @@ export default function Sources() {
         setEditingSource(null);
         form.reset();
       }
-      
+
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
     onError: (error, _, context) => {
@@ -379,9 +379,9 @@ export default function Sources() {
       if (context?.previousSources) {
         setLocalSources(context.previousSources);
       }
-      
+
       console.error("Error deleting source:", error);
-      
+
       // Don't show error toast for ARTICLES_EXIST - this will be handled by the confirmation dialog
       if (error?.response?.data?.error !== "ARTICLES_EXIST") {
         toast({
@@ -657,11 +657,11 @@ export default function Sources() {
       await deleteSource.mutateAsync({ id: source.id });
     } catch (error: any) {
       console.log("Caught error:", error);
-      
+
       // Check for ARTICLES_EXIST error - the error data is attached to the error object
       const errorData = error?.data || {};
       const errorMessage = errorData?.error || error?.message;
-      
+
       if (errorMessage === "ARTICLES_EXIST") {
         // Show confirmation dialog
         setDeleteConfirmation({
@@ -670,7 +670,7 @@ export default function Sources() {
         });
         return; // Don't show error toast
       }
-      
+
       // For other errors, let the mutation's onError handle it
       throw error;
     }
@@ -692,7 +692,7 @@ export default function Sources() {
   // Format the last scraped date
   function formatLastScraped(date: Date | null | undefined) {
     if (!date) return "Never";
-    
+
     try {
       const d = new Date(date);
       return d.toLocaleString();
@@ -709,7 +709,7 @@ export default function Sources() {
           Manage sources for threat monitoring and configure auto-scrape settings.
         </p>
       </div>
-      
+
       {/* Auto-scrape settings card */}
       <Card>
         <CardHeader>
@@ -747,7 +747,7 @@ export default function Sources() {
                 <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
               )}
             </div>
-            
+
             <div className="flex gap-2">
               <Button
                 variant={autoScrapeSettings.data?.interval === JobInterval.HOURLY ? "default" : "outline"}
@@ -821,7 +821,7 @@ export default function Sources() {
           </div>
         </CardFooter>
       </Card>
-      
+
       {/* Sources card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -858,7 +858,7 @@ export default function Sources() {
                 : 'Enter the details for your new threat source.'}
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -874,7 +874,7 @@ export default function Sources() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="url"
@@ -891,7 +891,7 @@ export default function Sources() {
                   </FormItem>
                 )}
               />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -913,7 +913,7 @@ export default function Sources() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="includeInAutoScrape"
@@ -935,7 +935,7 @@ export default function Sources() {
                   )}
                 />
               </div>
-              
+
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -972,7 +972,7 @@ export default function Sources() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
-              Cancel
+                            Cancel
             </AlertDialogCancel>
             <Button
               variant="outline"
@@ -1028,7 +1028,7 @@ export default function Sources() {
         if (!a.active && b.active) return 1;
         return 0;
       });
-    
+
     const userSources = localSources
       .filter(source => !source.isDefault)
       .sort((a, b) => {
@@ -1222,7 +1222,7 @@ export default function Sources() {
                         )}
                         <span className="hidden sm:inline ml-1">Scrape</span>
                       </Button>
-                      
+
                       <Button
                         variant="ghost"
                         size="sm"
