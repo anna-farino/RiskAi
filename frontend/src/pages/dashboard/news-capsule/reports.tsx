@@ -767,189 +767,225 @@ export default function Reports() {
                       
                       <button
                         className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-none"
-                        onClick={() => {
+                        onClick={async () => {
                           setShowExportDropdown(false);
-                          // Add print-specific styling
-                          const printStyle = document.createElement('style');
-                          printStyle.id = 'print-style';
-                      printStyle.innerHTML = `
-                            @media print {
-                              @page {
-                                size: letter;
-                                margin: 1in 0.75in 1in 0.75in;
-                              }
-                              body {
-                                font-family: Cambria, serif !important;
-                                font-size: 11pt !important;
-                                line-height: 1.15 !important;
-                                background: white !important;
-                                color: black !important;
-                                margin: 0 !important;
-                                padding: 0 !important;
-                              }
-                              
-                              /* Hide navigation and interactive elements with highest specificity */
-                              body header, body aside, body nav, 
-                              body button, body input, body select, body textarea,
-                              body .w-80.flex-shrink-0,
-                              body div.w-80.flex-shrink-0 {
-                                display: none !important;
-                                visibility: hidden !important;
-                              }
-                              
-                              /* Hide the top navigation tabs specifically */
-                              body .flex.gap-8,
-                              body .flex.gap-8 *,
-                              body a[href*="/dashboard/news-capsule"] {
-                                display: none !important;
-                                visibility: hidden !important;
-                              }
-                              
-                              /* Hide any element containing navigation text */
-                              [class*="nav"], [class*="menu"], [class*="header"],
-                              *[aria-label*="nav"], *[role="navigation"] {
-                                display: none !important;
-                                visibility: hidden !important;
-                              }
-                              
-                              /* Reset layout margins for print */
-                              body main {
-                                margin: 0 !important;
-                                padding: 0 !important;
-                              }
-                              
-                              /* Remove all layout spacing and positioning with body prefix */
-                              body .min-h-screen, body .pt-\\[88px\\], body .flex, body .p-4, body .md\\:p-6,
-                              body .space-y-6, body .space-y-8, body .mb-8, body .mt-8, body .py-4, body .px-2,
-                              body .gap-6, body .gap-2, body .gap-4, body .gap-8 {
-                                margin: 0 !important;
-                                padding: 0 !important;
-                                gap: 0 !important;
-                              }
-                              
-                              /* Force content to start at top */
-                              body * {
-                                margin-top: 0 !important;
-                                padding-top: 0 !important;
-                              }
-                              
-                              /* Only allow bottom spacing between articles */
-                              body .space-y-6 > div {
-                                margin-bottom: 0.3in !important;
-                                margin-top: 0 !important;
-                              }
-                              
-                              /* Hide the main layout flex container and make report full width */
-                              body .flex.gap-6,
-                              body div.flex.gap-6 {
-                                display: block !important;
-                              }
-                              
-                              /* Make the Executive Report content full width */
-                              body .flex-1,
-                              body div.flex-1 {
-                                width: 100% !important;
-                                max-width: 100% !important;
-                                flex: none !important;
-                                display: block !important;
-                              }
-                              
-                              body .grid.grid-cols-1,
-                              body .grid.grid-cols-2 {
-                                display: block !important;
-                                grid-template-columns: none !important;
-                              }
-                              
-                              /* Reset background and styling */
-                              body .p-5, body .backdrop-blur-sm, body .bg-slate-900\\/50, 
-                              body .border, body .rounded-xl {
-                                background: white !important;
-                                border: none !important;
-                                border-radius: 0 !important;
-                                box-shadow: none !important;
-                              }
-                              
-                              /* Format headings */
-                              body h1, body h2, body h3 {
-                                font-family: Cambria, serif !important;
-                                font-size: 12pt !important;
-                                font-weight: bold !important;
-                                margin-top: 12pt !important;
-                                margin-bottom: 6pt !important;
-                                color: black !important;
-                              }
-                              
-                              /* Format text */
-                              body p, body .text-sm {
-                                font-size: 10pt !important;
-                                line-height: 1.4 !important;
-                                color: black !important;
-                              }
-                              
-                              /* Single column layout for print - force all grids to block */
-                              body .grid, body .grid-cols-1, body .grid-cols-2 {
-                                display: block !important;
-                                grid-template-columns: none !important;
-                              }
-                              
-                              /* Remove card styling for print and ensure single column */
-                              body .space-y-6 > div, body .space-y-8 > div {
-                                border: none !important;
-                                border-radius: 0 !important;
-                                background: none !important;
-                                padding: 0 !important;
-                                margin-bottom: 0.3in !important;
-                                page-break-inside: avoid;
-                                width: 100% !important;
-                                display: block !important;
-                              }
-                              
-                              /* Ensure story content flows in single column */
-                              body .space-y-6, body .space-y-8 {
-                                display: block !important;
-                                width: 100% !important;
-                              }
-                              
-                              /* Hide interactive elements */
-                              body .group, body .absolute, body .cursor-grab, body .opacity-0, 
-                              body .hover\\:opacity-100, body .ring-2, body .ring-blue-500,
-                              body button, body textarea, body .bg-blue-600 {
-                                display: none !important;
-                                visibility: hidden !important;
-                              }
-                              
-                              /* Additional aggressive hiding for common layout elements */
-                              body [class*="sidebar"], body [class*="menu"], body [class*="nav"],
-                              body [class*="header"], body [class*="toolbar"], body [class*="dropdown"] {
-                                display: none !important;
-                                visibility: hidden !important;
-                              }
-                              
-                              /* Force single column for the main content */
-                              body > *, body > div, body main > * {
-                                width: 100% !important;
-                                max-width: 100% !important;
-                                flex: none !important;
-                              }
+                          try {
+                            // Create a new window with the report content
+                            const printWindow = window.open('', '_blank', 'width=800,height=600');
+                            if (!printWindow) {
+                              toast({
+                                variant: "destructive",
+                                title: "Print Error",
+                                description: "Could not open print window. Please check your browser's popup settings.",
+                              });
+                              return;
                             }
-                          `;
-                          document.head.appendChild(printStyle);
-                          
-                          // Change the document title for printing
-                          const originalTitle = document.title;
-                          document.title = "RisqAI News Capsule Reporting";
-                          
-                          // Print the report
-                          window.print();
-                          
-                          // Remove the print style after printing and restore title
-                          setTimeout(() => {
-                            const styleElement = document.getElementById('print-style');
-                            if (styleElement) {
-                              styleElement.remove();
+
+                            // Generate clean HTML content for printing
+                            let printContent = `
+                              <!DOCTYPE html>
+                              <html>
+                              <head>
+                                <meta charset="utf-8">
+                                <title>RisqAI News Capsule Reporting</title>
+                                <style>
+                                  @page {
+                                    size: letter;
+                                    margin: 1in;
+                                  }
+                                  
+                                  body {
+                                    font-family: Cambria, "Times New Roman", serif;
+                                    font-size: 11pt;
+                                    line-height: 1.4;
+                                    color: black;
+                                    background: white;
+                                    margin: 0;
+                                    padding: 20px;
+                                    max-width: 100%;
+                                  }
+                                  
+                                  h1 {
+                                    text-align: center;
+                                    font-size: 18pt;
+                                    font-weight: bold;
+                                    margin-bottom: 24pt;
+                                    page-break-after: avoid;
+                                  }
+                                  
+                                  h2 {
+                                    font-size: 14pt;
+                                    font-weight: bold;
+                                    margin: 18pt 0 12pt 0;
+                                    page-break-after: avoid;
+                                  }
+                                  
+                                  h3 {
+                                    font-size: 12pt;
+                                    font-weight: bold;
+                                    margin: 12pt 0 8pt 0;
+                                    page-break-after: avoid;
+                                  }
+                                  
+                                  .article {
+                                    margin-bottom: 32pt;
+                                    page-break-inside: avoid;
+                                    border-bottom: 1px solid #ccc;
+                                    padding-bottom: 16pt;
+                                  }
+                                  
+                                  .article:last-child {
+                                    border-bottom: none;
+                                  }
+                                  
+                                  .article-header {
+                                    margin-bottom: 12pt;
+                                  }
+                                  
+                                  .metadata {
+                                    display: grid;
+                                    grid-template-columns: 1fr 1fr;
+                                    gap: 8pt;
+                                    margin-bottom: 12pt;
+                                  }
+                                  
+                                  .metadata-item {
+                                    margin-bottom: 6pt;
+                                  }
+                                  
+                                  .metadata-label {
+                                    font-weight: bold;
+                                    color: #333;
+                                  }
+                                  
+                                  .section {
+                                    margin-bottom: 12pt;
+                                  }
+                                  
+                                  .section-title {
+                                    font-weight: bold;
+                                    margin-bottom: 4pt;
+                                    color: #333;
+                                  }
+                                  
+                                  .section-content {
+                                    text-align: justify;
+                                    line-height: 1.5;
+                                  }
+                                  
+                                  .executive-note {
+                                    background-color: #f5f5f5;
+                                    border-left: 4pt solid #007bff;
+                                    padding: 8pt;
+                                    margin: 8pt 0;
+                                  }
+                                  
+                                  .url {
+                                    font-size: 9pt;
+                                    color: #666;
+                                    word-break: break-all;
+                                  }
+                                  
+                                  @media print {
+                                    body {
+                                      font-size: 10pt;
+                                    }
+                                    
+                                    .article {
+                                      page-break-inside: avoid;
+                                    }
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <h1>RisqAI News Capsule Reporting</h1>
+                                <h2>Executive Report: ${formatDate(selectedReport.createdAt)}</h2>
+                            `;
+
+                            if (selectedReport.topic) {
+                              printContent += `<p><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
                             }
-                            document.title = originalTitle;
-                          }, 1000);
+
+                            selectedReport.articles.forEach((article, index) => {
+                              printContent += `
+                                <div class="article">
+                                  <div class="article-header">
+                                    <h3>Article ${index + 1}: ${article.title}</h3>
+                                  </div>
+                                  
+                                  <div class="metadata">
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Threat Name:</span> ${article.threatName}
+                                    </div>
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Vulnerability ID:</span> ${article.vulnerabilityId}
+                                    </div>
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Target OS:</span> ${article.targetOS}
+                                    </div>
+                                    <div class="metadata-item">
+                                      <span class="metadata-label">Source:</span> ${article.sourcePublication}
+                                    </div>
+                                  </div>
+                                  
+                                  <div class="section">
+                                    <div class="section-title">Summary:</div>
+                                    <div class="section-content">${article.summary}</div>
+                                  </div>
+                                  
+                                  <div class="section">
+                                    <div class="section-title">Impacts:</div>
+                                    <div class="section-content">${article.impacts}</div>
+                                  </div>
+                                  
+                                  <div class="section">
+                                    <div class="section-title">Attack Vector:</div>
+                                    <div class="section-content">${article.attackVector}</div>
+                                  </div>
+                              `;
+
+                              if (executiveNotes[article.id]) {
+                                printContent += `
+                                  <div class="section">
+                                    <div class="section-title">Executive Note:</div>
+                                    <div class="executive-note">${executiveNotes[article.id]}</div>
+                                  </div>
+                                `;
+                              }
+
+                              printContent += `
+                                  <div class="section">
+                                    <div class="section-title">Source URL:</div>
+                                    <div class="url">${article.originalUrl}</div>
+                                  </div>
+                                </div>
+                              `;
+                            });
+
+                            printContent += `
+                              </body>
+                              </html>
+                            `;
+
+                            // Write content to new window and print
+                            printWindow.document.write(printContent);
+                            printWindow.document.close();
+                            
+                            // Wait for content to load then print
+                            printWindow.onload = () => {
+                              setTimeout(() => {
+                                printWindow.print();
+                                printWindow.close();
+                              }, 500);
+                            };
+                            
+                          } catch (error) {
+                            toast({
+                              variant: "destructive",
+                              title: "Print Error",
+                              description: "Error generating print preview. Please try again.",
+                            });
+                          }
                         }}
                       >
                         Print
