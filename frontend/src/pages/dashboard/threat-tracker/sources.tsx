@@ -482,55 +482,62 @@ export default function Sources() {
     mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
-    onMutate: async (newSettings) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+    onMutate: async ({ enabled, interval }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ 
+        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] 
       });
 
-      // Snapshot previous value
-      const previousSettings = queryClient.getQueryData([
-        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
+      // Snapshot the previous value for potential rollback
+      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([
+        `${serverUrl}/api/threat-tracker/settings/auto-scrape`
       ]);
 
-      // Optimistically update to new value
-      queryClient.setQueryData(
+      // Optimistically update the cache with new settings
+      queryClient.setQueryData<AutoScrapeSettings>(
         [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
-        newSettings
+        { enabled, interval }
       );
 
       // Update local state for immediate UI feedback
-      setLocalAutoScrapeEnabled(newSettings.enabled);
+      setLocalAutoScrapeEnabled(enabled);
 
       return { previousSettings };
     },
-    onSuccess: (data) => {
+    onError: (err, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousSettings) {
+        queryClient.setQueryData<AutoScrapeSettings>(
+          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+          context.previousSettings
+        );
+        setLocalAutoScrapeEnabled(
+          context.previousSettings?.enabled || false
+        );
+      }
+
+      console.error("Error updating auto-scrape settings:", err);
+      toast({
+        title: "Failed to update auto-scrape settings",
+        description: "There was an error updating the settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data, variables) => {
+      // Update cache with actual server response
+      queryClient.setQueryData<AutoScrapeSettings>(
+        [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        data
+      );
+
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
           ? `Auto-scrape has been enabled with ${data.interval.toLowerCase()} frequency.`
           : "Auto-scrape has been disabled.",
       });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
-    },
-    onError: (error, _, context) => {
-      // Rollback optimistic update
-      if (context?.previousSettings) {
-        queryClient.setQueryData(
-          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
-          context.previousSettings
-        );
-        setLocalAutoScrapeEnabled(
-          (context.previousSettings as AutoScrapeSettings)?.enabled || false
-        );
-      }
 
-      console.error("Error updating auto-scrape settings:", error);
-      toast({
-        title: "Error updating settings",
-        description: "There was an error updating auto-scrape settings. Please try again.",
-        variant: "destructive",
-      });
+      // Don't invalidate queries - rely on optimistic updates for better UX
     },
   });
 
@@ -736,6 +743,9 @@ export default function Sources() {
                     : "Enable to automatically scrape sources for new threats"}
                 </p>
               </div>
+              {updateAutoScrapeSettings.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
+              )}
             </div>
             
             <div className="flex gap-2">
@@ -745,6 +755,7 @@ export default function Sources() {
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.HOURLY)}
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
               >
+                {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Hourly
               </Button>
               <Button
@@ -754,6 +765,7 @@ export default function Sources() {
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
                 className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               >
+                {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Daily
               </Button>
               <Button
@@ -762,6 +774,7 @@ export default function Sources() {
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.WEEKLY)}
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
               >
+                {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Weekly
               </Button>
             </div>
