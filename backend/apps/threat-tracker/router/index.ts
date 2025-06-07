@@ -2,9 +2,7 @@ import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
-import { analyzeContent, detectHtmlStructure } from "../services/openai";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -351,7 +349,8 @@ threatRouter.delete("/articles", async (req, res) => {
       return res.status(500).json({ error: "Failed to delete all articles" });
     }
     
-    res.status(204).send();
+    console.log("Articles deleted!")
+    res.json({ message: "Articles deleted successfully "});
   } catch (error: any) {
     console.error("Error deleting all articles:", error);
     res.status(500).json({ error: error.message || "Failed to delete all articles" });
