@@ -856,28 +856,46 @@ export default function Sources() {
       }
     },
     onMutate: async ({ enabled, interval }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
+      
+      // Snapshot the previous value for potential rollback
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
       
+      // Optimistically update the cache with new settings
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], {
         enabled,
-        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
+        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY),
+        lastRun: previousSettings?.lastRun,
+        nextRun: previousSettings?.nextRun
       });
       
       return { previousSettings };
     },
     onError: (err, variables, context) => {
-      queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], context?.previousSettings);
+      // Rollback optimistic update on error
+      if (context?.previousSettings) {
+        queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], context.previousSettings);
+      }
+      
       toast({
-        title: "Failed to update settings",
+        title: "Failed to update auto-scrape settings",
+        description: "There was an error updating the settings. Please try again.",
         variant: "destructive"
       });
     },
-    onSuccess: () => {
-      // Don't invalidate - rely on optimistic updates
+    onSuccess: (data, variables) => {
+      // Update cache with actual server response
+      queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], data);
+      
       toast({
-        title: "Auto-scrape schedule updated",
+        title: "Auto-scrape settings updated",
+        description: data.enabled 
+          ? `Auto-scrape has been enabled with ${intervalLabels[data.interval]} frequency.`
+          : "Auto-scrape has been disabled.",
       });
+      
+      // Close the settings popover
       setIsSettingsOpen(false);
     },
   });
@@ -1045,11 +1063,14 @@ export default function Sources() {
                         });
                       }}
                     />
+                    {updateAutoScrapeSettings.isPending && (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="schedule-select" className="text-slate-300">Schedule Frequency</Label>
                     <Select
-                      disabled={!autoScrapeSettings.data?.enabled}
+                      disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
                       value={(autoScrapeSettings.data?.interval || JobInterval.DAILY).toString()}
                       onValueChange={(value) => {
                         updateAutoScrapeSettings.mutate({
@@ -1060,6 +1081,9 @@ export default function Sources() {
                     >
                       <SelectTrigger id="schedule-select" className="bg-slate-800/70 border-slate-700 text-white">
                         <SelectValue placeholder="Select frequency" />
+                        {updateAutoScrapeSettings.isPending && (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary ml-1" />
+                        )}
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
                         {Object.entries(intervalLabels).map(([value, label]) => (
