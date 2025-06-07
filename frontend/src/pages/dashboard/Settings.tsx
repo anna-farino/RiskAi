@@ -123,6 +123,7 @@ export default function Settings() {
               </div>
               <Switch
                 id="two-factor-authentication"
+                disabled={twoFAmutation.isPending}
                 checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
                 onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
               />
