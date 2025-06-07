@@ -20,6 +20,8 @@ import {
   X,
   Plus,
   Check,
+  FileText,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,8 @@ export default function ThreatHome() {
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  // Track last visit timestamp for "new" badge functionality
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -148,6 +152,16 @@ export default function ThreatHome() {
       }
     },
   });
+
+  // Initialize last visit timestamp from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('threat-tracker-last-visit');
+    setLastVisitTimestamp(stored);
+    
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('threat-tracker-last-visit', currentTime);
+  }, []);
 
   // Sync local state with query data when it changes
   useEffect(() => {
@@ -452,13 +466,54 @@ export default function ThreatHome() {
     setSelectedKeywordIds((prev) => prev.filter((id) => id !== keywordId));
   };
 
+  // Calculate new articles count
+  const newArticlesCount = useMemo(() => {
+    if (!lastVisitTimestamp || !localArticles.length) return 0;
+    
+    const lastVisit = new Date(lastVisitTimestamp);
+    return localArticles.filter(article => {
+      if (!article.scrapeDate) return false;
+      const scrapeDate = new Date(article.scrapeDate);
+      return scrapeDate > lastVisit;
+    }).length;
+  }, [lastVisitTimestamp, localArticles]);
+
+  // Function to check if an article is new
+  const isArticleNew = (article: ThreatArticle): boolean => {
+    if (!lastVisitTimestamp || !article.scrapeDate) return false;
+    const lastVisit = new Date(lastVisitTimestamp);
+    const scrapeDate = new Date(article.scrapeDate);
+    return scrapeDate > lastVisit;
+  };
+
   return (
     <>
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
         <div className="flex flex-col gap-3">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-            Threat Tracker
-          </h1>
+          <div className="flex items-center gap-4 flex-wrap">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
+              Threat Tracker
+            </h1>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2 border border-slate-700/30">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-medium text-slate-300">
+                  {localArticles.length} {localArticles.length === 1 ? 'article' : 'articles'}
+                </span>
+              </div>
+              {newArticlesCount > 0 && (
+                <div className="flex items-center gap-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg px-3 py-2 border border-[#BF00FF]/30">
+                  <Star className="h-4 w-4 text-[#00FFFF]" />
+                  <span className="text-sm font-medium text-[#00FFFF]">
+                    {newArticlesCount} new
+                  </span>
+                  <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-0">
+                    NEW
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </div>
           <p className="text-lg text-slate-300 max-w-3xl">
             Monitor cybersecurity threats affecting your vendors, clients, and
             hardware/software to stay ahead of potential vulnerabilities.
@@ -661,25 +716,33 @@ export default function ThreatHome() {
           ) : localArticles.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {localArticles.map((article) => (
-                <ThreatArticleCard
-                  key={article.id}
-                  article={article}
-                  isPending={pendingItems.has(article.id)}
-                  onDelete={() => handleDeleteArticle(article.id)}
-                  onKeywordClick={(keyword, category) => {
-                    // Add the keyword to the filter
-                    const keywordObj = keywords.data?.find(
-                      (k) => k.term === keyword && k.category === category,
-                    );
-                    if (
-                      keywordObj &&
-                      !selectedKeywordIds.includes(keywordObj.id)
-                    ) {
-                      setSelectedKeywordIds((prev) => [...prev, keywordObj.id]);
-                    }
-                  }}
-                  onSendToCapsule={sendToCapsule}
-                />
+                <div key={article.id} className="relative">
+                  {isArticleNew(article) && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
+                        NEW
+                      </Badge>
+                    </div>
+                  )}
+                  <ThreatArticleCard
+                    article={article}
+                    isPending={pendingItems.has(article.id)}
+                    onDelete={() => handleDeleteArticle(article.id)}
+                    onKeywordClick={(keyword, category) => {
+                      // Add the keyword to the filter
+                      const keywordObj = keywords.data?.find(
+                        (k) => k.term === keyword && k.category === category,
+                      );
+                      if (
+                        keywordObj &&
+                        !selectedKeywordIds.includes(keywordObj.id)
+                      ) {
+                        setSelectedKeywordIds((prev) => [...prev, keywordObj.id]);
+                      }
+                    }}
+                    onSendToCapsule={sendToCapsule}
+                  />
+                </div>
               ))}
             </div>
           ) : (
