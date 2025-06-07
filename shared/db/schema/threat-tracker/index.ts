@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, jsonb, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, jsonb, uuid, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "../user";
@@ -49,10 +49,13 @@ export const threatArticles = pgTable("threat_articles", {
 // Additional settings for the Threat Tracker
 export const threatSettings = pgTable("threat_settings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  key: text("key").notNull().unique(),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   userId: uuid("user_id").references(() => users.id),
-});
+}, (table) => ({
+  // Composite unique constraint: same key can exist for different users
+  uniqueKeyUser: unique().on(table.key, table.userId),
+}));
 
 // Type for a threat source record
 export type ThreatSource = typeof threatSources.$inferSelect;
