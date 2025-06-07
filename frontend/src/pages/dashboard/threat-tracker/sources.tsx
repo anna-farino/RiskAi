@@ -193,6 +193,13 @@ export default function Sources() {
     }
   });
 
+  // Sync local auto-scrape state with query data
+  useEffect(() => {
+    if (autoScrapeSettings.data && localAutoScrapeEnabled === null) {
+      setLocalAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+    }
+  }, [autoScrapeSettings.data, localAutoScrapeEnabled]);
+
   // Check scrape job status
   const checkScrapeStatus = useQuery<{ running: boolean }>({
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
@@ -530,6 +537,9 @@ export default function Sources() {
         data
       );
 
+      // Reset local state to sync with server response
+      setLocalAutoScrapeEnabled(data.enabled);
+
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
@@ -726,7 +736,7 @@ export default function Sources() {
             <div className="flex items-center gap-2">
               <Switch
                 id="auto-scrape"
-                checked={autoScrapeSettings.data?.enabled || false}
+                checked={localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)}
                 onCheckedChange={handleToggleAutoScrape}
                 disabled={updateAutoScrapeSettings.isPending}
               />
@@ -735,10 +745,10 @@ export default function Sources() {
                   htmlFor="auto-scrape"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  {autoScrapeSettings.data?.enabled ? 'Enabled' : 'Disabled'}
+                  {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)) ? 'Enabled' : 'Disabled'}
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  {autoScrapeSettings.data?.enabled
+                  {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
                     ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
                     : "Enable to automatically scrape sources for new threats"}
                 </p>
