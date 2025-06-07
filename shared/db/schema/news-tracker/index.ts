@@ -38,7 +38,7 @@ export const articles = pgTable("articles", {
 
 export const settings = pgTable("settings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  key: text("key").notNull().unique(),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
   userId: uuid("user_id").references(() => users.id),
