@@ -1,7 +1,6 @@
 {
-
-  "id": "e7802767-3bd7-4179-b2e4-9d16dc3be204",
-  "prevId": "74c474b1-fbcd-41ed-9efc-7f3f732fd5cc",
+  "id": "0ee1e874-493b-4f43-97d4-d90cf844dcb3",
+  "prevId": "e7802767-3bd7-4179-b2e4-9d16dc3be204",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -343,15 +342,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "settings_key_unique": {
-          "name": "settings_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1109,19 +1100,7 @@
         }
       },
       "compositePrimaryKeys": {},
-<<<<<<< HEAD
-      "uniqueConstraints": {
-        "threat_settings_key_unique": {
-          "name": "threat_settings_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
-        }
-      },
-=======
       "uniqueConstraints": {},
->>>>>>> origin/dev
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
