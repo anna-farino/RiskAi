@@ -179,12 +179,6 @@ export function ThreatArticleCard({
               >
                 {article.title}
               </a>
-              {/* Article counter */}
-              {articleIndex !== undefined && totalArticles !== undefined && (
-                <div className="text-xs text-slate-500 mt-1">
-                  {articleIndex + 1} of {totalArticles}
-                </div>
-              )}
             </div>
 
             {/* Threat severity score badge */}
@@ -420,17 +414,14 @@ export function ThreatArticleCard({
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:text-primary/80 underline underline-offset-2 flex-shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              View Source
-            </a>
+            {/* Article counter */}
+            {articleIndex !== undefined && totalArticles !== undefined && (
+              <div className="text-xs text-slate-400 flex-shrink-0">
+                Article {articleIndex + 1} of {totalArticles}
+              </div>
+            )}
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0"></div>
               {onSendToCapsule && (
                 <Button
                   variant="ghost"
