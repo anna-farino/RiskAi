@@ -60,6 +60,7 @@ export interface IStorage {
 
   // Articles
   getArticle(id: string, userId?: string): Promise<ThreatArticle | undefined>;
+  getArticleByUrl(url: string, userId: string): Promise<ThreatArticle | undefined>;
   getArticles(options?: {
     search?: string;
     keywordIds?: string[];
@@ -562,6 +563,24 @@ export const storage: IStorage = {
       return results[0];
     } catch (error) {
       console.error("Error fetching threat article:", error);
+      return undefined;
+    }
+  },
+
+  getArticleByUrl: async (url: string, userId: string) => {
+    try {
+      const results = await db
+        .select()
+        .from(threatArticles)
+        .where(and(
+          eq(threatArticles.url, url),
+          eq(threatArticles.userId, userId)
+        ))
+        .limit(1)
+        .execute();
+      return results[0];
+    } catch (error) {
+      console.error("Error fetching threat article by URL:", error);
       return undefined;
     }
   },
