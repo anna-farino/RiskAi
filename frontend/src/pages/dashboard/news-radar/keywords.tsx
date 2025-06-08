@@ -340,14 +340,14 @@ export default function Keywords() {
 
   return (
     <>
-      <div className="flex flex-col gap-5 mb-8">
+      <div className="flex flex-col gap-5 mb-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-4xl font-bold tracking-tight text-white">Keywords</h1>
           <p className="text-slate-300">Manage keywords to categorize and filter article content</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className=" grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <h2 className="text-lg font-medium text-white mb-2">Add Keyword</h2>
@@ -441,9 +441,10 @@ export default function Keywords() {
       </div>
 
       <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-row gap-x-4 items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-medium text-white">Keyword List</h2>
+            <h2 className="hidden sm:block text-lg font-medium text-white">Keyword List</h2>
+            <h2 className="sm:hidden text-lg font-medium text-white">Keywords</h2>
             <div className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
               {keywords.data?.length || 0}
             </div>
@@ -455,7 +456,7 @@ export default function Keywords() {
             </div>
             <Input 
               placeholder="Filter keywords..."
-              className="pl-9 h-9 w-[200px] bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+              className="pl-9 h-9 w-full max-w-[200px] bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
             />
           </div>
         </div>
