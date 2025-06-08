@@ -882,12 +882,12 @@ export default function Keywords() {
   }
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 px-4 sm:px-6 max-w-full">
+    <div className="flex flex-col gap-4 sm:gap-6 sm:px-6 max-w-full">
       <div className="flex flex-col gap-2">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
+        <h1 className="text-4xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
           Keywords
         </h1>
-        <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+        <p className="text-muted-foreground sm:text-base leading-relaxed">
           Manage keywords used for threat monitoring and cross-referencing.
         </p>
       </div>
