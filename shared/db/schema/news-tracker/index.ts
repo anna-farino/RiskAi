@@ -81,7 +81,9 @@ export type Source = typeof sources.$inferSelect;
 export type InsertSource = z.infer<typeof insertSourceSchema>;
 export type Keyword = typeof keywords.$inferSelect;
 export type InsertKeyword = z.infer<typeof insertKeywordSchema>;
-export type Article = typeof articles.$inferSelect;
+export type Article = typeof articles.$inferSelect & {
+  sourceName?: string;
+};
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
