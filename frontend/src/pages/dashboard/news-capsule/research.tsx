@@ -589,7 +589,7 @@ export default function Research() {
                     disabled={isLoading}
                     className="flex-1 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
                   >
-                    {isLoading ? "Processing..." : "Process"}
+                    {isLoading ? "Processing..." : "Process URL's"}
                   </button>
                 </div>
               </div>
