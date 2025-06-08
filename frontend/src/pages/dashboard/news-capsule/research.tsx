@@ -636,8 +636,8 @@ export default function Research() {
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
-                      <span className="text-xs text-slate-400 ml-3 whitespace-nowrap">
-                        Sent from News Capsule
+                      <span className="text-xs text-slate-400 ml-3 px-2 py-1 border border-slate-600 rounded whitespace-nowrap">
+                        News Capsule
                       </span>
                     </div>
                     
