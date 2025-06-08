@@ -87,7 +87,7 @@ export default function Sources() {
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   const [sourcesBeingScraped, setSourcesBeingScraped] = useState<string[]>([]);
   const [scrapesBeingStopped, setScrapesBeingStopped] = useState<string[]>([]);
-  
+
   // Local state for optimistic UI updates
   const [localSources, setLocalSources] = useState<Source[]>([]);
   // Track pending operations for visual feedback
@@ -95,7 +95,7 @@ export default function Sources() {
   // Local state for optimistic auto-scrape toggle
   const [optimisticAutoScrapeEnabled, setOptimisticAutoScrapeEnabled] = useState<boolean | null>(null);
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] = useState<JobInterval | null>(null);
-  
+
   // Get job status
   const autoScrapeStatus = useQuery({
     queryKey: ["/api/news-tracker/jobs/status"],
@@ -118,7 +118,7 @@ export default function Sources() {
     // Add initial data to prevent undefined state
     initialData: { running: false }
   });
-  
+
   const form = useForm({
     resolver: zodResolver(insertSourceSchema),
     defaultValues: {
@@ -148,7 +148,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch sources')
-        
+
         const data = await response.json()
         return data || []
       } catch(error) {
@@ -157,7 +157,7 @@ export default function Sources() {
       }
     }
   });
-  
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (sources.data) {
@@ -168,7 +168,7 @@ export default function Sources() {
       setLocalSources(sortedSources);
     }
   }, [sources.data]);
-  
+
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
     queryKey: ["/api/news-tracker/settings/auto-scrape"],
@@ -182,7 +182,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
-        
+
         const data = await response.json()
         return data || { enabled: false, interval: JobInterval.DAILY }
       } catch(error) {
@@ -209,11 +209,11 @@ export default function Sources() {
           body: JSON.stringify(data),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to add source: ${response.statusText}`);
         }
-        
+
         // Parse JSON response
         const responseData = await response.json();
         return responseData;
@@ -235,14 +235,14 @@ export default function Sources() {
         lastScraped: null,
         userId: null
       } as Source;
-      
+
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous states for potential rollback
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Update local state immediately for UI feedback with alphabetical sorting
       setLocalSources(prev => {
         const newSources = [tempSource, ...prev];
@@ -250,15 +250,15 @@ export default function Sources() {
           a.name.toLowerCase().localeCompare(b.name.toLowerCase())
         );
       });
-      
+
       // Add to pendingItems to show loading indicators
       setPendingItems(prev => new Set(prev).add(tempId));
-      
+
       // Update React Query cache 
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         [tempSource, ...oldData]
       );
-      
+
       return { previousSources, previousLocalSources, tempId };
     },
     onError: (err, newSource, context) => {
@@ -266,7 +266,7 @@ export default function Sources() {
         // Revert both local state and React Query cache
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData(["/api/news-tracker/sources"], context.previousSources);
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -274,7 +274,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       toast({
         title: "Error adding source",
         description: "Failed to add source. Please try again.",
@@ -292,7 +292,7 @@ export default function Sources() {
             a.name.toLowerCase().localeCompare(b.name.toLowerCase())
           );
         });
-        
+
         // Update React Query cache with server data
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], prev => 
           prev?.map(source => 
@@ -300,7 +300,7 @@ export default function Sources() {
           ) || []
         );
         sources.refetch()
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -308,7 +308,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       form.reset();
       toast({
         title: "Source added successfully",
@@ -324,11 +324,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to scrape source: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -349,10 +349,10 @@ export default function Sources() {
       }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      
+
       // Optimistically update the source
       // We can't easily update the status directly as it may be part of scrapingConfig
       // But we can set a temporary visual indication by updating another property
@@ -363,7 +363,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources };
     },
     onError: (err, id, context) => {
@@ -396,11 +396,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to stop scraping: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -420,10 +420,10 @@ export default function Sources() {
       }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous value
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      
+
       // Optimistically update the source
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -432,7 +432,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources };
     },
     onError: (err, id, context) => {
@@ -457,7 +457,7 @@ export default function Sources() {
       setScrapesBeingStopped(prev => prev.filter(sourceId => sourceId != id))
     }
   });
-  
+
   // Toggle auto-scrape inclusion for a source
   const toggleAutoScrape = useMutation({
     mutationFn: async ({ id, include }: { id: string, include: boolean }) => {
@@ -471,11 +471,11 @@ export default function Sources() {
           body: JSON.stringify({ includeInAutoScrape: include }),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to update auto-scrape setting: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -492,14 +492,14 @@ export default function Sources() {
     onMutate: async ({ id, include }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Get snapshot of current data
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Add to pendingItems to show loading indicator
       setPendingItems(prev => new Set(prev).add(id));
-      
+
       // Optimistically update local state for UI feedback
       setLocalSources(prev => 
         prev.map(source => 
@@ -508,7 +508,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       // Optimistically update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (old = []) => 
         old.map(source => 
@@ -517,7 +517,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources, previousLocalSources, id };
     },
     onError: (err, variables, context) => {
@@ -525,7 +525,7 @@ export default function Sources() {
         // Revert both local state and React Query cache on error
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -533,7 +533,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       toast({
         title: "Failed to update auto-scrape setting",
         variant: "destructive",
@@ -546,14 +546,14 @@ export default function Sources() {
         updated.delete(variables.id);
         return updated;
       });
-      
+
       // Don't refetch - the optimistic update already handled the UI change
       toast({
         title: "Auto-scrape settings updated",
       });
     },
   });
-  
+
   // Edit a source
   const editSource = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditSourceFormValues }) => {
@@ -567,11 +567,11 @@ export default function Sources() {
           body: JSON.stringify(data),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to update source: ${response.statusText}`);
         }
-        
+
         const responseData = await response.json();
         return responseData;
       } catch (error) {
@@ -582,11 +582,11 @@ export default function Sources() {
     onMutate: async ({ id, data }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Optimistically update the local state and maintain alphabetical order
       setLocalSources(prev => {
         const updatedSources = prev.map(source => 
@@ -598,7 +598,7 @@ export default function Sources() {
           a.name.toLowerCase().localeCompare(b.name.toLowerCase())
         );
       });
-      
+
       // Update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -607,7 +607,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources, previousLocalSources, id };
     },
     onError: (error: Error, variables, context) => {
@@ -616,7 +616,7 @@ export default function Sources() {
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
       }
-      
+
       toast({
         title: "Error updating source",
         description: error.message || "Failed to update source. Please try again.",
@@ -627,7 +627,7 @@ export default function Sources() {
       toast({
         title: "Source updated successfully",
       });
-      
+
       setEditDialogOpen(false);
       setEditingSource(null);
       editForm.reset();
@@ -644,11 +644,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to delete source: ${response.statusText}`);
         }
-        
+
         // Don't try to parse JSON - some DELETE endpoints return empty responses
         return { success: true, id };
       } catch (error) {
@@ -659,22 +659,22 @@ export default function Sources() {
     onMutate: async (id) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
       const previousLocalSources = [...localSources];
-      
+
       // Add to pendingItems to show loading indicator
       setPendingItems(prev => new Set(prev).add(id));
-      
+
       // Optimistically update the local state for immediate UI feedback
       setLocalSources(prev => prev.filter(source => source.id !== id));
-      
+
       // Update React Query cache optimistically
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.filter(source => source.id !== id)
       );
-      
+
       return { previousSources, previousLocalSources, id };
     },
     onError: (error: Error, id, context) => {
@@ -682,7 +682,7 @@ export default function Sources() {
         // If the mutation fails, restore both local state and React Query cache
         setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
+
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -690,7 +690,7 @@ export default function Sources() {
           return updated;
         });
       }
-      
+
       toast({
         title: "Error deleting source",
         description: error.message || "Failed to delete source. Please try again.",
@@ -704,19 +704,19 @@ export default function Sources() {
         updated.delete(id);
         return updated;
       });
-      
+
       // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Source deleted successfully",
       });
       sources.refetch()
-      
+
       // Close the delete dialog
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
     },
   });
-  
+
   // Run global scrape job manually
   // Add the stop global scrape mutation
   const stopGlobalScrape = useMutation({
@@ -724,7 +724,7 @@ export default function Sources() {
       try {
         // Add a debugging log before making the request
         console.log("Attempting to stop global scrape job...");
-        
+
         const response = await fetch(`${serverUrl}/api/news-tracker/jobs/stop`, {
           method: "POST",
           headers: {
@@ -733,15 +733,15 @@ export default function Sources() {
           },
           credentials: "include"
         });
-        
+
         console.log("Stop request response status:", response.status);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Error response:", errorText);
           throw new Error(`Failed to stop global scrape: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -783,11 +783,11 @@ export default function Sources() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to start global scrape: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -804,10 +804,10 @@ export default function Sources() {
     onMutate: async () => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
+
       // Snapshot the previous state
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      
+
       // Optimistically update all eligible sources
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -816,7 +816,7 @@ export default function Sources() {
             : source
         )
       );
-      
+
       return { previousSources };
     },
     onError: (err, variables, context) => {
@@ -854,7 +854,7 @@ export default function Sources() {
       }, 5000);
     },
   });
-  
+
   // Update auto-scrape settings
   const updateAutoScrapeSettings = useMutation({
     mutationFn: async ({ enabled, interval }: { enabled: boolean, interval: JobInterval }) => {
@@ -868,11 +868,11 @@ export default function Sources() {
           body: JSON.stringify({ enabled, interval }),
           credentials: "include"
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to update auto-scrape settings: ${response.statusText}`);
         }
-        
+
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
@@ -890,15 +890,15 @@ export default function Sources() {
       // Set optimistic local state for immediate UI feedback
       setOptimisticAutoScrapeEnabled(enabled);
       setOptimisticAutoScrapeInterval(interval);
-      
+
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
-      
+
       // Snapshot the previous values for potential rollback
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
       const previousOptimisticEnabledState = optimisticAutoScrapeEnabled;
       const previousOptimisticIntervalState = optimisticAutoScrapeInterval;
-      
+
       // Optimistically update the cache with new settings
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], {
         enabled,
@@ -906,7 +906,7 @@ export default function Sources() {
         lastRun: previousSettings?.lastRun,
         nextRun: previousSettings?.nextRun
       });
-      
+
       return { previousSettings, previousOptimisticEnabledState, previousOptimisticIntervalState };
     },
     onError: (err, variables, context) => {
@@ -916,28 +916,27 @@ export default function Sources() {
       }
       setOptimisticAutoScrapeEnabled(context?.previousOptimisticEnabledState ?? null);
       setOptimisticAutoScrapeInterval(context?.previousOptimisticIntervalState ?? null);
-      
+
       toast({
         title: "Failed to update auto-scrape settings",
         description: "There was an error updating the settings. Please try again.",
         variant: "destructive"
       });
     },
-    onSuccess: (data, variables) => {
-      // Clear optimistic state since we have real data now
+    onSuccess: (data, variables) => {      // Clear optimistic state since we have real data now
       setOptimisticAutoScrapeEnabled(null);
       setOptimisticAutoScrapeInterval(null);
-      
+
       // Update cache with actual server response
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], data);
-      
+
       toast({
-        title: "Auto-scrape settings updated",
+        title: "Automatic updates settings updated",
         description: data.enabled 
           ? `Auto-scrape has been enabled with ${intervalLabels[data.interval as JobInterval]} frequency.`
           : "Auto-scrape has been disabled.",
       });
-      
+
       // Close the settings popover
       setIsSettingsOpen(false);
     },
@@ -958,13 +957,13 @@ export default function Sources() {
       });
       return;
     }
-    
+
     addSource.mutate(data);
   });
 
   const onEditSubmit = editForm.handleSubmit((data) => {
     if (!editingSource) return;
-    
+
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
       toast({
@@ -974,7 +973,7 @@ export default function Sources() {
       });
       return;
     }
-    
+
     editSource.mutate({ id: editingSource.id, data });
   });
 
@@ -1085,16 +1084,16 @@ export default function Sources() {
             <p className="text-xs sm:text-sm lg:text-base text-slate-300">Manage news sources and control web scraping operations</p>
           </div>
         </div>
-        
+
         {/* Auto-scrape configuration card */}
         <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
           <CardHeader>
             <CardTitle className="flex items-center text-white">
               <Clock className="mr-2 h-5 w-5" />
-              Auto-Scrape Configuration
+              Automatic News Updates
             </CardTitle>
             <CardDescription className="text-slate-300">
-              Configure automatic scraping of news sources to stay updated on the latest information
+              Configure automatic news collection from your sources to stay updated on the latest information
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1218,7 +1217,7 @@ export default function Sources() {
             <div className="flex items-center justify-between mb-1 sm:mb-2">
               <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">Add News Source</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
               <div>
                 <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">Source Name *</label>
@@ -1285,7 +1284,7 @@ export default function Sources() {
               </li>
             </ul>
           </div>
-          
+
           <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-700/50">
             <div className="flex items-center gap-1 sm:gap-2">
               <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 rounded-full bg-primary/20 flex items-center justify-center">
@@ -1408,7 +1407,7 @@ export default function Sources() {
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
-                          title="Scrape source"
+                          title="Check for updates"
                         >
                           {scrapeSource.isPending && sourcesBeingScraped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1422,7 +1421,7 @@ export default function Sources() {
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
-                          title="Stop scraping"
+                          title="Stop checking"
                         >
                           {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1448,7 +1447,7 @@ export default function Sources() {
                           )}
                         </Button>
                       </div>
-                      
+
                       {/* Large Desktop Layout - Horizontal */}
                       <div className="hidden lg:flex flex-row justify-end items-center gap-2">
                         <Button
@@ -1466,7 +1465,7 @@ export default function Sources() {
                           onClick={() => scrapeSource.mutate(source.id)}
                           disabled={scrapeSource.isPending && sourcesBeingScraped.includes(source.id)}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
-                          title="Scrape source"
+                          title="Check for updates"
                         >
                           {scrapeSource.isPending && sourcesBeingScraped.includes(source.id) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1480,7 +1479,7 @@ export default function Sources() {
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
-                          title="Stop scraping"
+                          title="Stop checking"
                         >
                           {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
