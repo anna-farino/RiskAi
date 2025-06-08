@@ -46,7 +46,7 @@ interface ArticleSummary {
 
 
 interface ReportWithArticles extends Report {
-  articles: Array<CapsuleArticle>;
+  articles: CapsuleArticle[];
 }
 
 // Store recent user-entered URLs (up to 5) - in memory only
@@ -85,8 +85,8 @@ export default function Research() {
   const { toast } = useToast();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedArticles, setSelectedArticles] = useState<Array<CapsuleArticle>>([]);
-  const [savedUrls, setSavedUrls] = useState<Array<string>>([]);
+  const [selectedArticles, setSelectedArticles] = useState<CapsuleArticle[]>([]);
+  const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   const [bulkMode, setBulkMode] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,7 +108,7 @@ export default function Research() {
   
   // State for add to existing report dialog
   const [showAddToExistingDialog, setShowAddToExistingDialog] = useState(false);
-  const [todaysReports, setTodaysReports] = useState<Array<ReportWithArticles>>([]);
+  const [todaysReports, setTodaysReports] = useState<ReportWithArticles[]>([]);
   
   // State for delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -130,7 +130,7 @@ export default function Research() {
   }, []);
 
   // Fetch articles from database
-  const { data: processedArticles = [], isLoading: articlesLoading, refetch: refetchArticles } = useQuery<Array<CapsuleArticle>>({
+  const { data: processedArticles = [], isLoading: articlesLoading, refetch: refetchArticles } = useQuery<CapsuleArticle[]>({
     queryKey: ["/api/news-capsule/articles"],
     queryFn: async () => {
       const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
@@ -146,7 +146,7 @@ export default function Research() {
   });
 
   // Fetch reports to check if any exist for today
-  const { data: allReports = [] } = useQuery<Array<ReportWithArticles>>({
+  const { data: allReports = [] } = useQuery<ReportWithArticles[]>({
     queryKey: ["/api/news-capsule/reports"],
     queryFn: async () => {
       const response = await fetch(`${serverUrl}/api/news-capsule/reports`, {
@@ -462,7 +462,7 @@ export default function Research() {
     },
     onError: (error, articleId) => {
       // Revert optimistic update on error
-      queryClient.setQueryData(["/api/news-capsule/articles"], (oldData: Array<CapsuleArticle> | undefined) => {
+      queryClient.setQueryData(["/api/news-capsule/articles"], (oldData: CapsuleArticle[] | undefined) => {
         if (!oldData || !articleToDelete) return oldData;
         // Add the article back to the list
         return [...oldData, articleToDelete];
@@ -485,7 +485,7 @@ export default function Research() {
     if (!articleToDelete) return;
     
     // Perform optimistic update - remove article from list immediately
-    queryClient.setQueryData(["/api/news-capsule/articles"], (oldData: Array<CapsuleArticle> | undefined) => {
+    queryClient.setQueryData(["/api/news-capsule/articles"], (oldData: CapsuleArticle[] | undefined) => {
       if (!oldData) return oldData;
       return oldData.filter(article => article.id !== articleToDelete.id);
     });
