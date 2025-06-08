@@ -221,9 +221,20 @@ export async function identifyArticleLinks(
       "openai",
     );
 
-    // Debug log: Print the structured HTML being sent to OpenAI
+    // Truncate input if it's too large to prevent JSON parsing errors
+    const maxInputLength = 50000; // Limit to 50k characters to prevent truncation
+    let truncatedLinksText = linksText;
+    if (linksText.length > maxInputLength) {
+      log(
+        `[ThreatTracker] Input too large (${linksText.length} chars), truncating to ${maxInputLength} chars`,
+        "openai",
+      );
+      truncatedLinksText = linksText.substring(0, maxInputLength) + "\n... [truncated for size]";
+    }
+
+    // Debug log: Print the structured HTML being sent to OpenAI (truncated for debug)
     log(
-      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis:\n${linksText}`,
+      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis (${truncatedLinksText.length} chars)`,
       "openai-debug",
     );
 
@@ -251,7 +262,7 @@ export async function identifyArticleLinks(
         },
         {
           role: "user",
-          content: `Here are the links with their titles and context:\n${linksText}`,
+          content: `Here are the links with their titles and context:\n${truncatedLinksText}`,
         },
       ],
       temperature: 0.2,
