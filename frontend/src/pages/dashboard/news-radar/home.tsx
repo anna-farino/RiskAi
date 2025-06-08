@@ -505,6 +505,16 @@ export default function NewsHome() {
               <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
                 {localArticles.length}
               </span>
+              {newArticlesCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-[#BF00FF] font-medium">
+                    {newArticlesCount} new
+                  </span>
+                  <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-0">
+                    NEW
+                  </Badge>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
               <div className="relative">
@@ -716,9 +726,8 @@ export default function NewsHome() {
               {localArticles.map((article) => (
                 <div key={article.id} className="relative">
                   {isArticleNew(article) && (
-                    <div className="absolute -top-1 -right-1 z-10">
-                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
-                        <Star className="h-2.5 w-2.5 mr-1" />
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
                         NEW
                       </Badge>
                     </div>
