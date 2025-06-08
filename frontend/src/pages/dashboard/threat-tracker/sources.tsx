@@ -716,7 +716,7 @@ export default function Sources() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
         <p className="text-muted-foreground">
-          Manage sources for threat monitoring and configure auto-scrape settings.
+          Manage sources for threat monitoring and configure automatic update settings.
         </p>
       </div>
 
@@ -735,14 +735,14 @@ export default function Sources() {
           <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
             <div className="flex items-center gap-2">
               <Switch
-                id="auto-scrape"
+                id="auto-updates"
                 checked={localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)}
                 onCheckedChange={handleToggleAutoScrape}
                 disabled={updateAutoScrapeSettings.isPending}
               />
               <div className="grid gap-0.5">
                 <label
-                  htmlFor="auto-scrape"
+                  htmlFor="auto-updates"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)) ? 'Enabled' : 'Disabled'}
@@ -930,9 +930,9 @@ export default function Sources() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>Auto-Scrape</FormLabel>
+                        <FormLabel>Auto-Update</FormLabel>
                         <FormDescription>
-                          Include in automatic scraping
+                          Include in automatic monitoring
                         </FormDescription>
                       </div>
                       <FormControl>

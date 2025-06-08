@@ -535,7 +535,7 @@ export default function Sources() {
       }
       
       toast({
-        title: "Failed to update auto-scrape setting",
+        title: "Failed to update automatic updates setting",
         variant: "destructive",
       });
     },
@@ -549,7 +549,7 @@ export default function Sources() {
       
       // Don't refetch - the optimistic update already handled the UI change
       toast({
-        title: "Auto-scrape settings updated",
+        title: "Automatic updates settings updated",
       });
     },
   });
@@ -1101,7 +1101,7 @@ export default function Sources() {
             <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
               <div className="flex items-center gap-2">
                 <Switch
-                  id="auto-scrape"
+                  id="auto-updates"
                   checked={optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled}
                   onCheckedChange={(checked) => {
                     updateAutoScrapeSettings.mutate({
@@ -1113,7 +1113,7 @@ export default function Sources() {
                 />
                 <div className="grid gap-0.5">
                   <label
-                    htmlFor="auto-scrape"
+                    htmlFor="auto-updates"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
                   >
                     {(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled) ? 'Enabled' : 'Disabled'}
