@@ -833,28 +833,19 @@ export default function Research() {
             <div className={`transition-all duration-300 ${
               isSidebarCollapsed && !isViewportMobile 
                 ? 'opacity-0 group-hover:opacity-100' 
-                : 'flex flex-col gap-3 mb-6'
+                : 'flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4'
             }`}>
               {isSidebarCollapsed && !isViewportMobile ? null : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="px-3 py-2 bg-slate-800/60 border border-slate-700/60 rounded-lg">
-                      <span className="text-sm font-medium text-slate-200">
-                        {selectedArticles.length} {selectedArticles.length === 1 ? 'article' : 'articles'} selected
-                      </span>
-                    </div>
-                    {selectedArticles.length > 0 && (
-                      <button
-                        onClick={() => setSelectedArticles([])}
-                        className="px-3 py-2 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg transition-colors"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                  </div>
+                  <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
+                  {selectedArticles.length > 0 && (
+                    <button
+                      onClick={() => setSelectedArticles([])}
+                      className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg transition-colors"
+                    >
+                      Clear all ({selectedArticles.length})
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1068,30 +1059,23 @@ export default function Research() {
               className="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700/50 rounded-t-2xl max-h-[85vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-4 border-b border-slate-700/50">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">Selected Articles</h3>
+              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Selected Articles</h3>
+                <div className="flex items-center gap-2">
+                  {selectedArticles.length > 0 && (
+                    <button
+                      onClick={() => setSelectedArticles([])}
+                      className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg transition-colors"
+                    >
+                      Clear all ({selectedArticles.length})
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowSelectedArticlesOverlay(false)}
                     className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg touch-manipulation transition-colors"
                   >
                     <X className="w-6 h-6" />
                   </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-2 bg-slate-800/60 border border-slate-700/60 rounded-lg">
-                    <span className="text-sm font-medium text-slate-200">
-                      {selectedArticles.length} {selectedArticles.length === 1 ? 'article' : 'articles'} selected
-                    </span>
-                  </div>
-                  {selectedArticles.length > 0 && (
-                    <button
-                      onClick={() => setSelectedArticles([])}
-                      className="px-3 py-2 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg transition-colors"
-                    >
-                      Clear all
-                    </button>
-                  )}
                 </div>
               </div>
               
