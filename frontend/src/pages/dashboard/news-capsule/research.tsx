@@ -523,14 +523,14 @@ export default function Research() {
                 <h2 className="text-lg font-semibold text-white">Add URLs for Processing</h2>
                 <p className="text-sm text-slate-400 mt-1">Enter one or multiple article URLs to analyze</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Mode:</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 font-medium">Mode:</span>
                 <button
                   onClick={() => setBulkMode(!bulkMode)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-200 min-w-[60px] ${
                     bulkMode 
-                      ? 'bg-[#BF00FF] text-white' 
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      ? 'bg-[#BF00FF] text-white shadow-md' 
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
                   }`}
                 >
                   {bulkMode ? 'Bulk' : 'Single'}
