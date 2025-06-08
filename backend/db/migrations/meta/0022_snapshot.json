@@ -1,7 +1,6 @@
 {
-
-  "id": "e7802767-3bd7-4179-b2e4-9d16dc3be204",
-  "prevId": "74c474b1-fbcd-41ed-9efc-7f3f732fd5cc",
+  "id": "1a877fb2-509c-4c1d-952f-6f626aa1dd1e",
+  "prevId": "0ee1e874-493b-4f43-97d4-d90cf844dcb3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -213,7 +212,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "articles_user_id_users_id_fk": {
@@ -343,15 +342,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "settings_key_unique": {
-          "name": "settings_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

@@ -1,7 +1,6 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/query-client";
 import { Source, insertSourceSchema } from "@shared/db/schema/news-tracker/index";
-import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
@@ -72,6 +79,7 @@ type EditSourceFormValues = z.infer<typeof editSourceSchema>;
 
 export default function Sources() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
@@ -79,11 +87,8 @@ export default function Sources() {
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   const [sourcesBeingScraped, setSourcesBeingScraped] = useState<string[]>([]);
   const [scrapesBeingStopped, setScrapesBeingStopped] = useState<string[]>([]);
-  
-  // Local state for optimistic UI updates
-  const [localSources, setLocalSources] = useState<Source[]>([]);
-  // Track pending operations for visual feedback
-  const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  const [optimisticAutoScrapeEnabled, setOptimisticAutoScrapeEnabled] = useState<boolean | null>(null);
+  const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] = useState<JobInterval | null>(null);
   
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -144,19 +149,9 @@ export default function Sources() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    }
+    },
+    placeholderData: []
   });
-  
-  // Sync local state with query data when it changes
-  useEffect(() => {
-    if (sources.data) {
-      // Sort sources alphabetically by name
-      const sortedSources = [...sources.data].sort((a, b) => 
-        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-      );
-      setLocalSources(sortedSources);
-    }
-  }, [sources.data]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
@@ -230,38 +225,20 @@ export default function Sources() {
       
       // Snapshot the previous states for potential rollback
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Update local state immediately for UI feedback with alphabetical sorting
-      setLocalSources(prev => {
-        const newSources = [tempSource, ...prev];
-        return newSources.sort((a, b) => 
-          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-        );
-      });
-      
-      // Add to pendingItems to show loading indicators
-      setPendingItems(prev => new Set(prev).add(tempId));
       
       // Update React Query cache 
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         [tempSource, ...oldData]
       );
       
-      return { previousSources, previousLocalSources, tempId };
+      return { previousSources, tempId };
     },
     onError: (err, newSource, context) => {
       if (context) {
         // Revert both local state and React Query cache
-        setLocalSources(context.previousLocalSources);
-        queryClient.setQueryData(["/api/news-tracker/sources"], context.previousSources);
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
         
         // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(context.tempId);
-          return updated;
-        });
       }
       
       toast({
@@ -272,30 +249,12 @@ export default function Sources() {
     },
     onSuccess: (data, variables, context) => {
       if (context?.tempId) {
-        // Update local state with actual server data and maintain alphabetical order
-        setLocalSources(prev => {
-          const updatedSources = prev.map(source => 
-            source.id === context.tempId ? (data as Source) : source
-          );
-          return updatedSources.sort((a, b) => 
-            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-          );
-        });
-        
         // Update React Query cache with server data
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], prev => 
           prev?.map(source => 
             source.id === context.tempId ? (data as Source) : source
           ) || []
         );
-        sources.refetch()
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(context.tempId);
-          return updated;
-        });
       }
       
       form.reset();
@@ -303,6 +262,7 @@ export default function Sources() {
         title: "Source added successfully",
       });
     },
+    //onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] })
   });
 
   const scrapeSource = useMutation({
@@ -332,7 +292,6 @@ export default function Sources() {
       }
     },
     onMutate: async (id) => {
-      console.log("Sources being scraped ", sourcesBeingScraped)
       if (!sourcesBeingScraped.includes(id)) {
         setSourcesBeingScraped(prev => [...prev, id])
       }
@@ -434,7 +393,6 @@ export default function Sources() {
       });
     },
     onSuccess: (_, id) => {
-      console.log("Finished stopping scrape: ", id)
       setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
       // Don't invalidate - rely on the optimistic update
       toast({
@@ -442,7 +400,6 @@ export default function Sources() {
       });
     },
     onSettled: (_, __, id) => {
-      console.log(id);
       setScrapesBeingStopped(prev => prev.filter(sourceId => sourceId != id))
     }
   });
@@ -484,20 +441,6 @@ export default function Sources() {
       
       // Get snapshot of current data
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Add to pendingItems to show loading indicator
-      setPendingItems(prev => new Set(prev).add(id));
-      
-      // Optimistically update local state for UI feedback
-      setLocalSources(prev => 
-        prev.map(source => 
-          source.id === id 
-            ? { ...source, includeInAutoScrape: include }
-            : source
-        )
-      );
-      
       // Optimistically update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (old = []) => 
         old.map(source => 
@@ -507,20 +450,12 @@ export default function Sources() {
         )
       );
       
-      return { previousSources, previousLocalSources, id };
+      return { previousSources, id };
     },
     onError: (err, variables, context) => {
       if (context) {
         // Revert both local state and React Query cache on error
-        setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(context.id);
-          return updated;
-        });
       }
       
       toast({
@@ -530,13 +465,6 @@ export default function Sources() {
     },
     onSuccess: (data, variables) => {
       // Remove from pending items
-      setPendingItems(prev => {
-        const updated = new Set(prev);
-        updated.delete(variables.id);
-        return updated;
-      });
-      
-      // Don't refetch - the optimistic update already handled the UI change
       toast({
         title: "Auto-scrape settings updated",
       });
@@ -574,20 +502,6 @@ export default function Sources() {
       
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Optimistically update the local state and maintain alphabetical order
-      setLocalSources(prev => {
-        const updatedSources = prev.map(source => 
-          source.id === id 
-            ? { ...source, name: data.name, url: data.url }
-            : source
-        );
-        return updatedSources.sort((a, b) => 
-          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-        );
-      });
-      
       // Update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -597,12 +511,11 @@ export default function Sources() {
         )
       );
       
-      return { previousSources, previousLocalSources, id };
+      return { previousSources, id };
     },
     onError: (error: Error, variables, context) => {
       if (context) {
         // Revert both local state and React Query cache
-        setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
       }
       
@@ -627,7 +540,6 @@ export default function Sources() {
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
       try {
-        // Use fetch directly to handle empty responses properly
         const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
           method: "DELETE",
           headers: csfrHeaderObject(),
@@ -637,9 +549,8 @@ export default function Sources() {
         if (!response.ok) {
           throw new Error(`Failed to delete source: ${response.statusText}`);
         }
-        
         // Don't try to parse JSON - some DELETE endpoints return empty responses
-        return { success: true, id };
+        return response;
       } catch (error) {
         console.error("Delete source error:", error);
         throw error;
@@ -648,36 +559,19 @@ export default function Sources() {
     onMutate: async (id) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Add to pendingItems to show loading indicator
-      setPendingItems(prev => new Set(prev).add(id));
-      
-      // Optimistically update the local state for immediate UI feedback
-      setLocalSources(prev => prev.filter(source => source.id !== id));
       
       // Update React Query cache optimistically
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.filter(source => source.id !== id)
       );
       
-      return { previousSources, previousLocalSources, id };
+      return { previousSources, id };
     },
     onError: (error: Error, id, context) => {
       if (context) {
-        // If the mutation fails, restore both local state and React Query cache
-        setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(id);
-          return updated;
-        });
       }
       
       toast({
@@ -687,23 +581,14 @@ export default function Sources() {
       });
     },
     onSuccess: (data, id) => {
-      // Remove from pending items
-      setPendingItems(prev => {
-        const updated = new Set(prev);
-        updated.delete(id);
-        return updated;
-      });
-      
-      // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Source deleted successfully",
       });
-      sources.refetch()
-      
       // Close the delete dialog
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
     },
+    //onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] })
   });
   
   // Run global scrape job manually
@@ -876,29 +761,64 @@ export default function Sources() {
       }
     },
     onMutate: async ({ enabled, interval }) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
-      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
+      // Set optimistic local state for immediate UI feedback
+      setOptimisticAutoScrapeEnabled(enabled);
+      setOptimisticAutoScrapeInterval(interval);
       
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
+      
+      // Snapshot the previous values for potential rollback
+      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
+      const previousOptimisticEnabledState = optimisticAutoScrapeEnabled;
+      const previousOptimisticIntervalState = optimisticAutoScrapeInterval;
+      
+      // Optimistically update the cache with new settings
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], {
         enabled,
-        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY)
+        interval: interval || (previousSettings && 'interval' in previousSettings ? previousSettings.interval : JobInterval.DAILY),
+        lastRun: previousSettings?.lastRun,
+        nextRun: previousSettings?.nextRun
       });
       
-      return { previousSettings };
+      return { previousSettings, previousOptimisticEnabledState, previousOptimisticIntervalState };
     },
     onError: (err, variables, context) => {
-      queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], context?.previousSettings);
+      // Rollback optimistic updates on error
+      if (context?.previousSettings) {
+        queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], context.previousSettings);
+      }
+      setOptimisticAutoScrapeEnabled(context?.previousOptimisticEnabledState ?? null);
+      setOptimisticAutoScrapeInterval(context?.previousOptimisticIntervalState ?? null);
+      
       toast({
-        title: "Failed to update settings",
+        title: "Failed to update auto-scrape settings",
+        description: "There was an error updating the settings. Please try again.",
         variant: "destructive"
       });
     },
-    onSuccess: () => {
-      // Don't invalidate - rely on optimistic updates
+    onSuccess: (data, variables) => {
+      // Clear optimistic state since we have real data now
+      setOptimisticAutoScrapeEnabled(null);
+      setOptimisticAutoScrapeInterval(null);
+      
+      // Update cache with actual server response
+      queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], data);
+      
       toast({
-        title: "Auto-scrape schedule updated",
+        title: "Auto-scrape settings updated",
+        description: data.enabled 
+          ? `Auto-scrape has been enabled with ${intervalLabels[data.interval as JobInterval]} frequency.`
+          : "Auto-scrape has been disabled.",
       });
+      
+      // Close the settings popover
       setIsSettingsOpen(false);
+    },
+    onSettled: () => {
+      // Always clear optimistic state when mutation settles
+      setOptimisticAutoScrapeEnabled(null);
+      setOptimisticAutoScrapeInterval(null);
     },
   });
 
@@ -942,8 +862,6 @@ export default function Sources() {
   };
 
 
-  console.log("Sources being scraped", sourcesBeingScraped)
-  console.log("Scrapes being stopped", scrapesBeingStopped)
   return (
     <div className={cn(
       "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
@@ -1038,113 +956,134 @@ export default function Sources() {
             <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">Sources</h1>
             <p className="text-xs sm:text-sm lg:text-base text-slate-300">Manage news sources and control web scraping operations</p>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
-            <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white h-7 sm:h-8 lg:h-9 px-2 sm:px-2.5 lg:px-3 text-xs"
-                >
-                  <Settings className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4 sm:mr-1.5 lg:mr-2" />
-                  <span className="hidden sm:inline text-xs lg:text-sm">Auto-Scrape Settings</span>
-                  <span className="sm:hidden ml-1">Settings</span>
-                </Button>
-              </PopoverTrigger>
-              {<PopoverContent className="w-80 bg-slate-900 border-slate-700 text-white">
-                <div className="space-y-4">
-                  <h4 className="font-medium text-white">Auto-Scrape Configuration</h4>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="auto-scrape-enabled" className="text-slate-300">Enable Auto-Scrape</Label>
-                    <Switch 
-                      id="auto-scrape-enabled" 
-                      checked={!!autoScrapeSettings.data?.enabled}
-                      disabled={updateAutoScrapeSettings.isPending}
-                      onCheckedChange={(checked) => {
-                        updateAutoScrapeSettings.mutate({
-                          enabled: checked,
-                          interval: autoScrapeSettings.data?.interval ?? JobInterval.DAILY
-                        });
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-select" className="text-slate-300">Schedule Frequency</Label>
-                    <Select
-                      disabled={!autoScrapeSettings.data?.enabled}
-                      value={(autoScrapeSettings.data?.interval || JobInterval.DAILY).toString()}
-                      onValueChange={(value) => {
-                        updateAutoScrapeSettings.mutate({
-                          enabled: !!autoScrapeSettings.data?.enabled,
-                          interval: parseInt(value) as JobInterval
-                        });
-                      }}
-                    >
-                      <SelectTrigger id="schedule-select" className="bg-slate-800/70 border-slate-700 text-white">
-                        <SelectValue placeholder="Select frequency" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        {Object.entries(intervalLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="pt-2 text-xs text-slate-400">
-                    Auto-scrape will only process sources marked as included in the table below.
-                  </div>
-                </div>
-              </PopoverContent>}
-            </Popover>
-            
-            {autoScrapeStatus?.data?.running ? (
-              <Button 
-                onClick={() => stopGlobalScrape.mutate()}
-                disabled={stopGlobalScrape.isPending}
-                size="sm"
-                className="bg-red-600 hover:bg-red-600/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-3"
-              >
-                {stopGlobalScrape.isPending ? (
-                  <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <X className="sm:mr-2 h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Stop Auto-Scrape</span>
-                <span className="sm:hidden">Stop</span>
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => runGlobalScrape.mutate()}
-                disabled={runGlobalScrape.isPending}
-                size="sm"
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-3"
-              >
-                {runGlobalScrape.isPending ? (
-                  <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="sm:mr-2 h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Run Auto-Scrape Now</span>
-                <span className="sm:hidden">Run Now</span>
-              </Button>
-            )}
-          </div>
         </div>
         
-        {/* Scheduled status indicator */}
-        {autoScrapeSettings.data?.enabled && autoScrapeSettings.data?.interval && (
-          <div className="flex flex-wrap items-center p-3 bg-primary/10 rounded-lg text-xs sm:text-sm border border-primary/20">
-            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-1.5 sm:mr-2 flex-shrink-0" />
-            <span className="text-white">
-              Auto-scrape is scheduled to run <span className="text-primary font-medium whitespace-nowrap">
-                {intervalLabels[autoScrapeSettings.data.interval as JobInterval]}
-              </span>
-            </span>
-          </div>
-        )}
+        {/* Auto-scrape configuration card */}
+        <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
+          <CardHeader>
+            <CardTitle className="flex items-center text-white">
+              <Clock className="mr-2 h-5 w-5" />
+              Auto-Scrape Configuration
+            </CardTitle>
+            <CardDescription className="text-slate-300">
+              Configure automatic scraping of news sources to stay updated on the latest information
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="auto-scrape"
+                  checked={optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled}
+                  onCheckedChange={(checked) => {
+                    updateAutoScrapeSettings.mutate({
+                      enabled: checked,
+                      interval: autoScrapeSettings.data?.interval ?? JobInterval.DAILY
+                    });
+                  }}
+                  disabled={updateAutoScrapeSettings.isPending}
+                />
+                <div className="grid gap-0.5">
+                  <label
+                    htmlFor="auto-scrape"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
+                  >
+                    {(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled) ? 'Enabled' : 'Disabled'}
+                  </label>
+                  <p className="text-xs text-slate-400">
+                    {(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled)
+                      ? `Auto-scrape runs ${intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]?.toLowerCase() || 'daily'}`
+                      : "Enable to automatically scrape sources for new articles"}
+                  </p>
+                </div>
+                {updateAutoScrapeSettings.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateAutoScrapeSettings.mutate({
+                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
+                    interval: JobInterval.HOURLY
+                  })}
+                  disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                  className="text-white border-slate-600 hover:bg-slate-700"
+                >
+                  {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Hourly
+                </Button>
+                <Button
+                  variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.DAILY ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateAutoScrapeSettings.mutate({
+                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
+                    interval: JobInterval.DAILY
+                  })}
+                  disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-[#BF00FF]"
+                >
+                  {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Daily
+                </Button>
+                <Button
+                  variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.WEEKLY ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateAutoScrapeSettings.mutate({
+                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
+                    interval: JobInterval.WEEKLY
+                  })}
+                  disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                  className="text-white border-slate-600 hover:bg-slate-700"
+                >
+                  {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Weekly
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <div className="text-sm text-slate-400">
+              {autoScrapeStatus?.data?.running ? (
+                <span className="flex items-center text-primary">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Manual scrape allows you to immediately check for new articles
+                </span>
+              ) : (
+                "Manual scrape allows you to immediately check for new articles"
+              )}
+            </div>
+            <Button
+              onClick={() => {
+                if (autoScrapeStatus?.data?.running) {
+                  stopGlobalScrape.mutate();
+                } else {
+                  runGlobalScrape.mutate();
+                }
+              }}
+              disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
+              size="sm"
+              className={autoScrapeStatus?.data?.running 
+                ? "bg-red-600 hover:bg-red-600/80 text-white" 
+                : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {(runGlobalScrape.isPending || stopGlobalScrape.isPending) ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : autoScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              {autoScrapeStatus?.data?.running ? "Stop Scrape" : "Scrape All Sources Now"}
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
 
+      {/* News Sources Management Section */}
       <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
         <div className="lg:col-span-3 xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:gap-4">
@@ -1273,28 +1212,21 @@ export default function Sources() {
                   <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
                     <TableHead className="text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Source</TableHead>
                     <TableHead className="text-slate-300 w-[25%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
-                    <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-center text-xs sm:text-sm">
-                      <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" />
-                    </TableHead>
+                    <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-center text-xs sm:text-sm">Auto</TableHead>
                     <TableHead className="text-right text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
-                {localSources.map((source) => (
+                {sources.data && sources.data.map((source) => (
                   <TableRow 
                     key={source.id} 
                     className={cn(
                       "border-slate-700/50 hover:bg-slate-800/70 transition-opacity duration-200",
-                      pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
                     <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
                       <div className="flex items-center gap-1 overflow-hidden min-w-0">
                         <div className="h-3 w-3 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          {pendingItems.has(source.id) 
-                            ? <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary animate-spin" />
-                            : <Globe className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary" />
-                          }
                         </div>
                         <span className="truncate text-xs sm:text-sm min-w-0">{source.name}</span>
                       </div>
@@ -1376,7 +1308,7 @@ export default function Sources() {
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Delete source"
                         >
-                          {deleteSource.isPending ? (
+                          {false && deleteSource.isPending ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <Trash2 className="h-3 w-3" />
@@ -1434,7 +1366,7 @@ export default function Sources() {
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
                           title="Delete source"
                         >
-                          {deleteSource.isPending ? (
+                          {deleteSource.variables == source.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Trash2 className="h-4 w-4" />
