@@ -157,7 +157,7 @@ export default function ThreatHome() {
   useEffect(() => {
     const stored = localStorage.getItem('threat-tracker-last-visit');
     setLastVisitTimestamp(stored);
-    
+
     // Update last visit timestamp when component mounts
     const currentTime = new Date().toISOString();
     localStorage.setItem('threat-tracker-last-visit', currentTime);
@@ -469,7 +469,7 @@ export default function ThreatHome() {
   // Calculate new articles count
   const newArticlesCount = useMemo(() => {
     if (!lastVisitTimestamp || !localArticles.length) return 0;
-    
+
     const lastVisit = new Date(lastVisitTimestamp);
     return localArticles.filter(article => {
       if (!article.scrapeDate) return false;
@@ -715,7 +715,7 @@ export default function ThreatHome() {
             </div>
           ) : localArticles.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
-              {localArticles.map((article) => (
+              {localArticles.map((article, index) => (
                 <div key={article.id} className="relative">
                   {isArticleNew(article) && (
                     <div className="absolute -top-2 -right-2 z-10">
@@ -741,6 +741,8 @@ export default function ThreatHome() {
                       }
                     }}
                     onSendToCapsule={sendToCapsule}
+                    articleIndex={index}
+                    totalArticles={localArticles.length}
                   />
                 </div>
               ))}
