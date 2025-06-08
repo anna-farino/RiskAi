@@ -536,29 +536,25 @@ export default function ThreatHome() {
               {newArticlesCount > 0 && !sortNewToTop && (
                 <button
                   onClick={handleSurfaceNewArticles}
-                  className="flex items-center gap-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg px-3 py-2 border border-[#BF00FF]/30 hover:from-[#BF00FF]/30 hover:to-[#00FFFF]/30 hover:border-[#BF00FF]/50 transition-all duration-200 cursor-pointer group"
+                  className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                  title={`Click to surface ${newArticlesCount} new articles to top`}
                 >
-                  <Star className="h-4 w-4 text-[#00FFFF] group-hover:animate-pulse" />
-                  <span className="text-sm font-medium text-[#00FFFF]">
-                    {newArticlesCount} new
+                  <Star className="h-3 w-3 text-[#BF00FF]" />
+                  <span className="text-xs font-medium text-[#BF00FF]">
+                    {newArticlesCount}
                   </span>
-                  <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-0 group-hover:animate-pulse">
-                    NEW
-                  </Badge>
                 </button>
               )}
               {sortNewToTop && (
                 <button
                   onClick={() => setSortNewToTop(false)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-[#00FFFF]/20 to-[#BF00FF]/20 rounded-lg px-3 py-2 border border-[#00FFFF]/30 hover:from-[#00FFFF]/30 hover:to-[#BF00FF]/30 hover:border-[#00FFFF]/50 transition-all duration-200 cursor-pointer group"
+                  className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
+                  title="Click to return to chronological order"
                 >
-                  <Check className="h-4 w-4 text-[#00FFFF] group-hover:animate-pulse" />
-                  <span className="text-sm font-medium text-[#00FFFF]">
-                    New articles on top
+                  <Check className="h-3 w-3 text-[#00FFFF]" />
+                  <span className="text-xs font-medium text-[#00FFFF]">
+                    Sorted
                   </span>
-                  <Badge className="bg-[#00FFFF] text-black hover:bg-[#00FFFF]/80 text-xs px-2 py-0">
-                    SORTED
-                  </Badge>
                 </button>
               )}
             </div>
