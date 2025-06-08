@@ -92,8 +92,6 @@ async function getBrowser(): Promise<Browser> {
           '--allow-running-insecure-content',
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled',
-          // new SETTINGS
-          '--single-process'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         // OLD SETTINGS
