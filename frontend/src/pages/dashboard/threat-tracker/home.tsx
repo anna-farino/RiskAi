@@ -65,6 +65,8 @@ export default function ThreatHome() {
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   // Track last visit timestamp for "new" badge functionality
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
+  // Track sorting state for surfacing new articles
+  const [sortNewToTop, setSortNewToTop] = useState<boolean>(false);
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -486,6 +488,27 @@ export default function ThreatHome() {
     return scrapeDate > lastVisit;
   };
 
+  // Computed property for sorted articles - surface new articles to top when sortNewToTop is true
+  const sortedArticles = useMemo(() => {
+    if (!sortNewToTop) return localArticles;
+    
+    return [...localArticles].sort((a, b) => {
+      const aIsNew = isArticleNew(a);
+      const bIsNew = isArticleNew(b);
+      
+      // If both are new or both are not new, maintain original order
+      if (aIsNew === bIsNew) return 0;
+      
+      // New articles come first
+      return aIsNew ? -1 : 1;
+    });
+  }, [localArticles, sortNewToTop, lastVisitTimestamp]);
+
+  // Function to handle clicking the "New" button to surface new articles
+  const handleSurfaceNewArticles = () => {
+    setSortNewToTop(true);
+  };
+
   return (
     <>
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
@@ -510,16 +533,33 @@ export default function ThreatHome() {
                   {localArticles.length} {localArticles.length === 1 ? 'article' : 'articles'}
                 </span>
               </div>
-              {newArticlesCount > 0 && (
-                <div className="flex items-center gap-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg px-3 py-2 border border-[#BF00FF]/30">
-                  <Star className="h-4 w-4 text-[#00FFFF]" />
+              {newArticlesCount > 0 && !sortNewToTop && (
+                <button
+                  onClick={handleSurfaceNewArticles}
+                  className="flex items-center gap-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg px-3 py-2 border border-[#BF00FF]/30 hover:from-[#BF00FF]/30 hover:to-[#00FFFF]/30 hover:border-[#BF00FF]/50 transition-all duration-200 cursor-pointer group"
+                >
+                  <Star className="h-4 w-4 text-[#00FFFF] group-hover:animate-pulse" />
                   <span className="text-sm font-medium text-[#00FFFF]">
                     {newArticlesCount} new
                   </span>
-                  <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-0">
+                  <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-0 group-hover:animate-pulse">
                     NEW
                   </Badge>
-                </div>
+                </button>
+              )}
+              {sortNewToTop && (
+                <button
+                  onClick={() => setSortNewToTop(false)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-[#00FFFF]/20 to-[#BF00FF]/20 rounded-lg px-3 py-2 border border-[#00FFFF]/30 hover:from-[#00FFFF]/30 hover:to-[#BF00FF]/30 hover:border-[#00FFFF]/50 transition-all duration-200 cursor-pointer group"
+                >
+                  <Check className="h-4 w-4 text-[#00FFFF] group-hover:animate-pulse" />
+                  <span className="text-sm font-medium text-[#00FFFF]">
+                    New articles on top
+                  </span>
+                  <Badge className="bg-[#00FFFF] text-black hover:bg-[#00FFFF]/80 text-xs px-2 py-0">
+                    SORTED
+                  </Badge>
+                </button>
               )}
             </div>
             <div className="relative flex-1 max-w-md">
@@ -715,7 +755,7 @@ export default function ThreatHome() {
             </div>
           ) : localArticles.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
-              {localArticles.map((article, index) => (
+              {sortedArticles.map((article, index) => (
                 <div key={article.id} className="relative">
                   {isArticleNew(article) && (
                     <div className="absolute -top-2 -right-2 z-10">
@@ -742,7 +782,7 @@ export default function ThreatHome() {
                     }}
                     onSendToCapsule={sendToCapsule}
                     articleIndex={index}
-                    totalArticles={localArticles.length}
+                    totalArticles={sortedArticles.length}
                   />
                 </div>
               ))}
