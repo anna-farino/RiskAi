@@ -854,14 +854,10 @@ export default function Research() {
                 </motion.div>
               ))
             )}
-          </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Pagination Controls - Mobile Responsive */}
-      {processedArticles.length > articlesPerPage && (
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-4 lg:mt-6 p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl mx-4 lg:mx-0">
+            
+            {/* Pagination Controls - Mobile Responsive */}
+            {processedArticles.length > articlesPerPage && (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-4 lg:mt-6 p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl mx-4 lg:mx-0">
           {/* Mobile: Stack vertically, Desktop: Horizontal layout */}
           <div className="flex items-center gap-3 order-2 sm:order-1">
             <button
@@ -1162,6 +1158,9 @@ export default function Research() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
