@@ -698,6 +698,7 @@ export default function Sources() {
       toast({
         title: "Source deleted successfully",
       });
+      sources.refetch()
       
       // Close the delete dialog
       setDeleteDialogOpen(false);

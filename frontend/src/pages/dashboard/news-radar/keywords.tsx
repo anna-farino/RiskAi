@@ -1,5 +1,4 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/query-client";
 import { Keyword, insertKeywordSchema } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
@@ -9,7 +8,6 @@ import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCircle } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
@@ -17,10 +15,10 @@ import { useState, useEffect } from "react";
 
 export default function Keywords() {
   const { toast } = useToast();
-  // Local state for immediate UI updates
-  const [localKeywords, setLocalKeywords] = useState<Keyword[]>([]);
-  // Track IDs of items with pending actions for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  const [keywordsUpdating, setKeywordsUpdating] = useState(false);
+  const [activeKeywordsUpdating, setActiveKeywordsUpdating] = useState(false);
+  const [keywordBeingToggled, setKeywordBeingToggled] = useState<string[]>([]);
   
   const form = useForm({
     resolver: zodResolver(insertKeywordSchema),
@@ -52,13 +50,6 @@ export default function Keywords() {
     refetchOnMount: true, // Force refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
-  
-  // Update local state whenever query data changes
-  useEffect(() => {
-    if (keywords.data) {
-      setLocalKeywords(keywords.data);
-    }
-  }, [keywords.data]);
 
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
@@ -101,10 +92,6 @@ export default function Keywords() {
       
       // Snapshot the previous state for potential rollback
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
-      const previousLocalKeywords = [...localKeywords];
-      
-      // Update local state immediately for UI
-      setLocalKeywords(prev => [tempKeyword, ...prev]);
       
       // Add to pendingItems to show loading indicators
       setPendingItems(prev => new Set(prev).add(tempId));
@@ -114,12 +101,11 @@ export default function Keywords() {
         old ? [tempKeyword, ...old] : [tempKeyword]
       );
       
-      return { previousKeywords, previousLocalKeywords, tempId };
+      return { previousKeywords, tempId };
     },
     onError: (err, newKeyword, context) => {
       // Revert both local state and React Query cache
       if (context) {
-        setLocalKeywords(context.previousLocalKeywords);
         queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
         // Remove from pending items
         setPendingItems(prev => {
@@ -135,21 +121,16 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: async (data, variables, context) => {
       if (context?.tempId) {
-        // Update local state with actual server data
-        setLocalKeywords(prev => 
-          prev.map(keyword => 
-            keyword.id === context.tempId ? (data as Keyword) : keyword
-          )
-        );
-        
-        // Update React Query cache
         queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], prev => 
           prev?.map(keyword => 
             keyword.id === context.tempId ? (data as Keyword) : keyword
           ) || []
         );
+        setKeywordsUpdating(true)
+        await keywords.refetch()
+        setKeywordsUpdating(false)
         
         // Remove from pending items
         setPendingItems(prev => {
@@ -171,6 +152,7 @@ export default function Keywords() {
 
   const toggleKeyword = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      setKeywordBeingToggled(prev => [...prev, id])
       try {
         const response = await fetch(`${serverUrl}/api/news-tracker/keywords/${id}`, {
           method: "PATCH",
@@ -208,14 +190,6 @@ export default function Keywords() {
       
       // Snapshot the previous values
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
-      const previousLocalKeywords = [...localKeywords];
-      
-      // Update local state immediately
-      setLocalKeywords(prev => 
-        prev.map(keyword => 
-          keyword.id === id ? { ...keyword, active } : keyword
-        )
-      );
       
       // Also update React Query cache
       queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], oldData => 
@@ -224,12 +198,11 @@ export default function Keywords() {
         )
       );
       
-      return { previousKeywords, previousLocalKeywords, id };
+      return { previousKeywords, id };
     },
     onError: (err, variables, context) => {
       if (context) {
         // Revert both local state and cache
-        setLocalKeywords(context.previousLocalKeywords);
         queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
         
         // Remove from pending items
@@ -245,8 +218,9 @@ export default function Keywords() {
         description: "Failed to update keyword status. Please try again.",
         variant: "destructive",
       });
+      setKeywordBeingToggled(prev => prev.filter(k => k!= variables.id)) 
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: async (data, variables, context) => {
       if (context?.id) {
         // Remove from pending items
         setPendingItems(prev => {
@@ -258,10 +232,16 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      setActiveKeywordsUpdating(true)
+      await keywords.refetch()
+      setActiveKeywordsUpdating(false)
+      setKeywordBeingToggled(prev => prev.filter(k => k!= variables.id)) 
       
       toast({
         title: "Keyword status updated",
       });
+    },
+    onSettled(_, __, variables) {
     },
   });
 
@@ -295,22 +275,17 @@ export default function Keywords() {
       
       // Snapshot the previous data
       const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
-      const previousLocalKeywords = [...localKeywords];
-      
-      // Immediately update local state
-      setLocalKeywords(prev => prev.filter(keyword => keyword.id !== id));
       
       // Update React Query cache
       queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], (oldData = []) => 
         oldData.filter(keyword => keyword.id !== id)
       );
       
-      return { previousKeywords, previousLocalKeywords, id };
+      return { previousKeywords, id };
     },
     onError: (err, id, context) => {
       if (context) {
         // Revert both local state and cache
-        setLocalKeywords(context.previousLocalKeywords);
         queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
         
         // Remove from pending items
@@ -327,7 +302,7 @@ export default function Keywords() {
         variant: "destructive",
       });
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: async (data, variables, context) => {
       if (context?.id) {
         // Remove from pending items
         setPendingItems(prev => {
@@ -339,6 +314,9 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      setKeywordsUpdating(true)
+      await keywords.refetch()
+      setKeywordsUpdating(false)
       
       toast({
         title: "Keyword deleted successfully",
@@ -346,6 +324,15 @@ export default function Keywords() {
     },
   });
 
+  const keywordsAreUpdating = 
+    addKeyword.isPending || 
+    deleteKeyword.isPending || 
+    keywordsUpdating
+
+  const activeKeywordsAreUpdating = 
+    toggleKeyword.isPending ||
+    activeKeywordsUpdating ||
+    keywordsAreUpdating
 
   const onSubmit = form.handleSubmit((data) => {
     addKeyword.mutate(data);
@@ -413,7 +400,13 @@ export default function Keywords() {
                   <Tag className="h-3 w-3 text-primary" />
                 </div>
               </div>
-              <p className="text-2xl font-semibold text-white">{keywords.data?.length || 0}</p>
+              <p 
+                className={cn("text-2xl font-semibold text-white ", {
+                  "animate-[pulse_0.5s_ease-in-out_infinite]": keywordsAreUpdating 
+                })}
+              >
+                {keywords.data?.length || 0}
+              </p>
             </div>
             
             <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700/50">
@@ -423,7 +416,11 @@ export default function Keywords() {
                   <CheckCircle className="h-3 w-3 text-green-500" />
                 </div>
               </div>
-              <p className="text-2xl font-semibold text-white">
+              <p className={cn(
+                "text-2xl font-semibold text-white", {
+                  "animate-[pulse_0.5s_ease-in-out_infinite]": activeKeywordsAreUpdating 
+                }
+              )}>
                 {keywords.data?.filter(k => k.active).length || 0}
               </p>
             </div>
@@ -480,9 +477,16 @@ export default function Keywords() {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {/* Use localKeywords for immediate UI updates */}
-            {localKeywords.map((keyword) => {
+            {keywords.data && keywords.data
+              .sort((a,b) => a.term > b.term ? 1 : -1)
+              .map((keyword) => {
               // Check if this item has a pending action
-              const isPending = pendingItems.has(keyword.id);
+              const isPending = toggleKeyword.isPending && toggleKeyword.variables?.id === keyword.id;
+              console.log(isPending)
+              const isCurrentlyActive = 
+                toggleKeyword.isPending && toggleKeyword.variables?.id === keyword.id
+                  ? toggleKeyword.variables.active 
+                  : keyword.active;
               
               return (
                 <div 
@@ -534,18 +538,18 @@ export default function Keywords() {
                     <div className="mt-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Switch
-                          checked={keyword.active}
-                          disabled={isPending}
+                          checked={isCurrentlyActive}
+                          disabled={toggleKeyword.isPending}
                           onCheckedChange={(checked) =>
                             toggleKeyword.mutate({ id: keyword.id, active: checked })
                           }
                         />
                         <span className={cn(
                           "text-xs font-medium",
-                          keyword.active ? "text-green-400" : "text-slate-400",
+                          isCurrentlyActive ? "text-green-400" : "text-slate-400",
                           isPending && "opacity-50"
                         )}>
-                          {keyword.active ? "Active" : "Inactive"}
+                          {isCurrentlyActive ? "Active" : "Inactive"}
                         </span>
                       </div>
                       
