@@ -162,6 +162,13 @@
       "when": 1749358020467,
       "tag": "0022_black_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1749412192424,
+      "tag": "0023_friendly_warbird",
+      "breakpoints": true
     }
   ]
 }
