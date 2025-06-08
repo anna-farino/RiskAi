@@ -1,7 +1,6 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/query-client";
 import { Source, insertSourceSchema } from "@shared/db/schema/news-tracker/index";
-import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +71,7 @@ type EditSourceFormValues = z.infer<typeof editSourceSchema>;
 
 export default function Sources() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
@@ -79,11 +79,7 @@ export default function Sources() {
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   const [sourcesBeingScraped, setSourcesBeingScraped] = useState<string[]>([]);
   const [scrapesBeingStopped, setScrapesBeingStopped] = useState<string[]>([]);
-  
-  // Local state for optimistic UI updates
-  const [localSources, setLocalSources] = useState<Source[]>([]);
-  // Track pending operations for visual feedback
-  const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  const [scrapesBeingCanceled, setScrapesBeingCanceled] = useState<string[]>([]);
   
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -144,19 +140,9 @@ export default function Sources() {
         console.error(error)
         return [] // Return empty array instead of undefined to prevent errors
       }
-    }
+    },
+    placeholderData: []
   });
-  
-  // Sync local state with query data when it changes
-  useEffect(() => {
-    if (sources.data) {
-      // Sort sources alphabetically by name
-      const sortedSources = [...sources.data].sort((a, b) => 
-        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-      );
-      setLocalSources(sortedSources);
-    }
-  }, [sources.data]);
   
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
@@ -230,38 +216,20 @@ export default function Sources() {
       
       // Snapshot the previous states for potential rollback
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Update local state immediately for UI feedback with alphabetical sorting
-      setLocalSources(prev => {
-        const newSources = [tempSource, ...prev];
-        return newSources.sort((a, b) => 
-          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-        );
-      });
-      
-      // Add to pendingItems to show loading indicators
-      setPendingItems(prev => new Set(prev).add(tempId));
       
       // Update React Query cache 
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         [tempSource, ...oldData]
       );
       
-      return { previousSources, previousLocalSources, tempId };
+      return { previousSources, tempId };
     },
     onError: (err, newSource, context) => {
       if (context) {
         // Revert both local state and React Query cache
-        setLocalSources(context.previousLocalSources);
-        queryClient.setQueryData(["/api/news-tracker/sources"], context.previousSources);
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
         
         // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(context.tempId);
-          return updated;
-        });
       }
       
       toast({
@@ -272,30 +240,12 @@ export default function Sources() {
     },
     onSuccess: (data, variables, context) => {
       if (context?.tempId) {
-        // Update local state with actual server data and maintain alphabetical order
-        setLocalSources(prev => {
-          const updatedSources = prev.map(source => 
-            source.id === context.tempId ? (data as Source) : source
-          );
-          return updatedSources.sort((a, b) => 
-            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-          );
-        });
-        
         // Update React Query cache with server data
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], prev => 
           prev?.map(source => 
             source.id === context.tempId ? (data as Source) : source
           ) || []
         );
-        sources.refetch()
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(context.tempId);
-          return updated;
-        });
       }
       
       form.reset();
@@ -303,6 +253,7 @@ export default function Sources() {
         title: "Source added successfully",
       });
     },
+    //onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] })
   });
 
   const scrapeSource = useMutation({
@@ -332,7 +283,6 @@ export default function Sources() {
       }
     },
     onMutate: async (id) => {
-      console.log("Sources being scraped ", sourcesBeingScraped)
       if (!sourcesBeingScraped.includes(id)) {
         setSourcesBeingScraped(prev => [...prev, id])
       }
@@ -434,7 +384,6 @@ export default function Sources() {
       });
     },
     onSuccess: (_, id) => {
-      console.log("Finished stopping scrape: ", id)
       setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
       // Don't invalidate - rely on the optimistic update
       toast({
@@ -442,7 +391,6 @@ export default function Sources() {
       });
     },
     onSettled: (_, __, id) => {
-      console.log(id);
       setScrapesBeingStopped(prev => prev.filter(sourceId => sourceId != id))
     }
   });
@@ -484,20 +432,6 @@ export default function Sources() {
       
       // Get snapshot of current data
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Add to pendingItems to show loading indicator
-      setPendingItems(prev => new Set(prev).add(id));
-      
-      // Optimistically update local state for UI feedback
-      setLocalSources(prev => 
-        prev.map(source => 
-          source.id === id 
-            ? { ...source, includeInAutoScrape: include }
-            : source
-        )
-      );
-      
       // Optimistically update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (old = []) => 
         old.map(source => 
@@ -507,20 +441,12 @@ export default function Sources() {
         )
       );
       
-      return { previousSources, previousLocalSources, id };
+      return { previousSources, id };
     },
     onError: (err, variables, context) => {
       if (context) {
         // Revert both local state and React Query cache on error
-        setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(context.id);
-          return updated;
-        });
       }
       
       toast({
@@ -530,13 +456,6 @@ export default function Sources() {
     },
     onSuccess: (data, variables) => {
       // Remove from pending items
-      setPendingItems(prev => {
-        const updated = new Set(prev);
-        updated.delete(variables.id);
-        return updated;
-      });
-      
-      // Don't refetch - the optimistic update already handled the UI change
       toast({
         title: "Auto-scrape settings updated",
       });
@@ -574,20 +493,6 @@ export default function Sources() {
       
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Optimistically update the local state and maintain alphabetical order
-      setLocalSources(prev => {
-        const updatedSources = prev.map(source => 
-          source.id === id 
-            ? { ...source, name: data.name, url: data.url }
-            : source
-        );
-        return updatedSources.sort((a, b) => 
-          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-        );
-      });
-      
       // Update React Query cache
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.map(source => 
@@ -597,12 +502,11 @@ export default function Sources() {
         )
       );
       
-      return { previousSources, previousLocalSources, id };
+      return { previousSources, id };
     },
     onError: (error: Error, variables, context) => {
       if (context) {
         // Revert both local state and React Query cache
-        setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
       }
       
@@ -627,7 +531,6 @@ export default function Sources() {
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
       try {
-        // Use fetch directly to handle empty responses properly
         const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}`, {
           method: "DELETE",
           headers: csfrHeaderObject(),
@@ -637,9 +540,8 @@ export default function Sources() {
         if (!response.ok) {
           throw new Error(`Failed to delete source: ${response.statusText}`);
         }
-        
         // Don't try to parse JSON - some DELETE endpoints return empty responses
-        return { success: true, id };
+        return response;
       } catch (error) {
         console.error("Delete source error:", error);
         throw error;
@@ -648,36 +550,19 @@ export default function Sources() {
     onMutate: async (id) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
-      
       // Snapshot the previous values
       const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
-      const previousLocalSources = [...localSources];
-      
-      // Add to pendingItems to show loading indicator
-      setPendingItems(prev => new Set(prev).add(id));
-      
-      // Optimistically update the local state for immediate UI feedback
-      setLocalSources(prev => prev.filter(source => source.id !== id));
       
       // Update React Query cache optimistically
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], (oldData = []) => 
         oldData.filter(source => source.id !== id)
       );
       
-      return { previousSources, previousLocalSources, id };
+      return { previousSources, id };
     },
     onError: (error: Error, id, context) => {
       if (context) {
-        // If the mutation fails, restore both local state and React Query cache
-        setLocalSources(context.previousLocalSources);
         queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(id);
-          return updated;
-        });
       }
       
       toast({
@@ -687,23 +572,14 @@ export default function Sources() {
       });
     },
     onSuccess: (data, id) => {
-      // Remove from pending items
-      setPendingItems(prev => {
-        const updated = new Set(prev);
-        updated.delete(id);
-        return updated;
-      });
-      
-      // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Source deleted successfully",
       });
-      sources.refetch()
-      
       // Close the delete dialog
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
     },
+    //onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] })
   });
   
   // Run global scrape job manually
@@ -942,8 +818,7 @@ export default function Sources() {
   };
 
 
-  console.log("Sources being scraped", sourcesBeingScraped)
-  console.log("Scrapes being stopped", scrapesBeingStopped)
+
   return (
     <div className={cn(
       "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
@@ -1280,21 +1155,16 @@ export default function Sources() {
                   </TableRow>
                 </TableHeader>
               <TableBody>
-                {localSources.map((source) => (
+                {sources.data && sources.data.map((source) => (
                   <TableRow 
                     key={source.id} 
                     className={cn(
                       "border-slate-700/50 hover:bg-slate-800/70 transition-opacity duration-200",
-                      pendingItems.has(source.id) && "opacity-60"
                     )}
                   >
                     <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
                       <div className="flex items-center gap-1 overflow-hidden min-w-0">
                         <div className="h-3 w-3 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          {pendingItems.has(source.id) 
-                            ? <Loader2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary animate-spin" />
-                            : <Globe className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-primary" />
-                          }
                         </div>
                         <span className="truncate text-xs sm:text-sm min-w-0">{source.name}</span>
                       </div>
@@ -1376,7 +1246,7 @@ export default function Sources() {
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
                           title="Delete source"
                         >
-                          {deleteSource.isPending ? (
+                          {false && deleteSource.isPending ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <Trash2 className="h-3 w-3" />
@@ -1434,7 +1304,7 @@ export default function Sources() {
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
                           title="Delete source"
                         >
-                          {deleteSource.isPending ? (
+                          {deleteSource.variables == source.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Trash2 className="h-4 w-4" />

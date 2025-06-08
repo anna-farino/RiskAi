@@ -24,7 +24,7 @@ export const keywords = pgTable("keywords", {
 
 export const articles = pgTable("articles", {
   id: uuid("id").defaultRandom().primaryKey(),
-  sourceId: uuid("source_id").references(() => sources.id),
+  sourceId: uuid("source_id").references(() => sources.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   content: text("content").notNull(),
   url: text("url").notNull(),
