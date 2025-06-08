@@ -1,4 +1,4 @@
-import { insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
+import { articles, insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
@@ -7,6 +7,8 @@ import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
+import { db } from "backend/db/db";
+import { eq } from "drizzle-orm";
 
 
 export const newsRouter = Router()
@@ -52,18 +54,23 @@ newsRouter.patch("/sources/:id", async (req, res) => {
 });
 
 newsRouter.delete("/sources/:id", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const id = req.params.id;
-  
-  // Check if source belongs to user
-  const source = await storage.getSource(id);
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
+  try {
+    const userId = (req.user as User).id as string;
+    const id = req.params.id;
+    
+    // Check if source belongs to user
+    const source = await storage.getSource(id);
+    if (!source || source.userId !== userId) {
+      return res.status(404).json({ message: "Source not found" });
+    }
+    
+    await storage.deleteSource(id);
+    // Return success object instead of empty response to better support optimistic UI updates
+    res.status(200).json({ success: true, id, message: "Source deleted successfully" });
+  } catch (error) {
+    console.error(error)
+    res.send(500)
   }
-  
-  await storage.deleteSource(id);
-  // Return success object instead of empty response to better support optimistic UI updates
-  res.status(200).json({ success: true, id, message: "Source deleted successfully" });
 });
 
 // Keywords
