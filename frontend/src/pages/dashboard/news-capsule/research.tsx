@@ -980,9 +980,9 @@ export default function Research() {
                 <h3 className="text-lg font-semibold">Selected Articles ({selectedArticles.length})</h3>
                 <button
                   onClick={() => setShowSelectedArticlesOverlay(false)}
-                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
+                  className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg touch-manipulation transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
               
