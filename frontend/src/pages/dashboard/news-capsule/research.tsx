@@ -516,76 +516,106 @@ export default function Research() {
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
         {/* URL Input Section - Mobile First, Stacked Layout */}
         <div className="w-full lg:flex-1 transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            <h2 className="text-lg sm:text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
+          <div className="min-h-[300px] lg:h-full overflow-y-auto">
+            {/* Header Section */}
+            <div className="px-6 py-5 border-b border-slate-700/50">
+              <h2 className="text-xl font-semibold text-white mb-2">Process Articles</h2>
+              <p className="text-sm text-slate-400">Add article URLs to extract and analyze content</p>
+            </div>
             
-            <div className="flex flex-col gap-4">
-
-
-            <div className="flex flex-col gap-3">
-              <label htmlFor="url-input" className="text-sm text-slate-400">
-                {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
-              </label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  {bulkMode ? (
-                    <textarea
-                      id="url-input"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
-                      rows={3}
-                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg resize-vertical focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
-                    />
-                  ) : (
-                    <input
-                      id="url-input"
-                      type="text"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      onFocus={() => setShowUrlDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                      placeholder="https://example.com/article"
-                      autoComplete="off"
-                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
-                    />
-                  )}
-                  
-                  {/* Dropdown for saved URLs - Mobile optimized */}
-                  {showUrlDropdown && savedUrls.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 max-h-48 sm:max-h-60 overflow-y-auto shadow-xl">
-                      {savedUrls.map((savedUrl, index) => (
-                        <button
-                          key={index}
-                          onClick={() => selectSavedUrl(savedUrl)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
-                        >
-                          {savedUrl}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+            {/* Input Section */}
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* Mode Toggle */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBulkMode(false)}
+                    className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                      !bulkMode 
+                        ? 'bg-[#BF00FF] text-white' 
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Single URL
+                  </button>
+                  <button
+                    onClick={() => setBulkMode(true)}
+                    className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                      bulkMode 
+                        ? 'bg-[#BF00FF] text-white' 
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Multiple URLs
+                  </button>
                 </div>
-                
-                {/* Action buttons - Stack on mobile, inline on larger screens */}
-                <div className="flex gap-2 sm:flex-col sm:gap-2">
+
+                {/* Input Field */}
+                <div className="space-y-3">
+                  <label htmlFor="url-input" className="block text-sm font-medium text-slate-300">
+                    {bulkMode ? 'Enter URLs (one per line)' : 'Article URL'}
+                  </label>
+                  
+                  <div className="relative">
+                    {bulkMode ? (
+                      <textarea
+                        id="url-input"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                        rows={4}
+                        className="w-full px-4 py-3 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 resize-vertical"
+                      />
+                    ) : (
+                      <input
+                        id="url-input"
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        onFocus={() => setShowUrlDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                        placeholder="https://example.com/article"
+                        autoComplete="off"
+                        className="w-full px-4 py-3 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
+                      />
+                    )}
+                    
+                    {/* Saved URLs Dropdown */}
+                    {showUrlDropdown && savedUrls.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-lg overflow-hidden z-20 max-h-48 overflow-y-auto shadow-xl">
+                        {savedUrls.map((savedUrl, index) => (
+                          <button
+                            key={index}
+                            onClick={() => selectSavedUrl(savedUrl)}
+                            className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white truncate border-b border-slate-700/50 last:border-b-0"
+                          >
+                            {savedUrl}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-3 pt-2">
+                  <button
+                    onClick={processUrl}
+                    disabled={isLoading || !url.trim()}
+                    className="w-full px-6 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all duration-200"
+                  >
+                    {isLoading ? "Processing..." : "Process Articles"}
+                  </button>
+                  
                   {url && (
                     <button
                       type="button"
                       onClick={clearUrl}
-                      className="flex-1 sm:flex-none px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm sm:text-base min-h-[48px] touch-manipulation"
-                      aria-label="Clear input"
+                      className="w-full px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg font-medium transition-colors"
                     >
-                      Clear
+                      Clear Input
                     </button>
                   )}
-                  <button
-                    onClick={processUrl}
-                    disabled={isLoading}
-                    className="flex-1 sm:flex-none px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
-                  >
-                    {isLoading ? "Processing..." : "Process"}
-                  </button>
                 </div>
               </div>
             </div>
