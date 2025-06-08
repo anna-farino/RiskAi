@@ -1279,6 +1279,7 @@ export default function Research() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </AnimatePresence>
+    </>
   );
 }
