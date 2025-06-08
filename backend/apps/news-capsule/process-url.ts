@@ -146,9 +146,51 @@ export async function processUrl(req: Request, res: Response) {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    // Extract the content from the URL using enhanced scraping
-    log("[NewsCapsule] Starting content extraction...", "scraper");
-    const content = await scrapeArticleContent(url);
+    // Try fetch-first strategy for faster performance on simple sites
+    log("[NewsCapsule] Attempting fast fetch-first extraction...", "scraper");
+    try {
+      const fetchResponse = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+        signal: AbortSignal.timeout(8000) // 8 second timeout for fetch attempt
+      });
+
+      if (fetchResponse.ok && !fetchResponse.headers.get('x-datadome') && fetchResponse.status !== 403) {
+        const html = await fetchResponse.text();
+        
+        // Quick check for bot protection or dynamic content
+        const needsPuppeteer = html.includes('cloudflare') || 
+                              html.includes('datadome') || 
+                              html.includes('captcha') ||
+                              html.includes('__NEXT_DATA__') ||
+                              html.includes('react-root') ||
+                              html.includes('htmx') ||
+                              html.length < 1000; // Very short response likely indicates protection
+
+        if (!needsPuppeteer) {
+          log("[NewsCapsule] Fast fetch succeeded, extracting with basic parsing...", "scraper");
+          // TODO: Add basic cheerio extraction here if fetch content is good
+          // For now, fall through to Puppeteer for consistency
+        }
+      }
+    } catch (error: any) {
+      log(`[NewsCapsule] Fast fetch failed: ${error.message}, falling back to Puppeteer`, "scraper");
+    }
+
+    // Extract the content from the URL using enhanced scraping with timeout protection
+    log("[NewsCapsule] Starting Puppeteer content extraction...", "scraper");
+    const content = await Promise.race([
+      scrapeArticleContent(url),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Scraping timeout after 45 seconds')), 45000)
+      )
+    ]);
     log("[NewsCapsule] Content extracted successfully", "scraper");
 
     if (!content) {
@@ -191,6 +233,83 @@ export async function processUrl(req: Request, res: Response) {
   }
 }
 
+/**
+ * Handle DataDome protection challenges
+ */
+async function handleDataDomeChallenge(page: Page): Promise<void> {
+  try {
+    log(`[NewsCapsule][DataDome] Checking for DataDome protection...`, "scraper");
+
+    // Check if we're on a DataDome challenge page
+    const isDataDomeChallenge = await page.evaluate(() => {
+      const hasDataDomeScript =
+        document.querySelector('script[src*="captcha-delivery.com"]') !== null;
+      const hasDataDomeMessage =
+        document.body?.textContent?.includes(
+          "Please enable JS and disable any ad blocker",
+        ) || false;
+      const hasDataDomeContent =
+        document.documentElement?.innerHTML?.includes("datadome") || false;
+
+      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent;
+    });
+
+    if (isDataDomeChallenge) {
+      log(
+        `[NewsCapsule][DataDome] DataDome challenge detected, waiting for completion...`,
+        "scraper",
+      );
+
+      // Wait for the challenge to complete - DataDome typically redirects or updates the page
+      let challengeCompleted = false;
+      const maxWaitTime = 15000; // 15 seconds max wait
+      const checkInterval = 1000; // Check every second
+      let waitTime = 0;
+
+      while (!challengeCompleted && waitTime < maxWaitTime) {
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        waitTime += checkInterval;
+
+        // Check if we're still on challenge page
+        const stillOnChallenge = await page.evaluate(() => {
+          const hasDataDomeScript =
+            document.querySelector('script[src*="captcha-delivery.com"]') !==
+            null;
+          const hasDataDomeMessage =
+            document.body?.textContent?.includes(
+              "Please enable JS and disable any ad blocker",
+            ) || false;
+
+          return hasDataDomeScript || hasDataDomeMessage;
+        });
+
+        if (!stillOnChallenge) {
+          challengeCompleted = true;
+          log(`[NewsCapsule][DataDome] Challenge completed after ${waitTime}ms`, "scraper");
+        }
+      }
+
+      if (!challengeCompleted) {
+        log(
+          `[NewsCapsule][DataDome] Challenge did not complete within ${maxWaitTime}ms, proceeding anyway`,
+          "scraper",
+        );
+      }
+
+      // Additional wait for page to stabilize after challenge
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    } else {
+      log(`[NewsCapsule][DataDome] No DataDome challenge detected`, "scraper");
+    }
+  } catch (error: any) {
+    log(
+      `[NewsCapsule][DataDome] Error handling DataDome challenge: ${error.message}`,
+      "scraper",
+    );
+    // Continue anyway - don't let DataDome handling block the scraping
+  }
+}
+
 async function scrapeArticleContent(url: string): Promise<string | null> {
   log(`[NewsCapsule] Starting to scrape ${url} as article page`, "scraper");
   
@@ -204,17 +323,175 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
 
     page = await setupPage();
     
-    // Navigate to the page
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
-    log(`[NewsCapsule] Initial page load complete for ${url}. Status: ${response ? response.status() : 'unknown'}`, "scraper");
+    // Progressive navigation strategy to handle challenging sites
+    let response = null;
+    let navigationSuccess = false;
+
+    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
+    try {
+      log(
+        "[NewsCapsule] Attempting navigation with domcontentloaded...",
+        "scraper",
+      );
+      response = await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout: 15000, // Reduced timeout for faster production performance
+      });
+      navigationSuccess = true;
+      log(
+        `[NewsCapsule] Navigation successful with domcontentloaded. Status: ${response ? response.status() : "unknown"}`,
+        "scraper",
+      );
+    } catch (error: any) {
+      log(
+        `[NewsCapsule] domcontentloaded failed: ${error.message}`,
+        "scraper",
+      );
+    }
+
+    // Strategy 2: Fallback to load event with shorter timeout
+    if (!navigationSuccess) {
+      try {
+        log(
+          "[NewsCapsule] Attempting navigation with load event...",
+          "scraper",
+        );
+        response = await page.goto(url, {
+          waitUntil: "load",
+          timeout: 12000, // Reduced timeout
+        });
+        navigationSuccess = true;
+        log(
+          `[NewsCapsule] Navigation successful with load event. Status: ${response ? response.status() : "unknown"}`,
+          "scraper",
+        );
+      } catch (error: any) {
+        log(`[NewsCapsule] load event failed: ${error.message}`, "scraper");
+      }
+    }
+
+    // Strategy 3: Try with no wait condition as last resort
+    if (!navigationSuccess) {
+      try {
+        log(
+          "[NewsCapsule] Attempting navigation with no wait condition...",
+          "scraper",
+        );
+        response = await page.goto(url, {
+          timeout: 10000, // Reduced timeout
+        });
+        navigationSuccess = true;
+        log(
+          `[NewsCapsule] Navigation successful with no wait condition. Status: ${response ? response.status() : "unknown"}`,
+          "scraper",
+        );
+      } catch (error: any) {
+        log(
+          `[NewsCapsule] All navigation strategies failed: ${error.message}`,
+          "scraper-error",
+        );
+        throw new Error(
+          `Failed to navigate to ${url}: ${error?.message || String(error)}`,
+        );
+      }
+    }
     
     if (response && !response.ok()) {
       log(`[NewsCapsule] Warning: Response status is not OK: ${response.status()}`, "scraper");
     }
 
-    // Wait for potential challenges to be processed
-    log('[NewsCapsule] Waiting for page to stabilize...', "scraper");
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Check for DataDome protection and wait for challenge completion
+    await handleDataDomeChallenge(page);
+
+    // Try immediate extraction first (fast strategy for protected sites)
+    log('[NewsCapsule] Attempting immediate content extraction...', "scraper");
+    try {
+      const immediateContent = await page.evaluate(() => {
+        // Fast extraction strategy optimized for protected sites
+        
+        // Get title - prioritize H1 for speed
+        const title =
+          document.querySelector("h1")?.textContent?.trim() ||
+          document
+            .querySelector('meta[property="og:title"]')
+            ?.getAttribute("content") ||
+          document.title.split(" - ")[0].trim() ||
+          "";
+
+        // Get author - quick meta tag check first
+        const author =
+          document
+            .querySelector('meta[name="author"]')
+            ?.getAttribute("content") ||
+          document.querySelector(".author")?.textContent?.trim() ||
+          "";
+
+        // Get publication
+        const publication =
+          document
+            .querySelector('meta[property="og:site_name"]')
+            ?.getAttribute("content") ||
+          document
+            .querySelector('meta[name="site_name"]')
+            ?.getAttribute("content") ||
+          new URL(window.location.href).hostname;
+
+        // Streamlined content extraction for speed
+        let content = "";
+
+        // Fast DOM selector approach - check most common patterns first
+        const quickSelectors = [
+          "article",
+          ".article-content",
+          ".article-body",
+          "main",
+          ".content",
+          ".post-content",
+        ];
+        
+        for (const selector of quickSelectors) {
+          const element = document.querySelector(selector);
+          if (element?.textContent && element.textContent.length > 200) {
+            content = element.textContent.trim();
+            break;
+          }
+        }
+
+        // Quick paragraph fallback if no container found
+        if (!content || content.length < 100) {
+          const paragraphs = Array.from(document.querySelectorAll("p"))
+            .slice(0, 15) // Limit to first 15 paragraphs for speed
+            .map((p) => p.textContent?.trim())
+            .filter((text) => text && text.length > 30)
+            .join(" ");
+
+          if (paragraphs.length > 100) {
+            content = paragraphs;
+          }
+        }
+
+        return {
+          title,
+          content: content || "",
+          publication,
+          author,
+          publishDate: ""
+        };
+      });
+
+      // If immediate extraction got good content, return it
+      if (immediateContent.content && immediateContent.content.length > 100) {
+        log(
+          `[NewsCapsule] Immediate extraction successful - Title: ${immediateContent.title.substring(0, 50)}..., Content length: ${immediateContent.content.length}`,
+          "scraper",
+        );
+        return JSON.stringify(immediateContent);
+      }
+      
+      log('[NewsCapsule] Immediate extraction insufficient, falling back to comprehensive approach...', "scraper");
+    } catch (error: any) {
+      log(`[NewsCapsule] Immediate extraction failed: ${error.message}, falling back to comprehensive approach...`, "scraper");
+    }
 
     // Check for bot protection
     const botProtectionCheck = await page.evaluate(() => {
@@ -302,8 +579,8 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
     if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log('[NewsCapsule] HTMX detected on page, handling dynamic content...', "scraper");
       
-      // Wait longer for initial HTMX content to load
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Reduced wait time for initial HTMX content to load
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Manually fetch HTMX endpoints that contain article content
       log(`[NewsCapsule] Attempting to load HTMX content directly...`, "scraper");
@@ -373,24 +650,20 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       
       if (htmxContent > 0) {
         log(`[NewsCapsule] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    log('[NewsCapsule] Extracting article content', "scraper");
+    log('[NewsCapsule] Extracting article content with comprehensive approach', "scraper");
 
-    // Scroll through the page to ensure all content is loaded
+    // Reduced scrolling time for faster extraction
     await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight / 3);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-      return new Promise(resolve => setTimeout(resolve, 1000));
+      window.scrollTo(0, document.body.scrollHeight / 2);
+      return new Promise(resolve => setTimeout(resolve, 500));
     });
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
-      return new Promise(resolve => setTimeout(resolve, 1000));
+      return new Promise(resolve => setTimeout(resolve, 500));
     });
 
     // Extract article content using comprehensive selectors
