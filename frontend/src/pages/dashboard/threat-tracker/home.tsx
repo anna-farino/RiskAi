@@ -530,7 +530,7 @@ export default function ThreatHome() {
               <div className="flex items-center gap-2 text-slate-300">
                 <FileText className="h-4 w-4 text-slate-400" />
                 <span className="text-sm font-medium">
-                  {localArticles.length} {localArticles.length === 1 ? 'article' : 'articles'}
+                  {localArticles.length}
                 </span>
               </div>
               {newArticlesCount > 0 && !sortNewToTop && (
@@ -541,7 +541,7 @@ export default function ThreatHome() {
                 >
                   <Star className="h-3 w-3 text-[#BF00FF]" />
                   <span className="text-xs font-medium text-[#BF00FF]">
-                    {newArticlesCount}
+                    {newArticlesCount} New
                   </span>
                 </button>
               )}
