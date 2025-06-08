@@ -90,7 +90,7 @@ async function getBrowser() {
     PUPPETEER_EXECUTABLE_PATH,
   );
   try {
-    // Enhanced browser configuration matching Threat Tracker robustness
+    // Use a more minimal configuration to avoid dependencies
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -100,26 +100,22 @@ async function getBrowser() {
         "--disable-accelerated-2d-canvas",
         "--disable-gpu",
         "--window-size=1920x1080",
-        "--disable-features=site-per-process,AudioServiceOutOfProcess",
+        "--disable-features=site-per-process,AudioServiceOutOfProcess", // For stability
         "--disable-software-rasterizer",
         "--disable-extensions",
-        "--disable-gl-drawing-for-tests",
-        "--mute-audio",
-        "--no-zygote",
-        "--no-first-run",
+        "--disable-gl-drawing-for-tests", // Disable GPU usage
+        "--mute-audio", // No audio needed for scraping
+        "--no-zygote", // Run without zygote process
+        "--no-first-run", // Skip first run wizards
         "--no-default-browser-check",
         "--ignore-certificate-errors",
         "--allow-running-insecure-content",
         "--disable-web-security",
-        "--disable-blink-features=AutomationControlled",
-        "--single-process", // Add single-process flag like Threat Tracker
+        "--disable-blink-features=AutomationControlled", // Avoid detection
       ],
       executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-      timeout: 60000, // Reduced browser launch timeout
-      protocolTimeout: 180000, // Prevents "Runtime.callFunctionOn timed out"
-      handleSIGINT: false, // Prevent premature shutdown
-      handleSIGTERM: false,
-      handleSIGHUP: false,
+      // Set longer browser launch timeout
+      timeout: 180000, // 3 minute timeout on browser launch
     });
     console.log("[getBrowser] Browser launched successfully");
   } catch (error) {
@@ -193,145 +189,49 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
 
     const page = await browser.newPage();
 
-    // Set viewport for consistency
-    await page.setViewport({ width: 1920, height: 1080 });
-
-    // Set updated user agent to avoid being detected as a bot
+    // Set user agent to avoid being detected as a bot
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
     );
 
-    // Set comprehensive headers to bypass DataDome and other protections
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "en-US,en;q=0.9",
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Cache-Control": "max-age=0",
-      "Sec-Ch-Ua":
-        '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-      "Sec-Ch-Ua-Mobile": "?0",
-      "Sec-Ch-Ua-Platform": '"Windows"',
-      "Sec-Fetch-Dest": "document",
-      "Sec-Fetch-Mode": "navigate",
-      "Sec-Fetch-Site": "none",
-      "Sec-Fetch-User": "?1",
-      "Upgrade-Insecure-Requests": "1",
+    // Navigate to the URL
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+
+    // Navigate to the URL with longer timeout and different wait strategy
+    console.log(`Navigating to: ${url}`);
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
     });
 
-    // Set comprehensive page timeouts for challenging sites like Forbes
-    page.setDefaultNavigationTimeout(90000); // 90 seconds for navigation
-    page.setDefaultTimeout(90000); // 90 seconds for all operations
-
-    // Progressive navigation strategy for robust loading
-    let navigationSuccess = false;
-    let response = null;
-
-    // Strategy 1: Try networkidle0 for complete loading
+    // Wait for content to load with fallback for different Puppeteer versions
     try {
-      console.log(`[NewsCapsule] Attempting navigation with networkidle0: ${url}`);
-      response = await page.goto(url, {
-        waitUntil: "networkidle0",
-        timeout: 45000,
+      await page.waitForDelay(2000);
+    } catch (e) {
+      // Fallback for older Puppeteer versions or use setTimeout
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    // Scroll through the page to ensure all content is loaded
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        let totalHeight = 0;
+        const distance = 100;
+        const timer = setInterval(() => {
+          const scrollHeight = document.body.scrollHeight;
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+
+          if (totalHeight >= scrollHeight) {
+            clearInterval(timer);
+            resolve(null);
+          }
+        }, 100);
       });
-      navigationSuccess = true;
-      console.log(`[NewsCapsule] Navigation successful with networkidle0. Status: ${response ? response.status() : "unknown"}`);
-    } catch (error: any) {
-      console.log(`[NewsCapsule] networkidle0 failed: ${error.message}`);
-    }
-
-    // Strategy 2: Fallback to domcontentloaded
-    if (!navigationSuccess) {
-      try {
-        console.log(`[NewsCapsule] Attempting navigation with domcontentloaded: ${url}`);
-        response = await page.goto(url, {
-          waitUntil: "domcontentloaded",
-          timeout: 30000,
-        });
-        navigationSuccess = true;
-        console.log(`[NewsCapsule] Navigation successful with domcontentloaded. Status: ${response ? response.status() : "unknown"}`);
-      } catch (error: any) {
-        console.log(`[NewsCapsule] domcontentloaded failed: ${error.message}`);
-      }
-    }
-
-    // Strategy 3: Final fallback with load event
-    if (!navigationSuccess) {
-      try {
-        console.log(`[NewsCapsule] Attempting navigation with load event: ${url}`);
-        response = await page.goto(url, {
-          waitUntil: "load",
-          timeout: 25000,
-        });
-        navigationSuccess = true;
-        console.log(`[NewsCapsule] Navigation successful with load event. Status: ${response ? response.status() : "unknown"}`);
-      } catch (error: any) {
-        console.log(`[NewsCapsule] All navigation strategies failed: ${error.message}`);
-        throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
-      }
-    }
-
-    // Wait for potential challenges to be processed
-    console.log('[NewsCapsule] Waiting for page to stabilize...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Check for bot protection (DataDome, Cloudflare, Incapsula)
-    const botProtectionCheck = await page.evaluate(() => {
-      const bodyHTML = document.body.innerHTML;
-      const indicators = [
-        '_Incapsula_Resource', 'Incapsula', 'captcha', 'Captcha',
-        'cloudflare', 'CloudFlare', 'datadome', 'DataDome',
-        'Please enable JS and disable any ad blocker',
-        'checking your browser', 'security check'
-      ];
-      return indicators.some(indicator => bodyHTML.includes(indicator));
     });
 
-    if (botProtectionCheck) {
-      console.log('[NewsCapsule] Bot protection detected, performing evasive actions');
-      // Perform human-like mouse movements
-      await page.mouse.move(Math.random() * 100 + 50, Math.random() * 100 + 50);
-      await page.mouse.down();
-      await page.mouse.move(Math.random() * 100 + 100, Math.random() * 100 + 100);
-      await page.mouse.up();
-      
-      // Wait for challenges to complete
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      // Check if challenge was resolved, if not reload
-      const stillProtected = await page.evaluate(() => {
-        const bodyHTML = document.body.innerHTML;
-        return bodyHTML.includes('captcha') || bodyHTML.includes('checking your browser');
-      });
-      
-      if (stillProtected) {
-        console.log('[NewsCapsule] Reloading page after bot protection challenge');
-        await page.reload({ waitUntil: 'networkidle2' });
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-    }
-
-    // Progressive scrolling to ensure all content is loaded (Forbes specific)
-    console.log('[NewsCapsule] Progressive scrolling to load dynamic content');
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight / 4);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight / 2);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight * 3 / 4);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-
-    // Wait for any lazy-loaded content to stabilize
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for dynamic content to load
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
@@ -352,7 +252,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       for (const selector of titleSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          title = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
+          title = element.textContent?.trim() || element.innerText?.trim() || "";
           if (title && title.length > 5) break;
         }
       }
@@ -367,65 +267,38 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
           "";
       }
 
-      // Enhanced content selectors with Forbes-specific targeting
+      // Enhanced content selectors including Forbes-specific ones
       const contentSelectors = [
-        // Forbes-specific selectors (most specific first)
-        "[data-module='ArticleBody']",
-        ".article-wrap .body",
-        ".fs-body",
-        ".article-body",
-        ".entry-content",
+        // Forbes-specific selectors
+        "[data-module='ArticleBody'] p",
+        ".article-wrap p",
+        ".entry-content p",
+        ".fs-body p",
+        ".article-body p",
         
-        // General article container selectors
-        "article",
-        ".post-content",
-        ".article-content",
-        ".content",
-        ".story-body",
-        "main .content",
-        "#article-content",
+        // General article selectors
+        "article p",
+        ".post-content p",
+        ".article-content p",
+        ".content p",
+        ".story-body p",
+        "main p",
         
-        // Fallback broader selectors
-        ".text",
-        ".body",
-        "main"
+        // Fallback selectors
+        ".text p",
+        ".body p",
+        "p"
       ];
 
       let articleContent = "";
 
-      // Try each content selector for full content blocks
+      // Try each content selector
       for (const selector of contentSelectors) {
-        const container = document.querySelector(selector);
-        if (container) {
-          const allText = container.textContent || (container as HTMLElement).innerText || "";
-          if (allText.length > 200) {
-            articleContent = allText.trim();
-            break;
-          }
-        }
-      }
-
-      // If container approach failed, try paragraph-based extraction
-      if (!articleContent || articleContent.length < 200) {
-        const paragraphSelectors = [
-          "[data-module='ArticleBody'] p",
-          ".article-wrap p",
-          ".fs-body p",
-          ".article-body p",
-          ".entry-content p",
-          "article p",
-          ".post-content p",
-          ".story-body p",
-          "main p",
-          "p"
-        ];
-
-        for (const selector of paragraphSelectors) {
-          const paragraphs = Array.from(document.querySelectorAll(selector))
-            .map((p) => (p as HTMLElement).innerText?.trim() || (p as HTMLElement).textContent?.trim() || "")
-            .filter((text) => {
-              // Filter out short paragraphs, navigation text, and common noise
-              return text.length > 30 && 
+        const paragraphs = Array.from(document.querySelectorAll(selector))
+          .map((p) => (p as HTMLElement).innerText?.trim() || (p as HTMLElement).textContent?.trim() || "")
+          .filter((text) => {
+            // Filter out short paragraphs, navigation text, and common noise
+            return text.length > 30 && 
                    !text.toLowerCase().includes("subscribe") &&
                    !text.toLowerCase().includes("follow us") &&
                    !text.toLowerCase().includes("newsletter") &&
@@ -445,7 +318,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         // Try Forbes body content
         const forbesBody = document.querySelector("[data-module='ArticleBody']");
         if (forbesBody) {
-          const allText = forbesBody.textContent || (forbesBody as HTMLElement).innerText || "";
+          const allText = forbesBody.textContent || forbesBody.innerText || "";
           if (allText.length > 200) {
             articleContent = allText.trim();
           }
@@ -497,7 +370,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
           if (element.tagName === "META") {
             publication = element.getAttribute("content") || "";
           } else {
-            publication = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
+            publication = element.textContent?.trim() || element.innerText?.trim() || "";
           }
           if (publication) break;
         }
@@ -522,7 +395,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       for (const selector of authorSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          author = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
+          author = element.textContent?.trim() || element.innerText?.trim() || "";
           if (author) break;
         }
       }
@@ -542,7 +415,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         if (element) {
           publishDate = element.getAttribute("datetime") || 
                        element.textContent?.trim() || 
-                       (element as HTMLElement).innerText?.trim() || "";
+                       element.innerText?.trim() || "";
           if (publishDate) break;
         }
       }
