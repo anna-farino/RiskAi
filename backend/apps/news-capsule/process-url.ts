@@ -112,6 +112,7 @@ async function getBrowser() {
         "--allow-running-insecure-content",
         "--disable-web-security",
         "--disable-blink-features=AutomationControlled",
+        "--single-process", // Add single-process flag like Threat Tracker
       ],
       executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
       timeout: 60000, // Reduced browser launch timeout
@@ -270,34 +271,67 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       }
     }
 
-    // Wait for content to load with fallback for different Puppeteer versions
-    try {
-      await page.waitForDelay(2000);
-    } catch (e) {
-      // Fallback for older Puppeteer versions or use setTimeout
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
+    // Wait for potential challenges to be processed
+    console.log('[NewsCapsule] Waiting for page to stabilize...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Scroll through the page to ensure all content is loaded
-    await page.evaluate(() => {
-      return new Promise((resolve) => {
-        let totalHeight = 0;
-        const distance = 100;
-        const timer = setInterval(() => {
-          const scrollHeight = document.body.scrollHeight;
-          window.scrollBy(0, distance);
-          totalHeight += distance;
-
-          if (totalHeight >= scrollHeight) {
-            clearInterval(timer);
-            resolve(null);
-          }
-        }, 100);
-      });
+    // Check for bot protection (DataDome, Cloudflare, Incapsula)
+    const botProtectionCheck = await page.evaluate(() => {
+      const bodyHTML = document.body.innerHTML;
+      const indicators = [
+        '_Incapsula_Resource', 'Incapsula', 'captcha', 'Captcha',
+        'cloudflare', 'CloudFlare', 'datadome', 'DataDome',
+        'Please enable JS and disable any ad blocker',
+        'checking your browser', 'security check'
+      ];
+      return indicators.some(indicator => bodyHTML.includes(indicator));
     });
 
-    // Wait for dynamic content to load
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (botProtectionCheck) {
+      console.log('[NewsCapsule] Bot protection detected, performing evasive actions');
+      // Perform human-like mouse movements
+      await page.mouse.move(Math.random() * 100 + 50, Math.random() * 100 + 50);
+      await page.mouse.down();
+      await page.mouse.move(Math.random() * 100 + 100, Math.random() * 100 + 100);
+      await page.mouse.up();
+      
+      // Wait for challenges to complete
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Check if challenge was resolved, if not reload
+      const stillProtected = await page.evaluate(() => {
+        const bodyHTML = document.body.innerHTML;
+        return bodyHTML.includes('captcha') || bodyHTML.includes('checking your browser');
+      });
+      
+      if (stillProtected) {
+        console.log('[NewsCapsule] Reloading page after bot protection challenge');
+        await page.reload({ waitUntil: 'networkidle2' });
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
+
+    // Progressive scrolling to ensure all content is loaded (Forbes specific)
+    console.log('[NewsCapsule] Progressive scrolling to load dynamic content');
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 4);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 2);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight * 3 / 4);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+      return new Promise(resolve => setTimeout(resolve, 1000));
+    });
+
+    // Wait for any lazy-loaded content to stabilize
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
@@ -333,38 +367,65 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
           "";
       }
 
-      // Enhanced content selectors including Forbes-specific ones
+      // Enhanced content selectors with Forbes-specific targeting
       const contentSelectors = [
-        // Forbes-specific selectors
-        "[data-module='ArticleBody'] p",
-        ".article-wrap p",
-        ".entry-content p",
-        ".fs-body p",
-        ".article-body p",
+        // Forbes-specific selectors (most specific first)
+        "[data-module='ArticleBody']",
+        ".article-wrap .body",
+        ".fs-body",
+        ".article-body",
+        ".entry-content",
         
-        // General article selectors
-        "article p",
-        ".post-content p",
-        ".article-content p",
-        ".content p",
-        ".story-body p",
-        "main p",
+        // General article container selectors
+        "article",
+        ".post-content",
+        ".article-content",
+        ".content",
+        ".story-body",
+        "main .content",
+        "#article-content",
         
-        // Fallback selectors
-        ".text p",
-        ".body p",
-        "p"
+        // Fallback broader selectors
+        ".text",
+        ".body",
+        "main"
       ];
 
       let articleContent = "";
 
-      // Try each content selector
+      // Try each content selector for full content blocks
       for (const selector of contentSelectors) {
-        const paragraphs = Array.from(document.querySelectorAll(selector))
-          .map((p) => (p as HTMLElement).innerText?.trim() || (p as HTMLElement).textContent?.trim() || "")
-          .filter((text) => {
-            // Filter out short paragraphs, navigation text, and common noise
-            return text.length > 30 && 
+        const container = document.querySelector(selector);
+        if (container) {
+          const allText = container.textContent || (container as HTMLElement).innerText || "";
+          if (allText.length > 200) {
+            articleContent = allText.trim();
+            break;
+          }
+        }
+      }
+
+      // If container approach failed, try paragraph-based extraction
+      if (!articleContent || articleContent.length < 200) {
+        const paragraphSelectors = [
+          "[data-module='ArticleBody'] p",
+          ".article-wrap p",
+          ".fs-body p",
+          ".article-body p",
+          ".entry-content p",
+          "article p",
+          ".post-content p",
+          ".story-body p",
+          "main p",
+          "p"
+        ];
+
+        for (const selector of paragraphSelectors) {
+          const paragraphs = Array.from(document.querySelectorAll(selector))
+            .map((p) => (p as HTMLElement).innerText?.trim() || (p as HTMLElement).textContent?.trim() || "")
+            .filter((text) => {
+              // Filter out short paragraphs, navigation text, and common noise
+              return text.length > 30 && 
                    !text.toLowerCase().includes("subscribe") &&
                    !text.toLowerCase().includes("follow us") &&
                    !text.toLowerCase().includes("newsletter") &&
