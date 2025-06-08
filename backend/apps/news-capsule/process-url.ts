@@ -90,7 +90,7 @@ async function getBrowser() {
     PUPPETEER_EXECUTABLE_PATH,
   );
   try {
-    // Use a more minimal configuration to avoid dependencies
+    // Enhanced browser configuration matching Threat Tracker robustness
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -100,22 +100,25 @@ async function getBrowser() {
         "--disable-accelerated-2d-canvas",
         "--disable-gpu",
         "--window-size=1920x1080",
-        "--disable-features=site-per-process,AudioServiceOutOfProcess", // For stability
+        "--disable-features=site-per-process,AudioServiceOutOfProcess",
         "--disable-software-rasterizer",
         "--disable-extensions",
-        "--disable-gl-drawing-for-tests", // Disable GPU usage
-        "--mute-audio", // No audio needed for scraping
-        "--no-zygote", // Run without zygote process
-        "--no-first-run", // Skip first run wizards
+        "--disable-gl-drawing-for-tests",
+        "--mute-audio",
+        "--no-zygote",
+        "--no-first-run",
         "--no-default-browser-check",
         "--ignore-certificate-errors",
         "--allow-running-insecure-content",
         "--disable-web-security",
-        "--disable-blink-features=AutomationControlled", // Avoid detection
+        "--disable-blink-features=AutomationControlled",
       ],
       executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-      // Set longer browser launch timeout
-      timeout: 180000, // 3 minute timeout on browser launch
+      timeout: 60000, // Reduced browser launch timeout
+      protocolTimeout: 180000, // Prevents "Runtime.callFunctionOn timed out"
+      handleSIGINT: false, // Prevent premature shutdown
+      handleSIGTERM: false,
+      handleSIGHUP: false,
     });
     console.log("[getBrowser] Browser launched successfully");
   } catch (error) {
@@ -189,20 +192,83 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
 
     const page = await browser.newPage();
 
-    // Set user agent to avoid being detected as a bot
+    // Set viewport for consistency
+    await page.setViewport({ width: 1920, height: 1080 });
+
+    // Set updated user agent to avoid being detected as a bot
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
 
-    // Navigate to the URL
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
-
-    // Navigate to the URL with longer timeout and different wait strategy
-    console.log(`Navigating to: ${url}`);
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 45000,
+    // Set comprehensive headers to bypass DataDome and other protections
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "en-US,en;q=0.9",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Cache-Control": "max-age=0",
+      "Sec-Ch-Ua":
+        '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      "Sec-Ch-Ua-Mobile": "?0",
+      "Sec-Ch-Ua-Platform": '"Windows"',
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+      "Sec-Fetch-User": "?1",
+      "Upgrade-Insecure-Requests": "1",
     });
+
+    // Set comprehensive page timeouts for challenging sites like Forbes
+    page.setDefaultNavigationTimeout(90000); // 90 seconds for navigation
+    page.setDefaultTimeout(90000); // 90 seconds for all operations
+
+    // Progressive navigation strategy for robust loading
+    let navigationSuccess = false;
+    let response = null;
+
+    // Strategy 1: Try networkidle0 for complete loading
+    try {
+      console.log(`[NewsCapsule] Attempting navigation with networkidle0: ${url}`);
+      response = await page.goto(url, {
+        waitUntil: "networkidle0",
+        timeout: 45000,
+      });
+      navigationSuccess = true;
+      console.log(`[NewsCapsule] Navigation successful with networkidle0. Status: ${response ? response.status() : "unknown"}`);
+    } catch (error: any) {
+      console.log(`[NewsCapsule] networkidle0 failed: ${error.message}`);
+    }
+
+    // Strategy 2: Fallback to domcontentloaded
+    if (!navigationSuccess) {
+      try {
+        console.log(`[NewsCapsule] Attempting navigation with domcontentloaded: ${url}`);
+        response = await page.goto(url, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+        navigationSuccess = true;
+        console.log(`[NewsCapsule] Navigation successful with domcontentloaded. Status: ${response ? response.status() : "unknown"}`);
+      } catch (error: any) {
+        console.log(`[NewsCapsule] domcontentloaded failed: ${error.message}`);
+      }
+    }
+
+    // Strategy 3: Final fallback with load event
+    if (!navigationSuccess) {
+      try {
+        console.log(`[NewsCapsule] Attempting navigation with load event: ${url}`);
+        response = await page.goto(url, {
+          waitUntil: "load",
+          timeout: 25000,
+        });
+        navigationSuccess = true;
+        console.log(`[NewsCapsule] Navigation successful with load event. Status: ${response ? response.status() : "unknown"}`);
+      } catch (error: any) {
+        console.log(`[NewsCapsule] All navigation strategies failed: ${error.message}`);
+        throw new Error(`Failed to navigate to ${url}: ${error?.message || String(error)}`);
+      }
+    }
 
     // Wait for content to load with fallback for different Puppeteer versions
     try {
