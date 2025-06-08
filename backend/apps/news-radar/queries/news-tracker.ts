@@ -209,8 +209,22 @@ export class DatabaseStorage implements IStorage {
     const rows = await withUserContext(
       userId,
       async (db) => db
-        .select()
+        .select({
+          id: articles.id,
+          sourceId: articles.sourceId,
+          title: articles.title,
+          content: articles.content,
+          url: articles.url,
+          author: articles.author,
+          publishDate: articles.publishDate,
+          summary: articles.summary,
+          relevanceScore: articles.relevanceScore,
+          detectedKeywords: articles.detectedKeywords,
+          userId: articles.userId,
+          sourceName: sources.name,
+        })
         .from(articles)
+        .leftJoin(sources, eq(articles.sourceId, sources.id))
         .where(
           and(
             eq(articles.userId, userId),
