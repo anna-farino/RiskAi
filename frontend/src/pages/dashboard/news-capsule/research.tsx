@@ -531,8 +531,8 @@ export default function Research() {
               <label htmlFor="url-input" className="text-sm text-slate-400">
                 {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
               </label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
+              <div className="flex flex-col gap-3">
+                <div className="relative">
                   {bulkMode ? (
                     <textarea
                       id="url-input"
@@ -572,13 +572,13 @@ export default function Research() {
                   )}
                 </div>
                 
-                {/* Action buttons - Stack on mobile, inline on larger screens */}
-                <div className="flex gap-2 sm:flex-col sm:gap-2">
+                {/* Action buttons - Stacked below input */}
+                <div className="flex gap-2">
                   {url && (
                     <button
                       type="button"
                       onClick={clearUrl}
-                      className="flex-1 sm:flex-none px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm sm:text-base min-h-[48px] touch-manipulation"
+                      className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm sm:text-base min-h-[48px] touch-manipulation"
                       aria-label="Clear input"
                     >
                       Clear
@@ -587,7 +587,7 @@ export default function Research() {
                   <button
                     onClick={processUrl}
                     disabled={isLoading}
-                    className="flex-1 sm:flex-none px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
+                    className="flex-1 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
                   >
                     {isLoading ? "Processing..." : "Process"}
                   </button>
