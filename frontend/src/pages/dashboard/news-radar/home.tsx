@@ -59,6 +59,8 @@ export default function NewsHome() {
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   // Track last visit timestamp for "new" badge functionality
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
+  // Track selected article from dashboard
+  const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -214,17 +216,58 @@ export default function NewsHome() {
     localStorage.setItem('news-radar-last-visit', currentTime);
   }, []);
 
+  // Check for selected article from dashboard
+  useEffect(() => {
+    const selectedArticleData = sessionStorage.getItem('selectedArticle');
+    if (selectedArticleData) {
+      try {
+        const selectedArticle = JSON.parse(selectedArticleData);
+        setHighlightedArticleId(selectedArticle.id);
+        
+        // Clear the session storage to prevent repeat highlighting
+        sessionStorage.removeItem('selectedArticle');
+        
+        // Show toast notification
+        toast({
+          title: "Article selected from dashboard",
+          description: "The article you clicked is highlighted below.",
+        });
+
+        // Clear highlighting after 10 seconds
+        const clearHighlightTimer = setTimeout(() => {
+          setHighlightedArticleId(null);
+        }, 10000);
+
+        return () => clearTimeout(clearHighlightTimer);
+      } catch (error) {
+        console.error("Error parsing selected article:", error);
+        sessionStorage.removeItem('selectedArticle');
+      }
+    }
+  }, [toast]);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(articles.data);
+      let sortedArticles = [...articles.data];
+      
+      // If there's a highlighted article, move it to the top
+      if (highlightedArticleId) {
+        const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
+        if (highlightedIndex > 0) {
+          const highlightedArticle = sortedArticles.splice(highlightedIndex, 1)[0];
+          sortedArticles.unshift(highlightedArticle);
+        }
+      }
+      
+      setLocalArticles(sortedArticles);
     }
-  }, [articles.data]);
+  }, [articles.data, highlightedArticleId]);
 
-  // Reset pagination when filters change
+  // Reset pagination when filters change or when an article is highlighted
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedKeywordIds, dateRange]);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
 
   // Calculate pagination values
   const totalArticles = localArticles.length;
@@ -832,12 +875,23 @@ export default function NewsHome() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
                 {paginatedArticles.map((article) => (
-                  <div key={article.id} className="relative">
+                  <div key={article.id} className={cn(
+                    "relative",
+                    article.id === highlightedArticleId && "ring-2 ring-[#00FFFF] ring-opacity-60 rounded-lg bg-[#00FFFF]/5"
+                  )}>
                     {isArticleNew(article) && (
                       <div className="absolute -top-1 -right-1 z-10">
                         <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
                           <Star className="h-2.5 w-2.5 mr-1" />
                           NEW
+                        </Badge>
+                      </div>
+                    )}
+                    {article.id === highlightedArticleId && (
+                      <div className="absolute -top-1 -left-1 z-10">
+                        <Badge className="bg-[#00FFFF] text-black hover:bg-[#00FFFF]/80 text-xs px-1.5 py-0.5 shadow-md">
+                          <Star className="h-2.5 w-2.5 mr-1" />
+                          SELECTED
                         </Badge>
                       </div>
                     )}
