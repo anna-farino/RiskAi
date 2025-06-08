@@ -509,6 +509,21 @@ export default function Research() {
   
   return (
     <div className="flex flex-col gap-4 lg:gap-6 min-h-screen overflow-x-hidden">
+      {/* Mobile Floating Action Button - positioned next to back-to-top button */}
+      {isViewportMobile && (
+        <button
+          onClick={() => setShowSelectedArticlesOverlay(true)}
+          className="fixed bottom-4 right-[170px] sm:bottom-6 sm:right-[170px] z-[55] w-14 h-14 bg-[#BF00FF]/80 backdrop-blur-sm border border-[#BF00FF]/50 hover:bg-[#00FFFF] text-white rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
+        >
+          <Menu className="w-6 h-6" />
+          {selectedArticles.length > 0 && (
+            <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#00FFFF] text-black text-xs font-bold rounded-full flex items-center justify-center">
+              {selectedArticles.length}
+            </span>
+          )}
+        </button>
+      )}
+      
       <div className="flex flex-col gap-2 px-4 lg:px-0">
         <h1 className="text-xl sm:text-2xl font-bold">Capsule Research</h1>
         <p className="text-sm sm:text-base text-slate-300">
@@ -718,21 +733,6 @@ export default function Research() {
               </span>
             </div>
           </div>
-          
-          {/* Mobile Floating Action Button - positioned next to back-to-top button */}
-          {isViewportMobile && (
-            <button
-              onClick={() => setShowSelectedArticlesOverlay(true)}
-              className="fixed bottom-4 right-[170px] sm:bottom-6 sm:right-[170px] z-[55] w-14 h-14 bg-[#BF00FF]/80 backdrop-blur-sm border border-[#BF00FF]/50 hover:bg-[#00FFFF] text-white rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
-            >
-              <Menu className="w-6 h-6" />
-              {selectedArticles.length > 0 && (
-                <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#00FFFF] text-black text-xs font-bold rounded-full flex items-center justify-center">
-                  {selectedArticles.length}
-                </span>
-              )}
-            </button>
-          )}
 
           <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
             {/* Action Buttons */}
