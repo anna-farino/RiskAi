@@ -94,7 +94,7 @@ export default function Research() {
   const [reportTopic, setReportTopic] = useState("");
   
   // Phase 2: Enhanced state management for responsive behavior
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const [isViewportMobile, setIsViewportMobile] = useState(false);
   const [showSelectedArticlesOverlay, setShowSelectedArticlesOverlay] = useState(false);
   
@@ -119,9 +119,6 @@ export default function Research() {
     const checkViewport = () => {
       const isMobile = window.innerWidth < 1024;
       setIsViewportMobile(isMobile);
-      if (isMobile) {
-        setIsSidebarCollapsed(false); // Always expanded on mobile
-      }
     };
 
     checkViewport();
@@ -518,9 +515,7 @@ export default function Research() {
       
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
         {/* URL Input Section - Mobile First, Stacked Layout */}
-        <div className={`w-full transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden ${
-          isViewportMobile ? 'lg:flex-1' : isSidebarCollapsed ? 'lg:flex-[2]' : 'lg:flex-1'
-        }`}>
+        <div className="w-full lg:flex-1 transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
           <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
             <h2 className="text-lg sm:text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
             
@@ -792,7 +787,7 @@ export default function Research() {
                   No articles selected yet
                 </p>
               ) : (
-              selectedArticles.map((article, index) => (
+                selectedArticles.map((article, index) => (
                 <motion.div
                   key={`selected-${article.id}-${index}`}
                   initial={{ opacity: 0, scale: 0.95 }}
