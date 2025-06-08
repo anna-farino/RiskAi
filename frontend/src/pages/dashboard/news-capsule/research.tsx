@@ -918,36 +918,126 @@ export default function Research() {
                     </React.Fragment>
                   );
                 })}
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              {processedArticles.length > articlesPerPage && (
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-6 border-t border-slate-700/50">
+                  <div className="flex gap-2 order-2 sm:order-1">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+                      disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+                      className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            )}
           </div>
         </div>
+        
+        {/* Selected Articles Section */}
+        <div className="relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last w-full lg:w-80 lg:flex-shrink-0">
+          {/* Article Count Header */}
+          <div className="p-4 border-b border-slate-700/50">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-white">Selected Articles</h3>
+              <span className="text-[#00FFFF] text-sm font-medium">
+                {selectedArticles.length}
+              </span>
+            </div>
+          </div>
+          
+          {/* Selected Articles List */}
+          <div className="p-4 max-h-[400px] lg:max-h-[600px] overflow-y-auto">
+            {selectedArticles.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-xl">📋</span>
+                </div>
+                <p className="text-slate-400 text-sm">No articles selected</p>
+                <p className="text-slate-500 text-xs mt-1">Select articles to add to a report</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedArticles.map((article, index) => (
+                  <div
+                    key={`selected-${article.id}-${index}`}
+                    className="p-3 bg-slate-800/50 rounded-lg border border-slate-700/40"
+                  >
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <h4 className="text-sm font-medium text-white line-clamp-2 leading-tight">
+                        {article.title}
+                      </h4>
+                      <button
+                        onClick={() => removeSelectedArticle(article.id)}
+                        className="flex-shrink-0 p-1 text-slate-400 hover:text-red-400 transition-colors"
+                        aria-label="Remove from selection"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 line-clamp-2">
+                      {article.summary}
+                    </p>
+                  </div>
                 ))}
               </div>
             )}
             
-            {/* Pagination */}
-            {processedArticles.length > articlesPerPage && (
-              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-6 border-t border-slate-700/50">
-                <div className="flex gap-2 order-2 sm:order-1">
+            {/* Action Buttons */}
+            {selectedArticles.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-700/50 space-y-3">
+                <input
+                  type="text"
+                  value={reportTopic}
+                  onChange={(e) => setReportTopic(e.target.value)}
+                  placeholder="Enter report topic..."
+                  className="w-full px-3 py-2 text-sm bg-slate-800/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 transition-all"
+                />
+                
+                <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    onClick={() => {
+                      if (selectedArticles.length > 0) {
+                        if (reportTopic.trim()) {
+                          createReportMutation.mutate({
+                            articleIds: selectedArticles.map(article => article.id),
+                            topic: reportTopic
+                          });
+                        } else {
+                          setShowConfirmDialog(true);
+                        }
+                      }
+                    }}
+                    disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
+                    className="w-full px-4 py-2.5 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
                   >
-                    Previous
+                    {createReportMutation.isPending ? "Creating..." : "New Report"}
                   </button>
+                  
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
-                    disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
-                    className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    onClick={() => setShowAddToExistingDialog(true)}
+                    disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
+                    className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
                   >
-                    Next
+                    Add to Existing
                   </button>
                 </div>
               </div>
             )}
           </div>
         </div>
+      </div>
 
       {/* Mobile Selected Articles Overlay */}
       <AnimatePresence>
