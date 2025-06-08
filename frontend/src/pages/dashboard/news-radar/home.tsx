@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   X,
   Star,
-  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,11 +34,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
-import { useArticleViewState } from "@/utils/article-cookies";
 
 export default function NewsHome() {
   const { toast } = useToast();
-  const articleViewState = useArticleViewState();
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -54,8 +51,8 @@ export default function NewsHome() {
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
-  // Track new article count for badge display
-  const [newArticleCount, setNewArticleCount] = useState<number>(0);
+  // Track last visit timestamp for "new" badge functionality
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -201,43 +198,22 @@ export default function NewsHome() {
     }
   };
   
-  // Initialize last visit state without updating it immediately
-  // This preserves the previous visit timestamp for "new" badge logic
+  // Initialize last visit timestamp from localStorage
   useEffect(() => {
-    // Don't update visit time on mount - only on unmount to preserve "new" logic
-    return () => {
-      // Update timestamp when component unmounts
-      articleViewState.updateVisit();
-    };
+    const stored = localStorage.getItem('news-radar-last-visit');
+    setLastVisitTimestamp(stored);
+    
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('news-radar-last-visit', currentTime);
   }, []);
 
-  // Update last visit timestamp when user navigates away
-  useEffect(() => {
-    const updateLastVisit = () => {
-      articleViewState.updateVisit();
-    };
-
-    // Update timestamp when user navigates away
-    window.addEventListener('beforeunload', updateLastVisit);
-    window.addEventListener('pagehide', updateLastVisit);
-
-    return () => {
-      window.removeEventListener('beforeunload', updateLastVisit);
-      window.removeEventListener('pagehide', updateLastVisit);
-      // Also update on cleanup
-      updateLastVisit();
-    };
-  }, [articleViewState]);
-
-  // Sync local state with query data and update new article count
+  // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
       setLocalArticles(articles.data);
-      // Update new article count based on cookie-tracked state
-      const newCount = articleViewState.getNewCount(articles.data);
-      setNewArticleCount(newCount);
     }
-  }, [articles.data, articleViewState]);
+  }, [articles.data]);
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
@@ -385,31 +361,24 @@ export default function NewsHome() {
     },
   });
 
-  // Function to check if an article is new using cookie-based tracking
+  // Calculate number of new articles since last visit
+  const newArticlesCount = useMemo(() => {
+    if (!lastVisitTimestamp) return 0;
+    
+    const lastVisit = new Date(lastVisitTimestamp);
+    return localArticles.filter(article => {
+      if (!article.publishDate) return false;
+      const publishDate = new Date(article.publishDate);
+      return publishDate > lastVisit;
+    }).length;
+  }, [lastVisitTimestamp, localArticles]);
+
+  // Function to check if an article is new
   const isArticleNew = (article: Article): boolean => {
-    return articleViewState.isNew(article);
-  };
-
-  // Handler for when an article is viewed (scrolled past)
-  const handleArticleViewed = (articleId: string) => {
-    articleViewState.markViewed(articleId);
-    // Update new article count after marking as viewed
-    if (articles.data) {
-      const newCount = articleViewState.getNewCount(articles.data);
-      setNewArticleCount(newCount);
-    }
-  };
-
-  // Handler to mark all articles as read
-  const handleMarkAllAsRead = () => {
-    if (localArticles.length > 0) {
-      articleViewState.markAllViewed(localArticles);
-      setNewArticleCount(0);
-      toast({
-        title: "All articles marked as read",
-        description: `${localArticles.length} articles marked as read.`,
-      });
-    }
+    if (!lastVisitTimestamp || !article.publishDate) return false;
+    const lastVisit = new Date(lastVisitTimestamp);
+    const publishDate = new Date(article.publishDate);
+    return publishDate > lastVisit;
   };
 
   // Send article to News Capsule
@@ -536,6 +505,16 @@ export default function NewsHome() {
               <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
                 {localArticles.length}
               </span>
+              {newArticlesCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-[#BF00FF] font-medium">
+                    {newArticlesCount} new
+                  </span>
+                  <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-0">
+                    NEW
+                  </Badge>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
               <div className="relative">
@@ -746,6 +725,13 @@ export default function NewsHome() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
               {localArticles.map((article) => (
                 <div key={article.id} className="relative">
+                  {isArticleNew(article) && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
+                        NEW
+                      </Badge>
+                    </div>
+                  )}
                   <a
                     href={article.url}
                     target="_blank"
@@ -761,8 +747,6 @@ export default function NewsHome() {
                       isPending={pendingItems.has(article.id)}
                       onKeywordClick={handleKeywordClick}
                       onSendToCapsule={sendToCapsule}
-                      isNew={isArticleNew(article)}
-                      onArticleViewed={handleArticleViewed}
                     />
                   </a>
                 </div>

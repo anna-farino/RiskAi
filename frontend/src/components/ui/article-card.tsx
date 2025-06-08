@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { DeleteAlertDialog } from "../delete-alert-dialog";
 
 // Type interface to handle both detectedKeywords and detected_keywords
@@ -19,8 +19,6 @@ interface ArticleCardProps {
   isPending?: boolean;
   onKeywordClick?: (keyword: string) => void;
   onSendToCapsule?: (url: string) => void;
-  isNew?: boolean;
-  onArticleViewed?: (articleId: string) => void;
 }
 
 export function ArticleCard({
@@ -29,13 +27,9 @@ export function ArticleCard({
   isPending = false,
   onKeywordClick,
   onSendToCapsule,
-  isNew = false,
-  onArticleViewed,
 }: ArticleCardProps) {
-
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
   // Generate a random color for the card accent (in a real app, this could be based on source or category)
   const getRandomAccent = () => {
     const accents = [
@@ -78,35 +72,8 @@ export function ArticleCard({
 
   const keywords = getKeywords();
 
-  // Intersection Observer to track when article is viewed
-  useEffect(() => {
-    if (!cardRef.current || !onArticleViewed) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.3) {
-          // Article is at least 30% visible, mark as viewed
-          onArticleViewed(article.id);
-        }
-      },
-      {
-        threshold: 0.3, // Trigger when 30% of the card is visible
-        rootMargin: '-20px 0px', // Add some margin to prevent premature triggering
-      }
-    );
-
-    observer.observe(cardRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [article.id, onArticleViewed]);
-
   return (
-    <div 
-      ref={cardRef}
-      className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]"
-    >
+    <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div
         className={cn(
           "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
@@ -125,16 +92,9 @@ export function ArticleCard({
         ></div>
 
         <div className="flex-1 p-3 sm:p-4 md:p-5 flex flex-col">
-          <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2">
-            <h3 className="text-base sm:text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors flex-1">
-              {article.title}
-            </h3>
-            {isNew ? (
-              <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-300 bg-emerald-900/50 border border-emerald-700/50 rounded-md">
-                NEW
-              </span>
-            ) : null}
-          </div>
+          <h3 className="text-base sm:text-lg font-medium text-white line-clamp-2 mb-1.5 sm:mb-2 group-hover:text-primary transition-colors">
+            {article.title}
+          </h3>
 
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
             {/*Author disabled*/}

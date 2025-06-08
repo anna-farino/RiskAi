@@ -33,6 +33,7 @@ export const articles = pgTable("articles", {
   summary: text("summary"),
   relevanceScore: integer("relevance_score"),
   detectedKeywords: jsonb("detected_keywords"),
+  scrapeDate: timestamp("scrape_date").defaultNow(),
   userId: uuid("user_id").references(() => users.id),
 });
 
