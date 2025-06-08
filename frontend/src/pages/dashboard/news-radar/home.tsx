@@ -53,8 +53,6 @@ export default function NewsHome() {
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   // Track last visit timestamp for "new" badge functionality
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
-  // Track viewed articles for this session
-  const [viewedArticles, setViewedArticles] = useState<Set<string>>(new Set());
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -205,38 +203,9 @@ export default function NewsHome() {
     const stored = localStorage.getItem('news-radar-last-visit');
     setLastVisitTimestamp(stored);
     
-    // Load previously viewed articles from localStorage
-    const storedViewedArticles = localStorage.getItem('news-radar-viewed-articles');
-    if (storedViewedArticles) {
-      try {
-        const parsed = JSON.parse(storedViewedArticles);
-        setViewedArticles(new Set(parsed));
-      } catch (e) {
-        console.error('Error parsing viewed articles from localStorage:', e);
-        setViewedArticles(new Set());
-      }
-    } else {
-      setViewedArticles(new Set());
-    }
-  }, []);
-
-  // Update last visit timestamp when user navigates away or page unloads
-  useEffect(() => {
-    const updateLastVisit = () => {
-      const currentTime = new Date().toISOString();
-      localStorage.setItem('news-radar-last-visit', currentTime);
-    };
-
-    // Update timestamp when user navigates away
-    window.addEventListener('beforeunload', updateLastVisit);
-    window.addEventListener('pagehide', updateLastVisit);
-
-    return () => {
-      window.removeEventListener('beforeunload', updateLastVisit);
-      window.removeEventListener('pagehide', updateLastVisit);
-      // Also update on cleanup
-      updateLastVisit();
-    };
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('news-radar-last-visit', currentTime);
   }, []);
 
   // Sync local state with query data when it changes
@@ -394,42 +363,10 @@ export default function NewsHome() {
 
   // Function to check if an article is new
   const isArticleNew = (article: Article): boolean => {
-    // If article was already viewed, it's not new
-    if (viewedArticles.has(article.id)) {
-      return false;
-    }
-
-    // If no publish date, can't determine newness
-    if (!article.publishDate) {
-      return false;
-    }
-    
-    // If no previous visit (first time user), show articles from last 24 hours as new
-    if (!lastVisitTimestamp) {
-      const publishDate = new Date(article.publishDate);
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      return publishDate > twentyFourHoursAgo;
-    }
-    
-    // Normal case: compare with last visit timestamp
+    if (!lastVisitTimestamp || !article.publishDate) return false;
     const lastVisit = new Date(lastVisitTimestamp);
     const publishDate = new Date(article.publishDate);
     return publishDate > lastVisit;
-  };
-
-  // Handler for when an article is viewed (scrolled past)
-  const handleArticleViewed = (articleId: string) => {
-    setViewedArticles(prev => {
-      if (prev.has(articleId)) return prev; // Already viewed
-      
-      const updated = new Set(prev);
-      updated.add(articleId);
-      
-      // Persist to localStorage
-      localStorage.setItem('news-radar-viewed-articles', JSON.stringify([...updated]));
-      
-      return updated;
-    });
   };
 
   // Send article to News Capsule
@@ -766,6 +703,14 @@ export default function NewsHome() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
               {localArticles.map((article) => (
                 <div key={article.id} className="relative">
+                  {isArticleNew(article) && (
+                    <div className="absolute -top-1 -right-1 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
+                        <Star className="h-2.5 w-2.5 mr-1" />
+                        NEW
+                      </Badge>
+                    </div>
+                  )}
                   <a
                     href={article.url}
                     target="_blank"
@@ -781,8 +726,6 @@ export default function NewsHome() {
                       isPending={pendingItems.has(article.id)}
                       onKeywordClick={handleKeywordClick}
                       onSendToCapsule={sendToCapsule}
-                      isNew={isArticleNew(article)}
-                      onArticleViewed={handleArticleViewed}
                     />
                   </a>
                 </div>
