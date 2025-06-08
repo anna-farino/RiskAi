@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   X,
   Star,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +35,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
+import { useArticleViewState } from "@/utils/article-cookies";
 
 export default function NewsHome() {
   const { toast } = useToast();
+  const articleViewState = useArticleViewState();
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -51,10 +54,8 @@ export default function NewsHome() {
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
-  // Track last visit timestamp for "new" badge functionality
-  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
-  // Track viewed articles for this session
-  const [viewedArticles, setViewedArticles] = useState<Set<string>>(new Set());
+  // Track new article count for badge display
+  const [newArticleCount, setNewArticleCount] = useState<number>(0);
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -200,31 +201,16 @@ export default function NewsHome() {
     }
   };
   
-  // Initialize last visit timestamp from localStorage
+  // Initialize and update last visit using cookies
   useEffect(() => {
-    const stored = localStorage.getItem('news-radar-last-visit');
-    setLastVisitTimestamp(stored);
-    
-    // Load previously viewed articles from localStorage
-    const storedViewedArticles = localStorage.getItem('news-radar-viewed-articles');
-    if (storedViewedArticles) {
-      try {
-        const parsed = JSON.parse(storedViewedArticles);
-        setViewedArticles(new Set(parsed));
-      } catch (e) {
-        console.error('Error parsing viewed articles from localStorage:', e);
-        setViewedArticles(new Set());
-      }
-    } else {
-      setViewedArticles(new Set());
-    }
+    // Update the last visit timestamp when the component mounts
+    articleViewState.updateVisit();
   }, []);
 
-  // Update last visit timestamp when user navigates away or page unloads
+  // Update last visit timestamp when user navigates away
   useEffect(() => {
     const updateLastVisit = () => {
-      const currentTime = new Date().toISOString();
-      localStorage.setItem('news-radar-last-visit', currentTime);
+      articleViewState.updateVisit();
     };
 
     // Update timestamp when user navigates away
@@ -237,14 +223,19 @@ export default function NewsHome() {
       // Also update on cleanup
       updateLastVisit();
     };
-  }, []);
+  }, [articleViewState]);
 
-  // Sync local state with query data when it changes
+  // Sync local state with query data and update new article count
   useEffect(() => {
     if (articles.data) {
       setLocalArticles(articles.data);
+      // Update new article count based on cookie-tracked state
+      // Filter out articles with null publishDate for type compatibility
+      const validArticles = articles.data.filter(article => article.publishDate !== null);
+      const newCount = articleViewState.getNewCount(validArticles);
+      setNewArticleCount(newCount);
     }
-  }, [articles.data]);
+  }, [articles.data, articleViewState]);
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
@@ -392,44 +383,31 @@ export default function NewsHome() {
     },
   });
 
-  // Function to check if an article is new
+  // Function to check if an article is new using cookie-based tracking
   const isArticleNew = (article: Article): boolean => {
-    // If article was already viewed, it's not new
-    if (viewedArticles.has(article.id)) {
-      return false;
-    }
-
-    // If no publish date, can't determine newness
-    if (!article.publishDate) {
-      return false;
-    }
-    
-    // If no previous visit (first time user), show articles from last 24 hours as new
-    if (!lastVisitTimestamp) {
-      const publishDate = new Date(article.publishDate);
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      return publishDate > twentyFourHoursAgo;
-    }
-    
-    // Normal case: compare with last visit timestamp
-    const lastVisit = new Date(lastVisitTimestamp);
-    const publishDate = new Date(article.publishDate);
-    return publishDate > lastVisit;
+    return articleViewState.isNew(article);
   };
 
   // Handler for when an article is viewed (scrolled past)
   const handleArticleViewed = (articleId: string) => {
-    setViewedArticles(prev => {
-      if (prev.has(articleId)) return prev; // Already viewed
-      
-      const updated = new Set(prev);
-      updated.add(articleId);
-      
-      // Persist to localStorage
-      localStorage.setItem('news-radar-viewed-articles', JSON.stringify([...updated]));
-      
-      return updated;
-    });
+    articleViewState.markViewed(articleId);
+    // Update new article count after marking as viewed
+    if (articles.data) {
+      const newCount = articleViewState.getNewCount(articles.data);
+      setNewArticleCount(newCount);
+    }
+  };
+
+  // Handler to mark all articles as read
+  const handleMarkAllAsRead = () => {
+    if (localArticles.length > 0) {
+      articleViewState.markAllViewed(localArticles);
+      setNewArticleCount(0);
+      toast({
+        title: "All articles marked as read",
+        description: `${localArticles.length} articles marked as read.`,
+      });
+    }
   };
 
   // Send article to News Capsule
