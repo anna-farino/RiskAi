@@ -84,6 +84,9 @@ export default function Sources() {
   const [localSources, setLocalSources] = useState<Source[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  // Local state for optimistic auto-scrape toggle
+  const [optimisticAutoScrapeEnabled, setOptimisticAutoScrapeEnabled] = useState<boolean | null>(null);
+  const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] = useState<JobInterval | null>(null);
   
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -876,11 +879,17 @@ export default function Sources() {
       }
     },
     onMutate: async ({ enabled, interval }) => {
+      // Set optimistic local state for immediate UI feedback
+      setOptimisticAutoScrapeEnabled(enabled);
+      setOptimisticAutoScrapeInterval(interval);
+      
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/settings/auto-scrape"] });
       
-      // Snapshot the previous value for potential rollback
+      // Snapshot the previous values for potential rollback
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"]);
+      const previousOptimisticEnabledState = optimisticAutoScrapeEnabled;
+      const previousOptimisticIntervalState = optimisticAutoScrapeInterval;
       
       // Optimistically update the cache with new settings
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], {
@@ -890,13 +899,15 @@ export default function Sources() {
         nextRun: previousSettings?.nextRun
       });
       
-      return { previousSettings };
+      return { previousSettings, previousOptimisticEnabledState, previousOptimisticIntervalState };
     },
     onError: (err, variables, context) => {
-      // Rollback optimistic update on error
+      // Rollback optimistic updates on error
       if (context?.previousSettings) {
         queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], context.previousSettings);
       }
+      setOptimisticAutoScrapeEnabled(context?.previousOptimisticEnabledState ?? null);
+      setOptimisticAutoScrapeInterval(context?.previousOptimisticIntervalState ?? null);
       
       toast({
         title: "Failed to update auto-scrape settings",
@@ -905,18 +916,27 @@ export default function Sources() {
       });
     },
     onSuccess: (data, variables) => {
+      // Clear optimistic state since we have real data now
+      setOptimisticAutoScrapeEnabled(null);
+      setOptimisticAutoScrapeInterval(null);
+      
       // Update cache with actual server response
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], data);
       
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
-          ? `Auto-scrape has been enabled with ${intervalLabels[data.interval]} frequency.`
+          ? `Auto-scrape has been enabled with ${intervalLabels[data.interval as JobInterval]} frequency.`
           : "Auto-scrape has been disabled.",
       });
       
       // Close the settings popover
       setIsSettingsOpen(false);
+    },
+    onSettled: () => {
+      // Always clear optimistic state when mutation settles
+      setOptimisticAutoScrapeEnabled(null);
+      setOptimisticAutoScrapeInterval(null);
     },
   });
 
@@ -1077,7 +1097,7 @@ export default function Sources() {
                     <Label htmlFor="auto-scrape-enabled" className="text-slate-300">Enable Auto-Scrape</Label>
                     <Switch 
                       id="auto-scrape-enabled" 
-                      checked={!!autoScrapeSettings.data?.enabled}
+                      checked={optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled}
                       disabled={updateAutoScrapeSettings.isPending}
                       onCheckedChange={(checked) => {
                         updateAutoScrapeSettings.mutate({
@@ -1093,11 +1113,11 @@ export default function Sources() {
                   <div className="space-y-2">
                     <Label htmlFor="schedule-select" className="text-slate-300">Schedule Frequency</Label>
                     <Select
-                      disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
-                      value={(autoScrapeSettings.data?.interval || JobInterval.DAILY).toString()}
+                      disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                      value={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : (autoScrapeSettings.data?.interval || JobInterval.DAILY)).toString()}
                       onValueChange={(value) => {
                         updateAutoScrapeSettings.mutate({
-                          enabled: !!autoScrapeSettings.data?.enabled,
+                          enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
                           interval: parseInt(value) as JobInterval
                         });
                       }}
@@ -1157,7 +1177,7 @@ export default function Sources() {
         </div>
         
         {/* Scheduled status indicator */}
-        {autoScrapeSettings.data?.enabled && autoScrapeSettings.data?.interval && (
+        {((optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) && autoScrapeSettings.data?.interval) && (
           <div className="flex flex-wrap items-center p-3 bg-primary/10 rounded-lg text-xs sm:text-sm border border-primary/20">
             <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-1.5 sm:mr-2 flex-shrink-0" />
             <span className="text-white">
