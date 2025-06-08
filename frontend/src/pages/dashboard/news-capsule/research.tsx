@@ -637,14 +637,16 @@ export default function Research() {
                           ×
                         </button>
                       </div>
-                      {(() => {
-                        const indicator = getSourceAppIndicator(article);
-                        return (
-                          <span className={`px-2 py-1 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
-                            {indicator.label}
-                          </span>
-                        );
-                      })()}
+                      {
+                        //(() => {
+                        //const indicator = getSourceAppIndicator(article);
+                        //return (
+                        //  <span className={`px-2 py-1 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
+                        //    {indicator.label}
+                        //  </span>
+                        //);
+                        //})()
+                      }
                     </div>
                   </div>
                   
