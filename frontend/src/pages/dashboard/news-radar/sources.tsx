@@ -181,6 +181,18 @@ export default function Sources() {
     }
   });
 
+  // Sync optimistic state with server data when it loads
+  useEffect(() => {
+    if (autoScrapeSettings.data) {
+      if (optimisticAutoScrapeEnabled === null) {
+        setOptimisticAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+      }
+      if (optimisticAutoScrapeInterval === null) {
+        setOptimisticAutoScrapeInterval(autoScrapeSettings.data.interval);
+      }
+    }
+  }, [autoScrapeSettings.data, optimisticAutoScrapeEnabled, optimisticAutoScrapeInterval]);
+
   const addSource = useMutation({
     mutationFn: async (data: { url: string; name: string }) => {
       try {
@@ -798,12 +810,12 @@ export default function Sources() {
       });
     },
     onSuccess: (data, variables) => {
-      // Clear optimistic state since we have real data now
-      setOptimisticAutoScrapeEnabled(null);
-      setOptimisticAutoScrapeInterval(null);
-      
       // Update cache with actual server response
       queryClient.setQueryData<AutoScrapeSettings>(["/api/news-tracker/settings/auto-scrape"], data);
+      
+      // Sync optimistic state with server response
+      setOptimisticAutoScrapeEnabled(data.enabled);
+      setOptimisticAutoScrapeInterval(data.interval);
       
       toast({
         title: "Auto-scrape settings updated",
@@ -814,11 +826,6 @@ export default function Sources() {
       
       // Close the settings popover
       setIsSettingsOpen(false);
-    },
-    onSettled: () => {
-      // Always clear optimistic state when mutation settles
-      setOptimisticAutoScrapeEnabled(null);
-      setOptimisticAutoScrapeInterval(null);
     },
   });
 
@@ -976,9 +983,10 @@ export default function Sources() {
                   id="auto-scrape"
                   checked={optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled}
                   onCheckedChange={(checked) => {
+                    const currentInterval = optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval ?? JobInterval.DAILY;
                     updateAutoScrapeSettings.mutate({
                       enabled: checked,
-                      interval: autoScrapeSettings.data?.interval ?? JobInterval.DAILY
+                      interval: currentInterval
                     });
                   }}
                   disabled={updateAutoScrapeSettings.isPending}
@@ -1005,10 +1013,13 @@ export default function Sources() {
                 <Button
                   variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY ? "default" : "outline"}
                   size="sm"
-                  onClick={() => updateAutoScrapeSettings.mutate({
-                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
-                    interval: JobInterval.HOURLY
-                  })}
+                  onClick={() => {
+                    const currentEnabled = optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled;
+                    updateAutoScrapeSettings.mutate({
+                      enabled: currentEnabled,
+                      interval: JobInterval.HOURLY
+                    });
+                  }}
                   disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
                   className="text-white border-slate-600 hover:bg-slate-700"
                 >
@@ -1018,12 +1029,14 @@ export default function Sources() {
                 <Button
                   variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.DAILY ? "default" : "outline"}
                   size="sm"
-                  onClick={() => updateAutoScrapeSettings.mutate({
-                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
-                    interval: JobInterval.DAILY
-                  })}
+                  onClick={() => {
+                    const currentEnabled = optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled;
+                    updateAutoScrapeSettings.mutate({
+                      enabled: currentEnabled,
+                      interval: JobInterval.DAILY
+                    });
+                  }}
                   disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
-                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-[#BF00FF]"
                 >
                   {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                   Daily
@@ -1031,10 +1044,13 @@ export default function Sources() {
                 <Button
                   variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.WEEKLY ? "default" : "outline"}
                   size="sm"
-                  onClick={() => updateAutoScrapeSettings.mutate({
-                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
-                    interval: JobInterval.WEEKLY
-                  })}
+                  onClick={() => {
+                    const currentEnabled = optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled;
+                    updateAutoScrapeSettings.mutate({
+                      enabled: currentEnabled,
+                      interval: JobInterval.WEEKLY
+                    });
+                  }}
                   disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
                   className="text-white border-slate-600 hover:bg-slate-700"
                 >
