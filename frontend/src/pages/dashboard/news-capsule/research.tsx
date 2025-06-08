@@ -516,104 +516,136 @@ export default function Research() {
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
         {/* URL Input Section - Mobile First, Stacked Layout */}
         <div className="w-full lg:flex-1 transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            <h2 className="text-lg sm:text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
-            
-            <div className="flex flex-col gap-4">
-
-
-            <div className="flex flex-col gap-3">
-              <label htmlFor="url-input" className="text-sm text-slate-400">
-                {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
-              </label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  {bulkMode ? (
-                    <textarea
-                      id="url-input"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
-                      rows={3}
-                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg resize-vertical focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
-                    />
-                  ) : (
-                    <input
-                      id="url-input"
-                      type="text"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      onFocus={() => setShowUrlDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                      placeholder="https://example.com/article"
-                      autoComplete="off"
-                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
-                    />
-                  )}
-                  
-                  {/* Dropdown for saved URLs - Mobile optimized */}
-                  {showUrlDropdown && savedUrls.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 max-h-48 sm:max-h-60 overflow-y-auto shadow-xl">
-                      {savedUrls.map((savedUrl, index) => (
-                        <button
-                          key={index}
-                          onClick={() => selectSavedUrl(savedUrl)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
-                        >
-                          {savedUrl}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Action buttons - Stack on mobile, inline on larger screens */}
-                <div className="flex gap-2 sm:flex-col sm:gap-2">
-                  {url && (
-                    <button
-                      type="button"
-                      onClick={clearUrl}
-                      className="flex-1 sm:flex-none px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm sm:text-base min-h-[48px] touch-manipulation"
-                      aria-label="Clear input"
-                    >
-                      Clear
-                    </button>
-                  )}
-                  <button
-                    onClick={processUrl}
-                    disabled={isLoading}
-                    className="flex-1 sm:flex-none px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
-                  >
-                    {isLoading ? "Processing..." : "Process"}
-                  </button>
-                </div>
+          {/* Header Section */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-700/50 bg-slate-800/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Add URLs for Processing</h2>
+                <p className="text-sm text-slate-400 mt-1">Enter one or multiple article URLs to analyze</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Mode:</span>
+                <button
+                  onClick={() => setBulkMode(!bulkMode)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    bulkMode 
+                      ? 'bg-[#BF00FF] text-white' 
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {bulkMode ? 'Bulk' : 'Single'}
+                </button>
               </div>
             </div>
           </div>
           
-          {/* Processed Articles Display - Mobile Optimized */}
-          <div className="mt-4 sm:mt-6 flex flex-col gap-4">
-            {articlesLoading ? (
-              <div className="flex flex-col items-center justify-center py-8 sm:py-12">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                <p className="text-slate-400 text-sm">Loading articles...</p>
-              </div>
-            ) : (
-              <>
-                {processedArticles.length > 0 && (
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <h3 className="text-base sm:text-lg font-medium">
-                      Processed Articles ({processedArticles.length})
-                    </h3>
-                    {processedArticles.length > articlesPerPage && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm text-slate-400">
-                          Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
-                        </span>
-                      </div>
-                    )}
+          <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
+            
+            {/* URL Input Area */}
+            <div className="space-y-4">
+              <div className="relative">
+                {bulkMode ? (
+                  <textarea
+                    id="url-input"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                    rows={4}
+                    className="w-full px-4 py-3 text-sm bg-slate-800/50 border border-slate-700 rounded-lg resize-vertical focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 transition-all"
+                  />
+                ) : (
+                  <input
+                    id="url-input"
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onFocus={() => setShowUrlDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                    placeholder="https://example.com/article"
+                    autoComplete="off"
+                    className="w-full px-4 py-3 text-sm bg-slate-800/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 transition-all"
+                  />
+                )}
+                
+                {/* Dropdown for saved URLs */}
+                {showUrlDropdown && savedUrls.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 max-h-48 overflow-y-auto shadow-xl">
+                    {savedUrls.map((savedUrl, index) => (
+                      <button
+                        key={index}
+                        onClick={() => selectSavedUrl(savedUrl)}
+                        className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
+                      >
+                        {savedUrl}
+                      </button>
+                    ))}
                   </div>
                 )}
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-end">
+                {url && (
+                  <button
+                    type="button"
+                    onClick={clearUrl}
+                    className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-all"
+                    aria-label="Clear input"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={processUrl}
+                  disabled={isLoading || !url.trim()}
+                  className="px-6 py-2.5 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
+                >
+                  {isLoading ? "Processing..." : "Process URLs"}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+        
+        {/* Processed Articles Section */}
+        <div className="w-full lg:flex-1 transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+          {/* Header Section */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-700/50 bg-slate-800/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Processed Articles</h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  {articlesLoading ? 'Loading articles...' : 
+                   processedArticles.length === 0 ? 'No articles processed yet' :
+                   `${processedArticles.length} article${processedArticles.length === 1 ? '' : 's'} ready for review`}
+                </p>
+              </div>
+              {processedArticles.length > articlesPerPage && (
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <span>Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Articles Content */}
+          <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
+            {articlesLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-slate-600 border-t-[#BF00FF] rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-400 text-sm">Loading articles...</p>
+              </div>
+            ) : processedArticles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-2xl">📄</span>
+                </div>
+                <p className="text-slate-400 text-sm">No articles have been processed yet.</p>
+                <p className="text-slate-500 text-xs mt-1">Add URLs above to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
                 
                 {(() => {
                   const startIdx = (currentPage - 1) * articlesPerPage;
@@ -701,11 +733,10 @@ export default function Research() {
                     </div>
                   </div>
                 </motion.div>
-              ));
+              ))
                 })()}
-              </>
+              </div>
             )}
-            </div>
           </div>
         </div>
         
@@ -890,7 +921,33 @@ export default function Research() {
             </div>
           </div>
         </div>
-      )}
+                ))}
+              </div>
+            )}
+            
+            {/* Pagination */}
+            {processedArticles.length > articlesPerPage && (
+              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-6 border-t border-slate-700/50">
+                <div className="flex gap-2 order-2 sm:order-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+                    disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+                    className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
       {/* Mobile Selected Articles Overlay */}
       <AnimatePresence>
