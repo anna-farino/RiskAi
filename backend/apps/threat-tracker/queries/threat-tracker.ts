@@ -86,6 +86,7 @@ export interface IStorage {
     value: any,
     userId?: string,
   ): Promise<ThreatSetting>;
+  getAllAutoScrapeSettings(): Promise<ThreatSetting[]>;
 }
 
 export const storage: IStorage = {
@@ -737,6 +738,19 @@ export const storage: IStorage = {
     } catch (error) {
       console.error("Error upserting threat setting:", error);
       throw error;
+    }
+  },
+
+  getAllAutoScrapeSettings: async () => {
+    try {
+      const results = await db
+        .select()
+        .from(threatSettings)
+        .where(eq(threatSettings.key, "auto-scrape"));
+      return results;
+    } catch (error) {
+      console.error("Error fetching all auto-scrape settings:", error);
+      return [];
     }
   },
 };

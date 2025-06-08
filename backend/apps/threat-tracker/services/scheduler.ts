@@ -140,28 +140,33 @@ export async function initializeScheduler() {
     });
     userScheduledJobs.clear();
     
-    // Get all sources that are eligible for auto-scrape
-    const autoScrapeSources = await storage.getAutoScrapeSources();
-
-    // Collect unique user IDs from these sources
-    const userIdSet = new Set<string>();
-    for (const source of autoScrapeSources) {
-      if (source.userId) {
-        userIdSet.add(source.userId);
-      }
-    }
-    const userIds = Array.from(userIdSet);
-
-    log(`[ThreatTracker] Found ${userIds.length} users with auto-scrape sources`, "scheduler");
+    // Get all users who have auto-scrape settings (enabled or disabled)
+    const allAutoScrapeSettings = await storage.getAllAutoScrapeSettings();
+    
+    log(`[ThreatTracker] Found ${allAutoScrapeSettings.length} users with auto-scrape settings`, "scheduler");
 
     // Initialize scheduler for each user based on their individual settings
-    for (const userId of userIds) {
+    for (const setting of allAutoScrapeSettings) {
+      if (!setting.user_id) continue;
+      
+      const userId = setting.user_id;
+      
       try {
-        const userSchedule = await getGlobalScrapeSchedule(userId);
+        const userSchedule = setting.value as {
+          enabled: boolean;
+          interval: JobInterval;
+        };
         
         if (userSchedule.enabled && userSchedule.interval !== JobInterval.DISABLED) {
-          scheduleUserScrapeJob(userId, userSchedule.interval);
-          log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${userSchedule.interval}`, "scheduler");
+          // Check if user has sources available (either personal or default sources)
+          const userSources = await storage.getAutoScrapeSources(userId);
+          
+          if (userSources.length > 0) {
+            scheduleUserScrapeJob(userId, userSchedule.interval);
+            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${userSchedule.interval} (${userSources.length} sources)`, "scheduler");
+          } else {
+            log(`[ThreatTracker] User ${userId} has auto-scrape enabled but no available sources`, "scheduler");
+          }
         } else {
           log(`[ThreatTracker] Auto-scrape disabled for user ${userId}`, "scheduler");
         }
