@@ -732,7 +732,28 @@ export default function Sources() {
 
     try {
       const d = new Date(date);
-      return d.toLocaleString();
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const dateYear = d.getFullYear();
+      
+      // Format time without seconds (HH:MM AM/PM)
+      const timeString = d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      // Format date based on year
+      let dateString;
+      if (dateYear === currentYear) {
+        // Current year: show M/D format
+        dateString = `${d.getMonth() + 1}/${d.getDate()}`;
+      } else {
+        // Different year: show M/D/YYYY format
+        dateString = `${d.getMonth() + 1}/${d.getDate()}/${dateYear}`;
+      }
+      
+      return `${dateString}, ${timeString}`;
     } catch {
       return "Unknown";
     }
