@@ -916,7 +916,10 @@ export default function Research() {
             </div>
           </div>
         </div>
-      )}
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Mobile Selected Articles Overlay */}
       <AnimatePresence>
