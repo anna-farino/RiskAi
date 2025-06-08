@@ -202,12 +202,7 @@ export default function NewsHome() {
   
   // Initialize last visit timestamp from localStorage
   useEffect(() => {
-    // For testing: clear localStorage to see NEW badges
-    localStorage.removeItem('news-radar-last-visit');
-    localStorage.removeItem('news-radar-viewed-articles');
-    
     const stored = localStorage.getItem('news-radar-last-visit');
-    console.log('🕒 Stored last visit timestamp:', stored);
     setLastVisitTimestamp(stored);
     
     // Load previously viewed articles from localStorage
@@ -215,18 +210,14 @@ export default function NewsHome() {
     if (storedViewedArticles) {
       try {
         const parsed = JSON.parse(storedViewedArticles);
-        console.log('📚 Loaded viewed articles from storage:', parsed.length);
         setViewedArticles(new Set(parsed));
       } catch (e) {
         console.error('Error parsing viewed articles from localStorage:', e);
+        setViewedArticles(new Set());
       }
     } else {
-      console.log('📚 No viewed articles in storage - fresh start');
       setViewedArticles(new Set());
     }
-    
-    // DON'T update last visit timestamp immediately - let user interactions do it
-    // This way articles published since the last actual visit will show as NEW
   }, []);
 
   // Update last visit timestamp when user navigates away or page unloads
@@ -234,7 +225,6 @@ export default function NewsHome() {
     const updateLastVisit = () => {
       const currentTime = new Date().toISOString();
       localStorage.setItem('news-radar-last-visit', currentTime);
-      console.log('🔄 Updated last visit timestamp on page unload:', currentTime);
     };
 
     // Update timestamp when user navigates away
@@ -404,61 +394,34 @@ export default function NewsHome() {
 
   // Function to check if an article is new
   const isArticleNew = (article: Article): boolean => {
-    console.log('🔍 Checking if article is new:', {
-      articleId: article.id,
-      title: article.title?.substring(0, 30) + '...',
-      publishDate: article.publishDate,
-      lastVisitTimestamp,
-      hasViewedArticles: viewedArticles.has(article.id),
-      viewedArticlesCount: viewedArticles.size
-    });
-
     // If article was already viewed, it's not new
     if (viewedArticles.has(article.id)) {
-      console.log('❌ Article already viewed');
       return false;
     }
 
     // If no publish date, can't determine newness
     if (!article.publishDate) {
-      console.log('❌ No publish date');
       return false;
     }
     
-    // If no previous visit (first time user), show all articles as new for testing
+    // If no previous visit (first time user), show articles from last 24 hours as new
     if (!lastVisitTimestamp) {
       const publishDate = new Date(article.publishDate);
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const isRecentlyPublished = publishDate > twentyFourHoursAgo;
-      
-      console.log('📅 First-time user logic:', {
-        publishDate: publishDate.toISOString(),
-        twentyFourHoursAgo: twentyFourHoursAgo.toISOString(),
-        isRecentlyPublished,
-        forcingTrue: true // For immediate testing
-      });
-      
-      // Temporarily return true for all articles to test badge display
-      return true;
+      return publishDate > twentyFourHoursAgo;
     }
     
     // Normal case: compare with last visit timestamp
     const lastVisit = new Date(lastVisitTimestamp);
     const publishDate = new Date(article.publishDate);
-    const isNew = publishDate > lastVisit;
-    
-    console.log('📅 Date comparison:', {
-      lastVisit: lastVisit.toISOString(),
-      publishDate: publishDate.toISOString(),
-      isNew
-    });
-    
-    return isNew;
+    return publishDate > lastVisit;
   };
 
   // Handler for when an article is viewed (scrolled past)
   const handleArticleViewed = (articleId: string) => {
     setViewedArticles(prev => {
+      if (prev.has(articleId)) return prev; // Already viewed
+      
       const updated = new Set(prev);
       updated.add(articleId);
       
