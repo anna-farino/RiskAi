@@ -97,6 +97,14 @@ export enum JobInterval {
   DISABLED = 0,         // Disabled
 }
 
+// Convert enum to human-readable labels
+const intervalLabels: Record<JobInterval, string> = {
+  [JobInterval.HOURLY]: "hourly",
+  [JobInterval.DAILY]: "daily", 
+  [JobInterval.WEEKLY]: "weekly",
+  [JobInterval.DISABLED]: "disabled"
+};
+
 // Type for auto-scrape settings
 type AutoScrapeSettings = {
   enabled: boolean;
@@ -768,7 +776,7 @@ export default function Sources() {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
-                    ? `Auto-scrape runs ${(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval)?.toLowerCase()}`
+                    ? `Auto-scrape runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || 'daily'}`
                     : "Enable to automatically scrape sources for new threats"}
                 </p>
               </div>
