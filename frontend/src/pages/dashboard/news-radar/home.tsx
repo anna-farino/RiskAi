@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   X,
   Star,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,10 @@ export default function NewsHome() {
     endDate?: Date;
   }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const articlesPerPage = 20;
   
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
@@ -214,6 +220,35 @@ export default function NewsHome() {
       setLocalArticles(articles.data);
     }
   }, [articles.data]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedKeywordIds, dateRange]);
+
+  // Calculate pagination values
+  const totalArticles = localArticles.length;
+  const totalPages = Math.ceil(totalArticles / articlesPerPage);
+  const startIndex = (currentPage - 1) * articlesPerPage;
+  const endIndex = startIndex + articlesPerPage;
+  const paginatedArticles = localArticles.slice(startIndex, endIndex);
+
+  // Pagination navigation functions
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
@@ -398,6 +433,100 @@ export default function NewsHome() {
         variant: "destructive",
       });
     }
+  };
+
+  // Pagination component
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisiblePages = 5;
+      
+      if (totalPages <= maxVisiblePages) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) {
+            pages.push(i);
+          }
+          pages.push('...');
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push('...');
+          for (let i = totalPages - 3; i <= totalPages; i++) {
+            pages.push(i);
+          }
+        } else {
+          pages.push(1);
+          pages.push('...');
+          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+            pages.push(i);
+          }
+          pages.push('...');
+          pages.push(totalPages);
+        }
+      }
+      
+      return pages;
+    };
+
+    return (
+      <div className="flex items-center justify-between py-4">
+        <div className="text-sm text-slate-400">
+          Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPreviousPage}
+            disabled={currentPage === 1}
+            className="border-slate-600 hover:bg-white/10 text-white disabled:opacity-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, index) => (
+              page === '...' ? (
+                <span key={index} className="px-2 text-slate-400">...</span>
+              ) : (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => goToPage(page as number)}
+                  className={cn(
+                    "w-10 h-8",
+                    currentPage === page
+                      ? "bg-primary text-primary-foreground"
+                      : "border-slate-600 hover:bg-white/10 text-white"
+                  )}
+                >
+                  {page}
+                </Button>
+              )
+            ))}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages}
+            className="border-slate-600 hover:bg-white/10 text-white disabled:opacity-50"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -666,7 +795,7 @@ export default function NewsHome() {
           </div>
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
               {/* Adjust number of skeleton items based on screen size */}
               {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
                 <div
@@ -700,36 +829,41 @@ export default function NewsHome() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
-              {localArticles.map((article) => (
-                <div key={article.id} className="relative">
-                  {isArticleNew(article) && (
-                    <div className="absolute -top-1 -right-1 z-10">
-                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
-                        <Star className="h-2.5 w-2.5 mr-1" />
-                        NEW
-                      </Badge>
-                    </div>
-                  )}
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      "group transition-opacity duration-200 block",
-                      pendingItems.has(article.id) && "opacity-60"
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
+                {paginatedArticles.map((article) => (
+                  <div key={article.id} className="relative">
+                    {isArticleNew(article) && (
+                      <div className="absolute -top-1 -right-1 z-10">
+                        <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
+                          <Star className="h-2.5 w-2.5 mr-1" />
+                          NEW
+                        </Badge>
+                      </div>
                     )}
-                  >
-                    <ArticleCard
-                      article={article}
-                      onDelete={(id: any) => deleteArticle.mutate(id)}
-                      isPending={pendingItems.has(article.id)}
-                      onKeywordClick={handleKeywordClick}
-                      onSendToCapsule={sendToCapsule}
-                    />
-                  </a>
-                </div>
-              ))}
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "group transition-opacity duration-200 block",
+                        pendingItems.has(article.id) && "opacity-60"
+                      )}
+                    >
+                      <ArticleCard
+                        article={article}
+                        onDelete={(id: any) => deleteArticle.mutate(id)}
+                        isPending={pendingItems.has(article.id)}
+                        onKeywordClick={handleKeywordClick}
+                        onSendToCapsule={sendToCapsule}
+                      />
+                    </a>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Pagination controls below articles */}
+              <PaginationControls />
             </div>
           )}
         </div>

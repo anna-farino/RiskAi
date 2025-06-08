@@ -11,6 +11,7 @@ import { DeleteAlertDialog } from "../delete-alert-dialog";
 // Type interface to handle both detectedKeywords and detected_keywords
 interface ArticleWithKeywords extends Article {
   detected_keywords?: string[];
+  sourceName?: string;
 }
 
 interface ArticleCardProps {
@@ -110,6 +111,14 @@ export function ArticleCard({
                 <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 <span className="text-[10px] sm:text-xs">
                   {format(new Date(article.publishDate), "MMM d, yyyy")}
+                </span>
+              </div>
+            )}
+
+            {article.sourceName && (
+              <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-slate-400">
+                <span className="text-[10px] sm:text-xs font-medium">
+                  {article.sourceName}
                 </span>
               </div>
             )}
