@@ -230,9 +230,7 @@ export default function NewsHome() {
     if (articles.data) {
       setLocalArticles(articles.data);
       // Update new article count based on cookie-tracked state
-      // Filter out articles with null publishDate for type compatibility
-      const validArticles = articles.data.filter(article => article.publishDate !== null);
-      const newCount = articleViewState.getNewCount(validArticles);
+      const newCount = articleViewState.getNewCount(articles.data);
       setNewArticleCount(newCount);
     }
   }, [articles.data, articleViewState]);
@@ -534,6 +532,24 @@ export default function NewsHome() {
               <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
                 {localArticles.length}
               </span>
+              {newArticleCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs font-medium px-2 py-0.5 border"
+                  >
+                    {newArticleCount} NEW
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleMarkAllAsRead}
+                    className="h-7 px-3 text-xs border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                  >
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Mark All Read
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
               <div className="relative">
