@@ -782,7 +782,7 @@ export default function Research() {
                       createReportMutation.mutate({ articleIds, topic });
                     }}
                     disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="flex-1 lg:w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation transition-all duration-200"
+                    className="flex-1 lg:w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation transition-all duration-200"
                   >
                     {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
                   </button>
@@ -1008,7 +1008,7 @@ export default function Research() {
                       setShowSelectedArticlesOverlay(false);
                     }}
                     disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="flex-1 px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
+                    className="flex-1 px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 hover:text-[#00FFFF] rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
                   >
                     New Report
                   </button>
