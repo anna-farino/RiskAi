@@ -384,7 +384,7 @@ export default function Sources() {
       });
     },
     onSettled: (id) => {
-      setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
+      setSourcesBeingUpdated(prev => prev.filter(sourceId => sourceId != id))
     }
   });
 
@@ -988,8 +988,8 @@ export default function Sources() {
   };
 
 
-  console.log("Sources being scraped", sourcesBeingScraped)
-  console.log("Scrapes being stopped", scrapesBeingStopped)
+  console.log("Sources being updated", sourcesBeingUpdated)
+  console.log("Updates being stopped", updatesBeingStopped)
   return (
     <div className={cn(
       "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
@@ -1405,8 +1405,8 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => scrapeSource.mutate(source.id)}
-                          disabled={scrapeSource.isPending}
+                          onClick={() => updateSource.mutate(source.id)}
+                          disabled={updateSource.isPending}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
                           title="Scrape source"
                         >
@@ -1419,12 +1419,12 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => stopScraping.mutate(source.id)}
-                          disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
+                          onClick={() => stopUpdating.mutate(source.id)}
+                          disabled={stopUpdating.isPending && updatesBeingStopped.includes(source.id)}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
-                          title="Stop scraping"
+                          title="Stop checking for updates"
                         >
-                          {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
+                          {stopUpdating.isPending && updatesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <X className="h-3 w-3" />
@@ -1463,8 +1463,8 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => scrapeSource.mutate(source.id)}
-                          disabled={scrapeSource.isPending && sourcesBeingScraped.includes(source.id)}
+                          onClick={() => updateSource.mutate(source.id)}
+                          disabled={updateSource.isPending && sourcesBeingUpdated.includes(source.id)}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
                           title="Scrape source"
                         >
