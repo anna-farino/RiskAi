@@ -130,7 +130,7 @@ export function ArticleCard({
             </h3>
             {isNew && (
               <Badge 
-                className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs font-medium px-2 py-0.5 flex-shrink-0"
+                className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs font-medium px-2 py-0.5 flex-shrink-0 border"
               >
                 NEW
               </Badge>
