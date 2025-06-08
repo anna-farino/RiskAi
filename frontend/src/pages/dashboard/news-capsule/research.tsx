@@ -636,14 +636,9 @@ export default function Research() {
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
-                      {(() => {
-                        const indicator = getSourceAppIndicator(article);
-                        return (
-                          <span className={`px-2 py-1 text-xs font-bold rounded ml-3 ${indicator.color} ${indicator.textColor}`}>
-                            {indicator.label}
-                          </span>
-                        );
-                      })()}
+                      <span className="text-xs text-slate-400 ml-3 whitespace-nowrap">
+                        Sent from News Capsule
+                      </span>
                     </div>
                     
                     {/* Action buttons below title */}
