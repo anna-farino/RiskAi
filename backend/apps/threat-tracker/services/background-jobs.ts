@@ -8,7 +8,7 @@ import { extractArticleLinks, scrapeUrl } from "./scraper";
 import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
-import { normalizeUrl } from "./url-utils";
+import { normalizeUrl, titleSimilarity } from "./url-utils";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
