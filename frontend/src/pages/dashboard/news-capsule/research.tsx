@@ -513,7 +513,7 @@ export default function Research() {
       {isViewportMobile && (
         <button
           onClick={() => setShowSelectedArticlesOverlay(true)}
-          className="fixed bottom-4 right-[170px] sm:bottom-6 sm:right-[170px] z-[55] w-14 h-14 bg-[#00FFFF]/80 backdrop-blur-sm border border-[#00FFFF]/50 hover:bg-[#BF00FF] text-black rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
+          className="fixed bottom-4 right-[170px] sm:bottom-6 sm:right-[170px] z-[55] w-14 h-14 bg-[#00FFFF]/80 backdrop-blur-sm border border-[#00FFFF]/50 hover:bg-[#BF00FF] text-black hover:text-white rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
         >
           <Menu className="w-6 h-6" />
           {selectedArticles.length > 0 && (
