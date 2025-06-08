@@ -84,15 +84,7 @@ export function ArticleCard({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        console.log('[INTERSECTION OBSERVER]', {
-          articleId: article.id,
-          isIntersecting: entry.isIntersecting,
-          intersectionRatio: entry.intersectionRatio,
-          threshold: 0.3
-        });
-        
         if (entry.isIntersecting && entry.intersectionRatio >= 0.3) {
-          console.log('[TRIGGERING VIEW]', { articleId: article.id });
           // Article is at least 30% visible, mark as viewed
           onArticleViewed(article.id);
         }
