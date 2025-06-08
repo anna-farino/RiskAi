@@ -415,7 +415,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         if (element) {
           publishDate = element.getAttribute("datetime") || 
                        element.textContent?.trim() || 
-                       element.innerText?.trim() || "";
+                       (element as HTMLElement).innerText?.trim() || "";
           if (publishDate) break;
         }
       }
