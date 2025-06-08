@@ -435,42 +435,7 @@ export default function NewsHome() {
     }
   };
 
-  // Minimal pagination component for top
-  const MinimalPaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className="flex items-center justify-center gap-3 py-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={goToPreviousPage}
-          disabled={currentPage === 1}
-          className="text-slate-400 hover:text-white hover:bg-slate-800/50 disabled:opacity-30"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Previous
-        </Button>
-        
-        <span className="text-xs text-slate-500 px-2">
-          Page {currentPage} of {totalPages}
-        </span>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={goToNextPage}
-          disabled={currentPage === totalPages}
-          className="text-slate-400 hover:text-white hover:bg-slate-800/50 disabled:opacity-30"
-        >
-          Next
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-      </div>
-    );
-  };
-
-  // Full pagination component for bottom
+  // Pagination component
   const PaginationControls = () => {
     if (totalPages <= 1) return null;
 
@@ -865,9 +830,6 @@ export default function NewsHome() {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Minimal pagination controls above articles */}
-              <MinimalPaginationControls />
-              
               <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
                 {paginatedArticles.map((article) => (
                   <div key={article.id} className="relative">
@@ -900,7 +862,7 @@ export default function NewsHome() {
                 ))}
               </div>
               
-              {/* Full pagination controls below articles */}
+              {/* Pagination controls below articles */}
               <PaginationControls />
             </div>
           )}
