@@ -807,7 +807,7 @@ export default function Research() {
                         ✕
                       </button>
                       <span className="text-xs text-slate-400 px-2 py-1 border border-slate-600 rounded whitespace-nowrap">
-                        News Capsule
+                        NC
                       </span>
                     </div>
                   </div>
