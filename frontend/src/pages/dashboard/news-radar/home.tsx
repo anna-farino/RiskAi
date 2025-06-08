@@ -666,7 +666,7 @@ export default function NewsHome() {
           </div>
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
               {/* Adjust number of skeleton items based on screen size */}
               {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
                 <div
@@ -700,7 +700,7 @@ export default function NewsHome() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
               {localArticles.map((article) => (
                 <div key={article.id} className="relative">
                   {isArticleNew(article) && (
