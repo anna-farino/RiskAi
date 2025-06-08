@@ -32,12 +32,7 @@ export function ArticleCard({
   isNew = false,
   onArticleViewed,
 }: ArticleCardProps) {
-  console.log('[ARTICLE CARD DEBUG]', {
-    articleId: article.id,
-    title: article.title.substring(0, 30),
-    isNew,
-    isPending
-  });
+
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -134,15 +129,11 @@ export function ArticleCard({
             <h3 className="text-base sm:text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors flex-1">
               {article.title}
             </h3>
-            {isNew && (
-              <Badge 
-                className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs font-medium px-2 py-0.5 flex-shrink-0 border"
-              >
+            {isNew ? (
+              <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-300 bg-emerald-900/50 border border-emerald-700/50 rounded-md">
                 NEW
-              </Badge>
-            )}
-            {/* Debug badge to verify isNew prop */}
-            {console.log('[BADGE RENDER DEBUG]', { articleId: article.id, isNew, shouldShowBadge: !!isNew })}
+              </span>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
