@@ -487,28 +487,28 @@ export default function Research() {
   };
   
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Capsule Research</h1>
-        <p className="text-slate-300">
+    <div className="flex flex-col gap-4 lg:gap-6 min-h-screen overflow-x-hidden">
+      <div className="flex flex-col gap-2 px-4 lg:px-0">
+        <h1 className="text-xl sm:text-2xl font-bold">Capsule Research</h1>
+        <p className="text-sm sm:text-base text-slate-300">
           Analyze articles for executive reporting by submitting URLs for processing.
         </p>
       </div>
       
-      <div className="flex gap-6 h-[calc(100vh-12rem)]">
-        {/* URL Input Section - Left Side, Independent Scroll */}
-        <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="h-full overflow-y-auto p-5">
-            <h2 className="text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
+        {/* URL Input Section - Mobile First, Stacked Layout */}
+        <div className="w-full lg:flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+          <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
             
             <div className="flex flex-col gap-4">
 
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <label htmlFor="url-input" className="text-sm text-slate-400">
                 {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   {bulkMode ? (
                     <textarea
@@ -517,7 +517,7 @@ export default function Research() {
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
                       rows={3}
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md resize-vertical"
+                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg resize-vertical focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
                     />
                   ) : (
                     <input
@@ -529,18 +529,18 @@ export default function Research() {
                       onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
                       placeholder="https://example.com/article"
                       autoComplete="off"
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md"
+                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
                     />
                   )}
                   
-                  {/* Dropdown for saved URLs */}
+                  {/* Dropdown for saved URLs - Mobile optimized */}
                   {showUrlDropdown && savedUrls.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-md overflow-hidden z-10 max-h-60 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 max-h-48 sm:max-h-60 overflow-y-auto shadow-xl">
                       {savedUrls.map((savedUrl, index) => (
                         <button
                           key={index}
                           onClick={() => selectSavedUrl(savedUrl)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-700 truncate"
+                          className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
                         >
                           {savedUrl}
                         </button>
@@ -548,44 +548,48 @@ export default function Research() {
                     </div>
                   )}
                 </div>
-                {url && (
+                
+                {/* Action buttons - Stack on mobile, inline on larger screens */}
+                <div className="flex gap-2 sm:flex-col sm:gap-2">
+                  {url && (
+                    <button
+                      type="button"
+                      onClick={clearUrl}
+                      className="flex-1 sm:flex-none px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm sm:text-base min-h-[48px] touch-manipulation"
+                      aria-label="Clear input"
+                    >
+                      Clear
+                    </button>
+                  )}
                   <button
-                    type="button"
-                    onClick={clearUrl}
-                    className="px-3 max-h-10 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md"
-                    aria-label="Clear input"
+                    onClick={processUrl}
+                    disabled={isLoading}
+                    className="flex-1 sm:flex-none px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
                   >
-                    Clear
+                    {isLoading ? "Processing..." : "Process"}
                   </button>
-                )}
-                <button
-                  onClick={processUrl}
-                  disabled={isLoading}
-                  className="px-4 max-h-10 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50"
-                >
-                  {isLoading ? "Processing..." : "Process"}
-                </button>
+                </div>
               </div>
             </div>
           </div>
           
-          {/* Processed Articles Display */}
-          <div className="mt-6 flex flex-col gap-4">
+          {/* Processed Articles Display - Mobile Optimized */}
+          <div className="mt-4 sm:mt-6 flex flex-col gap-4">
             {articlesLoading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-8 h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+              <div className="flex flex-col items-center justify-center py-8 sm:py-12">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
                 <p className="text-slate-400 text-sm">Loading articles...</p>
               </div>
             ) : (
               <>
                 {processedArticles.length > 0 && (
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <h3 className="text-base sm:text-lg font-medium">
                       Processed Articles ({processedArticles.length})
                     </h3>
                     {processedArticles.length > articlesPerPage && (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-400">
+                        <span className="text-xs sm:text-sm text-slate-400">
                           Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
                         </span>
                       </div>
@@ -604,35 +608,34 @@ export default function Research() {
                   key={`article-${article.id}-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                  className="p-4 sm:p-5 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-lg font-medium flex-1">{article.title}</h3>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="flex gap-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                    <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
+                    <div className="flex flex-col gap-3">
+                      {/* Mobile: Stack buttons horizontally, Desktop: Stack vertically */}
+                      <div className="flex gap-2 sm:flex-col sm:gap-2">
                         <button
                           onClick={() => {
                             const isSelected = selectedArticles.some(selected => selected.title === article.title);
                             if (isSelected) {
-                              // Remove from selected articles
                               const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
                               setSelectedArticles(newSelected);
                             } else {
-                              // Add to selected articles
                               selectForReport(article);
                             }
                           }}
-                          className={`w-32 px-3 py-1 text-sm rounded-md border ${
+                          className={`flex-1 sm:w-32 sm:flex-none px-3 py-2 text-xs sm:text-sm rounded-lg border min-h-[44px] touch-manipulation ${
                             selectedArticles.some(selected => selected.title === article.title) 
                               ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
                               : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
                           }`}
                         >
-                          {selectedArticles.some(selected => selected.title === article.title) ? "Entered in Report" : "Select for Report"}
+                          {selectedArticles.some(selected => selected.title === article.title) ? "In Report" : "Select"}
                         </button>
                         <button
                           onClick={() => removeProcessedArticle(article)}
-                          className="w-8 h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-md border border-red-700/30"
+                          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg border border-red-700/30 touch-manipulation"
                         >
                           ×
                         </button>
@@ -640,7 +643,7 @@ export default function Research() {
                       {(() => {
                         const indicator = getSourceAppIndicator(article);
                         return (
-                          <span className={`px-2 py-1 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
+                          <span className={`px-2 py-1 text-xs font-bold rounded self-start sm:self-end ${indicator.color} ${indicator.textColor}`}>
                             {indicator.label}
                           </span>
                         );
@@ -648,34 +651,35 @@ export default function Research() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  {/* Mobile-first grid: Single column on mobile, 2 columns on larger screens */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4">
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Threat Name</p>
-                      <p className="text-sm">{article.threatName}</p>
+                      <p className="text-sm break-words">{article.threatName}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
-                      <p className="text-sm">{article.vulnerabilityId}</p>
+                      <p className="text-sm break-words">{article.vulnerabilityId}</p>
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="sm:col-span-2">
                       <p className="text-xs text-slate-400 mb-1">Summary</p>
-                      <p className="text-sm">{article.summary}</p>
+                      <p className="text-sm leading-relaxed">{article.summary}</p>
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="sm:col-span-2">
                       <p className="text-xs text-slate-400 mb-1">Impacts</p>
-                      <p className="text-sm">{article.impacts}</p>
+                      <p className="text-sm leading-relaxed">{article.impacts}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
-                      <p className="text-sm">{article.attackVector}</p>
+                      <p className="text-sm break-words">{article.attackVector}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Target OS</p>
-                      <p className="text-sm">{article.targetOS}</p>
+                      <p className="text-sm break-words">{article.targetOS}</p>
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <p className="text-xs text-slate-400 mb-1">Source</p>
-                      <p className="text-sm">{article.sourcePublication}</p>
+                      <p className="text-sm break-words">{article.sourcePublication}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -687,39 +691,41 @@ export default function Research() {
           </div>
         </div>
         
-        {/* Selected Articles Section - Right Side, Fixed */}
-        <div className="w-80 flex-shrink-0 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="h-full overflow-y-auto p-5">
-            {/* Action Buttons */}
-            <button
-              onClick={sendToExecutiveReport}
-              disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-              className="mb-2 w-full px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white"
-            >
-              {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Executive Report"}
-            </button>
+        {/* Selected Articles Section - Mobile Responsive */}
+        <div className="w-full lg:w-80 lg:flex-shrink-0 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last">
+          <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
+            {/* Action Buttons - Mobile Optimized */}
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 mb-4">
+              <button
+                onClick={sendToExecutiveReport}
+                disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                className="flex-1 lg:w-full px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white text-sm sm:text-base min-h-[48px] touch-manipulation"
+              >
+                {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Executive Report"}
+              </button>
+              
+              <button
+                onClick={() => {
+                  const articleIds = selectedArticles.map(article => article.id);
+                  const topic = reportTopic.trim() || undefined;
+                  createReportMutation.mutate({ articleIds, topic });
+                }}
+                disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
+                className="flex-1 lg:w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
+              >
+                {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
+              </button>
+            </div>
             
-            <button
-              onClick={() => {
-                const articleIds = selectedArticles.map(article => article.id);
-                const topic = reportTopic.trim() || undefined;
-                createReportMutation.mutate({ articleIds, topic });
-              }}
-              disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
-              className="mb-4 w-full px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50"
-            >
-              {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
-            </button>
-            
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Selected Articles</h2>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
               <span className="text-sm text-slate-400">
                 {selectedArticles.length} selected
               </span>
             </div>
           
-          {/* Report Topic Field */}
-          <div className="mb-4">
+          {/* Report Topic Field - Mobile Optimized */}
+          <div className="mb-4 sm:mb-6">
             <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
               Report Topic (Optional)
             </label>
@@ -731,47 +737,47 @@ export default function Research() {
                 setReportTopic(e.target.value);
               }}
               placeholder="Enter a topic (Optional)"
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px]"
             />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-2">
               This topic will appear in the Executive Report below the title
             </p>
           </div>
           
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {selectedArticles.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">
+              <p className="text-sm text-slate-400 italic text-center py-8">
                 No articles selected yet
               </p>
             ) : (
               selectedArticles.map((article, index) => (
                 <div 
                   key={`selected-${article.id}-${index}`}
-                  className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                  className="p-3 sm:p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
-                  <div className="flex justify-between items-start">
-                    <h4 className="text-sm font-medium mb-1 flex-1">{article.title}</h4>
-                    <div className="flex flex-col items-end gap-1">
+                  <div className="flex justify-between items-start gap-3">
+                    <h4 className="text-sm sm:text-base font-medium mb-2 flex-1 leading-tight">{article.title}</h4>
+                    <div className="flex flex-col items-end gap-2">
                       <button
                         onClick={() => removeSelectedArticle(article.id)}
-                        className="text-red-400 hover:text-red-300"
+                        className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg touch-manipulation"
                       >
                         ✕
                       </button>
                       {(() => {
                         const indicator = getSourceAppIndicator(article);
                         return (
-                          <span className={`px-1.5 py-0.5 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
+                          <span className={`px-2 py-1 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
                             {indicator.label}
                           </span>
                         );
                       })()}
                     </div>
                   </div>
-                  <p className="text-xs text-slate-400 mb-2">
+                  <p className="text-xs text-slate-400 mb-2 break-words">
                     {article.threatName}
                   </p>
-                  <p className="text-xs line-clamp-2">
+                  <p className="text-xs sm:text-sm line-clamp-3 leading-relaxed">
                     {article.summary}
                   </p>
                 </div>
