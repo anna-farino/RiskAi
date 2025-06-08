@@ -1177,12 +1177,12 @@ export default function Sources() {
         </div>
         
         {/* Scheduled status indicator */}
-        {((optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) && autoScrapeSettings.data?.interval) && (
+        {((optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) && (optimisticAutoScrapeInterval || autoScrapeSettings.data?.interval)) && (
           <div className="flex flex-wrap items-center p-3 bg-primary/10 rounded-lg text-xs sm:text-sm border border-primary/20">
             <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-1.5 sm:mr-2 flex-shrink-0" />
             <span className="text-white">
               Auto-scrape is scheduled to run <span className="text-primary font-medium whitespace-nowrap">
-                {intervalLabels[autoScrapeSettings.data.interval as JobInterval]}
+                {intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]}
               </span>
             </span>
           </div>
