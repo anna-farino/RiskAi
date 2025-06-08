@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { ChevronUp, ChevronDown, Menu, X } from "lucide-react";
 
 interface ArticleSummary {
   id: string;
@@ -92,6 +93,11 @@ export default function Research() {
   const [articlesPerPage] = useState(10);
   const [reportTopic, setReportTopic] = useState("");
   
+  // Phase 2: Enhanced state management for responsive behavior
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isViewportMobile, setIsViewportMobile] = useState(false);
+  const [showSelectedArticlesOverlay, setShowSelectedArticlesOverlay] = useState(false);
+  
   // Dialog state
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -107,6 +113,21 @@ export default function Research() {
   // State for delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState<CapsuleArticle | null>(null);
+
+  // Phase 2: Responsive viewport detection
+  useEffect(() => {
+    const checkViewport = () => {
+      const isMobile = window.innerWidth < 1024;
+      setIsViewportMobile(isMobile);
+      if (isMobile) {
+        setIsSidebarCollapsed(false); // Always expanded on mobile
+      }
+    };
+
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    return () => window.removeEventListener('resize', checkViewport);
+  }, []);
 
   // Fetch articles from database
   const { data: processedArticles = [], isLoading: articlesLoading, refetch: refetchArticles } = useQuery<CapsuleArticle[]>({
@@ -497,7 +518,9 @@ export default function Research() {
       
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
         {/* URL Input Section - Mobile First, Stacked Layout */}
-        <div className="w-full lg:flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+        <div className={`w-full transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden ${
+          isViewportMobile ? 'lg:flex-1' : isSidebarCollapsed ? 'lg:flex-[2]' : 'lg:flex-1'
+        }`}>
           <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
             <h2 className="text-lg sm:text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
             
@@ -691,76 +714,160 @@ export default function Research() {
           </div>
         </div>
         
-        {/* Selected Articles Section - Mobile Responsive */}
-        <div className="w-full lg:w-80 lg:flex-shrink-0 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last">
-          <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            {/* Action Buttons - Mobile Optimized */}
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 mb-4">
-              <button
-                onClick={sendToExecutiveReport}
-                disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-                className="flex-1 lg:w-full px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white text-sm sm:text-base min-h-[48px] touch-manipulation"
-              >
-                {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Executive Report"}
-              </button>
-              
-              <button
-                onClick={() => {
-                  const articleIds = selectedArticles.map(article => article.id);
-                  const topic = reportTopic.trim() || undefined;
-                  createReportMutation.mutate({ articleIds, topic });
-                }}
-                disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
-                className="flex-1 lg:w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
-              >
-                {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
-              </button>
+        {/* Selected Articles Section - Adaptive Sidebar */}
+        <div className={`relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last ${
+          isViewportMobile 
+            ? 'w-full' 
+            : isSidebarCollapsed 
+              ? 'lg:w-16 lg:hover:w-80 group' 
+              : 'w-full lg:w-80 lg:flex-shrink-0'
+        }`}>
+          {/* Desktop Collapse Toggle */}
+          {!isViewportMobile && (
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="absolute top-4 -left-3 z-10 w-6 h-6 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            >
+              {isSidebarCollapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </button>
+          )}
+          
+          {/* Mobile Floating Action Button */}
+          {isViewportMobile && (
+            <button
+              onClick={() => setShowSelectedArticlesOverlay(true)}
+              className="fixed bottom-6 right-6 z-20 w-14 h-14 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+              {selectedArticles.length > 0 && (
+                <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#00FFFF] text-black text-xs font-bold rounded-full flex items-center justify-center">
+                  {selectedArticles.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          <div className={`min-h-[400px] lg:h-full overflow-y-auto transition-all duration-300 ${
+            isSidebarCollapsed && !isViewportMobile 
+              ? 'p-2 group-hover:p-4 group-hover:sm:p-5' 
+              : 'p-4 sm:p-5'
+          }`}>
+            {/* Action Buttons - Adaptive Design */}
+            <div className={`transition-all duration-300 ${
+              isSidebarCollapsed && !isViewportMobile 
+                ? 'opacity-0 group-hover:opacity-100 group-hover:mb-4' 
+                : 'flex flex-col sm:flex-row lg:flex-col gap-3 mb-4'
+            }`}>
+              {/* Collapsed state - Icon only */}
+              {isSidebarCollapsed && !isViewportMobile ? (
+                <div className="flex flex-col gap-2 items-center">
+                  <div className="w-8 h-8 bg-[#BF00FF] rounded-lg flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">{selectedArticles.length}</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={sendToExecutiveReport}
+                    disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                    className="flex-1 lg:w-full px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white text-sm sm:text-base min-h-[48px] touch-manipulation transition-all duration-200"
+                  >
+                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Executive Report"}
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      const articleIds = selectedArticles.map(article => article.id);
+                      const topic = reportTopic.trim() || undefined;
+                      createReportMutation.mutate({ articleIds, topic });
+                    }}
+                    disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
+                    className="flex-1 lg:w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation transition-all duration-200"
+                  >
+                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
+                  </button>
+                </>
+              )}
             </div>
             
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-              <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
-              <span className="text-sm text-slate-400">
-                {selectedArticles.length} selected
-              </span>
+            <div className={`transition-all duration-300 ${
+              isSidebarCollapsed && !isViewportMobile 
+                ? 'opacity-0 group-hover:opacity-100' 
+                : 'flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4'
+            }`}>
+              {isSidebarCollapsed && !isViewportMobile ? null : (
+                <>
+                  <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
+                  <span className="text-sm text-slate-400">
+                    {selectedArticles.length} selected
+                  </span>
+                </>
+              )}
             </div>
           
-          {/* Report Topic Field - Mobile Optimized */}
-          <div className="mb-4 sm:mb-6">
-            <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
-              Report Topic (Optional)
-            </label>
-            <input
-              id="reportTopic"
-              type="text"
-              value={reportTopic}
-              onChange={(e) => {
-                setReportTopic(e.target.value);
-              }}
-              placeholder="Enter a topic (Optional)"
-              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px]"
-            />
-            <p className="text-xs text-slate-500 mt-2">
-              This topic will appear in the Executive Report below the title
-            </p>
+          {/* Report Topic Field - Adaptive Design */}
+          <div className={`transition-all duration-300 ${
+            isSidebarCollapsed && !isViewportMobile 
+              ? 'opacity-0 group-hover:opacity-100 group-hover:mb-4 group-hover:sm:mb-6' 
+              : 'mb-4 sm:mb-6'
+          }`}>
+            {isSidebarCollapsed && !isViewportMobile ? null : (
+              <>
+                <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
+                  Report Topic (Optional)
+                </label>
+                <input
+                  id="reportTopic"
+                  type="text"
+                  value={reportTopic}
+                  onChange={(e) => {
+                    setReportTopic(e.target.value);
+                  }}
+                  placeholder="Enter a topic (Optional)"
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px] transition-all duration-200"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  This topic will appear in the Executive Report below the title
+                </p>
+              </>
+            )}
           </div>
           
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {selectedArticles.length === 0 ? (
+          <div className={`transition-all duration-300 ${
+            isSidebarCollapsed && !isViewportMobile 
+              ? 'opacity-0 group-hover:opacity-100' 
+              : 'flex flex-col gap-3 sm:gap-4'
+          }`}>
+            {isSidebarCollapsed && !isViewportMobile ? (
+              // Collapsed state - Show minimal indicators
+              <div className="flex flex-col gap-1 items-center">
+                {selectedArticles.slice(0, 3).map((_, index) => (
+                  <div key={index} className="w-2 h-2 bg-[#BF00FF] rounded-full"></div>
+                ))}
+                {selectedArticles.length > 3 && (
+                  <span className="text-xs text-slate-400 mt-1">+{selectedArticles.length - 3}</span>
+                )}
+              </div>
+            ) : selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic text-center py-8">
                 No articles selected yet
               </p>
             ) : (
               selectedArticles.map((article, index) => (
-                <div 
+                <motion.div
                   key={`selected-${article.id}-${index}`}
-                  className="p-3 sm:p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-3 sm:p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg hover:border-slate-600/60 transition-colors"
                 >
                   <div className="flex justify-between items-start gap-3">
                     <h4 className="text-sm sm:text-base font-medium mb-2 flex-1 leading-tight">{article.title}</h4>
                     <div className="flex flex-col items-end gap-2">
                       <button
                         onClick={() => removeSelectedArticle(article.id)}
-                        className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg touch-manipulation"
+                        className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg touch-manipulation transition-colors"
                       >
                         ✕
                       </button>
@@ -780,7 +887,7 @@ export default function Research() {
                   <p className="text-xs sm:text-sm line-clamp-3 leading-relaxed">
                     {article.summary}
                   </p>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
@@ -850,6 +957,111 @@ export default function Research() {
           </div>
         </div>
       )}
+
+      {/* Mobile Selected Articles Overlay */}
+      <AnimatePresence>
+        {showSelectedArticlesOverlay && isViewportMobile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30"
+            onClick={() => setShowSelectedArticlesOverlay(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 500 }}
+              className="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700/50 rounded-t-2xl max-h-[85vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Selected Articles ({selectedArticles.length})</h3>
+                <button
+                  onClick={() => setShowSelectedArticlesOverlay(false)}
+                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
+                {/* Mobile Action Buttons */}
+                <div className="flex gap-3 mb-4">
+                  <button
+                    onClick={() => {
+                      sendToExecutiveReport();
+                      setShowSelectedArticlesOverlay(false);
+                    }}
+                    disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                    className="flex-1 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
+                  >
+                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      const articleIds = selectedArticles.map(article => article.id);
+                      const topic = reportTopic.trim() || undefined;
+                      createReportMutation.mutate({ articleIds, topic });
+                      setShowSelectedArticlesOverlay(false);
+                    }}
+                    disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
+                    className="flex-1 px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
+                  >
+                    New Report
+                  </button>
+                </div>
+
+                {/* Report Topic Field */}
+                <div className="mb-4">
+                  <label className="block text-sm text-slate-300 mb-2">
+                    Report Topic (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={reportTopic}
+                    onChange={(e) => setReportTopic(e.target.value)}
+                    placeholder="Enter a topic (Optional)"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px]"
+                  />
+                </div>
+
+                {/* Selected Articles List */}
+                {selectedArticles.length === 0 ? (
+                  <p className="text-slate-400 italic text-center py-8">
+                    No articles selected yet
+                  </p>
+                ) : (
+                  selectedArticles.map((article, index) => (
+                    <div 
+                      key={`mobile-selected-${article.id}-${index}`}
+                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <h4 className="text-base font-medium mb-2 flex-1 leading-tight">{article.title}</h4>
+                        <button
+                          onClick={() => removeSelectedArticle(article.id)}
+                          className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg touch-manipulation"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <p className="text-sm text-slate-400 mb-2">
+                        {article.threatName}
+                      </p>
+                      <p className="text-sm line-clamp-2 leading-relaxed">
+                        {article.summary}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
