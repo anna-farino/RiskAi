@@ -270,215 +270,34 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       }
     }
 
-    // Wait for links to appear on the page
-    await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
-      console.log('[NewsCapsule] Timeout waiting for links, continuing anyway');
-    });
-
-    // Check for HTMX usage and dynamic content
-    const hasHtmx = await page.evaluate(() => {
-      const htmxScriptPatterns = [
-        'script[src*="htmx"]',
-        'script[src*="hx."]',
-        'script[data-turbo-track*="htmx"]'
-      ];
-      
-      const htmxAttributePatterns = [
-        '[hx-get]', '[hx-post]', '[hx-put]', '[hx-patch]', '[hx-delete]',
-        '[hx-trigger]', '[hx-target]', '[hx-swap]', '[hx-include]',
-        '[hx-push-url]', '[hx-select]', '[hx-vals]', '[hx-confirm]',
-        '[data-hx-get]', '[data-hx-post]', '[data-hx-trigger]'
-      ];
-
-      // Check for script tags
-      let scriptLoaded = false;
-      for (const pattern of htmxScriptPatterns) {
-        if (document.querySelector(pattern)) {
-          scriptLoaded = true;
-          break;
-        }
-      }
-      
-      // Check for inline scripts containing "htmx"
-      if (!scriptLoaded) {
-        const allScripts = Array.from(document.querySelectorAll('script'));
-        scriptLoaded = allScripts.some(script => {
-          const scriptContent = script.textContent || script.innerHTML || '';
-          const scriptSrc = script.src || '';
-          return scriptContent.includes('htmx') || scriptSrc.includes('htmx');
-        });
-      }
-      
-      // Check for HTMX in window object
-      const htmxInWindow = typeof (window as any).htmx !== 'undefined';
-      
-      // Check for any HTMX attributes
-      let hasHxAttributes = false;
-      for (const pattern of htmxAttributePatterns) {
-        if (document.querySelector(pattern)) {
-          hasHxAttributes = true;
-          break;
-        }
-      }
-      
-      // Get all hx-get elements
-      const hxGetElements = Array.from(document.querySelectorAll('[hx-get], [data-hx-get]')).map(el => ({
-        url: el.getAttribute('hx-get') || el.getAttribute('data-hx-get'),
-        trigger: el.getAttribute('hx-trigger') || el.getAttribute('data-hx-trigger') || 'click'
-      }));
-      
-      return {
-        scriptLoaded,
-        htmxInWindow,
-        hasHxAttributes,
-        hxGetElements,
-        debug: {
-          totalElements: document.querySelectorAll('*').length,
-          scripts: Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline').slice(0, 5)
-        }
-      };
-    });
-
-    console.log(`[NewsCapsule] HTMX Detection: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`);
-
-    // Handle HTMX content if detected
-    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
-      console.log('[NewsCapsule] HTMX detected, handling dynamic content...');
-      
-      // Wait longer for initial HTMX content to load
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      // Get the current page URL to construct proper HTMX endpoints
-      const currentUrl = page.url();
-      const baseUrl = new URL(currentUrl).origin;
-      
-      // Manually fetch common HTMX endpoints that contain articles
-      const htmxContent = await page.evaluate(async (baseUrl) => {
-        let totalContentLoaded = 0;
-        
-        // Common HTMX endpoints for article content
-        const endpoints = [
-          '/media/items/',
-          '/media/items/top/',
-          '/media/items/recent/',
-          '/news/items/',
-          '/articles/items/',
-          '/posts/items/',
-          '/content/items/'
-        ];
-        
-        // Get CSRF token from page if available
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                          document.querySelector('input[name="_token"]')?.getAttribute('value') ||
-                          document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
-        
-        // Get screen size info for headers
-        const screenType = window.innerWidth < 768 ? 'M' : 'D';
-        
-        for (const endpoint of endpoints) {
-          try {
-            const headers = {
-              'HX-Request': 'true',
-              'HX-Current-URL': window.location.href,
-              'Accept': 'text/html, */*'
-            };
-            
-            // Add CSRF token if available
-            if (csrfToken) {
-              headers['X-CSRFToken'] = csrfToken;
-            }
-            
-            // Add screen type header
-            headers['X-Screen'] = screenType;
-            
-            console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
-            const response = await fetch(`${baseUrl}${endpoint}`, { headers });
-            
-            if (response.ok) {
-              const html = await response.text();
-              console.log(`Loaded ${html.length} chars from ${endpoint}`);
-              
-              // Insert content into page
-              const container = document.createElement('div');
-              container.className = 'htmx-injected-content';
-              container.setAttribute('data-source', endpoint);
-              container.innerHTML = html;
-              document.body.appendChild(container);
-              totalContentLoaded += html.length;
-            }
-          } catch (e) {
-            console.error(`Error fetching ${endpoint}:`, e);
-          }
-        }
-        
-        return totalContentLoaded;
-      }, baseUrl);
-      
-      if (htmxContent > 0) {
-        console.log(`[NewsCapsule] Successfully loaded ${htmxContent} characters of HTMX content`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-      
-      // Try triggering visible HTMX elements
-      const triggeredElements = await page.evaluate(() => {
-        let triggered = 0;
-        
-        const htmxElements = document.querySelectorAll('[hx-get]');
-        htmxElements.forEach((el, index) => {
-          if (index < 10) {
-            const url = el.getAttribute('hx-get');
-            const trigger = el.getAttribute('hx-trigger') || 'click';
-            
-            if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
-              return;
-            }
-            
-            const rect = el.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-              console.log(`Clicking HTMX element: ${url}`);
-              (el as HTMLElement).click();
-              triggered++;
-            }
-          }
-        });
-        
-        return triggered;
-      });
-      
-      if (triggeredElements > 0) {
-        console.log(`[NewsCapsule] Triggered ${triggeredElements} HTMX elements via click`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+    // Wait for content to load with fallback for different Puppeteer versions
+    try {
+      await page.waitForDelay(2000);
+    } catch (e) {
+      // Fallback for older Puppeteer versions or use setTimeout
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    
-    // Wait for any remaining dynamic content to load
-    await page.waitForFunction(
-      () => {
-        const loadingElements = document.querySelectorAll(
-          '.loading, .spinner, [data-loading="true"], .skeleton'
-        );
-        return loadingElements.length === 0;
-      },
-      { timeout: 10000 }
-    ).catch(() => console.log('[NewsCapsule] Timeout waiting for loading indicators'));
 
-    // Progressive scrolling to trigger lazy loading
-    console.log(`[NewsCapsule] Scrolling page to trigger lazy loading...`);
+    // Scroll through the page to ensure all content is loaded
     await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight / 3);
-      return new Promise(resolve => setTimeout(resolve, 1000));
+      return new Promise((resolve) => {
+        let totalHeight = 0;
+        const distance = 100;
+        const timer = setInterval(() => {
+          const scrollHeight = document.body.scrollHeight;
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+
+          if (totalHeight >= scrollHeight) {
+            clearInterval(timer);
+            resolve(null);
+          }
+        }, 100);
+      });
     });
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    });
-    
-    // Wait for additional time to let dynamic content load
-    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Wait for dynamic content to load
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Try multiple selectors for better content extraction
     const content = await page.evaluate(() => {
@@ -572,186 +391,118 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         }
       }
 
-      // Advanced content detection with multiple strategies
+      // Fallback to basic content extraction methods
       if (!articleContent || articleContent.length < 200) {
-        console.log('[NewsCapsule] Primary extraction failed, trying advanced methods...');
-        
-        // Strategy 1: Look for article container
+        // Try article tag first (from original dev branch)
         const articleElement = document.querySelector("article");
         if (articleElement) {
           const paragraphs = Array.from(articleElement.querySelectorAll("p")).map(
-            (p) => p.textContent?.trim() || ""
-          ).filter(text => text.length > 20);
-          
-          if (paragraphs.length > 1) {
-            articleContent = paragraphs.join(" ");
-          }
+            (p) => p.innerText,
+          );
+          articleContent = paragraphs.join(" ");
         }
-        
-        // Strategy 2: Main content area detection
-        if (!articleContent || articleContent.length < 200) {
-          const mainSelectors = [
-            'main[role="main"]',
-            '.main-content',
-            '#main-content',
-            '.primary-content',
-            '.article-wrapper',
-            '.story-wrapper',
-            '.post-wrapper'
-          ];
-          
-          for (const selector of mainSelectors) {
-            const mainElement = document.querySelector(selector);
-            if (mainElement) {
-              const paragraphs = Array.from(mainElement.querySelectorAll("p")).map(
-                (p) => p.textContent?.trim() || ""
-              ).filter(text => text.length > 20 && !text.toLowerCase().includes('advertisement'));
-              
-              if (paragraphs.length > 2) {
-                articleContent = paragraphs.join(" ");
-                break;
-              }
-            }
-          }
-        }
-        
-        // Strategy 3: Semantic content detection
-        if (!articleContent || articleContent.length < 200) {
-          const semanticSelectors = [
-            '[itemprop="articleBody"]',
-            '[data-content-type="article"]',
-            '.article-text',
-            '.story-text',
-            '.post-text',
-            '.content-body'
-          ];
-          
-          for (const selector of semanticSelectors) {
-            const element = document.querySelector(selector);
-            if (element) {
-              const text = element.textContent?.trim() || "";
-              if (text.length > 200) {
-                articleContent = text;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Strategy 4: Largest text block detection
-        if (!articleContent || articleContent.length < 200) {
-          const allDivs = Array.from(document.querySelectorAll('div'));
-          let largestText = '';
-          
-          allDivs.forEach(div => {
-            const text = div.textContent?.trim() || '';
-            if (text.length > largestText.length && 
-                text.length > 300 && 
-                !text.toLowerCase().includes('navigation') &&
-                !text.toLowerCase().includes('subscribe') &&
-                !text.toLowerCase().includes('cookie')) {
-              largestText = text;
-            }
-          });
-          
-          if (largestText.length > 200) {
-            articleContent = largestText;
-          }
+
+        // Get basic paragraph content if article tag approach didn't work
+        if (!articleContent || articleContent.length < 100) {
+          const paragraphs = Array.from(document.querySelectorAll("p"))
+            .map((p) => p.innerText)
+            .join(" ");
+          articleContent = paragraphs;
         }
       }
-      
-      // Extract publication source
+
+      // Final fallback to all paragraphs if still no content
+      if (!articleContent || articleContent.length < 100) {
+        const allParagraphs = Array.from(document.querySelectorAll("p"))
+          .map((p) => (p as HTMLElement).innerText?.trim() || "")
+          .filter((text) => text.length > 20);
+        articleContent = allParagraphs.join(" ");
+      }
+
+      // Enhanced publication name detection
       const publicationSelectors = [
         'meta[property="og:site_name"]',
-        'meta[name="application-name"]',
-        '.site-name',
-        '.publication-name',
-        '.source-name',
-        'header .logo img'
+        'meta[name="site_name"]',
+        'meta[property="twitter:site"]',
+        ".site-name",
+        ".brand-name",
+        ".logo-text"
       ];
-      
-      let publication = '';
+
+      let publication = "";
       for (const selector of publicationSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          if (element.tagName === 'META') {
-            publication = element.getAttribute('content') || '';
+          if (element.tagName === "META") {
+            publication = element.getAttribute("content") || "";
           } else {
-            publication = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || '';
+            publication = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
           }
           if (publication) break;
         }
       }
-      
+
       // Fallback to hostname
       if (!publication) {
-        publication = window.location.hostname.replace('www.', '').split('.')[0];
+        publication = new URL(window.location.href).hostname;
       }
-      
+
       // Extract author information
       const authorSelectors = [
-        'meta[name="author"]',
-        '[rel="author"]',
-        '.author-name',
-        '.byline',
-        '[data-module="AuthorInfo"]'
+        "[data-module='ArticleAuthor']",
+        ".author-name",
+        ".byline",
+        ".author",
+        "[rel='author']",
+        ".contributor-name"
       ];
-      
-      let author = '';
+
+      let author = "";
       for (const selector of authorSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          author = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || '';
+          author = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
           if (author) break;
         }
       }
-      
+
       // Extract publish date
       const dateSelectors = [
         "[data-module='ArticleDate']",
-        'meta[property="article:published_time"]',
-        'meta[name="publish-date"]',
-        'time[datetime]',
-        '.publish-date',
-        '.article-date'
+        "time[datetime]",
+        ".publish-date",
+        ".date",
+        ".article-date"
       ];
-      
-      let publishDate = '';
+
+      let publishDate = "";
       for (const selector of dateSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          publishDate = element.getAttribute('datetime') || 
+          publishDate = element.getAttribute("datetime") || 
                        element.textContent?.trim() || 
-                       (element as HTMLElement).innerText?.trim() || '';
+                       (element as HTMLElement).innerText?.trim() || "";
           if (publishDate) break;
         }
       }
-      
+
       return {
         title,
         content: articleContent,
-        author,
-        publishDate,
         publication,
-        url: window.location.href
+        author,
+        publishDate
       };
-    });
-
-    console.log('[NewsCapsule] Content extraction completed:', {
-      title: content.title?.substring(0, 50) + '...',
-      contentLength: content.content?.length || 0,
-      author: content.author,
-      publication: content.publication
     });
 
     return JSON.stringify(content);
   } catch (error) {
+    browser = null;
     console.error("Error scraping article:", error);
     throw new Error("Failed to scrape article content");
   } finally {
     if (browser) {
       await browser.close();
-      browser = null;
     }
   }
 }
