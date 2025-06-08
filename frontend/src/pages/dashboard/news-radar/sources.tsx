@@ -62,7 +62,7 @@ const intervalLabels: Record<JobInterval, string> = {
   [JobInterval.WEEKLY]: "Weekly"
 };
 
-// Type definition for auto scrape settings
+// Type definition for automatic news update settings
 interface AutoScrapeSettings {
   enabled: boolean;
   interval: JobInterval;
@@ -85,14 +85,14 @@ export default function Sources() {
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
-  const [sourcesBeingScraped, setSourcesBeingScraped] = useState<string[]>([]);
-  const [scrapesBeingStopped, setScrapesBeingStopped] = useState<string[]>([]);
+  const [sourcesBeingUpdated, setSourcesBeingUpdated] = useState<string[]>([]);
+  const [updatesBeingStopped, setUpdatesBeingStopped] = useState<string[]>([]);
   
   // Local state for optimistic UI updates
   const [localSources, setLocalSources] = useState<Source[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
-  // Local state for optimistic auto-scrape toggle
+  // Local state for optimistic auto-update toggle
   const [optimisticAutoScrapeEnabled, setOptimisticAutoScrapeEnabled] = useState<boolean | null>(null);
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] = useState<JobInterval | null>(null);
   
@@ -169,7 +169,7 @@ export default function Sources() {
     }
   }, [sources.data]);
   
-  // Get auto-scrape settings
+  // Get automatic news update settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
     queryKey: ["/api/news-tracker/settings/auto-scrape"],
     queryFn: async () => {
@@ -181,7 +181,7 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
+        if (!response.ok) throw new Error('Failed to fetch automatic news update settings')
         
         const data = await response.json()
         return data || { enabled: false, interval: JobInterval.DAILY }
@@ -316,7 +316,7 @@ export default function Sources() {
     },
   });
 
-  const scrapeSource = useMutation({
+  const updateSource = useMutation({
     mutationFn: async (id: string) => {
       try {
         const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}/scrape`, {
@@ -326,7 +326,7 @@ export default function Sources() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to scrape source: ${response.statusText}`);
+          throw new Error(`Failed to check source for updates: ${response.statusText}`);
         }
         
         // Try to parse JSON but handle empty responses
@@ -338,14 +338,14 @@ export default function Sources() {
           return { success: true, id };
         }
       } catch (error) {
-        console.error("Scrape source error:", error);
+        console.error("Check source for updates error:", error);
         throw error;
       }
     },
     onMutate: async (id) => {
-      console.log("Sources being scraped ", sourcesBeingScraped)
-      if (!sourcesBeingScraped.includes(id)) {
-        setSourcesBeingScraped(prev => [...prev, id])
+      console.log("Sources being updated ", sourcesBeingUpdated)
+      if (!sourcesBeingUpdated.includes(id)) {
+        setSourcesBeingUpdated(prev => [...prev, id])
       }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
@@ -370,8 +370,8 @@ export default function Sources() {
       // If the mutation fails, use the context to roll back
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
-        title: "Error scraping source",
-        description: "Failed to scrape source. Please try again.",
+        title: "Error checking for updates",
+        description: "Failed to check source for updates. Please try again.",
         variant: "destructive",
       });
     },
@@ -380,7 +380,7 @@ export default function Sources() {
       // For articles we do need to update since the content has changed
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
       toast({
-        title: "Source scraped successfully",
+        title: "Source checked for updates successfully",
       });
     },
     onSettled: (id) => {
@@ -388,7 +388,7 @@ export default function Sources() {
     }
   });
 
-  const stopScraping = useMutation({
+  const stopUpdating = useMutation({
     mutationFn: async (id: string) => {
       try {
         const response = await fetch(`${serverUrl}/api/news-tracker/sources/${id}/stop`, {
@@ -398,7 +398,7 @@ export default function Sources() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to stop scraping: ${response.statusText}`);
+          throw new Error(`Failed to stop update process: ${response.statusText}`);
         }
         
         // Try to parse JSON but handle empty responses
@@ -410,13 +410,13 @@ export default function Sources() {
           return { success: true, id };
         }
       } catch (error) {
-        console.error("Stop scraping error:", error);
+        console.error("Stop update process error:", error);
         throw error;
       }
     },
     onMutate: async (id) => {
-      if (!scrapesBeingStopped.includes(id)) {
-        setScrapesBeingStopped(prev => [...prev, id])
+      if (!updatesBeingStopped.includes(id)) {
+        setUpdatesBeingStopped(prev => [...prev, id])
       }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
@@ -439,26 +439,26 @@ export default function Sources() {
       // If the mutation fails, use the context to roll back
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
-        title: "Error stopping scrape",
-        description: "Failed to stop scraping. Please try again.",
+        title: "Error stopping update process",
+        description: "Failed to stop update process. Please try again.",
         variant: "destructive",
       });
     },
     onSuccess: (_, id) => {
-      console.log("Finished stopping scrape: ", id)
-      setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
+      console.log("Finished stopping update process: ", id)
+      setSourcesBeingUpdated(prev => prev.filter(sourceId => sourceId != id))
       // Don't invalidate - rely on the optimistic update
       toast({
-        title: "Scraping stopped successfully",
+        title: "Update process stopped successfully",
       });
     },
     onSettled: (_, __, id) => {
       console.log(id);
-      setScrapesBeingStopped(prev => prev.filter(sourceId => sourceId != id))
+      setUpdatesBeingStopped(prev => prev.filter(sourceId => sourceId != id))
     }
   });
   
-  // Toggle auto-scrape inclusion for a source
+  // Toggle automatic news updates inclusion for a source
   const toggleAutoScrape = useMutation({
     mutationFn: async ({ id, include }: { id: string, include: boolean }) => {
       try {
@@ -473,7 +473,7 @@ export default function Sources() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to update auto-scrape setting: ${response.statusText}`);
+          throw new Error(`Failed to update automatic news updates setting: ${response.statusText}`);
         }
         
         // Try to parse JSON but handle empty responses
@@ -485,7 +485,7 @@ export default function Sources() {
           return { id, includeInAutoScrape: include, success: true };
         }
       } catch (error) {
-        console.error("Toggle auto-scrape error:", error);
+        console.error("Toggle automatic news updates error:", error);
         throw error;
       }
     },
