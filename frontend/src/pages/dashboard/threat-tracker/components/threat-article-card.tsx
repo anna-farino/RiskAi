@@ -421,7 +421,7 @@ export function ThreatArticleCard({
               </div>
             )}
 
-            <div className="flex items-center gap-1.5 flex-shrink-0"></div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {onSendToCapsule && (
                 <Button
                   variant="ghost"
