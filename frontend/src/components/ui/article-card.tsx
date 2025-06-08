@@ -73,8 +73,6 @@ export function ArticleCard({
 
   const keywords = getKeywords();
 
-  // Removed threat level categorization - will implement better category solution later
-
   return (
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div
@@ -98,12 +96,6 @@ export function ArticleCard({
           <h3 className="text-base sm:text-lg font-medium text-white line-clamp-2 mb-1.5 sm:mb-2 group-hover:text-primary transition-colors">
             {article.title}
           </h3>
-
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs text-slate-400 truncate">
-              {article.sourceName}
-            </span>
-          </div>
 
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
             {/*Author disabled*/}
