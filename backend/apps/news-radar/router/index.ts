@@ -362,10 +362,11 @@ newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
   }
 });
 
-// Scheduler Settings - Admin only
-newsRouter.get("/settings/auto-scrape", async (_req, res) => {
+// User-specific auto-scrape settings
+newsRouter.get("/settings/auto-scrape", async (req, res) => {
   try {
-    const settings = await getGlobalScrapeSchedule();
+    const userId = (req.user as User).id as string;
+    const settings = await getGlobalScrapeSchedule(userId);
     res.json(settings);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -375,15 +376,16 @@ newsRouter.get("/settings/auto-scrape", async (_req, res) => {
 
 newsRouter.post("/settings/auto-scrape", async (req, res) => {
   try {
+    const userId = (req.user as User).id as string;
     const schema = z.object({
       enabled: z.boolean(),
       interval: z.nativeEnum(JobInterval)
     });
     
     const { enabled, interval } = schema.parse(req.body);
-    await updateGlobalScrapeSchedule(enabled, interval);
+    await updateGlobalScrapeSchedule(enabled, interval, userId);
     
-    const settings = await getGlobalScrapeSchedule();
+    const settings = await getGlobalScrapeSchedule(userId);
     res.json(settings);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

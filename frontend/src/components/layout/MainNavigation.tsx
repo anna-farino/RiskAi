@@ -257,19 +257,24 @@ export const MobileNavigation = () => {
             </Button>
           </div>
         </SheetTrigger>
-        <SheetContent side="left" className="w-72 border-[#BF00FF]/20 bg-black/95 p-0">
-          <div className="pt-2"> {/* Add some top padding for better spacing */}
-            <div className="flex flex-col gap-2 py-2">
-              <div className="px-3 py-2">
-                <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
-                  Your RisqAi Toolkit
-                </h2>
-                <p className="text-sm text-gray-400 leading-tight">
-                  Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
-                </p>
-              </div>
+        <SheetContent side="left" className="w-72 border-[#BF00FF]/20 bg-black/95 p-0 flex flex-col">
+          <div className="flex-shrink-0 pt-2 pb-4"> {/* Fixed header section */}
+            <div className="px-3 py-2">
+              <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
+                Your RisqAi Toolkit
+              </h2>
+              <p className="text-sm text-gray-400 leading-tight">
+                Access your dashboard, monitoring tools, and security alerts from this centralized navigation menu.
+              </p>
+            </div>
+          </div>
 
-              <div className="px-3 py-1 space-y-1">
+          <div className="flex-1 overflow-y-auto min-h-0" style={{
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#BF00FF40 transparent'
+          }}>
+            <div className="px-3 py-1 space-y-1 pb-6">
                 <NavItem 
                   href="/dashboard" 
                   icon={<LayoutDashboard size={18} className="text-white" />} 
@@ -369,7 +374,6 @@ export const MobileNavigation = () => {
                 >
                   Settings
                 </NavItem>
-              </div>
             </div>
           </div>
         </SheetContent>

@@ -153,7 +153,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch sources')
-        
+
         const data = await response.json()
         return data || []
       } catch(error) {
@@ -162,14 +162,14 @@ export default function Sources() {
       }
     }
   });
-  
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (sources.data) {
       setLocalSources(sources.data);
     }
   }, [sources.data]);
-  
+
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
     queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
@@ -183,7 +183,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
-        
+
         const data = await response.json()
         return data || { enabled: false, interval: JobInterval.DAILY }
       } catch(error) {
@@ -192,7 +192,14 @@ export default function Sources() {
       }
     }
   });
-  
+
+  // Sync local auto-scrape state with query data
+  useEffect(() => {
+    if (autoScrapeSettings.data && localAutoScrapeEnabled === null) {
+      setLocalAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+    }
+  }, [autoScrapeSettings.data, localAutoScrapeEnabled]);
+
   // Check scrape job status
   const checkScrapeStatus = useQuery<{ running: boolean }>({
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
@@ -206,7 +213,7 @@ export default function Sources() {
           }
         })
         if (!response.ok) throw new Error('Failed to fetch scrape status')
-        
+
         const data = await response.json()
         return data
       } catch(error) {
@@ -216,7 +223,7 @@ export default function Sources() {
     },
     refetchInterval: scrapeJobRunning ? 5000 : false, // Poll every 5 seconds when job is running
   });
-  
+
   // Update scrapeJobRunning state when status changes
   useEffect(() => {
     if (checkScrapeStatus.data) {
@@ -327,7 +334,7 @@ export default function Sources() {
         setEditingSource(null);
         form.reset();
       }
-      
+
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
     onError: (error, _, context) => {
@@ -379,9 +386,9 @@ export default function Sources() {
       if (context?.previousSources) {
         setLocalSources(context.previousSources);
       }
-      
+
       console.error("Error deleting source:", error);
-      
+
       // Don't show error toast for ARTICLES_EXIST - this will be handled by the confirmation dialog
       if (error?.response?.data?.error !== "ARTICLES_EXIST") {
         toast({
@@ -482,55 +489,65 @@ export default function Sources() {
     mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
-    onMutate: async (newSettings) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+    onMutate: async ({ enabled, interval }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ 
+        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] 
       });
 
-      // Snapshot previous value
-      const previousSettings = queryClient.getQueryData([
-        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
+      // Snapshot the previous value for potential rollback
+      const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([
+        `${serverUrl}/api/threat-tracker/settings/auto-scrape`
       ]);
 
-      // Optimistically update to new value
-      queryClient.setQueryData(
+      // Optimistically update the cache with new settings
+      queryClient.setQueryData<AutoScrapeSettings>(
         [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
-        newSettings
+        { enabled, interval }
       );
 
       // Update local state for immediate UI feedback
-      setLocalAutoScrapeEnabled(newSettings.enabled);
+      setLocalAutoScrapeEnabled(enabled);
 
       return { previousSettings };
     },
-    onSuccess: (data) => {
+    onError: (err, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousSettings) {
+        queryClient.setQueryData<AutoScrapeSettings>(
+          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+          context.previousSettings
+        );
+        setLocalAutoScrapeEnabled(
+          context.previousSettings?.enabled || false
+        );
+      }
+
+      console.error("Error updating auto-scrape settings:", err);
+      toast({
+        title: "Failed to update auto-scrape settings",
+        description: "There was an error updating the settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data, variables) => {
+      // Update cache with actual server response
+      queryClient.setQueryData<AutoScrapeSettings>(
+        [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        data
+      );
+
+      // Reset local state to sync with server response
+      setLocalAutoScrapeEnabled(data.enabled);
+
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
           ? `Auto-scrape has been enabled with ${data.interval.toLowerCase()} frequency.`
           : "Auto-scrape has been disabled.",
       });
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] });
-    },
-    onError: (error, _, context) => {
-      // Rollback optimistic update
-      if (context?.previousSettings) {
-        queryClient.setQueryData(
-          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
-          context.previousSettings
-        );
-        setLocalAutoScrapeEnabled(
-          (context.previousSettings as AutoScrapeSettings)?.enabled || false
-        );
-      }
 
-      console.error("Error updating auto-scrape settings:", error);
-      toast({
-        title: "Error updating settings",
-        description: "There was an error updating auto-scrape settings. Please try again.",
-        variant: "destructive",
-      });
+      // Don't invalidate queries - rely on optimistic updates for better UX
     },
   });
 
@@ -650,11 +667,11 @@ export default function Sources() {
       await deleteSource.mutateAsync({ id: source.id });
     } catch (error: any) {
       console.log("Caught error:", error);
-      
+
       // Check for ARTICLES_EXIST error - the error data is attached to the error object
       const errorData = error?.data || {};
       const errorMessage = errorData?.error || error?.message;
-      
+
       if (errorMessage === "ARTICLES_EXIST") {
         // Show confirmation dialog
         setDeleteConfirmation({
@@ -663,7 +680,7 @@ export default function Sources() {
         });
         return; // Don't show error toast
       }
-      
+
       // For other errors, let the mutation's onError handle it
       throw error;
     }
@@ -685,7 +702,7 @@ export default function Sources() {
   // Format the last scraped date
   function formatLastScraped(date: Date | null | undefined) {
     if (!date) return "Never";
-    
+
     try {
       const d = new Date(date);
       return d.toLocaleString();
@@ -702,7 +719,7 @@ export default function Sources() {
           Manage sources for threat monitoring and configure auto-scrape settings.
         </p>
       </div>
-      
+
       {/* Auto-scrape settings card */}
       <Card>
         <CardHeader>
@@ -719,7 +736,7 @@ export default function Sources() {
             <div className="flex items-center gap-2">
               <Switch
                 id="auto-scrape"
-                checked={autoScrapeSettings.data?.enabled || false}
+                checked={localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)}
                 onCheckedChange={handleToggleAutoScrape}
                 disabled={updateAutoScrapeSettings.isPending}
               />
@@ -728,16 +745,19 @@ export default function Sources() {
                   htmlFor="auto-scrape"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  {autoScrapeSettings.data?.enabled ? 'Enabled' : 'Disabled'}
+                  {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)) ? 'Enabled' : 'Disabled'}
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  {autoScrapeSettings.data?.enabled
+                  {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
                     ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
                     : "Enable to automatically scrape sources for new threats"}
                 </p>
               </div>
+              {updateAutoScrapeSettings.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
+              )}
             </div>
-            
+
             <div className="flex gap-2">
               <Button
                 variant={autoScrapeSettings.data?.interval === JobInterval.HOURLY ? "default" : "outline"}
@@ -745,6 +765,7 @@ export default function Sources() {
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.HOURLY)}
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
               >
+                {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Hourly
               </Button>
               <Button
@@ -754,6 +775,7 @@ export default function Sources() {
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
                 className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               >
+                {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Daily
               </Button>
               <Button
@@ -762,6 +784,7 @@ export default function Sources() {
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.WEEKLY)}
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
               >
+                {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Weekly
               </Button>
             </div>
@@ -808,7 +831,7 @@ export default function Sources() {
           </div>
         </CardFooter>
       </Card>
-      
+
       {/* Sources card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -845,7 +868,7 @@ export default function Sources() {
                 : 'Enter the details for your new threat source.'}
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -861,7 +884,7 @@ export default function Sources() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="url"
@@ -878,7 +901,7 @@ export default function Sources() {
                   </FormItem>
                 )}
               />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -900,7 +923,7 @@ export default function Sources() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="includeInAutoScrape"
@@ -922,7 +945,7 @@ export default function Sources() {
                   )}
                 />
               </div>
-              
+
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -959,7 +982,7 @@ export default function Sources() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => handleConfirmedDelete(false)}>
-              Cancel
+                            Cancel
             </AlertDialogCancel>
             <Button
               variant="outline"
@@ -1015,7 +1038,7 @@ export default function Sources() {
         if (!a.active && b.active) return 1;
         return 0;
       });
-    
+
     const userSources = localSources
       .filter(source => !source.isDefault)
       .sort((a, b) => {
@@ -1209,7 +1232,7 @@ export default function Sources() {
                         )}
                         <span className="hidden sm:inline ml-1">Scrape</span>
                       </Button>
-                      
+
                       <Button
                         variant="ghost"
                         size="sm"
