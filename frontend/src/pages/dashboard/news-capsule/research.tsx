@@ -522,15 +522,12 @@ export default function Research() {
           isViewportMobile ? 'lg:flex-1' : isSidebarCollapsed ? 'lg:flex-[2]' : 'lg:flex-1'
         }`}>
           <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            <h2 className="text-lg sm:text-xl font-semibold mb-4">Add One or Multiple URLs</h2>
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Add one or multiple URL's below for processing</h2>
             
             <div className="flex flex-col gap-4">
 
 
             <div className="flex flex-col gap-3">
-              <label htmlFor="url-input" className="text-sm text-slate-400">
-                {bulkMode ? 'Enter URL\'s Below' : 'Article URL'}
-              </label>
               <div className="flex flex-col gap-3">
                 <div className="relative">
                   {bulkMode ? (
