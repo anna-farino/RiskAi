@@ -67,6 +67,9 @@ export default function ThreatHome() {
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
   // Track sorting state for surfacing new articles
   const [sortNewToTop, setSortNewToTop] = useState<boolean>(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const articlesPerPage = 20;
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -171,6 +174,11 @@ export default function ThreatHome() {
       setLocalArticles(articles.data);
     }
   }, [articles.data]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedKeywordIds, dateRange]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
@@ -509,6 +517,30 @@ export default function ThreatHome() {
     setSortNewToTop(true);
   };
 
+  // Calculate pagination values
+  const totalArticles = sortedArticles.length;
+  const totalPages = Math.ceil(totalArticles / articlesPerPage);
+  const startIndex = (currentPage - 1) * articlesPerPage;
+  const endIndex = startIndex + articlesPerPage;
+  const paginatedArticles = sortedArticles.slice(startIndex, endIndex);
+
+  // Pagination navigation functions
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col gap-6 md:gap-10 mb-10">
@@ -750,8 +782,9 @@ export default function ThreatHome() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : localArticles.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {sortedArticles.map((article, index) => (
+            <>
+              <div className="grid grid-cols-1 gap-4">
+              {paginatedArticles.map((article, index) => (
                 <div key={article.id} className="relative">
                   {isArticleNew(article) && (
                     <div className="absolute -top-2 -right-2 z-10">
@@ -777,12 +810,70 @@ export default function ThreatHome() {
                       }
                     }}
                     onSendToCapsule={sendToCapsule}
-                    articleIndex={index}
-                    totalArticles={sortedArticles.length}
+                    articleIndex={startIndex + index}
+                    totalArticles={totalArticles}
                   />
                 </div>
               ))}
             </div>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t border-slate-700/50">
+                <div className="text-sm text-slate-400">
+                  Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ArrowRight className="h-3 w-3 rotate-180" />
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNumber;
+                      if (totalPages <= 5) {
+                        pageNumber = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNumber = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNumber = totalPages - 4 + i;
+                      } else {
+                        pageNumber = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNumber}
+                          variant={currentPage === pageNumber ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(pageNumber)}
+                          className="h-8 w-8 p-0 text-xs"
+                        >
+                          {pageNumber}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
           ) : (
             <div className="flex flex-col items-center justify-center py-10 px-4 rounded-lg border border-dashed">
               <h3 className="font-semibold text-xl mb-2">
