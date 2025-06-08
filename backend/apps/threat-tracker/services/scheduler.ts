@@ -14,6 +14,9 @@ export enum JobInterval {
 // Track per-user scheduled job timers
 const userScheduledJobs = new Map<string, NodeJS.Timeout>();
 
+// Global flag to prevent multiple scheduler initializations
+let schedulerInitialized = false;
+
 /**
  * Get the auto-scrape schedule from settings for a specific user
  */
@@ -117,7 +120,14 @@ function clearUserScrapeJob(userId: string): void {
  * Initialize the scheduler by loading settings for all users
  */
 export async function initializeScheduler() {
+  if (schedulerInitialized) {
+    log(`[ThreatTracker] Scheduler already initialized, skipping`, "scheduler");
+    return true;
+  }
+
   try {
+    schedulerInitialized = true;
+    
     // Clear any existing scheduled jobs
     userScheduledJobs.forEach((job, userId) => {
       clearInterval(job);
@@ -139,16 +149,39 @@ export async function initializeScheduler() {
       try {
         const userSchedule = setting.value as {
           enabled: boolean;
-          interval: JobInterval;
+          interval: JobInterval | string;
         };
         
-        if (userSchedule.enabled && userSchedule.interval !== JobInterval.DISABLED) {
+        // Convert string intervals to numeric milliseconds for backward compatibility
+        let intervalMs: number;
+        if (typeof userSchedule.interval === 'string') {
+          switch (userSchedule.interval) {
+            case 'HOURLY':
+              intervalMs = JobInterval.HOURLY;
+              break;
+            case 'DAILY':
+              intervalMs = JobInterval.DAILY;
+              break;
+            case 'WEEKLY':
+              intervalMs = JobInterval.WEEKLY;
+              break;
+            case 'DISABLED':
+              intervalMs = JobInterval.DISABLED;
+              break;
+            default:
+              intervalMs = JobInterval.DAILY;
+          }
+        } else {
+          intervalMs = userSchedule.interval as number;
+        }
+        
+        if (userSchedule.enabled && intervalMs > 0) {
           // Check if user has sources available (either personal or default sources)
           const userSources = await storage.getAutoScrapeSources(userId);
           
           if (userSources.length > 0) {
-            scheduleUserScrapeJob(userId, userSchedule.interval);
-            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${userSchedule.interval} (${userSources.length} sources)`, "scheduler");
+            scheduleUserScrapeJob(userId, intervalMs as JobInterval);
+            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${intervalMs}ms (${userSources.length} sources)`, "scheduler");
           } else {
             log(`[ThreatTracker] User ${userId} has auto-scrape enabled but no available sources`, "scheduler");
           }
