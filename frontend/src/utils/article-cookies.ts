@@ -101,20 +101,54 @@ export function markArticleAsViewed(articleId: string): void {
 export function isArticleNew(article: { id: string; publishDate?: string | Date | null }): boolean {
   const state = getArticleViewState();
   
+  console.log('[NEW BADGE DEBUG]', {
+    articleId: article.id,
+    publishDate: article.publishDate,
+    lastVisit: state.lastVisit,
+    viewedArticles: state.viewedArticles,
+    alreadyViewed: state.viewedArticles.includes(article.id)
+  });
+  
   // If article was already viewed, it's not new
   if (state.viewedArticles.includes(article.id)) {
+    console.log('[NEW BADGE DEBUG] Article already viewed:', article.id);
     return false;
   }
   
   // If no publish date, consider it new if not viewed
   if (!article.publishDate) {
+    console.log('[NEW BADGE DEBUG] No publish date, marking as new:', article.id);
     return true;
   }
   
   try {
     const publishTime = new Date(article.publishDate).getTime();
-    return publishTime > state.lastVisit;
+    const now = Date.now();
+    
+    // For first-time users (no previous visit recorded), show articles from last 24 hours as new
+    if (!state.lastVisit || state.lastVisit >= now) {
+      const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+      const isNew = publishTime > twentyFourHoursAgo;
+      console.log('[NEW BADGE DEBUG] First-time user logic:', {
+        articleId: article.id,
+        publishTime: new Date(publishTime),
+        twentyFourHoursAgo: new Date(twentyFourHoursAgo),
+        isNew
+      });
+      return isNew;
+    }
+    
+    // For returning users, show articles published after their last visit
+    const isNew = publishTime > state.lastVisit;
+    console.log('[NEW BADGE DEBUG] Returning user logic:', {
+      articleId: article.id,
+      publishTime: new Date(publishTime),
+      lastVisit: new Date(state.lastVisit),
+      isNew
+    });
+    return isNew;
   } catch (error) {
+    console.log('[NEW BADGE DEBUG] Date parsing error, marking as new:', article.id, error);
     // If date parsing fails, default to showing as new if not viewed
     return true;
   }

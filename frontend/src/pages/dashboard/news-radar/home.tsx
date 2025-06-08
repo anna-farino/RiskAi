@@ -201,10 +201,14 @@ export default function NewsHome() {
     }
   };
   
-  // Initialize and update last visit using cookies
+  // Initialize last visit state without updating it immediately
+  // This preserves the previous visit timestamp for "new" badge logic
   useEffect(() => {
-    // Update the last visit timestamp when the component mounts
-    articleViewState.updateVisit();
+    // Don't update visit time on mount - only on unmount to preserve "new" logic
+    return () => {
+      // Update timestamp when component unmounts
+      articleViewState.updateVisit();
+    };
   }, []);
 
   // Update last visit timestamp when user navigates away

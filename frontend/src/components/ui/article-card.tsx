@@ -32,6 +32,12 @@ export function ArticleCard({
   isNew = false,
   onArticleViewed,
 }: ArticleCardProps) {
+  console.log('[ARTICLE CARD DEBUG]', {
+    articleId: article.id,
+    title: article.title.substring(0, 30),
+    isNew,
+    isPending
+  });
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -135,6 +141,8 @@ export function ArticleCard({
                 NEW
               </Badge>
             )}
+            {/* Debug badge to verify isNew prop */}
+            {console.log('[BADGE RENDER DEBUG]', { articleId: article.id, isNew, shouldShowBadge: !!isNew })}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
