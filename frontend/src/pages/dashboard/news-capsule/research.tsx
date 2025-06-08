@@ -715,22 +715,16 @@ export default function Research() {
         </div>
         
         {/* Selected Articles Section - Adaptive Sidebar */}
-        <div className={`relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last ${
-          isViewportMobile 
-            ? 'w-full' 
-            : isSidebarCollapsed 
-              ? 'lg:w-16 lg:hover:w-80 group' 
-              : 'w-full lg:w-80 lg:flex-shrink-0'
-        }`}>
-          {/* Desktop Collapse Toggle */}
-          {!isViewportMobile && (
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="absolute top-4 -left-3 z-10 w-6 h-6 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-            >
-              {isSidebarCollapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-            </button>
-          )}
+        <div className="relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last w-full lg:w-80 lg:flex-shrink-0">
+          {/* Article Count Header */}
+          <div className="p-4 border-b border-slate-700/50">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-slate-300">Selected Articles</h3>
+              <span className="text-[#00FFFF] font-semibold text-lg">
+                {selectedArticles.length}
+              </span>
+            </div>
+          </div>
           
           {/* Mobile Floating Action Button */}
           {isViewportMobile && (
@@ -747,26 +741,9 @@ export default function Research() {
             </button>
           )}
 
-          <div className={`min-h-[400px] lg:h-full overflow-y-auto transition-all duration-300 ${
-            isSidebarCollapsed && !isViewportMobile 
-              ? 'p-2 group-hover:p-4 group-hover:sm:p-5' 
-              : 'p-4 sm:p-5'
-          }`}>
-            {/* Action Buttons - Adaptive Design */}
-            <div className={`transition-all duration-300 ${
-              isSidebarCollapsed && !isViewportMobile 
-                ? 'opacity-0 group-hover:opacity-100 group-hover:mb-4' 
-                : 'flex flex-col sm:flex-row lg:flex-col gap-3 mb-4'
-            }`}>
-              {/* Collapsed state - Icon only */}
-              {isSidebarCollapsed && !isViewportMobile ? (
-                <div className="flex flex-col gap-2 items-center">
-                  <div className="w-8 h-8 bg-[#BF00FF] rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">{selectedArticles.length}</span>
-                  </div>
-                </div>
-              ) : (
-                <>
+          <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3 mb-4">
                   <button
                     onClick={sendToExecutiveReport}
                     disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
@@ -786,73 +763,35 @@ export default function Research() {
                   >
                     {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
                   </button>
-                </>
-              )}
             </div>
             
-            <div className={`transition-all duration-300 ${
-              isSidebarCollapsed && !isViewportMobile 
-                ? 'opacity-0 group-hover:opacity-100' 
-                : 'flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4'
-            }`}>
-              {isSidebarCollapsed && !isViewportMobile ? null : (
-                <>
-                  <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
-                  <span className="text-sm text-slate-400">
-                    {selectedArticles.length} selected
-                  </span>
-                </>
-              )}
+
+          
+            {/* Report Topic Field */}
+            <div className="mb-4 sm:mb-6">
+              <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
+                Report Topic (Optional)
+              </label>
+              <input
+                id="reportTopic"
+                type="text"
+                value={reportTopic}
+                onChange={(e) => setReportTopic(e.target.value)}
+                placeholder="Enter a topic (Optional)"
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px] transition-all duration-200"
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                This topic will appear in the Executive Report below the title
+              </p>
             </div>
           
-          {/* Report Topic Field - Adaptive Design */}
-          <div className={`transition-all duration-300 ${
-            isSidebarCollapsed && !isViewportMobile 
-              ? 'opacity-0 group-hover:opacity-100 group-hover:mb-4 group-hover:sm:mb-6' 
-              : 'mb-4 sm:mb-6'
-          }`}>
-            {isSidebarCollapsed && !isViewportMobile ? null : (
-              <>
-                <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
-                  Report Topic (Optional)
-                </label>
-                <input
-                  id="reportTopic"
-                  type="text"
-                  value={reportTopic}
-                  onChange={(e) => {
-                    setReportTopic(e.target.value);
-                  }}
-                  placeholder="Enter a topic (Optional)"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px] transition-all duration-200"
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  This topic will appear in the Executive Report below the title
+            {/* Selected Articles List */}
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {selectedArticles.length === 0 ? (
+                <p className="text-sm text-slate-400 italic text-center py-8">
+                  No articles selected yet
                 </p>
-              </>
-            )}
-          </div>
-          
-          <div className={`transition-all duration-300 ${
-            isSidebarCollapsed && !isViewportMobile 
-              ? 'opacity-0 group-hover:opacity-100' 
-              : 'flex flex-col gap-3 sm:gap-4'
-          }`}>
-            {isSidebarCollapsed && !isViewportMobile ? (
-              // Collapsed state - Show minimal indicators
-              <div className="flex flex-col gap-1 items-center">
-                {selectedArticles.slice(0, 3).map((_, index) => (
-                  <div key={index} className="w-2 h-2 bg-[#BF00FF] rounded-full"></div>
-                ))}
-                {selectedArticles.length > 3 && (
-                  <span className="text-xs text-slate-400 mt-1">+{selectedArticles.length - 3}</span>
-                )}
-              </div>
-            ) : selectedArticles.length === 0 ? (
-              <p className="text-sm text-slate-400 italic text-center py-8">
-                No articles selected yet
-              </p>
-            ) : (
+              ) : (
               selectedArticles.map((article, index) => (
                 <motion.div
                   key={`selected-${article.id}-${index}`}
