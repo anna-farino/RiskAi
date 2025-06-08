@@ -90,7 +90,7 @@ async function getBrowser() {
     PUPPETEER_EXECUTABLE_PATH,
   );
   try {
-    // Use optimized configuration to prevent timeout issues
+    // Use a more minimal configuration to avoid dependencies
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -114,11 +114,8 @@ async function getBrowser() {
         "--disable-blink-features=AutomationControlled", // Avoid detection
       ],
       executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-      timeout: 60000, // Reduced from 180000 for faster startup
-      protocolTimeout: 180000, // Prevents "Runtime.callFunctionOn timed out"
-      handleSIGINT: false, // Prevent premature shutdown
-      handleSIGTERM: false,
-      handleSIGHUP: false
+      // Set longer browser launch timeout
+      timeout: 180000, // 3 minute timeout on browser launch
     });
     console.log("[getBrowser] Browser launched successfully");
   } catch (error) {
@@ -197,35 +194,15 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
     );
 
-    // Navigate to the URL with optimized settings and retry logic
+    // Navigate to the URL
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+
+    // Navigate to the URL with longer timeout and different wait strategy
     console.log(`Navigating to: ${url}`);
-    let navigationSuccess = false;
-    let lastError;
-    
-    // Try different navigation strategies
-    const strategies = [
-      { waitUntil: "domcontentloaded" as const, timeout: 60000 },
-      { waitUntil: "load" as const, timeout: 45000 },
-      { waitUntil: "networkidle0" as const, timeout: 30000 }
-    ];
-    
-    for (const strategy of strategies) {
-      try {
-        await page.goto(url, strategy);
-        navigationSuccess = true;
-        console.log(`Navigation successful with strategy: ${strategy.waitUntil}`);
-        break;
-      } catch (error) {
-        console.log(`Navigation failed with ${strategy.waitUntil}, trying next strategy...`);
-        lastError = error;
-        continue;
-      }
-    }
-    
-    if (!navigationSuccess) {
-      console.error("All navigation strategies failed");
-      throw lastError;
-    }
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
 
     // Wait for content to load with fallback for different Puppeteer versions
     try {
@@ -275,23 +252,19 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       for (const selector of titleSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          title = (element.textContent || (element as any).innerText || "").trim();
+          title = element.textContent?.trim() || element.innerText?.trim() || "";
           if (title && title.length > 5) break;
         }
       }
 
       // Fallback to basic title extraction if enhanced selectors didn't work
       if (!title) {
-        const h1 = document.querySelector("h1");
-        const entryTitle = document.querySelector(".entry-title");
-        const postTitle = document.querySelector(".post-title");
-        const titleElement = document.querySelector("title");
-        
-        title = (h1 ? h1.textContent || (h1 as any).innerText : "") ||
-                (entryTitle ? entryTitle.textContent || (entryTitle as any).innerText : "") ||
-                (postTitle ? postTitle.textContent || (postTitle as any).innerText : "") ||
-                (titleElement ? titleElement.textContent || (titleElement as any).innerText : "") ||
-                "";
+        title =
+          (document.querySelector("h1") as HTMLElement)?.innerText ||
+          (document.querySelector(".entry-title") as HTMLElement)?.innerText ||
+          (document.querySelector(".post-title") as HTMLElement)?.innerText ||
+          (document.querySelector("title") as HTMLElement)?.innerText ||
+          "";
       }
 
       // Enhanced content selectors including Forbes-specific ones
@@ -345,7 +318,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         // Try Forbes body content
         const forbesBody = document.querySelector("[data-module='ArticleBody']");
         if (forbesBody) {
-          const allText = forbesBody.textContent || (forbesBody as any).innerText || "";
+          const allText = forbesBody.textContent || forbesBody.innerText || "";
           if (allText.length > 200) {
             articleContent = allText.trim();
           }
@@ -397,7 +370,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
           if (element.tagName === "META") {
             publication = element.getAttribute("content") || "";
           } else {
-            publication = (element.textContent || (element as any).innerText || "").trim();
+            publication = element.textContent?.trim() || element.innerText?.trim() || "";
           }
           if (publication) break;
         }
@@ -422,7 +395,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       for (const selector of authorSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          author = (element.textContent || (element as any).innerText || "").trim();
+          author = element.textContent?.trim() || element.innerText?.trim() || "";
           if (author) break;
         }
       }
@@ -441,7 +414,8 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         const element = document.querySelector(selector);
         if (element) {
           publishDate = element.getAttribute("datetime") || 
-                       (element.textContent || (element as any).innerText || "").trim();
+                       element.textContent?.trim() || 
+                       element.innerText?.trim() || "";
           if (publishDate) break;
         }
       }
@@ -457,25 +431,12 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
 
     return JSON.stringify(content);
   } catch (error) {
+    browser = null;
     console.error("Error scraping article:", error);
-    
-    // Provide more specific error messages
-    if (error.message && error.message.includes('Navigation timeout')) {
-      throw new Error(`Navigation timeout: The website took too long to load. This could be due to slow loading times or anti-bot protection.`);
-    } else if (error.message && error.message.includes('net::ERR_')) {
-      throw new Error(`Network error: Unable to connect to the website. Please check the URL and try again.`);
-    } else {
-      throw new Error(`Scraping failed: ${error.message || 'Unknown error occurred'}`);
-    }
+    throw new Error("Failed to scrape article content");
   } finally {
     if (browser) {
-      try {
-        await browser.close();
-        browser = null;
-      } catch (closeError) {
-        console.error("Error closing browser:", closeError);
-        browser = null;
-      }
+      await browser.close();
     }
   }
 }
