@@ -806,14 +806,9 @@ export default function Research() {
                       >
                         ✕
                       </button>
-                      {(() => {
-                        const indicator = getSourceAppIndicator(article);
-                        return (
-                          <span className={`px-2 py-1 text-xs font-bold rounded ${indicator.color} ${indicator.textColor}`}>
-                            {indicator.label}
-                          </span>
-                        );
-                      })()}
+                      <span className="text-xs text-slate-400 px-2 py-1 border border-slate-600 rounded whitespace-nowrap">
+                        News Capsule
+                      </span>
                     </div>
                   </div>
                   <p className="text-xs text-slate-400 mb-2 break-words">
