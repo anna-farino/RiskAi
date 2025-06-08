@@ -755,22 +755,8 @@ export default function Research() {
         </div>
         
         {/* Selected Articles Section - Adaptive Sidebar */}
-        <div className={`relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last ${
-          isViewportMobile 
-            ? 'w-full' 
-            : isSidebarCollapsed 
-              ? 'lg:w-16 lg:hover:w-80 group' 
-              : 'w-full lg:w-80 lg:flex-shrink-0'
-        }`}>
-          {/* Desktop Collapse Toggle */}
-          {!isViewportMobile && (
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="absolute top-4 -left-3 z-10 w-6 h-6 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-            >
-              {isSidebarCollapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-            </button>
-          )}
+        <div className="relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last w-full lg:w-80 lg:flex-shrink-0">
+
           
           {/* Mobile Floating Action Button */}
           {isViewportMobile && (
@@ -830,70 +816,40 @@ export default function Research() {
               )}
             </div>
             
-            <div className={`transition-all duration-300 ${
-              isSidebarCollapsed && !isViewportMobile 
-                ? 'opacity-0 group-hover:opacity-100' 
-                : 'flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4'
-            }`}>
-              {isSidebarCollapsed && !isViewportMobile ? null : (
-                <>
-                  <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
-                  {selectedArticles.length > 0 && (
-                    <button
-                      onClick={() => setSelectedArticles([])}
-                      className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg transition-colors"
-                    >
-                      Clear all ({selectedArticles.length})
-                    </button>
-                  )}
-                </>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Selected Articles</h2>
+              {selectedArticles.length > 0 && (
+                <button
+                  onClick={() => setSelectedArticles([])}
+                  className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg transition-colors"
+                >
+                  Clear all ({selectedArticles.length})
+                </button>
               )}
             </div>
           
-          {/* Report Topic Field - Adaptive Design */}
-          <div className={`transition-all duration-300 ${
-            isSidebarCollapsed && !isViewportMobile 
-              ? 'opacity-0 group-hover:opacity-100 group-hover:mb-4 group-hover:sm:mb-6' 
-              : 'mb-4 sm:mb-6'
-          }`}>
-            {isSidebarCollapsed && !isViewportMobile ? null : (
-              <>
-                <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
-                  Report Topic (Optional)
-                </label>
-                <input
-                  id="reportTopic"
-                  type="text"
-                  value={reportTopic}
-                  onChange={(e) => {
-                    setReportTopic(e.target.value);
-                  }}
-                  placeholder="Enter a topic (Optional)"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px] transition-all duration-200"
+          {/* Report Topic Field */}
+          <div className="mb-4 sm:mb-6">
+            <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
+              Report Topic (Optional)
+            </label>
+            <input
+              id="reportTopic"
+              type="text"
+              value={reportTopic}
+              onChange={(e) => {
+                setReportTopic(e.target.value);
+              }}
+              placeholder="Enter a topic (Optional)"
+              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px] transition-all duration-200"
                 />
                 <p className="text-xs text-slate-500 mt-2">
                   This topic will appear in the Executive Report below the title
                 </p>
-              </>
-            )}
           </div>
           
-          <div className={`transition-all duration-300 ${
-            isSidebarCollapsed && !isViewportMobile 
-              ? 'opacity-0 group-hover:opacity-100' 
-              : 'flex flex-col gap-3 sm:gap-4'
-          }`}>
-            {isSidebarCollapsed && !isViewportMobile ? (
-              // Collapsed state - Show minimal indicators
-              <div className="flex flex-col gap-1 items-center">
-                {selectedArticles.slice(0, 3).map((_, index) => (
-                  <div key={index} className="w-2 h-2 bg-[#BF00FF] rounded-full"></div>
-                ))}
-                {selectedArticles.length > 3 && (
-                  <span className="text-xs text-slate-400 mt-1">+{selectedArticles.length - 3}</span>
-                )}
-              </div>
-            ) : selectedArticles.length === 0 ? (
+          <div className="flex flex-col gap-3 sm:gap-4">
+            {selectedArticles.length === 0 ? (
               <p className="text-sm text-slate-400 italic text-center py-8">
                 No articles selected yet
               </p>
