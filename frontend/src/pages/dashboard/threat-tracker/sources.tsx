@@ -716,41 +716,41 @@ export default function Sources() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
         <p className="text-muted-foreground">
-          Manage sources for threat monitoring and configure automatic update settings.
+          Manage sources for threat monitoring and configure auto-scrape settings.
         </p>
       </div>
 
-      {/* Auto-update settings card */}
+      {/* Auto-scrape settings card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Clock className="mr-2 h-5 w-5" />
-            Automatic Updates Configuration
+            Auto-Scrape Configuration
           </CardTitle>
           <CardDescription>
-            Configure automatic monitoring of threat sources to stay updated on security vulnerabilities
+            Configure automatic scraping of threat sources to stay updated on security vulnerabilities
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
             <div className="flex items-center gap-2">
               <Switch
-                id="auto-updates"
+                id="auto-scrape"
                 checked={localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)}
                 onCheckedChange={handleToggleAutoScrape}
                 disabled={updateAutoScrapeSettings.isPending}
               />
               <div className="grid gap-0.5">
                 <label
-                  htmlFor="auto-updates"
+                  htmlFor="auto-scrape"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false)) ? 'Enabled' : 'Disabled'}
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
-                    ? `Automatic updates run ${autoScrapeSettings.data?.interval.toLowerCase()}`
-                    : "Enable to automatically check sources for new threats"}
+                    ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
+                    : "Enable to automatically scrape sources for new threats"}
                 </p>
               </div>
               {updateAutoScrapeSettings.isPending && (
@@ -930,9 +930,9 @@ export default function Sources() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>Auto-Update</FormLabel>
+                        <FormLabel>Auto-Scrape</FormLabel>
                         <FormDescription>
-                          Include in automatic monitoring
+                          Include in automatic scraping
                         </FormDescription>
                       </div>
                       <FormControl>
