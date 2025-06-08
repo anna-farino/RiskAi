@@ -788,55 +788,66 @@ export default function Research() {
         </div>
       </div>
       
-      {/* Pagination Controls - At the bottom of the research page */}
+      {/* Pagination Controls - Mobile Responsive */}
       {processedArticles.length > articlesPerPage && (
-        <div className="flex items-center justify-center gap-4 mt-6 p-4 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-400 mr-2">
-              Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
-            </span>
-            {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
-              .filter(page => {
-                const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
-                return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2;
-              })
-              .map((page, index, visiblePages) => {
-                const prevPage = visiblePages[index - 1];
-                const showEllipsis = prevPage && page - prevPage > 1;
-                
-                return (
-                  <React.Fragment key={page}>
-                    {showEllipsis && <span className="text-slate-400 px-2">...</span>}
-                    <button
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-2 rounded-md min-w-[40px] ${
-                        currentPage === page
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-700 text-white hover:bg-slate-600'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-4 lg:mt-6 p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl mx-4 lg:mx-0">
+          {/* Mobile: Stack vertically, Desktop: Horizontal layout */}
+          <div className="flex items-center gap-3 order-2 sm:order-1">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation"
+            >
+              Previous
+            </button>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+              disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+              className="px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation"
+            >
+              Next
+            </button>
           </div>
           
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
-            disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
-            className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+          {/* Page indicator - Show on top for mobile */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 order-1 sm:order-2">
+            <span className="text-xs sm:text-sm text-slate-400 text-center">
+              Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+            </span>
+            
+            {/* Page number buttons - Hide some on mobile */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+                .filter(page => {
+                  const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                  // On mobile, show fewer page numbers
+                  const isMobile = window.innerWidth < 640;
+                  const range = isMobile ? 1 : 2;
+                  return page === 1 || page === totalPages || Math.abs(page - currentPage) <= range;
+                })
+                .map((page, index, visiblePages) => {
+                  const prevPage = visiblePages[index - 1];
+                  const showEllipsis = prevPage && page - prevPage > 1;
+                  
+                  return (
+                    <React.Fragment key={page}>
+                      {showEllipsis && <span className="text-slate-400 px-1 sm:px-2 text-xs sm:text-sm">...</span>}
+                      <button
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-2 sm:px-3 py-2 sm:py-3 rounded-lg min-w-[36px] sm:min-w-[44px] text-xs sm:text-sm touch-manipulation ${
+                          currentPage === page
+                            ? 'bg-[#BF00FF] text-white'
+                            : 'bg-slate-700 text-white hover:bg-slate-600'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+            </div>
+          </div>
         </div>
       )}
 
