@@ -720,15 +720,15 @@ export default function Sources() {
         </p>
       </div>
 
-      {/* Auto-scrape settings card */}
+      {/* Auto-update settings card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Clock className="mr-2 h-5 w-5" />
-            Auto-Scrape Configuration
+            Automatic Updates Configuration
           </CardTitle>
           <CardDescription>
-            Configure automatic scraping of threat sources to stay updated on security vulnerabilities
+            Configure automatic monitoring of threat sources to stay updated on security vulnerabilities
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -749,8 +749,8 @@ export default function Sources() {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
-                    ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
-                    : "Enable to automatically scrape sources for new threats"}
+                    ? `Automatic updates run ${autoScrapeSettings.data?.interval.toLowerCase()}`
+                    : "Enable to automatically check sources for new threats"}
                 </p>
               </div>
               {updateAutoScrapeSettings.isPending && (

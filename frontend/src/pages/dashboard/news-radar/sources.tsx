@@ -370,8 +370,8 @@ export default function Sources() {
       // If the mutation fails, use the context to roll back
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
-        title: "Error scraping source",
-        description: "Failed to scrape source. Please try again.",
+        title: "Error checking source",
+        description: "Failed to check for updates. Please try again.",
         variant: "destructive",
       });
     },
@@ -380,7 +380,7 @@ export default function Sources() {
       // For articles we do need to update since the content has changed
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/articles"] });
       toast({
-        title: "Source scraped successfully",
+        title: "Source updated successfully",
       });
     },
     onSettled: (id) => {
@@ -439,8 +439,8 @@ export default function Sources() {
       // If the mutation fails, use the context to roll back
       queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context?.previousSources);
       toast({
-        title: "Error stopping scrape",
-        description: "Failed to stop scraping. Please try again.",
+        title: "Error stopping update",
+        description: "Failed to stop update process. Please try again.",
         variant: "destructive",
       });
     },
@@ -449,7 +449,7 @@ export default function Sources() {
       setSourcesBeingScraped(prev => prev.filter(sourceId => sourceId != id))
       // Don't invalidate - rely on the optimistic update
       toast({
-        title: "Scraping stopped successfully",
+        title: "Update process stopped successfully",
       });
     },
     onSettled: (_, __, id) => {
@@ -1120,8 +1120,8 @@ export default function Sources() {
                   </label>
                   <p className="text-xs text-slate-400">
                     {(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled)
-                      ? `Auto-scrape runs ${intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]?.toLowerCase() || 'daily'}`
-                      : "Enable to automatically scrape sources for new articles"}
+                      ? `Automatic updates run ${intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]?.toLowerCase() || 'daily'}`
+                      : "Enable to automatically check sources for new articles"}
                   </p>
                 </div>
                 {updateAutoScrapeSettings.isPending && (
@@ -1177,10 +1177,10 @@ export default function Sources() {
               {autoScrapeStatus?.data?.running ? (
                 <span className="flex items-center text-primary">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Manual scrape allows you to immediately check for new articles
+                  Check all your sources instantly for the latest news
                 </span>
               ) : (
-                "Manual scrape allows you to immediately check for new articles"
+                "Check all your sources instantly for the latest news"
               )}
             </div>
             <Button
@@ -1205,7 +1205,7 @@ export default function Sources() {
               ) : (
                 <Play className="mr-2 h-4 w-4" />
               )}
-              {autoScrapeStatus?.data?.running ? "Stop Scrape" : "Scrape All Sources Now"}
+              {autoScrapeStatus?.data?.running ? "Stop Update" : "Check All Sources Now"}
             </Button>
           </CardFooter>
         </Card>
@@ -1422,7 +1422,7 @@ export default function Sources() {
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
                           className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
-                          title="Stop scraping"
+                          title="Stop updating"
                         >
                           {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1480,7 +1480,7 @@ export default function Sources() {
                           onClick={() => stopScraping.mutate(source.id)}
                           disabled={stopScraping.isPending && scrapesBeingStopped.includes(source.id)}
                           className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
-                          title="Stop scraping"
+                          title="Stop updating"
                         >
                           {stopScraping.isPending && scrapesBeingStopped.includes(source.id) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
