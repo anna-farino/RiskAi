@@ -89,13 +89,21 @@ import {
   Shield,
 } from "lucide-react";
 
-// Enum for auto-scrape intervals
+// Enum for auto-scrape intervals (matching backend numeric format)
 export enum JobInterval {
-  HOURLY = "HOURLY",
-  DAILY = "DAILY",
-  WEEKLY = "WEEKLY",
-  DISABLED = "DISABLED",
+  HOURLY = 3600000,     // 60 * 60 * 1000
+  DAILY = 86400000,     // 24 * 60 * 60 * 1000  
+  WEEKLY = 604800000,   // 7 * 24 * 60 * 60 * 1000
+  DISABLED = 0,         // Disabled
 }
+
+// Convert enum to human-readable labels
+const intervalLabels: Record<JobInterval, string> = {
+  [JobInterval.HOURLY]: "hourly",
+  [JobInterval.DAILY]: "daily", 
+  [JobInterval.WEEKLY]: "weekly",
+  [JobInterval.DISABLED]: "disabled"
+};
 
 // Type for auto-scrape settings
 type AutoScrapeSettings = {
@@ -724,7 +732,28 @@ export default function Sources() {
 
     try {
       const d = new Date(date);
-      return d.toLocaleString();
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const dateYear = d.getFullYear();
+      
+      // Format time without seconds (HH:MM AM/PM)
+      const timeString = d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      // Format date based on year
+      let dateString;
+      if (dateYear === currentYear) {
+        // Current year: show M/D format
+        dateString = `${d.getMonth() + 1}/${d.getDate()}`;
+      } else {
+        // Different year: show M/D/YYYY format
+        dateString = `${d.getMonth() + 1}/${d.getDate()}/${dateYear}`;
+      }
+      
+      return `${dateString}, ${timeString}`;
     } catch {
       return "Unknown";
     }
@@ -768,7 +797,7 @@ export default function Sources() {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
-                    ? `Auto-scrape runs ${(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval)?.toLowerCase()}`
+                    ? `Auto-scrape runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || 'daily'}`
                     : "Enable to automatically scrape sources for new threats"}
                 </p>
               </div>
