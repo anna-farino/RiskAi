@@ -773,7 +773,6 @@ export default function Sources() {
                 size="sm"
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.DAILY)}
                 disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
               >
                 {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Daily
