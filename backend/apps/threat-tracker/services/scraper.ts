@@ -10,6 +10,51 @@ import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 
+/**
+ * Sanitize CSS selectors to prevent invalid pseudo-selectors like :contains()
+ */
+function sanitizeSelector(selector: string): string {
+  if (!selector) return "";
+
+  // Check if the selector contains date-like patterns (months, parentheses with timezones, etc.)
+  if (
+    /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(
+      selector,
+    ) ||
+    selector.includes("AM") ||
+    selector.includes("PM") ||
+    selector.includes("(") ||
+    selector.includes(")")
+  ) {
+    // This is likely a date string, not a CSS selector
+    return "";
+  }
+
+  // Check if the selector starts with words that suggest it's not a CSS selector
+  // Common patterns like "By Author Name" or "Published: Date"
+  if (
+    /^(By|Published:|Posted:|Date:|Author:|Not available)\s?/i.test(selector)
+  ) {
+    // This is likely text content, not a CSS selector
+    // Return an empty string to skip using it as a selector
+    return "";
+  }
+
+  // Remove unsupported pseudo-classes like :contains, :has, etc.
+  return (
+    selector
+      // Remove :contains(...) pseudo-class
+      .replace(/\:contains\([^\)]+\)/g, "")
+      // Remove :has(...) pseudo-class
+      .replace(/\:has\([^\)]+\)/g, "")
+      // Remove other non-standard pseudo-classes (anything after : that's not a standard pseudo-class)
+      .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+      // Clean up any resulting double spaces
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
 
@@ -662,22 +707,55 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
+        // Sanitize selector function (copied from server-side)
+        function sanitizeSelector(selector) {
+          if (!selector) return "";
+          
+          // Check if the selector contains date-like patterns or text content
+          if (
+            /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(selector) ||
+            selector.includes("AM") ||
+            selector.includes("PM") ||
+            selector.includes("(") ||
+            selector.includes(")")
+          ) {
+            return "";
+          }
+          
+          if (/^(By|Published:|Posted:|Date:|Author:|Not available)\s?/i.test(selector)) {
+            return "";
+          }
+          
+          // Remove unsupported pseudo-classes like :contains, :has, etc.
+          return selector
+            .replace(/\:contains\([^\)]+\)/g, "")
+            .replace(/\:has\([^\)]+\)/g, "")
+            .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+        
         // First try using the provided selectors
         if (config) {
-          const title = config.titleSelector || config.title 
-            ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
+          const titleSelector = sanitizeSelector(config.titleSelector || config.title);
+          const contentSelector = sanitizeSelector(config.contentSelector || config.content);
+          const authorSelector = sanitizeSelector(config.authorSelector || config.author);
+          const dateSelector = sanitizeSelector(config.dateSelector || config.date);
+          
+          const title = titleSelector 
+            ? document.querySelector(titleSelector)?.textContent?.trim() 
             : '';
             
-          const content = config.contentSelector || config.content 
-            ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
+          const content = contentSelector 
+            ? document.querySelector(contentSelector)?.textContent?.trim() 
             : '';
             
-          const author = config.authorSelector || config.author 
-            ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
+          const author = authorSelector 
+            ? document.querySelector(authorSelector)?.textContent?.trim() 
             : '';
             
-          const date = config.dateSelector || config.date 
-            ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
+          const date = dateSelector 
+            ? document.querySelector(dateSelector)?.textContent?.trim() 
             : '';
 
           if (content) {

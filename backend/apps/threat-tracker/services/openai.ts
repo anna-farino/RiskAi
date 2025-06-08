@@ -263,7 +263,43 @@ export async function identifyArticleLinks(
       throw new Error("No content received from OpenAI");
     }
 
-    const result = JSON.parse(responseText);
+    // Attempt to parse JSON with better error handling
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError: any) {
+      log(
+        `[ThreatTracker] JSON parse error, response text length: ${responseText.length}`,
+        "openai-error",
+      );
+      log(
+        `[ThreatTracker] Response text preview: ${responseText.substring(0, 500)}...`,
+        "openai-error",
+      );
+      
+      // Try to extract valid JSON from truncated response
+      const jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[[^\]]*\]/);
+      if (jsonMatch) {
+        try {
+          const partialJson = jsonMatch[0] + ']}';
+          result = JSON.parse(partialJson);
+          log(`[ThreatTracker] Recovered from truncated JSON`, "openai");
+        } catch (recoveryError) {
+          // If recovery fails, return empty array instead of crashing
+          log(`[ThreatTracker] JSON recovery failed, returning empty array`, "openai-error");
+          return [];
+        }
+      } else {
+        log(`[ThreatTracker] Could not recover JSON, returning empty array`, "openai-error");
+        return [];
+      }
+    }
+
+    if (!result.articleUrls || !Array.isArray(result.articleUrls)) {
+      log(`[ThreatTracker] Invalid response format, returning empty array`, "openai-error");
+      return [];
+    }
+
     log(
       `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
       "openai",
@@ -275,7 +311,8 @@ export async function identifyArticleLinks(
       "openai-error",
     );
     console.error("Error identifying article links:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent scraper crash
+    return [];
   }
 }
 
