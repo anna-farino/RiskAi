@@ -28,6 +28,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
@@ -1076,119 +1084,134 @@ export default function Sources() {
             <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">Sources</h1>
             <p className="text-xs sm:text-sm lg:text-base text-slate-300">Manage news sources and control web scraping operations</p>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
-            <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 hover:text-white h-7 sm:h-8 lg:h-9 px-2 sm:px-2.5 lg:px-3 text-xs"
-                >
-                  <Settings className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4 sm:mr-1.5 lg:mr-2" />
-                  <span className="hidden sm:inline text-xs lg:text-sm">Auto-Scrape Settings</span>
-                  <span className="sm:hidden ml-1">Settings</span>
-                </Button>
-              </PopoverTrigger>
-              {<PopoverContent className="w-80 bg-slate-900 border-slate-700 text-white">
-                <div className="space-y-4">
-                  <h4 className="font-medium text-white">Auto-Scrape Configuration</h4>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="auto-scrape-enabled" className="text-slate-300">Enable Auto-Scrape</Label>
-                    <Switch 
-                      id="auto-scrape-enabled" 
-                      checked={optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled}
-                      disabled={updateAutoScrapeSettings.isPending}
-                      onCheckedChange={(checked) => {
-                        updateAutoScrapeSettings.mutate({
-                          enabled: checked,
-                          interval: autoScrapeSettings.data?.interval ?? JobInterval.DAILY
-                        });
-                      }}
-                    />
-                    {updateAutoScrapeSettings.isPending && (
-                      <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-select" className="text-slate-300">Schedule Frequency</Label>
-                    <Select
-                      disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
-                      value={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : (autoScrapeSettings.data?.interval || JobInterval.DAILY)).toString()}
-                      onValueChange={(value) => {
-                        updateAutoScrapeSettings.mutate({
-                          enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
-                          interval: parseInt(value) as JobInterval
-                        });
-                      }}
-                    >
-                      <SelectTrigger id="schedule-select" className="bg-slate-800/70 border-slate-700 text-white">
-                        <SelectValue placeholder="Select frequency" />
-                        {updateAutoScrapeSettings.isPending && (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary ml-1" />
-                        )}
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        {Object.entries(intervalLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="pt-2 text-xs text-slate-400">
-                    Auto-scrape will only process sources marked as included in the table below.
-                  </div>
-                </div>
-              </PopoverContent>}
-            </Popover>
-            
-            {autoScrapeStatus?.data?.running ? (
-              <Button 
-                onClick={() => stopGlobalScrape.mutate()}
-                disabled={stopGlobalScrape.isPending}
-                size="sm"
-                className="bg-red-600 hover:bg-red-600/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-3"
-              >
-                {stopGlobalScrape.isPending ? (
-                  <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <X className="sm:mr-2 h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Stop Auto-Scrape</span>
-                <span className="sm:hidden">Stop</span>
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => runGlobalScrape.mutate()}
-                disabled={runGlobalScrape.isPending}
-                size="sm"
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-9 px-2 sm:px-3"
-              >
-                {runGlobalScrape.isPending ? (
-                  <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="sm:mr-2 h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Run Auto-Scrape Now</span>
-                <span className="sm:hidden">Run Now</span>
-              </Button>
-            )}
-          </div>
         </div>
         
-        {/* Scheduled status indicator */}
-        {((optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) && (optimisticAutoScrapeInterval || autoScrapeSettings.data?.interval)) && (
-          <div className="flex flex-wrap items-center p-3 bg-primary/10 rounded-lg text-xs sm:text-sm border border-primary/20">
-            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-1.5 sm:mr-2 flex-shrink-0" />
-            <span className="text-white">
-              Auto-scrape is scheduled to run <span className="text-primary font-medium whitespace-nowrap">
-                {intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]}
-              </span>
-            </span>
-          </div>
-        )}
+        {/* Auto-scrape configuration card */}
+        <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
+          <CardHeader>
+            <CardTitle className="flex items-center text-white">
+              <Clock className="mr-2 h-5 w-5" />
+              Auto-Scrape Configuration
+            </CardTitle>
+            <CardDescription className="text-slate-300">
+              Configure automatic scraping of news sources to stay updated on the latest information
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="auto-scrape"
+                  checked={optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled}
+                  onCheckedChange={(checked) => {
+                    updateAutoScrapeSettings.mutate({
+                      enabled: checked,
+                      interval: autoScrapeSettings.data?.interval ?? JobInterval.DAILY
+                    });
+                  }}
+                  disabled={updateAutoScrapeSettings.isPending}
+                />
+                <div className="grid gap-0.5">
+                  <label
+                    htmlFor="auto-scrape"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
+                  >
+                    {(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled) ? 'Enabled' : 'Disabled'}
+                  </label>
+                  <p className="text-xs text-slate-400">
+                    {(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled)
+                      ? `Auto-scrape runs ${intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]?.toLowerCase() || 'daily'}`
+                      : "Enable to automatically scrape sources for new articles"}
+                  </p>
+                </div>
+                {updateAutoScrapeSettings.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateAutoScrapeSettings.mutate({
+                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
+                    interval: JobInterval.HOURLY
+                  })}
+                  disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                  className="text-white border-slate-600 hover:bg-slate-700"
+                >
+                  {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Hourly
+                </Button>
+                <Button
+                  variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.DAILY ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateAutoScrapeSettings.mutate({
+                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
+                    interval: JobInterval.DAILY
+                  })}
+                  disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-[#BF00FF]"
+                >
+                  {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Daily
+                </Button>
+                <Button
+                  variant={(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.WEEKLY ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateAutoScrapeSettings.mutate({
+                    enabled: optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : !!autoScrapeSettings.data?.enabled,
+                    interval: JobInterval.WEEKLY
+                  })}
+                  disabled={!(optimisticAutoScrapeEnabled !== null ? optimisticAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+                  className="text-white border-slate-600 hover:bg-slate-700"
+                >
+                  {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Weekly
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <div className="text-sm text-slate-400">
+              {autoScrapeStatus?.data?.running ? (
+                <span className="flex items-center text-primary">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Manual scrape allows you to immediately check for new articles
+                </span>
+              ) : (
+                "Manual scrape allows you to immediately check for new articles"
+              )}
+            </div>
+            <Button
+              onClick={() => {
+                if (autoScrapeStatus?.data?.running) {
+                  stopGlobalScrape.mutate();
+                } else {
+                  runGlobalScrape.mutate();
+                }
+              }}
+              disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
+              size="sm"
+              className={autoScrapeStatus?.data?.running 
+                ? "bg-red-600 hover:bg-red-600/80 text-white" 
+                : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {(runGlobalScrape.isPending || stopGlobalScrape.isPending) ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : autoScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              {autoScrapeStatus?.data?.running ? "Stop Scrape" : "Scrape All Sources"}
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
 
+      {/* News Sources Management Section */}
       <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
         <div className="lg:col-span-3 xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:gap-4">
