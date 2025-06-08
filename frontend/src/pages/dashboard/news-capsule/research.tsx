@@ -931,7 +931,6 @@ export default function Research() {
               ))
             )}
           </div>
-          </div>
         </div>
       </div>
       
@@ -1088,7 +1087,7 @@ export default function Research() {
                     disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
                     className="flex-1 px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
                   >
-                    Force New Report
+                    Create New Report
                   </button>
                 </div>
 
