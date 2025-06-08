@@ -172,9 +172,9 @@ async function setupPage(): Promise<Page> {
     "Upgrade-Insecure-Requests": "1",
   });
 
-  // Set longer timeouts
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(60000);
+  // Set longer timeouts for challenging sites like Forbes
+  page.setDefaultNavigationTimeout(90000); // 90 seconds for navigation
+  page.setDefaultTimeout(90000); // 90 seconds for all operations
 
   return page;
 }
@@ -598,29 +598,53 @@ export async function scrapePuppeteer(
     let response = null;
     let navigationSuccess = false;
 
-    // Strategy 1: Try domcontentloaded first with reduced timeout for faster failover
+    // Strategy 1: Try networkidle0 first for complete loading
     try {
       log(
-        "[scrapePuppeteer] Attempting navigation with domcontentloaded...",
+        "[scrapePuppeteer] Attempting navigation with networkidle0...",
         "scraper",
       );
       response = await page.goto(url, {
-        waitUntil: "domcontentloaded",
-        timeout: 15000, // Reduced timeout for faster production performance
+        waitUntil: "networkidle0",
+        timeout: 45000, // Increased timeout for complete loading
       });
       navigationSuccess = true;
       log(
-        `[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : "unknown"}`,
+        `[scrapePuppeteer] Navigation successful with networkidle0. Status: ${response ? response.status() : "unknown"}`,
         "scraper",
       );
     } catch (error: any) {
       log(
-        `[scrapePuppeteer] domcontentloaded failed: ${error.message}`,
+        `[scrapePuppeteer] networkidle0 failed: ${error.message}`,
         "scraper",
       );
     }
 
-    // Strategy 2: Fallback to load event with shorter timeout
+    // Strategy 2: Try domcontentloaded with longer timeout
+    if (!navigationSuccess) {
+      try {
+        log(
+          "[scrapePuppeteer] Attempting navigation with domcontentloaded...",
+          "scraper",
+        );
+        response = await page.goto(url, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000, // Increased timeout
+        });
+        navigationSuccess = true;
+        log(
+          `[scrapePuppeteer] Navigation successful with domcontentloaded. Status: ${response ? response.status() : "unknown"}`,
+          "scraper",
+        );
+      } catch (error: any) {
+        log(
+          `[scrapePuppeteer] domcontentloaded failed: ${error.message}`,
+          "scraper",
+        );
+      }
+    }
+
+    // Strategy 3: Fallback to load event
     if (!navigationSuccess) {
       try {
         log(
@@ -629,7 +653,7 @@ export async function scrapePuppeteer(
         );
         response = await page.goto(url, {
           waitUntil: "load",
-          timeout: 12000, // Reduced timeout
+          timeout: 25000, // Increased timeout
         });
         navigationSuccess = true;
         log(
@@ -641,7 +665,7 @@ export async function scrapePuppeteer(
       }
     }
 
-    // Strategy 3: Try with no wait condition as last resort
+    // Strategy 4: Try with no wait condition as last resort
     if (!navigationSuccess) {
       try {
         log(
@@ -649,7 +673,7 @@ export async function scrapePuppeteer(
           "scraper",
         );
         response = await page.goto(url, {
-          timeout: 10000, // Reduced timeout
+          timeout: 20000, // Still reasonable timeout
         });
         navigationSuccess = true;
         log(
@@ -793,7 +817,7 @@ Content: ${basicContent.content}`;
     try {
       // Add timeout protection for link extraction
       const linkExtractionPromise = extractArticleLinks(page);
-      const timeoutPromise = new Promise((_, reject) =>
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Link extraction timeout")), 30000),
       );
 

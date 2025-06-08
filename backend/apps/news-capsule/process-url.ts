@@ -252,7 +252,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       for (const selector of titleSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          title = element.textContent?.trim() || element.innerText?.trim() || "";
+          title = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
           if (title && title.length > 5) break;
         }
       }
@@ -318,7 +318,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
         // Try Forbes body content
         const forbesBody = document.querySelector("[data-module='ArticleBody']");
         if (forbesBody) {
-          const allText = forbesBody.textContent || forbesBody.innerText || "";
+          const allText = forbesBody.textContent || (forbesBody as HTMLElement).innerText || "";
           if (allText.length > 200) {
             articleContent = allText.trim();
           }
@@ -370,7 +370,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
           if (element.tagName === "META") {
             publication = element.getAttribute("content") || "";
           } else {
-            publication = element.textContent?.trim() || element.innerText?.trim() || "";
+            publication = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
           }
           if (publication) break;
         }
@@ -395,7 +395,7 @@ async function scrapeArticleContent(url: string): Promise<string | null> {
       for (const selector of authorSelectors) {
         const element = document.querySelector(selector);
         if (element) {
-          author = element.textContent?.trim() || element.innerText?.trim() || "";
+          author = element.textContent?.trim() || (element as HTMLElement).innerText?.trim() || "";
           if (author) break;
         }
       }
