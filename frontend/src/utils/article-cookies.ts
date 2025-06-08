@@ -70,11 +70,15 @@ export function updateLastVisit(): void {
   });
 }
 
+// Simple in-memory cache to prevent cookie read/write race conditions
+let viewStateCache: ArticleViewState | null = null;
+
 /**
  * Mark an article as viewed
  */
 export function markArticleAsViewed(articleId: string): void {
-  const currentState = getArticleViewState();
+  // Use cache if available, otherwise read from cookie
+  const currentState = viewStateCache || getArticleViewState();
   
   // Add to viewed articles if not already present
   if (!currentState.viewedArticles.includes(articleId)) {
@@ -85,10 +89,14 @@ export function markArticleAsViewed(articleId: string): void {
       updatedViewedArticles.splice(0, updatedViewedArticles.length - 1000);
     }
     
-    saveArticleViewState({
+    const newState = {
       ...currentState,
       viewedArticles: updatedViewedArticles
-    });
+    };
+    
+    // Update cache and save to cookie
+    viewStateCache = newState;
+    saveArticleViewState(newState);
   }
 }
 
@@ -99,7 +107,8 @@ export function markArticleAsViewed(articleId: string): void {
  * 2. The user hasn't viewed it yet
  */
 export function isArticleNew(article: { id: string; publishDate?: string | Date | null }): boolean {
-  const state = getArticleViewState();
+  // Use cache if available for most recent state, otherwise read from cookie
+  const state = viewStateCache || getArticleViewState();
   
   // If article was already viewed, it's not new
   if (state.viewedArticles.includes(article.id)) {

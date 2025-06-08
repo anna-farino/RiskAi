@@ -392,11 +392,13 @@ export default function NewsHome() {
 
   // Handler for when an article is viewed (scrolled past)
   const handleArticleViewed = (articleId: string) => {
+    console.log('[ARTICLE VIEWED]', { articleId, timestamp: new Date().toISOString() });
     articleViewState.markViewed(articleId);
     // Update new article count after marking as viewed
     if (articles.data) {
       const newCount = articleViewState.getNewCount(articles.data);
       setNewArticleCount(newCount);
+      console.log('[NEW COUNT UPDATED]', { newCount, totalArticles: articles.data.length });
     }
   };
 
