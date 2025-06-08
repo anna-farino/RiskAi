@@ -697,12 +697,12 @@ export default function Keywords() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2">
-            <div className="flex flex-wrap gap-2 pl-6 overflow-x-auto">
+            <div className="flex flex-wrap gap-2 pl-6">
               {keywords.map((keyword: ThreatKeyword) => (
                 <Badge
                   key={keyword.id}
                   variant={keyword.active ? "default" : "outline"}
-                  className={`text-xs whitespace-nowrap flex-shrink-0 ${
+                  className={`text-xs whitespace-nowrap ${
                     keyword.active
                       ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                       : "bg-gray-50 text-gray-500 border-gray-200"

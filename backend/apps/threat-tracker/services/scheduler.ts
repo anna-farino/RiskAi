@@ -3,12 +3,12 @@ import { runGlobalScrapeJob } from "./background-jobs";
 import { log } from "backend/utils/log";
 import { setInterval } from "timers";
 
-// Define job intervals
+// Define job intervals in milliseconds (matching News Radar format)
 export enum JobInterval {
-  HOURLY = "HOURLY",
-  DAILY = "DAILY",
-  WEEKLY = "WEEKLY",
-  DISABLED = "DISABLED",
+  HOURLY = 60 * 60 * 1000,           // 1 hour
+  DAILY = 24 * 60 * 60 * 1000,       // 24 hours  
+  WEEKLY = 7 * 24 * 60 * 60 * 1000,  // 7 days
+  DISABLED = 0,                       // Disabled
 }
 
 // Track per-user scheduled job timers
@@ -73,22 +73,7 @@ export async function updateGlobalScrapeSchedule(enabled: boolean, interval: Job
   }
 }
 
-/**
- * Get the interval in milliseconds based on the JobInterval enum
- */
-function getIntervalMs(interval: JobInterval): number {
-  switch (interval) {
-    case JobInterval.HOURLY:
-      return 60 * 60 * 1000; // 1 hour
-    case JobInterval.DAILY:
-      return 24 * 60 * 60 * 1000; // 24 hours
-    case JobInterval.WEEKLY:
-      return 7 * 24 * 60 * 60 * 1000; // 7 days
-    case JobInterval.DISABLED:
-    default:
-      return 0; // Disabled
-  }
-}
+
 
 /**
  * Schedule an auto-scrape job for a specific user
@@ -97,24 +82,24 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
   // Clear existing job for this user if it exists
   clearUserScrapeJob(userId);
   
-  const intervalMs = getIntervalMs(interval);
-  if (intervalMs <= 0) {
+  // Now interval is already in milliseconds
+  if (interval <= 0) {
     log(`[ThreatTracker] Invalid interval for user ${userId}, not scheduling`, "scheduler");
     return;
   }
   
   // Schedule new job for this user
   const job = setInterval(async () => {
-    log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval})`, "scheduler");
+    log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
     try {
       await runGlobalScrapeJob(userId);
     } catch (error: any) {
       log(`[ThreatTracker] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
     }
-  }, intervalMs);
+  }, interval);
   
   userScheduledJobs.set(userId, job);
-  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}`, "scheduler");
+  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms`, "scheduler");
 }
 
 /**
@@ -147,9 +132,9 @@ export async function initializeScheduler() {
 
     // Initialize scheduler for each user based on their individual settings
     for (const setting of allAutoScrapeSettings) {
-      if (!setting.user_id) continue;
+      if (!setting.userId) continue;
       
-      const userId = setting.user_id;
+      const userId = setting.userId;
       
       try {
         const userSchedule = setting.value as {

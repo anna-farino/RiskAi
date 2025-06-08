@@ -89,12 +89,12 @@ import {
   Shield,
 } from "lucide-react";
 
-// Enum for auto-scrape intervals
+// Enum for auto-scrape intervals (matching backend numeric format)
 export enum JobInterval {
-  HOURLY = "HOURLY",
-  DAILY = "DAILY",
-  WEEKLY = "WEEKLY",
-  DISABLED = "DISABLED",
+  HOURLY = 3600000,     // 60 * 60 * 1000
+  DAILY = 86400000,     // 24 * 60 * 60 * 1000  
+  WEEKLY = 604800000,   // 7 * 24 * 60 * 60 * 1000
+  DISABLED = 0,         // Disabled
 }
 
 // Type for auto-scrape settings

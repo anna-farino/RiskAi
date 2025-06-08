@@ -753,4 +753,18 @@ export const storage: IStorage = {
       return [];
     }
   },
+
+  getSourceArticleCount: async (id: string) => {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error("Error getting source article count:", error);
+      return 0;
+    }
+  },
 };
