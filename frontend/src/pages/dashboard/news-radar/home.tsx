@@ -227,18 +227,11 @@ export default function NewsHome() {
         // Clear the session storage to prevent repeat highlighting
         sessionStorage.removeItem('selectedArticle');
         
-        // Show toast notification
+        // Show subtle toast notification
         toast({
-          title: "Article selected from dashboard",
-          description: "The article you clicked is highlighted below.",
+          title: "Article highlighted",
+          description: "Use 'Clear Selection' to remove highlighting.",
         });
-
-        // Clear highlighting after 10 seconds
-        const clearHighlightTimer = setTimeout(() => {
-          setHighlightedArticleId(null);
-        }, 10000);
-
-        return () => clearTimeout(clearHighlightTimer);
       } catch (error) {
         console.error("Error parsing selected article:", error);
         sessionStorage.removeItem('selectedArticle');
@@ -667,6 +660,18 @@ export default function NewsHome() {
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+              {highlightedArticleId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                  onClick={() => setHighlightedArticleId(null)}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear Selection
+                </Button>
+              )}
+              
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                 <Input
@@ -877,21 +882,13 @@ export default function NewsHome() {
                 {paginatedArticles.map((article) => (
                   <div key={article.id} className={cn(
                     "relative",
-                    article.id === highlightedArticleId && "ring-2 ring-[#00FFFF] ring-opacity-60 rounded-lg bg-[#00FFFF]/5"
+                    article.id === highlightedArticleId && "ring-1 ring-primary/40 bg-primary/5"
                   )}>
                     {isArticleNew(article) && (
                       <div className="absolute -top-1 -right-1 z-10">
                         <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
                           <Star className="h-2.5 w-2.5 mr-1" />
                           NEW
-                        </Badge>
-                      </div>
-                    )}
-                    {article.id === highlightedArticleId && (
-                      <div className="absolute -top-1 -left-1 z-10">
-                        <Badge className="bg-[#00FFFF] text-black hover:bg-[#00FFFF]/80 text-xs px-1.5 py-0.5 shadow-md">
-                          <Star className="h-2.5 w-2.5 mr-1" />
-                          SELECTED
                         </Badge>
                       </div>
                     )}
