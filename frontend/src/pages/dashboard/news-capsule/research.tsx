@@ -633,44 +633,45 @@ export default function Research() {
                   animate={{ opacity: 1, y: 0 }}
                   className="p-4 sm:p-5 bg-slate-800/50 border border-slate-700/40 rounded-lg"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
-                    <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
-                    <div className="flex flex-col gap-3">
-                      {/* Mobile: Stack buttons horizontally, Desktop: Stack vertically */}
-                      <div className="flex gap-2 sm:flex-col sm:gap-2">
-                        <button
-                          onClick={() => {
-                            const isSelected = selectedArticles.some(selected => selected.title === article.title);
-                            if (isSelected) {
-                              const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
-                              setSelectedArticles(newSelected);
-                            } else {
-                              selectForReport(article);
-                            }
-                          }}
-                          className={`flex-1 sm:w-32 sm:flex-none px-3 py-2 text-xs sm:text-sm rounded-lg border min-h-[44px] touch-manipulation ${
-                            selectedArticles.some(selected => selected.title === article.title) 
-                              ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
-                              : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
-                          }`}
-                        >
-                          {selectedArticles.some(selected => selected.title === article.title) ? "In Report" : "Select"}
-                        </button>
-                        <button
-                          onClick={() => removeProcessedArticle(article)}
-                          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg border border-red-700/30 touch-manipulation"
-                        >
-                          ×
-                        </button>
-                      </div>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
                       {(() => {
                         const indicator = getSourceAppIndicator(article);
                         return (
-                          <span className={`px-2 py-1 text-xs font-bold rounded self-start sm:self-end ${indicator.color} ${indicator.textColor}`}>
+                          <span className={`px-2 py-1 text-xs font-bold rounded ml-3 ${indicator.color} ${indicator.textColor}`}>
                             {indicator.label}
                           </span>
                         );
                       })()}
+                    </div>
+                    
+                    {/* Action buttons below title */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const isSelected = selectedArticles.some(selected => selected.title === article.title);
+                          if (isSelected) {
+                            const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
+                            setSelectedArticles(newSelected);
+                          } else {
+                            selectForReport(article);
+                          }
+                        }}
+                        className={`flex-1 px-4 py-3 text-sm rounded-lg border min-h-[48px] touch-manipulation transition-all duration-200 ${
+                          selectedArticles.some(selected => selected.title === article.title) 
+                            ? "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border-blue-700/30" 
+                            : "bg-green-900/30 hover:bg-green-900/50 text-green-400 border-green-700/30"
+                        }`}
+                      >
+                        {selectedArticles.some(selected => selected.title === article.title) ? "In Report" : "Select"}
+                      </button>
+                      <button
+                        onClick={() => removeProcessedArticle(article)}
+                        className="w-12 h-12 flex items-center justify-center bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg border border-red-700/30 touch-manipulation transition-all duration-200"
+                      >
+                        ×
+                      </button>
                     </div>
                   </div>
                   
