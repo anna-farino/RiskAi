@@ -719,11 +719,11 @@ export default function Research() {
             </div>
           </div>
           
-          {/* Mobile Floating Action Button */}
+          {/* Mobile Floating Action Button - positioned next to back-to-top button */}
           {isViewportMobile && (
             <button
               onClick={() => setShowSelectedArticlesOverlay(true)}
-              className="fixed bottom-6 right-6 z-20 w-14 h-14 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+              className="fixed bottom-4 right-6 sm:bottom-6 sm:right-6 z-[55] w-14 h-14 bg-[#BF00FF]/80 backdrop-blur-sm border border-[#BF00FF]/50 hover:bg-[#00FFFF] text-white rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
             >
               <Menu className="w-6 h-6" />
               {selectedArticles.length > 0 && (
