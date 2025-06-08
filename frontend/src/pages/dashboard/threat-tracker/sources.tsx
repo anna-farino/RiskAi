@@ -123,6 +123,9 @@ export default function Sources() {
   const [localAutoScrapeEnabled, setLocalAutoScrapeEnabled] = useState<
     boolean | null
   >(null);
+  const [localAutoScrapeInterval, setLocalAutoScrapeInterval] = useState<
+    JobInterval | null
+  >(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     source: ThreatSource;
     articleCount: number;
@@ -195,10 +198,15 @@ export default function Sources() {
 
   // Sync local auto-scrape state with query data
   useEffect(() => {
-    if (autoScrapeSettings.data && localAutoScrapeEnabled === null) {
-      setLocalAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+    if (autoScrapeSettings.data) {
+      if (localAutoScrapeEnabled === null) {
+        setLocalAutoScrapeEnabled(autoScrapeSettings.data.enabled);
+      }
+      if (localAutoScrapeInterval === null) {
+        setLocalAutoScrapeInterval(autoScrapeSettings.data.interval);
+      }
     }
-  }, [autoScrapeSettings.data, localAutoScrapeEnabled]);
+  }, [autoScrapeSettings.data, localAutoScrapeEnabled, localAutoScrapeInterval]);
 
   // Check scrape job status
   const checkScrapeStatus = useQuery<{ running: boolean }>({
@@ -495,10 +503,12 @@ export default function Sources() {
         queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] 
       });
 
-      // Snapshot the previous value for potential rollback
+      // Snapshot the previous values for potential rollback
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([
         `${serverUrl}/api/threat-tracker/settings/auto-scrape`
       ]);
+      const previousLocalEnabled = localAutoScrapeEnabled;
+      const previousLocalInterval = localAutoScrapeInterval;
 
       // Optimistically update the cache with new settings
       queryClient.setQueryData<AutoScrapeSettings>(
@@ -508,8 +518,13 @@ export default function Sources() {
 
       // Update local state for immediate UI feedback
       setLocalAutoScrapeEnabled(enabled);
+      setLocalAutoScrapeInterval(interval);
 
-      return { previousSettings };
+      return { 
+        previousSettings, 
+        previousLocalEnabled, 
+        previousLocalInterval 
+      };
     },
     onError: (err, variables, context) => {
       // Rollback optimistic update on error
@@ -518,9 +533,14 @@ export default function Sources() {
           [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
           context.previousSettings
         );
-        setLocalAutoScrapeEnabled(
-          context.previousSettings?.enabled || false
-        );
+      }
+      
+      // Rollback local state
+      if (context?.previousLocalEnabled !== undefined) {
+        setLocalAutoScrapeEnabled(context.previousLocalEnabled);
+      }
+      if (context?.previousLocalInterval !== undefined) {
+        setLocalAutoScrapeInterval(context.previousLocalInterval);
       }
 
       console.error("Error updating auto-scrape settings:", err);
@@ -537,8 +557,9 @@ export default function Sources() {
         data
       );
 
-      // Reset local state to sync with server response
+      // Sync local state with server response
       setLocalAutoScrapeEnabled(data.enabled);
+      setLocalAutoScrapeInterval(data.interval);
 
       toast({
         title: "Auto-scrape settings updated",
@@ -642,22 +663,20 @@ export default function Sources() {
 
   // Handle toggle auto-scrape
   function handleToggleAutoScrape(enabled: boolean) {
-    if (autoScrapeSettings.data) {
-      updateAutoScrapeSettings.mutate({
-        enabled,
-        interval: autoScrapeSettings.data.interval,
-      });
-    }
+    const currentInterval = localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval || JobInterval.DAILY;
+    updateAutoScrapeSettings.mutate({
+      enabled,
+      interval: currentInterval,
+    });
   }
 
   // Handle change auto-scrape interval
   function handleChangeAutoScrapeInterval(interval: JobInterval) {
-    if (autoScrapeSettings.data) {
-      updateAutoScrapeSettings.mutate({
-        enabled: autoScrapeSettings.data.enabled,
-        interval,
-      });
-    }
+    const currentEnabled = localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : autoScrapeSettings.data?.enabled || false;
+    updateAutoScrapeSettings.mutate({
+      enabled: currentEnabled,
+      interval,
+    });
   }
 
   // Handle delete source with confirmation for associated articles
@@ -749,7 +768,7 @@ export default function Sources() {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
-                    ? `Auto-scrape runs ${autoScrapeSettings.data?.interval.toLowerCase()}`
+                    ? `Auto-scrape runs ${(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval)?.toLowerCase()}`
                     : "Enable to automatically scrape sources for new threats"}
                 </p>
               </div>
@@ -760,28 +779,28 @@ export default function Sources() {
 
             <div className="flex gap-2">
               <Button
-                variant={autoScrapeSettings.data?.interval === JobInterval.HOURLY ? "default" : "outline"}
+                variant={(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.HOURLY)}
-                disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
+                disabled={!(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
               >
                 {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Hourly
               </Button>
               <Button
-                variant={autoScrapeSettings.data?.interval === JobInterval.DAILY ? "default" : "outline"}
+                variant={(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.DAILY ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.DAILY)}
-                disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
+                disabled={!(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
               >
                 {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Daily
               </Button>
               <Button
-                variant={autoScrapeSettings.data?.interval === JobInterval.WEEKLY ? "default" : "outline"}
+                variant={(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.WEEKLY ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.WEEKLY)}
-                disabled={!autoScrapeSettings.data?.enabled || updateAutoScrapeSettings.isPending}
+                disabled={!(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
               >
                 {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                 Weekly
