@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
@@ -360,6 +360,18 @@ export default function NewsHome() {
       });
     },
   });
+
+  // Calculate number of new articles since last visit
+  const newArticlesCount = useMemo(() => {
+    if (!lastVisitTimestamp) return 0;
+    
+    const lastVisit = new Date(lastVisitTimestamp);
+    return localArticles.filter(article => {
+      if (!article.publishDate) return false;
+      const publishDate = new Date(article.publishDate);
+      return publishDate > lastVisit;
+    }).length;
+  }, [lastVisitTimestamp, localArticles]);
 
   // Function to check if an article is new
   const isArticleNew = (article: Article): boolean => {
