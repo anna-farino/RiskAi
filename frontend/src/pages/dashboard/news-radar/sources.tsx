@@ -1205,7 +1205,7 @@ export default function Sources() {
               ) : (
                 <Play className="mr-2 h-4 w-4" />
               )}
-              {autoScrapeStatus?.data?.running ? "Stop Scrape" : "Scrape All Sources"}
+              {autoScrapeStatus?.data?.running ? "Stop Scrape" : "Scrape All Sources Now"}
             </Button>
           </CardFooter>
         </Card>
@@ -1340,9 +1340,7 @@ export default function Sources() {
                   <TableRow className="border-slate-700/50 hover:bg-slate-800/70">
                     <TableHead className="text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Source</TableHead>
                     <TableHead className="text-slate-300 w-[25%] sm:w-[35%] text-xs sm:text-sm">URL</TableHead>
-                    <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-center text-xs sm:text-sm">
-                      <RotateCw className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 mx-auto" />
-                    </TableHead>
+                    <TableHead className="text-slate-300 w-[25%] sm:w-[15%] text-center text-xs sm:text-sm">Auto</TableHead>
                     <TableHead className="text-right text-slate-300 w-[25%] sm:w-[25%] text-xs sm:text-sm">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
