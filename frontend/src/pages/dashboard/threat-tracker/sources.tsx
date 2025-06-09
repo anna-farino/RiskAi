@@ -139,6 +139,9 @@ export default function Sources() {
     articleCount: number;
   } | null>(null);
   const [isDefaultSourcesCollapsed, setIsDefaultSourcesCollapsed] = useState(false);
+  const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(() => {
+    return document.cookie.includes('threat-instructions-collapsed=true');
+  });
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -726,6 +729,17 @@ export default function Sources() {
     }
   }
 
+  // Handle instructions collapse
+  function handleInstructionsCollapse() {
+    const newCollapsedState = !isInstructionsCollapsed;
+    setIsInstructionsCollapsed(newCollapsedState);
+    if (newCollapsedState) {
+      document.cookie = 'threat-instructions-collapsed=true; path=/; max-age=' + (365 * 24 * 60 * 60); // 1 year
+    } else {
+      document.cookie = 'threat-instructions-collapsed=false; path=/; max-age=' + (365 * 24 * 60 * 60); // 1 year
+    }
+  }
+
   // Format the last scraped date
   function formatLastScraped(date: Date | null | undefined) {
     if (!date) return "Never";
@@ -769,46 +783,59 @@ export default function Sources() {
       </div>
 
       {/* Instructions Card */}
-      <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Globe className="h-5 w-5 text-blue-600" />
-            How to Use Threat Sources
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
-                <p className="text-sm text-muted-foreground">
-                  Enable automatic scanning to stay current with threats. Choose hourly, daily, or weekly updates.
-                </p>
+      <Collapsible open={!isInstructionsCollapsed} onOpenChange={handleInstructionsCollapse}>
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-4 cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors">
+              <CardTitle className="flex items-center justify-between text-lg">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  How to Use Threat Sources
+                </div>
+                {isInstructionsCollapsed ? (
+                  <ChevronRight className="h-4 w-4 text-blue-600" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-blue-600" />
+                )}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Enable automatic scanning to stay current with threats. Choose hourly, daily, or weekly updates.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">2. Manage Sources</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Default cybersecurity sources are provided. Add custom sources or enable/disable existing ones.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">3. Manual Updates</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Use "Update All Sources" for immediate scanning or update individual sources as needed.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">4. Monitor Keywords</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Visit the Keywords page to manage threat terms, vendors, and hardware for targeted monitoring.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h4 className="font-medium text-sm mb-1">2. Manage Sources</h4>
-                <p className="text-sm text-muted-foreground">
-                  Default cybersecurity sources are provided. Add custom sources or enable/disable existing ones.
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-medium text-sm mb-1">3. Manual Updates</h4>
-                <p className="text-sm text-muted-foreground">
-                  Use "Update All Sources" for immediate scanning or update individual sources as needed.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium text-sm mb-1">4. Monitor Keywords</h4>
-                <p className="text-sm text-muted-foreground">
-                  Visit the Keywords page to manage threat terms, vendors, and hardware for targeted monitoring.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Auto-scrape settings card */}
       <Card>
