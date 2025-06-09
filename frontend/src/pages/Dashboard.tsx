@@ -246,7 +246,7 @@ export default function Dashboard() {
   // Enhanced capsule report click handler
   const handleCapsuleClick = (report: any) => {
     sessionStorage.setItem('selectedCapsuleReport', JSON.stringify(report));
-    navigate('/dashboard/news-capsule/home', { state: { selectedReport: report } });
+    navigate('/dashboard/news-capsule/reports', { state: { selectedReport: report } });
   };
 
   
@@ -306,7 +306,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>{newsArticles?.length || 0} articles • 30s</span>
+                      <span>{newsArticles?.length || 0} articles</span>
                     </div>
                   )}
                 </div>
@@ -434,7 +434,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                      <span>{threatArticles?.length || 0} threats • 20s</span>
+                      <span>{threatArticles?.length || 0} threats</span>
                     </div>
                   )}
                 </div>
@@ -680,7 +680,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
-                      <span>{capsuleReports?.length || 0} reports • 45s</span>
+                      <span>{capsuleReports?.length || 0} reports</span>
                     </div>
                   )}
                 </div>
@@ -717,7 +717,10 @@ export default function Dashboard() {
                     <div 
                       key={report.id || index}
                       className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
-                      onClick={() => handleCapsuleClick(report)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCapsuleClick(report)
+                      }}
                     >
                       <div className="flex justify-between items-start mb-2 gap-2">
                         <div className="flex items-center gap-2">

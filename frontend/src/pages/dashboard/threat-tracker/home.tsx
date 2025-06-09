@@ -178,6 +178,7 @@ export default function ThreatHome() {
         const selectedThreat = JSON.parse(selectedThreatData);
         setHighlightedArticleId(selectedThreat.id);
         
+        window.scrollTo(0,0)
         // Clear the session storage to prevent repeat highlighting
         sessionStorage.removeItem('selectedThreatArticle');
 
@@ -795,7 +796,7 @@ export default function ThreatHome() {
                 {paginatedArticles.map((article, index) => (
                 <div key={article.id} className={cn(
                   "relative",
-                  article.id === highlightedArticleId && "bg-primary/5"
+                  article.id === highlightedArticleId && "bg-primary/10"
                 )}>
                   {isArticleNew(article) && (
                     <div className="absolute -top-2 -right-2 z-10">
