@@ -227,11 +227,11 @@ export default function NewsHome() {
         // Clear the session storage to prevent repeat highlighting
         sessionStorage.removeItem('selectedArticle');
         
-        // Show subtle toast notification
-        toast({
-          title: "Article highlighted",
-          description: "Use 'Clear Selection' to remove highlighting.",
-        });
+        // Clear highlighting after 10 seconds
+        const clearHighlightTimer = setTimeout(() => {
+          setHighlightedArticleId(null);
+        }, 10000);
+        return () => clearTimeout(clearHighlightTimer);
       } catch (error) {
         console.error("Error parsing selected article:", error);
         sessionStorage.removeItem('selectedArticle');
@@ -882,7 +882,7 @@ export default function NewsHome() {
                 {paginatedArticles.map((article) => (
                   <div key={article.id} className={cn(
                     "relative",
-                    article.id === highlightedArticleId && "ring-1 ring-primary/40 bg-primary/5"
+                    article.id === highlightedArticleId && "bg-primary/5 rounded-xl"
                   )}>
                     {isArticleNew(article) && (
                       <div className="absolute -top-1 -right-1 z-10">
