@@ -36,9 +36,18 @@ if (isDevelopment) {
   }));
 }
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`🌐 [SERVER] Server is running on port ${port}`);
   if (isDevelopment) {
     console.log('💻 [SERVER] Development mode: Proxying non-API requests to Vite dev server');
+  }
+  
+  // Initialize auto-scrape schedulers after server starts
+  try {
+    const { initializeScheduler } = await import('./apps/threat-tracker/services/scheduler.js');
+    await initializeScheduler();
+    console.log('✅ [SERVER] Threat Tracker auto-scrape scheduler initialized');
+  } catch (error) {
+    console.error('❌ [SERVER] Error initializing Threat Tracker scheduler:', error);
   }
 });
