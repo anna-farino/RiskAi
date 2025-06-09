@@ -272,12 +272,13 @@ export async function initializeScheduler() {
       }
     }
     
-    // Start health check system
-    startHealthCheck();
-    
     schedulerInitialized = true;
     initializationAttempts = 0; // Reset on success
     log(`[ThreatTracker] Auto-scrape scheduler initialization complete with ${userScheduledJobs.size} active jobs`, "scheduler");
+    
+    // Start health check system after successful initialization
+    startHealthCheck();
+    
     return true;
   } catch (error: any) {
     log(`[ThreatTracker] Error initializing scheduler (attempt ${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS}): ${error.message}`, "scheduler-error");
@@ -301,13 +302,97 @@ export async function initializeScheduler() {
 }
 
 /**
- * Get status of all currently scheduled jobs
+ * Health check system to monitor and recover failed jobs
+ */
+function startHealthCheck(): void {
+  if (healthCheckTimer) {
+    clearInterval(healthCheckTimer);
+  }
+  
+  healthCheckTimer = setInterval(async () => {
+    log(`[ThreatTracker] Running scheduler health check`, "scheduler");
+    
+    try {
+      // Check if any jobs have stopped unexpectedly
+      const activeUserIds = Array.from(userScheduledJobs.keys());
+      const activeTimerIds = Array.from(userTimers.keys());
+      
+      // Find discrepancies between job metadata and actual timers
+      for (const userId of activeUserIds) {
+        if (!activeTimerIds.includes(userId)) {
+          log(`[ThreatTracker] Detected missing timer for user ${userId}, attempting recovery`, "scheduler-error");
+          const jobMeta = userScheduledJobs.get(userId);
+          if (jobMeta) {
+            // Reschedule the job
+            scheduleUserScrapeJob(userId, jobMeta.interval);
+          }
+        }
+      }
+      
+      // Check for settings changes and update jobs accordingly
+      const allSettings = await storage.getAllAutoScrapeSettings();
+      for (const setting of allSettings) {
+        if (!setting.userId) continue;
+        
+        const userId = setting.userId;
+        const userSchedule = setting.value as { enabled: boolean; interval: JobInterval | string; };
+        const hasActiveJob = userScheduledJobs.has(userId);
+        
+        // Convert string intervals to numeric
+        let intervalMs: number;
+        if (typeof userSchedule.interval === 'string') {
+          switch (userSchedule.interval) {
+            case 'HOURLY': intervalMs = JobInterval.HOURLY; break;
+            case 'DAILY': intervalMs = JobInterval.DAILY; break;
+            case 'WEEKLY': intervalMs = JobInterval.WEEKLY; break;
+            case 'DISABLED': intervalMs = JobInterval.DISABLED; break;
+            default: intervalMs = JobInterval.DAILY;
+          }
+        } else {
+          intervalMs = userSchedule.interval as number;
+        }
+        
+        if (userSchedule.enabled && intervalMs > 0 && !hasActiveJob) {
+          // User enabled auto-scrape but no job is running
+          const userSources = await storage.getAutoScrapeSources(userId);
+          if (userSources.length > 0) {
+            log(`[ThreatTracker] Health check detected missing job for user ${userId}, restarting`, "scheduler");
+            scheduleUserScrapeJob(userId, intervalMs as JobInterval);
+          }
+        } else if ((!userSchedule.enabled || intervalMs <= 0) && hasActiveJob) {
+          // User disabled auto-scrape but job is still running
+          log(`[ThreatTracker] Health check detected disabled job still running for user ${userId}, stopping`, "scheduler");
+          clearUserScrapeJob(userId);
+        }
+      }
+      
+    } catch (error: any) {
+      log(`[ThreatTracker] Error during health check: ${error.message}`, "scheduler-error");
+    }
+  }, HEALTH_CHECK_INTERVAL);
+  
+  log(`[ThreatTracker] Started scheduler health check (interval: ${HEALTH_CHECK_INTERVAL}ms)`, "scheduler");
+}
+
+/**
+ * Get detailed status of all currently scheduled jobs
  */
 export function getSchedulerStatus() {
+  const jobs = Array.from(userScheduledJobs.entries()).map(([userId, jobMeta]) => ({
+    userId,
+    interval: jobMeta.interval,
+    lastRun: jobMeta.lastRun?.toISOString() || null,
+    nextRunAt: jobMeta.nextRunAt.toISOString(),
+    consecutiveFailures: jobMeta.consecutiveFailures,
+    isHealthy: jobMeta.consecutiveFailures < 3
+  }));
+  
   return {
     initialized: schedulerInitialized,
     activeJobs: userScheduledJobs.size,
-    userIds: Array.from(userScheduledJobs.keys())
+    healthCheckActive: healthCheckTimer !== null,
+    initializationAttempts,
+    jobs
   };
 }
 

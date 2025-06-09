@@ -1,9 +1,8 @@
 import { runGlobalScrapeJob } from "./background-jobs";
 import { storage } from "../queries/news-tracker";
-import { log } from "console";
+import { log } from "backend/utils/log";
 import { Request } from "express";
 
-//test
 // Job intervals in milliseconds
 export enum JobInterval {
   FIFTEEN_MINUTES = 15 * 60 * 1000,
@@ -17,22 +16,51 @@ export enum JobInterval {
 // Define the setting key for job frequency
 export const AUTO_SCRAPE_FREQUENCY_KEY = "autoScrapeFrequency";
 
-// Track per-user scheduled job timers
-const userScheduledJobs = new Map<string, NodeJS.Timeout>();
+// Track per-user scheduled job timers and metadata
+const userScheduledJobs = new Map<string, {
+  timer: NodeJS.Timeout;
+  interval: JobInterval;
+  lastRun: Date | null;
+  consecutiveFailures: number;
+  nextRunAt: Date;
+}>();
+
+// Simple timer tracking for cleanup
+const userTimers = new Map<string, NodeJS.Timeout>();
+
+// Global flag to prevent multiple scheduler initializations
+let schedulerInitialized = false;
+let initializationAttempts = 0;
+const MAX_INITIALIZATION_ATTEMPTS = 3;
+
+// Health check interval (every 5 minutes)
+const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000;
+let healthCheckTimer: NodeJS.Timeout | null = null;
 
 /**
  * Initialize scheduler for all users based on their individual settings
  */
-export async function initializeScheduler(): Promise<void> {
-  log("[NewsRadar] Initializing per-user scheduler service", "scheduler");
-
+export async function initializeScheduler(): Promise<boolean> {
   try {
+    initializationAttempts++;
+    log(`[NewsRadar] Starting scheduler initialization (attempt ${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`, "scheduler");
+
     // Clear any existing scheduled jobs
-    userScheduledJobs.forEach((job, userId) => {
-      clearInterval(job);
+    userTimers.forEach((timer, userId) => {
+      clearInterval(timer);
       log(`[NewsRadar] Cleared existing job for user ${userId}`, "scheduler");
     });
+    userTimers.clear();
     userScheduledJobs.clear();
+    
+    // Clear existing health check timer
+    if (healthCheckTimer) {
+      clearInterval(healthCheckTimer);
+      healthCheckTimer = null;
+    }
+    
+    // Reset initialization flag to allow re-initialization
+    schedulerInitialized = false;
     
     // Get all sources that are eligible for auto-scrape
     const autoScrapeSources = await storage.getAutoScrapeSources();
@@ -64,47 +92,101 @@ export async function initializeScheduler(): Promise<void> {
       }
     }
     
-    log(`[NewsRadar] Per-user scheduler initialization complete`, "scheduler");
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
-    log(
-      `[NewsRadar] Error initializing scheduler: ${errorMessage}`,
-      "scheduler",
-    );
+    schedulerInitialized = true;
+    initializationAttempts = 0; // Reset on success
+    log(`[NewsRadar] Auto-scrape scheduler initialization complete with ${userScheduledJobs.size} active jobs`, "scheduler");
+    return true;
+  } catch (error: any) {
+    log(`[NewsRadar] Error initializing scheduler (attempt ${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS}): ${error.message}`, "scheduler-error");
+    console.error("Error initializing scheduler:", error);
+    schedulerInitialized = false;
+    
+    // Retry initialization if we haven't exceeded max attempts
+    if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
+      log(`[NewsRadar] Retrying scheduler initialization in 30 seconds...`, "scheduler");
+      setTimeout(() => {
+        initializeScheduler().catch(retryError => {
+          log(`[NewsRadar] Retry initialization failed: ${retryError.message}`, "scheduler-error");
+        });
+      }, 30000);
+    } else {
+      log(`[NewsRadar] Max initialization attempts reached. Scheduler disabled.`, "scheduler-error");
+    }
+    
+    return false;
   }
 }
 
 /**
- * Schedule an auto-scrape job for a specific user
+ * Schedule an auto-scrape job for a specific user with enhanced error handling
  */
 function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
   // Clear existing job for this user if it exists
   clearUserScrapeJob(userId);
   
+  const nextRunAt = new Date(Date.now() + interval);
+  
   // Schedule new job for this user
-  const job = setInterval(async () => {
+  const timer = setInterval(async () => {
+    const jobMeta = userScheduledJobs.get(userId);
+    if (!jobMeta) return;
+    
     log(`[NewsRadar] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
+    
     try {
       await runGlobalScrapeJob(userId);
+      
+      // Update job metadata on success
+      jobMeta.lastRun = new Date();
+      jobMeta.consecutiveFailures = 0;
+      jobMeta.nextRunAt = new Date(Date.now() + interval);
+      
+      log(`[NewsRadar] Completed scheduled scrape for user ${userId}`, "scheduler");
     } catch (error: any) {
-      log(`[NewsRadar] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
+      // Update job metadata on failure
+      jobMeta.consecutiveFailures++;
+      jobMeta.nextRunAt = new Date(Date.now() + interval);
+      
+      log(`[NewsRadar] Error in scheduled scrape job for user ${userId} (failure #${jobMeta.consecutiveFailures}): ${error.message}`, "scheduler-error");
+      
+      // If too many consecutive failures, disable the job
+      if (jobMeta.consecutiveFailures >= 5) {
+        log(`[NewsRadar] Disabling auto-scrape for user ${userId} after ${jobMeta.consecutiveFailures} consecutive failures`, "scheduler-error");
+        clearUserScrapeJob(userId);
+      }
     }
   }, interval);
   
-  userScheduledJobs.set(userId, job);
-  log(`[NewsRadar] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms`, "scheduler");
+  // Store job metadata and timer reference
+  userScheduledJobs.set(userId, {
+    timer,
+    interval,
+    lastRun: null,
+    consecutiveFailures: 0,
+    nextRunAt,
+  });
+  userTimers.set(userId, timer);
+  
+  log(`[NewsRadar] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms, next run at: ${nextRunAt.toISOString()}`, "scheduler");
 }
 
 /**
  * Clear the auto-scrape job for a specific user
  */
 function clearUserScrapeJob(userId: string): void {
-  if (userScheduledJobs.has(userId)) {
-    clearInterval(userScheduledJobs.get(userId));
-    userScheduledJobs.delete(userId);
-    log(`[NewsRadar] Cleared auto-scrape job for user ${userId}`, "scheduler");
+  if (userTimers.has(userId)) {
+    const timer = userTimers.get(userId);
+    if (timer) {
+      clearInterval(timer);
+    }
+    userTimers.delete(userId);
   }
+  
+  if (userScheduledJobs.has(userId)) {
+    userScheduledJobs.delete(userId);
+  }
+  
+  log(`[NewsRadar] Cleared auto-scrape job for user ${userId}`, "scheduler");
 }
 
 /**
