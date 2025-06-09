@@ -831,18 +831,7 @@ export default function NewsHome() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              
-              {highlightedArticleId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
-                  onClick={() => setHighlightedArticleId(null)}
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Clear Selection
-                </Button>
-              )}
+            
               </div>
             </div>
           </div>

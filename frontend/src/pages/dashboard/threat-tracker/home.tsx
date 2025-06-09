@@ -70,6 +70,8 @@ export default function ThreatHome() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const articlesPerPage = 20;
+  // Track selected article from dashboard
+  const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -168,17 +170,51 @@ export default function ThreatHome() {
     localStorage.setItem('threat-tracker-last-visit', currentTime);
   }, []);
 
+  // Check for selected threat article from dashboard
+  useEffect(() => {
+    const selectedThreatData = sessionStorage.getItem('selectedThreatArticle');
+    if (selectedThreatData) {
+      try {
+        const selectedThreat = JSON.parse(selectedThreatData);
+        setHighlightedArticleId(selectedThreat.id);
+        
+        // Clear the session storage to prevent repeat highlighting
+        sessionStorage.removeItem('selectedThreatArticle');
+        
+        // Show subtle toast notification
+        toast({
+          title: "Threat highlighted",
+          description: "Use 'Clear Selection' to remove highlighting.",
+        });
+      } catch (error) {
+        console.error("Error parsing selected threat article:", error);
+        sessionStorage.removeItem('selectedThreatArticle');
+      }
+    }
+  }, [toast]);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(articles.data);
+      let sortedArticles = [...articles.data];
+      
+      // If there's a highlighted article, move it to the top
+      if (highlightedArticleId) {
+        const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
+        if (highlightedIndex > 0) {
+          const highlightedArticle = sortedArticles.splice(highlightedIndex, 1)[0];
+          sortedArticles.unshift(highlightedArticle);
+        }
+      }
+      
+      setLocalArticles(sortedArticles);
     }
-  }, [articles.data]);
+  }, [articles.data, highlightedArticleId]);
 
-  // Reset pagination when filters change
+  // Reset pagination when filters change or when an article is highlighted
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedKeywordIds, dateRange]);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
@@ -616,6 +652,18 @@ export default function ThreatHome() {
                 </Badge>
               )}
             </Button>
+            
+            {highlightedArticleId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                onClick={() => setHighlightedArticleId(null)}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear Selection
+              </Button>
+            )}
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -785,7 +833,10 @@ export default function ThreatHome() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4">
                 {paginatedArticles.map((article, index) => (
-                <div key={article.id} className="relative">
+                <div key={article.id} className={cn(
+                  "relative",
+                  article.id === highlightedArticleId && "ring-1 ring-primary/40 bg-primary/5"
+                )}>
                   {isArticleNew(article) && (
                     <div className="absolute -top-2 -right-2 z-10">
                       <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
