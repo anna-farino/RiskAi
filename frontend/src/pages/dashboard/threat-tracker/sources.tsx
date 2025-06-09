@@ -87,7 +87,6 @@ import {
   ChevronRight,
   ChevronDown,
   Shield,
-  ChevronUp,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals (matching backend numeric format)
@@ -140,8 +139,6 @@ export default function Sources() {
     articleCount: number;
   } | null>(null);
   const [isDefaultSourcesCollapsed, setIsDefaultSourcesCollapsed] = useState(false);
-  const [instructionsVisible, setInstructionsVisible] = useState(true);
-  const [instructionsCollapsed, setInstructionsCollapsed] = useState(false);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -545,7 +542,7 @@ export default function Sources() {
           context.previousSettings
         );
       }
-
+      
       // Rollback local state
       if (context?.previousLocalEnabled !== undefined) {
         setLocalAutoScrapeEnabled(context.previousLocalEnabled);
@@ -738,14 +735,14 @@ export default function Sources() {
       const now = new Date();
       const currentYear = now.getFullYear();
       const dateYear = d.getFullYear();
-
+      
       // Format time without seconds (HH:MM AM/PM)
       const timeString = d.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
       });
-
+      
       // Format date based on year
       let dateString;
       if (dateYear === currentYear) {
@@ -755,44 +752,12 @@ export default function Sources() {
         // Different year: show M/D/YYYY format
         dateString = `${d.getMonth() + 1}/${d.getDate()}/${dateYear}`;
       }
-
+      
       return `${dateString}, ${timeString}`;
     } catch {
       return "Unknown";
     }
   }
-
-  // Load instructions state from localStorage
-  useEffect(() => {
-    const instructionsState = localStorage.getItem('threat-tracker-instructions-state');
-    if (instructionsState) {
-      const state = JSON.parse(instructionsState);
-      setInstructionsVisible(state.visible !== false);
-      setInstructionsCollapsed(state.collapsed === true);
-    }
-  }, []);
-
-  // Handle instructions close
-  const handleInstructionsClose = () => {
-    setInstructionsVisible(false);
-    setInstructionsCollapsed(true);
-    localStorage.setItem('threat-tracker-instructions-state', JSON.stringify({
-      visible: false,
-      collapsed: true
-    }));
-  };
-
-  // Handle instructions toggle when collapsed
-  const handleInstructionsToggle = () => {
-    if (!instructionsVisible) {
-      const newCollapsed = !instructionsCollapsed;
-      setInstructionsCollapsed(newCollapsed);
-      localStorage.setItem('threat-tracker-instructions-state', JSON.stringify({
-        visible: false,
-        collapsed: newCollapsed
-      }));
-    }
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -804,53 +769,46 @@ export default function Sources() {
       </div>
 
       {/* Instructions Card */}
-      {instructionsVisible && (
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Globe className="h-5 w-5 text-blue-600" />
-                How to Use Threat Sources
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={handleInstructionsClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Enable automatic scanning to stay current with threats. Choose hourly, daily, or weekly updates.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">2. Manage Sources</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Default cybersecurity sources are provided. Add custom sources or enable/disable existing ones.
-                  </p>
-                </div>
+      <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Globe className="h-5 w-5 text-blue-600" />
+            How to Use Threat Sources
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
+                <p className="text-sm text-muted-foreground">
+                  Enable automatic scanning to stay current with threats. Choose hourly, daily, or weekly updates.
+                </p>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">3. Manual Updates</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Use "Update All Sources" for immediate scanning or update individual sources as needed.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">4. Monitor Keywords</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Visit the Keywords page to manage threat terms, vendors, and hardware for targeted monitoring.
-                  </p>
-                </div>
+              <div>
+                <h4 className="font-medium text-sm mb-1">2. Manage Sources</h4>
+                <p className="text-sm text-muted-foreground">
+                  Default cybersecurity sources are provided. Add custom sources or enable/disable existing ones.
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-3">
+              <div>
+                <h4 className="font-medium text-sm mb-1">3. Manual Updates</h4>
+                <p className="text-sm text-muted-foreground">
+                  Use "Update All Sources" for immediate scanning or update individual sources as needed.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-1">4. Monitor Keywords</h4>
+                <p className="text-sm text-muted-foreground">
+                  Visit the Keywords page to manage threat terms, vendors, and hardware for targeted monitoring.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Auto-scrape settings card */}
       <Card>
@@ -1131,70 +1089,6 @@ export default function Sources() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Collapsed Instructions at Bottom */}
-      {!instructionsVisible && (
-        <div className="mt-6">
-          <Collapsible open={!instructionsCollapsed} onOpenChange={handleInstructionsToggle}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/10 hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
-              >
-                <Globe className="h-4 w-4 mr-2 text-blue-600" />
-                {instructionsCollapsed ? "Show" : "Hide"} Instructions
-                {instructionsCollapsed ? (
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                ) : (
-                  <ChevronUp className="h-4 w-4 ml-2" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <Card className="mt-2 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Globe className="h-5 w-5 text-blue-600" />
-                    How to Use Threat Sources
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Enable automatic scanning to stay current with threats. Choose hourly, daily, or weekly updates.
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">2. Manage Sources</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Default cybersecurity sources are provided. Add custom sources or enable/disable existing ones.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">3. Manual Updates</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Use "Update All Sources" for immediate scanning or update individual sources as needed.
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">4. Monitor Keywords</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Visit the Keywords page to manage threat terms, vendors, and hardware for targeted monitoring.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-      )}
     </div>
   );
 
