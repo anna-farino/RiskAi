@@ -925,7 +925,6 @@ export default function Sources() {
       <Card>
         <CardHeader className="flex flex-row gap-4 items-center justify-between">
           <div className="flex flex-col gap-2">
-            <CardTitle>Threat Sources</CardTitle>
             <CardDescription className="hidden sm:block">
               Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
             </CardDescription>
