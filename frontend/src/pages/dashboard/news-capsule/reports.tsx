@@ -1202,18 +1202,18 @@ export default function Reports() {
                       transition={{ delay: index * 0.1 }}
                       className={`relative pb-6 mb-6 ${index < selectedReport.articles.length - 1 ? 'border-b border-slate-700/30' : ''}`}
                     >
-                      <div className="flex items-start gap-3 mb-3">
-                        <h3 className="text-lg font-medium flex-1">{article.title}</h3>
+                      <div className={`flex ${isViewportMobile ? 'flex-col gap-3' : 'items-start gap-3'} mb-4`}>
+                        <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
                         <button
                           onClick={() => confirmRemoveArticleFromReport(article.id)}
-                          className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors"
+                          className={`${isViewportMobile ? 'self-end' : ''} p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors min-h-[44px] min-w-[44px] touch-manipulation flex items-center justify-center`}
                           title="Remove article from report"
                         >
-                          <XIcon className="w-4 h-4" />
+                          <XIcon className="w-5 h-5" />
                         </button>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`grid ${isViewportMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-3 sm:gap-4`}>
                         <div>
                           <p className="text-xs text-slate-400 mb-1">Threat Name</p>
                           <p className="text-sm">{article.threatName}</p>
