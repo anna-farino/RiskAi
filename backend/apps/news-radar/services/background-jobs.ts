@@ -119,6 +119,13 @@ export async function scrapeSource(
           "scraper",
         );
         const articleHtml = await scrapeUrl(link, false);
+        
+        // Check stop signal after fetching HTML
+        if (!activeScraping.get(sourceId)) {
+          log(`[Scraping] Stop signal received, aborting content extraction for article: ${link}`, "scraper");
+          break;
+        }
+        
         // Ensure scrapingConfig is treated as ScrapingConfig type
         const article = await extractArticleContent(
           articleHtml,
@@ -147,6 +154,12 @@ export async function scrapeSource(
             `[Scraping] Keywords found in title: ${titleKeywordMatches.join(", ")}`,
             "scraper",
           );
+        }
+
+        // Check stop signal before expensive OpenAI operation
+        if (!activeScraping.get(sourceId)) {
+          log(`[Scraping] Stop signal received, aborting OpenAI analysis for article: ${link}`, "scraper");
+          break;
         }
 
         // Analyze content with OpenAI
@@ -480,6 +493,12 @@ export async function runGlobalScrapeJob(
 
     // Process each source one by one
     for (const source of sources) {
+      // Check if job has been stopped before processing next source
+      if (!globalJobRunning) {
+        log(`[Background Job] Global scrape job was stopped, aborting remaining sources`, "scraper");
+        break;
+      }
+
       log(`[Background Job] Processing source: ${source.name}`, "scraper");
 
       try {
