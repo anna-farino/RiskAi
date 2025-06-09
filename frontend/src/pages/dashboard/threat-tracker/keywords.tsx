@@ -28,18 +28,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -57,75 +47,95 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import {
-  Shield,
-  Plus,
   Loader2,
-  Edit,
+  Plus,
   Trash2,
+  AlertCircle,
+  PencilLine,
+  Check,
+  X,
+  Shield,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
-// Form schemas
+// Form schema for keyword creation/editing
 const keywordFormSchema = z.object({
-  term: z.string().min(1, "Keyword term is required"),
-  category: z.enum(["threat", "vendor", "client", "hardware"]),
-  active: z.boolean().default(true),
-});
-
-const bulkKeywordFormSchema = z.object({
-  terms: z.string().min(1, "At least one keyword is required"),
-  category: z.enum(["threat", "vendor", "client", "hardware"]),
+  term: z.string().min(1, "Keyword is required"),
+  category: z.string().min(1, "Category is required"),
   active: z.boolean().default(true),
 });
 
 type KeywordFormValues = z.infer<typeof keywordFormSchema>;
+
+// Form schema for bulk keyword import
+const bulkKeywordFormSchema = z.object({
+  terms: z.string().min(3, "Enter at least one keyword"),
+  category: z.string().min(1, "Category is required"),
+  active: z.boolean().default(true),
+});
+
 type BulkKeywordFormValues = z.infer<typeof bulkKeywordFormSchema>;
 
 export default function Keywords() {
   const { toast } = useToast();
-
-  // State management
-  const [selectedCategory, setSelectedCategory] = useState<
-    "threat" | "vendor" | "client" | "hardware"
-  >("threat");
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [bulkKeywordDialogOpen, setBulkKeywordDialogOpen] = useState(false);
   const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(
     null,
   );
   const [localKeywords, setLocalKeywords] = useState<ThreatKeyword[]>([]);
-  const [isDefaultKeywordsCollapsed, setIsDefaultKeywordsCollapsed] =
-    useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("threat");
+  const [isDefaultKeywordsCollapsed, setIsDefaultKeywordsCollapsed] = useState<
+    Record<string, boolean>
+  >({
+    threat: true,
+    vendor: true,
+    client: true,
+    hardware: true,
+  });
 
-  // Form setup
+  // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
     resolver: zodResolver(keywordFormSchema),
     defaultValues: {
       term: "",
-      category: selectedCategory,
+      category: "threat",
       active: true,
     },
   });
 
+  // Initialize the bulk keyword form
   const bulkForm = useForm<BulkKeywordFormValues>({
     resolver: zodResolver(bulkKeywordFormSchema),
     defaultValues: {
       terms: "",
-      category: selectedCategory,
+      category: "threat",
       active: true,
     },
   });
@@ -149,122 +159,37 @@ export default function Keywords() {
         const data = await response.json();
         return data || [];
       } catch (error) {
-        console.error("Error fetching keywords:", error);
-        return [];
+        console.error(error);
+        return []; // Return empty array instead of undefined to prevent errors
       }
     },
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    staleTime: 0, // Always refetch on component mount
+    refetchOnMount: true, // Force refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
-  // Sync keywords data with local state
+  // Update local state whenever query data changes
   useEffect(() => {
     if (keywords.data) {
       setLocalKeywords(keywords.data);
     }
   }, [keywords.data]);
 
-  // Update form category when selected category changes
-  useEffect(() => {
-    form.setValue("category", selectedCategory);
-    bulkForm.setValue("category", selectedCategory);
-  }, [selectedCategory, form, bulkForm]);
-
-  // Delete keyword mutation
-  const deleteKeyword = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest(
-        "DELETE",
-        `${serverUrl}/api/threat-tracker/keywords/${id}`,
-      );
-    },
-    onMutate: (id) => {
-      setLocalKeywords((prev) => prev.filter((keyword) => keyword.id !== id));
-    },
-    onSuccess: (_, id) => {
-      toast({
-        title: "Keyword deleted",
-        description: "The keyword has been successfully deleted.",
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-    },
-    onError: (error, id) => {
-      console.error("Error deleting keyword:", error);
-      toast({
-        title: "Error deleting keyword",
-        description:
-          "There was an error deleting the keyword. Please try again.",
-        variant: "destructive",
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-    },
-  });
-
-  // Update keyword mutation
-  const updateKeyword = useMutation({
-    mutationFn: async ({
-      id,
-      values,
-    }: {
-      id: string;
-      values: KeywordFormValues;
-    }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/keywords/${id}`,
-        values,
-      );
-    },
-    onMutate: ({ id, values }) => {
-      setLocalKeywords((prev) =>
-        prev.map((keyword) =>
-          keyword.id === id ? { ...keyword, ...values } : keyword,
-        ),
-      );
-    },
-    onSuccess: (data, { id }) => {
-      setLocalKeywords((prev) =>
-        prev.map((keyword) => (keyword.id === id ? data : keyword)),
-      );
-      toast({
-        title: "Keyword updated",
-        description: "Keyword has been updated successfully.",
-      });
-      setKeywordDialogOpen(false);
-      setEditingKeyword(null);
-      form.reset();
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-    },
-    onError: (error, { id }) => {
-      console.error("Error updating keyword:", error);
-      toast({
-        title: "Error updating keyword",
-        description:
-          "There was an error updating the keyword. Please try again.",
-        variant: "destructive",
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
-      });
-    },
-  });
-
-  // Create bulk keywords mutation
+  // Create bulk keywords mutation with optimistic updates
   const createBulkKeywords = useMutation({
     mutationFn: async (values: BulkKeywordFormValues) => {
+      console.log("Submitting bulk keywords:", values);
+
+      // Split the terms and create individual keywords
       const keywordTerms = values.terms
         .split(",")
         .map((term) => term.trim())
         .filter((term) => term.length > 0);
 
-      const createdKeywords: ThreatKeyword[] = [];
+      console.log("Processed terms:", keywordTerms);
+
+      // Create each keyword individually using the regular keywords endpoint
+      const createdKeywords = [];
 
       for (const term of keywordTerms) {
         try {
@@ -282,6 +207,7 @@ export default function Keywords() {
           createdKeywords.push(result);
         } catch (error) {
           console.error(`Error creating keyword: ${term}`, error);
+          // Continue with other keywords even if one fails
         }
       }
 
@@ -291,6 +217,7 @@ export default function Keywords() {
       };
     },
     onMutate: async (values) => {
+      // Split the terms and create temporary optimistic keywords
       const keywordTerms = values.terms
         .split(",")
         .map((term) => term.trim())
@@ -305,13 +232,17 @@ export default function Keywords() {
         isDefault: false,
       }));
       
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
       
+      // Snapshot the previous state
       const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
       const previousLocalKeywords = [...localKeywords];
       
+      // Update local state immediately
       setLocalKeywords(prev => [...tempKeywords, ...prev]);
       
+      // Update React Query cache
       queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
         old ? [...tempKeywords, ...old] : tempKeywords
       );
@@ -319,6 +250,7 @@ export default function Keywords() {
       return { previousKeywords, previousLocalKeywords, tempKeywords };
     },
     onError: (err, values, context) => {
+      // Revert both local state and React Query cache
       if (context) {
         setLocalKeywords(context.previousLocalKeywords);
         queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
@@ -336,11 +268,14 @@ export default function Keywords() {
       const { keywords: createdKeywords } = data;
       
       if (context?.tempKeywords && createdKeywords.length > 0) {
+        // Replace temp keywords with actual server data
         setLocalKeywords(prev => {
+          // Remove temp keywords and add actual ones
           const withoutTemp = prev.filter(k => !context.tempKeywords.some(temp => temp.id === k.id));
           return [...createdKeywords, ...withoutTemp];
         });
         
+        // Update React Query cache
         queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => {
           if (!prev) return createdKeywords;
           const withoutTemp = prev.filter(k => !context.tempKeywords.some(temp => temp.id === k.id));
@@ -359,13 +294,14 @@ export default function Keywords() {
         active: true,
       });
       
+      // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
   });
 
-  // Create keyword mutation
+  // Create keyword mutation with optimistic updates
   const createKeyword = useMutation({
     mutationFn: async (values: KeywordFormValues) => {
       return apiRequest(
@@ -375,6 +311,7 @@ export default function Keywords() {
       );
     },
     onMutate: async (newKeyword) => {
+      // Create a temporary optimistic keyword
       const tempId = `temp-${Date.now()}`;
       const tempKeyword: ThreatKeyword = {
         id: tempId,
@@ -385,13 +322,17 @@ export default function Keywords() {
         isDefault: false,
       };
       
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
       
+      // Snapshot the previous state for potential rollback
       const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
       const previousLocalKeywords = [...localKeywords];
       
+      // Update local state immediately for UI
       setLocalKeywords(prev => [tempKeyword, ...prev]);
       
+      // Update React Query cache
       queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
         old ? [tempKeyword, ...old] : [tempKeyword]
       );
@@ -399,6 +340,7 @@ export default function Keywords() {
       return { previousKeywords, previousLocalKeywords, tempId };
     },
     onError: (err, newKeyword, context) => {
+      // Revert both local state and React Query cache
       if (context) {
         setLocalKeywords(context.previousLocalKeywords);
         queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
@@ -408,57 +350,219 @@ export default function Keywords() {
       toast({
         title: "Error creating keyword",
         description:
-          "There was an error creating the keyword. Please try again.",
+          "There was an error creating your keyword. Please try again.",
         variant: "destructive",
       });
     },
     onSuccess: (data, variables, context) => {
       if (context?.tempId) {
+        // Update local state with actual server data
         setLocalKeywords(prev => 
-          prev.map(keyword => keyword.id === context.tempId ? data : keyword)
+          prev.map(keyword => 
+            keyword.id === context.tempId ? (data as ThreatKeyword) : keyword
+          )
         );
         
+        // Update React Query cache
         queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
-          prev ? prev.map(keyword => keyword.id === context.tempId ? data : keyword) : [data]
+          prev?.map(keyword => 
+            keyword.id === context.tempId ? (data as ThreatKeyword) : keyword
+          ) || []
         );
       }
       
       toast({
         title: "Keyword created",
-        description: "New keyword has been created successfully.",
+        description: "Your keyword has been added successfully.",
       });
       setKeywordDialogOpen(false);
-      form.reset({
-        term: "",
-        category: selectedCategory,
-        active: true,
-      });
+      form.reset();
       
+      // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
     },
   });
 
-  // Toggle keyword active status mutation
-  const toggleKeywordActive = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      return apiRequest("PATCH", `${serverUrl}/api/threat-tracker/keywords/${id}/toggle`, {
-        active,
-      });
+  // Update keyword mutation with optimistic updates
+  const updateKeyword = useMutation({
+    mutationFn: async ({
+      id,
+      values,
+    }: {
+      id: string;
+      values: KeywordFormValues;
+    }) => {
+      return apiRequest(
+        "PUT",
+        `${serverUrl}/api/threat-tracker/keywords/${id}`,
+        values,
+      );
     },
-    onMutate: async ({ id, active }) => {
+    onMutate: async ({ id, values }) => {
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
       
+      // Snapshot the previous state
       const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
       const previousLocalKeywords = [...localKeywords];
       
+      // Update local state immediately
+      setLocalKeywords(prev => 
+        prev.map(keyword => 
+          keyword.id === id ? { ...keyword, ...values } : keyword
+        )
+      );
+      
+      // Update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+        (old || []).map(keyword => 
+          keyword.id === id ? { ...keyword, ...values } : keyword
+        )
+      );
+      
+      return { previousKeywords, previousLocalKeywords, id };
+    },
+    onError: (err, variables, context) => {
+      // Revert both local state and React Query cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error updating keyword:", err);
+      toast({
+        title: "Error updating keyword",
+        description:
+          "There was an error updating your keyword. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data, variables, context) => {
+      if (context?.id) {
+        // Update local state with actual server data
+        setLocalKeywords(prev => 
+          prev.map(keyword => 
+            keyword.id === context.id ? (data as ThreatKeyword) : keyword
+          )
+        );
+        
+        // Update React Query cache
+        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
+          prev?.map(keyword => 
+            keyword.id === context.id ? (data as ThreatKeyword) : keyword
+          ) || []
+        );
+      }
+      
+      toast({
+        title: "Keyword updated",
+        description: "Your keyword has been updated successfully.",
+      });
+      setKeywordDialogOpen(false);
+      setEditingKeyword(null);
+      form.reset();
+      
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+    },
+  });
+
+  // Delete keyword mutation with optimistic updates
+  const deleteKeyword = useMutation({
+    mutationFn: async (id: string) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords/${id}`, {
+          method: "DELETE",
+          headers: csfrHeaderObject(),
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete keyword: ${response.statusText}`);
+        }
+        
+        // Don't try to parse JSON - DELETE endpoints typically return empty responses
+        return { success: true, id };
+      } catch (error) {
+        console.error("Delete keyword error:", error);
+        throw error;
+      }
+    },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous data
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Immediately update local state
+      setLocalKeywords(prev => prev.filter(keyword => keyword.id !== id));
+      
+      // Update React Query cache
+      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], (oldData = []) => 
+        oldData.filter(keyword => keyword.id !== id)
+      );
+      
+      return { previousKeywords, previousLocalKeywords, id };
+    },
+    onError: (err, id, context) => {
+      // Revert both local state and cache
+      if (context) {
+        setLocalKeywords(context.previousLocalKeywords);
+        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+      }
+      
+      console.error("Error deleting keyword:", err);
+      toast({
+        title: "Error deleting keyword",
+        description:
+          "There was an error deleting your keyword. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data, variables, context) => {
+      toast({
+        title: "Keyword deleted",
+        description: "Your keyword has been deleted successfully.",
+      });
+      
+      // Invalidate and refetch to ensure all components have fresh data
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+      });
+    },
+  });
+
+  // Toggle keyword active status with optimistic updates
+  const toggleKeywordActive = useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      return apiRequest(
+        "PUT",
+        `${serverUrl}/api/threat-tracker/keywords/${id}`,
+        { active },
+      );
+    },
+    onMutate: async ({ id, active }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      
+      // Snapshot the previous values
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousLocalKeywords = [...localKeywords];
+      
+      // Update local state immediately
       setLocalKeywords(prev => 
         prev.map(keyword => 
           keyword.id === id ? { ...keyword, active } : keyword
         )
       );
       
+      // Also update React Query cache
       queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], oldData => 
         (oldData || []).map(keyword => 
           keyword.id === id ? { ...keyword, active } : keyword
@@ -469,6 +573,7 @@ export default function Keywords() {
     },
     onError: (err, variables, context) => {
       if (context) {
+        // Revert both local state and cache
         setLocalKeywords(context.previousLocalKeywords);
         queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
       }
@@ -487,6 +592,7 @@ export default function Keywords() {
         description: "Keyword status has been updated successfully.",
       });
       
+      // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
       });
@@ -544,7 +650,7 @@ export default function Keywords() {
     toggleKeywordActive.mutate({ id, active: !currentStatus });
   }
 
-  // Filter keywords by category
+  // Filter keywords by category and separate defaults from user keywords
   const allKeywordsByCategory = localKeywords.filter(
     (keyword) => keyword.category === selectedCategory,
   );
@@ -612,9 +718,45 @@ export default function Keywords() {
     );
   }
 
-  // Helper function to render user keyword table
+  // Helper function to render the user keyword table
   function renderUserKeywordTable(keywords: ThreatKeyword[]) {
-    if (keywords.length === 0) return null;
+    if (localKeywords.length === 0) {
+      return (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    if (keywords.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
+          <h3 className="text-lg font-medium">No custom keywords</h3>
+          <p className="text-sm text-muted-foreground mb-4 text-center px-4">
+            {selectedCategory === "threat" &&
+              "Add custom threat keywords to monitor for specific security issues."}
+            {selectedCategory === "vendor" &&
+              "Add custom vendors to monitor for security vulnerabilities."}
+            {selectedCategory === "client" &&
+              "Add custom clients to track security issues affecting them."}
+            {selectedCategory === "hardware" &&
+              "Add custom hardware/software to monitor for security issues."}
+          </p>
+          <Button onClick={handleNewKeyword} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0">
+            <Plus className="mr-2 h-4 w-4" />
+            Add{" "}
+            {selectedCategory === "threat"
+              ? "Keyword"
+              : selectedCategory === "vendor"
+                ? "Vendor"
+                : selectedCategory === "client"
+                  ? "Client"
+                  : "Hardware/Software"}
+          </Button>
+        </div>
+      );
+    }
 
     return (
       <div className="overflow-x-auto pb-4">
@@ -652,41 +794,59 @@ export default function Keywords() {
                     }
                     title={
                       keyword.isDefault
-                        ? "Default keywords cannot be deactivated"
-                        : `Click to ${keyword.active ? "deactivate" : "activate"}`
+                        ? "Default keywords cannot be modified"
+                        : "Click to toggle status"
                     }
                   >
-                    <Switch
-                      checked={keyword.active}
-                      disabled={keyword.isDefault}
-                      className="scale-75"
-                    />
-                    <span className="ml-2 text-sm text-muted-foreground">
-                      {keyword.active ? "Active" : "Inactive"}
-                    </span>
+                    {keyword.active ? (
+                      <Badge
+                        variant="default"
+                        className="flex items-center gap-1 bg-green-500"
+                      >
+                        <Check className="h-3 w-3" />
+                        <span className="sm:inline hidden">Active</span>
+                        <span className="sm:hidden inline">On</span>
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-muted-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                        <span className="sm:inline hidden">Inactive</span>
+                        <span className="sm:hidden inline">Off</span>
+                      </Badge>
+                    )}
                   </div>
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    {!keyword.isDefault && (
+                <TableCell className="text-right p-2 sm:p-4">
+                  <div className="flex justify-end gap-2">
+                    {keyword.isDefault ? (
+                      <div className="text-xs text-muted-foreground py-2">
+                        Default keyword
+                      </div>
+                    ) : (
                       <>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleEditKeyword(keyword)}
-                          className="h-8 w-8 p-0"
+                          className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                          title="Edit keyword"
                         >
-                          <Edit className="h-4 w-4" />
+                          <PencilLine className="h-4 w-4 text-foreground" />
                           <span className="sr-only">Edit</span>
                         </Button>
+
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                              size="icon"
+                              className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                              title="Delete keyword"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-foreground" />
                               <span className="sr-only">Delete</span>
                             </Button>
                           </AlertDialogTrigger>
@@ -732,119 +892,70 @@ export default function Keywords() {
         </p>
       </div>
 
-      <div className="w-full">
-        <div className="flex flex-col space-y-6">
-          {/* Custom Tab Navigation */}
-          <div className="w-full">
-            <div className="flex flex-col md:flex-row gap-2 md:gap-1">
-              <div
-                onClick={() => setSelectedCategory("threat")}
-                className={`
-                  flex-1 md:flex-initial cursor-pointer rounded-lg md:rounded-b-none md:rounded-t-lg px-4 py-3 text-center transition-all duration-200 border-2
-                  ${selectedCategory === "threat"
-                    ? "bg-[#BF00FF] text-white border-[#BF00FF] shadow-lg"
-                    : "bg-slate-800/50 text-slate-300 border-slate-700 hover:bg-slate-700/50 hover:border-slate-600"
-                  }
-                `}
+      <Tabs
+        defaultValue="threat"
+        value={selectedCategory}
+        onValueChange={setSelectedCategory}
+        className="w-full"
+      >
+        <div className="flex flex-col space-y-4">
+          <div className="w-full overflow-hidden">
+            <TabsList className="w-full h-auto grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:flex xl:w-auto gap-1 p-1">
+              <TabsTrigger
+                value="threat"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-medium text-sm md:text-base">
-                    Threats
-                  </span>
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span className="md:inline hidden">Threat Keywords</span>
+                  <span className="md:hidden inline">Threats</span>
                   {categoryCounts.threat > 0 && (
-                    <span className={`
-                      px-2 py-0.5 rounded-full text-xs font-medium
-                      ${selectedCategory === "threat"
-                        ? "bg-[#00FFFF] text-black"
-                        : "bg-slate-600 text-slate-200"
-                      }
-                    `}>
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
                       {categoryCounts.threat}
-                    </span>
+                    </Badge>
                   )}
                 </div>
-              </div>
-
-              <div
-                onClick={() => setSelectedCategory("vendor")}
-                className={`
-                  flex-1 md:flex-initial cursor-pointer rounded-lg md:rounded-b-none md:rounded-t-lg px-4 py-3 text-center transition-all duration-200 border-2
-                  ${selectedCategory === "vendor"
-                    ? "bg-slate-800 text-white border-slate-600 shadow-lg"
-                    : "bg-slate-800/50 text-slate-300 border-slate-700 hover:bg-slate-700/50 hover:border-slate-600"
-                  }
-                `}
+              </TabsTrigger>
+              <TabsTrigger
+                value="vendor"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-medium text-sm md:text-base">Vendors</span>
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span>Vendors</span>
                   {categoryCounts.vendor > 0 && (
-                    <span className={`
-                      px-2 py-0.5 rounded-full text-xs font-medium
-                      ${selectedCategory === "vendor"
-                        ? "bg-[#00FFFF] text-black"
-                        : "bg-slate-600 text-slate-200"
-                      }
-                    `}>
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
                       {categoryCounts.vendor}
-                    </span>
+                    </Badge>
                   )}
                 </div>
-              </div>
-
-              <div
-                onClick={() => setSelectedCategory("client")}
-                className={`
-                  flex-1 md:flex-initial cursor-pointer rounded-lg md:rounded-b-none md:rounded-t-lg px-4 py-3 text-center transition-all duration-200 border-2
-                  ${selectedCategory === "client"
-                    ? "bg-slate-800 text-white border-slate-600 shadow-lg"
-                    : "bg-slate-800/50 text-slate-300 border-slate-700 hover:bg-slate-700/50 hover:border-slate-600"
-                  }
-                `}
+              </TabsTrigger>
+              <TabsTrigger
+                value="client"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-medium text-sm md:text-base">Clients</span>
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span>Clients</span>
                   {categoryCounts.client > 0 && (
-                    <span className={`
-                      px-2 py-0.5 rounded-full text-xs font-medium
-                      ${selectedCategory === "client"
-                        ? "bg-[#00FFFF] text-black"
-                        : "bg-slate-600 text-slate-200"
-                      }
-                    `}>
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
                       {categoryCounts.client}
-                    </span>
+                    </Badge>
                   )}
                 </div>
-              </div>
-
-              <div
-                onClick={() => setSelectedCategory("hardware")}
-                className={`
-                  flex-1 md:flex-initial cursor-pointer rounded-lg md:rounded-b-none md:rounded-t-lg px-4 py-3 text-center transition-all duration-200 border-2
-                  ${selectedCategory === "hardware"
-                    ? "bg-slate-800 text-white border-slate-600 shadow-lg"
-                    : "bg-slate-800/50 text-slate-300 border-slate-700 hover:bg-slate-700/50 hover:border-slate-600"
-                  }
-                `}
+              </TabsTrigger>
+              <TabsTrigger
+                value="hardware"
+                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-medium text-sm md:text-base">
-                    H/W S/W
-                  </span>
+                <div className="flex flex-col sm:flex-row items-center gap-1">
+                  <span className="md:inline hidden">Hardware/Software</span>
+                  <span className="md:hidden inline">H/W S/W</span>
                   {categoryCounts.hardware > 0 && (
-                    <span className={`
-                      px-2 py-0.5 rounded-full text-xs font-medium
-                      ${selectedCategory === "hardware"
-                        ? "bg-[#00FFFF] text-black"
-                        : "bg-slate-600 text-slate-200"
-                      }
-                    `}>
+                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
                       {categoryCounts.hardware}
-                    </span>
+                    </Badge>
                   )}
                 </div>
-              </div>
-            </div>
+              </TabsTrigger>
+            </TabsList>
           </div>
 
           <div className="flex flex-row gap-2 w-full sm:w-auto sm:self-end">
@@ -888,30 +999,25 @@ export default function Keywords() {
           </div>
         </div>
 
-        {/* Dynamic Content Area */}
-        <div className="mt-4 sm:mt-6">
+        <TabsContent value="threat" className="mt-4 sm:mt-6">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-base sm:text-lg lg:text-xl">
-                {selectedCategory === "threat" && "Threat Keywords"}
-                {selectedCategory === "vendor" && "Vendors"}
-                {selectedCategory === "client" && "Clients"}
-                {selectedCategory === "hardware" && "Hardware/Software"}
+                Threat Keywords
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                {selectedCategory === "threat" && "Keywords related to cybersecurity threats (e.g., malware, breach, zero-day)"}
-                {selectedCategory === "vendor" && "Technology vendors to monitor for security threats"}
-                {selectedCategory === "client" && "Your client organizations to monitor for security threats"}
-                {selectedCategory === "hardware" && "Specific hardware or software to monitor for security threats"}
+                Keywords related to cybersecurity threats (e.g., malware,
+                breach, zero-day)
               </CardDescription>
             </CardHeader>
             <CardContent className="p-1 sm:p-3 lg:p-6">
               {renderDefaultKeywords(
-                defaultKeywords.filter((k) => k.category === selectedCategory),
-                selectedCategory,
+                defaultKeywords.filter((k) => k.category === "threat"),
+                "threat",
               )}
               <div className="space-y-4">
-                {userKeywords.filter((k) => k.category === selectedCategory).length > 0 && (
+                {userKeywords.filter((k) => k.category === "threat").length >
+                  0 && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-3">
                       Your Keywords
@@ -919,13 +1025,105 @@ export default function Keywords() {
                   </div>
                 )}
                 {renderUserKeywordTable(
-                  userKeywords.filter((k) => k.category === selectedCategory),
+                  userKeywords.filter((k) => k.category === "threat"),
                 )}
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="vendor" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">Vendors</CardTitle>
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
+                Technology vendors to monitor for security threats
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-1 sm:p-3 lg:p-6">
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "vendor"),
+                "vendor",
+              )}
+              <div className="space-y-4">
+                {userKeywords.filter((k) => k.category === "vendor").length >
+                  0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "vendor"),
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="client" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">Clients</CardTitle>
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
+                Your client organizations to monitor for security threats
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-1 sm:p-3 lg:p-6">
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "client"),
+                "client",
+              )}
+              <div className="space-y-4">
+                {userKeywords.filter((k) => k.category === "client").length >
+                  0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "client"),
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="hardware" className="mt-4 sm:mt-6">
+          <Card className="border-0 sm:border">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">
+                Hardware/Software
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm leading-relaxed">
+                Specific hardware or software to monitor for security threats
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-1 sm:p-3 lg:p-6">
+              {renderDefaultKeywords(
+                defaultKeywords.filter((k) => k.category === "hardware"),
+                "hardware",
+              )}
+              <div className="space-y-4">
+                {userKeywords.filter((k) => k.category === "hardware").length >
+                  0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Your Keywords
+                    </h3>
+                  </div>
+                )}
+                {renderUserKeywordTable(
+                  userKeywords.filter((k) => k.category === "hardware"),
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Single keyword dialog */}
       <Dialog open={keywordDialogOpen} onOpenChange={setKeywordDialogOpen}>
@@ -1012,14 +1210,20 @@ export default function Keywords() {
 
               <DialogFooter>
                 <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setKeywordDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
                   type="submit"
                   disabled={createKeyword.isPending || updateKeyword.isPending}
-                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white"
                 >
                   {(createKeyword.isPending || updateKeyword.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {editingKeyword ? "Update" : "Create"} Keyword
+                  {editingKeyword ? "Update" : "Create"}
                 </Button>
               </DialogFooter>
             </form>
@@ -1027,14 +1231,16 @@ export default function Keywords() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk keyword dialog */}
-      <Dialog open={bulkKeywordDialogOpen} onOpenChange={setBulkKeywordDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Bulk keyword import dialog */}
+      <Dialog
+        open={bulkKeywordDialogOpen}
+        onOpenChange={setBulkKeywordDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Bulk Import Keywords</DialogTitle>
             <DialogDescription>
-              Import multiple keywords at once by entering them separated by
-              commas.
+              Add multiple keywords at once by separating them with commas.
             </DialogDescription>
           </DialogHeader>
           <Form {...bulkForm}>
@@ -1051,12 +1257,12 @@ export default function Keywords() {
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="Enter keywords separated by commas (e.g., ransomware, phishing, malware)"
+                        placeholder="Enter keywords separated by commas"
                         className="min-h-[100px]"
                       />
                     </FormControl>
                     <FormDescription>
-                      Separate multiple keywords with commas
+                      Example: ransomware, malware, zero-day
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -1088,7 +1294,7 @@ export default function Keywords() {
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      All keywords will be assigned to this category
+                      All imported keywords will use this category
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -1103,7 +1309,7 @@ export default function Keywords() {
                     <div className="space-y-0.5">
                       <FormLabel>Active Status</FormLabel>
                       <FormDescription>
-                        Set initial monitoring status for all keywords
+                        Set initial active status
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -1118,14 +1324,17 @@ export default function Keywords() {
 
               <DialogFooter>
                 <Button
-                  type="submit"
-                  disabled={createBulkKeywords.isPending}
-                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white"
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBulkKeywordDialogOpen(false)}
                 >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createBulkKeywords.isPending}>
                   {createBulkKeywords.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Import Keywords
+                  Import
                 </Button>
               </DialogFooter>
             </form>
