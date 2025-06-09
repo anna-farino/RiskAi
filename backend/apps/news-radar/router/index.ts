@@ -243,8 +243,16 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
     // Use the updated scrapeSource function that handles all the scraping logic
     const { processedCount, savedCount, newArticles } = await scrapeSource(sourceId);
 
-    // Note: Email notifications are only sent for auto-scrape jobs, not manual individual source scraping
-    // This prevents users from getting emails every time they manually scrape a source
+    // If there are new articles, send an email notification
+    if (newArticles.length > 0) {
+      try {
+        await sendNewArticlesEmail(userId, newArticles, source.name);
+        log(`[Email] Sent notification email for ${newArticles.length} new articles from ${source.name}`, 'scraper');
+      } catch (emailError) {
+        log(`[Email] Error sending notification: ${emailError}`, 'scraper');
+        // Continue processing - don't fail the request if email sending fails
+      }
+    }
 
     log(`[Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`, 'scraper');
     res.json({
