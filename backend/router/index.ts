@@ -40,9 +40,13 @@ router.get('/test-articles', testArticles)
 // AUTH
 router.use('/auth', limiter, authRouter)
 
-// Add job status routes before full protection middleware
-router.get('/news-tracker/jobs/status', verifyToken, async (req, res) => {
+// Simplified job status routes with minimal middleware
+router.get('/news-tracker/jobs/status', async (req, res) => {
   try {
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
     const { isGlobalJobRunning } = await import('../apps/news-radar/services/background-jobs.js');
     const running = isGlobalJobRunning();
     res.json({
@@ -57,8 +61,12 @@ router.get('/news-tracker/jobs/status', verifyToken, async (req, res) => {
   }
 });
 
-router.get('/threat-tracker/scrape/status', verifyToken, async (req, res) => {
+router.get('/threat-tracker/scrape/status', async (req, res) => {
   try {
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
     const { isGlobalJobRunning } = await import('../apps/threat-tracker/services/background-jobs.js');
     const running = isGlobalJobRunning();
     res.json({ running });
