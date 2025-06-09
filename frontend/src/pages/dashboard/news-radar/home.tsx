@@ -511,99 +511,11 @@ export default function NewsHome() {
     };
 
     return (
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4">
-        <div className="flex items-center justify-between w-full sm:w-auto">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between py-4">
           <div className="text-sm text-slate-400">
             Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
           </div>
-          {localArticles.length > 0 && (
-            <div className="sm:hidden">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    disabled={deleteAllArticles.isPending}
-                  >
-                    {deleteAllArticles.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action will permanently delete all{" "}
-                      {localArticles.length} articles. This action cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => deleteAllArticles.mutate()}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Delete All Articles
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center justify-between w-full sm:w-auto gap-2">
-          {localArticles.length > 0 && (
-            <div className="hidden sm:block">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={deleteAllArticles.isPending}
-                  >
-                    {deleteAllArticles.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 mr-2" />
-                    )}
-                    Delete All
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action will permanently delete all{" "}
-                      {localArticles.length} articles. This action cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => deleteAllArticles.mutate()}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Delete All Articles
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-          
           <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -651,6 +563,49 @@ export default function NewsHome() {
           </Button>
           </div>
         </div>
+        
+        {localArticles.length > 0 && (
+          <div className="flex justify-center pt-2 border-t border-slate-700/30">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteAllArticles.isPending}
+                >
+                  {deleteAllArticles.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete All Articles
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Are you absolutely sure?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete all{" "}
+                    {localArticles.length} articles. This action cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteAllArticles.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Delete All Articles
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
     );
   };
