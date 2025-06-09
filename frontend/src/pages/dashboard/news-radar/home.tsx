@@ -59,6 +59,8 @@ export default function NewsHome() {
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   // Track last visit timestamp for "new" badge functionality
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
+  // Track selected article from dashboard
+  const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -214,17 +216,51 @@ export default function NewsHome() {
     localStorage.setItem('news-radar-last-visit', currentTime);
   }, []);
 
+  // Check for selected article from dashboard
+  useEffect(() => {
+    const selectedArticleData = sessionStorage.getItem('selectedArticle');
+    if (selectedArticleData) {
+      try {
+        const selectedArticle = JSON.parse(selectedArticleData);
+        setHighlightedArticleId(selectedArticle.id);
+        
+        // Clear the session storage to prevent repeat highlighting
+        sessionStorage.removeItem('selectedArticle');
+        
+        // Clear highlighting after 10 seconds
+        const clearHighlightTimer = setTimeout(() => {
+          setHighlightedArticleId(null);
+        }, 10000);
+        return () => clearTimeout(clearHighlightTimer);
+      } catch (error) {
+        console.error("Error parsing selected article:", error);
+        sessionStorage.removeItem('selectedArticle');
+      }
+    }
+  }, [toast]);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(articles.data);
+      let sortedArticles = [...articles.data];
+      
+      // If there's a highlighted article, move it to the top
+      if (highlightedArticleId) {
+        const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
+        if (highlightedIndex > 0) {
+          const highlightedArticle = sortedArticles.splice(highlightedIndex, 1)[0];
+          sortedArticles.unshift(highlightedArticle);
+        }
+      }
+      
+      setLocalArticles(sortedArticles);
     }
-  }, [articles.data]);
+  }, [articles.data, highlightedArticleId]);
 
-  // Reset pagination when filters change
+  // Reset pagination when filters change or when an article is highlighted
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedKeywordIds, dateRange]);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
 
   // Calculate pagination values
   const totalArticles = localArticles.length;
@@ -475,11 +511,12 @@ export default function NewsHome() {
     };
 
     return (
-      <div className="flex items-center justify-between py-4">
-        <div className="text-sm text-slate-400">
-          Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between py-4">
+          <div className="text-sm text-slate-400">
+            Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+          </div>
+          <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -524,7 +561,51 @@ export default function NewsHome() {
             Next
             <ChevronRight className="h-4 w-4" />
           </Button>
+          </div>
         </div>
+        
+        {localArticles.length > 0 && (
+          <div className="flex justify-center pt-2 border-t border-slate-700/30">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteAllArticles.isPending}
+                >
+                  {deleteAllArticles.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete All Articles
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Are you absolutely sure?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete all{" "}
+                    {localArticles.length} articles. This action cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteAllArticles.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Delete All Articles
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
     );
   };
@@ -542,73 +623,6 @@ export default function NewsHome() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Newspaper className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
-                Automated
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Content Scraping
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Automatically extract content from multiple sources with advanced
-              browser automation
-            </p>
-            <div className="mt-3 sm:mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/news/sources"
-                  className="flex items-center gap-1"
-                >
-                  Manage Sources <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
-                Customizable
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Keyword Filtering
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Set up keywords to automatically categorize and filter relevant
-              articles
-            </p>
-            <div className="mt-3 sm:mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/news/keywords"
-                  className="flex items-center gap-1"
-                >
-                  Manage Keywords <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
@@ -750,46 +764,7 @@ export default function NewsHome() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-                {localArticles.length > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 sm:h-9 w-8 sm:w-9 p-0"
-                        disabled={deleteAllArticles.isPending}
-                      >
-                        {deleteAllArticles.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action will permanently delete all{" "}
-                          {localArticles.length} articles. This action cannot be
-                          undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteAllArticles.mutate()}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Delete All Articles
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+            
               </div>
             </div>
           </div>
@@ -832,7 +807,10 @@ export default function NewsHome() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
                 {paginatedArticles.map((article) => (
-                  <div key={article.id} className="relative">
+                  <div key={article.id} className={cn(
+                    "relative",
+                    article.id === highlightedArticleId && "bg-primary/5 rounded-xl"
+                  )}>
                     {isArticleNew(article) && (
                       <div className="absolute -top-1 -right-1 z-10">
                         <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
