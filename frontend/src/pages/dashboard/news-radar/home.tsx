@@ -39,7 +39,7 @@ import { Link } from "react-router-dom";
 
 export default function NewsHome() {
   const { toast } = useToast();
-
+  
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
@@ -48,11 +48,11 @@ export default function NewsHome() {
     endDate?: Date;
   }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
-
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const articlesPerPage = 20;
-
+  
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
@@ -61,7 +61,7 @@ export default function NewsHome() {
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
   // Track selected article from dashboard
   const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
-
+  
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
     queryKey: ["/api/news-tracker/keywords"],
@@ -86,32 +86,32 @@ export default function NewsHome() {
     refetchOnMount: true, // Force refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
-
+  
   // Build query string for filtering
   const buildQueryString = () => {
     const params = new URLSearchParams();
-
+    
     if (searchTerm) {
       params.append("search", searchTerm);
     }
-
+    
     if (selectedKeywordIds.length > 0) {
       selectedKeywordIds.forEach(id => {
         params.append("keywordIds", id);
       });
     }
-
+    
     if (dateRange.startDate) {
       params.append("startDate", dateRange.startDate.toISOString());
     }
-
+    
     if (dateRange.endDate) {
       params.append("endDate", dateRange.endDate.toISOString());
     }
-
+    
     return params.toString();
   };
-
+  
   // Articles query with filtering
   const articles = useQuery<Article[]>({
     queryKey: ["/api/news-tracker/articles", searchTerm, selectedKeywordIds, dateRange],
@@ -119,14 +119,14 @@ export default function NewsHome() {
       try {
         const queryString = buildQueryString();
         const url = `${serverUrl}/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
-
+        
         console.log("Fetching articles with URL:", url);
         console.log("Filter parameters:", {
           search: searchTerm,
           keywordIds: selectedKeywordIds,
           ...dateRange
         });
-
+        
         const response = await fetch(url, {
           method: "GET",
           credentials: "include",
@@ -134,7 +134,7 @@ export default function NewsHome() {
             ...csfrHeaderObject(),
           },
         });
-
+        
         if (!response.ok) throw new Error('Failed to fetch articles');
         const data = await response.json();
         console.log("Received filtered articles:", data.length);
@@ -153,7 +153,7 @@ export default function NewsHome() {
       }
     },
   });
-
+  
   // Toggle keyword selection for filtering
   const toggleKeywordSelection = (keywordId: string) => {
     setSelectedKeywordIds(prev => {
@@ -166,17 +166,17 @@ export default function NewsHome() {
       }
     });
   };
-
+  
   // Handle search input changes with debounce
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
-
+  
   // Set date range
   const handleDateRangeChange = (range: {startDate?: Date; endDate?: Date}) => {
     setDateRange(range);
   };
-
+  
   // Reset all filters
   const resetFilters = () => {
     setSearchTerm("");
@@ -184,13 +184,13 @@ export default function NewsHome() {
     setDateRange({});
     setIsFilterOpen(false);
   };
-
+  
   // Handle keyword click from article card
   const handleKeywordClick = (keywordTerm: string) => {
     // First check if we have this keyword in our list
     if (keywords.data) {
       const keyword = keywords.data.find(k => k.term.toLowerCase() === keywordTerm.toLowerCase());
-
+      
       if (keyword) {
         // Keyword exists - toggle its selection
         toggleKeywordSelection(keyword.id);
@@ -205,12 +205,12 @@ export default function NewsHome() {
       }
     }
   };
-
+  
   // Initialize last visit timestamp from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('news-radar-last-visit');
     setLastVisitTimestamp(stored);
-
+    
     // Update last visit timestamp when component mounts
     const currentTime = new Date().toISOString();
     localStorage.setItem('news-radar-last-visit', currentTime);
@@ -223,10 +223,10 @@ export default function NewsHome() {
       try {
         const selectedArticle = JSON.parse(selectedArticleData);
         setHighlightedArticleId(selectedArticle.id);
-
+        
         // Clear the session storage to prevent repeat highlighting
         sessionStorage.removeItem('selectedArticle');
-
+        
         // Clear highlighting after 10 seconds
         const clearHighlightTimer = setTimeout(() => {
           setHighlightedArticleId(null);
@@ -243,7 +243,7 @@ export default function NewsHome() {
   useEffect(() => {
     if (articles.data) {
       let sortedArticles = [...articles.data];
-
+      
       // If there's a highlighted article, move it to the top
       if (highlightedArticleId) {
         const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
@@ -252,7 +252,7 @@ export default function NewsHome() {
           sortedArticles.unshift(highlightedArticle);
         }
       }
-
+      
       setLocalArticles(sortedArticles);
     }
   }, [articles.data, highlightedArticleId]);
@@ -295,11 +295,11 @@ export default function NewsHome() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-
+        
         if (!response.ok) {
           throw new Error(`Failed to delete article: ${response.statusText}`);
         }
-
+        
         // Don't try to parse JSON - some DELETE endpoints return empty responses
         return { success: true, id };
       } catch (error) {
@@ -310,22 +310,22 @@ export default function NewsHome() {
     onMutate: async (id) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
-
+      
       // Snapshot the previous values
       const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
       const previousLocalArticles = [...localArticles];
-
+      
       // Add to pendingItems to show loading indicator
       setPendingItems(prev => new Set(prev).add(id));
-
+      
       // Optimistically update local state for immediate UI feedback
       setLocalArticles(prev => prev.filter(article => article.id !== id));
-
+      
       // Optimistically update React Query cache
       queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], (oldData = []) => {
         return oldData.filter(article => article.id !== id);
       });
-
+      
       // Return a context object with the snapshotted values
       return { previousArticles, previousLocalArticles, id };
     },
@@ -334,7 +334,7 @@ export default function NewsHome() {
         // If the mutation fails, restore both local state and React Query cache
         setLocalArticles(context.previousLocalArticles);
         queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context.previousArticles);
-
+        
         // Remove from pending items
         setPendingItems(prev => {
           const updated = new Set(prev);
@@ -342,7 +342,7 @@ export default function NewsHome() {
           return updated;
         });
       }
-
+      
       toast({
         title: "Error deleting article",
         description: "Failed to delete article. Please try again.",
@@ -356,7 +356,7 @@ export default function NewsHome() {
         updated.delete(id);
         return updated;
       });
-
+      
       // Don't invalidate - optimistic delete already removed the item
       toast({
         title: "Article deleted successfully",
@@ -372,11 +372,11 @@ export default function NewsHome() {
           headers: csfrHeaderObject(),
           credentials: "include"
         });
-
+        
         if (!response.ok) {
           throw new Error(`Failed to delete all articles: ${response.statusText}`);
         }
-
+        
         // Try to parse JSON response
         try {
           const data = await response.json();
@@ -393,17 +393,17 @@ export default function NewsHome() {
     onMutate: async () => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
-
+      
       // Snapshot the previous articles
       const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
       const previousLocalArticles = [...localArticles];
-
+      
       // Optimistically clear the articles in local state
       setLocalArticles([]);
-
+      
       // Optimistically clear the articles in React Query cache
       queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], []);
-
+      
       return { previousArticles, previousLocalArticles };
     },
     onError: (error, variables, context) => {
@@ -412,7 +412,7 @@ export default function NewsHome() {
         setLocalArticles(context.previousLocalArticles);
         queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context.previousArticles);
       }
-
+      
       toast({
         title: "Error",
         description: "Failed to delete articles. Please try again.",
@@ -478,7 +478,7 @@ export default function NewsHome() {
     const getPageNumbers = () => {
       const pages = [];
       const maxVisiblePages = 5;
-
+      
       if (totalPages <= maxVisiblePages) {
         for (let i = 1; i <= totalPages; i++) {
           pages.push(i);
@@ -506,7 +506,7 @@ export default function NewsHome() {
           pages.push(totalPages);
         }
       }
-
+      
       return pages;
     };
 
@@ -526,7 +526,7 @@ export default function NewsHome() {
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
-
+          
           <div className="flex items-center gap-1">
             {getPageNumbers().map((page, index) => (
               page === '...' ? (
@@ -549,7 +549,7 @@ export default function NewsHome() {
               )
             ))}
           </div>
-
+          
           <Button
             variant="outline"
             size="sm"
@@ -650,157 +650,195 @@ export default function NewsHome() {
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
         <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
           {/* Header section - responsive layout for mobile */}
-          {/* Header with count, search, and actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 md:gap-8">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold text-white">
                 Recent Articles
-              </h1>
-              <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-sm px-2 py-1">
+              </h2>
+              <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
                 {localArticles.length}
-              </Badge>
+              </span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative flex-1 sm:flex-initial">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input
-                placeholder="Search articles..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="h-9 w-[160px] md:w-[200px] lg:w-[250px] pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
-              />
-              {searchTerm && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-white/10"
-                  onClick={() => setSearchTerm("")}
-                >
-                  <X className="h-3 w-3 text-slate-400" />
-                </Button>
-              )}
-            </div>
-
-            <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <AlertDialogTrigger asChild>
+            <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+              {highlightedArticleId && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className={cn(
-                    "border-slate-600 hover:bg-white/10 text-white",
-                    (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
-                    "bg-primary/20 border-primary/50 text-primary"
-                  )}
+                  className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                  onClick={() => setHighlightedArticleId(null)}
                 >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                  {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
-                    <Badge variant="secondary" className="ml-2 bg-primary/30 text-primary text-xs">
-                      {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
-                    </Badge>
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-background border-slate-700/50 text-white">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">Filter Articles</AlertDialogTitle>
-                  <AlertDialogDescription className="text-slate-400">
-                    Filter articles by keywords and date range
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-
-                <div className="py-4 space-y-4">
-                  {/* Keywords section */}
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-white">Keywords</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {keywords.data && keywords.data.length > 0 ? (
-                        keywords.data.map((keyword: Keyword) => (
-                          <Badge 
-                            key={keyword.id}
-                            variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
-                            className={cn(
-                              "cursor-pointer hover:bg-white/10",
-                              selectedKeywordIds.includes(keyword.id) ? 
-                              "bg-primary text-primary-foreground hover:bg-primary/80" : 
-                              "bg-transparent text-slate-300 border-slate-600"
-                            )}
-                            onClick={() => toggleKeywordSelection(keyword.id)}
-                          >
-                            {keyword.term}
-                            {selectedKeywordIds.includes(keyword.id) && (
-                              <X className="h-3 w-3 ml-1" />
-                            )}
-                          </Badge>
-                        ))
-                      ) : (
-                        <p className="text-sm text-slate-400">
-                          No keywords found. <Link to="/dashboard/news/keywords" className="text-primary">Add some keywords</Link> to enable filtering.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Date range section */}
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-white">Date Range</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Start Date</label>
-                        <Input 
-                          type="date"
-                          value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
-                          onChange={(e) => {
-                            const date = e.target.value ? new Date(e.target.value) : undefined;
-                            handleDateRangeChange({...dateRange, startDate: date});
-                          }}
-                          className="bg-white/5 border-slate-700/50 text-white"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-400">End Date</label>
-                        <Input 
-                          type="date"
-                          value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
-                          onChange={(e) => {
-                            const date = e.target.value ? new Date(e.target.value) : undefined;
-                            handleDateRangeChange({...dateRange, endDate: date});
-                          }}
-                          className="bg-white/5 border-slate-700/50 text-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <AlertDialogFooter>
-                  <Button
-                    variant="ghost"
-                    onClick={resetFilters}
-                    className="text-slate-300 hover:text-white hover:bg-white/10"
-                  >
-                    Reset Filters
-                  </Button>
-                  <AlertDialogCancel className="border-slate-700 bg-background text-white hover:bg-white/10 hover:text-white">
-                    Close
-                  </AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-              {pendingItems.size > 0 && (
-                <Button
-                  onClick={() => setPendingItems(new Set())}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#BF00FF] text-[#BF00FF] hover:bg-[#BF00FF]/10 gap-2"
-                >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3 mr-1" />
                   Clear Selection
                 </Button>
               )}
+              
+              <div className="relative">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search articles..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="h-9 w-[160px] md:w-[200px] lg:w-[250px] pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
+                />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-white/10"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <X className="h-3 w-3 text-slate-400" />
+                  </Button>
+                )}
+              </div>
+              
+              <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "border-slate-600 hover:bg-white/10 text-white",
+                      (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
+                      "bg-primary/20 border-primary/50 text-primary"
+                    )}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
+                    {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
+                      <Badge variant="secondary" className="ml-2 bg-primary/30 text-primary text-xs">
+                        {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
+                      </Badge>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-background border-slate-700/50 text-white">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white">Filter Articles</AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-400">
+                      Filter articles by keywords and date range
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  
+                  <div className="py-4 space-y-4">
+                    {/* Keywords section */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-white">Keywords</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {keywords.data && keywords.data.length > 0 ? (
+                          keywords.data.map((keyword: Keyword) => (
+                            <Badge 
+                              key={keyword.id}
+                              variant={selectedKeywordIds.includes(keyword.id) ? "default" : "outline"}
+                              className={cn(
+                                "cursor-pointer hover:bg-white/10",
+                                selectedKeywordIds.includes(keyword.id) ? 
+                                "bg-primary text-primary-foreground hover:bg-primary/80" : 
+                                "bg-transparent text-slate-300 border-slate-600"
+                              )}
+                              onClick={() => toggleKeywordSelection(keyword.id)}
+                            >
+                              {keyword.term}
+                              {selectedKeywordIds.includes(keyword.id) && (
+                                <X className="h-3 w-3 ml-1" />
+                              )}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400">
+                            No keywords found. <Link to="/dashboard/news/keywords" className="text-primary">Add some keywords</Link> to enable filtering.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Date range section */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-white">Date Range</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-400">Start Date</label>
+                          <Input 
+                            type="date"
+                            value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : undefined;
+                              handleDateRangeChange({...dateRange, startDate: date});
+                            }}
+                            className="bg-white/5 border-slate-700/50 text-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-400">End Date</label>
+                          <Input 
+                            type="date"
+                            value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : undefined;
+                              handleDateRangeChange({...dateRange, endDate: date});
+                            }}
+                            className="bg-white/5 border-slate-700/50 text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <AlertDialogFooter>
+                    <Button
+                      variant="ghost"
+                      onClick={resetFilters}
+                      className="text-slate-300 hover:text-white hover:bg-white/10"
+                    >
+                      Reset Filters
+                    </Button>
+                    <AlertDialogCancel className="border-slate-700 bg-background text-white hover:bg-white/10 hover:text-white">
+                      Close
+                    </AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+                {localArticles.length > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-8 sm:h-9 w-8 sm:w-9 p-0"
+                        disabled={deleteAllArticles.isPending}
+                      >
+                        {deleteAllArticles.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action will permanently delete all{" "}
+                          {localArticles.length} articles. This action cannot be
+                          undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteAllArticles.mutate()}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                          Delete All Articles
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
           </div>
 
@@ -874,31 +912,9 @@ export default function NewsHome() {
                   </div>
                 ))}
               </div>
-
-              {/* Pagination controls and delete button */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <PaginationControls />
-
-                {pendingItems.size > 0 && (
-                  <Button
-                    onClick={() => {
-                      const ids = Array.from(pendingItems);
-                      ids.forEach(id => deleteArticle.mutate(id));
-                    }}
-                    disabled={deleteArticle.isPending}
-                    variant="destructive"
-                    size="sm"
-                    className="gap-2 self-start sm:self-auto"
-                  >
-                    {deleteArticle.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    Delete ({pendingItems.size})
-                  </Button>
-                )}
-              </div>
+              
+              {/* Pagination controls below articles */}
+              <PaginationControls />
             </div>
           )}
         </div>
