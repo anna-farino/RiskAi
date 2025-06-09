@@ -8,10 +8,13 @@ import { extractArticleLinks, scrapeUrl } from "./scraper";
 import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
-import { normalizeUrl } from "./url-utils";
+import { normalizeUrl, titleSimilarity } from "./url-utils";
 
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
+
+// Track active scraping processes for individual sources
+export const activeScraping = new Map<string, boolean>();
 
 // Check if global scrape job is running
 export function isGlobalJobRunning() {
@@ -37,30 +40,60 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
-    // Check if we already have this article FOR THIS USER
-    const existingArticles = await storage.getArticles({
-      search: articleUrl,
-      userId: userId,
-    });
+    // Normalize the URL to handle variations (trailing slashes, query params)
+    const normalizedUrl = normalizeUrl(articleUrl);
+    
+    // Check if we already have this article FOR THIS USER - use direct URL lookup for efficiency
+    const existingArticle = await storage.getArticleByUrl(normalizedUrl, userId);
 
-    if (
-      existingArticles.some((a) => a.url === articleUrl && a.userId === userId)
-    ) {
+    if (existingArticle) {
       log(
-        `[ThreatTracker] Article already exists for this user: ${articleUrl}`,
+        `[ThreatTracker] Article already exists for this user: ${normalizedUrl}`,
         "scraper",
       );
       return null;
     }
 
-    // Scrape the article page with article-specific flag
-    const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
+    // Check stop signal before expensive scraping operation
+    if (!activeScraping.get(sourceId)) {
+      log(`[ThreatTracker] Stop signal received, aborting article processing: ${articleUrl}`, "scraper");
+      return null;
+    }
 
-    // Extract content using OpenAI for proper field separation
+    // Early content extraction to get title for additional duplicate checking
+    const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
+    
+    // Check stop signal after HTML fetching
+    if (!activeScraping.get(sourceId)) {
+      log(`[ThreatTracker] Stop signal received, aborting content extraction: ${articleUrl}`, "scraper");
+      return null;
+    }
+    
     const articleData = await extractArticleContentWithAI(
       articleHtml,
       articleUrl,
     );
+
+    // Additional duplicate check by title similarity to catch same articles with different URLs
+    if (articleData.title) {
+      const recentArticles = await storage.getArticles({
+        userId,
+        limit: 100 // Check last 100 articles for title similarity
+      });
+      
+      const titleSimilarArticle = recentArticles.find(article => 
+        article.title && 
+        titleSimilarity(article.title, articleData.title) > 0.85 // 85% similarity threshold
+      );
+      
+      if (titleSimilarArticle) {
+        log(
+          `[ThreatTracker] Similar article title found, likely duplicate: "${articleData.title}" vs "${titleSimilarArticle.title}"`,
+          "scraper",
+        );
+        return null;
+      }
+    }
 
     // If we couldn't extract content, skip this article
     if (!articleData.content || articleData.content.length < 100) {
@@ -68,6 +101,12 @@ async function processArticle(
         `[ThreatTracker] Could not extract sufficient content from ${articleUrl}`,
         "scraper",
       );
+      return null;
+    }
+
+    // Check stop signal before expensive OpenAI analysis
+    if (!activeScraping.get(sourceId)) {
+      log(`[ThreatTracker] Stop signal received, aborting OpenAI analysis: ${articleUrl}`, "scraper");
       return null;
     }
 
@@ -166,12 +205,12 @@ async function processArticle(
 
     log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}, sourceId: ${sourceId}`);
 
-    // Store the article in the database
+    // Store the article in the database using normalized URL for consistency
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-      url: articleUrl,
+      url: normalizedUrl, // Use normalized URL for consistency
       author: articleData.author,
       publishDate: publishDate,
       summary: analysis.summary,
@@ -195,12 +234,24 @@ async function processArticle(
   }
 }
 
+/**
+ * Stop scraping for a specific source
+ */
+export function stopScrapingSource(sourceId: string): void {
+  activeScraping.set(sourceId, false);
+  log(`[ThreatTracker] Stopping scrape for source ID: ${sourceId}`, "scraper");
+}
+
 // Scrape a single source
 export async function scrapeSource(source: ThreatSource, userId: string) {
   log(
     `[ThreatTracker] Starting scrape job for source: ${source.name}`,
     "scraper",
   );
+  
+  // Set active flag for this source
+  activeScraping.set(source.id, true);
+  
   const keywordUserId = source.userId || userId
 
   try {
@@ -358,6 +409,15 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     const startIndex = firstArticleProcessed ? 1 : 0;
 
     for (let i = startIndex; i < processedLinks.length; i++) {
+      // Check if scraping should continue
+      if (!activeScraping.get(source.id)) {
+        log(
+          `[ThreatTracker] Stopping scrape for source ID: ${source.id} as requested`,
+          "scraper",
+        );
+        break;
+      }
+
       const articleResult = await processArticle(
         processedLinks[i],
         source.id,
@@ -387,6 +447,9 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       "scraper-error",
     );
     throw error;
+  } finally {
+    // Clean up the active scraping flag for this source
+    activeScraping.delete(source.id);
   }
 }
 
@@ -413,8 +476,13 @@ export async function runGlobalScrapeJob(userId?: string) {
 
     // Process each source sequentially
     for (const source of sources) {
-      try {
+      // Check if global job should continue
+      if (!globalScrapeJobRunning) {
+        log("[ThreatTracker] Global scrape job stopped, aborting remaining sources", "scraper");
+        break;
+      }
 
+      try {
         // For default sources (source.userId is null), use the provided userId
         // For user sources, use the source's userId (which should match the provided userId anyway)
         const targetUserId = source.userId || userId;
@@ -445,6 +513,9 @@ export async function runGlobalScrapeJob(userId?: string) {
         );
         // Continue with the next source
         continue;
+      } finally {
+        // Clean up the active scraping flag for this source
+        activeScraping.delete(source.id);
       }
     }
 
@@ -475,7 +546,14 @@ export function stopGlobalScrapeJob() {
   }
 
   globalScrapeJobRunning = false;
+  
+  // Stop all active individual source scraping operations
+  for (const [sourceId] of activeScraping) {
+    activeScraping.set(sourceId, false);
+    log(`[ThreatTracker] Stopping active scraping for source ID: ${sourceId}`, "scraper");
+  }
+  
   log("[ThreatTracker] Global scrape job has been manually stopped", "scraper");
 
-  return { message: "Global scrape job has been manually stopped" };
+  return { success: true, message: "Global scrape job stopped successfully" };
 }

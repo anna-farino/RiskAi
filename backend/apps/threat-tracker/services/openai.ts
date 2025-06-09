@@ -221,9 +221,20 @@ export async function identifyArticleLinks(
       "openai",
     );
 
-    // Debug log: Print the structured HTML being sent to OpenAI
+    // Truncate input if it's too large to prevent JSON parsing errors
+    const maxInputLength = 50000; // Limit to 50k characters to prevent truncation
+    let truncatedLinksText = linksText;
+    if (linksText.length > maxInputLength) {
+      log(
+        `[ThreatTracker] Input too large (${linksText.length} chars), truncating to ${maxInputLength} chars`,
+        "openai",
+      );
+      truncatedLinksText = linksText.substring(0, maxInputLength) + "\n... [truncated for size]";
+    }
+
+    // Debug log: Print the structured HTML being sent to OpenAI (truncated for debug)
     log(
-      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis:\n${linksText}`,
+      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis (${truncatedLinksText.length} chars)`,
       "openai-debug",
     );
 
@@ -251,7 +262,7 @@ export async function identifyArticleLinks(
         },
         {
           role: "user",
-          content: `Here are the links with their titles and context:\n${linksText}`,
+          content: `Here are the links with their titles and context:\n${truncatedLinksText}`,
         },
       ],
       temperature: 0.2,
@@ -263,7 +274,43 @@ export async function identifyArticleLinks(
       throw new Error("No content received from OpenAI");
     }
 
-    const result = JSON.parse(responseText);
+    // Attempt to parse JSON with better error handling
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError: any) {
+      log(
+        `[ThreatTracker] JSON parse error, response text length: ${responseText.length}`,
+        "openai-error",
+      );
+      log(
+        `[ThreatTracker] Response text preview: ${responseText.substring(0, 500)}...`,
+        "openai-error",
+      );
+      
+      // Try to extract valid JSON from truncated response
+      const jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[[^\]]*\]/);
+      if (jsonMatch) {
+        try {
+          const partialJson = jsonMatch[0] + ']}';
+          result = JSON.parse(partialJson);
+          log(`[ThreatTracker] Recovered from truncated JSON`, "openai");
+        } catch (recoveryError) {
+          // If recovery fails, return empty array instead of crashing
+          log(`[ThreatTracker] JSON recovery failed, returning empty array`, "openai-error");
+          return [];
+        }
+      } else {
+        log(`[ThreatTracker] Could not recover JSON, returning empty array`, "openai-error");
+        return [];
+      }
+    }
+
+    if (!result.articleUrls || !Array.isArray(result.articleUrls)) {
+      log(`[ThreatTracker] Invalid response format, returning empty array`, "openai-error");
+      return [];
+    }
+
     log(
       `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
       "openai",
@@ -275,7 +322,8 @@ export async function identifyArticleLinks(
       "openai-error",
     );
     console.error("Error identifying article links:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent scraper crash
+    return [];
   }
 }
 

@@ -15,6 +15,9 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  Star,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,10 +49,18 @@ export default function NewsHome() {
   }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const articlesPerPage = 20;
+  
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  // Track last visit timestamp for "new" badge functionality
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
+  // Track selected article from dashboard
+  const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -195,12 +206,80 @@ export default function NewsHome() {
     }
   };
   
+  // Initialize last visit timestamp from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('news-radar-last-visit');
+    setLastVisitTimestamp(stored);
+    
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('news-radar-last-visit', currentTime);
+  }, []);
+
+  // Check for selected article from dashboard
+  useEffect(() => {
+    const selectedArticleData = sessionStorage.getItem('selectedArticle');
+    if (selectedArticleData) {
+      try {
+        const selectedArticle = JSON.parse(selectedArticleData);
+        setHighlightedArticleId(selectedArticle.id);
+        // Clear the session storage to prevent repeat highlighting
+        sessionStorage.removeItem('selectedArticle');
+        window.scrollTo(0,0)
+        
+      } catch (error) {
+        console.error("Error parsing selected article:", error);
+        sessionStorage.removeItem('selectedArticle');
+      }
+    }
+  }, [toast]);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(articles.data);
+      let sortedArticles = [...articles.data];
+      
+      // If there's a highlighted article, move it to the top
+      if (highlightedArticleId) {
+        const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
+        if (highlightedIndex > 0) {
+          const highlightedArticle = sortedArticles.splice(highlightedIndex, 1)[0];
+          sortedArticles.unshift(highlightedArticle);
+        }
+      }
+      
+      setLocalArticles(sortedArticles);
     }
-  }, [articles.data]);
+  }, [articles.data, highlightedArticleId]);
+
+  // Reset pagination when filters change or when an article is highlighted
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
+
+  // Calculate pagination values
+  const totalArticles = localArticles.length;
+  const totalPages = Math.ceil(totalArticles / articlesPerPage);
+  const startIndex = (currentPage - 1) * articlesPerPage;
+  const endIndex = startIndex + articlesPerPage;
+  const paginatedArticles = localArticles.slice(startIndex, endIndex);
+
+  // Pagination navigation functions
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
@@ -348,6 +427,14 @@ export default function NewsHome() {
     },
   });
 
+  // Function to check if an article is new
+  const isArticleNew = (article: Article): boolean => {
+    if (!lastVisitTimestamp || !article.publishDate) return false;
+    const lastVisit = new Date(lastVisitTimestamp);
+    const publishDate = new Date(article.publishDate);
+    return publishDate > lastVisit;
+  };
+
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
@@ -379,11 +466,150 @@ export default function NewsHome() {
     }
   };
 
+  // Pagination component
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisiblePages = 5;
+      
+      if (totalPages <= maxVisiblePages) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) {
+            pages.push(i);
+          }
+          pages.push('...');
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push('...');
+          for (let i = totalPages - 3; i <= totalPages; i++) {
+            pages.push(i);
+          }
+        } else {
+          pages.push(1);
+          pages.push('...');
+          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+            pages.push(i);
+          }
+          pages.push('...');
+          pages.push(totalPages);
+        }
+      }
+      
+      return pages;
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between py-4">
+          <div className="text-sm text-slate-400">
+            Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+          </div>
+          <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPreviousPage}
+            disabled={currentPage === 1}
+            className="border-slate-600 hover:bg-white/10 text-white disabled:opacity-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, index) => (
+              page === '...' ? (
+                <span key={index} className="px-2 text-slate-400">...</span>
+              ) : (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => goToPage(page as number)}
+                  className={cn(
+                    "w-10 h-8",
+                    currentPage === page
+                      ? "bg-primary text-primary-foreground"
+                      : "border-slate-600 hover:bg-white/10 text-white"
+                  )}
+                >
+                  {page}
+                </Button>
+              )
+            ))}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages}
+            className="border-slate-600 hover:bg-white/10 text-white disabled:opacity-50"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          </div>
+        </div>
+        
+        {localArticles.length > 0 && (
+          <div className="flex justify-center pt-2 border-t border-slate-700/30">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteAllArticles.isPending}
+                >
+                  {deleteAllArticles.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete All Articles
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Are you absolutely sure?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete all{" "}
+                    {localArticles.length} articles. This action cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteAllArticles.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Delete All Articles
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
-      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 py-4 sm:py-6 md:py-8">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
+      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 sm:py-6 md:py-8">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-4">
+          <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             News Radar
           </h1>
           <p className="text-base sm:text-lg text-slate-300 max-w-3xl">
@@ -392,73 +618,6 @@ export default function NewsHome() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Newspaper className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
-                Automated
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Content Scraping
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Automatically extract content from multiple sources with advanced
-              browser automation
-            </p>
-            <div className="mt-3 sm:mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/news/sources"
-                  className="flex items-center gap-1"
-                >
-                  Manage Sources <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
-                Customizable
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Keyword Filtering
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Set up keywords to automatically categorize and filter relevant
-              articles
-            </p>
-            <div className="mt-3 sm:mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/news/keywords"
-                  className="flex items-center gap-1"
-                >
-                  Manage Keywords <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
@@ -600,52 +759,13 @@ export default function NewsHome() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-                {localArticles.length > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 sm:h-9 w-8 sm:w-9 p-0"
-                        disabled={deleteAllArticles.isPending}
-                      >
-                        {deleteAllArticles.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action will permanently delete all{" "}
-                          {localArticles.length} articles. This action cannot be
-                          undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteAllArticles.mutate()}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Delete All Articles
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+            
               </div>
             </div>
           </div>
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
               {/* Adjust number of skeleton items based on screen size */}
               {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
                 <div
@@ -679,27 +799,44 @@ export default function NewsHome() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
-              {localArticles.map((article) => (
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  key={article.id}
-                  className={cn(
-                    "group transition-opacity duration-200",
-                    pendingItems.has(article.id) && "opacity-60"
-                  )}
-                >
-                  <ArticleCard
-                    article={article}
-                    onDelete={(id: any) => deleteArticle.mutate(id)}
-                    isPending={pendingItems.has(article.id)}
-                    onKeywordClick={handleKeywordClick}
-                    onSendToCapsule={sendToCapsule}
-                  />
-                </a>
-              ))}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 pt-2 sm:pt-4 md:pt-6">
+                {paginatedArticles.map((article) => (
+                  <div key={article.id} className={cn(
+                    "relative",
+                    article.id === highlightedArticleId && "bg-primary/10 rounded-xl"
+                  )}>
+                    {isArticleNew(article) && (
+                      <div className="absolute -top-1 -right-1 z-10">
+                        <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
+                          <Star className="h-2.5 w-2.5 mr-1" />
+                          NEW
+                        </Badge>
+                      </div>
+                    )}
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "group transition-opacity duration-200 block",
+                        pendingItems.has(article.id) && "opacity-60"
+                      )}
+                    >
+                      <ArticleCard
+                        article={article}
+                        onDelete={(id: any) => deleteArticle.mutate(id)}
+                        isPending={pendingItems.has(article.id)}
+                        onKeywordClick={handleKeywordClick}
+                        onSendToCapsule={sendToCapsule}
+                      />
+                    </a>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Pagination controls below articles */}
+              <PaginationControls />
             </div>
           )}
         </div>

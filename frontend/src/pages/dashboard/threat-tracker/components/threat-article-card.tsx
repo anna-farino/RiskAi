@@ -30,6 +30,8 @@ interface ThreatArticleCardProps {
   isPending?: boolean;
   onKeywordClick?: (keyword: string, category: string) => void;
   onSendToCapsule?: (url: string) => void;
+  articleIndex?: number;
+  totalArticles?: number;
 }
 
 interface KeywordCategories {
@@ -45,6 +47,8 @@ export function ThreatArticleCard({
   isPending = false,
   onKeywordClick,
   onSendToCapsule,
+  articleIndex,
+  totalArticles,
 }: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
@@ -165,18 +169,20 @@ export function ThreatArticleCard({
 
         <div className="flex-1 p-5 flex flex-col">
           <div className="flex justify-between items-start mb-3">
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2 hover:underline cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {article.title}
-            </a>
+            <div className="flex-1 pr-2">
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors hover:underline cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {article.title}
+              </a>
+            </div>
 
             {/* Threat severity score badge */}
-            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
+            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full flex-shrink-0">
               <Zap
                 className={cn(
                   "h-3.5 w-3.5",
@@ -261,7 +267,7 @@ export function ThreatArticleCard({
                 {article.publishDate
                   ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
                   : article.scrapeDate
-                    ? `Scraped ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
+                    ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
                     : "Unknown date"}
               </span>
             </div>
@@ -408,15 +414,12 @@ export function ThreatArticleCard({
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:text-primary/80 underline underline-offset-2 flex-shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              View Source
-            </a>
+            {/* Article counter */}
+            {articleIndex !== undefined && totalArticles !== undefined && (
+              <div className="text-xs text-slate-400 flex-shrink-0">
+                Article {articleIndex + 1} of {totalArticles}
+              </div>
+            )}
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {onSendToCapsule && (

@@ -10,6 +10,51 @@ import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
 import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
 
+/**
+ * Sanitize CSS selectors to prevent invalid pseudo-selectors like :contains()
+ */
+function sanitizeSelector(selector: string): string {
+  if (!selector) return "";
+
+  // Check if the selector contains date-like patterns (months, parentheses with timezones, etc.)
+  if (
+    /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(
+      selector,
+    ) ||
+    selector.includes("AM") ||
+    selector.includes("PM") ||
+    selector.includes("(") ||
+    selector.includes(")")
+  ) {
+    // This is likely a date string, not a CSS selector
+    return "";
+  }
+
+  // Check if the selector starts with words that suggest it's not a CSS selector
+  // Common patterns like "By Author Name" or "Published: Date"
+  if (
+    /^(By|Published:|Posted:|Date:|Author:|Not available)\s?/i.test(selector)
+  ) {
+    // This is likely text content, not a CSS selector
+    // Return an empty string to skip using it as a selector
+    return "";
+  }
+
+  // Remove unsupported pseudo-classes like :contains, :has, etc.
+  return (
+    selector
+      // Remove :contains(...) pseudo-class
+      .replace(/\:contains\([^\)]+\)/g, "")
+      // Remove :has(...) pseudo-class
+      .replace(/\:has\([^\)]+\)/g, "")
+      // Remove other non-standard pseudo-classes (anything after : that's not a standard pseudo-class)
+      .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+      // Clean up any resulting double spaces
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
 
@@ -92,8 +137,6 @@ async function getBrowser(): Promise<Browser> {
           '--allow-running-insecure-content',
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled',
-          // new SETTINGS
-          '--single-process'
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
         // OLD SETTINGS
@@ -664,105 +707,149 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
-        // First try using the provided selectors
-        if (config) {
-          const title = config.titleSelector || config.title 
-            ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
-            : '';
+        try {
+          // Sanitize selector function (copied from server-side)
+          function sanitizeSelector(selector) {
+            if (!selector) return "";
             
-          const content = config.contentSelector || config.content 
-            ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
-            : '';
+            // Check if the selector contains date-like patterns or text content
+            if (
+              /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(selector) ||
+              selector.includes("AM") ||
+              selector.includes("PM") ||
+              selector.includes("(") ||
+              selector.includes(")")
+            ) {
+              return "";
+            }
             
-          const author = config.authorSelector || config.author 
-            ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
-            : '';
+            if (/^(By|Published:|Posted:|Date:|Author:|Not available)\s?/i.test(selector)) {
+              return "";
+            }
             
-          const date = config.dateSelector || config.date 
-            ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
-            : '';
-
-          if (content) {
-            return { title, content, author, date };
+            // Remove unsupported pseudo-classes like :contains, :has, etc.
+            return selector
+              .replace(/\:contains\([^\)]+\)/g, "")
+              .replace(/\:has\([^\)]+\)/g, "")
+              .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+              .replace(/\s+/g, " ")
+              .trim();
           }
-        }
+        
+          // First try using the provided selectors
+          if (config) {
+            const titleSelector = sanitizeSelector(config.titleSelector || config.title);
+            const contentSelector = sanitizeSelector(config.contentSelector || config.content);
+            const authorSelector = sanitizeSelector(config.authorSelector || config.author);
+            const dateSelector = sanitizeSelector(config.dateSelector || config.date);
+            
+            const title = titleSelector 
+              ? document.querySelector(titleSelector)?.textContent?.trim() 
+              : '';
+              
+            const content = contentSelector 
+              ? document.querySelector(contentSelector)?.textContent?.trim() 
+              : '';
+              
+            const author = authorSelector 
+              ? document.querySelector(authorSelector)?.textContent?.trim() 
+              : '';
+              
+            const date = dateSelector 
+              ? document.querySelector(dateSelector)?.textContent?.trim() 
+              : '';
 
-        // Fallback selectors if config fails
-        const fallbackSelectors = {
-          content: [
-            'article',
-            '.article-content',
-            '.article-body',
-            'main .content',
-            '.post-content',
-            '#article-content',
-            '.story-content'
-          ],
-          title: ['h1', '.article-title', '.post-title'],
-          author: ['.author', '.byline', '.article-author'],
-          date: [
-            'time',
-            '[datetime]',
-            '.article-date',
-            '.post-date',
-            '.published-date',
-            '.timestamp'
-          ]
-        };
-
-        // Try fallback selectors
-        let content = '';
-        for (const selector of fallbackSelectors.content) {
-          const element = document.querySelector(selector);
-          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
-            content = element.textContent?.trim() || '';
-            break;
+            if (content) {
+              return { title, content, author, date };
+            }
           }
-        }
 
-        // If still no content, get the main content or body
-        if (!content || content.length < 100) {
-          const main = document.querySelector('main');
-          if (main) {
-            content = main.textContent?.trim() || '';
+          // Fallback selectors if config fails
+          const fallbackSelectors = {
+            content: [
+              'article',
+              '.article-content',
+              '.article-body',
+              'main .content',
+              '.post-content',
+              '#article-content',
+              '.story-content'
+            ],
+            title: ['h1', '.article-title', '.post-title'],
+            author: ['.author', '.byline', '.article-author'],
+            date: [
+              'time',
+              '[datetime]',
+              '.article-date',
+              '.post-date',
+              '.published-date',
+              '.timestamp'
+            ]
+          };
+
+          // Try fallback selectors
+          let content = '';
+          for (const selector of fallbackSelectors.content) {
+            const element = document.querySelector(selector);
+            if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
+              content = element.textContent?.trim() || '';
+              break;
+            }
           }
-          
+
+          // If still no content, get the main content or body
           if (!content || content.length < 100) {
-            content = document.body.textContent?.trim() || '';
+            const main = document.querySelector('main');
+            if (main) {
+              content = main.textContent?.trim() || '';
+            }
+            
+            if (!content || content.length < 100) {
+              content = document.body.textContent?.trim() || '';
+            }
           }
-        }
 
-        // Try to get title
-        let title = '';
-        for (const selector of fallbackSelectors.title) {
-          const element = document.querySelector(selector);
-          if (element) {
-            title = element.textContent?.trim() || '';
-            break;
+          // Try to get title
+          let title = '';
+          for (const selector of fallbackSelectors.title) {
+            const element = document.querySelector(selector);
+            if (element) {
+              title = element.textContent?.trim() || '';
+              break;
+            }
           }
-        }
 
-        // Try to get author
-        let author = '';
-        for (const selector of fallbackSelectors.author) {
-          const element = document.querySelector(selector);
-          if (element) {
-            author = element.textContent?.trim() || '';
-            break;
+          // Try to get author
+          let author = '';
+          for (const selector of fallbackSelectors.author) {
+            const element = document.querySelector(selector);
+            if (element) {
+              author = element.textContent?.trim() || '';
+              break;
+            }
           }
-        }
 
-        // Try to get date
-        let date = '';
-        for (const selector of fallbackSelectors.date) {
-          const element = document.querySelector(selector);
-          if (element) {
-            date = element.textContent?.trim() || '';
-            break;
+          // Try to get date
+          let date = '';
+          for (const selector of fallbackSelectors.date) {
+            const element = document.querySelector(selector);
+            if (element) {
+              date = element.textContent?.trim() || '';
+              break;
+            }
           }
-        }
 
-        return { title, content, author, date };
+          return { title, content, author, date };
+        } catch (error) {
+          // If there's an error in the page evaluation, return fallback values
+          console.error('Error in page evaluation:', error.message);
+          return { 
+            title: document.title || '',
+            content: document.body ? document.body.textContent?.trim() || '' : '',
+            author: '',
+            date: ''
+          };
+        }
       }, scrapingConfig);
 
       log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");

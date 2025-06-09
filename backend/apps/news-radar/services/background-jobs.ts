@@ -19,7 +19,7 @@ import sendGrid from "backend/utils/sendGrid";
 
 dotenvConfig(dotenv)
 // Track active scraping processes for all sources
-const activeScraping = new Map<string, boolean>();
+export const activeScraping = new Map<string, boolean>();
 
 // Track if a global job is running
 let globalJobRunning = false;
@@ -119,6 +119,13 @@ export async function scrapeSource(
           "scraper",
         );
         const articleHtml = await scrapeUrl(link, false);
+        
+        // Check stop signal after fetching HTML
+        if (!activeScraping.get(sourceId)) {
+          log(`[Scraping] Stop signal received, aborting content extraction for article: ${link}`, "scraper");
+          break;
+        }
+        
         // Ensure scrapingConfig is treated as ScrapingConfig type
         const article = await extractArticleContent(
           articleHtml,
@@ -147,6 +154,12 @@ export async function scrapeSource(
             `[Scraping] Keywords found in title: ${titleKeywordMatches.join(", ")}`,
             "scraper",
           );
+        }
+
+        // Check stop signal before expensive OpenAI operation
+        if (!activeScraping.get(sourceId)) {
+          log(`[Scraping] Stop signal received, aborting OpenAI analysis for article: ${link}`, "scraper");
+          break;
         }
 
         // Analyze content with OpenAI
@@ -291,11 +304,13 @@ async function getUserEmail(userId: string): Promise<string | null> {
 
 /**
  * Send email notification about new articles
+ * Supports both single-source and multi-source notifications
  */
 export async function sendNewArticlesEmail(
   userId: string,
   newArticles: Article[],
-  sourceName: string,
+  sourceName?: string,
+  isGlobalScrape = false,
 ): Promise<boolean> {
   try {
     if (newArticles.length === 0) {
@@ -309,49 +324,109 @@ export async function sendNewArticlesEmail(
       return false;
     }
 
+    // Determine email subject and intro based on type
+    const emailSubject = isGlobalScrape 
+      ? `News Radar - ${newArticles.length} New Articles Found`
+      : `News Radar - New Articles from ${sourceName}`;
+
+    const emailIntro = isGlobalScrape
+      ? `<p style="margin: 0 0 20px 0; color: #333;">Your global scrape job has completed and found <strong>${newArticles.length} new articles</strong> across multiple sources.</p>`
+      : `<p style="margin: 0 0 20px 0; color: #333;">New articles found from <strong>${sourceName}</strong>:</p>`;
+
     log(
-      `[Email] Sending notification email to ${userEmail} about ${newArticles.length} new articles`,
+      `[Email] Sending ${isGlobalScrape ? 'global' : 'single-source'} notification email to ${userEmail} about ${newArticles.length} new articles`,
       "scraper",
     );
 
-    // Format article list for email
-    const articleList = newArticles
-      .map((article, index) => {
-        return `
-        <tr>
-          <td style="padding: 10px 0; border-bottom: 1px solid #eee;">
-            <p style="margin: 0; font-weight: bold;">${index + 1}. ${article.title}</p>
-            <p style="margin: 5px 0 0 0; color: #666;">${article.summary}</p>
-            <p style="margin: 5px 0 0 0; font-size: 12px;">
-              Keywords: ${Array.isArray(article.detectedKeywords) ? article.detectedKeywords.join(", ") : ""}
-            </p>
-          </td>
-        </tr>
+    // Group articles by source for global scrapes
+    let articleContent = "";
+    
+    if (isGlobalScrape) {
+      // Group articles by source name
+      const articlesBySource = newArticles.reduce((acc, article) => {
+        const sourceKey = (article as any)._sourceName || 'Unknown Source';
+        if (!acc[sourceKey]) {
+          acc[sourceKey] = [];
+        }
+        acc[sourceKey].push(article);
+        return acc;
+      }, {} as Record<string, Article[]>);
+
+      // Format grouped articles
+      articleContent = Object.entries(articlesBySource)
+        .map(([source, articles]) => {
+          const sourceArticles = articles
+            .map((article, index) => {
+              return `
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                  <p style="margin: 0; font-weight: 500; font-size: 14px;">${index + 1}. ${article.title}</p>
+                  <p style="margin: 5px 0 0 0; color: #666; font-size: 13px;">${article.summary}</p>
+                  <p style="margin: 5px 0 0 0; font-size: 11px; color: #888;">
+                    Keywords: ${Array.isArray(article.detectedKeywords) ? article.detectedKeywords.join(", ") : ""}
+                  </p>
+                </td>
+              </tr>
+            `;
+            })
+            .join("");
+
+          return `
+            <div style="margin-bottom: 25px;">
+              <h3 style="margin: 0 0 10px 0; color: #2563eb; font-size: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">
+                ${source} (${articles.length} articles)
+              </h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                ${sourceArticles}
+              </table>
+            </div>
+          `;
+        })
+        .join("");
+    } else {
+      // Single source format
+      const articleList = newArticles
+        .map((article, index) => {
+          return `
+          <tr>
+            <td style="padding: 10px 0; border-bottom: 1px solid #eee;">
+              <p style="margin: 0; font-weight: bold;">${index + 1}. ${article.title}</p>
+              <p style="margin: 5px 0 0 0; color: #666;">${article.summary}</p>
+              <p style="margin: 5px 0 0 0; font-size: 12px;">
+                Keywords: ${Array.isArray(article.detectedKeywords) ? article.detectedKeywords.join(", ") : ""}
+              </p>
+            </td>
+          </tr>
+        `;
+        })
+        .join("");
+      
+      articleContent = `
+        <table style="width: 100%; border-collapse: collapse;">
+          ${articleList}
+        </table>
       `;
-      })
-      .join("");
-    const fullArticleList = `
-      <table style="width: 100%; border-collapse: collapse;">
-        ${articleList}
-      </table>
-    `
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        ${emailIntro}
+        ${articleContent}
+        <p style="margin: 20px 0 0 0; color: #888; font-size: 12px; border-top: 1px solid #eee; padding-top: 15px;">
+          This notification was sent by News Radar. Visit your dashboard to manage your sources and keywords.
+        </p>
+      </div>
+    `;
+
     await sendGrid({
       to: userEmail,
-      subject: "News Radar",
-      text: fullArticleList,
-      html: fullArticleList
-    })
-    // Old -- to be deleted later 
-    //await sendEmailJs({
-    //  template: process.env.EMAILJS_TEMPLATE_OTP_ID as string,
-    //  templateParams: {
-    //    email: userEmail,
-    //    otp: fullArticleList
-    //  }
-    //});
+      subject: emailSubject,
+      text: `${isGlobalScrape ? 'Global scrape completed' : `New articles from ${sourceName}`} - ${newArticles.length} new articles found`,
+      html: htmlContent
+    });
 
     log(
-      `[Email] Successfully sent notification email to ${userEmail}`,
+      `[Email] Successfully sent ${isGlobalScrape ? 'global' : 'single-source'} notification email to ${userEmail}`,
       "scraper",
     );
     return true;
@@ -418,6 +493,12 @@ export async function runGlobalScrapeJob(
 
     // Process each source one by one
     for (const source of sources) {
+      // Check if job has been stopped before processing next source
+      if (!globalJobRunning) {
+        log(`[Background Job] Global scrape job was stopped, aborting remaining sources`, "scraper");
+        break;
+      }
+
       log(`[Background Job] Processing source: ${source.name}`, "scraper");
 
       try {
@@ -442,11 +523,6 @@ export async function runGlobalScrapeJob(
         });
 
         log(`[Background Job] Completed source: ${source.name}`, "scraper");
-
-        // Send email notification for this source if new articles were found
-        if (newArticles.length > 0) {
-          await sendNewArticlesEmail(userId, newArticles, source.name);
-        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
@@ -464,12 +540,18 @@ export async function runGlobalScrapeJob(
       }
     }
 
-    // Log notification summary
+    // Send consolidated email notification at the end if new articles were found
     if (allNewArticles.length > 0) {
-      log(
-        `[Email] Sent notifications for ${allNewArticles.length} new articles across ${sources.length} sources`,
-        "scraper",
-      );
+      try {
+        await sendNewArticlesEmail(userId, allNewArticles, undefined, true);
+        log(
+          `[Email] Sent consolidated notification email for ${allNewArticles.length} new articles across ${sources.length} sources`,
+          "scraper",
+        );
+      } catch (emailError) {
+        log(`[Email] Error sending consolidated notification: ${emailError}`, "scraper");
+        // Continue processing - don't fail the job if email sending fails
+      }
     } else {
       log(`[Email] No new articles found, no notifications sent`, "scraper");
     }

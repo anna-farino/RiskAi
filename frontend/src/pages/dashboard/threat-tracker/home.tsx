@@ -20,6 +20,8 @@ import {
   X,
   Plus,
   Check,
+  FileText,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,15 @@ export default function ThreatHome() {
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
+  // Track last visit timestamp for "new" badge functionality
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
+  // Track sorting state for surfacing new articles
+  const [sortNewToTop, setSortNewToTop] = useState<boolean>(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const articlesPerPage = 20;
+  // Track selected article from dashboard
+  const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -149,12 +160,57 @@ export default function ThreatHome() {
     },
   });
 
+  // Initialize last visit timestamp from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('threat-tracker-last-visit');
+    setLastVisitTimestamp(stored);
+
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('threat-tracker-last-visit', currentTime);
+  }, []);
+
+  // Check for selected threat article from dashboard
+  useEffect(() => {
+    const selectedThreatData = sessionStorage.getItem('selectedThreatArticle');
+    if (selectedThreatData) {
+      try {
+        const selectedThreat = JSON.parse(selectedThreatData);
+        setHighlightedArticleId(selectedThreat.id);
+        
+        window.scrollTo(0,0)
+        // Clear the session storage to prevent repeat highlighting
+        sessionStorage.removeItem('selectedThreatArticle');
+
+      } catch (error) {
+        console.error("Error parsing selected threat article:", error);
+        sessionStorage.removeItem('selectedThreatArticle');
+      }
+    }
+  }, [toast]);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(articles.data);
+      let sortedArticles = [...articles.data];
+      
+      // If there's a highlighted article, move it to the top
+      if (highlightedArticleId) {
+        const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
+        if (highlightedIndex > 0) {
+          const highlightedArticle = sortedArticles.splice(highlightedIndex, 1)[0];
+          sortedArticles.unshift(highlightedArticle);
+        }
+      }
+      
+      setLocalArticles(sortedArticles);
     }
-  }, [articles.data]);
+  }, [articles.data, highlightedArticleId]);
+
+  // Reset pagination when filters change or when an article is highlighted
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
@@ -452,14 +508,79 @@ export default function ThreatHome() {
     setSelectedKeywordIds((prev) => prev.filter((id) => id !== keywordId));
   };
 
+  // Calculate new articles count
+  const newArticlesCount = useMemo(() => {
+    if (!lastVisitTimestamp || !localArticles.length) return 0;
+
+    const lastVisit = new Date(lastVisitTimestamp);
+    return localArticles.filter(article => {
+      if (!article.scrapeDate) return false;
+      const scrapeDate = new Date(article.scrapeDate);
+      return scrapeDate > lastVisit;
+    }).length;
+  }, [lastVisitTimestamp, localArticles]);
+
+  // Function to check if an article is new
+  const isArticleNew = (article: ThreatArticle): boolean => {
+    if (!lastVisitTimestamp || !article.scrapeDate) return false;
+    const lastVisit = new Date(lastVisitTimestamp);
+    const scrapeDate = new Date(article.scrapeDate);
+    return scrapeDate > lastVisit;
+  };
+
+  // Computed property for sorted articles - surface new articles to top when sortNewToTop is true
+  const sortedArticles = useMemo(() => {
+    if (!sortNewToTop) return localArticles;
+    
+    return [...localArticles].sort((a, b) => {
+      const aIsNew = isArticleNew(a);
+      const bIsNew = isArticleNew(b);
+      
+      // If both are new or both are not new, maintain original order
+      if (aIsNew === bIsNew) return 0;
+      
+      // New articles come first
+      return aIsNew ? -1 : 1;
+    });
+  }, [localArticles, sortNewToTop, lastVisitTimestamp]);
+
+  // Function to handle clicking the "New" button to surface new articles
+  const handleSurfaceNewArticles = () => {
+    setSortNewToTop(true);
+  };
+
+  // Calculate pagination values
+  const totalArticles = sortedArticles.length;
+  const totalPages = Math.ceil(totalArticles / articlesPerPage);
+  const startIndex = (currentPage - 1) * articlesPerPage;
+  const endIndex = startIndex + articlesPerPage;
+  const paginatedArticles = sortedArticles.slice(startIndex, endIndex);
+
+  // Pagination navigation functions
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <>
-      <div className="flex flex-col gap-6 md:gap-10 mb-10">
+      <div className="flex flex-col gap-6 md:gap-10 mb-6">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             Threat Tracker
           </h1>
-          <p className="text-lg text-slate-300 max-w-3xl">
+          <p className="text-muted-foreground max-w-3xl">
             Monitor cybersecurity threats affecting your vendors, clients, and
             hardware/software to stay ahead of potential vulnerabilities.
           </p>
@@ -468,14 +589,48 @@ export default function ThreatHome() {
 
       <div className="flex flex-col w-full gap-4">
         <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search articles..."
-              className="pl-9 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-300">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-medium">
+                  {localArticles.length} Potential Threats
+                </span>
+              </div>
+              {newArticlesCount > 0 && !sortNewToTop && (
+                <button
+                  onClick={handleSurfaceNewArticles}
+                  className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                  title={`Click to surface ${newArticlesCount} new articles to top`}
+                >
+                  <Star className="h-3 w-3 text-[#BF00FF]" />
+                  <span className="text-xs font-medium text-[#BF00FF]">
+                    {newArticlesCount} New
+                  </span>
+                </button>
+              )}
+              {sortNewToTop && (
+                <button
+                  onClick={() => setSortNewToTop(false)}
+                  className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
+                  title="Click to return to chronological order"
+                >
+                  <Check className="h-3 w-3 text-[#00FFFF]" />
+                  <span className="text-xs font-medium text-[#00FFFF]">
+                    Sorted
+                  </span>
+                </button>
+              )}
+            </div>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search articles..."
+                className="pl-9 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex flex-row gap-2 flex-shrink-0">
@@ -493,41 +648,18 @@ export default function ThreatHome() {
                 </Badge>
               )}
             </Button>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex items-center gap-1.5"
-                  disabled={
-                    localArticles.length === 0 || deleteAllArticles.isPending
-                  }
-                >
-                  {deleteAllArticles.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Clear All
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action will permanently delete all threat articles.
-                    This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAllArticles}>
-                    Delete All
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            
+            {highlightedArticleId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                onClick={() => setHighlightedArticleId(null)}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear Selection
+              </Button>
+            )}
           </div>
         </div>
 
@@ -659,28 +791,140 @@ export default function ThreatHome() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : localArticles.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {localArticles.map((article) => (
-                <ThreatArticleCard
-                  key={article.id}
-                  article={article}
-                  isPending={pendingItems.has(article.id)}
-                  onDelete={() => handleDeleteArticle(article.id)}
-                  onKeywordClick={(keyword, category) => {
-                    // Add the keyword to the filter
-                    const keywordObj = keywords.data?.find(
-                      (k) => k.term === keyword && k.category === category,
-                    );
-                    if (
-                      keywordObj &&
-                      !selectedKeywordIds.includes(keywordObj.id)
-                    ) {
-                      setSelectedKeywordIds((prev) => [...prev, keywordObj.id]);
-                    }
-                  }}
-                  onSendToCapsule={sendToCapsule}
-                />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                {paginatedArticles.map((article, index) => (
+                <div key={article.id} className={cn(
+                  "relative",
+                  article.id === highlightedArticleId && "bg-primary/10"
+                )}>
+                  {isArticleNew(article) && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
+                        NEW
+                      </Badge>
+                    </div>
+                  )}
+                  <ThreatArticleCard
+                    article={article}
+                    isPending={pendingItems.has(article.id)}
+                    onDelete={() => handleDeleteArticle(article.id)}
+                    onKeywordClick={(keyword, category) => {
+                      // Add the keyword to the filter
+                      const keywordObj = keywords.data?.find(
+                        (k) => k.term === keyword && k.category === category,
+                      );
+                      if (
+                        keywordObj &&
+                        !selectedKeywordIds.includes(keywordObj.id)
+                      ) {
+                        setSelectedKeywordIds((prev) => [...prev, keywordObj.id]);
+                      }
+                    }}
+                    onSendToCapsule={sendToCapsule}
+                    articleIndex={startIndex + index}
+                    totalArticles={totalArticles}
+                  />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t border-slate-700/50">
+                  <div className="text-sm text-slate-400">
+                    Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ArrowRight className="h-3 w-3 rotate-180" />
+                    </Button>
+                    
+                    {/* Page numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNumber;
+                        if (totalPages <= 5) {
+                          pageNumber = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNumber = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNumber = totalPages - 4 + i;
+                        } else {
+                          pageNumber = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNumber}
+                            variant={currentPage === pageNumber ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => goToPage(pageNumber)}
+                            className="h-8 w-8 p-0 text-xs"
+                          >
+                            {pageNumber}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Clear All Button - Bottom of page */}
+              {localArticles.length > 0 && (
+                <div className="flex justify-center mt-8 pt-6 border-t border-slate-700/50">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex items-center gap-1.5"
+                        disabled={deleteAllArticles.isPending}
+                      >
+                        {deleteAllArticles.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Delete All Articles
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action will permanently delete all threat articles.
+                          This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAllArticles}>
+                          Delete All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 px-4 rounded-lg border border-dashed">

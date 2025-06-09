@@ -141,6 +141,34 @@
       "when": 1749133961369,
       "tag": "0019_lying_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1749330969910,
+      "tag": "0020_skinny_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1749331904158,
+      "tag": "0021_lowly_nekra",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1749358020467,
+      "tag": "0022_black_king_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1749412192424,
+      "tag": "0023_friendly_warbird",
+      "breakpoints": true
     }
   ]
 }

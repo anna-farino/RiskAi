@@ -29,7 +29,7 @@ export const threatKeywords = pgTable("threat_keywords", {
 // Identified threats from articles
 export const threatArticles = pgTable("threat_articles", {
   id: uuid("id").defaultRandom().primaryKey(),
-  sourceId: uuid("source_id").references(() => threatSources.id),
+  sourceId: uuid("source_id").references(() => threatSources.id, { onDelete: "set null"}),
   title: text("title").notNull(),
   content: text("content").notNull(),
   url: text("url").notNull(),
@@ -49,7 +49,7 @@ export const threatArticles = pgTable("threat_articles", {
 // Additional settings for the Threat Tracker
 export const threatSettings = pgTable("threat_settings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  key: text("key").notNull().unique(),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   userId: uuid("user_id").references(() => users.id),
 });
