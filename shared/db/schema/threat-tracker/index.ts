@@ -51,6 +51,7 @@ export const threatSettings = pgTable("threat_settings", {
   id: uuid("id").defaultRandom().primaryKey(),
   key: text("key").notNull(),
   value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
   userId: uuid("user_id").references(() => users.id),
 });
 
