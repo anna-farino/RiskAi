@@ -118,6 +118,8 @@ export default function Sources() {
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] =
     useState<JobInterval | null>(null);
 
+
+
   // Get job status
   const autoScrapeStatus = useQuery({
     queryKey: ["/api/news-tracker/jobs/status"],
@@ -809,6 +811,10 @@ export default function Sources() {
         queryKey: ["/api/news-tracker/jobs/status"],
       });
     },
+    onSettled: () => {
+      // Ensure mutation is no longer pending regardless of success/error
+      console.log("Stop mutation settled");
+    },
   });
 
   const runGlobalScrape = useMutation({
@@ -887,6 +893,10 @@ export default function Sources() {
       queryClient.invalidateQueries({
         queryKey: ["/api/news-tracker/jobs/status"],
       });
+    },
+    onSettled: () => {
+      // Ensure mutation is no longer pending regardless of success/error
+      console.log("Run mutation settled");
     },
   });
 
@@ -1381,13 +1391,18 @@ export default function Sources() {
             </div>
             <Button
               onClick={() => {
+                console.log("Button clicked - Job running:", autoScrapeStatus?.data?.running);
+                console.log("Mutations pending - run:", runGlobalScrape.isPending, "stop:", stopGlobalScrape.isPending);
+                
                 if (autoScrapeStatus?.data?.running) {
+                  console.log("Calling stop mutation");
                   stopGlobalScrape.mutate();
                 } else {
+                  console.log("Calling run mutation");
                   runGlobalScrape.mutate();
                 }
               }}
-              disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
+              disabled={false}
               size="sm"
               className={
                 autoScrapeStatus?.data?.running
