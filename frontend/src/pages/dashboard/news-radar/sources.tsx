@@ -131,17 +131,28 @@ export default function Sources() {
             headers: csfrHeaderObject(),
           },
         );
-        if (!response.ok) throw new Error("Failed to fetch job status");
+        if (!response.ok) {
+          // Don't throw for non-ok responses, just return default state
+          console.warn(
+            "Job status API returned non-ok response:",
+            response.status,
+          );
+          return { running: false };
+        }
         const data = await response.json();
-        return data;
+        return data || { running: false };
       } catch (error) {
         console.error("Error fetching job status:", error);
+        // Return default state instead of throwing
         return { running: false };
       }
     },
     refetchInterval: 5000, // Poll every 5 seconds
     // Add initial data to prevent undefined state
     initialData: { running: false },
+    // Prevent errors from propagating and causing unhandled rejections
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   const form = useForm({
@@ -732,8 +743,10 @@ export default function Sources() {
   const stopGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
-        // Add a debugging log before making the request
         console.log("Attempting to stop global update...");
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
         const response = await fetch(
           `${serverUrl}/api/news-tracker/jobs/stop`,
@@ -744,31 +757,39 @@ export default function Sources() {
               "Content-Type": "application/json",
             },
             credentials: "include",
+            signal: controller.signal,
           },
         );
+
+        clearTimeout(timeoutId);
 
         console.log("Stop request response status:", response.status);
 
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Error response:", errorText);
-          throw new Error(
-            `Failed to stop global update: ${response.statusText}`,
-          );
+          return {
+            success: false,
+            message: `Failed to stop global update: ${response.statusText}`,
+          };
         }
 
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
           console.log("Stop job succeeded with data:", data);
-          return data;
+          return data || { success: true, message: "Global update stopped" };
         } catch (e) {
           console.log("Empty response, returning success object");
-          return { success: true };
+          return { success: true, message: "Global update stopped" };
         }
       } catch (error) {
         console.error("Stop global update error:", error);
-        throw error;
+        return {
+          success: false,
+          message:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        };
       }
     },
     onError: (err) => {
@@ -781,28 +802,47 @@ export default function Sources() {
     },
     onSuccess: (data) => {
       console.log("Stop global update succeeded:", data);
-      toast({
-        title: "Global update stopped",
-        description: "All updating operations have been stopped",
-      });
+      if (data?.success !== false) {
+        toast({
+          title: "Global update stopped",
+          description: "All updating operations have been stopped",
+        });
+      } else {
+        toast({
+          title: "Error stopping global update",
+          description:
+            data.message || "Failed to stop updating. Please try again.",
+          variant: "destructive",
+        });
+      }
       // Force update job status
       queryClient.invalidateQueries({
         queryKey: ["/api/news-tracker/jobs/status"],
       });
+    },
+    onSettled: () => {
+      // Ensure mutation is no longer pending regardless of success/error
+      console.log("Stop mutation settled");
     },
   });
 
   const runGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
+
         const response = await fetch(
           `${serverUrl}/api/news-tracker/jobs/scrape`,
           {
             method: "POST",
             headers: csfrHeaderObject(),
             credentials: "include",
+            signal: controller.signal,
           },
         );
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error(
@@ -860,33 +900,18 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      // Don't refetch immediately - we'll poll instead
       toast({
         title: "Global update started",
-        description: "All eligible sources are being update",
+        description: "All eligible sources are being updated",
       });
-      // Poll job status
-      const checkInterval = setInterval(async () => {
-        try {
-          const response = await fetch(
-            `${serverUrl}/api/news-tracker/jobs/status`,
-          );
-          const data = await response.json();
-          if (!data.running) {
-            clearInterval(checkInterval);
-            toast({
-              title: "Global update completed",
-            });
-            // Invalidate only articles since they've changed
-            queryClient.invalidateQueries({
-              queryKey: ["/api/news-tracker/articles"],
-            });
-            // Don't invalidate sources - their status was already updated optimistically
-          }
-        } catch (error) {
-          clearInterval(checkInterval);
-        }
-      }, 5000);
+      // Force refresh of job status query to start polling
+      queryClient.invalidateQueries({
+        queryKey: ["/api/news-tracker/jobs/status"],
+      });
+    },
+    onSettled: () => {
+      // Ensure mutation is no longer pending regardless of success/error
+      console.log("Run mutation settled");
     },
   });
 
@@ -1006,7 +1031,7 @@ export default function Sources() {
       toast({
         title: "Auto-update settings updated",
         description: data.enabled
-          ? `Auto-update has been enabled with ${intervalLabels[data.interval as JobInterval] || 'daily'} frequency.`
+          ? `Auto-update has been enabled with ${intervalLabels[data.interval as JobInterval] || "daily"} frequency.`
           : "Auto-update has been disabled.",
       });
 
@@ -1055,10 +1080,11 @@ export default function Sources() {
   };
 
   return (
-    <div className={cn(
-      "flex flex-col pb-16 sm:pb-20 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
-    )}>
-
+    <div
+      className={cn(
+        "flex flex-col pb-16 sm:pb-20 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0",
+      )}
+    >
       {/* Delete confirmation dialog */}
       <DeleteAlertDialog
         open={deleteDialogOpen}
@@ -1158,8 +1184,12 @@ export default function Sources() {
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center mb-8 sm:justify-between gap-2 sm:gap-3 lg:gap-4">
           <div className="flex flex-col gap-0.5 sm:gap-1 lg:gap-2">
-            <h1 className="text-4xl sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">News Sources</h1>
-            <p className="sm:text-sm lg:text-base text-slate-300">Manage news sources and control updates</p>
+            <h1 className="text-4xl sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">
+              News Sources
+            </h1>
+            <p className="sm:text-sm lg:text-base text-slate-300">
+              Manage news sources and control updates
+            </p>
           </div>
         </div>
 
@@ -1175,29 +1205,41 @@ export default function Sources() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3">
                 <div>
-                  <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
+                  <h4 className="font-medium text-sm mb-1">
+                    1. Configure Auto-Updates
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Enable automatic news collection with hourly, daily, or weekly intervals for continuous monitoring.
+                    Enable automatic news collection with hourly, daily, or
+                    weekly intervals for continuous monitoring.
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-sm mb-1">2. Manage News Sources</h4>
+                  <h4 className="font-medium text-sm mb-1">
+                    2. Manage News Sources
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Default news sources are provided. Add custom RSS feeds or news sites, and toggle inclusion in auto-updates.
+                    Default news sources are provided. Add custom RSS feeds or
+                    news sites, and toggle inclusion in auto-updates.
                   </p>
                 </div>
               </div>
               <div className="space-y-3">
                 <div>
-                  <h4 className="font-medium text-sm mb-1">3. Manual Collection</h4>
+                  <h4 className="font-medium text-sm mb-1">
+                    3. Manual Collection
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Use "Update All Sources Now" for immediate article collection or update individual sources as needed.
+                    Use "Update All Sources Now" for immediate article
+                    collection or update individual sources as needed.
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-sm mb-1">4. Filter by Keywords</h4>
+                  <h4 className="font-medium text-sm mb-1">
+                    4. Filter by Keywords
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Visit the Keywords page to manage terms that help filter and categorize collected news articles.
+                    Visit the Keywords page to manage terms that help filter and
+                    categorize collected news articles.
                   </p>
                 </div>
               </div>
@@ -1213,7 +1255,8 @@ export default function Sources() {
               Auto-Update Configuration
             </CardTitle>
             <CardDescription className="text-slate-300">
-              Configure automatic updating to stay on top of the latest information
+              Configure automatic updating to stay on top of the latest
+              information
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1387,7 +1430,7 @@ export default function Sources() {
                   runGlobalScrape.mutate();
                 }
               }}
-              disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
+              disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
               size="sm"
               className={
                 autoScrapeStatus?.data?.running
@@ -1555,7 +1598,7 @@ export default function Sources() {
               Fetch Sources
             </Button>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xs sm:max-w-md">
-              Add your first news source above to start scraping articles
+              Add your first news source above to start finding articles
             </p>
           </div>
         ) : (

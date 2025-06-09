@@ -267,7 +267,7 @@ export function ThreatArticleCard({
                 {article.publishDate
                   ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
                   : article.scrapeDate
-                    ? `Scraped ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
+                    ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
                     : "Unknown date"}
               </span>
             </div>
