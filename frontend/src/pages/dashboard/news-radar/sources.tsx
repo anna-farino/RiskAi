@@ -131,17 +131,25 @@ export default function Sources() {
             headers: csfrHeaderObject(),
           },
         );
-        if (!response.ok) throw new Error("Failed to fetch job status");
+        if (!response.ok) {
+          // Don't throw for non-ok responses, just return default state
+          console.warn("Job status API returned non-ok response:", response.status);
+          return { running: false };
+        }
         const data = await response.json();
-        return data;
+        return data || { running: false };
       } catch (error) {
         console.error("Error fetching job status:", error);
+        // Return default state instead of throwing
         return { running: false };
       }
     },
     refetchInterval: 5000, // Poll every 5 seconds
     // Add initial data to prevent undefined state
     initialData: { running: false },
+    // Prevent errors from propagating and causing unhandled rejections
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   const form = useForm({
@@ -732,7 +740,6 @@ export default function Sources() {
   const stopGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
-        // Add a debugging log before making the request
         console.log("Attempting to stop global update...");
 
         const response = await fetch(
@@ -752,23 +759,27 @@ export default function Sources() {
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Error response:", errorText);
-          throw new Error(
-            `Failed to stop global update: ${response.statusText}`,
-          );
+          return { 
+            success: false, 
+            message: `Failed to stop global update: ${response.statusText}` 
+          };
         }
 
         // Try to parse JSON but handle empty responses
         try {
           const data = await response.json();
           console.log("Stop job succeeded with data:", data);
-          return data;
+          return data || { success: true, message: "Global update stopped" };
         } catch (e) {
           console.log("Empty response, returning success object");
-          return { success: true };
+          return { success: true, message: "Global update stopped" };
         }
       } catch (error) {
         console.error("Stop global update error:", error);
-        throw error;
+        return { 
+          success: false, 
+          message: error instanceof Error ? error.message : "Unknown error occurred" 
+        };
       }
     },
     onError: (err) => {
@@ -781,10 +792,18 @@ export default function Sources() {
     },
     onSuccess: (data) => {
       console.log("Stop global update succeeded:", data);
-      toast({
-        title: "Global update stopped",
-        description: "All updating operations have been stopped",
-      });
+      if (data?.success !== false) {
+        toast({
+          title: "Global update stopped",
+          description: "All updating operations have been stopped",
+        });
+      } else {
+        toast({
+          title: "Error stopping global update",
+          description: data.message || "Failed to stop updating. Please try again.",
+          variant: "destructive",
+        });
+      }
       // Force update job status
       queryClient.invalidateQueries({
         queryKey: ["/api/news-tracker/jobs/status"],
@@ -860,33 +879,14 @@ export default function Sources() {
       });
     },
     onSuccess: () => {
-      // Don't refetch immediately - we'll poll instead
       toast({
         title: "Global update started",
-        description: "All eligible sources are being update",
+        description: "All eligible sources are being updated",
       });
-      // Poll job status
-      const checkInterval = setInterval(async () => {
-        try {
-          const response = await fetch(
-            `${serverUrl}/api/news-tracker/jobs/status`,
-          );
-          const data = await response.json();
-          if (!data.running) {
-            clearInterval(checkInterval);
-            toast({
-              title: "Global update completed",
-            });
-            // Invalidate only articles since they've changed
-            queryClient.invalidateQueries({
-              queryKey: ["/api/news-tracker/articles"],
-            });
-            // Don't invalidate sources - their status was already updated optimistically
-          }
-        } catch (error) {
-          clearInterval(checkInterval);
-        }
-      }, 5000);
+      // Force refresh of job status query to start polling
+      queryClient.invalidateQueries({
+        queryKey: ["/api/news-tracker/jobs/status"],
+      });
     },
   });
 

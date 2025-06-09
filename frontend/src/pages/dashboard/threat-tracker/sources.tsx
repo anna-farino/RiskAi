@@ -228,16 +228,22 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error('Failed to fetch update status')
+        if (!response.ok) {
+          console.warn("Scrape status API returned non-ok response:", response.status);
+          return { running: false };
+        }
 
         const data = await response.json()
-        return data
+        return data || { running: false }
       } catch(error) {
-        console.error(error)
+        console.error("Error fetching scrape status:", error)
         return { running: false }
       }
     },
-    refetchInterval: scrapeJobRunning ? 5000 : false, // Poll every 5 seconds when job is running
+    refetchInterval: 5000, // Poll every 5 seconds
+    initialData: { running: false },
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   // Update scrapeJobRunning state when status changes
@@ -480,14 +486,52 @@ export default function Sources() {
   // Stop scrape job mutation
   const stopScrapeJob = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/stop`);
+      try {
+        const response = await fetch(`${serverUrl}/api/threat-tracker/scrape/stop`, {
+          method: "POST",
+          headers: {
+            ...csfrHeaderObject(),
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          return { 
+            success: false, 
+            message: `Failed to stop update: ${response.statusText}` 
+          };
+        }
+
+        try {
+          const data = await response.json();
+          return data || { success: true, message: "Update stopped" };
+        } catch (e) {
+          return { success: true, message: "Update stopped" };
+        }
+      } catch (error) {
+        console.error("Stop update error:", error);
+        return { 
+          success: false, 
+          message: error instanceof Error ? error.message : "Unknown error occurred" 
+        };
+      }
     },
-    onSuccess: () => {
-      toast({
-        title: "Update stopped",
-        description: "The update has been stopped.",
-      });
-      setScrapeJobRunning(false);
+    onSuccess: (data) => {
+      if (data?.success !== false) {
+        toast({
+          title: "Update stopped",
+          description: "The update has been stopped.",
+        });
+        setScrapeJobRunning(false);
+      } else {
+        toast({
+          title: "Error stopping update",
+          description: data.message || "There was an error stopping the update. Please try again.",
+          variant: "destructive",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
     },
     onError: (error) => {
