@@ -13,12 +13,8 @@ import { eq } from "drizzle-orm";
 
 export const newsRouter = Router()
 
-// Initialize the scheduler when the router is loaded
-initializeScheduler().then(() => {
-  log("[NewsTracker] Auto-scrape scheduler initialized", "scheduler");
-}).catch(err => {
-  log(`[NewsTracker] Error initializing auto-scrape scheduler: ${err.message}`, "scheduler");
-});
+// Note: Scheduler is now initialized in backend/index.ts on server startup
+// This prevents duplicate initialization that was causing job conflicts
 
 const activeScraping = new Map<string, boolean>();
 

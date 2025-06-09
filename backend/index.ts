@@ -44,10 +44,18 @@ app.listen(port, async () => {
   
   // Initialize auto-scrape schedulers after server starts
   try {
-    const { initializeScheduler } = await import('./apps/threat-tracker/services/scheduler.js');
-    await initializeScheduler();
+    const { initializeScheduler: initThreatTracker } = await import('./apps/threat-tracker/services/scheduler.js');
+    await initThreatTracker();
     console.log('✅ [SERVER] Threat Tracker auto-scrape scheduler initialized');
   } catch (error) {
     console.error('❌ [SERVER] Error initializing Threat Tracker scheduler:', error);
+  }
+  
+  try {
+    const { initializeScheduler: initNewsRadar } = await import('./apps/news-radar/services/scheduler.js');
+    await initNewsRadar();
+    console.log('✅ [SERVER] News Radar auto-scrape scheduler initialized');
+  } catch (error) {
+    console.error('❌ [SERVER] Error initializing News Radar scheduler:', error);
   }
 });
