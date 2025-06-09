@@ -572,8 +572,8 @@ export default function Sources() {
       toast({
         title: "Auto-scrape settings updated",
         description: data.enabled 
-          ? `Auto-scrape has been enabled with ${data.interval.toLowerCase()} frequency.`
-          : "Auto-scrape has been disabled.",
+          ? `Auto-update has been enabled with ${data.interval.toLowerCase()} frequency.`
+          : "Auto-update has been disabled.",
       });
 
       // Don't invalidate queries - rely on optimistic updates for better UX
@@ -773,10 +773,10 @@ export default function Sources() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Clock className="mr-2 h-5 w-5" />
-            Auto-Scrape Configuration
+            Auto-Update Configuration
           </CardTitle>
           <CardDescription>
-            Configure automatic scraping of threat sources to stay updated on security vulnerabilities
+            Configure automatic updates of threat sources to stay current with security vulnerabilities
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -797,8 +797,8 @@ export default function Sources() {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
-                    ? `Auto-scrape runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || 'daily'}`
-                    : "Enable to automatically scrape sources for new threats"}
+                    ? `Auto-update runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || 'daily'}`
+                    : "Enable to automatically update sources with new threats"}
                 </p>
               </div>
               {updateAutoScrapeSettings.isPending && (
@@ -842,11 +842,11 @@ export default function Sources() {
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scrape job is currently running...
+                Update job is currently running...
               </span>
             ) : (
               <span>
-                Manual scrape allows you to immediately check for new threats
+                Manual update allows you to immediately check for new threats
               </span>
             )}
           </div>
@@ -858,7 +858,7 @@ export default function Sources() {
                 disabled={stopScrapeJob.isPending}
               >
                 {stopScrapeJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Stop Scraping
+                Stop Updating
               </Button>
             ) : (
               <Button 
@@ -977,9 +977,9 @@ export default function Sources() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>Auto-Scrape</FormLabel>
+                        <FormLabel>Auto-Update</FormLabel>
                         <FormDescription>
-                          Include in automatic scraping
+                          Include in automatic updates
                         </FormDescription>
                       </div>
                       <FormControl>

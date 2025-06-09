@@ -634,10 +634,10 @@ export default function NewsHome() {
               </span>
             </div>
             <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Content Scraping
+              Content Updates
             </h3>
             <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Automatically extract content from multiple sources with advanced
+              Automatically update content from multiple sources with advanced
               browser automation
             </p>
             <div className="mt-3 sm:mt-4">
