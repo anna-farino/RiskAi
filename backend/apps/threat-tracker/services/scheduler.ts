@@ -106,60 +106,26 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval, initialDel
     return;
   }
   
-  const nextRunAt = new Date(Date.now() + interval);
+  const delay = initialDelay || interval;
+  const nextRunAt = new Date(Date.now() + delay);
   
-  // Schedule new job for this user
-  const timer = setInterval(async () => {
-    const jobMeta = userScheduledJobs.get(userId);
-    if (!jobMeta) return;
+  // Schedule first run with custom delay, then regular intervals
+  const timer = setTimeout(async () => {
+    // Run the initial job
+    await executeScheduledJob(userId, interval);
     
-    log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
+    // Now schedule regular intervals
+    const regularTimer = setInterval(async () => {
+      await executeScheduledJob(userId, interval);
+    }, interval);
     
-    try {
-      const result = await runGlobalScrapeJob(userId);
-      
-      // Update job metadata on success
-      jobMeta.lastRun = new Date();
-      jobMeta.consecutiveFailures = 0;
-      jobMeta.nextRunAt = new Date(Date.now() + interval);
-      
-      // Update the setting with last run timestamp using updated_at
-      await storage.upsertSetting("auto-scrape", {
-        enabled: true,
-        interval,
-        lastRunAt: new Date().toISOString(),
-        jobStatus: 'completed'
-      }, userId);
-      
-      log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
-    } catch (error: any) {
-      // Update job metadata on failure
-      jobMeta.consecutiveFailures++;
-      jobMeta.nextRunAt = new Date(Date.now() + interval);
-      
-      log(`[ThreatTracker] Error in scheduled scrape job for user ${userId} (failure #${jobMeta.consecutiveFailures}): ${error.message}`, "scheduler-error");
-      console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
-      
-      // If too many consecutive failures, disable the job and notify
-      if (jobMeta.consecutiveFailures >= 5) {
-        log(`[ThreatTracker] Disabling auto-scrape for user ${userId} after ${jobMeta.consecutiveFailures} consecutive failures`, "scheduler-error");
-        clearUserScrapeJob(userId);
-        
-        // Update settings to disable auto-scrape
-        try {
-          await storage.upsertSetting("auto-scrape", {
-            enabled: false,
-            interval,
-            lastRunAt: new Date().toISOString(),
-            jobStatus: 'disabled_due_to_failures',
-            consecutiveFailures: jobMeta.consecutiveFailures
-          }, userId);
-        } catch (settingsError: any) {
-          log(`[ThreatTracker] Failed to disable auto-scrape setting for user ${userId}: ${settingsError.message}`, "scheduler-error");
-        }
-      }
+    // Update the stored timer reference
+    userTimers.set(userId, regularTimer);
+    if (userScheduledJobs.has(userId)) {
+      const jobMeta = userScheduledJobs.get(userId)!;
+      jobMeta.timer = regularTimer;
     }
-  }, interval);
+  }, delay);
   
   // Store job metadata and timer reference
   userScheduledJobs.set(userId, {
@@ -172,6 +138,61 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval, initialDel
   userTimers.set(userId, timer);
   
   log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms, next run at: ${nextRunAt.toISOString()}`, "scheduler");
+}
+
+/**
+ * Execute a scheduled scraping job for a user
+ */
+async function executeScheduledJob(userId: string, interval: JobInterval): Promise<void> {
+  const jobMeta = userScheduledJobs.get(userId);
+  if (!jobMeta) return;
+  
+  log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
+  
+  try {
+    const result = await runGlobalScrapeJob(userId);
+    
+    // Update job metadata on success
+    jobMeta.lastRun = new Date();
+    jobMeta.consecutiveFailures = 0;
+    jobMeta.nextRunAt = new Date(Date.now() + interval);
+    
+    // Update the setting with last run timestamp using updated_at
+    await storage.upsertSetting("auto-scrape", {
+      enabled: true,
+      interval,
+      lastRunAt: new Date().toISOString(),
+      jobStatus: 'completed'
+    }, userId);
+    
+    log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
+  } catch (error: any) {
+    // Update job metadata on failure
+    jobMeta.consecutiveFailures++;
+    jobMeta.nextRunAt = new Date(Date.now() + interval);
+    
+    log(`[ThreatTracker] Error in scheduled scrape job for user ${userId} (failure #${jobMeta.consecutiveFailures}): ${error.message}`, "scheduler-error");
+    console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
+    
+    // If too many consecutive failures, disable the job and notify
+    if (jobMeta.consecutiveFailures >= 5) {
+      log(`[ThreatTracker] Disabling auto-scrape for user ${userId} after ${jobMeta.consecutiveFailures} consecutive failures`, "scheduler-error");
+      clearUserScrapeJob(userId);
+      
+      // Update settings to disable auto-scrape
+      try {
+        await storage.upsertSetting("auto-scrape", {
+          enabled: false,
+          interval,
+          lastRunAt: new Date().toISOString(),
+          jobStatus: 'disabled_due_to_failures',
+          consecutiveFailures: jobMeta.consecutiveFailures
+        }, userId);
+      } catch (settingsError: any) {
+        log(`[ThreatTracker] Failed to disable auto-scrape setting for user ${userId}: ${settingsError.message}`, "scheduler-error");
+      }
+    }
+  }
 }
 
 /**
@@ -264,12 +285,9 @@ export async function initializeScheduler() {
           const userSources = await storage.getAutoScrapeSources(userId);
           
           if (userSources.length > 0) {
-            // Check for persistent job state recovery
-            const jobState = await recoverJobState(userId, setting.updatedAt);
-            const adjustedInterval = calculateNextRunInterval(intervalMs as JobInterval, jobState);
-            
-            scheduleUserScrapeJob(userId, intervalMs as JobInterval, adjustedInterval);
-            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${intervalMs}ms (${userSources.length} sources) - Next run in ${adjustedInterval}ms`, "scheduler");
+            // Schedule job with standard interval (persistent recovery will be handled in health checks)
+            scheduleUserScrapeJob(userId, intervalMs as JobInterval);
+            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${intervalMs}ms (${userSources.length} sources)`, "scheduler");
           } else {
             log(`[ThreatTracker] User ${userId} has auto-scrape enabled but no available sources`, "scheduler");
           }
@@ -383,59 +401,7 @@ function startHealthCheck(): void {
   log(`[ThreatTracker] Started scheduler health check (interval: ${HEALTH_CHECK_INTERVAL}ms)`, "scheduler");
 }
 
-/**
- * Recover job state from database using updated_at timestamp
- */
-async function recoverJobState(userId: string, lastUpdated: Date | null): Promise<{
-  lastRunAt: Date | null;
-  jobStatus: string;
-  consecutiveFailures: number;
-}> {
-  try {
-    const setting = await storage.getSetting("auto-scrape", userId);
-    if (setting?.value && typeof setting.value === 'object') {
-      const value = setting.value as any;
-      return {
-        lastRunAt: value.lastRunAt ? new Date(value.lastRunAt) : null,
-        jobStatus: value.jobStatus || 'unknown',
-        consecutiveFailures: value.consecutiveFailures || 0
-      };
-    }
-  } catch (error: any) {
-    log(`[ThreatTracker] Error recovering job state for user ${userId}: ${error.message}`, "scheduler-error");
-  }
-  
-  return {
-    lastRunAt: null,
-    jobStatus: 'new',
-    consecutiveFailures: 0
-  };
-}
 
-/**
- * Calculate next run interval based on last execution time
- */
-function calculateNextRunInterval(normalInterval: JobInterval, jobState: {
-  lastRunAt: Date | null;
-  jobStatus: string;
-  consecutiveFailures: number;
-}): number {
-  if (!jobState.lastRunAt) {
-    // First run - schedule immediately
-    return 1000; // 1 second delay
-  }
-  
-  const timeSinceLastRun = Date.now() - jobState.lastRunAt.getTime();
-  const timeUntilNextRun = normalInterval - timeSinceLastRun;
-  
-  if (timeUntilNextRun <= 0) {
-    // Overdue - run immediately
-    return 1000;
-  }
-  
-  // Wait remaining time
-  return Math.min(timeUntilNextRun, normalInterval);
-}
 
 /**
  * Get detailed status of all currently scheduled jobs
