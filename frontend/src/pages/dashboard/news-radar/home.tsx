@@ -612,7 +612,7 @@ export default function NewsHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 py-4 sm:py-6 md:py-8">
+      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-2 sm:mb-3 md:mb-4 py-4 sm:py-6 md:py-8">
         <div className="flex flex-col gap-3 sm:gap-4">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             News Radar
@@ -623,73 +623,6 @@ export default function NewsHome() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Newspaper className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
-                Automated
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Content Scraping
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Automatically extract content from multiple sources with advanced
-              browser automation
-            </p>
-            <div className="mt-3 sm:mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/news/sources"
-                  className="flex items-center gap-1"
-                >
-                  Manage Sources <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 flex flex-col">
-            <div className="flex justify-between items-start mb-2 sm:mb-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <span className="text-xs font-medium text-white/70 bg-slate-800/70 px-2 py-0.5 rounded-full">
-                Customizable
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-medium text-white mb-1">
-              Keyword Filtering
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 flex-1">
-              Set up keywords to automatically categorize and filter relevant
-              articles
-            </p>
-            <div className="mt-3 sm:mt-4">
-              <Button
-                variant="link"
-                size="sm"
-                asChild
-                className="p-0 h-auto text-primary hover:text-primary/80"
-              >
-                <Link
-                  to="/dashboard/news/keywords"
-                  className="flex items-center gap-1"
-                >
-                  Manage Keywords <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">

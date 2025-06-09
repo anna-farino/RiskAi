@@ -193,7 +193,7 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error('Failed to fetch auto-scrape settings')
+        if (!response.ok) throw new Error('Failed to fetch auto-update settings')
 
         const data = await response.json()
         return data || { enabled: false, interval: JobInterval.DAILY }
@@ -228,7 +228,7 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error('Failed to fetch scrape status')
+        if (!response.ok) throw new Error('Failed to fetch update status')
 
         const data = await response.json()
         return data
@@ -424,14 +424,14 @@ export default function Sources() {
     },
     onSuccess: (data) => {
       toast({
-        title: "Source scraped",
+        title: "Source updated",
         description: `Found ${data.articleCount || 0} new articles.`,
       });
       setScrapingSourceId(null);
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
     },
     onError: (error) => {
-      console.error("Error scraping source:", error);
+      console.error("Error updating source:", error);
       let specialTitle: null | string = null;
       let specialDescription: null | string = null;
       const specialErrorParts = [
@@ -440,13 +440,13 @@ export default function Sources() {
       for (let i=0; i<specialErrorParts.length; i++) {
         if (error.message.includes(specialErrorParts[i])) {
           specialTitle = "This source is unsupported!";
-          specialDescription = "The source you scraped is currently unsupported and results may be limited. Check back soon as we roll out improvements for this feature!"
+          specialDescription = "The source you updated is currently unsupported and results may be limited. Check back soon as we roll out improvements for this feature!"
         }
         break
       }
       toast({
-        title: specialTitle || "Error scraping source",
-        description: specialDescription || "There was an error scraping this source. Please try again.",
+        title: specialTitle || "Error updating source",
+        description: specialDescription || "There was an error updating this source. Please try again.",
         variant: specialTitle ? "default" : "destructive",
       });
       setScrapingSourceId(null);
@@ -460,18 +460,18 @@ export default function Sources() {
     },
     onSuccess: () => {
       toast({
-        title: "Scrape job started",
-        description: "The system is now scraping all active sources for threats.",
+        title: "Update started",
+        description: "The system is now updating all active sources for threats.",
       });
       setScrapeJobRunning(true);
       // Start polling for status updates
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
     },
     onError: (error) => {
-      console.error("Error starting scrape job:", error);
+      console.error("Error starting update:", error);
       toast({
-        title: "Error starting scrape job",
-        description: "There was an error starting the scrape job. Please try again.",
+        title: "Error starting update",
+        description: "There was an error starting the update. Please try again.",
         variant: "destructive",
       });
     },
@@ -484,17 +484,17 @@ export default function Sources() {
     },
     onSuccess: () => {
       toast({
-        title: "Scrape job stopped",
-        description: "The scrape job has been stopped.",
+        title: "Update stopped",
+        description: "The update has been stopped.",
       });
       setScrapeJobRunning(false);
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
     },
     onError: (error) => {
-      console.error("Error stopping scrape job:", error);
+      console.error("Error stopping update:", error);
       toast({
-        title: "Error stopping scrape job",
-        description: "There was an error stopping the scrape job. Please try again.",
+        title: "Error stopping update",
+        description: "There was an error stopping the update. Please try again.",
         variant: "destructive",
       });
     },
@@ -551,9 +551,9 @@ export default function Sources() {
         setLocalAutoScrapeInterval(context.previousLocalInterval);
       }
 
-      console.error("Error updating auto-scrape settings:", err);
+      console.error("Error changing auto-update settings:", err);
       toast({
-        title: "Failed to update auto-scrape settings",
+        title: "Failed to save auto-update settings",
         description: "There was an error updating the settings. Please try again.",
         variant: "destructive",
       });
@@ -570,10 +570,10 @@ export default function Sources() {
       setLocalAutoScrapeInterval(data.interval);
 
       toast({
-        title: "Auto-scrape settings updated",
+        title: "Auto-update settings changed",
         description: data.enabled 
-          ? `Auto-scrape has been enabled with ${data.interval.toLowerCase()} frequency.`
-          : "Auto-scrape has been disabled.",
+          ? `Auto-update has been enabled with ${data.interval.toLowerCase()} frequency.`
+          : "Auto-update has been disabled.",
       });
 
       // Don't invalidate queries - rely on optimistic updates for better UX
@@ -764,7 +764,7 @@ export default function Sources() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
         <p className="text-muted-foreground">
-          Manage sources for threat monitoring and configure auto-scrape settings.
+          Manage sources for threat monitoring and configure auto-update settings.
         </p>
       </div>
 
@@ -773,10 +773,10 @@ export default function Sources() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Clock className="mr-2 h-5 w-5" />
-            Auto-Scrape Configuration
+            Auto-Update Configuration
           </CardTitle>
           <CardDescription>
-            Configure automatic scraping of threat sources to stay updated on security vulnerabilities
+            Configure automatic updates to stay on top of security vulnerabilities
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -798,7 +798,7 @@ export default function Sources() {
                 <p className="text-xs text-muted-foreground">
                   {(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : (autoScrapeSettings.data?.enabled || false))
                     ? `Auto-scrape runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || 'daily'}`
-                    : "Enable to automatically scrape sources for new threats"}
+                    : "Enable to automatically update sources for new threats"}
                 </p>
               </div>
               {updateAutoScrapeSettings.isPending && (
@@ -842,11 +842,11 @@ export default function Sources() {
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scrape job is currently running...
+                Update is currently running...
               </span>
             ) : (
               <span>
-                Manual scrape allows you to immediately check for new threats
+                Check for new threats
               </span>
             )}
           </div>
@@ -858,7 +858,7 @@ export default function Sources() {
                 disabled={stopScrapeJob.isPending}
               >
                 {stopScrapeJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Stop Scraping
+                Stop Update
               </Button>
             ) : (
               <Button 
@@ -872,7 +872,7 @@ export default function Sources() {
                 ) : (
                   <PlayCircle className="mr-2 h-4 w-4" />
                 )}
-                Scrape All Sources
+                Update All Sources
               </Button>
             )}
           </div>
@@ -958,7 +958,7 @@ export default function Sources() {
                       <div className="space-y-0.5">
                         <FormLabel>Active</FormLabel>
                         <FormDescription>
-                          Inactive sources won't be scraped
+                          Inactive sources won't be updated
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -977,9 +977,9 @@ export default function Sources() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>Auto-Scrape</FormLabel>
+                        <FormLabel>Auto-Update</FormLabel>
                         <FormDescription>
-                          Include in automatic scraping
+                          Include in automatic update
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -1155,7 +1155,7 @@ export default function Sources() {
                           ) : (
                           <RefreshCw className="h-3 w-3" />
                           )}
-                          <span className="hidden sm:inline ml-1">Scrape</span>
+                          <span className="hidden sm:inline ml-1">Update</span>
                         </Button>
                         <Switch
                           checked={source.active}
@@ -1212,7 +1212,7 @@ export default function Sources() {
                 <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
                 <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
                 <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
-                <TableHead className="w-[15%] min-w-[100px]">Last Scraped</TableHead>
+                <TableHead className="w-[15%] min-w-[100px]">Last Updated</TableHead>
                 <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -1277,7 +1277,7 @@ export default function Sources() {
                         ) : (
                           <RefreshCw className="h-3 w-3" />
                         )}
-                        <span className="hidden sm:inline ml-1">Scrape</span>
+                        <span className="hidden sm:inline ml-1">Update</span>
                       </Button>
 
                       <Button
