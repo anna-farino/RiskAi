@@ -762,7 +762,7 @@ export default function Sources() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Tracker Sources</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Tracking Sources</h1>
         <p className="text-muted-foreground">
           Manage sources for threat monitoring and configure auto-update settings.
         </p>
@@ -923,9 +923,10 @@ export default function Sources() {
 
       {/* Sources card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardDescription>
+        <CardHeader className="flex flex-row gap-4 items-center justify-between">
+          <div className="flex flex-col gap-2">
+            <CardTitle>Threat Sources</CardTitle>
+            <CardDescription className="hidden sm:block">
               Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
             </CardDescription>
           </div>
@@ -938,7 +939,7 @@ export default function Sources() {
             Add Source
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col overflow-x-scroll">
           {renderSourcesTable()}
         </CardContent>
       </Card>
@@ -1165,13 +1166,17 @@ export default function Sources() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-                  {defaultSources.map((source) => (
-                    <div key={source.id} className={`flex items-center justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="bg-muted/30 rounded-lg space-y-2">
+                  {defaultSources
+                    .sort((a,b)=> a.name.localeCompare(b.name))
+                    .map((source) => (
+                    <div 
+                      key={source.id} 
+                      className={`flex flex-col sm:flex-row gap-y-4 sm:items-center items-start justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
+                      <div className="flex w-full items-center gap-3 min-w-0 flex-1">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                        <div className="flex flex-col w-full min-w-0 flex-1">
+                          <div className="flex w-full sm:w-fit justify-between items-center gap-2">
                             <span className="font-medium text-sm truncate">{source.name}</span>
                             <Badge variant="secondary" className="text-xs px-1.5 py-0.5">Default</Badge>
                           </div>
@@ -1180,7 +1185,7 @@ export default function Sources() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex w-full sm:w-fit justify-between items-center gap-2 ">
                         <div className="text-xs text-muted-foreground">
                           {formatLastScraped(source.lastScraped)}
                         </div>
@@ -1245,30 +1250,33 @@ export default function Sources() {
   function renderUserSourcesTable(userSources: ThreatSource[]) {
 
     return (
-      <div className="w-full overflow-x-auto">
-        <div className="min-w-full">
+      <div className="w-full">
+        <div className="w-full">
           <Table className="table-fixed w-full">
-            <TableHeader>
-              <TableRow>
+            {<TableHeader className="flex flex-col w-[800px] min-[1148px]:w-full">
+              <TableRow className="flex flex-row w-[800px] min-[1148px]:w-full">
                 <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
                 <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
                 <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
                 <TableHead className="w-[15%] min-w-[100px]">Last Updated</TableHead>
                 <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {userSources.map((source) => (
-                <TableRow key={source.id} className={`transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
-                  <TableCell className="font-medium truncate pr-2">{source.name}</TableCell>
-                  <TableCell className="pr-2">
+            </TableHeader>}
+            <TableBody className="flex flex-col w-[800px] min-[1148px]:w-full">
+              {userSources.filter(s=>true).map((source) => (
+                <TableRow 
+                  key={source.id} 
+                  className={`flex flex-grow w-full transition-opacity ${!source.active ? 'opacity-50' : ''}`
+                }>
+                  <TableCell className="font-medium w-[25%] min-w-[120px] truncate pr-2">{source.name}</TableCell>
+                  <TableCell className="pr-2 w-[35%] min-w-[180px]">
                     <a 
                       href={source.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center text-primary hover:underline truncate"
+                      className="flex w-fit items-center text-primary hover:underline truncate"
                     >
-                      <span className="truncate">
+                      <span className="truncate w-full">
                         {source.url.length > 30 
                           ? source.url.substring(0, 30) + '...' 
                           : source.url}
@@ -1276,7 +1284,7 @@ export default function Sources() {
                       <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
                     </a>
                   </TableCell>
-                  <TableCell className="pr-2">
+                  <TableCell className="pr-2 w-[15%] min-w-[100px]">
                     <div className="flex flex-col gap-1">
                       {source.active ? (
                         <Badge variant="default" className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit">
@@ -1297,10 +1305,10 @@ export default function Sources() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs truncate pr-2">
+                  <TableCell className="text-xs truncate pr-2 w-[15%] min-w-[100px]">
                     {formatLastScraped(source.lastScraped)}
                   </TableCell>
-                  <TableCell className="text-right pr-0">
+                  <TableCell className="text-right pr-0 w-[10%] min-w-[80px]">
                     <div className="flex justify-end gap-1 flex-wrap">
                       <Button
                         variant="outline"

@@ -1055,11 +1055,10 @@ export default function Sources() {
   };
 
   return (
-    <div
-      className={cn(
-        "flex flex-col pb-16 sm:pb-20 px-3 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0",
-      )}
-    >
+    <div className={cn(
+      "flex flex-col pb-16 sm:pb-20 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0"
+    )}>
+
       {/* Delete confirmation dialog */}
       <DeleteAlertDialog
         open={deleteDialogOpen}
@@ -1157,12 +1156,10 @@ export default function Sources() {
       </Dialog>
 
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center mb-8 sm:justify-between gap-2 sm:gap-3 lg:gap-4">
           <div className="flex flex-col gap-0.5 sm:gap-1 lg:gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">News Sources</h1>
-            <p className="text-muted-foreground">
-              Manage news sources and control updates
-            </p>
+            <h1 className="text-4xl sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">News Sources</h1>
+            <p className="sm:text-sm lg:text-base text-slate-300">Manage news sources and control updates</p>
           </div>
         </div>
 
@@ -1563,7 +1560,7 @@ export default function Sources() {
           </div>
         ) : (
           <div className="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0">
-            <div className="px-3 sm:px-4 lg:px-0 min-w-[400px] sm:min-w-[280px]">
+            <div className="px-3 sm:px-4 lg:px-0 w-full sm:min-w-[280px]">
               <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow className="border-slate-700/50 hover:bg-slate-800/70">

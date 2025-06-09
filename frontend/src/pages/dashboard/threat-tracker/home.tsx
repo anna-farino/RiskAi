@@ -579,7 +579,7 @@ export default function ThreatHome() {
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             Threat Tracker
           </h1>
-          <p className="text-lg text-slate-300 max-w-3xl">
+          <p className="text-muted-foreground max-w-3xl">
             Monitor cybersecurity threats affecting your vendors, clients, and
             hardware/software to stay ahead of potential vulnerabilities.
           </p>
