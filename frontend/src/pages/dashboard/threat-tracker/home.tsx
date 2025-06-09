@@ -664,41 +664,6 @@ export default function ThreatHome() {
                 Clear Selection
               </Button>
             )}
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex items-center gap-1.5"
-                  disabled={
-                    localArticles.length === 0 || deleteAllArticles.isPending
-                  }
-                >
-                  {deleteAllArticles.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Clear All
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action will permanently delete all threat articles.
-                    This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAllArticles}>
-                    Delete All
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
         </div>
 
@@ -835,7 +800,7 @@ export default function ThreatHome() {
                 {paginatedArticles.map((article, index) => (
                 <div key={article.id} className={cn(
                   "relative",
-                  article.id === highlightedArticleId && "ring-1 ring-primary/40 bg-primary/5"
+                  article.id === highlightedArticleId && "bg-primary/5"
                 )}>
                   {isArticleNew(article) && (
                     <div className="absolute -top-2 -right-2 z-10">
@@ -924,6 +889,44 @@ export default function ThreatHome() {
                       <ArrowRight className="h-3 w-3" />
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Clear All Button - Bottom of page */}
+              {localArticles.length > 0 && (
+                <div className="flex justify-center mt-8 pt-6 border-t border-slate-700/50">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex items-center gap-1.5"
+                        disabled={deleteAllArticles.isPending}
+                      >
+                        {deleteAllArticles.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Clear All
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action will permanently delete all threat articles.
+                          This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAllArticles}>
+                          Delete All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               )}
             </div>
