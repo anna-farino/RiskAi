@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { ReportsManager } from "@/components/news-capsule/reports-manager";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
+import { X as XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { serverUrl } from "@/utils/server-url";
@@ -37,6 +37,21 @@ export default function Reports() {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
   const [showAddNote, setShowAddNote] = useState<string | null>(null);
+  
+  // Mobile responsive state
+  const [showReportLibrary, setShowReportLibrary] = useState(false);
+  const [isViewportMobile, setIsViewportMobile] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkViewport = () => {
+      setIsViewportMobile(window.innerWidth < 768);
+    };
+    
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    return () => window.removeEventListener('resize', checkViewport);
+  }, []);
   
   // Dialog state for confirmations
   const [showDeleteReportDialog, setShowDeleteReportDialog] = useState(false);
@@ -95,6 +110,11 @@ export default function Reports() {
   const handleReportSelect = (report: ReportWithArticles) => {
     setSelectedReport(report);
     //loadExecutiveNotes(report.id);
+    
+    // Close mobile library overlay when report is selected
+    if (isViewportMobile) {
+      setShowReportLibrary(false);
+    }
   };
 
   // Load executive notes for the selected report
@@ -377,19 +397,36 @@ export default function Reports() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Executive Reports</h1>
-        <p className="text-slate-300">
+    <div className="flex flex-col gap-4 lg:gap-6">
+      {/* Mobile Floating Action Button for Report Library */}
+      {isViewportMobile && (
+        <button
+          onClick={() => setShowReportLibrary(true)}
+          className="fixed bottom-4 right-4 z-[55] w-14 h-14 bg-[#BF00FF]/80 backdrop-blur-sm border border-[#BF00FF]/50 hover:bg-[#00FFFF] hover:text-black text-white rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {reports.length > 0 && (
+            <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#00FFFF] text-black text-xs font-bold rounded-full flex items-center justify-center">
+              {reports.length}
+            </span>
+          )}
+        </button>
+      )}
+
+      <div className="flex flex-col gap-2 px-4 lg:px-0">
+        <h1 className="text-xl sm:text-2xl font-bold">Executive Reports</h1>
+        <p className="text-sm sm:text-base text-slate-300">
           View and manage compiled reports for executive review.
         </p>
       </div>
       
-      <div className="flex gap-6 h-[calc(100vh-12rem)]">
-        {/* Report Library - Fixed Width, No Scroll */}
-        <div className="w-80 flex-shrink-0">
-          <div className="p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl h-full">
-            <h2 className="text-xl font-semibold mb-4">Report Library</h2>
+      <div className={`flex gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0 ${isViewportMobile ? 'flex-col' : 'h-[calc(100vh-12rem)]'}`}>
+        {/* Report Library - Responsive Layout */}
+        <div className={`${isViewportMobile ? 'hidden' : 'w-80 flex-shrink-0'}`}>
+          <div className="p-4 sm:p-5 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl h-full">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Report Library</h2>
             <div className="overflow-y-auto h-[calc(100%-3rem)]">
               <ReportsManager 
                 reports={reports}
@@ -406,19 +443,19 @@ export default function Reports() {
           </div>
         </div>
         
-        {/* Executive Report Content - Flexible Width, Independent Scroll */}
-        <div className="flex-1 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="h-full overflow-y-auto p-5">
+        {/* Executive Report Content - Responsive Layout */}
+        <div className={`${isViewportMobile ? 'w-full' : 'flex-1'} bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden`}>
+          <div className={`${isViewportMobile ? 'min-h-[60vh]' : 'h-full'} overflow-y-auto p-4 sm:p-5`}>
             {reportsLoading ? (
-              <div className="flex flex-col items-center justify-center h-full">
+              <div className="flex flex-col items-center justify-center h-full min-h-[200px]">
                 <div className="w-8 h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
                 <p className="text-slate-400 text-sm">Loading report...</p>
               </div>
             ) : selectedReport ? (
             <div>
-              <div className="flex justify-between items-center mb-6">
+              <div className={`flex ${isViewportMobile ? 'flex-col gap-4' : 'justify-between items-center'} mb-6`}>
                 <div>
-                  <h2 className="text-xl font-semibold">
+                  <h2 className="text-lg sm:text-xl font-semibold">
                     Executive Report: {formatDate(selectedReport.createdAt)}
                   </h2>
                   {selectedReport.topic && (
@@ -429,7 +466,7 @@ export default function Reports() {
                 </div>
                 <div className="relative">
                   <button
-                    className="px-4 py-2 text-sm bg-blue-700 hover:bg-blue-600 rounded-md flex items-center gap-2"
+                    className="px-4 py-3 text-sm bg-blue-700 hover:bg-blue-600 rounded-md flex items-center gap-2 min-h-[44px] touch-manipulation"
                     onClick={() => setShowExportDropdown(!showExportDropdown)}
                   >
                     Exports
@@ -439,9 +476,9 @@ export default function Reports() {
                   </button>
                   
                   {showExportDropdown && (
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-10">
+                    <div className={`absolute ${isViewportMobile ? 'right-0 left-0' : 'right-0'} mt-2 ${isViewportMobile ? 'w-full' : 'w-48'} bg-slate-800 border border-slate-700 rounded-md shadow-lg z-20`}>
                       <button
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 rounded-t-md rounded-b-none"
+                        className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 rounded-t-md rounded-b-none min-h-[44px] touch-manipulation"
                         onClick={async () => {
                           setShowExportDropdown(false);
                           try {
@@ -1349,6 +1386,50 @@ export default function Reports() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Mobile Report Library Overlay */}
+      {isViewportMobile && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: showReportLibrary ? 1 : 0 }}
+          exit={{ opacity: 0 }}
+          className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-30 ${showReportLibrary ? 'block' : 'hidden'}`}
+          onClick={() => setShowReportLibrary(false)}
+        >
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: showReportLibrary ? 0 : "100%" }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 500 }}
+            className="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700/50 rounded-t-2xl max-h-[85vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Report Library ({reports.length})</h3>
+              <button
+                onClick={() => setShowReportLibrary(false)}
+                className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg touch-manipulation transition-colors"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <ReportsManager 
+                reports={reports}
+                onReportSelect={handleReportSelect}
+                onDeleteReport={(reportId) => {
+                  const report = reports.find(r => r.id === reportId);
+                  if (report) confirmDeleteReport(report);
+                }}
+                selectedReportId={selectedReport?.id}
+                isLoading={reportsLoading}
+                isDeleting={deleteReportMutation.isPending}
+              />
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }
