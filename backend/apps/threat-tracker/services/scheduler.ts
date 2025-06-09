@@ -110,7 +110,10 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
  */
 function clearUserScrapeJob(userId: string): void {
   if (userScheduledJobs.has(userId)) {
-    clearInterval(userScheduledJobs.get(userId));
+    const job = userScheduledJobs.get(userId);
+    if (job) {
+      clearInterval(job);
+    }
     userScheduledJobs.delete(userId);
     log(`[ThreatTracker] Cleared auto-scrape job for user ${userId}`, "scheduler");
   }

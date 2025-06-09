@@ -10,12 +10,8 @@ import { reqLog } from "backend/utils/req-log";
 
 export const threatRouter = Router();
 
-// Initialize the scheduler when the router is loaded
-initializeScheduler().then(() => {
-  log("[ThreatTracker] Auto-scrape scheduler initialized", "scheduler");
-}).catch(err => {
-  log(`[ThreatTracker] Error initializing auto-scrape scheduler: ${err.message}`, "scheduler");
-});
+// Note: Scheduler is now initialized in backend/index.ts on server startup
+// This prevents duplicate initialization that was causing job conflicts
 
 // Helper function to extract user ID from request
 function getUserId(req: any): string | undefined {
