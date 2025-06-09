@@ -511,11 +511,100 @@ export default function NewsHome() {
     };
 
     return (
-      <div className="flex items-center justify-between py-4">
-        <div className="text-sm text-slate-400">
-          Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4">
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div className="text-sm text-slate-400">
+            Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+          </div>
+          {localArticles.length > 0 && (
+            <div className="sm:hidden">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={deleteAllArticles.isPending}
+                  >
+                    {deleteAllArticles.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you absolutely sure?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action will permanently delete all{" "}
+                      {localArticles.length} articles. This action cannot be
+                      undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteAllArticles.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Delete All Articles
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        
+        <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+          {localArticles.length > 0 && (
+            <div className="hidden sm:block">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={deleteAllArticles.isPending}
+                  >
+                    {deleteAllArticles.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Delete All
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you absolutely sure?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action will permanently delete all{" "}
+                      {localArticles.length} articles. This action cannot be
+                      undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteAllArticles.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Delete All Articles
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -560,6 +649,7 @@ export default function NewsHome() {
             Next
             <ChevronRight className="h-4 w-4" />
           </Button>
+          </div>
         </div>
       </div>
     );
@@ -660,18 +750,6 @@ export default function NewsHome() {
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
-              {highlightedArticleId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
-                  onClick={() => setHighlightedArticleId(null)}
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Clear Selection
-                </Button>
-              )}
-              
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                 <Input
@@ -798,46 +876,18 @@ export default function NewsHome() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-                {localArticles.length > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 sm:h-9 w-8 sm:w-9 p-0"
-                        disabled={deleteAllArticles.isPending}
-                      >
-                        {deleteAllArticles.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action will permanently delete all{" "}
-                          {localArticles.length} articles. This action cannot be
-                          undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteAllArticles.mutate()}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Delete All Articles
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+              
+              {highlightedArticleId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                  onClick={() => setHighlightedArticleId(null)}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear Selection
+                </Button>
+              )}
               </div>
             </div>
           </div>
