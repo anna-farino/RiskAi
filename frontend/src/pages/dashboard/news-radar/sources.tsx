@@ -744,6 +744,9 @@ export default function Sources() {
       try {
         console.log("Attempting to stop global update...");
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
         const response = await fetch(
           `${serverUrl}/api/news-tracker/jobs/stop`,
           {
@@ -753,8 +756,11 @@ export default function Sources() {
               "Content-Type": "application/json",
             },
             credentials: "include",
+            signal: controller.signal,
           },
         );
+
+        clearTimeout(timeoutId);
 
         console.log("Stop request response status:", response.status);
 
@@ -820,14 +826,20 @@ export default function Sources() {
   const runGlobalScrape = useMutation({
     mutationFn: async () => {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
+
         const response = await fetch(
           `${serverUrl}/api/news-tracker/jobs/scrape`,
           {
             method: "POST",
             headers: csfrHeaderObject(),
             credentials: "include",
+            signal: controller.signal,
           },
         );
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error(
@@ -1391,18 +1403,13 @@ export default function Sources() {
             </div>
             <Button
               onClick={() => {
-                console.log("Button clicked - Job running:", autoScrapeStatus?.data?.running);
-                console.log("Mutations pending - run:", runGlobalScrape.isPending, "stop:", stopGlobalScrape.isPending);
-                
                 if (autoScrapeStatus?.data?.running) {
-                  console.log("Calling stop mutation");
                   stopGlobalScrape.mutate();
                 } else {
-                  console.log("Calling run mutation");
                   runGlobalScrape.mutate();
                 }
               }}
-              disabled={false}
+              disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
               size="sm"
               className={
                 autoScrapeStatus?.data?.running
