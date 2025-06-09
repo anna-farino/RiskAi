@@ -180,12 +180,7 @@ export default function ThreatHome() {
         
         // Clear the session storage to prevent repeat highlighting
         sessionStorage.removeItem('selectedThreatArticle');
-        
-        // Show subtle toast notification
-        toast({
-          title: "Threat highlighted",
-          description: "Use 'Clear Selection' to remove highlighting.",
-        });
+
       } catch (error) {
         console.error("Error parsing selected threat article:", error);
         sessionStorage.removeItem('selectedThreatArticle');
@@ -598,7 +593,7 @@ export default function ThreatHome() {
               <div className="flex items-center gap-2 text-slate-300">
                 <FileText className="h-4 w-4 text-slate-400" />
                 <span className="text-sm font-medium">
-                  {localArticles.length}
+                  {localArticles.length} Potential Threats
                 </span>
               </div>
               {newArticlesCount > 0 && !sortNewToTop && (
@@ -908,7 +903,7 @@ export default function ThreatHome() {
                         ) : (
                           <Trash2 className="h-4 w-4" />
                         )}
-                        Clear All
+                        Delete All Articles
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
