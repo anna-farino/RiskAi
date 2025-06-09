@@ -40,41 +40,6 @@ router.get('/test-articles', testArticles)
 // AUTH
 router.use('/auth', limiter, authRouter)
 
-// Simplified job status routes with minimal middleware
-router.get('/news-tracker/jobs/status', async (req, res) => {
-  try {
-    // Set CORS headers
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
-    const { isGlobalJobRunning } = await import('../apps/news-radar/services/background-jobs.js');
-    const running = isGlobalJobRunning();
-    res.json({
-      running,
-      message: running ? "A global scraping job is running" : "No global scraping job is running"
-    });
-  } catch (error) {
-    res.status(200).json({ 
-      running: false, 
-      message: "Unable to determine job status"
-    });
-  }
-});
-
-router.get('/threat-tracker/scrape/status', async (req, res) => {
-  try {
-    // Set CORS headers
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
-    const { isGlobalJobRunning } = await import('../apps/threat-tracker/services/background-jobs.js');
-    const running = isGlobalJobRunning();
-    res.json({ running });
-  } catch (error) {
-    res.status(200).json({ running: false });
-  }
-});
-
 // PROTECTIONS
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
