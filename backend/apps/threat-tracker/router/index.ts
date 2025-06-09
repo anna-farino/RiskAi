@@ -2,7 +2,7 @@ import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler, getSchedulerStatus, reinitializeScheduler } from "../services/scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -10,12 +10,8 @@ import { reqLog } from "backend/utils/req-log";
 
 export const threatRouter = Router();
 
-// Initialize the scheduler when the router is loaded
-initializeScheduler().then(() => {
-  log("[ThreatTracker] Auto-scrape scheduler initialized", "scheduler");
-}).catch(err => {
-  log(`[ThreatTracker] Error initializing auto-scrape scheduler: ${err.message}`, "scheduler");
-});
+// Note: Scheduler is now initialized in backend/index.ts on server startup
+// This prevents duplicate initialization that was causing job conflicts
 
 // Helper function to extract user ID from request
 function getUserId(req: any): string | undefined {
@@ -539,6 +535,34 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
   } catch (error: any) {
     console.error("Error updating auto-scrape settings:", error);
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
+  }
+});
+
+// Scheduler management endpoints
+threatRouter.get("/scheduler/status", async (req, res) => {
+  reqLog(req, "GET /scheduler/status");
+  try {
+    const status = getSchedulerStatus();
+    res.json(status);
+  } catch (error: any) {
+    console.error("Error fetching scheduler status:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch scheduler status" });
+  }
+});
+
+threatRouter.post("/scheduler/reinitialize", async (req, res) => {
+  reqLog(req, "POST /scheduler/reinitialize");
+  try {
+    const result = await reinitializeScheduler();
+    const status = getSchedulerStatus();
+    res.json({ 
+      success: result, 
+      message: result ? "Scheduler reinitialized successfully" : "Failed to reinitialize scheduler",
+      status
+    });
+  } catch (error: any) {
+    console.error("Error reinitializing scheduler:", error);
+    res.status(500).json({ error: error.message || "Failed to reinitialize scheduler" });
   }
 });
 

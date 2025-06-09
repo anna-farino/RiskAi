@@ -87,6 +87,7 @@ import {
   ChevronRight,
   ChevronDown,
   Shield,
+  Play,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals (matching backend numeric format)
@@ -228,16 +229,22 @@ export default function Sources() {
             ...csfrHeaderObject()
           }
         })
-        if (!response.ok) throw new Error('Failed to fetch update status')
+        if (!response.ok) {
+          console.warn("Scrape status API returned non-ok response:", response.status);
+          return { running: false };
+        }
 
         const data = await response.json()
-        return data
+        return data || { running: false }
       } catch(error) {
-        console.error(error)
+        console.error("Error fetching scrape status:", error)
         return { running: false }
       }
     },
-    refetchInterval: scrapeJobRunning ? 5000 : false, // Poll every 5 seconds when job is running
+    refetchInterval: 5000, // Poll every 5 seconds
+    initialData: { running: false },
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   // Update scrapeJobRunning state when status changes
@@ -480,12 +487,56 @@ export default function Sources() {
   // Stop scrape job mutation
   const stopScrapeJob = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/stop`);
+      try {
+        console.log("Attempting to stop global update...");
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(`${serverUrl}/api/threat-tracker/scrape/stop`, {
+          method: "POST",
+          headers: {
+            ...csfrHeaderObject(),
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        console.log("Stop request response status:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Stop request failed with:", errorText);
+          throw new Error(`Failed to stop update: ${response.statusText}`);
+        }
+
+        try {
+          const data = await response.json();
+          console.log("Stop job succeeded with data:", data);
+          return data || { success: true, message: "Update stopped" };
+        } catch (e) {
+          console.log("No JSON response, assuming success");
+          return { success: true, message: "Update stopped" };
+        }
+      } catch (error) {
+        console.error("Stop update error:", error);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error("Stop request timed out. The update may still be stopping.");
+        }
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onMutate: () => {
+      console.log("Stop mutation started");
+    },
+    onSuccess: (data) => {
+      console.log("Stop global update succeeded:", data);
       toast({
         title: "Update stopped",
-        description: "The update has been stopped.",
+        description: "The update has been stopped successfully.",
       });
       setScrapeJobRunning(false);
       queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
@@ -494,9 +545,18 @@ export default function Sources() {
       console.error("Error stopping update:", error);
       toast({
         title: "Error stopping update",
-        description: "There was an error stopping the update. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error stopping the update. Please try again.",
         variant: "destructive",
       });
+      // Force status check after error
+      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
+    },
+    onSettled: () => {
+      console.log("Stop mutation settled");
+      // Reset any pending states
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`] });
+      }, 1000);
     },
   });
 
@@ -892,32 +952,33 @@ export default function Sources() {
               </span>
             )}
           </div>
-          <div className="flex gap-2">
-            {scrapeJobRunning ? (
-              <Button 
-                variant="outline" 
-                onClick={() => stopScrapeJob.mutate()}
-                disabled={stopScrapeJob.isPending}
-              >
-                {stopScrapeJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Stop Update
-              </Button>
+          <Button
+            onClick={() => {
+              if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
+                stopScrapeJob.mutate();
+              } else {
+                scrapeAllSources.mutate();
+              }
+            }}
+            disabled={(scrapeAllSources.isPending && !stopScrapeJob.isPending) || (stopScrapeJob.isPending && !scrapeAllSources.isPending) || localSources.length === 0}
+            size="sm"
+            className={
+              scrapeJobRunning || checkScrapeStatus?.data?.running
+                ? "bg-red-600 hover:bg-red-600/80 text-white"
+                : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+            }
+          >
+            {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
+              <X className="mr-2 h-4 w-4" />
             ) : (
-              <Button 
-                variant="default" 
-                onClick={() => scrapeAllSources.mutate()}
-                disabled={scrapeAllSources.isPending || localSources.length === 0}
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              >
-                {scrapeAllSources.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                )}
-                Update All Sources
-              </Button>
+              <PlayCircle className="mr-2 h-4 w-4" />
             )}
-          </div>
+            {scrapeJobRunning || checkScrapeStatus?.data?.running
+              ? "Stop Update"
+              : "Update All Sources"}
+          </Button>
         </CardFooter>
       </Card>
 

@@ -13,6 +13,9 @@ import { normalizeUrl, titleSimilarity } from "./url-utils";
 // Track whether the global scrape job is currently running
 let globalScrapeJobRunning = false;
 
+// Track active scraping processes for individual sources
+export const activeScraping = new Map<string, boolean>();
+
 // Check if global scrape job is running
 export function isGlobalJobRunning() {
   return globalScrapeJobRunning;
@@ -51,8 +54,21 @@ async function processArticle(
       return null;
     }
 
+    // Check stop signal before expensive scraping operation
+    if (!activeScraping.get(sourceId)) {
+      log(`[ThreatTracker] Stop signal received, aborting article processing: ${articleUrl}`, "scraper");
+      return null;
+    }
+
     // Early content extraction to get title for additional duplicate checking
     const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
+    
+    // Check stop signal after HTML fetching
+    if (!activeScraping.get(sourceId)) {
+      log(`[ThreatTracker] Stop signal received, aborting content extraction: ${articleUrl}`, "scraper");
+      return null;
+    }
+    
     const articleData = await extractArticleContentWithAI(
       articleHtml,
       articleUrl,
@@ -85,6 +101,12 @@ async function processArticle(
         `[ThreatTracker] Could not extract sufficient content from ${articleUrl}`,
         "scraper",
       );
+      return null;
+    }
+
+    // Check stop signal before expensive OpenAI analysis
+    if (!activeScraping.get(sourceId)) {
+      log(`[ThreatTracker] Stop signal received, aborting OpenAI analysis: ${articleUrl}`, "scraper");
       return null;
     }
 
@@ -212,12 +234,24 @@ async function processArticle(
   }
 }
 
+/**
+ * Stop scraping for a specific source
+ */
+export function stopScrapingSource(sourceId: string): void {
+  activeScraping.set(sourceId, false);
+  log(`[ThreatTracker] Stopping scrape for source ID: ${sourceId}`, "scraper");
+}
+
 // Scrape a single source
 export async function scrapeSource(source: ThreatSource, userId: string) {
   log(
     `[ThreatTracker] Starting scrape job for source: ${source.name}`,
     "scraper",
   );
+  
+  // Set active flag for this source
+  activeScraping.set(source.id, true);
+  
   const keywordUserId = source.userId || userId
 
   try {
@@ -375,6 +409,15 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     const startIndex = firstArticleProcessed ? 1 : 0;
 
     for (let i = startIndex; i < processedLinks.length; i++) {
+      // Check if scraping should continue
+      if (!activeScraping.get(source.id)) {
+        log(
+          `[ThreatTracker] Stopping scrape for source ID: ${source.id} as requested`,
+          "scraper",
+        );
+        break;
+      }
+
       const articleResult = await processArticle(
         processedLinks[i],
         source.id,
@@ -404,6 +447,9 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       "scraper-error",
     );
     throw error;
+  } finally {
+    // Clean up the active scraping flag for this source
+    activeScraping.delete(source.id);
   }
 }
 
@@ -430,8 +476,13 @@ export async function runGlobalScrapeJob(userId?: string) {
 
     // Process each source sequentially
     for (const source of sources) {
-      try {
+      // Check if global job should continue
+      if (!globalScrapeJobRunning) {
+        log("[ThreatTracker] Global scrape job stopped, aborting remaining sources", "scraper");
+        break;
+      }
 
+      try {
         // For default sources (source.userId is null), use the provided userId
         // For user sources, use the source's userId (which should match the provided userId anyway)
         const targetUserId = source.userId || userId;
@@ -462,6 +513,9 @@ export async function runGlobalScrapeJob(userId?: string) {
         );
         // Continue with the next source
         continue;
+      } finally {
+        // Clean up the active scraping flag for this source
+        activeScraping.delete(source.id);
       }
     }
 
@@ -492,7 +546,14 @@ export function stopGlobalScrapeJob() {
   }
 
   globalScrapeJobRunning = false;
+  
+  // Stop all active individual source scraping operations
+  for (const [sourceId] of activeScraping) {
+    activeScraping.set(sourceId, false);
+    log(`[ThreatTracker] Stopping active scraping for source ID: ${sourceId}`, "scraper");
+  }
+  
   log("[ThreatTracker] Global scrape job has been manually stopped", "scraper");
 
-  return { message: "Global scrape job has been manually stopped" };
+  return { success: true, message: "Global scrape job stopped successfully" };
 }
