@@ -338,12 +338,26 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getSetting(key, userId);
 
     if (existing) {
-      // Update existing setting
+      // Update existing setting with proper user-specific WHERE clause
+      let whereCondition;
+      if (userId !== undefined) {
+        whereCondition = and(
+          eq(settings.key, key),
+          eq(settings.userId, userId)
+        );
+      } else {
+        whereCondition = and(
+          eq(settings.key, key),
+          isNull(settings.userId)
+        );
+      }
+
       const [updated] = await db
         .update(settings)
         .set({ value, updatedAt: new Date() })
-        .where(eq(settings.key, key))
-        .returning();
+        .where(whereCondition)
+        .returning()
+        .execute();
       return updated;
     } else {
       // Create new setting

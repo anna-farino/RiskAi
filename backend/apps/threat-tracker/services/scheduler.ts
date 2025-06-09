@@ -95,9 +95,11 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
   const job = setInterval(async () => {
     log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
     try {
-      await runGlobalScrapeJob(userId);
+      const result = await runGlobalScrapeJob(userId);
+      log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
     } catch (error: any) {
       log(`[ThreatTracker] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
+      console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
     }
   }, interval);
   
@@ -110,7 +112,10 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
  */
 function clearUserScrapeJob(userId: string): void {
   if (userScheduledJobs.has(userId)) {
-    clearInterval(userScheduledJobs.get(userId));
+    const job = userScheduledJobs.get(userId);
+    if (job) {
+      clearInterval(job);
+    }
     userScheduledJobs.delete(userId);
     log(`[ThreatTracker] Cleared auto-scrape job for user ${userId}`, "scheduler");
   }
@@ -118,22 +123,19 @@ function clearUserScrapeJob(userId: string): void {
 
 /**
  * Initialize the scheduler by loading settings for all users
+ * This function is idempotent and can be safely called multiple times
  */
 export async function initializeScheduler() {
-  if (schedulerInitialized) {
-    log(`[ThreatTracker] Scheduler already initialized, skipping`, "scheduler");
-    return true;
-  }
-
   try {
-    schedulerInitialized = true;
-    
-    // Clear any existing scheduled jobs
+    // Clear any existing scheduled jobs to prevent duplicates
     userScheduledJobs.forEach((job, userId) => {
       clearInterval(job);
       log(`[ThreatTracker] Cleared existing job for user ${userId}`, "scheduler");
     });
     userScheduledJobs.clear();
+    
+    // Reset initialization flag to allow re-initialization
+    schedulerInitialized = false;
     
     // Get all users who have auto-scrape settings (enabled or disabled)
     const allAutoScrapeSettings = await storage.getAllAutoScrapeSettings();
@@ -193,11 +195,34 @@ export async function initializeScheduler() {
       }
     }
     
-    log(`[ThreatTracker] Auto-scrape scheduler initialization complete`, "scheduler");
+    schedulerInitialized = true;
+    log(`[ThreatTracker] Auto-scrape scheduler initialization complete with ${userScheduledJobs.size} active jobs`, "scheduler");
     return true;
   } catch (error: any) {
     log(`[ThreatTracker] Error initializing scheduler: ${error.message}`, "scheduler-error");
     console.error("Error initializing scheduler:", error);
+    schedulerInitialized = false;
     return false;
   }
+}
+
+/**
+ * Get status of all currently scheduled jobs
+ */
+export function getSchedulerStatus() {
+  return {
+    initialized: schedulerInitialized,
+    activeJobs: userScheduledJobs.size,
+    userIds: Array.from(userScheduledJobs.keys())
+  };
+}
+
+/**
+ * Force re-initialization of the scheduler
+ * Useful for recovering from errors or applying new settings
+ */
+export async function reinitializeScheduler() {
+  log(`[ThreatTracker] Force re-initializing scheduler`, "scheduler");
+  schedulerInitialized = false;
+  return await initializeScheduler();
 }
