@@ -22,6 +22,8 @@ import {
   Play,
   Trash2,
   Edit,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -61,6 +63,11 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
@@ -117,6 +124,8 @@ export default function Sources() {
     useState<boolean | null>(null);
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] =
     useState<JobInterval | null>(null);
+  const [instructionsVisible, setInstructionsVisible] = useState(true);
+  const [instructionsCollapsed, setInstructionsCollapsed] = useState(false);
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -231,6 +240,38 @@ export default function Sources() {
     optimisticAutoScrapeEnabled,
     optimisticAutoScrapeInterval,
   ]);
+
+  // Load instructions state from localStorage
+  useEffect(() => {
+    const instructionsState = localStorage.getItem('news-radar-instructions-state');
+    if (instructionsState) {
+      const state = JSON.parse(instructionsState);
+      setInstructionsVisible(state.visible !== false);
+      setInstructionsCollapsed(state.collapsed === true);
+    }
+  }, []);
+
+  // Handle instructions close
+  const handleInstructionsClose = () => {
+    setInstructionsVisible(false);
+    setInstructionsCollapsed(true);
+    localStorage.setItem('news-radar-instructions-state', JSON.stringify({
+      visible: false,
+      collapsed: true
+    }));
+  };
+
+  // Handle instructions toggle when collapsed
+  const handleInstructionsToggle = () => {
+    if (!instructionsVisible) {
+      const newCollapsed = !instructionsCollapsed;
+      setInstructionsCollapsed(newCollapsed);
+      localStorage.setItem('news-radar-instructions-state', JSON.stringify({
+        visible: false,
+        collapsed: newCollapsed
+      }));
+    }
+  };
 
   const addSource = useMutation({
     mutationFn: async (data: { url: string; name: string }) => {
@@ -1168,47 +1209,60 @@ export default function Sources() {
           </div>
         </div>
 
-        {/* Instructions Card */}
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Globe className="h-5 w-5 text-blue-600" />
-              How to Use News Radar Sources
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Enable automatic news collection with hourly, daily, or weekly intervals for continuous monitoring.
-                  </p>
+        {/* Instructions Card at Top */}
+        {instructionsVisible && (
+          <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center justify-between text-lg">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  How to Use News Radar Sources
                 </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">2. Manage News Sources</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Default news sources are provided. Add custom RSS feeds or news sites, and toggle inclusion in auto-updates.
-                  </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleInstructionsClose}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  title="Close instructions"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Enable automatic news collection with hourly, daily, or weekly intervals for continuous monitoring.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">2. Manage News Sources</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Default news sources are provided. Add custom RSS feeds or news sites, and toggle inclusion in auto-updates.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">3. Manual Collection</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Use "Update All Sources Now" for immediate article collection or update individual sources as needed.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">4. Filter by Keywords</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Visit the Keywords page to manage terms that help filter and categorize collected news articles.
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">3. Manual Collection</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Use "Update All Sources Now" for immediate article collection or update individual sources as needed.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">4. Filter by Keywords</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Visit the Keywords page to manage terms that help filter and categorize collected news articles.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Auto-scrape configuration card */}
         <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
@@ -1767,6 +1821,70 @@ export default function Sources() {
           </div>
         )}
       </div>
+
+      {/* Collapsed Instructions at Bottom */}
+      {!instructionsVisible && (
+        <div className="mt-6">
+          <Collapsible open={!instructionsCollapsed} onOpenChange={handleInstructionsToggle}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/10 hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
+              >
+                <Globe className="h-4 w-4 mr-2 text-blue-600" />
+                {instructionsCollapsed ? "Show" : "Hide"} Instructions
+                {instructionsCollapsed ? (
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                ) : (
+                  <ChevronUp className="h-4 w-4 ml-2" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Card className="mt-2 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    How to Use News Radar Sources
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Enable automatic news collection with hourly, daily, or weekly intervals for continuous monitoring.
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">2. Manage News Sources</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Default news sources are provided. Add custom RSS feeds or news sites, and toggle inclusion in auto-updates.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">3. Manual Collection</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Use "Update All Sources Now" for immediate article collection or update individual sources as needed.
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">4. Filter by Keywords</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Visit the Keywords page to manage terms that help filter and categorize collected news articles.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
     </div>
   );
 }
