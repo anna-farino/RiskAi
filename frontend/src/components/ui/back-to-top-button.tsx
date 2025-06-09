@@ -38,7 +38,7 @@ export function BackToTopButton() {
         "fixed bottom-4 right-[100px] sm:bottom-6 sm:right-[100px] z-[60]",
         "h-14 w-14 sm:h-14 sm:w-14 rounded-full shadow-xl",
         "bg-[#BF00FF]/80 backdrop-blur-sm border border-[#BF00FF]/50",
-        "text-white hover:text-white hover:bg-[#00FFFF]",
+        "text-white hover:text-black hover:bg-[#00FFFF]",
         "transition-all duration-200 ease-in-out",
         "hover:scale-105 active:scale-95",
         "flex items-center justify-center",
