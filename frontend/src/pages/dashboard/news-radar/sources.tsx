@@ -1191,57 +1191,64 @@ export default function Sources() {
 
         {/* Instructions Card */}
         <Collapsible open={!isInstructionsCollapsed} onOpenChange={handleInstructionsCollapse}>
-          <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+          {isInstructionsCollapsed ? (
             <CollapsibleTrigger asChild>
-              <CardHeader className="pb-4 cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors">
-                <CardTitle className="flex items-center justify-between text-lg">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-blue-600" />
-                    How to Use News Radar Sources
-                  </div>
-                  {isInstructionsCollapsed ? (
-                    <ChevronRight className="h-4 w-4 text-blue-600" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-blue-600" />
-                  )}
-                </CardTitle>
-              </CardHeader>
+              <div className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors py-1">
+                <span>How to use News Radar Sources</span> <ChevronRight className="h-3 w-3 inline ml-1" />
+              </div>
             </CollapsibleTrigger>
+          ) : (
+            <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="pb-4 cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors">
+                  <CardTitle className="flex items-center justify-between text-lg">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-5 w-5 text-blue-600" />
+                      How to Use News Radar Sources
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-blue-600" />
+                  </CardTitle>
+                </CardHeader>
+              </CollapsibleTrigger></Card>
+          )}
+          {!isInstructionsCollapsed && (
+            <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
             <CollapsibleContent>
-              <CardContent className="space-y-4 pt-0">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Enable automatic news collection with hourly, daily, or weekly intervals for continuous monitoring.
-                      </p>
+                <CardContent className="space-y-4 pt-0">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">1. Configure Auto-Updates</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Enable automatic news collection with hourly, daily, or weekly intervals for continuous monitoring.
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">2. Manage News Sources</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Default news sources are provided. Add custom RSS feeds or news sites, and toggle inclusion in auto-updates.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-sm mb-1">2. Manage News Sources</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Default news sources are provided. Add custom RSS feeds or news sites, and toggle inclusion in auto-updates.
-                      </p>
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">3. Manual Collection</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Use "Update All Sources Now" for immediate article collection or update individual sources as needed.
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">4. Filter by Keywords</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Visit the Keywords page to manage terms that help filter and categorize collected news articles.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm mb-1">3. Manual Collection</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Use "Update All Sources Now" for immediate article collection or update individual sources as needed.
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm mb-1">4. Filter by Keywords</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Visit the Keywords page to manage terms that help filter and categorize collected news articles.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          )}
         </Collapsible>
 
         {/* Auto-scrape configuration card */}
