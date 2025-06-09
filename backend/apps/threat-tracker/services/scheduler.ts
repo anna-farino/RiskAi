@@ -95,9 +95,11 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
   const job = setInterval(async () => {
     log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
     try {
-      await runGlobalScrapeJob(userId);
+      const result = await runGlobalScrapeJob(userId);
+      log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
     } catch (error: any) {
       log(`[ThreatTracker] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
+      console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
     }
   }, interval);
   
