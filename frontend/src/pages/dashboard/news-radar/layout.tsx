@@ -35,7 +35,8 @@ export default function NewsLayout() {
   return (
     <div className="flex flex-col w-full h-full gap-y-4">
       <div className={cn(
-        "flex w-full rounded-md bg-slate-900/70 dark:bg-slate-900/70 border border-slate-700/50 backdrop-blur-sm font-light overflow-x-auto",
+        "flex w-full rounded-md bg-slate-900/70 dark:bg-slate-900/70", 
+        "border border-slate-700/50 backdrop-blur-sm font-light overflow-x-auto",
         isMobile 
           ? "p-2 px-3 min-h-[36px] items-center gap-x-4 text-sm"
           : "p-3 md:p-4 min-h-[38px] md:min-h-[40px] items-center gap-x-6 md:gap-x-10 text-sm md:text-base"

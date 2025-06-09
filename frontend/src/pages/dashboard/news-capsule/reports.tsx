@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { use } from "passport";
 
 interface ReportWithArticles extends Report {
   articles: CapsuleArticle[];
@@ -43,6 +44,9 @@ export default function Reports() {
   const [reportToDelete, setReportToDelete] = useState<ReportWithArticles | null>(null);
   const [showRemoveArticleDialog, setShowRemoveArticleDialog] = useState(false);
   const [articleToRemove, setArticleToRemove] = useState<{ reportId: string; articleId: string; articleTitle: string; isLastArticle?: boolean } | null>(null);
+  const [checkReportFromDashboard, setCheckReportFromDashboard] = useState(false)
+
+
 
   // Fetch reports from database
   const { data: reports = [], isLoading: reportsLoading } = useQuery<ReportWithArticles[]>({
@@ -59,6 +63,24 @@ export default function Reports() {
       return response.json();
     },
   });
+
+  setTimeout(()=> setCheckReportFromDashboard(true), 10)
+  console.log(selectedReport)
+  useEffect(()=>{
+    const reportFromDashboard = sessionStorage.getItem('selectedCapsuleReport')
+    if (!reportFromDashboard || !checkReportFromDashboard) return
+    try {
+      window.scrollTo(0,0)
+      const report = JSON.parse(reportFromDashboard)
+      console.log("Report in sessionStorage", report)
+      setSelectedReport(report)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      sessionStorage.removeItem('selectedCapsuleReport')
+      setCheckReportFromDashboard(false)
+    }
+  },[checkReportFromDashboard])
 
   // Delete report mutation
   const deleteReportMutation = useMutation({
