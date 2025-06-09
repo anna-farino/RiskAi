@@ -292,16 +292,27 @@ newsRouter.post("/jobs/scrape", async (req, res) => {
   }
 });
 
-newsRouter.get("/jobs/status", async (_req, res) => {
+newsRouter.get("/jobs/status", async (req, res) => {
   try {
+    // Log the request for debugging
+    reqLog(req, "GET /jobs/status");
+    
     const running = isGlobalJobRunning();
+    log(`[API] Job status check: ${running}`, 'scraper');
+    
     res.json({
       running,
       message: running ? "A global scraping job is running" : "No global scraping job is running"
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    res.status(500).json({ success: false, message: errorMessage });
+    log(`[API] Error checking job status: ${errorMessage}`, 'scraper');
+    
+    // Always return a valid response structure
+    res.status(200).json({ 
+      running: false, 
+      message: "Unable to determine job status"
+    });
   }
 });
 

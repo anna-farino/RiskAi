@@ -40,6 +40,33 @@ router.get('/test-articles', testArticles)
 // AUTH
 router.use('/auth', limiter, authRouter)
 
+// Add job status routes before full protection middleware
+router.get('/news-tracker/jobs/status', verifyToken, async (req, res) => {
+  try {
+    const { isGlobalJobRunning } = await import('../apps/news-radar/services/background-jobs.js');
+    const running = isGlobalJobRunning();
+    res.json({
+      running,
+      message: running ? "A global scraping job is running" : "No global scraping job is running"
+    });
+  } catch (error) {
+    res.status(200).json({ 
+      running: false, 
+      message: "Unable to determine job status"
+    });
+  }
+});
+
+router.get('/threat-tracker/scrape/status', verifyToken, async (req, res) => {
+  try {
+    const { isGlobalJobRunning } = await import('../apps/threat-tracker/services/background-jobs.js');
+    const running = isGlobalJobRunning();
+    res.json({ running });
+  } catch (error) {
+    res.status(200).json({ running: false });
+  }
+});
+
 // PROTECTIONS
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
