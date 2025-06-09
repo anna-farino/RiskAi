@@ -306,7 +306,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>{newsArticles?.length || 0} articles • 30s</span>
+                      <span>{newsArticles?.length || 0} articles</span>
                     </div>
                   )}
                 </div>
@@ -434,7 +434,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                      <span>{threatArticles?.length || 0} threats • 20s</span>
+                      <span>{threatArticles?.length || 0} threats</span>
                     </div>
                   )}
                 </div>
@@ -680,7 +680,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
-                      <span>{capsuleReports?.length || 0} reports • 45s</span>
+                      <span>{capsuleReports?.length || 0} reports</span>
                     </div>
                   )}
                 </div>
