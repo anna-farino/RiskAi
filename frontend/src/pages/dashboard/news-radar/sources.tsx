@@ -1159,10 +1159,8 @@ export default function Sources() {
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
           <div className="flex flex-col gap-0.5 sm:gap-1 lg:gap-2">
-            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">
-              Sources
-            </h1>
-            <p className="text-xs sm:text-sm lg:text-base text-slate-300">
+            <h1 className="text-3xl font-bold tracking-tight">News Sources</h1>
+            <p className="text-muted-foreground">
               Manage news sources and control updates
             </p>
           </div>

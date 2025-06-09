@@ -762,7 +762,7 @@ export default function Sources() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Tracker Sources</h1>
         <p className="text-muted-foreground">
           Manage sources for threat monitoring and configure auto-update settings.
         </p>
@@ -925,12 +925,11 @@ export default function Sources() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Threat Sources</CardTitle>
             <CardDescription>
               Websites to monitor for security threat information. Default sources are provided for all users and cannot be deleted, but can be enabled/disabled.
             </CardDescription>
           </div>
-          <Button onClick={handleNewSource} disabled={createSource.isPending} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
+          <Button onClick={handleNewSource} disabled={createSource.isPending} className="ml-5 mr-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
             {createSource.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
