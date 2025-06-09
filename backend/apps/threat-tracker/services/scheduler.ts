@@ -11,11 +11,26 @@ export enum JobInterval {
   DISABLED = 0,                       // Disabled
 }
 
-// Track per-user scheduled job timers
-const userScheduledJobs = new Map<string, NodeJS.Timeout>();
+// Track per-user scheduled job timers and metadata
+const userScheduledJobs = new Map<string, {
+  timer: NodeJS.Timeout;
+  interval: JobInterval;
+  lastRun: Date | null;
+  consecutiveFailures: number;
+  nextRunAt: Date;
+}>();
+
+// Simple timer tracking for cleanup
+const userTimers = new Map<string, NodeJS.Timeout>();
 
 // Global flag to prevent multiple scheduler initializations
 let schedulerInitialized = false;
+let initializationAttempts = 0;
+const MAX_INITIALIZATION_ATTEMPTS = 3;
+
+// Health check interval (every 5 minutes)
+const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000;
+let healthCheckTimer: NodeJS.Timeout | null = null;
 
 /**
  * Get the auto-scrape schedule from settings for a specific user
@@ -79,7 +94,7 @@ export async function updateGlobalScrapeSchedule(enabled: boolean, interval: Job
 
 
 /**
- * Schedule an auto-scrape job for a specific user
+ * Schedule an auto-scrape job for a specific user with enhanced error handling
  */
 function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
   // Clear existing job for this user if it exists
@@ -91,34 +106,86 @@ function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
     return;
   }
   
+  const nextRunAt = new Date(Date.now() + interval);
+  
   // Schedule new job for this user
-  const job = setInterval(async () => {
+  const timer = setInterval(async () => {
+    const jobMeta = userScheduledJobs.get(userId);
+    if (!jobMeta) return;
+    
     log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
+    
     try {
       const result = await runGlobalScrapeJob(userId);
+      
+      // Update job metadata on success
+      jobMeta.lastRun = new Date();
+      jobMeta.consecutiveFailures = 0;
+      jobMeta.nextRunAt = new Date(Date.now() + interval);
+      
+      // Update the setting with last run timestamp using updated_at
+      await storage.upsertSetting("auto-scrape", {
+        enabled: true,
+        interval,
+      }, userId);
+      
       log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
     } catch (error: any) {
-      log(`[ThreatTracker] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
+      // Update job metadata on failure
+      jobMeta.consecutiveFailures++;
+      jobMeta.nextRunAt = new Date(Date.now() + interval);
+      
+      log(`[ThreatTracker] Error in scheduled scrape job for user ${userId} (failure #${jobMeta.consecutiveFailures}): ${error.message}`, "scheduler-error");
       console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
+      
+      // If too many consecutive failures, disable the job and notify
+      if (jobMeta.consecutiveFailures >= 5) {
+        log(`[ThreatTracker] Disabling auto-scrape for user ${userId} after ${jobMeta.consecutiveFailures} consecutive failures`, "scheduler-error");
+        clearUserScrapeJob(userId);
+        
+        // Update settings to disable auto-scrape
+        try {
+          await storage.upsertSetting("auto-scrape", {
+            enabled: false,
+            interval,
+          }, userId);
+        } catch (settingsError: any) {
+          log(`[ThreatTracker] Failed to disable auto-scrape setting for user ${userId}: ${settingsError.message}`, "scheduler-error");
+        }
+      }
     }
   }, interval);
   
-  userScheduledJobs.set(userId, job);
-  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms`, "scheduler");
+  // Store job metadata and timer reference
+  userScheduledJobs.set(userId, {
+    timer,
+    interval,
+    lastRun: null,
+    consecutiveFailures: 0,
+    nextRunAt,
+  });
+  userTimers.set(userId, timer);
+  
+  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms, next run at: ${nextRunAt.toISOString()}`, "scheduler");
 }
 
 /**
  * Clear the auto-scrape job for a specific user
  */
 function clearUserScrapeJob(userId: string): void {
-  if (userScheduledJobs.has(userId)) {
-    const job = userScheduledJobs.get(userId);
-    if (job) {
-      clearInterval(job);
+  if (userTimers.has(userId)) {
+    const timer = userTimers.get(userId);
+    if (timer) {
+      clearInterval(timer);
     }
-    userScheduledJobs.delete(userId);
-    log(`[ThreatTracker] Cleared auto-scrape job for user ${userId}`, "scheduler");
+    userTimers.delete(userId);
   }
+  
+  if (userScheduledJobs.has(userId)) {
+    userScheduledJobs.delete(userId);
+  }
+  
+  log(`[ThreatTracker] Cleared auto-scrape job for user ${userId}`, "scheduler");
 }
 
 /**
@@ -127,12 +194,22 @@ function clearUserScrapeJob(userId: string): void {
  */
 export async function initializeScheduler() {
   try {
+    initializationAttempts++;
+    log(`[ThreatTracker] Starting scheduler initialization (attempt ${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`, "scheduler");
+    
     // Clear any existing scheduled jobs to prevent duplicates
-    userScheduledJobs.forEach((job, userId) => {
-      clearInterval(job);
+    userTimers.forEach((timer, userId) => {
+      clearInterval(timer);
       log(`[ThreatTracker] Cleared existing job for user ${userId}`, "scheduler");
     });
+    userTimers.clear();
     userScheduledJobs.clear();
+    
+    // Clear existing health check timer
+    if (healthCheckTimer) {
+      clearInterval(healthCheckTimer);
+      healthCheckTimer = null;
+    }
     
     // Reset initialization flag to allow re-initialization
     schedulerInitialized = false;
@@ -195,13 +272,30 @@ export async function initializeScheduler() {
       }
     }
     
+    // Start health check system
+    startHealthCheck();
+    
     schedulerInitialized = true;
+    initializationAttempts = 0; // Reset on success
     log(`[ThreatTracker] Auto-scrape scheduler initialization complete with ${userScheduledJobs.size} active jobs`, "scheduler");
     return true;
   } catch (error: any) {
-    log(`[ThreatTracker] Error initializing scheduler: ${error.message}`, "scheduler-error");
+    log(`[ThreatTracker] Error initializing scheduler (attempt ${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS}): ${error.message}`, "scheduler-error");
     console.error("Error initializing scheduler:", error);
     schedulerInitialized = false;
+    
+    // Retry initialization if we haven't exceeded max attempts
+    if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
+      log(`[ThreatTracker] Retrying scheduler initialization in 30 seconds...`, "scheduler");
+      setTimeout(() => {
+        initializeScheduler().catch(retryError => {
+          log(`[ThreatTracker] Retry initialization failed: ${retryError.message}`, "scheduler-error");
+        });
+      }, 30000);
+    } else {
+      log(`[ThreatTracker] Max initialization attempts reached. Scheduler disabled.`, "scheduler-error");
+    }
+    
     return false;
   }
 }
