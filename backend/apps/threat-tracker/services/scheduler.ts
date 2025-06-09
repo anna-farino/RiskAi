@@ -32,10 +32,17 @@ const MAX_INITIALIZATION_ATTEMPTS = 3;
 const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000;
 let healthCheckTimer: NodeJS.Timeout | null = null;
 
+// Type definition for auto-scrape settings
+export interface AutoScrapeSettings {
+  enabled: boolean;
+  interval: JobInterval;
+  lastRunAt?: string; // ISO timestamp of last job execution
+}
+
 /**
  * Get the auto-scrape schedule from settings for a specific user
  */
-export async function getGlobalScrapeSchedule(userId?: string) {
+export async function getGlobalScrapeSchedule(userId?: string): Promise<AutoScrapeSettings> {
   try {
     const setting = await storage.getSetting("auto-scrape", userId);
     
@@ -47,9 +54,13 @@ export async function getGlobalScrapeSchedule(userId?: string) {
       };
     }
     
-    return setting.value as {
-      enabled: boolean;
-      interval: JobInterval;
+    // Handle both old format (without lastRunAt) and new format (with lastRunAt)
+    const settingValue = setting.value as any;
+    
+    return {
+      enabled: settingValue.enabled || false,
+      interval: settingValue.interval || JobInterval.DAILY,
+      lastRunAt: settingValue.lastRunAt || undefined,
     };
   } catch (error: any) {
     log(`[ThreatTracker] Error getting auto-scrape schedule: ${error.message}`, "scheduler-error");
@@ -64,14 +75,21 @@ export async function getGlobalScrapeSchedule(userId?: string) {
 }
 
 /**
- * Update the auto-scrape schedule for a specific user
+ * Update the auto-scrape schedule for a specific user (preserves lastRunAt)
  */
-export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId: string) {
+export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId: string): Promise<AutoScrapeSettings> {
   try {
-    await storage.upsertSetting("auto-scrape", {
+    // Get existing settings to preserve lastRunAt
+    const existingSettings = await getGlobalScrapeSchedule(userId);
+    
+    // Create new settings preserving lastRunAt from existing settings
+    const newSettings: AutoScrapeSettings = {
       enabled,
       interval,
-    }, userId);
+      lastRunAt: existingSettings.lastRunAt, // Preserve existing lastRunAt
+    };
+    
+    await storage.upsertSetting("auto-scrape", newSettings, userId);
     
     // Update the user's specific scheduler
     if (enabled && interval !== JobInterval.DISABLED) {
@@ -80,14 +98,35 @@ export async function updateGlobalScrapeSchedule(enabled: boolean, interval: Job
       clearUserScrapeJob(userId);
     }
     
-    return {
-      enabled,
-      interval,
-    };
+    return newSettings;
   } catch (error: any) {
     log(`[ThreatTracker] Error updating auto-scrape schedule: ${error.message}`, "scheduler-error");
     console.error("Error updating auto-scrape schedule:", error);
     throw error;
+  }
+}
+
+/**
+ * Update only the lastRunAt timestamp without changing updated_at
+ */
+export async function updateLastRunAt(userId: string, timestamp: Date): Promise<void> {
+  try {
+    // Get current settings
+    const currentSettings = await getGlobalScrapeSchedule(userId);
+    
+    // Update only lastRunAt
+    const updatedSettings: AutoScrapeSettings = {
+      ...currentSettings,
+      lastRunAt: timestamp.toISOString(),
+    };
+    
+    // Use upsertSetting to update the value while preserving the updated_at timestamp
+    await storage.upsertSetting("auto-scrape", updatedSettings, userId);
+    
+    log(`[ThreatTracker] Updated lastRunAt for user ${userId} to ${timestamp.toISOString()}`, "scheduler");
+  } catch (error: any) {
+    log(`[ThreatTracker] Error updating lastRunAt for user ${userId}: ${error.message}`, "scheduler-error");
+    console.error("Error updating lastRunAt:", error);
   }
 }
 
@@ -153,17 +192,13 @@ async function executeScheduledJob(userId: string, interval: JobInterval): Promi
     const result = await runGlobalScrapeJob(userId);
     
     // Update job metadata on success
-    jobMeta.lastRun = new Date();
+    const now = new Date();
+    jobMeta.lastRun = now;
     jobMeta.consecutiveFailures = 0;
     jobMeta.nextRunAt = new Date(Date.now() + interval);
     
-    // Update the setting with last run timestamp using updated_at
-    await storage.upsertSetting("auto-scrape", {
-      enabled: true,
-      interval,
-      lastRunAt: new Date().toISOString(),
-      jobStatus: 'completed'
-    }, userId);
+    // Update only the lastRunAt timestamp (preserves updated_at for user setting changes)
+    await updateLastRunAt(userId, now);
     
     log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
   } catch (error: any) {
@@ -179,15 +214,9 @@ async function executeScheduledJob(userId: string, interval: JobInterval): Promi
       log(`[ThreatTracker] Disabling auto-scrape for user ${userId} after ${jobMeta.consecutiveFailures} consecutive failures`, "scheduler-error");
       clearUserScrapeJob(userId);
       
-      // Update settings to disable auto-scrape
+      // Update settings to disable auto-scrape (this will update updated_at since it's a user setting change)
       try {
-        await storage.upsertSetting("auto-scrape", {
-          enabled: false,
-          interval,
-          lastRunAt: new Date().toISOString(),
-          jobStatus: 'disabled_due_to_failures',
-          consecutiveFailures: jobMeta.consecutiveFailures
-        }, userId);
+        await updateGlobalScrapeSchedule(false, interval, userId);
       } catch (settingsError: any) {
         log(`[ThreatTracker] Failed to disable auto-scrape setting for user ${userId}: ${settingsError.message}`, "scheduler-error");
       }
@@ -252,42 +281,38 @@ export async function initializeScheduler() {
       const userId = setting.userId;
       
       try {
-        const userSchedule = setting.value as {
-          enabled: boolean;
-          interval: JobInterval | string;
-        };
+        // Use the new typed method to get settings
+        const userSchedule = await getGlobalScrapeSchedule(userId);
         
-        // Convert string intervals to numeric milliseconds for backward compatibility
-        let intervalMs: number;
-        if (typeof userSchedule.interval === 'string') {
-          switch (userSchedule.interval) {
-            case 'HOURLY':
-              intervalMs = JobInterval.HOURLY;
-              break;
-            case 'DAILY':
-              intervalMs = JobInterval.DAILY;
-              break;
-            case 'WEEKLY':
-              intervalMs = JobInterval.WEEKLY;
-              break;
-            case 'DISABLED':
-              intervalMs = JobInterval.DISABLED;
-              break;
-            default:
-              intervalMs = JobInterval.DAILY;
-          }
-        } else {
-          intervalMs = userSchedule.interval as number;
-        }
-        
-        if (userSchedule.enabled && intervalMs > 0) {
+        if (userSchedule.enabled && userSchedule.interval > 0) {
           // Check if user has sources available (either personal or default sources)
           const userSources = await storage.getAutoScrapeSources(userId);
           
           if (userSources.length > 0) {
-            // Schedule job with standard interval (persistent recovery will be handled in health checks)
-            scheduleUserScrapeJob(userId, intervalMs as JobInterval);
-            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${intervalMs}ms (${userSources.length} sources)`, "scheduler");
+            // Calculate initial delay based on lastRunAt to handle missed jobs
+            let initialDelay = userSchedule.interval;
+            
+            if (userSchedule.lastRunAt) {
+              const lastRun = new Date(userSchedule.lastRunAt);
+              const timeSinceLastRun = Date.now() - lastRun.getTime();
+              const shouldHaveRunAt = lastRun.getTime() + userSchedule.interval;
+              
+              if (Date.now() > shouldHaveRunAt) {
+                // Job is overdue, run immediately
+                initialDelay = 1000; // 1 second delay to allow initialization to complete
+                log(`[ThreatTracker] User ${userId} job is overdue (last run: ${lastRun.toISOString()}), scheduling immediate execution`, "scheduler");
+              } else {
+                // Calculate remaining time until next scheduled run
+                initialDelay = shouldHaveRunAt - Date.now();
+                log(`[ThreatTracker] User ${userId} next run in ${Math.round(initialDelay / 1000)}s`, "scheduler");
+              }
+            } else {
+              log(`[ThreatTracker] User ${userId} has no lastRunAt, will run after full interval`, "scheduler");
+            }
+            
+            // Schedule job with calculated delay
+            scheduleUserScrapeJob(userId, userSchedule.interval, initialDelay);
+            log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${userSchedule.interval}ms (${userSources.length} sources)`, "scheduler");
           } else {
             log(`[ThreatTracker] User ${userId} has auto-scrape enabled but no available sources`, "scheduler");
           }
