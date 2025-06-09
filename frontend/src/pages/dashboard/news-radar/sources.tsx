@@ -1006,7 +1006,7 @@ export default function Sources() {
       toast({
         title: "Auto-update settings updated",
         description: data.enabled
-          ? `Auto-update has been enabled with ${intervalLabels[data.interval as JobInterval]} frequency.`
+          ? `Auto-update has been enabled with ${intervalLabels[data.interval as JobInterval] || 'daily'} frequency.`
           : "Auto-update has been disabled.",
       });
 

@@ -502,7 +502,7 @@ export default function Sources() {
 
   // Update auto-scrape settings mutation
   const updateAutoScrapeSettings = useMutation({
-    mutationFn: async ({ enabled, interval }: AutoScrapeSettings) => {
+    mutationFn: async ({ enabled, interval }: AutoScrapeSettings): Promise<AutoScrapeSettings> => {
       return apiRequest("PUT", `${serverUrl}/api/threat-tracker/settings/auto-scrape`, { enabled, interval });
     },
     onMutate: async ({ enabled, interval }) => {
@@ -572,7 +572,7 @@ export default function Sources() {
       toast({
         title: "Auto-update settings changed",
         description: data.enabled 
-          ? `Auto-update has been enabled with ${data.interval.toLowerCase()} frequency.`
+          ? `Auto-update has been enabled with ${intervalLabels[data.interval as JobInterval] || 'daily'} frequency.`
           : "Auto-update has been disabled.",
       });
 
