@@ -290,7 +290,7 @@ export async function initializeScheduler() {
           
           if (userSources.length > 0) {
             // Calculate initial delay based on lastRunAt to handle missed jobs
-            let initialDelay = userSchedule.interval;
+            let initialDelay: number = userSchedule.interval;
             
             if (userSchedule.lastRunAt) {
               const lastRun = new Date(userSchedule.lastRunAt);
