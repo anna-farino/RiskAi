@@ -1,7 +1,7 @@
 import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/schema/threat-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
-import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
+import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
 import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler, getSchedulerStatus, reinitializeScheduler } from "../services/scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
@@ -460,39 +460,49 @@ threatRouter.post("/scrape/all", async (req, res) => {
   try {
     const userId = getUserId(req);
     
-    // Check if a global scrape is already running
-    if (isGlobalJobRunning()) {
-      return res.status(409).json({ error: "A global scrape job is already running" });
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
     }
     
-    // Start the global scrape job
+    // Check if this user's scrape job is already running
+    if (isUserJobRunning(userId)) {
+      return res.status(409).json({ error: "A scrape job is already running for this user" });
+    }
+    
+    // Start the scrape job for this user
     const job = runGlobalScrapeJob(userId);
     
     res.json({
-      message: "Global scrape job started",
+      message: "Scrape job started for user",
       job
     });
   } catch (error: any) {
-    console.error("Error starting global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to start global scrape job" });
+    console.error("Error starting scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to start scrape job" });
   }
 });
 
 threatRouter.post("/scrape/stop", async (req, res) => {
   reqLog(req, "POST /scrape/stop");
   try {
-    const result = stopGlobalScrapeJob();
+    const userId = getUserId(req);
+    const result = stopGlobalScrapeJob(userId);
     res.json(result);
   } catch (error: any) {
-    console.error("Error stopping global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to stop global scrape job" });
+    console.error("Error stopping scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to stop scrape job" });
   }
 });
 
 threatRouter.get("/scrape/status", async (req, res) => {
   reqLog(req, "GET /scrape/status");
   try {
-    const isRunning = isGlobalJobRunning();
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    const isRunning = isUserJobRunning(userId);
     res.json({ running: isRunning });
   } catch (error: any) {
     console.error("Error checking scrape job status:", error);
