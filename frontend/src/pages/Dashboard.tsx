@@ -89,9 +89,7 @@ export default function Dashboard() {
   
   // Format publish date helper
   const formatPublishDate = (dateString: string) => {
-    const dateStr = String(dateString);
-    const fullDateStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
-    const date = new Date(fullDateStr);
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric', 
