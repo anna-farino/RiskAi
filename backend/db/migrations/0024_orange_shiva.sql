@@ -1,0 +1,1 @@
+ALTER TABLE "threat_settings" ADD COLUMN "updated_at" timestamp DEFAULT now();

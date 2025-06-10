@@ -559,7 +559,7 @@ export default function NewsHome() {
           </div>
         </div>
         
-        {localArticles.length > 0 && (
+        {totalArticles > 0 && (
           <div className="flex justify-center pt-2 border-t border-slate-700/30">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -573,7 +573,7 @@ export default function NewsHome() {
                   ) : (
                     <Trash2 className="h-4 w-4 mr-2" />
                   )}
-                  Delete All Articles
+                  Delete All Articles ({totalArticles})
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -583,7 +583,7 @@ export default function NewsHome() {
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     This action will permanently delete all{" "}
-                    {localArticles.length} articles. This action cannot be
+                    {totalArticles} articles. This action cannot be
                     undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>

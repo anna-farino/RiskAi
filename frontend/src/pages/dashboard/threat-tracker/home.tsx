@@ -889,7 +889,7 @@ export default function ThreatHome() {
               )}
 
               {/* Clear All Button - Bottom of page */}
-              {localArticles.length > 0 && (
+              {totalArticles > 0 && (
                 <div className="flex justify-center mt-8 pt-6 border-t border-slate-700/50">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -904,14 +904,14 @@ export default function ThreatHome() {
                         ) : (
                           <Trash2 className="h-4 w-4" />
                         )}
-                        Delete All Articles
+                        Delete All Articles ({totalArticles})
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action will permanently delete all threat articles.
+                          This action will permanently delete all {totalArticles} threat articles.
                           This cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>

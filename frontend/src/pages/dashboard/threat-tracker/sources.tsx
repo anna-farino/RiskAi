@@ -110,6 +110,7 @@ const intervalLabels: Record<JobInterval, string> = {
 type AutoScrapeSettings = {
   enabled: boolean;
   interval: JobInterval;
+  lastRunAt?: string; // ISO timestamp of last job execution
 };
 
 // Form schema for source creation/editing
