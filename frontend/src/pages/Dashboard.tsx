@@ -87,14 +87,14 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
   
-  // Format publish date helper
+  // Format publish date helper - display date as stored in database (already in user's local time)
   const formatPublishDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
+    if (!dateString) return 'Unknown date';
+    // Parse the ISO date string and format it directly without timezone conversion
+    const date = dateString.split('T')[0]; // Get just the date part (YYYY-MM-DD)
+    const [year, month, day] = date.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
   };
   
   // Get source badge styling
