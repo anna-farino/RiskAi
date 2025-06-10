@@ -10,15 +10,15 @@ import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl, titleSimilarity } from "./url-utils";
 
-// Track whether the global scrape job is currently running
-let globalScrapeJobRunning = false;
-
 // Track active scraping processes for individual sources
 export const activeScraping = new Map<string, boolean>();
 
-// Check if global scrape job is running
-export function isGlobalJobRunning() {
-  return globalScrapeJobRunning;
+// Track running jobs per user to prevent user-specific conflicts
+const userJobsRunning = new Map<string, boolean>();
+
+// Check if a specific user's job is running
+export function isUserJobRunning(userId: string) {
+  return userJobsRunning.get(userId) || false;
 }
 
 /**
@@ -453,15 +453,20 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
   }
 }
 
-// Run a global scrape job for all active sources
+// Run a scrape job for all active sources for a specific user
 export async function runGlobalScrapeJob(userId?: string) {
-  if (globalScrapeJobRunning) {
-    log("[ThreatTracker] Global scrape job already running", "scraper");
-    return { message: "Global scrape job already running" };
+  if (!userId) {
+    log("[ThreatTracker] Cannot run scrape job without userId", "scraper-error");
+    return { message: "User ID is required for scrape job" };
   }
 
-  globalScrapeJobRunning = true;
-  log(`[ThreatTracker] Starting global scrape job${userId ? ` for user ${userId}` : ' (automated)'}`, "scraper");
+  if (isUserJobRunning(userId)) {
+    log(`[ThreatTracker] Scrape job already running for user ${userId}`, "scraper");
+    return { message: `Scrape job already running for user ${userId}` };
+  }
+
+  userJobsRunning.set(userId, true);
+  log(`[ThreatTracker] Starting scrape job for user ${userId}`, "scraper");
 
   try {
     // Get all active sources for auto-scraping
@@ -476,9 +481,9 @@ export async function runGlobalScrapeJob(userId?: string) {
 
     // Process each source sequentially
     for (const source of sources) {
-      // Check if global job should continue
-      if (!globalScrapeJobRunning) {
-        log("[ThreatTracker] Global scrape job stopped, aborting remaining sources", "scraper");
+      // Check if user job should continue
+      if (!isUserJobRunning(userId)) {
+        log(`[ThreatTracker] Scrape job for user ${userId} stopped, aborting remaining sources`, "scraper");
         break;
       }
 
@@ -520,40 +525,60 @@ export async function runGlobalScrapeJob(userId?: string) {
     }
 
     log(
-      `[ThreatTracker] Completed global scrape job. Found ${allNewArticles.length} new articles.`,
+      `[ThreatTracker] Completed scrape job for user ${userId}. Found ${allNewArticles.length} new articles.`,
       "scraper",
     );
-    globalScrapeJobRunning = false;
+    userJobsRunning.set(userId, false);
 
     return {
-      message: `Completed global scrape job. Found ${allNewArticles.length} new articles.`,
+      message: `Completed scrape job for user ${userId}. Found ${allNewArticles.length} new articles.`,
       newArticles: allNewArticles,
     };
   } catch (error: any) {
     log(
-      `[ThreatTracker] Error in global scrape job: ${error.message}`,
+      `[ThreatTracker] Error in scrape job for user ${userId}: ${error.message}`,
       "scraper-error",
     );
-    globalScrapeJobRunning = false;
+    userJobsRunning.set(userId, false);
     throw error;
   }
 }
 
-// Stop the global scrape job
-export function stopGlobalScrapeJob() {
-  if (!globalScrapeJobRunning) {
-    return { message: "No global scrape job is currently running" };
-  }
+// Stop scrape jobs for a specific user or all users
+export function stopGlobalScrapeJob(userId?: string) {
+  if (userId) {
+    // Stop specific user's job
+    if (!isUserJobRunning(userId)) {
+      return { message: `No scrape job is currently running for user ${userId}` };
+    }
 
-  globalScrapeJobRunning = false;
-  
-  // Stop all active individual source scraping operations
-  for (const [sourceId] of activeScraping) {
-    activeScraping.set(sourceId, false);
-    log(`[ThreatTracker] Stopping active scraping for source ID: ${sourceId}`, "scraper");
+    userJobsRunning.set(userId, false);
+    
+    // Stop all active individual source scraping operations for this user
+    for (const [sourceId] of activeScraping) {
+      activeScraping.set(sourceId, false);
+      log(`[ThreatTracker] Stopping active scraping for source ID: ${sourceId}`, "scraper");
+    }
+    
+    log(`[ThreatTracker] Scrape job for user ${userId} has been manually stopped`, "scraper");
+    return { success: true, message: `Scrape job for user ${userId} stopped successfully` };
+  } else {
+    // Stop all user jobs
+    let jobsStopped = 0;
+    for (const [runningUserId, isRunning] of userJobsRunning) {
+      if (isRunning) {
+        userJobsRunning.set(runningUserId, false);
+        jobsStopped++;
+      }
+    }
+    
+    // Stop all active individual source scraping operations
+    for (const [sourceId] of activeScraping) {
+      activeScraping.set(sourceId, false);
+      log(`[ThreatTracker] Stopping active scraping for source ID: ${sourceId}`, "scraper");
+    }
+    
+    log(`[ThreatTracker] All scrape jobs have been manually stopped (${jobsStopped} jobs)`, "scraper");
+    return { success: true, message: `All scrape jobs stopped successfully (${jobsStopped} jobs)` };
   }
-  
-  log("[ThreatTracker] Global scrape job has been manually stopped", "scraper");
-
-  return { success: true, message: "Global scrape job stopped successfully" };
 }
