@@ -53,34 +53,6 @@ export function ThreatArticleCard({
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
 
-  // Format date as stored in database without timezone conversion
-  const formatDateAsStored = (dateInput: string | Date | null | undefined): string => {
-    try {
-      if (!dateInput) return "Unknown date";
-      
-      let dateString: string;
-      if (dateInput instanceof Date) {
-        dateString = dateInput.toISOString();
-      } else if (typeof dateInput === 'string') {
-        dateString = dateInput;
-      } else {
-        return "Unknown date";
-      }
-      
-      // Extract date components directly from the ISO string to avoid timezone conversion
-      const dateMatch = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
-      if (dateMatch) {
-        const [, year, month, day] = dateMatch;
-        // Create date in UTC to avoid timezone issues
-        const utcDate = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
-        return format(utcDate, "MMM d, yyyy");
-      }
-      return "Unknown date";
-    } catch (error) {
-      return "Unknown date";
-    }
-  };
-
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -293,9 +265,9 @@ export function ThreatArticleCard({
               <Clock className="h-3 w-3" />
               <span>
                 {article.publishDate
-                  ? `Published ${formatDateAsStored(article.publishDate)}`
+                  ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
                   : article.scrapeDate
-                    ? `Article Pulled ${formatDateAsStored(article.scrapeDate)}`
+                    ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
                     : "Unknown date"}
               </span>
             </div>

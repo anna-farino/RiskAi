@@ -87,37 +87,14 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
   
-  // Format publish date helper - displays date as stored in database without timezone conversion
-  const formatPublishDate = (dateInput: string | Date | null | undefined) => {
-    try {
-      if (!dateInput) return "Unknown date";
-      
-      let dateString: string;
-      if (dateInput instanceof Date) {
-        dateString = dateInput.toISOString();
-      } else if (typeof dateInput === 'string') {
-        dateString = dateInput;
-      } else {
-        return "Unknown date";
-      }
-      
-      // Extract date components directly from the ISO string to avoid timezone conversion
-      const dateMatch = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
-      if (dateMatch) {
-        const [, year, month, day] = dateMatch;
-        // Create date in UTC to avoid timezone issues
-        const utcDate = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
-        return utcDate.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric',
-          timeZone: 'UTC'
-        });
-      }
-      return "Unknown date";
-    } catch (error) {
-      return "Unknown date";
-    }
+  // Format publish date helper
+  const formatPublishDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
   };
   
   // Get source badge styling
