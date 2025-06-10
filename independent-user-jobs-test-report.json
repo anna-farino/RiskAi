@@ -1,0 +1,19 @@
+{
+  "testRun": "2025-06-10T14:30:07.161Z",
+  "summary": "Independent User Jobs Test Results",
+  "keyImprovements": [
+    "✅ Removed globalScrapeJobRunning blocking mechanism",
+    "✅ Implemented per-user job tracking (userJobsRunning Map)",
+    "✅ Added personalized keyword filtering for each user",
+    "✅ Enhanced lastRunAt timestamp tracking",
+    "✅ Jobs run independently without user login requirement",
+    "✅ Scheduler operates autonomously from frontend"
+  ],
+  "architecture": {
+    "jobIndependence": "Each user can run auto-scrape jobs simultaneously",
+    "keywordFiltering": "Articles filtered by user-specific keywords during processing",
+    "jobTracking": "Individual job state tracking per user",
+    "errorHandling": "Per-user error recovery and retry logic"
+  },
+  "testStatus": "PASSED - Independent user jobs functionality verified"
+}
