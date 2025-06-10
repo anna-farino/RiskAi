@@ -39,7 +39,7 @@ export default function Dashboard() {
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
     queryKey: ['threat-tracker-articles-dashboard'],
     queryFn: async () => {
-      const response = await fetch(`${serverUrl}/api/threat-tracker/articles?limit=8`, {
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles`, {
         method: 'GET',
         credentials: 'include',
         headers: {
