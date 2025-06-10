@@ -328,7 +328,7 @@ threatRouter.delete("/articles/:id", async (req, res) => {
     }
     
     await storage.deleteArticle(articleId, userId);
-    res.status(204).send();
+    res.json({ success: true, message: "Article deleted successfully" });
   } catch (error: any) {
     console.error("Error deleting article:", error);
     res.status(500).json({ error: error.message || "Failed to delete article" });
