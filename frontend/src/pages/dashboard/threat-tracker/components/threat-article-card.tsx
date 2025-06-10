@@ -19,6 +19,7 @@ import { useState } from "react";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { Progress } from "@/components/ui/progress";
 
+
 // Extend the ThreatArticle type to include securityScore
 interface ExtendedThreatArticle extends ThreatArticle {
   securityScore: string | null;
@@ -265,9 +266,23 @@ export function ThreatArticleCard({
               <Clock className="h-3 w-3" />
               <span>
                 {article.publishDate
-                  ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
+                  ? (() => {
+                      // Handle date-only semantics by extracting just the date part
+                      const dateStr = typeof article.publishDate === 'string' 
+                        ? article.publishDate.split('T')[0] 
+                        : article.publishDate;
+                      // Create date at noon UTC to avoid timezone shifting
+                      const date = new Date(dateStr + 'T12:00:00.000Z');
+                      return `Published ${format(date, "MMM d, yyyy")}`;
+                    })()
                   : article.scrapeDate
-                    ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
+                    ? (() => {
+                        const dateStr = typeof article.scrapeDate === 'string' 
+                          ? article.scrapeDate.split('T')[0] 
+                          : article.scrapeDate;
+                        const date = new Date(dateStr + 'T12:00:00.000Z');
+                        return `Article Pulled ${format(date, "MMM d, yyyy")}`;
+                      })()
                     : "Unknown date"}
               </span>
             </div>
