@@ -265,7 +265,7 @@ export function ThreatArticleCard({
               <Clock className="h-3 w-3" />
               <span>
                 {article.publishDate
-                  ? `Published ${format(article.publishDate, "MMM d, yyyy")}`
+                  ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
                   : article.scrapeDate
                     ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
                     : "Unknown date"}

@@ -365,12 +365,23 @@ export const storage: IStorage = {
         throw new Error("Cannot create default keywords through this endpoint");
       }
 
+      // Ensure isDefault is set to false for user keywords
+      const keywordToCreate: {
+          active?: boolean;
+          userId?: string;
+          isDefault?: boolean;
+          term: string;
+          category: "threat" | "vendor" | "client" | "hardware";
+      } = {
+        ...keyword,
+        term: keyword.term!,
+        category: keyword.category!,
+        isDefault: false,
+      };
+
       const results = await db
         .insert(threatKeywords)
-        .values({
-          ...keyword,
-          isDefault: false,
-        })
+        .values(keyword)
         .returning();
       return results[0];
     } catch (error) {
