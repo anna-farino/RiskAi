@@ -87,9 +87,14 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
   
-  // Format publish date helper
+  // Format publish date helper with date-only semantics
   const formatPublishDate = (dateString: string) => {
-    const date = new Date(dateString);
+    if (!dateString) return 'Unknown date';
+    
+    // Extract just the date part (YYYY-MM-DD) and create at noon UTC to avoid timezone shifting
+    const datePart = typeof dateString === 'string' ? dateString.split('T')[0] : dateString;
+    const date = new Date(datePart + 'T12:00:00.000Z');
+    
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric', 
