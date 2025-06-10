@@ -265,7 +265,11 @@ export function ThreatArticleCard({
               <Clock className="h-3 w-3" />
               <span>
                 {article.publishDate
-                  ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
+                  ? (() => {
+                      const dateStr = String(article.publishDate);
+                      const fullDateStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
+                      return `Published ${format(new Date(fullDateStr), "MMM d, yyyy")}`;
+                    })()
                   : article.scrapeDate
                     ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
                     : "Unknown date"}

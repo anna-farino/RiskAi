@@ -366,13 +366,7 @@ export const storage: IStorage = {
       }
 
       // Ensure isDefault is set to false for user keywords
-      const keywordToCreate: {
-          active?: boolean;
-          userId?: string;
-          isDefault?: boolean;
-          term: string;
-          category: "threat" | "vendor" | "client" | "hardware";
-      } = {
+      const keywordToCreate = {
         ...keyword,
         term: keyword.term!,
         category: keyword.category!,
@@ -381,7 +375,7 @@ export const storage: IStorage = {
 
       const results = await db
         .insert(threatKeywords)
-        .values(keyword)
+        .values(keywordToCreate)
         .returning();
       return results[0];
     } catch (error) {
