@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { Progress } from "@/components/ui/progress";
+import { formatDateOnly } from "@/utils/date-utils";
+
 
 // Extend the ThreatArticle type to include securityScore
 interface ExtendedThreatArticle extends ThreatArticle {
@@ -265,9 +267,9 @@ export function ThreatArticleCard({
               <Clock className="h-3 w-3" />
               <span>
                 {article.publishDate
-                  ? `Published ${format(new Date(article.publishDate), "MMM d, yyyy")}`
+                  ? `Published ${formatDateOnly(article.publishDate)}`
                   : article.scrapeDate
-                    ? `Article Pulled ${format(new Date(article.scrapeDate), "MMM d, yyyy")}`
+                    ? `Article Pulled ${formatDateOnly(article.scrapeDate)}`
                     : "Unknown date"}
               </span>
             </div>
