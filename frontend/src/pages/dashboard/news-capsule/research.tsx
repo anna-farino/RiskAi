@@ -85,7 +85,11 @@ export default function Research() {
   const { toast } = useToast();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedArticles, setSelectedArticles] = useState<CapsuleArticle[]>([]);
+  // Load selected articles from localStorage on component mount
+  const [selectedArticles, setSelectedArticles] = useState<CapsuleArticle[]>(() => {
+    const saved = localStorage.getItem('news-capsule-selected-articles');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   const [bulkMode, setBulkMode] = useState(true);
@@ -113,6 +117,11 @@ export default function Research() {
   // State for delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState<CapsuleArticle | null>(null);
+
+  // Sync selectedArticles with localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('news-capsule-selected-articles', JSON.stringify(selectedArticles));
+  }, [selectedArticles]);
 
   // Phase 2: Responsive viewport detection
   useEffect(() => {
@@ -183,6 +192,7 @@ export default function Research() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
       setSelectedArticles([]);
+      localStorage.removeItem('news-capsule-selected-articles'); // Clear localStorage
       setReportTopic(""); // Clear topic field
       setSuccessMessage("Articles successfully added to report!");
       setShowSuccessDialog(true);
@@ -219,6 +229,7 @@ export default function Research() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/reports"] });
       setSelectedArticles([]);
+      localStorage.removeItem('news-capsule-selected-articles'); // Clear localStorage
       setReportTopic(""); // Clear topic field
       setSuccessMessage("Articles successfully added to existing report!");
       setShowSuccessDialog(true);
