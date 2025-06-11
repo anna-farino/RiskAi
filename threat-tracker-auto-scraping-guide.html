@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Tracker Auto-Scraping Code Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #e74c3c;
+            margin-top: 30px;
+            border-left: 4px solid #e74c3c;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #8e44ad;
+            margin-top: 25px;
+        }
+        .description {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-style: italic;
+            border-left: 4px solid #3498db;
+        }
+        .step-box {
+            background-color: #f8f9fa;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step-number {
+            background-color: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .step-title {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.2em;
+            display: inline-block;
+        }
+        code {
+            background-color: transparent;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+        }
+        .file-ref {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            font-style: italic;
+            background-color: #ecf0f1;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-left: 10px;
+        }
+        .flow-diagram {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-line;
+            text-align: center;
+        }
+        .data-structure {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .critical-point {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .process-list {
+            counter-reset: process-counter;
+            list-style: none;
+            padding-left: 0;
+        }
+        .process-list li {
+            counter-increment: process-counter;
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            border-radius: 0 5px 5px 0;
+        }
+        .process-list li::before {
+            content: counter(process-counter);
+            background-color: #6c757d;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Threat Tracker Auto-Scraping Code Guide</h1>
+        <p>Complete walkthrough of how the threat-tracker auto-scraping system works, from initialization to execution.</p>
+
+        <div class="flow-diagram">
+            <strong>Complete Auto-Scraping Flow</strong>
+
+1. Server Startup (backend/index.ts:47)
+   ↓
+2. initializeScheduler() (scheduler.ts:128)
+   ↓
+3. getAllAutoScrapeSettings() → Find users with auto-scrape enabled
+   ↓
+4. For each user: scheduleUserScrapeJob() → setInterval()
+   ↓
+5. Timer fires → runGlobalScrapeJob(userId)
+   ↓
+6. getAutoScrapeSources(userId) → Get user's sources
+   ↓
+7. For each source: scrapeSource(source, userId)
+   ↓
+8. Load keywords → Scrape source URL → Extract article links
+   ↓
+9. For each article: processArticle() → AI analysis → Save to DB
+        </div>
+
+        <h2>Step-by-Step Code Walkthrough</h2>
+
+        <div class="step-box">
+            <div class="step-number">1</div>
+            <div class="step-title">Server Startup & Scheduler Initialization</div>
+            <span class="file-ref">backend/index.ts:47-48</span>
+            
+            <div class="description">
+                When the Express server starts up, it automatically initializes the threat-tracker scheduler after the server is running.
+            </div>
+
+            <pre><code>// Initialize auto-scrape schedulers after server starts
+try {
+  const { initializeScheduler: initThreatTracker } = await import('./apps/threat-tracker/services/scheduler.js');
+  await initThreatTracker();
+  console.log('✅ [SERVER] Threat Tracker auto-scrape scheduler initialized');
+} catch (error) {
+  console.error('❌ [SERVER] Error initializing Threat Tracker scheduler:', error);
+}</code></pre>
+
+            <p><strong>What happens:</strong> The server imports and calls the <code>initializeScheduler()</code> function from the threat-tracker services.</p>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">2</div>
+            <div class="step-title">Initialize Scheduler Function</div>
+            <span class="file-ref">backend/apps/threat-tracker/services/scheduler.ts:128-143</span>
+            
+            <div class="description">
+                The scheduler initialization clears any existing jobs and loads all users who have auto-scrape settings configured.
+            </div>
+
+            <pre><code>export async function initializeScheduler() {
+  try {
+    // Clear any existing scheduled jobs to prevent duplicates
+    userScheduledJobs.forEach((job, userId) => {
+      clearInterval(job);
+      log(`[ThreatTracker] Cleared existing job for user ${userId}`, "scheduler");
+    });
+    userScheduledJobs.clear();
+    
+    // Get all users who have auto-scrape settings (enabled or disabled)
+    const allAutoScrapeSettings = await storage.getAllAutoScrapeSettings();
+    
+    log(`[ThreatTracker] Found ${allAutoScrapeSettings.length} users with auto-scrape settings`, "scheduler");</code></pre>
+
+            <p><strong>Key operations:</strong></p>
+            <ul>
+                <li>Clears existing scheduled jobs to prevent duplicates</li>
+                <li>Calls <code>storage.getAllAutoScrapeSettings()</code> to find users with the key <code>"auto-scrape"</code></li>
+                <li>Resets the initialization flag</li>
+            </ul>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">3</div>
+            <div class="step-title">User Settings Validation & Job Scheduling</div>
+            <span class="file-ref">backend/apps/threat-tracker/services/scheduler.ts:146-196</span>
+            
+            <div class="description">
+                For each user found, the system validates their settings and schedules jobs if auto-scraping is enabled and they have valid sources.
+            </div>
+
+            <pre><code>// Initialize scheduler for each user based on their individual settings
+for (const setting of allAutoScrapeSettings) {
+  if (!setting.userId) continue;
+  
+  const userId = setting.userId;
+  const userSchedule = setting.value as {
+    enabled: boolean;
+    interval: JobInterval | string;
+  };
+  
+  if (userSchedule.enabled && intervalMs > 0) {
+    // Check if user has sources available (either personal or default sources)
+    const userSources = await storage.getAutoScrapeSources(userId);
+    
+    if (userSources.length > 0) {
+      scheduleUserScrapeJob(userId, intervalMs as JobInterval);
+      log(`[ThreatTracker] Initialized auto-scrape for user ${userId}: ${intervalMs}ms (${userSources.length} sources)`, "scheduler");
+    } else {
+      log(`[ThreatTracker] User ${userId} has auto-scrape enabled but no available sources`, "scheduler");
+    }
+  }
+}</code></pre>
+
+            <p><strong>Validation checks:</strong></p>
+            <ul>
+                <li>User has valid userId</li>
+                <li>Auto-scrape is enabled (<code>userSchedule.enabled</code>)</li>
+                <li>Interval is greater than 0</li>
+                <li>User has available sources (<code>userSources.length > 0</code>)</li>
+            </ul>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">4</div>
+            <div class="step-title">Auto-Scrape Settings Management</div>
+            <span class="file-ref">backend/apps/threat-tracker/router/index.ts:516-539</span>
+            
+            <div class="description">
+                Users can update their auto-scrape settings through the API, which immediately updates both the database and the active scheduler.
+            </div>
+
+            <pre><code>// PUT /settings/auto-scrape endpoint
+threatRouter.put("/settings/auto-scrape", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { enabled, interval } = req.body;
+    
+    // Validate the interval
+    if (interval && !Object.values(JobInterval).includes(interval)) {
+      return res.status(400).json({ error: "Invalid interval value" });
+    }
+    
+    // Update the schedule for this user
+    const settings = await updateGlobalScrapeSchedule(
+      Boolean(enabled), 
+      interval || JobInterval.DAILY,
+      userId
+    );
+    
+    res.json(settings);
+  } catch (error: any) {
+    console.error("Error updating auto-scrape settings:", error);
+    res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
+  }
+});</code></pre>
+
+            <p><strong>Settings update process:</strong></p>
+            <ol class="process-list">
+                <li>Validate interval against <code>JobInterval</code> enum</li>
+                <li>Call <code>updateGlobalScrapeSchedule()</code> with user settings</li>
+                <li>Store settings in database with key <code>"auto-scrape"</code></li>
+                <li>Immediately update scheduler (enable/disable job)</li>
+            </ol>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">5</div>
+            <div class="step-title">Job Scheduling & Timer Management</div>
+            <span class="file-ref">backend/apps/threat-tracker/services/scheduler.ts:84-108</span>
+            
+            <div class="description">
+                The actual job scheduling uses Node.js setInterval to create recurring timers for each user based on their configured interval.
+            </div>
+
+            <pre><code>function scheduleUserScrapeJob(userId: string, interval: JobInterval): void {
+  // Clear existing job for this user if it exists
+  clearUserScrapeJob(userId);
+  
+  // Schedule new job for this user
+  const job = setInterval(async () => {
+    log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
+    try {
+      const result = await runGlobalScrapeJob(userId);
+      log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
+    } catch (error: any) {
+      log(`[ThreatTracker] Error in scheduled scrape job for user ${userId}: ${error.message}`, "scheduler-error");
+      console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
+    }
+  }, interval);
+  
+  userScheduledJobs.set(userId, job);
+  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms`, "scheduler");
+}</code></pre>
+
+            <p><strong>Timer management:</strong></p>
+            <ul>
+                <li>Clears any existing timer for the user to prevent duplicates</li>
+                <li>Creates new <code>setInterval()</code> with user's configured interval</li>
+                <li>Stores timer reference in <code>userScheduledJobs</code> Map</li>
+                <li>When timer fires, calls <code>runGlobalScrapeJob(userId)</code></li>
+            </ul>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">6</div>
+            <div class="step-title">Global Scrape Job Execution</div>
+            <span class="file-ref">backend/apps/threat-tracker/services/background-jobs.ts:457-473</span>
+            
+            <div class="description">
+                When a timer fires, it executes the global scrape job which processes all auto-scrape sources for the specific user.
+            </div>
+
+            <pre><code>export async function runGlobalScrapeJob(userId?: string) {
+  if (globalScrapeJobRunning) {
+    log("[ThreatTracker] Global scrape job already running", "scraper");
+    return { message: "Global scrape job already running" };
+  }
+
+  globalScrapeJobRunning = true;
+  log(`[ThreatTracker] Starting global scrape job${userId ? ` for user ${userId}` : ' (automated)'}`, "scraper");
+
+  try {
+    // Get all active sources for auto-scraping
+    const sources = await storage.getAutoScrapeSources(userId);
+    log(`[ThreatTracker] Found ${sources.length} active sources for scraping`, "scraper");
+
+    // Array to store all new articles
+    const allNewArticles: ThreatArticle[] = [];
+
+    // Process each source sequentially
+    for (const source of sources) {
+      // Check if global job should continue
+      if (!globalScrapeJobRunning) {
+        log("[ThreatTracker] Global scrape job stopped, aborting remaining sources", "scraper");
+        break;
+      }</code></pre>
+
+            <p><strong>Global job process:</strong></p>
+            <ul>
+                <li>Prevents concurrent execution with <code>globalScrapeJobRunning</code> flag</li>
+                <li>Gets user's auto-scrape sources via <code>storage.getAutoScrapeSources(userId)</code></li>
+                <li>Processes each source sequentially to avoid overwhelming the system</li>
+                <li>Collects all new articles found across all sources</li>
+            </ul>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">7</div>
+            <div class="step-title">Individual Source Scraping</div>
+            <span class="file-ref">backend/apps/threat-tracker/services/background-jobs.ts:246-275</span>
+            
+            <div class="description">
+                Each source is processed individually, loading relevant keywords and scraping the source website for new articles.
+            </div>
+
+            <pre><code>export async function scrapeSource(source: ThreatSource, userId: string) {
+  log(`[ThreatTracker] Starting scrape job for source: ${source.name}`, "scraper");
+  
+  // Set active flag for this source
+  activeScraping.set(source.id, true);
+  
+  const keywordUserId = source.userId || userId
+
+  try {
+    // Get all threat-related keywords for analysis, filtered by the source's userId
+    const threatKeywords = await storage.getKeywordsByCategory("threat", keywordUserId);
+    const vendorKeywords = await storage.getKeywordsByCategory("vendor", keywordUserId);
+    const clientKeywords = await storage.getKeywordsByCategory("client", keywordUserId);
+    const hardwareKeywords = await storage.getKeywordsByCategory("hardware", keywordUserId);
+
+    // Extract keyword terms
+    const threatTerms = threatKeywords.map((k) => k.term);
+    const vendorTerms = vendorKeywords.map((k) => k.term);
+    const clientTerms = clientKeywords.map((k) => k.term);
+    const hardwareTerms = hardwareKeywords.map((k) => k.term);</code></pre>
+
+            <p><strong>Source scraping steps:</strong></p>
+            <ol class="process-list">
+                <li>Set active scraping flag for status tracking</li>
+                <li>Load keywords by category (threat, vendor, client, hardware)</li>
+                <li>Scrape source URL using Puppeteer</li>
+                <li>Extract article links using AI</li>
+                <li>Process each article for content and keyword matching</li>
+            </ol>
+        </div>
+
+        <div class="step-box">
+            <div class="step-number">8</div>
+            <div class="step-title">Article Processing & Content Analysis</div>
+            <span class="file-ref">backend/apps/threat-tracker/services/background-jobs.ts:296-327</span>
+            
+            <div class="description">
+                The scraping process follows a detailed workflow to extract and analyze article content using AI for relevance scoring.
+            </div>
+
+            <pre><code>// 1. Load source URL via puppeteer and scrape HTML
+log(`[ThreatTracker] Step 1-3: Scraping source URL: ${source.url}`, "scraper");
+const html = await scrapeUrl(source.url);
+
+// 2. Get or detect HTML structure (scraping config)
+log(`[ThreatTracker] Determining HTML structure for articles`, "scraper");
+let htmlStructure;
+if (source.scrapingConfig) {
+  log(`[ThreatTracker] Using stored HTML structure for source`, "scraper");
+  htmlStructure = source.scrapingConfig;
+} else {
+  log(`[ThreatTracker] No HTML structure found, detecting new structure`, "scraper");
+  htmlStructure = null;
+}
+
+// 3. Use OpenAI to identify article links
+log(`[ThreatTracker] Step 4: Identifying article links with OpenAI`, "scraper");
+const processedLinks = await extractArticleLinks(html, source.url);
+log(`[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`, "scraper");</code></pre>
+
+            <p><strong>Article processing workflow:</strong></p>
+            <ul>
+                <li><strong>HTML Scraping</strong>: Use Puppeteer to load the source page</li>
+                <li><strong>Structure Detection</strong>: Use stored config or detect HTML patterns</li>
+                <li><strong>Link Extraction</strong>: AI identifies relevant article links</li>
+                <li><strong>Content Analysis</strong>: Each article is processed for keyword matching</li>
+                <li><strong>Duplicate Prevention</strong>: URL normalization and title similarity checks</li>
+                <li><strong>Database Storage</strong>: Valid articles are saved with metadata</li>
+            </ul>
+        </div>
+
+        <h2>Key Data Structures</h2>
+
+        <div class="data-structure">
+            <h3>userScheduledJobs: Map&lt;string, NodeJS.Timeout&gt;</h3>
+            <p>Tracks active timer references for each user. Key is userId, value is the setInterval timer object.</p>
+            <pre><code>// Example:
+userScheduledJobs.set("user123", timerRef);
+userScheduledJobs.get("user123"); // Returns timer object
+userScheduledJobs.delete("user123"); // Removes timer tracking</code></pre>
+        </div>
+
+        <div class="data-structure">
+            <h3>globalScrapeJobRunning: boolean</h3>
+            <p>Global flag that prevents multiple concurrent scrape jobs from running simultaneously.</p>
+            <pre><code>// Usage:
+if (globalScrapeJobRunning) {
+  return { message: "Global scrape job already running" };
+}
+globalScrapeJobRunning = true;</code></pre>
+        </div>
+
+        <div class="data-structure">
+            <h3>activeScraping: Map&lt;string, boolean&gt;</h3>
+            <p>Tracks individual source scraping status. Key is sourceId, value indicates if scraping is active.</p>
+            <pre><code>// Example:
+activeScraping.set(source.id, true);  // Start scraping
+activeScraping.get(source.id);        // Check status
+activeScraping.set(source.id, false); // Stop scraping</code></pre>
+        </div>
+
+        <div class="data-structure">
+            <h3>Settings Storage Key: "auto-scrape"</h3>
+            <p>Database key used to store user auto-scrape settings in the threatSettings table.</p>
+            <pre><code>// Settings structure:
+{
+  enabled: boolean,
+  interval: JobInterval (HOURLY | DAILY | WEEKLY | DISABLED)
+}</code></pre>
+        </div>
+
+        <h2>JobInterval Enum Values</h2>
+        <div class="data-structure">
+            <pre><code>export enum JobInterval {
+  HOURLY = 60 * 60 * 1000,           // 1 hour (3,600,000ms)
+  DAILY = 24 * 60 * 60 * 1000,       // 24 hours (86,400,000ms)
+  WEEKLY = 7 * 24 * 60 * 60 * 1000,  // 7 days (604,800,000ms)
+  DISABLED = 0,                       // Disabled
+}</code></pre>
+        </div>
+
+        <h2>Critical Points Where Issues May Occur</h2>
+
+        <div class="critical-point">
+            <h3>1. Initialization Issues</h3>
+            <p><strong>Problem:</strong> <code>getAllAutoScrapeSettings()</code> doesn't find users with the right key.</p>
+            <p><strong>Location:</strong> scheduler.ts:141</p>
+            <p><strong>Cause:</strong> Settings stored with different key or user has never saved auto-scrape settings.</p>
+        </div>
+
+        <div class="critical-point">
+            <h3>2. Source Validation Failures</h3>
+            <p><strong>Problem:</strong> <code>getAutoScrapeSources()</code> returns empty array even when user has sources.</p>
+            <p><strong>Location:</strong> scheduler.ts:182</p>
+            <p><strong>Cause:</strong> Sources not marked as <code>active: true</code> and <code>includeInAutoScrape: true</code>.</p>
+        </div>
+
+        <div class="critical-point">
+            <h3>3. Timer Management Issues</h3>
+            <p><strong>Problem:</strong> Jobs aren't properly cleared when settings are updated.</p>
+            <p><strong>Location:</strong> scheduler.ts:84-108</p>
+            <p><strong>Cause:</strong> <code>clearUserScrapeJob()</code> not called before setting new job or timer references lost.</p>
+        </div>
+
+        <div class="critical-point">
+            <h3>4. Concurrent Execution Problems</h3>
+            <p><strong>Problem:</strong> Global job flag management fails, allowing multiple concurrent scrapes.</p>
+            <p><strong>Location:</strong> background-jobs.ts:458</p>
+            <p><strong>Cause:</strong> <code>globalScrapeJobRunning</code> flag not properly reset on errors or exceptions.</p>
+        </div>
+
+        <h2>Debugging Commands</h2>
+
+        <div class="data-structure">
+            <h3>Check Scheduler Status</h3>
+            <pre><code>// GET /threat-tracker/scheduler/status
+// Returns:
+{
+  "initialized": true,
+  "activeJobs": 2,
+  "userIds": ["user123", "user456"]
+}</code></pre>
+        </div>
+
+        <div class="data-structure">
+            <h3>Check User Auto-Scrape Settings</h3>
+            <pre><code>// GET /threat-tracker/settings/auto-scrape
+// Returns:
+{
+  "enabled": true,
+  "interval": 86400000  // DAILY in milliseconds
+}</code></pre>
+        </div>
+
+        <div class="data-structure">
+            <h3>Manual Scrape Test</h3>
+            <pre><code>// POST /threat-tracker/scrape/all
+// Manually triggers global scrape job for testing</code></pre>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #ecf0f1;">
+        <p style="text-align: center; color: #7f8c8d; font-style: italic;">
+            The threat-tracker auto-scraping system uses a per-user scheduler approach where each user has their own independent timer based on their individual settings and available sources.
+        </p>
+    </div>
+</body>
+</html>
