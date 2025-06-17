@@ -1,0 +1,134 @@
+# RisqAi News Intelligence Platform
+
+## Overview
+
+RisqAi is a comprehensive threat intelligence and news monitoring platform built with a React frontend and Node.js backend. The system consists of three main applications:
+
+1. **News Radar** - General news monitoring and article tracking
+2. **Threat Tracker** - Cybersecurity threat intelligence gathering
+3. **News Capsule** - Article reporting and analysis
+
+The platform provides automated web scraping, AI-powered content analysis, and intelligent threat detection capabilities.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: React Router v7
+- **State Management**: Zustand stores for global state
+- **Data Fetching**: TanStack Query (React Query) for server state
+- **UI Components**: Radix UI with custom styling
+- **Styling**: Tailwind CSS with custom RisqAi brand theme
+- **Build Tool**: Vite
+
+### Backend Architecture
+- **Runtime**: Node.js with TypeScript
+- **Framework**: Express.js with custom routing
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: JWT tokens with CSRF protection
+- **Web Scraping**: Puppeteer with stealth plugins for bot protection bypass
+- **AI Integration**: OpenAI API for content analysis and summarization
+- **Background Jobs**: Custom scheduler system for automated scraping
+
+### Monorepo Structure
+```
+├── frontend/          # React application
+├── backend/           # Node.js server with three app modules
+│   └── apps/
+│       ├── news-radar/      # General news monitoring
+│       ├── threat-tracker/  # Cybersecurity threats
+│       └── news-capsule/    # Report generation
+├── shared/            # Shared database schemas and types
+└── drizzle.config.ts  # Database configuration
+```
+
+## Key Components
+
+### Database Layer (Drizzle ORM)
+- **User Management**: Authentication, roles, permissions, refresh tokens
+- **News Radar**: Sources, articles, keywords, settings
+- **Threat Tracker**: Threat articles, keywords by category, security scoring
+- **News Capsule**: Processed articles ready for reporting
+- **Reports**: Generated executive reports with article collections
+
+### Web Scraping System
+- **Primary Scraper**: HTTP requests with fallback to Puppeteer
+- **Bot Protection Bypass**: Advanced Cloudflare and anti-bot detection
+- **Content Extraction**: AI-powered HTML structure detection
+- **Date Extraction**: Comprehensive date parsing with multiple strategies
+- **Author/Content Separation**: Intelligent text processing
+
+### AI Analysis Pipeline
+- **Content Summarization**: OpenAI GPT integration
+- **Keyword Detection**: Category-based threat keyword identification
+- **Relevance Scoring**: Automated article relevance assessment
+- **Security Scoring**: Threat level evaluation for cybersecurity content
+
+### Background Job System
+- **Independent User Jobs**: Per-user automated scraping schedules
+- **Persistent Scheduling**: Jobs survive server restarts
+- **Health Monitoring**: Automatic job recovery and error handling
+- **Keyword Filtering**: User-specific content filtering during processing
+
+## Data Flow
+
+### Article Processing Pipeline
+1. **Source Monitoring**: Automated scanning of configured news sources
+2. **Content Extraction**: HTML parsing with AI-assisted structure detection
+3. **AI Analysis**: Content summarization and keyword extraction
+4. **User filtering**: Articles filtered by user-specific keywords
+5. **Storage**: Processed articles stored in respective application tables
+6. **Reporting**: Selected articles compiled into executive reports
+
+### User Workflow
+1. **Configuration**: Users set up sources, keywords, and preferences
+2. **Auto-Scraping**: Background jobs collect articles based on user settings
+3. **Review**: Users review detected threats and relevant articles
+4. **Curation**: Articles can be sent to News Capsule for reporting
+5. **Export**: Generate executive reports in various formats
+
+## External Dependencies
+
+### Core Infrastructure
+- **Database**: PostgreSQL 16 (configured via Replit modules)
+- **Node.js**: Version 20 runtime environment
+- **Chromium**: For Puppeteer web scraping (handled via Nix packages)
+
+### Key NPM Packages
+- **Web Scraping**: `puppeteer`, `puppeteer-extra`, `puppeteer-extra-plugin-stealth`, `cheerio`
+- **AI Integration**: `openai`
+- **Database**: `drizzle-orm`, `drizzle-kit`
+- **Authentication**: `argon2`, `csrf-csrf`, `uuid`
+- **Document Generation**: `docx`, `jspdf`
+- **Email**: `@sendgrid/mail`
+
+### External APIs
+- **OpenAI**: GPT models for content analysis and structure detection
+- **SendGrid**: Email notifications and OTP delivery
+
+## Deployment Strategy
+
+### Development Environment
+- **Replit Configuration**: Multi-service development with parallel frontend/backend
+- **Port Mapping**: Frontend (5174→80), Backend (5000→3000), Alt Frontend (5175→3001)
+- **Hot Reload**: Nodemon for backend, Vite HMR for frontend
+
+### Production Considerations
+- **Build Process**: Custom build script with Puppeteer cache management
+- **Database Migrations**: Drizzle Kit automated migrations
+- **Environment Variables**: Secure handling of API keys and database URLs
+- **Browser Dependencies**: Chromium installation for server environments
+
+### Replit-Specific Setup
+- **Nix Packages**: Comprehensive browser dependencies for Puppeteer
+- **Module Configuration**: PostgreSQL and Node.js modules
+- **Cache Management**: Puppeteer browser cache optimization
+- **Resource Management**: Memory-efficient browser instance handling
+
+## Changelog
+
+- June 17, 2025. Initial setup
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
