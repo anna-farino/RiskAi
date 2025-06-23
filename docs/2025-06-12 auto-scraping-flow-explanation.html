@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Scraping Flow Analysis - News Project</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #e74c3c;
+            margin-top: 25px;
+        }
+        .app-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .step {
+            background: #ecf0f1;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #27ae60;
+            border-radius: 4px;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #27ae60;
+            display: inline-block;
+            min-width: 30px;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .flow-diagram {
+            background: #fff;
+            border: 2px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .differences {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .similarities {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .file-path {
+            background: #e8f4f8;
+            color: #2980b9;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        ul li {
+            margin: 8px 0;
+        }
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Auto-Scraping Flow Analysis: News Radar vs Threat Tracker</h1>
+        
+        <div class="info">
+            <strong>Analysis Overview:</strong> This document explains the auto-scraping functionality in both News Radar and Threat Tracker applications, highlighting their similarities, differences, and step-by-step processes.
+        </div>
+
+        <h2>🏗️ Architecture Overview</h2>
+        
+        <div class="similarities">
+            <h3>Common Architecture Elements</h3>
+            <ul>
+                <li><strong>Scheduler System:</strong> Both apps use a per-user scheduling system with configurable intervals</li>
+                <li><strong>Background Jobs:</strong> Automated scraping jobs run independently for each user</li>
+                <li><strong>HTML Structure Detection:</strong> AI-powered detection of article content structure</li>
+                <li><strong>Content Analysis:</strong> OpenAI integration for content relevance and keyword matching</li>
+                <li><strong>Email Notifications:</strong> Automated alerts when new articles are found</li>
+                <li><strong>Puppeteer Integration:</strong> Advanced scraping for dynamic content</li>
+            </ul>
+        </div>
+
+        <div class="differences">
+            <h3>Key Differences</h3>
+            <ul>
+                <li><strong>Keyword System:</strong> 
+                    <ul>
+                        <li>News Radar: Simple keyword list with active/inactive status</li>
+                        <li>Threat Tracker: Categorized keywords (threats, vendors, clients, hardware)</li>
+                    </ul>
+                </li>
+                <li><strong>Content Filtering:</strong>
+                    <ul>
+                        <li>News Radar: Articles saved if any keyword matches</li>
+                        <li>Threat Tracker: Requires threat keywords + at least one other category</li>
+                    </ul>
+                </li>
+                <li><strong>Duplicate Detection:</strong>
+                    <ul>
+                        <li>News Radar: URL-based duplicate checking</li>
+                        <li>Threat Tracker: URL + title similarity checking (85% threshold)</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <div class="app-section">
+            <h2>📰 News Radar Auto-Scraping Flow</h2>
+            
+            <div class="flow-diagram">
+                <h3>Flow Diagram</h3>
+                <div class="code-block">
+Scheduler → Background Job → Source Processing → Content Analysis → Article Storage → Email Notification
+    ↓            ↓               ↓                  ↓                ↓               ↓
+Initialize   Get Active      Scrape URLs      OpenAI Analysis    Save to DB    Send Summary
+Per-User     Sources         Extract Links    Keyword Match      Validation     to User
+Timers       Filter          Get Content      Relevance Score    Check Dups     Group by Source
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>Scheduler Initialization</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/scheduler.ts:43</span>
+                <ul>
+                    <li>Loads all users with auto-scrape sources</li>
+                    <li>Reads individual user settings for frequency (15min, hourly, 4hr, 12hr, daily, weekly)</li>
+                    <li>Creates separate timer for each user</li>
+                    <li>Implements health check system every 5 minutes</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>Background Job Execution</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/background-jobs.ts:445</span>
+                <ul>
+                    <li>Prevents concurrent jobs with global flag</li>
+                    <li>Gets all active sources for the specific user</li>
+                    <li>Processes sources sequentially</li>
+                    <li>Collects all new articles for consolidated email</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3.</span>
+                <strong>Source Scraping Process</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/background-jobs.ts:30</span>
+                <ul>
+                    <li>Fetches source HTML using adaptive scraping strategy</li>
+                    <li>Detects dynamic content (React, lazy loading, HTMX)</li>
+                    <li>Switches to Puppeteer if protection/dynamic content detected</li>
+                    <li>Extracts article links using AI (OpenAI) analysis</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">4.</span>
+                <strong>HTML Structure Detection</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/background-jobs.ts:69</span>
+                <ul>
+                    <li>If no cached structure exists, analyzes first article</li>
+                    <li>Uses OpenAI to detect title, content, author, date selectors</li>
+                    <li>Caches structure for future use</li>
+                    <li>Handles fallback selectors if detection fails</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">5.</span>
+                <strong>Content Processing & Analysis</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/background-jobs.ts:106</span>
+                <ul>
+                    <li>Extracts article content using detected structure</li>
+                    <li>Performs title keyword matching with word boundaries</li>
+                    <li>Analyzes content with OpenAI for keyword detection</li>
+                    <li>Validates OpenAI results against active keyword list</li>
+                    <li>Checks for existing articles by URL</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">6.</span>
+                <strong>Article Storage</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/background-jobs.ts:223</span>
+                <ul>
+                    <li>Creates article record with extracted data</li>
+                    <li>Stores relevance score from OpenAI analysis</li>
+                    <li>Records detected keywords</li>
+                    <li>Updates source last-scraped timestamp</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">7.</span>
+                <strong>Email Notifications</strong>
+                <br>File: <span class="file-path">backend/apps/news-radar/services/background-jobs.ts:544</span>
+                <ul>
+                    <li>Sends consolidated email for all new articles</li>
+                    <li>Groups articles by source</li>
+                    <li>Includes article summaries and detected keywords</li>
+                    <li>Uses SendGrid for email delivery</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="app-section">
+            <h2>🔒 Threat Tracker Auto-Scraping Flow</h2>
+            
+            <div class="flow-diagram">
+                <h3>Flow Diagram</h3>
+                <div class="code-block">
+Scheduler → Background Job → Source Processing → Advanced Analysis → Article Storage → Email Notification
+    ↓            ↓               ↓                  ↓                    ↓               ↓
+Initialize   Get Active      Scrape URLs      Multi-Category      Save to DB      Send Summary
+Per-User     Sources         Extract Links    Keyword Analysis    Duplicate       Individual
+Timers       + Keywords      Get Content      Threat + Other      Checking        Notifications
+</div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>Enhanced Scheduler System</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/scheduler.ts:250</span>
+                <ul>
+                    <li>Manages per-user scheduling with failure tracking</li>
+                    <li>Supports missed job detection and immediate execution</li>
+                    <li>Calculates delays based on last run timestamps</li>
+                    <li>Auto-disables after 5 consecutive failures</li>
+                    <li>Preserves lastRunAt separately from user setting changes</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>Categorized Keyword System</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/background-jobs.ts:258</span>
+                <ul>
+                    <li>Loads keywords by category: threats, vendors, clients, hardware</li>
+                    <li>Each category can have different keywords per user</li>
+                    <li>Supports both user-specific and default keywords</li>
+                    <li>Enables sophisticated content filtering logic</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3.</span>
+                <strong>Advanced Scraping with HTMX Support</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/scraper.ts:296</span>
+                <ul>
+                    <li>Detects HTMX dynamic content loading</li>
+                    <li>Manually fetches HTMX endpoints for additional content</li>
+                    <li>Handles complex scrolling and interaction patterns</li>
+                    <li>Supports sites like Foorilla with advanced dynamic content</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">4.</span>
+                <strong>Multi-Category Content Analysis</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/background-jobs.ts:113</span>
+                <ul>
+                    <li>Analyzes content against all keyword categories</li>
+                    <li>Requires threat keywords AND at least one other category</li>
+                    <li>Validates OpenAI detected keywords against known lists</li>
+                    <li>Includes severity scoring for security assessment</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">5.</span>
+                <strong>Enhanced Duplicate Detection</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/background-jobs.ts:78</span>
+                <ul>
+                    <li>URL normalization to handle variations</li>
+                    <li>Title similarity checking (85% threshold)</li>
+                    <li>Checks last 100 articles for similarity matches</li>
+                    <li>Prevents both URL and content duplicates</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">6.</span>
+                <strong>Security-Focused Storage</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/background-jobs.ts:209</span>
+                <ul>
+                    <li>Stores security/severity scores</li>
+                    <li>Records categorized keyword matches</li>
+                    <li>Includes relevance scoring</li>
+                    <li>Maintains user-specific article isolation</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">7.</span>
+                <strong>Security Alert Notifications</strong>
+                <br>File: <span class="file-path">backend/apps/threat-tracker/services/background-jobs.ts:526</span>
+                <ul>
+                    <li>Sends notifications with security context</li>
+                    <li>Highlights threat severity and relevance</li>
+                    <li>Groups by keyword categories</li>
+                    <li>Provides actionable security intelligence</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>🔧 Technical Implementation Details</h2>
+
+        <h3>Adaptive Scraping Strategy</h3>
+        <div class="info">
+            Both applications use a sophisticated adaptive scraping approach:
+        </div>
+        
+        <div class="step">
+            <span class="step-number">1.</span>
+            <strong>Initial Fetch Attempt</strong>
+            <ul>
+                <li>Try simple HTTP fetch with rotating user agents</li>
+                <li>Detect bot protection (Cloudflare, Incapsula, DataDome)</li>
+                <li>Check for dynamic content (React, HTMX, lazy loading)</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2.</span>
+            <strong>Fallback to Puppeteer</strong>
+            <ul>
+                <li>Switch to headless browser if protection detected</li>
+                <li>Handle JavaScript challenges and dynamic loading</li>
+                <li>Implement stealth mode to avoid detection</li>
+                <li>Support HTMX endpoint fetching and interaction</li>
+            </ul>
+        </div>
+
+        <h3>OpenAI Integration</h3>
+        <div class="code-block">
+// Common OpenAI Functions Used:
+- detectHtmlStructure(): Analyzes first article to identify content selectors
+- identifyArticleLinks(): Extracts relevant article URLs from source pages  
+- analyzeContent(): Evaluates content relevance and keyword matches
+- extractPublishDate(): Intelligently extracts publication dates
+        </div>
+
+        <h3>Error Handling & Resilience</h3>
+        <ul>
+            <li><strong>Retry Logic:</strong> Exponential backoff for failed requests</li>
+            <li><strong>Graceful Degradation:</strong> Fallback selectors when AI detection fails</li>
+            <li><strong>Stop Signals:</strong> Ability to halt long-running scraping operations</li>
+            <li><strong>Health Monitoring:</strong> Automatic recovery of failed scheduled jobs</li>
+            <li><strong>Failure Limits:</strong> Auto-disable after consecutive failures</li>
+        </ul>
+
+        <h2>⚙️ Configuration & Scheduling</h2>
+
+        <h3>News Radar Intervals</h3>
+        <div class="code-block">
+FIFTEEN_MINUTES = 15 * 60 * 1000    // 15 minutes
+HOURLY = 60 * 60 * 1000             // 1 hour  
+FOUR_HOURS = 4 * 60 * 60 * 1000     // 4 hours
+TWICE_DAILY = 12 * 60 * 60 * 1000   // 12 hours
+DAILY = 24 * 60 * 60 * 1000         // 24 hours
+WEEKLY = 7 * 24 * 60 * 60 * 1000    // 7 days
+        </div>
+
+        <h3>Threat Tracker Intervals</h3>
+        <div class="code-block">
+HOURLY = 60 * 60 * 1000             // 1 hour
+DAILY = 24 * 60 * 60 * 1000         // 24 hours  
+WEEKLY = 7 * 24 * 60 * 60 * 1000    // 7 days
+DISABLED = 0                        // Disabled
+        </div>
+
+        <h2>📊 Performance Considerations</h2>
+        
+        <div class="warning">
+            <strong>Resource Management:</strong>
+            <ul>
+                <li>Sequential source processing to avoid overwhelming target sites</li>
+                <li>Shared browser instances in Puppeteer to reduce memory usage</li>
+                <li>Request delays and user agent rotation to appear more natural</li>
+                <li>Stop signals to prevent runaway scraping operations</li>
+            </ul>
+        </div>
+
+        <h2>🎯 Summary</h2>
+        
+        <p>Both News Radar and Threat Tracker implement sophisticated auto-scraping systems with the following shared capabilities:</p>
+        
+        <ul>
+            <li><strong>Intelligent Content Detection:</strong> AI-powered identification of articles and content structure</li>
+            <li><strong>Adaptive Scraping:</strong> Automatic fallback to Puppeteer for protected or dynamic sites</li>
+            <li><strong>User-Specific Scheduling:</strong> Individual timer management with configurable intervals</li>
+            <li><strong>Robust Error Handling:</strong> Comprehensive retry logic and failure recovery</li>
+            <li><strong>Email Notifications:</strong> Automated alerts with article summaries and keyword highlighting</li>
+        </ul>
+
+        <p>The key differentiator is that <strong>Threat Tracker</strong> implements a more sophisticated security-focused approach with categorized keywords and multi-criteria filtering, while <strong>News Radar</strong> provides a simpler but more flexible general-purpose news aggregation system.</p>
+
+        <div class="info">
+            <strong>File Locations Summary:</strong><br>
+            • News Radar: <span class="file-path">backend/apps/news-radar/services/</span><br>
+            • Threat Tracker: <span class="file-path">backend/apps/threat-tracker/services/</span><br>
+            • Key files: scheduler.ts, background-jobs.ts, scraper.ts, puppeteer-scraper.ts
+        </div>
+    </div>
+</body>
+</html>

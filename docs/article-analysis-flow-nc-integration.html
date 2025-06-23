@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Analysis Flow: News Radar & Threat Tracker to News Capsule</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #e74c3c;
+            margin-top: 25px;
+        }
+        .app-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .step {
+            background: #ecf0f1;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #27ae60;
+            border-radius: 4px;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #27ae60;
+            display: inline-block;
+            min-width: 30px;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .flow-diagram {
+            background: #fff;
+            border: 2px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .app-colors {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .app-color {
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        .nr-color { background: #4CAF50; }
+        .tt-color { background: #FF5722; }
+        .nc-color { background: #9C27B0; }
+        .file-path {
+            background: #e8f4f8;
+            color: #2980b9;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .endpoint {
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .api-method {
+            background: #17a2b8;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        .comparison-table .feature {
+            font-weight: bold;
+            background: #f1f3f4;
+        }
+        ul li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Article Analysis Flow: News Radar & Threat Tracker Integration with News Capsule</h1>
+        
+        <div class="info">
+            <strong>Analysis Overview:</strong> This document explains how News Radar and Threat Tracker send articles to News Capsule for analysis, and how News Capsule processes URLs to extract and analyze cybersecurity content.
+        </div>
+
+        <div class="app-colors">
+            <div class="app-color nr-color">News Radar (NR)</div>
+            <div class="app-color tt-color">Threat Tracker (TT)</div>
+            <div class="app-color nc-color">News Capsule (NC)</div>
+        </div>
+
+        <h2>🔄 Integration Overview</h2>
+        
+        <div class="flow-diagram">
+            <h3>High-Level Flow</h3>
+            <div class="code-block">
+User Selects Article → Send to NC Button → API Call → URL Processing → AI Analysis → Report Integration
+     ↓                    ↓                 ↓            ↓               ↓             ↓
+News Radar/         sendToCapsule()    POST /api/    Puppeteer      OpenAI        Executive
+Threat Tracker     function           process-url   Scraping       Summary       Reports
+Article Cards       (lines 439, 377)  endpoint      + Analysis     Generation    System
+            </div>
+        </div>
+
+        <h2>📤 Article Sending Process (News Radar & Threat Tracker)</h2>
+
+        <div class="app-section">
+            <h3>Frontend Integration Points</h3>
+            
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>Send to Capsule Function</strong>
+                <br>File: <span class="file-path">frontend/src/pages/dashboard/news-radar/home.tsx:439</span>
+                <br>File: <span class="file-path">frontend/src/pages/dashboard/threat-tracker/home.tsx:377</span>
+                <div class="code-block">
+// News Radar sendToCapsule function
+const sendToCapsule = async (url: string) => {
+  try {
+    const response = await fetch(`${serverUrl}/api/news-capsule/process-url`, {
+      method: "POST",
+      credentials: 'include',
+      headers: {
+        "Content-Type": "application/json",
+        ...csfrHeaderObject(),
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to send to capsule: ${response.statusText}`);
+    }
+
+    toast({ title: "Article sent to News Capsule" });
+  } catch (error) {
+    toast({ title: "Error", variant: "destructive" });
+  }
+};
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>Article Card Integration</strong>
+                <br>Both apps use the same pattern to integrate the "Send to Capsule" functionality:
+                <ul>
+                    <li><strong>News Radar:</strong> Uses <span class="file-path">ArticleCard</span> component with <code>onSendToCapsule</code> prop</li>
+                    <li><strong>Threat Tracker:</strong> Uses <span class="file-path">ThreatArticleCard</span> component with <code>onSendToCapsule</code> prop</li>
+                    <li>Both pass the article URL to the <code>sendToCapsule</code> function</li>
+                    <li>User sees immediate feedback via toast notifications</li>
+                </ul>
+            </div>
+
+            <div class="endpoint">
+                <strong>API Endpoint:</strong> <span class="api-method">POST</span> <code>/api/news-capsule/process-url</code>
+                <br><strong>Payload:</strong> <code>{ url: string }</code>
+                <br><strong>Response:</strong> Processed article data with AI-generated summary
+            </div>
+        </div>
+
+        <h2>🧠 News Capsule URL Analysis Process</h2>
+
+        <div class="app-section">
+            <h3>Research Interface</h3>
+            <br>File: <span class="file-path">frontend/src/pages/dashboard/news-capsule/research.tsx</span>
+            
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>URL Input Methods</strong>
+                <ul>
+                    <li><strong>Manual Entry:</strong> Users can input URLs directly in the research interface</li>
+                    <li><strong>Bulk Processing:</strong> Support for multiple URLs (lines 303-305)</li>
+                    <li><strong>From NR/TT:</strong> Articles sent via "Send to Capsule" button</li>
+                    <li><strong>Recent URLs:</strong> Saved URL suggestions for quick access</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>URL Processing Flow</strong>
+                <br>Lines 289-412 in research.tsx handle the URL processing:
+                <div class="code-block">
+const processUrl = async () => {
+  // Validation and URL parsing
+  const urls = bulkMode 
+    ? url.split('\n').map(u => u.trim()).filter(u => u.length > 0)
+    : url.split(',').map(u => u.trim()).filter(u => u.length > 0);
+  
+  // Sequential processing with progress tracking
+  for (let i = 0; i < urls.length; i++) {
+    const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
+      method: "POST",
+      body: JSON.stringify({ url: singleUrl })
+    });
+    
+    // Handle success/error for each URL
+  }
+};
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3.</span>
+                <strong>Article Selection & Report Integration</strong>
+                <ul>
+                    <li><strong>Selection Interface:</strong> Users can select processed articles for reports</li>
+                    <li><strong>Persistent State:</strong> Selected articles stored in localStorage</li>
+                    <li><strong>Report Options:</strong> Create new report or add to existing daily report</li>
+                    <li><strong>Topic Classification:</strong> Optional topic field for report organization</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>⚙️ Backend URL Processing Engine</h2>
+
+        <div class="app-section">
+            <h3>Core Processing Pipeline</h3>
+            <br>File: <span class="file-path">backend/apps/news-capsule/process-url.ts</span>
+            
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>Adaptive Scraping Strategy</strong>
+                <br>Lines 149-184: Fast fetch-first approach with Puppeteer fallback
+                <div class="code-block">
+// Try fast fetch first (8 second timeout)
+const fetchResponse = await fetch(url, {
+  headers: { 'User-Agent': '...' },
+  signal: AbortSignal.timeout(8000)
+});
+
+// Check for bot protection or dynamic content
+const needsPuppeteer = html.includes('cloudflare') || 
+                      html.includes('datadome') || 
+                      html.includes('__NEXT_DATA__') ||
+                      html.includes('react-root') ||
+                      html.includes('htmx');
+
+// Fall back to Puppeteer if needed
+if (needsPuppeteer) {
+  content = await scrapeArticleContent(url);
+}
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>Advanced Content Extraction</strong>
+                <br>Lines 313-814: Comprehensive scraping with multiple strategies
+                <ul>
+                    <li><strong>Progressive Navigation:</strong> Try domcontentloaded → load → no wait</li>
+                    <li><strong>DataDome Handling:</strong> Automatic challenge detection and waiting</li>
+                    <li><strong>HTMX Support:</strong> Dynamic content loading for modern sites</li>
+                    <li><strong>Bot Protection Evasion:</strong> Human-like actions and stealth mode</li>
+                    <li><strong>Multi-Selector Extraction:</strong> Comprehensive content detection</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3.</span>
+                <strong>Content Extraction Selectors</strong>
+                <br>Lines 670-795: Enhanced selector system
+                <div class="code-block">
+// Title extraction priority
+const titleSelectors = [
+  'h1', '[data-module="ArticleTitle"] h1', '.article-title',
+  '.post-title', '.headline', '.entry-title', '[data-testid="headline"]'
+];
+
+// Content extraction priority  
+const contentSelectors = [
+  'article', '.article-content', '.article-body', 'main .content',
+  '.post-content', '#article-content', '.story-content'
+];
+
+// Publication and metadata extraction
+const publicationSelectors = [
+  'meta[property="og:site_name"]', 'meta[name="site_name"]',
+  'meta[property="twitter:site"]', '.site-name', '.brand-name'
+];
+                </div>
+            </div>
+        </div>
+
+        <h2>🤖 AI-Powered Analysis Engine</h2>
+
+        <div class="app-section">
+            <h3>OpenAI Integration</h3>
+            <br>Lines 816-894: AI summary generation
+            
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>Structured Analysis Prompt</strong>
+                <div class="code-block">
+const prompt = `
+  Analyze the following cybersecurity article and generate a structured summary:
+  
+  Content: ${content.content.substring(0, 4000)}
+  
+  Generate a structured summary with the following fields:
+  1. Title (keep it concise but informative)
+  2. Threat Name (what is the main threat discussed)
+  3. Vulnerability ID (if mentioned, otherwise "Unspecified")
+  4. Summary (a 2-3 sentence summary of the main points)
+  5. Impacts (potential impacts of this threat, 1-2 sentences)
+  6. Attack Vector (how the attack is performed, 1 sentence)
+  7. Target OS (operating systems affected)
+  
+  Format your response as a JSON object.
+`;
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>Analysis Output Structure</strong>
+                <br>The AI generates a comprehensive security analysis with these fields:
+                <ul>
+                    <li><strong>Title:</strong> Clean, informative article title</li>
+                    <li><strong>Threat Name:</strong> Primary cybersecurity threat identified</li>
+                    <li><strong>Vulnerability ID:</strong> CVE or other vulnerability identifier</li>
+                    <li><strong>Summary:</strong> Concise 2-3 sentence overview</li>
+                    <li><strong>Impacts:</strong> Business and technical impact assessment</li>
+                    <li><strong>Attack Vector:</strong> How the attack is executed</li>
+                    <li><strong>Target OS:</strong> Affected operating systems</li>
+                    <li><strong>Source Publication:</strong> Original news source</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3.</span>
+                <strong>Database Storage</strong>
+                <br>Lines 209-226: Processed articles stored for reporting
+                <div class="code-block">
+const articleData = {
+  ...summary,                    // AI-generated analysis
+  originalUrl: url,             // Source URL
+  userId,                       // User context
+  createdAt: new Date(),
+  markedForReporting: true,     // Ready for reports
+  markedForDeletion: false
+};
+
+const [result] = await db
+  .insert(capsuleArticles)
+  .values(articleData)
+  .returning();
+                </div>
+            </div>
+        </div>
+
+        <h2>📊 Feature Comparison</h2>
+
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>News Radar</th>
+                    <th>Threat Tracker</th>
+                    <th>News Capsule</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="feature">Article Processing</td>
+                    <td>Keyword-based filtering</td>
+                    <td>Multi-category threat analysis</td>
+                    <td>AI-powered cybersecurity analysis</td>
+                </tr>
+                <tr>
+                    <td class="feature">Send to NC Integration</td>
+                    <td>✅ Single-click URL sending</td>
+                    <td>✅ Single-click URL sending</td>
+                    <td>✅ Receives and processes URLs</td>
+                </tr>
+                <tr>
+                    <td class="feature">Analysis Depth</td>
+                    <td>Basic keyword matching</td>
+                    <td>Categorized threat keywords</td>
+                    <td>Comprehensive AI analysis</td>
+                </tr>
+                <tr>
+                    <td class="feature">Output Format</td>
+                    <td>Article summaries</td>
+                    <td>Security-focused summaries</td>
+                    <td>Structured threat intelligence</td>
+                </tr>
+                <tr>
+                    <td class="feature">Reporting Integration</td>
+                    <td>❌ No executive reports</td>
+                    <td>❌ No executive reports</td>
+                    <td>✅ Executive report generation</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>🔧 Technical Implementation Details</h2>
+
+        <h3>Error Handling & Resilience</h3>
+        <div class="success">
+            <strong>Robust Error Management:</strong>
+            <ul>
+                <li><strong>Timeout Protection:</strong> 45-second overall timeout with race conditions</li>
+                <li><strong>Progressive Fallbacks:</strong> Fetch → Puppeteer → Multiple navigation strategies</li>
+                <li><strong>Bot Protection Handling:</strong> Automatic detection and evasion techniques</li>
+                <li><strong>Bulk Processing:</strong> Individual URL error isolation in batch operations</li>
+                <li><strong>User Feedback:</strong> Detailed success/failure notifications</li>
+            </ul>
+        </div>
+
+        <h3>Performance Optimizations</h3>
+        <div class="info">
+            <strong>Speed & Efficiency Features:</strong>
+            <ul>
+                <li><strong>Fast-First Strategy:</strong> Quick fetch attempt before Puppeteer</li>
+                <li><strong>Immediate Extraction:</strong> Fast content grabbing for protected sites</li>
+                <li><strong>Reduced Timeouts:</strong> Optimized for production performance</li>
+                <li><strong>Shared Browser Instance:</strong> Reused Puppeteer browser for efficiency</li>
+                <li><strong>Content Truncation:</strong> 4000-character limit for AI analysis</li>
+            </ul>
+        </div>
+
+        <h3>Security Considerations</h3>
+        <div class="warning">
+            <strong>Security Measures:</strong>
+            <ul>
+                <li><strong>CSRF Protection:</strong> All API calls include CSRF headers</li>
+                <li><strong>User Context:</strong> Articles tied to authenticated users</li>
+                <li><strong>Input Validation:</strong> URL validation and sanitization</li>
+                <li><strong>Stealth Mode:</strong> Bot detection evasion without compromising security</li>
+                <li><strong>Rate Limiting:</strong> Built-in timeout and concurrency controls</li>
+            </ul>
+        </div>
+
+        <h2>🎯 Integration Workflow Summary</h2>
+
+        <div class="flow-diagram">
+            <h3>Complete Integration Flow</h3>
+            <div class="step">
+                <span class="step-number">1.</span>
+                <strong>User Action:</strong> Clicks "Send to Capsule" on News Radar or Threat Tracker article
+            </div>
+            <div class="step">
+                <span class="step-number">2.</span>
+                <strong>Frontend Processing:</strong> Article URL sent to News Capsule API endpoint
+            </div>
+            <div class="step">
+                <span class="step-number">3.</span>
+                <strong>Backend Analysis:</strong> Advanced scraping extracts article content
+            </div>
+            <div class="step">
+                <span class="step-number">4.</span>
+                <strong>AI Processing:</strong> OpenAI generates structured cybersecurity analysis
+            </div>
+            <div class="step">
+                <span class="step-number">5.</span>
+                <strong>Storage:</strong> Processed article saved to News Capsule database
+            </div>
+            <div class="step">
+                <span class="step-number">6.</span>
+                <strong>User Access:</strong> Article appears in News Capsule research interface
+            </div>
+            <div class="step">
+                <span class="step-number">7.</span>
+                <strong>Report Integration:</strong> User can select article for executive reports
+            </div>
+        </div>
+
+        <h2>📝 Key Benefits</h2>
+
+        <div class="success">
+            <ul>
+                <li><strong>Seamless Integration:</strong> One-click article transfer between applications</li>
+                <li><strong>Enhanced Analysis:</strong> AI-powered cybersecurity intelligence extraction</li>
+                <li><strong>Executive Reporting:</strong> Professional report generation from processed articles</li>
+                <li><strong>Multi-Source Support:</strong> Works with both News Radar and Threat Tracker</li>
+                <li><strong>Robust Processing:</strong> Handles protected sites and dynamic content</li>
+                <li><strong>User-Centric Design:</strong> Persistent state and intuitive interface</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <strong>Integration Points Summary:</strong><br>
+            • News Radar: <span class="file-path">home.tsx:439</span> - sendToCapsule function<br>
+            • Threat Tracker: <span class="file-path">home.tsx:377</span> - sendToCapsule function<br>
+            • News Capsule: <span class="file-path">research.tsx</span> - URL processing interface<br>
+            • Backend: <span class="file-path">process-url.ts</span> - Core processing engine<br>
+            • API: <span class="file-path">POST /api/news-capsule/process-url</span> - Integration endpoint
+        </div>
+    </div>
+</body>
+</html>
