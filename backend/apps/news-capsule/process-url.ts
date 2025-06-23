@@ -1,15 +1,10 @@
 import { Request, Response } from "express";
-import puppeteer from "puppeteer-extra";
 import { db } from "../../db/db";
 import { capsuleArticles } from "../../../shared/db/schema/news-capsule";
 import { openai } from "../../services/openai";
 import { FullRequest } from "../../middleware";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import type { Browser, Page } from "puppeteer";
-import { execSync } from "child_process";
 import { log } from "../../utils/log";
-import vanillaPuppeteer from "puppeteer";
-import * as fs from "fs";
+import { UnifiedScrapingService } from "../../services/scraping";
 
 // Add stealth plugin to bypass bot detection
 puppeteer.use(StealthPlugin());

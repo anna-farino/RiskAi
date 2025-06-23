@@ -125,9 +125,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Cache Management**: Puppeteer browser cache optimization
 - **Resource Management**: Memory-efficient browser instance handling
 
+## Recent Changes
+
+### June 20, 2025 - Centralized Scraping System Implementation
+- **Implemented unified scraping architecture** across all three applications
+- **Created 12 componentized files** replacing 1,750+ lines of duplicate code
+- **Established core infrastructure**: Browser Manager, Page Setup, Protection Bypass
+- **Built content processing pipeline**: Link Extractor, Structure Detector, Content Extractor  
+- **Deployed hybrid scraping system**: HTTP-first with intelligent Puppeteer fallback
+- **Unified bot protection bypass**: DataDome, Cloudflare, Incapsula handling
+- **Enhanced HTMX support**: Dynamic content loading across all apps
+
+### System Architecture Updates
+- **New directory structure**: `backend/services/scraping/` with organized components
+- **Maintained app-specific OpenAI integrations** while sharing scraping infrastructure
+- **Preserved per-user job management** for Threat Tracker and global jobs for News Radar
+- **Enhanced error handling** and logging across all scraping operations
+
 ## Changelog
 
 - June 17, 2025. Initial setup
+- June 20, 2025. Centralized scraping system refactoring completed
 
 ## User Preferences
 

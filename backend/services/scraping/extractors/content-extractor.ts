@@ -133,7 +133,7 @@ function extractWithPrimarySelectors($: cheerio.CheerioAPI, config: ScrapingConf
  * Extract content using fallback selectors
  * Attempts extraction with common fallback patterns
  */
-function extractWithFallbackSelectors($: CheerioAPI): Partial<ArticleContent> {
+function extractWithFallbackSelectors($: cheerio.CheerioAPI): Partial<ArticleContent> {
   const result: Partial<ArticleContent> = {
     extractionMethod: "fallback_selectors"
   };
@@ -181,7 +181,7 @@ function extractWithFallbackSelectors($: CheerioAPI): Partial<ArticleContent> {
  * Extract content using desperate fallback methods
  * Last resort extraction when selectors fail
  */
-function extractWithDesperateFallbacks($: CheerioAPI): Partial<ArticleContent> {
+function extractWithDesperateFallbacks($: cheerio.CheerioAPI): Partial<ArticleContent> {
   const result: Partial<ArticleContent> = {
     extractionMethod: "desperate_fallbacks"
   };
