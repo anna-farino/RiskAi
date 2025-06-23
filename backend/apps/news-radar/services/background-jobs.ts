@@ -48,14 +48,13 @@ export async function scrapeSource(
     log(`[Scraping] Starting scrape for source: ${source.url}`, "scraper");
     log(`[Scraping] Source ID: ${sourceId}, Name: ${source.name}`, "scraper");
 
-    // Step 2: Fetch source HTML and extract article links
-    log(`[Scraping] Fetching HTML from source URL`, "scraper");
-    const html = await scrapeUrl(source.url, true); // true indicates this is a source URL
-    log(`[Scraping] Successfully fetched source HTML`, "scraper");
-
-    // Step 3: Extract article links
-    log(`[Scraping] Analyzing page for article links`, "scraper");
-    const articleLinks = await extractArticleLinks(html, source.url);
+    // Step 2: Extract article links using unified scraping service
+    log(`[Scraping] Using unified scraping service for link extraction`, "scraper");
+    const articleLinks = await scrapingService.scrapeSourceUrl(source.url, {
+      aiContext: "news and business articles",
+      appType: 'news-radar',
+      maxLinks: 50
+    });
     log(
       `[Scraping] Found ${articleLinks.length} potential article links`,
       "scraper",
@@ -66,25 +65,8 @@ export async function scrapeSource(
       throw new Error("No article links found");
     }
 
-    // Step 4: Get or create scraping config
-    let scrapingConfig = source.scrapingConfig;
-    if (!scrapingConfig) {
-      // If no scraping config exists, analyze first article structure
-      log(
-        `[Scraping] No scraping config found. Fetching first article for HTML structure analysis`,
-        "scraper",
-      );
-      const firstArticleHtml = await scrapeUrl(articleLinks[0], false);
-      log(`[Scraping] Detecting HTML structure using OpenAI`, "scraper");
-      scrapingConfig = await detectHtmlStructure(firstArticleHtml);
-
-      // Cache the scraping config
-      log(
-        `[Scraping] Caching scraping configuration for future use`,
-        "scraper",
-      );
-      await storage.updateSource(sourceId, { scrapingConfig });
-    }
+    // Use source's existing scraping config (unified service handles structure detection internally)
+    const scrapingConfig = source.scrapingConfig;
 
     // Step 5: Get active keywords for this user
     // Handle the case where userId might be null
@@ -119,19 +101,15 @@ export async function scrapeSource(
           `[Scraping] Processing article ${++processedCount}/${articleLinks.length}: ${link}`,
           "scraper",
         );
-        const articleHtml = await scrapeUrl(link, false);
         
-        // Check stop signal after fetching HTML
+        // Check stop signal before processing
         if (!activeScraping.get(sourceId)) {
-          log(`[Scraping] Stop signal received, aborting content extraction for article: ${link}`, "scraper");
+          log(`[Scraping] Stop signal received, aborting article processing: ${link}`, "scraper");
           break;
         }
         
-        // Ensure scrapingConfig is treated as ScrapingConfig type
-        const article = await extractArticleContent(
-          articleHtml,
-          scrapingConfig as ScrapingConfig,
-        );
+        // Use unified scraping service for article content extraction
+        const article = await scrapingService.scrapeArticleUrl(link, scrapingConfig as ScrapingConfig);
         log(
           `[Scraping] Article extracted successfully: "${article.title}"`,
           "scraper",

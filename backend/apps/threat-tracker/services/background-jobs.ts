@@ -4,7 +4,7 @@ import {
   analyzeContent,
   identifyArticleLinks,
 } from "./openai";
-import { extractArticleLinks, scrapeUrl } from "./scraper";
+import { extractArticleLinks, scrapeUrl, scrapingService } from "./scraper";
 import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
@@ -293,38 +293,23 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       hardware: hardwareTerms,
     };
 
-    // 1. Load source URL via puppeteer and scrape HTML
+    // 1. Extract article links using unified scraping service
     log(
-      `[ThreatTracker] Step 1-3: Scraping source URL: ${source.url}`,
+      `[ThreatTracker] Using unified scraping service for link extraction`,
       "scraper",
     );
-    const html = await scrapeUrl(source.url);
-
-    // 2. Get or detect HTML structure (scraping config)
-    log(`[ThreatTracker] Determining HTML structure for articles`, "scraper");
-    let htmlStructure;
-    if (source.scrapingConfig) {
-      log(`[ThreatTracker] Using stored HTML structure for source`, "scraper");
-      htmlStructure = source.scrapingConfig;
-    } else {
-      log(
-        `[ThreatTracker] No HTML structure found, detecting new structure`,
-        "scraper",
-      );
-      // Will be detected for each individual article as needed
-      htmlStructure = null;
-    }
-
-    // 3. Use OpenAI to identify article links
-    log(
-      `[ThreatTracker] Step 4: Identifying article links with OpenAI`,
-      "scraper",
-    );
-    const processedLinks = await extractArticleLinks(html, source.url);
+    const processedLinks = await scrapingService.scrapeSourceUrl(source.url, {
+      aiContext: "cybersecurity threats and security incidents",
+      appType: 'threat-tracker',
+      maxLinks: 30
+    });
     log(
       `[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`,
       "scraper",
     );
+
+    // Use source's existing scraping config (unified service handles structure detection internally)
+    const htmlStructure = source.scrapingConfig;
 
     if (processedLinks.length === 0) {
       log(
