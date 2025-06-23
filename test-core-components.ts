@@ -2,9 +2,9 @@
  * Test script to verify core scraping components are working
  */
 
-import { BrowserManager } from './backend/services/scraping/core/browser-manager.js';
-import { setupPage, setupStealthPage } from './backend/services/scraping/core/page-setup.js';
-import { detectBotProtection } from './backend/services/scraping/core/protection-bypass.js';
+import { BrowserManager } from './backend/services/scraping/core/browser-manager';
+import { setupPage, setupStealthPage } from './backend/services/scraping/core/page-setup';
+import { detectBotProtection } from './backend/services/scraping/core/protection-bypass';
 
 async function testCoreComponents() {
   console.log('Testing core scraping components...');
