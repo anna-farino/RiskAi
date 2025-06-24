@@ -3,6 +3,7 @@ import { log } from "backend/utils/log";
 import { setupPage, setupStealthPage, setupArticlePage, setupSourcePage } from '../core/page-setup';
 import { bypassProtection, ProtectionInfo } from '../core/protection-bypass';
 import { ScrapingResult } from './http-scraper';
+import { safePageEvaluate, validateJavaScriptCode, validateSelector } from '../utils/code-validator';
 
 export interface PuppeteerScrapingOptions {
   isArticlePage?: boolean;
@@ -24,7 +25,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
     log(`[PuppeteerScraper] Checking for HTMX content...`, "scraper");
 
     // Check for HTMX usage on the page
-    const htmxInfo = await page.evaluate(() => {
+    const htmxInfo = await safePageEvaluate(page, () => {
       const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
       const htmxInWindow = typeof (window as any).htmx !== "undefined";
       const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
@@ -42,7 +43,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
         hxGetElements,
         totalElements: document.querySelectorAll('*').length
       };
-    });
+    }, 'htmx-detection');
 
     log(`[PuppeteerScraper] HTMX detection: scriptLoaded=${htmxInfo.scriptLoaded}, hasAttributes=${htmxInfo.hasHxAttributes}, elements=${htmxInfo.hxGetElements.length}`, "scraper");
 
@@ -57,7 +58,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
       const currentUrl = page.url();
       const baseUrl = new URL(currentUrl).origin;
 
-      const htmxContentLoaded = await page.evaluate(async (baseUrl) => {
+      const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl) => {
         let totalContentLoaded = 0;
 
         // Common HTMX endpoints for article content
@@ -111,7 +112,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
         }
 
         return totalContentLoaded;
-      }, baseUrl);
+      }, 'htmx-content-loading', baseUrl);
 
       if (htmxContentLoaded > 0) {
         log(`[PuppeteerScraper] Successfully loaded ${htmxContentLoaded} characters of HTMX content`, "scraper");
@@ -279,7 +280,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       await handleDynamicContent(page);
 
       // Extract article content using provided scraping config or fallbacks
-      const articleContent = await page.evaluate((config) => {
+      const articleContent = await safePageEvaluate(page, (config) => {
         // Sanitize selector function (client-side version)
         function sanitizeSelector(selector: string): string {
           if (!selector) return "";
@@ -388,7 +389,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
             date: ''
           };
         }
-      }, scrapingConfig);
+      }, 'article-content-extraction', scrapingConfig);
 
       log(`[PuppeteerScraper] Article extraction: title=${articleContent.title?.length || 0} chars, content=${articleContent.content?.length || 0} chars`, "scraper");
 
@@ -411,7 +412,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       await handleHTMXContent(page);
 
       // Extract all links after ensuring content is loaded
-      const articleLinkData = await page.evaluate(() => {
+      const articleLinkData = await safePageEvaluate(page, () => {
         const links = Array.from(document.querySelectorAll('a'));
         return links.map(link => ({
           href: link.getAttribute('href'),
@@ -419,7 +420,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
           parentText: link.parentElement?.textContent?.trim() || '',
           parentClass: link.parentElement?.className || ''
         })).filter(link => link.href && link.text && link.text.length > 20);
-      });
+      }, 'source-link-extraction');
 
       log(`[PuppeteerScraper] Extracted ${articleLinkData.length} potential article links`, "scraper");
 
