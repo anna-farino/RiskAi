@@ -4,7 +4,6 @@ import { extractArticleLinks } from './extractors/link-extractor';
 import { extractArticleContent, ArticleContent } from './extractors/content-extractor';
 import { detectHtmlStructureWithFallbacks, ScrapingConfig } from './extractors/structure-detector';
 import { BrowserManager } from './core/browser-manager';
-import { sanitizeScrapingConfig } from './utils/code-validator';
 
 export interface SourceScrapingOptions {
   aiContext?: string;
@@ -90,17 +89,11 @@ export class UnifiedScrapingService {
     try {
       log(`[UnifiedScraper] Scraping article URL: ${url}`, "scraper");
 
-      // Sanitize the config before any processing
-      const sanitizedConfig = config ? sanitizeScrapingConfig(config) : undefined;
-      if (config && sanitizedConfig) {
-        log(`[UnifiedScraper] Config sanitized for article scraping`, "scraper");
-      }
-
       // Configure scraping options for article page
       const scrapingOptions: ScrapingOptions = {
         isSourceUrl: false,
         isArticlePage: true,
-        scrapingConfig: sanitizedConfig,
+        scrapingConfig: config,
         retryAttempts: 3
       };
 
@@ -114,12 +107,10 @@ export class UnifiedScrapingService {
       log(`[UnifiedScraper] Successfully scraped article HTML (${result.html.length} chars)`, "scraper");
 
       // If no config provided, detect structure
-      let articleConfig = sanitizedConfig;
+      let articleConfig = config;
       if (!articleConfig) {
         log(`[UnifiedScraper] No scraping config provided, detecting HTML structure`, "scraper");
         articleConfig = await this.detectArticleStructure(url, result.html);
-        // Sanitize detected config as well
-        articleConfig = sanitizeScrapingConfig(articleConfig);
       }
 
       // Extract structured content from the HTML

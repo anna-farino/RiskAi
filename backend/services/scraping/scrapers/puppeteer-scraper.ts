@@ -3,8 +3,6 @@ import { log } from "backend/utils/log";
 import { setupPage, setupStealthPage, setupArticlePage, setupSourcePage } from '../core/page-setup';
 import { bypassProtection, ProtectionInfo } from '../core/protection-bypass';
 import { ScrapingResult } from './http-scraper';
-import { safePageEvaluate, validateJavaScriptCode, validateSelector, sanitizeScrapingConfig } from '../utils/code-validator';
-import { emergencyPythonCheck, stripPythonCode } from '../utils/emergency-block';
 
 export interface PuppeteerScrapingOptions {
   isArticlePage?: boolean;
@@ -26,13 +24,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
     log(`[PuppeteerScraper] Checking for HTMX content...`, "scraper");
 
     // Check for HTMX usage on the page
-    const htmxInfo = await safePageEvaluate<{
-      scriptLoaded: boolean;
-      htmxInWindow: boolean;
-      hasHxAttributes: boolean;
-      hxGetElements: Array<{url: string; trigger: string}>;
-      totalElements: number;
-    }>(page, () => {
+    const htmxInfo = await page.evaluate(() => {
       const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
       const htmxInWindow = typeof (window as any).htmx !== "undefined";
       const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
@@ -50,7 +42,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
         hxGetElements,
         totalElements: document.querySelectorAll('*').length
       };
-    }, 'htmx-detection');
+    });
 
     log(`[PuppeteerScraper] HTMX detection: scriptLoaded=${htmxInfo.scriptLoaded}, hasAttributes=${htmxInfo.hasHxAttributes}, elements=${htmxInfo.hxGetElements.length}`, "scraper");
 
@@ -65,7 +57,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
       const currentUrl = page.url();
       const baseUrl = new URL(currentUrl).origin;
 
-      const htmxContentLoaded = await safePageEvaluate<number>(page, async (baseUrl) => {
+      const htmxContentLoaded = await page.evaluate(async (baseUrl) => {
         let totalContentLoaded = 0;
 
         // Common HTMX endpoints for article content
@@ -119,7 +111,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
         }
 
         return totalContentLoaded;
-      }, 'htmx-content-loading', baseUrl);
+      }, baseUrl);
 
       if (htmxContentLoaded > 0) {
         log(`[PuppeteerScraper] Successfully loaded ${htmxContentLoaded} characters of HTMX content`, "scraper");
@@ -286,33 +278,8 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       // Scroll through page to ensure all content is loaded
       await handleDynamicContent(page);
 
-      // Log original config for debugging
-      log(`[PuppeteerScraper] Original scrapingConfig type: ${typeof scrapingConfig}`, "scraper");
-      if (scrapingConfig) {
-        log(`[PuppeteerScraper] Original config keys: ${Object.keys(scrapingConfig).join(', ')}`, "scraper");
-      }
-      
-      // Emergency check for Python syntax
-      if (!emergencyPythonCheck(scrapingConfig, 'puppeteer-article-extraction')) {
-        log(`[PuppeteerScraper] EMERGENCY BLOCK: Python syntax detected, aborting`, "scraper-error");
-        throw new Error('Python syntax detected in scraping config - execution blocked for security');
-      }
-
-      // Sanitize scraping config before passing to browser
-      let sanitizedConfig = sanitizeScrapingConfig(scrapingConfig);
-      
-      // Additional emergency stripping
-      sanitizedConfig = stripPythonCode(sanitizedConfig);
-      
-      log(`[PuppeteerScraper] Config sanitized and stripped, keys: ${Object.keys(sanitizedConfig).join(', ')}`, "scraper");
-      
       // Extract article content using provided scraping config or fallbacks
-      const articleContent = await safePageEvaluate<{
-        title: string;
-        content: string;
-        author: string;
-        date: string;
-      }>(page, (config) => {
+      const articleContent = await page.evaluate((config) => {
         // Sanitize selector function (client-side version)
         function sanitizeSelector(selector: string): string {
           if (!selector) return "";
@@ -340,17 +307,6 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         }
 
         try {
-          // Validate config object before any processing
-          if (config && typeof config === 'object') {
-            // Check every property for Python syntax
-            for (const [key, value] of Object.entries(config)) {
-              if (typeof value === 'string' && (value.includes('__name__') || value.includes('if __name__'))) {
-                console.error(`CRITICAL: Python syntax detected in config.${key}: ${value}`);
-                return { title: '', content: '', author: '', date: '' };
-              }
-            }
-          }
-
           // Try using provided selectors first
           if (config) {
             const titleSelector = sanitizeSelector(config.titleSelector || config.title);
@@ -432,7 +388,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
             date: ''
           };
         }
-      }, 'article-content-extraction', sanitizedConfig);
+      }, scrapingConfig);
 
       log(`[PuppeteerScraper] Article extraction: title=${articleContent.title?.length || 0} chars, content=${articleContent.content?.length || 0} chars`, "scraper");
 
@@ -455,12 +411,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       await handleHTMXContent(page);
 
       // Extract all links after ensuring content is loaded
-      const articleLinkData = await safePageEvaluate<Array<{
-        href: string;
-        text: string;
-        parentText: string;
-        parentClass: string;
-      }>>(page, () => {
+      const articleLinkData = await page.evaluate(() => {
         const links = Array.from(document.querySelectorAll('a'));
         return links.map(link => ({
           href: link.getAttribute('href'),
@@ -468,7 +419,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
           parentText: link.parentElement?.textContent?.trim() || '',
           parentClass: link.parentElement?.className || ''
         })).filter(link => link.href && link.text && link.text.length > 20);
-      }, 'source-link-extraction');
+      });
 
       log(`[PuppeteerScraper] Extracted ${articleLinkData.length} potential article links`, "scraper");
 

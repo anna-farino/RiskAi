@@ -1,7 +1,6 @@
 import { log } from "backend/utils/log";
 import { detectHtmlStructure as newsRadarDetection } from 'backend/apps/news-radar/services/openai';
 import { detectHtmlStructure as threatTrackerDetection } from 'backend/apps/threat-tracker/services/openai';
-import { sanitizeAIResponse, validateSelector } from '../utils/code-validator';
 
 export interface ScrapingConfig {
   titleSelector: string;
@@ -242,27 +241,16 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
       detectedStructure = await newsRadarDetection(html);
     }
 
-    // Sanitize AI response to remove any Python code
-    if (typeof detectedStructure === 'string') {
-      const sanitizedResponse = sanitizeAIResponse(detectedStructure);
-      try {
-        detectedStructure = JSON.parse(sanitizedResponse);
-      } catch (error) {
-        log(`[StructureDetector] Failed to parse sanitized AI response, using fallback`, "scraper-error");
-        detectedStructure = {};
-      }
-    }
-
-    // Sanitize all detected selectors with validation
+    // Sanitize all detected selectors
     const sanitizedStructure: ScrapingConfig = {
-      titleSelector: validateSelector(sanitizeSelector(detectedStructure.titleSelector || detectedStructure.title), 'title') || 'h1',
-      contentSelector: validateSelector(sanitizeSelector(detectedStructure.contentSelector || detectedStructure.content), 'content') || 'article',
+      titleSelector: sanitizeSelector(detectedStructure.titleSelector || detectedStructure.title) || 'h1',
+      contentSelector: sanitizeSelector(detectedStructure.contentSelector || detectedStructure.content) || 'article',
       authorSelector: detectedStructure.authorSelector || detectedStructure.author ? 
-        validateSelector(sanitizeSelector(detectedStructure.authorSelector || detectedStructure.author), 'author') || undefined : undefined,
+        sanitizeSelector(detectedStructure.authorSelector || detectedStructure.author) : undefined,
       dateSelector: detectedStructure.dateSelector || detectedStructure.date ? 
-        validateSelector(sanitizeSelector(detectedStructure.dateSelector || detectedStructure.date), 'date') || undefined : undefined,
+        sanitizeSelector(detectedStructure.dateSelector || detectedStructure.date) : undefined,
       articleSelector: detectedStructure.articleSelector ? 
-        validateSelector(sanitizeSelector(detectedStructure.articleSelector), 'article') || undefined : undefined,
+        sanitizeSelector(detectedStructure.articleSelector) : undefined,
       confidence: 0.8, // Default confidence for AI detection
       alternatives: {
         titleSelector: generateFallbackSelectors('title')[0],
