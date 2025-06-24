@@ -325,7 +325,7 @@ export const unifiedScraper = new UnifiedScrapingService();
 // Export main functions for direct usage
 export { scrapeUrl } from './scrapers/hybrid-scraper';
 export { extractArticleLinks } from './extractors/link-extractor';
-export { extractArticleContent, extractWithFallbacks } from './extractors/content-extractor';
+export { extractArticleContent, extractWithFallbacks, extractContent } from './extractors/content-extractor';
 export { detectHtmlStructureWithFallbacks as detectHtmlStructure } from './extractors/structure-detector';
 
 // Export types

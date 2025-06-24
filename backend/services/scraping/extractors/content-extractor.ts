@@ -398,6 +398,31 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
 }
 
 /**
+ * Legacy extractContent function for backward compatibility
+ * Maintains the original 2-parameter signature while using AI enhancement internally
+ */
+export async function extractContent(html: string, config?: ScrapingConfig, sourceUrl?: string): Promise<any> {
+  // Use AI-enhanced extraction with fallback to traditional methods
+  const fallbackConfig = config || {
+    titleSelector: 'h1',
+    contentSelector: 'article, .content, .post',
+    confidence: 0.5
+  };
+  
+  const result = await extractWithFallbacks(html, fallbackConfig, sourceUrl);
+  
+  // Return in the expected legacy format
+  return {
+    title: result.title,
+    content: result.content,
+    author: result.author,
+    publishDate: result.publishDate,
+    method: result.extractionMethod,
+    confidence: result.confidence
+  };
+}
+
+/**
  * Enhanced extraction with multiple attempts and validation
  * Provides comprehensive fallback handling for difficult pages
  */
