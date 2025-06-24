@@ -127,6 +127,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 24, 2025 - AI-Powered Content Extraction Restored and Enhanced
+- **Restored OpenAI structure detection** that was lost during unified scraping migration
+- **Created unified AI extraction service** consolidating best practices from all three apps
+- **Implemented hybrid extraction strategy** with AI-first approach and intelligent fallbacks
+- **Added domain-specific selector caching** to reduce API calls and improve performance
+- **Enhanced content extraction pipeline** with direct AI extraction as secondary fallback
+- **Integrated with existing unified scraper** maintaining compatibility while adding AI intelligence
+
 ### June 24, 2025 - External Validation Error Filtering Implemented
 - **Implemented error classification system** to handle external validation false positives
 - **Added safePageEvaluate wrapper** to filter CodeValidator and Python syntax errors

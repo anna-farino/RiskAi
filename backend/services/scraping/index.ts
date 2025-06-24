@@ -113,8 +113,8 @@ export class UnifiedScrapingService {
         articleConfig = await this.detectArticleStructure(url, result.html);
       }
 
-      // Extract structured content from the HTML
-      const articleContent = await extractArticleContent(result.html, articleConfig);
+      // Extract structured content from the HTML with AI enhancement
+      const articleContent = await extractArticleContent(result.html, articleConfig, url);
 
       log(`[UnifiedScraper] Extracted article content: title=${articleContent.title.length} chars, content=${articleContent.content.length} chars`, "scraper");
       return articleContent;

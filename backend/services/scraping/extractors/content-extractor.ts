@@ -263,10 +263,10 @@ function handlePreProcessedContent(html: string): ArticleContent | null {
 }
 
 /**
- * Main content extraction function with multiple fallback strategies
- * Consolidates extraction logic from all three apps
+ * Main content extraction function with AI-powered extraction and traditional fallbacks
+ * Now integrates OpenAI structure detection as primary method
  */
-export async function extractArticleContent(html: string, config: ScrapingConfig): Promise<ArticleContent> {
+export async function extractArticleContent(html: string, config: ScrapingConfig, sourceUrl?: string): Promise<ArticleContent> {
   try {
     log(`[ContentExtractor] Starting content extraction`, "scraper");
 
@@ -276,7 +276,43 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
       return preProcessed;
     }
 
-    // Clean HTML for extraction
+    // Step 1: Try AI-powered hybrid extraction first if URL available
+    if (sourceUrl && process.env.OPENAI_API_KEY) {
+      try {
+        log(`[ContentExtractor] Attempting AI-powered extraction for ${sourceUrl}`, "scraper");
+        const aiResult = await extractWithHybridAI(html, sourceUrl);
+        
+        if (aiResult.confidence > 0.6) {
+          log(`[ContentExtractor] AI extraction successful with confidence ${aiResult.confidence} using method ${aiResult.method}`, "scraper");
+          
+          // Extract date separately using enhanced method
+          let publishDate: Date | null = null;
+          try {
+            publishDate = await extractPublishDateEnhanced(html, config);
+          } catch (dateError) {
+            log(`[ContentExtractor] AI extraction date parsing failed: ${dateError}`, "scraper");
+          }
+          
+          return {
+            title: cleanAndNormalizeContent(aiResult.title),
+            content: cleanAndNormalizeContent(aiResult.content), 
+            author: aiResult.author || undefined,
+            publishDate: publishDate,
+            extractionMethod: `ai_${aiResult.method}`,
+            confidence: aiResult.confidence
+          };
+        }
+        
+        log(`[ContentExtractor] AI extraction had moderate confidence (${aiResult.confidence}), falling back to traditional methods`, "scraper");
+      } catch (error: any) {
+        log(`[ContentExtractor] AI extraction failed: ${error.message}, falling back to traditional methods`, "scraper");
+      }
+    } else {
+      log(`[ContentExtractor] AI extraction unavailable (missing URL or API key), using traditional methods`, "scraper");
+    }
+
+    // Step 2: Fall back to traditional selector-based extraction
+    log(`[ContentExtractor] Using traditional selector-based extraction`, "scraper");
     const $ = cleanHtmlForExtraction(html);
     
     let result: Partial<ArticleContent> = {};
@@ -365,10 +401,10 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
  * Enhanced extraction with multiple attempts and validation
  * Provides comprehensive fallback handling for difficult pages
  */
-export async function extractWithFallbacks(html: string, config: ScrapingConfig): Promise<ArticleContent> {
+export async function extractWithFallbacks(html: string, config: ScrapingConfig, sourceUrl?: string): Promise<ArticleContent> {
   try {
-    // Primary extraction attempt
-    const primaryResult = await extractArticleContent(html, config);
+    // Primary extraction attempt with AI enhancement
+    const primaryResult = await extractArticleContent(html, config, sourceUrl);
     
     // If extraction was successful enough, return it
     if (primaryResult.confidence >= 0.6 && primaryResult.content.length > 100) {
@@ -388,7 +424,7 @@ export async function extractWithFallbacks(html: string, config: ScrapingConfig)
         confidence: config.confidence
       };
 
-      const alternativeResult = await extractArticleContent(html, alternativeConfig);
+      const alternativeResult = await extractArticleContent(html, alternativeConfig, sourceUrl);
       
       // Use the result with better content
       if (alternativeResult.content.length > primaryResult.content.length) {

@@ -302,6 +302,41 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
 }
 
 /**
+ * Convert unified AI structure result to ScrapingConfig format
+ */
+function convertAIStructureToScrapingConfig(aiResult: AIStructureResult): ScrapingConfig {
+  return {
+    titleSelector: aiResult.titleSelector,
+    contentSelector: aiResult.contentSelector,
+    authorSelector: aiResult.authorSelector,
+    dateSelector: aiResult.dateSelector,
+    articleSelector: aiResult.articleSelector,
+    confidence: aiResult.confidence,
+    alternatives: {
+      dateSelector: aiResult.dateAlternatives?.[0],
+      titleSelector: generateFallbackSelectors('title')[0],
+      contentSelector: generateFallbackSelectors('content')[0],
+      authorSelector: generateFallbackSelectors('author')[0]
+    }
+  };
+}
+
+/**
+ * Enhance scraping config with comprehensive fallback selectors
+ */
+function enhanceConfigWithFallbacks(config: ScrapingConfig): void {
+  const titleFallbacks = generateFallbackSelectors('title');
+  const contentFallbacks = generateFallbackSelectors('content');
+  
+  config.alternatives = {
+    titleSelector: titleFallbacks[1] || titleFallbacks[0],
+    contentSelector: contentFallbacks[1] || contentFallbacks[0],
+    authorSelector: generateFallbackSelectors('author')[0],
+    dateSelector: generateFallbackSelectors('date')[0]
+  };
+}
+
+/**
  * Enhance structure detection with multiple attempts and validation
  * Provides robust fallback mechanisms
  */
