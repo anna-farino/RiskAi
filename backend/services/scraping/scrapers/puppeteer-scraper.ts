@@ -3,7 +3,7 @@ import { log } from "backend/utils/log";
 import { setupPage, setupStealthPage, setupArticlePage, setupSourcePage } from '../core/page-setup';
 import { bypassProtection, ProtectionInfo } from '../core/protection-bypass';
 import { ScrapingResult } from './http-scraper';
-import { safePageEvaluate, validateJavaScriptCode, validateSelector } from '../utils/code-validator';
+import { safePageEvaluate, validateJavaScriptCode, validateSelector, sanitizeScrapingConfig } from '../utils/code-validator';
 
 export interface PuppeteerScrapingOptions {
   isArticlePage?: boolean;
@@ -285,6 +285,16 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       // Scroll through page to ensure all content is loaded
       await handleDynamicContent(page);
 
+      // Log original config for debugging
+      log(`[PuppeteerScraper] Original scrapingConfig type: ${typeof scrapingConfig}`, "scraper");
+      if (scrapingConfig) {
+        log(`[PuppeteerScraper] Original config keys: ${Object.keys(scrapingConfig).join(', ')}`, "scraper");
+      }
+      
+      // Sanitize scraping config before passing to browser
+      const sanitizedConfig = sanitizeScrapingConfig(scrapingConfig);
+      log(`[PuppeteerScraper] Sanitized config keys: ${Object.keys(sanitizedConfig).join(', ')}`, "scraper");
+      
       // Extract article content using provided scraping config or fallbacks
       const articleContent = await safePageEvaluate<{
         title: string;
@@ -400,7 +410,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
             date: ''
           };
         }
-      }, 'article-content-extraction', scrapingConfig);
+      }, 'article-content-extraction', sanitizedConfig);
 
       log(`[PuppeteerScraper] Article extraction: title=${articleContent.title?.length || 0} chars, content=${articleContent.content?.length || 0} chars`, "scraper");
 

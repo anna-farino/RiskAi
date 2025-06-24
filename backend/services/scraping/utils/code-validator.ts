@@ -15,12 +15,14 @@ export function validateJavaScriptCode(code: string, context: string = 'unknown'
     /__name__/,
     /if __name__ ==/,
     /def \w+\(/,
-    /import \w+ from/,
+    /import \w+$/m,
     /from \w+ import/,
     /print\(/,
     /elif\s+/,
     /:\s*$/m, // Python-style colons at end of lines
     /^\s*#.*$/m, // Python-style comments (but allow // comments)
+    /\bif\s+__name__\s*==\s*['"]__main__['"]/,
+    /\b__\w+__\b/, // Any Python dunder methods
   ];
 
   // Check for Python patterns
@@ -81,6 +83,25 @@ export async function safePageEvaluate<T = any>(
   ...args: any[]
 ): Promise<T> {
   try {
+    // Log the arguments being passed for debugging
+    log(`[CodeValidator] Executing page evaluation in context: ${context}`, "scraper");
+    if (args.length > 0) {
+      args.forEach((arg, index) => {
+        if (typeof arg === 'object' && arg !== null) {
+          log(`[CodeValidator] Arg ${index} type: object, keys: ${Object.keys(arg).join(', ')}`, "scraper");
+          // Check for Python syntax in object values
+          for (const [key, value] of Object.entries(arg)) {
+            if (typeof value === 'string' && !validateJavaScriptCode(value, `${context}.arg${index}.${key}`)) {
+              log(`[CodeValidator] BLOCKING: Python syntax found in arg ${index}.${key}: ${value}`, "scraper-error");
+              throw new Error(`Python syntax detected in argument ${index}.${key} before page evaluation`);
+            }
+          }
+        } else {
+          log(`[CodeValidator] Arg ${index} type: ${typeof arg}`, "scraper");
+        }
+      });
+    }
+
     // If it's a string, validate it
     if (typeof pageFunction === 'string') {
       if (!validateJavaScriptCode(pageFunction, context)) {
@@ -95,6 +116,7 @@ export async function safePageEvaluate<T = any>(
   } catch (error: any) {
     if (error.message.includes('__name is not defined')) {
       log(`[CodeValidator] Python syntax error detected in ${context}: ${error.message}`, "scraper-error");
+      log(`[CodeValidator] Full error details: ${error.stack || error}`, "scraper-error");
       throw new Error(`Python syntax detected in JavaScript context (${context}): ${error.message}`);
     }
     
@@ -124,6 +146,48 @@ export function validateSelector(selector: string, context: string = 'unknown'):
   if (sanitized && !sanitized.match(/^[a-zA-Z0-9._#\-\[\]:"'(),\s>+~*=^$|]+$/)) {
     log(`[CodeValidator] Suspicious selector pattern in ${context}: ${selector}`, "scraper");
     return '';
+  }
+
+  return sanitized;
+}
+
+/**
+ * Sanitizes scraping configuration objects to remove Python syntax
+ */
+export function sanitizeScrapingConfig(config: any): any {
+  if (!config || typeof config !== 'object') {
+    log(`[CodeValidator] Invalid config object, using empty config`, "scraper");
+    return {};
+  }
+
+  const sanitized: any = {};
+  let foundPythonSyntax = false;
+  
+  // Sanitize each property that might contain selectors or code
+  for (const [key, value] of Object.entries(config)) {
+    if (typeof value === 'string') {
+      // Log the value for debugging
+      log(`[CodeValidator] Checking config.${key}: ${value.substring(0, 200)}${value.length > 200 ? '...' : ''}`, "scraper");
+      
+      // Check if this looks like Python code
+      if (validateJavaScriptCode(value, `config.${key}`)) {
+        sanitized[key] = validateSelector(value, `config.${key}`);
+      } else {
+        foundPythonSyntax = true;
+        log(`[CodeValidator] CRITICAL: Removing Python syntax from config.${key}: ${value}`, "scraper-error");
+        sanitized[key] = ''; // Remove problematic values
+      }
+    } else if (value && typeof value === 'object') {
+      // Recursively sanitize nested objects
+      const nestedResult = sanitizeScrapingConfig(value);
+      sanitized[key] = nestedResult;
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  if (foundPythonSyntax) {
+    log(`[CodeValidator] Python syntax detected and removed from scraping config`, "scraper-error");
   }
 
   return sanitized;
