@@ -2,7 +2,8 @@ import { scrapingService } from "./scraper";
 import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
 import { analyzeContent, detectHtmlStructure } from "./openai";
-import type { ScrapingConfig } from "@shared/db/schema/news-tracker/types";
+import type { ScrapingConfig as NewsRadarConfig } from "@shared/db/schema/news-tracker/types";
+import type { ScrapingConfig } from "backend/services/scraping/extractors/structure-detector";
 import { sendEmailJs } from "backend/utils/sendEmailJs";
 import { db } from "backend/db/db";
 import { users } from "@shared/db/schema/user";
@@ -104,7 +105,16 @@ export async function scrapeSource(
         }
         
         // Use unified scraping service for article content extraction
-        const article = await scrapingService.scrapeArticleUrl(link, scrapingConfig as ScrapingConfig);
+        const newsConfig = scrapingConfig as NewsRadarConfig;
+        const unifiedConfig: ScrapingConfig = {
+          titleSelector: newsConfig.titleSelector,
+          contentSelector: newsConfig.contentSelector,
+          authorSelector: newsConfig.authorSelector,
+          dateSelector: newsConfig.dateSelector,
+          articleSelector: newsConfig.articleSelector,
+          confidence: 0.8 // Default confidence for news radar
+        };
+        const article = await scrapingService.scrapeArticleUrl(link, unifiedConfig);
         log(
           `[Scraping] Article extracted successfully: "${article.title}"`,
           "scraper",

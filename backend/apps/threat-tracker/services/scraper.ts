@@ -1,4 +1,4 @@
-import { UnifiedScrapingService } from '../../services/scraping';
+import { UnifiedScrapingService } from '../../../services/scraping';
 import { analyzeContent } from './openai';
 import { extractPublishDate } from './date-extractor';
 import { normalizeUrl, titleSimilarity } from './url-utils';
