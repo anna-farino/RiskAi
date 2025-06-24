@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { scrapeUrl as hybridScrape, ScrapingOptions } from './scrapers/hybrid-scraper';
 import { extractArticleLinks } from './extractors/link-extractor';
-import { extractArticleContent, ArticleContent } from './extractors/content-extractor';
+import { extractArticleContent, extractWithFallbacks, ArticleContent } from './extractors/content-extractor';
 import { detectHtmlStructureWithFallbacks, ScrapingConfig } from './extractors/structure-detector';
 import { BrowserManager } from './core/browser-manager';
 
