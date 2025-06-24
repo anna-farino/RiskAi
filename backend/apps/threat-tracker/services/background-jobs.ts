@@ -4,7 +4,7 @@ import {
   analyzeContent,
   identifyArticleLinks,
 } from "./openai";
-import { extractArticleLinks, scrapeUrl, scrapingService } from "./scraper";
+import { scrapingService } from "./scraper";
 import { extractArticleContentWithAI } from "./content-extractor";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
@@ -309,7 +309,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     );
 
     // Use source's existing scraping config (unified service handles structure detection internally)
-    const htmlStructure = source.scrapingConfig;
+    let htmlStructure = source.scrapingConfig;
 
     if (processedLinks.length === 0) {
       log(
@@ -330,7 +330,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     if (!htmlStructure) {
       try {
         // Scrape the first article to get its HTML
-        const firstArticleHtml = await scrapeUrl(firstArticleUrl, true);
+        const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl);
 
         // Use OpenAI to detect the HTML structure from this article
         htmlStructure = await detectHtmlStructure(

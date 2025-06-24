@@ -1,9 +1,4 @@
-import {
-  scrapeUrl,
-  extractArticleLinks,
-  extractArticleContent,
-  scrapingService,
-} from "./scraper";
+import { scrapingService } from "./scraper";
 import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
 import { analyzeContent, detectHtmlStructure } from "./openai";
