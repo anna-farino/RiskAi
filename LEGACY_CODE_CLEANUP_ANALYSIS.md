@@ -113,19 +113,21 @@ Following the unified scraping system refactoring, several legacy files and comp
 
 ## Implementation Strategy
 
-### Phase 1: Safe Deletions (Immediate)
+### Phase 1: Safe Deletions (COMPLETED ✓)
 ```bash
-# Safe to execute immediately
+# Executed successfully
 rm backend/apps/news-radar/services/scraper-old.ts
 rm backend/apps/threat-tracker/services/scraper-old.ts  
 rm backend/apps/news-capsule/process-url-old.ts
 rm backend/apps/news-radar/services/puppeteer-scraper.ts
 ```
 
-### Phase 2: Import Cleanup (Low Risk)
-- Remove unused `extractArticleContentWithAI` import from threat-tracker background-jobs.ts
-- Verify no other references to content-extractor.ts exist
-- Delete content-extractor.ts
+### Phase 2: Import Cleanup (COMPLETED ✓)
+- ✓ Removed unused `extractArticleContentWithAI` import from threat-tracker background-jobs.ts
+- ✓ Verified no other references to content-extractor.ts exist
+- ✓ Deleted content-extractor.ts
+
+**Status: All legacy code successfully removed - 3,069 lines eliminated**
 
 ### Phase 3: Future Consolidation (Optional)
 - Design shared scheduler base class

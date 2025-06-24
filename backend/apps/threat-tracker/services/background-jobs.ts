@@ -5,7 +5,7 @@ import {
   identifyArticleLinks,
 } from "./openai";
 import { scrapingService } from "./scraper";
-import { extractArticleContentWithAI } from "./content-extractor";
+
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl, titleSimilarity } from "./url-utils";

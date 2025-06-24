@@ -127,6 +127,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 24, 2025 - Legacy Code Cleanup Complete
+- **Removed 3,069 lines of legacy code** following unified scraping migration
+- **Deleted backup files**: scraper-old.ts, process-url-old.ts (2,822 lines)
+- **Removed orphaned components**: puppeteer-scraper.ts, content-extractor.ts (247 lines)
+- **Cleaned unused imports**: Eliminated all references to deleted components
+- **100% migration verified**: All apps use unified scraping system directly
+- **Zero functional impact**: No active code dependencies removed
+
 ### June 23, 2025 - Unified Scraping System Migration Complete
 - **Successfully migrated all three applications** to unified scraping infrastructure
 - **News Capsule**: Reduced from 800+ lines to 40 lines (95% code reduction)
