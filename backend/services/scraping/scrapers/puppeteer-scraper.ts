@@ -25,7 +25,13 @@ async function handleHTMXContent(page: Page): Promise<void> {
     log(`[PuppeteerScraper] Checking for HTMX content...`, "scraper");
 
     // Check for HTMX usage on the page
-    const htmxInfo = await safePageEvaluate(page, () => {
+    const htmxInfo = await safePageEvaluate<{
+      scriptLoaded: boolean;
+      htmxInWindow: boolean;
+      hasHxAttributes: boolean;
+      hxGetElements: Array<{url: string; trigger: string}>;
+      totalElements: number;
+    }>(page, () => {
       const scriptLoaded = !!(window as any).htmx || !!document.querySelector('script[src*="htmx"]');
       const htmxInWindow = typeof (window as any).htmx !== "undefined";
       const hasHxAttributes = document.querySelectorAll('[hx-get], [hx-post], [hx-trigger]').length > 0;
@@ -58,7 +64,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
       const currentUrl = page.url();
       const baseUrl = new URL(currentUrl).origin;
 
-      const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl) => {
+      const htmxContentLoaded = await safePageEvaluate<number>(page, async (baseUrl) => {
         let totalContentLoaded = 0;
 
         // Common HTMX endpoints for article content
@@ -280,7 +286,12 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       await handleDynamicContent(page);
 
       // Extract article content using provided scraping config or fallbacks
-      const articleContent = await safePageEvaluate(page, (config) => {
+      const articleContent = await safePageEvaluate<{
+        title: string;
+        content: string;
+        author: string;
+        date: string;
+      }>(page, (config) => {
         // Sanitize selector function (client-side version)
         function sanitizeSelector(selector: string): string {
           if (!selector) return "";
@@ -412,7 +423,12 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       await handleHTMXContent(page);
 
       // Extract all links after ensuring content is loaded
-      const articleLinkData = await safePageEvaluate(page, () => {
+      const articleLinkData = await safePageEvaluate<Array<{
+        href: string;
+        text: string;
+        parentText: string;
+        parentClass: string;
+      }>>(page, () => {
         const links = Array.from(document.querySelectorAll('a'));
         return links.map(link => ({
           href: link.getAttribute('href'),

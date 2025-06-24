@@ -74,7 +74,7 @@ export function sanitizeAIResponse(response: string): string {
 /**
  * Wraps page.evaluate() calls with validation and error handling
  */
-export async function safePageEvaluate<T>(
+export async function safePageEvaluate<T = any>(
   page: any,
   pageFunction: string | Function,
   context: string = 'unknown',
