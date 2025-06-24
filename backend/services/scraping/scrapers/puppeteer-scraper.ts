@@ -30,11 +30,11 @@ function isExternalValidationError(error: any): boolean {
  */
 async function safePageEvaluate<T>(
   page: Page, 
-  pageFunction: Function, 
+  pageFunction: string | ((...args: any[]) => T), 
   ...args: any[]
 ): Promise<T | null> {
   try {
-    return await page.evaluate(pageFunction, ...args);
+    return await page.evaluate(pageFunction as any, ...args);
   } catch (error: any) {
     if (isExternalValidationError(error)) {
       log(`[PuppeteerScraper] External validation warning filtered: ${error.message}`, "scraper");
@@ -90,10 +90,10 @@ async function handleHTMXContent(page: Page): Promise<void> {
       return;
     }
 
-    log(`[PuppeteerScraper] HTMX detection: scriptLoaded=${htmxInfo.scriptLoaded}, hasAttributes=${htmxInfo.hasHxAttributes}, elements=${htmxInfo.hxGetElements.length}`, "scraper");
+    log(`[PuppeteerScraper] HTMX detection: scriptLoaded=${htmxInfo?.scriptLoaded}, hasAttributes=${htmxInfo?.hasHxAttributes}, elements=${htmxInfo?.hxGetElements?.length || 0}`, "scraper");
 
     // Handle HTMX content if detected
-    if (htmxInfo.scriptLoaded || htmxInfo.htmxInWindow || htmxInfo.hasHxAttributes) {
+    if (htmxInfo && (htmxInfo.scriptLoaded || htmxInfo.htmxInWindow || htmxInfo.hasHxAttributes)) {
       log(`[PuppeteerScraper] HTMX detected, handling dynamic content...`, "scraper");
 
       // Wait for initial HTMX content to load
@@ -164,7 +164,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
         log(`[PuppeteerScraper] HTMX content loading blocked by validation`, "scraper");
       }
 
-      if (htmxContentLoaded > 0) {
+      if (htmxContentLoaded && htmxContentLoaded > 0) {
         log(`[PuppeteerScraper] Successfully loaded ${htmxContentLoaded} characters of HTMX content`, "scraper");
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
@@ -234,7 +234,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
 
       const actualClicked = clickedButtons || 0;
 
-      if (actualClicked > 0) {
+      if (actualClicked && actualClicked > 0) {
         log(`[PuppeteerScraper] Clicked ${actualClicked} "load more" elements`, "scraper");
         await new Promise(resolve => setTimeout(resolve, 3000));
       }
@@ -449,14 +449,15 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         return await extractContentWithFallback(page);
       }
 
-      log(`[PuppeteerScraper] Article extraction: title=${articleContent.title?.length || 0} chars, content=${articleContent.content?.length || 0} chars`, "scraper");
+      log(`[PuppeteerScraper] Article extraction: title=${(articleContent as any)?.title?.length || 0} chars, content=${(articleContent as any)?.content?.length || 0} chars`, "scraper");
 
       // Return structured HTML format
+      const content = articleContent as any;
       return `<html><body>
-        <h1>${articleContent.title || ''}</h1>
-        ${articleContent.author ? `<div class="author">${articleContent.author}</div>` : ''}
-        ${articleContent.date ? `<div class="date">${articleContent.date}</div>` : ''}
-        <div class="content">${articleContent.content || ''}</div>
+        <h1>${content?.title || ''}</h1>
+        ${content?.author ? `<div class="author">${content.author}</div>` : ''}
+        ${content?.date ? `<div class="date">${content.date}</div>` : ''}
+        <div class="content">${content?.content || ''}</div>
       </body></html>`;
     } else {
       log(`[PuppeteerScraper] Extracting source page links`, "scraper");
@@ -486,17 +487,18 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         return `<html><body><div class="extracted-article-links">Link extraction completed with validation restrictions</div></body></html>`;
       }
 
-      log(`[PuppeteerScraper] Extracted ${articleLinkData.length} potential article links`, "scraper");
+      log(`[PuppeteerScraper] Extracted ${(articleLinkData as any)?.length || 0} potential article links`, "scraper");
 
       // Return structured HTML with extracted links
+      const linkData = articleLinkData as any[];
       return `<html><body>
         <div class="extracted-article-links">
-          ${articleLinkData.map(link => `
+          ${linkData?.map(link => `
             <div class="article-link-item">
               <a href="${link.href}">${link.text}</a>
               <div class="context">${link.parentText.substring(0, 100)}</div>
             </div>
-          `).join('\n')}
+          `).join('\n') || ''}
         </div>
       </body></html>`;
     }
@@ -510,6 +512,42 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
     
     log(`[PuppeteerScraper] Error extracting page content: ${error.message}`, "scraper-error");
     throw error;
+  }
+}
+
+/**
+ * Fallback content extraction when validation errors prevent normal evaluation
+ */
+async function extractContentWithFallback(page: Page): Promise<string> {
+  try {
+    log(`[PuppeteerScraper] Using fallback content extraction method`, "scraper");
+    
+    // Use basic DOM queries that are less likely to trigger validation
+    const title = await page.title();
+    const url = page.url();
+    
+    // Try to get content using page.$eval which may bypass some validation
+    let content = '';
+    try {
+      content = await page.$eval('body', el => el.textContent?.trim() || '') || '';
+    } catch {
+      content = 'Content extraction restricted by validation system';
+    }
+    
+    log(`[PuppeteerScraper] Fallback extraction: title=${title.length} chars, content=${content.length} chars`, "scraper");
+    
+    return `<html><body>
+      <h1>${title}</h1>
+      <div class="content">${content.substring(0, 5000)}</div>
+      <div class="extraction-note">Content extracted using validation-safe fallback method</div>
+    </body></html>`;
+    
+  } catch (error: any) {
+    log(`[PuppeteerScraper] Fallback extraction also failed: ${error.message}`, "scraper-error");
+    return `<html><body>
+      <div class="content">Content extraction severely restricted by validation system</div>
+      <div class="error-note">Both primary and fallback extraction methods blocked</div>
+    </body></html>`;
   }
 }
 
@@ -621,7 +659,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         responseTime: Date.now() - startTime,
         statusCode: 200,
         finalUrl: url,
-        validationRestricted: true
+        finalUrl: url
       };
     }
     
