@@ -2,6 +2,7 @@ import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
 import { ScrapingConfig, generateFallbackSelectors, sanitizeSelector } from './structure-detector';
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
+import { validateSelector } from '../utils/code-validator';
 
 export interface ArticleContent {
   title: string;

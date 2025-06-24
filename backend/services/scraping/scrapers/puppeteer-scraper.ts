@@ -4,6 +4,7 @@ import { setupPage, setupStealthPage, setupArticlePage, setupSourcePage } from '
 import { bypassProtection, ProtectionInfo } from '../core/protection-bypass';
 import { ScrapingResult } from './http-scraper';
 import { safePageEvaluate, validateJavaScriptCode, validateSelector, sanitizeScrapingConfig } from '../utils/code-validator';
+import { emergencyPythonCheck, stripPythonCode } from '../utils/emergency-block';
 
 export interface PuppeteerScrapingOptions {
   isArticlePage?: boolean;
@@ -291,9 +292,19 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         log(`[PuppeteerScraper] Original config keys: ${Object.keys(scrapingConfig).join(', ')}`, "scraper");
       }
       
+      // Emergency check for Python syntax
+      if (!emergencyPythonCheck(scrapingConfig, 'puppeteer-article-extraction')) {
+        log(`[PuppeteerScraper] EMERGENCY BLOCK: Python syntax detected, aborting`, "scraper-error");
+        throw new Error('Python syntax detected in scraping config - execution blocked for security');
+      }
+
       // Sanitize scraping config before passing to browser
-      const sanitizedConfig = sanitizeScrapingConfig(scrapingConfig);
-      log(`[PuppeteerScraper] Sanitized config keys: ${Object.keys(sanitizedConfig).join(', ')}`, "scraper");
+      let sanitizedConfig = sanitizeScrapingConfig(scrapingConfig);
+      
+      // Additional emergency stripping
+      sanitizedConfig = stripPythonCode(sanitizedConfig);
+      
+      log(`[PuppeteerScraper] Config sanitized and stripped, keys: ${Object.keys(sanitizedConfig).join(', ')}`, "scraper");
       
       // Extract article content using provided scraping config or fallbacks
       const articleContent = await safePageEvaluate<{
@@ -329,6 +340,17 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         }
 
         try {
+          // Validate config object before any processing
+          if (config && typeof config === 'object') {
+            // Check every property for Python syntax
+            for (const [key, value] of Object.entries(config)) {
+              if (typeof value === 'string' && (value.includes('__name__') || value.includes('if __name__'))) {
+                console.error(`CRITICAL: Python syntax detected in config.${key}: ${value}`);
+                return { title: '', content: '', author: '', date: '' };
+              }
+            }
+          }
+
           // Try using provided selectors first
           if (config) {
             const titleSelector = sanitizeSelector(config.titleSelector || config.title);

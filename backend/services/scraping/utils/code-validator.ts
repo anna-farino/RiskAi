@@ -109,6 +109,13 @@ export async function safePageEvaluate<T = any>(
       }
     }
 
+    // Final safety check - if any arguments contain Python syntax, block execution completely
+    const serializedArgs = JSON.stringify(args);
+    if (!validateJavaScriptCode(serializedArgs, `${context}.serialized-args`)) {
+      log(`[CodeValidator] CRITICAL BLOCK: Python syntax found in serialized arguments`, "scraper-error");
+      throw new Error(`Python syntax detected in arguments, execution blocked for security`);
+    }
+
     // Execute with timeout
     const result = await page.evaluate(pageFunction, ...args);
     return result;
