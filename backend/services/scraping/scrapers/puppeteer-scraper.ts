@@ -658,7 +658,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         method: 'puppeteer',
         responseTime: Date.now() - startTime,
         statusCode: 200,
-        finalUrl: url,
         finalUrl: url
       };
     }
