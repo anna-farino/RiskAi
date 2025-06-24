@@ -524,7 +524,7 @@ async function extractContentWithAIFallback(page: Page, scrapingConfig?: any): P
     log(`[PuppeteerScraper] Using AI-optimized fallback content extraction method`, "scraper");
     
     // Use basic DOM queries that are less likely to trigger validation
-    const title = await page.title();
+    let title = await page.title();
     const url = page.url();
     
     // Try to extract content using AI-detected selectors if available
