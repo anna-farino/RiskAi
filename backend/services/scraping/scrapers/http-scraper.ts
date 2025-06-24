@@ -224,7 +224,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 detected: true,
                 type: 'datadome',
                 confidence: 0.95,
-                details: 'DataDome 401 authentication required'
+                requiresPuppeteer: 'DataDome 401 authentication required'
               },
               statusCode: response.status,
               finalUrl: response.url
@@ -243,7 +243,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 detected: true,
                 type: 'generic',
                 confidence: 0.8,
-                details: '403 Forbidden - likely bot protection'
+                requiresPuppeteer: '403 Forbidden - likely bot protection'
               },
               statusCode: response.status,
               finalUrl: response.url
@@ -295,7 +295,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
               detected: true,
               type: 'generic',
               confidence: 0.7,
-              details: 'Dynamic content requires JavaScript execution'
+              requiresPuppeteer: 'Dynamic content requires JavaScript execution'
             },
             statusCode: response.status,
             finalUrl: response.url

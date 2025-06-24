@@ -91,24 +91,9 @@ export function detectProtection(html: string, url: string): ProtectionInfo {
   };
 }
 
-// Legacy function for backward compatibility
-export function detectProtection(html: string): ProtectionInfo {
+// Legacy function for backward compatibility  
+export function detectBotProtection(html: string): ProtectionInfo {
   return detectProtection(html, '');
-}
-      type: "captcha",
-      confidence: 0.9,
-      details: "CAPTCHA challenge detected"
-    };
-  }
-
-  // No protection detected
-  log(`[ProtectionBypass] No bot protection detected`, "scraper");
-  return {
-    detected: false,
-    type: "none",
-    confidence: 1.0,
-    details: "No protection mechanisms detected"
-  };
 }
 
 /**
@@ -160,13 +145,10 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         return false;
       }
 
-      // Additional wait for page to stabilize after challenge
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      return true;
-    } else {
-      log(`[ProtectionBypass] No DataDome challenge detected`, "scraper");
       return true;
     }
+
+    return false;
   } catch (error: any) {
     log(`[ProtectionBypass] Error handling DataDome challenge: ${error.message}`, "scraper-error");
     return false;
@@ -175,39 +157,42 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
 
 /**
  * Handle Cloudflare protection challenges
- * Based on patterns from Threat Tracker
+ * Enhanced version from News Radar with improved timing
  */
 export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
   try {
     log(`[ProtectionBypass] Checking for Cloudflare protection...`, "scraper");
 
+    // Check if we're on a Cloudflare challenge page
     const isCloudflareChallenge = await page.evaluate(() => {
-      const hasCloudflareIndicators = 
-        document.body?.textContent?.includes("Checking your browser") ||
-        document.body?.textContent?.includes("DDoS protection") ||
-        document.documentElement?.innerHTML?.includes("cloudflare") ||
-        document.querySelector('*[class*="cf-"]') !== null;
+      const hasCfElements = document.querySelector('.cf-browser-verification') !== null ||
+                           document.querySelector('.cf-checking-browser') !== null ||
+                           document.querySelector('.cf-spinner-allow-5-secs') !== null;
+      const hasCloudflareText = document.body?.textContent?.includes("Checking your browser") || false;
+      const hasCfScript = document.querySelector('script[src*="cloudflare"]') !== null;
 
-      return hasCloudflareIndicators;
+      return hasCfElements || hasCloudflareText || hasCfScript;
     });
 
     if (isCloudflareChallenge) {
       log(`[ProtectionBypass] Cloudflare challenge detected, waiting for completion...`, "scraper");
 
-      // Wait for Cloudflare to complete its checks
+      // Wait for challenge to complete
       let challengeCompleted = false;
       const maxWaitTime = 15000; // 15 seconds max wait
-      const checkInterval = 2000; // Check every 2 seconds
+      const checkInterval = 1000; // Check every second
       let waitTime = 0;
 
       while (!challengeCompleted && waitTime < maxWaitTime) {
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
 
-        // Check if challenge is still active
+        // Check if we're still on challenge page
         const stillOnChallenge = await page.evaluate(() => {
-          return document.body?.textContent?.includes("Checking your browser") ||
-                 document.body?.textContent?.includes("DDoS protection");
+          const hasCfElements = document.querySelector('.cf-browser-verification') !== null ||
+                               document.querySelector('.cf-checking-browser') !== null;
+          const hasCloudflareText = document.body?.textContent?.includes("Checking your browser") || false;
+          return hasCfElements || hasCloudflareText;
         });
 
         if (!stillOnChallenge) {
@@ -221,13 +206,10 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         return false;
       }
 
-      // Wait for page to stabilize
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return true;
-    } else {
-      log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
       return true;
     }
+
+    return false;
   } catch (error: any) {
     log(`[ProtectionBypass] Error handling Cloudflare challenge: ${error.message}`, "scraper-error");
     return false;
@@ -235,94 +217,18 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
 }
 
 /**
- * Handle Incapsula protection bypass
- * Based on detection patterns from existing implementations
- */
-export async function bypassIncapsula(page: Page): Promise<boolean> {
-  try {
-    log(`[ProtectionBypass] Checking for Incapsula protection...`, "scraper");
-
-    const hasIncapsula = await page.evaluate(() => {
-      return document.documentElement?.innerHTML?.includes("_Incapsula_Resource") ||
-             document.documentElement?.innerHTML?.includes("Incapsula") ||
-             document.documentElement?.innerHTML?.includes("window._icdt");
-    });
-
-    if (hasIncapsula) {
-      log(`[ProtectionBypass] Incapsula protection detected, performing bypass actions...`, "scraper");
-      
-      // Perform human-like actions to bypass Incapsula
-      await performHumanLikeActions(page);
-      
-      // Wait for protection to clear
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      
-      // Reload page to get clean content
-      await page.reload({ waitUntil: 'networkidle2' });
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      
-      return true;
-    } else {
-      log(`[ProtectionBypass] No Incapsula protection detected`, "scraper");
-      return true;
-    }
-  } catch (error: any) {
-    log(`[ProtectionBypass] Error handling Incapsula protection: ${error.message}`, "scraper-error");
-    return false;
-  }
-}
-
-/**
- * Perform human-like actions to evade bot detection
- * Consolidates techniques from Threat Tracker and News Radar
- */
-export async function performHumanLikeActions(page: Page): Promise<void> {
-  try {
-    log(`[ProtectionBypass] Performing human-like actions for bot evasion`, "scraper");
-
-    // Random mouse movements
-    await page.mouse.move(Math.random() * 100 + 50, Math.random() * 100 + 50);
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 500 + 200));
-
-    await page.mouse.down();
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 100 + 50));
-
-    await page.mouse.move(Math.random() * 200 + 100, Math.random() * 200 + 100);
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 200 + 100));
-
-    await page.mouse.up();
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 300 + 200));
-
-    // Random scrolling
-    await page.evaluate(() => {
-      window.scrollTo(0, Math.random() * 300);
-    });
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000 + 500));
-
-    // Simulate reading behavior
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight / 3);
-    });
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1500 + 1000));
-
-    log(`[ProtectionBypass] Human-like actions completed`, "scraper");
-  } catch (error: any) {
-    log(`[ProtectionBypass] Error performing human-like actions: ${error.message}`, "scraper-error");
-  }
-}
-
-/**
- * Comprehensive protection bypass orchestrator
- * Handles multiple protection types in sequence
+ * Generic protection bypass for general bot challenges
  */
 export async function bypassProtection(page: Page, protectionInfo: ProtectionInfo): Promise<boolean> {
-  if (!protectionInfo.detected) {
-    return true;
-  }
-
-  log(`[ProtectionBypass] Attempting to bypass ${protectionInfo.type} protection`, "scraper");
-
   try {
+    log(`[ProtectionBypass] Attempting to bypass ${protectionInfo.type} protection`, "scraper");
+
+    if (!protectionInfo.detected) {
+      log(`[ProtectionBypass] No protection detected, skipping bypass`, "scraper");
+      return true;
+    }
+
+    // Handle specific protection types
     switch (protectionInfo.type) {
       case 'datadome':
         return await handleDataDomeChallenge(page);
@@ -331,29 +237,25 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
         return await handleCloudflareChallenge(page);
       
       case 'incapsula':
-        return await bypassIncapsula(page);
-      
-      case 'captcha':
-        log(`[ProtectionBypass] Manual CAPTCHA detected - cannot automatically bypass`, "scraper");
-        return false;
-      
-      case 'rate_limit':
-        log(`[ProtectionBypass] Rate limit detected - waiting before retry`, "scraper");
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        return true;
-      
-      case 'cookie_check':
-        log(`[ProtectionBypass] Cookie challenge detected - performing actions`, "scraper");
-        await performHumanLikeActions(page);
-        return true;
-      
+      case 'generic':
       default:
-        log(`[ProtectionBypass] Generic protection detected - performing standard bypass`, "scraper");
-        await performHumanLikeActions(page);
+        // Generic protection handling
+        log(`[ProtectionBypass] Attempting generic protection bypass`, "scraper");
+        
+        // Wait for page to load completely
+        await page.waitForLoadState('networkidle');
+        
+        // Perform human-like actions
+        await page.mouse.move(100, 100);
+        await page.waitForTimeout(1000);
+        await page.mouse.move(200, 200);
+        await page.waitForTimeout(2000);
+        
+        log(`[ProtectionBypass] Generic protection bypass completed`, "scraper");
         return true;
     }
   } catch (error: any) {
-    log(`[ProtectionBypass] Error bypassing ${protectionInfo.type} protection: ${error.message}`, "scraper-error");
+    log(`[ProtectionBypass] Error during protection bypass: ${error.message}`, "scraper-error");
     return false;
   }
 }

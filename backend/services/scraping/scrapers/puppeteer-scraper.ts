@@ -690,7 +690,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
           detected: true,
           type: 'generic',
           confidence: 0.8,
-          details: 'Bot protection detected in page content'
+          requiresPuppeteer: 'Bot protection detected in page content'
         };
 
         const bypassSuccess = await bypassProtection(page, protectionInfo);
