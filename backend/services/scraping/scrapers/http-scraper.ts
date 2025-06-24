@@ -75,8 +75,8 @@ function addCookiesToHeaders(headers: Record<string, string>): Record<string, st
  */
 export function detectRequiresPuppeteer(html: string, response: Response): boolean {
   // Check for bot protection first (highest priority)
-  const protection = detectBotProtection(html, response);
-  if (protection.hasProtection) {
+  const protection = detectProtection(html, response);
+  if (protection.detected) {
     log(`[HTTPScraper] Bot protection detected (${protection.type}): requires Puppeteer`, "scraper");
     return true;
   }
@@ -221,7 +221,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
               method: 'http',
               responseTime: Date.now() - startTime,
               protectionDetected: {
-                hasProtection: true,
+                detected: true,
                 type: 'datadome',
                 confidence: 0.95,
                 details: 'DataDome 401 authentication required'
@@ -240,7 +240,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
               method: 'http',
               responseTime: Date.now() - startTime,
               protectionDetected: {
-                hasProtection: true,
+                detected: true,
                 type: 'generic',
                 confidence: 0.8,
                 details: '403 Forbidden - likely bot protection'
@@ -268,8 +268,8 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
         log(`[HTTPScraper] Retrieved ${html.length} characters of HTML`, "scraper");
 
         // Check for bot protection in content
-        protectionInfo = detectBotProtection(html, response);
-        if (protectionInfo.hasProtection) {
+        protectionInfo = detectProtection(html, response);
+        if (protectionInfo.detected) {
           log(`[HTTPScraper] Bot protection detected: ${protectionInfo.type}`, "scraper");
           return {
             html,
@@ -292,7 +292,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
             method: 'http',
             responseTime: Date.now() - startTime,
             protectionDetected: {
-              hasProtection: true,
+              detected: true,
               type: 'generic',
               confidence: 0.7,
               details: 'Dynamic content requires JavaScript execution'

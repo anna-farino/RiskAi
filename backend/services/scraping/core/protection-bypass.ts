@@ -92,7 +92,7 @@ export function detectProtection(html: string, url: string): ProtectionInfo {
 }
 
 // Legacy function for backward compatibility
-export function detectBotProtection(html: string): ProtectionInfo {
+export function detectProtection(html: string): ProtectionInfo {
   return detectProtection(html, '');
 }
       type: "captcha",
@@ -104,7 +104,7 @@ export function detectBotProtection(html: string): ProtectionInfo {
   // No protection detected
   log(`[ProtectionBypass] No bot protection detected`, "scraper");
   return {
-    hasProtection: false,
+    detected: false,
     type: "none",
     confidence: 1.0,
     details: "No protection mechanisms detected"
@@ -316,7 +316,7 @@ export async function performHumanLikeActions(page: Page): Promise<void> {
  * Handles multiple protection types in sequence
  */
 export async function bypassProtection(page: Page, protectionInfo: ProtectionInfo): Promise<boolean> {
-  if (!protectionInfo.hasProtection) {
+  if (!protectionInfo.detected) {
     return true;
   }
 
