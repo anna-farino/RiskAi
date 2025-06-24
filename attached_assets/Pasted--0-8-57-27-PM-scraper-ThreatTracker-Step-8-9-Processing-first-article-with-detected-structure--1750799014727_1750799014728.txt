@@ -1,0 +1,273 @@
+[0] 8:57:27 PM [scraper] [ThreatTracker] Step 8-9: Processing first article with detected structure
+[0] No source.userId
+[0] 8:57:27 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:27 PM [scraper] [UnifiedScraper] Scraping article URL: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:27 PM [scraper] [HybridScraper] Starting unified scraping for: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:27 PM [scraper] [HybridScraper] Options: isSourceUrl=false, isArticlePage=true, appContext=undefined
+[0] 8:57:27 PM [scraper] [HybridScraper] Attempt 1/3
+[0] 8:57:27 PM [scraper] [HybridScraper] Using default HTTP-first strategy
+[0] 8:57:27 PM [scraper] [HybridScraper] Attempting HTTP scraping
+[0] 8:57:27 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:27 PM [scraper] [HTTPScraper] Attempt 1/2
+[0] 8:57:27 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:57:27 PM [scraper] [HTTPScraper] Retrieved 151252 characters of HTML
+[0] 8:57:27 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:57:27 PM [scraper] [ProtectionBypass] Cloudflare protection detected
+[0] 8:57:27 PM [scraper] [HTTPScraper] Bot protection detected: cloudflare
+[0] 8:57:27 PM [scraper] [HybridScraper] HTTP failed due to protection: cloudflare
+[0] 8:57:27 PM [scraper] [HybridScraper] Falling back to Puppeteer for attempt 1
+[0] 8:57:27 PM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:27 PM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 8:57:27 PM [scraper] [BrowserManager][createPage] Created new page
+[0] 8:57:27 PM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 8:57:27 PM [scraper] [PageSetup][setupPage] Set user agent
+[0] 8:57:27 PM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 8:57:27 PM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 8:57:27 PM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 8:57:27 PM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 8:57:27 PM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 8:57:29 PM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] 8:57:31 PM [scraper] [PuppeteerScraper] Checking for HTMX content...
+[0] 8:57:31 PM [scraper] [PuppeteerScraper] HTMX detection: scriptLoaded=false, hasAttributes=false, elements=0
+[0] 8:57:31 PM [scraper] [PuppeteerScraper] Extracting article content
+[0] 8:57:31 PM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 8:57:31 PM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] 8:57:32 PM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] 8:57:33 PM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 8:57:35 PM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] 8:57:38 PM [scraper] [PuppeteerScraper] External validation warning filtered: __name is not defined
+[0] 8:57:38 PM [scraper] [PuppeteerScraper] Content extraction blocked by validation, using fallback method
+[0] 8:57:38 PM [scraper] [PuppeteerScraper] Using fallback content extraction method
+[0] 8:57:38 PM [scraper] [PuppeteerScraper] Fallback extraction: title=84 chars, content=33245 chars
+[0] 8:57:38 PM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 8:57:38 PM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 8:57:38 PM [scraper] [HybridScraper] Scraping successful with puppeteer on attempt 1
+[0] 8:57:38 PM [scraper] [HybridScraper] Scraping completed in 10685ms using puppeteer
+[0] 8:57:38 PM [scraper] [HybridScraper] Success: true, Content length: 5262
+[0] 8:57:38 PM [scraper] [UnifiedScraper] Successfully scraped article HTML (5262 chars)
+[0] 8:57:38 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:57:38 PM [scraper] [ContentExtractor] Attempting AI-powered extraction for https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:38 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:38 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 8:57:38 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html (5236 chars)
+[0] 8:57:39 PM [scraper] [AIStructureDetector] Structure detected with confidence 0.9
+[0] 8:57:39 PM [scraper] [HybridExtractor] Updated cache for thehackernews.com: 1 successes
+[0] 8:57:39 PM [scraper] [ContentExtractor] AI extraction successful with confidence 0.9000000000000001 using method ai-selectors
+[0] 8:57:39 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:57:39 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:57:39 PM [date-extractor] [DateExtractor] No valid date found in article
+[0] 8:57:39 PM [scraper] [ContentExtractor] Could not extract publish date, will use null
+[0] 8:57:39 PM [scraper] [UnifiedScraper] Extracted article content: title=84 chars, content=3833 chars
+[0] [4f5b8] 🔄 [AUTH-MIDDLEWARE] Attempting to refresh token...
+[0] [4f5b8] Verifying refresh token...
+[0] [d6ceb] 🔄 [AUTH-MIDDLEWARE] Attempting to refresh token...
+[0] [d6ceb] Verifying refresh token...
+[0] [4f5b8] [verifyRefreshToken], expiresAt, newDate, >? 2025-07-24T20:52:37.351Z 2025-06-24T20:57:41.197Z true
+[0] [4f5b8] Found valid refresh token:  596d6b5664df8ea7f6a3dfe37f5b3efabc65eec28860b972054a05e1fd51034a
+[0] [4f5b8] ✅ [AUTH-MIDDLEWARE] Refresh token valid, generating new tokens...
+[0] [4f5b8] 🔒 LOCK-CHECK
+[0] [4f5b8] Token already refreshed: false de3ba919fd295e7cc4e02a5b318f366634d565069130c0a314aab1523ede3279b7a7bab34adfed57
+[0] [4f5b8] Token not present de3ba919fd295e7cc4e02a5b318f366634d565069130c0a314aab1523ede3279b7a7bab34adfed57
+[0] [4f5b8] Revoking refresh token...
+[0] [4f5b8] An error occurred while revoking the refresh token
+[0] [d6ceb] [verifyRefreshToken], expiresAt, newDate, >? 2025-07-24T20:52:37.351Z 2025-06-24T20:57:41.353Z true
+[0] [d6ceb] Found valid refresh token:  596d6b5664df8ea7f6a3dfe37f5b3efabc65eec28860b972054a05e1fd51034a
+[0] [d6ceb] ✅ [AUTH-MIDDLEWARE] Refresh token valid, generating new tokens...
+[0] [d6ceb] 🔒 LOCK-CHECK
+[0] [d6ceb] Token already refreshed: true de3ba919fd295e7cc4e02a5b318f366634d565069130c0a314aab1523ede3279b7a7bab34adfed57
+[0] Created refresh token for user 70b9e69c-26c8-47f2-a382-aeaa6e76a1a4, expires at Thu Jul 24 2025 20:57:41 GMT+0000 (Coordinated Universal Time)
+[0] Filter parameters: {}
+[0] [4f5b8] GET /articles
+[0] Received filtered articles: 127
+[0] Filtered articles: 127
+[0] 8:57:43 PM [scraper] [ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:43 PM [scraper] [ThreatTracker] Valid threats: 0, Valid vendors: 0, Valid clients: 1, Valid hardware: 0
+[0] 8:57:43 PM [scraper] [ThreatTracker] Processing all remaining articles
+[0] 8:57:43 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:43 PM [scraper] [UnifiedScraper] Scraping article URL: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:43 PM [scraper] [HybridScraper] Starting unified scraping for: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:43 PM [scraper] [HybridScraper] Options: isSourceUrl=false, isArticlePage=true, appContext=undefined
+[0] 8:57:43 PM [scraper] [HybridScraper] Attempt 1/3
+[0] 8:57:43 PM [scraper] [HybridScraper] Using default HTTP-first strategy
+[0] 8:57:43 PM [scraper] [HybridScraper] Attempting HTTP scraping
+[0] 8:57:43 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:43 PM [scraper] [HTTPScraper] Attempt 1/2
+[0] 8:57:43 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:57:43 PM [scraper] [HTTPScraper] Retrieved 150630 characters of HTML
+[0] 8:57:43 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:57:43 PM [scraper] [ProtectionBypass] Cloudflare protection detected
+[0] 8:57:43 PM [scraper] [HTTPScraper] Bot protection detected: cloudflare
+[0] 8:57:43 PM [scraper] [HybridScraper] HTTP failed due to protection: cloudflare
+[0] 8:57:43 PM [scraper] [HybridScraper] Falling back to Puppeteer for attempt 1
+[0] 8:57:43 PM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:43 PM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 8:57:43 PM [scraper] [BrowserManager][createPage] Created new page
+[0] 8:57:43 PM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 8:57:43 PM [scraper] [PageSetup][setupPage] Set user agent
+[0] 8:57:43 PM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 8:57:43 PM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 8:57:44 PM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 8:57:44 PM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 8:57:44 PM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 8:57:45 PM [scraper] [PuppeteerScraper] Navigation completed. Status: 304
+[0] 8:57:45 PM [scraper] [PuppeteerScraper] Warning: Response status is not OK: 304
+[0] 8:57:47 PM [scraper] [PuppeteerScraper] Checking for HTMX content...
+[0] 8:57:47 PM [scraper] [PuppeteerScraper] HTMX detection: scriptLoaded=false, hasAttributes=false, elements=0
+[0] 8:57:47 PM [scraper] [PuppeteerScraper] Extracting article content
+[0] 8:57:47 PM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 8:57:47 PM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] 8:57:48 PM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] 8:57:49 PM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 8:57:51 PM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] 8:57:54 PM [scraper] [PuppeteerScraper] External validation warning filtered: __name is not defined
+[0] 8:57:54 PM [scraper] [PuppeteerScraper] Content extraction blocked by validation, using fallback method
+[0] 8:57:54 PM [scraper] [PuppeteerScraper] Using fallback content extraction method
+[0] 8:57:54 PM [scraper] [PuppeteerScraper] Fallback extraction: title=84 chars, content=33235 chars
+[0] 8:57:54 PM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 8:57:54 PM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 8:57:54 PM [scraper] [HybridScraper] Scraping successful with puppeteer on attempt 1
+[0] 8:57:54 PM [scraper] [HybridScraper] Scraping completed in 10626ms using puppeteer
+[0] 8:57:54 PM [scraper] [HybridScraper] Success: true, Content length: 5262
+[0] 8:57:54 PM [scraper] [UnifiedScraper] Successfully scraped article HTML (5262 chars)
+[0] 8:57:54 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:57:54 PM [scraper] [ContentExtractor] Attempting AI-powered extraction for https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:54 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:54 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 8:57:54 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html (5236 chars)
+[0] 8:57:55 PM [scraper] [AIStructureDetector] Structure detected with confidence 0.9
+[0] 8:57:55 PM [scraper] [HybridExtractor] Updated cache for thehackernews.com: 2 successes
+[0] 8:57:55 PM [scraper] [ContentExtractor] AI extraction successful with confidence 0.9000000000000001 using method ai-selectors
+[0] 8:57:55 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:57:55 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:57:55 PM [date-extractor] [DateExtractor] No valid date found in article
+[0] 8:57:55 PM [scraper] [ContentExtractor] Could not extract publish date, will use null
+[0] 8:57:55 PM [scraper] [UnifiedScraper] Extracted article content: title=84 chars, content=3833 chars
+[0] 8:57:58 PM [scraper] [ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: https://thehackernews.com/2025/06/new-us-visa-rule-requires-applicants-to.html
+[0] 8:57:58 PM [scraper] [ThreatTracker] Valid threats: 0, Valid vendors: 0, Valid clients: 1, Valid hardware: 0
+[0] 8:57:58 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:57:58 PM [scraper] [UnifiedScraper] Scraping article URL: https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:57:58 PM [scraper] [HybridScraper] Starting unified scraping for: https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:57:58 PM [scraper] [HybridScraper] Options: isSourceUrl=false, isArticlePage=true, appContext=undefined
+[0] 8:57:58 PM [scraper] [HybridScraper] Attempt 1/3
+[0] 8:57:58 PM [scraper] [HybridScraper] Using default HTTP-first strategy
+[0] 8:57:58 PM [scraper] [HybridScraper] Attempting HTTP scraping
+[0] 8:57:58 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:57:58 PM [scraper] [HTTPScraper] Attempt 1/2
+[0] 8:57:58 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:57:58 PM [scraper] [HTTPScraper] Retrieved 154421 characters of HTML
+[0] 8:57:58 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:57:58 PM [scraper] [ProtectionBypass] Cloudflare protection detected
+[0] 8:57:58 PM [scraper] [HTTPScraper] Bot protection detected: cloudflare
+[0] 8:57:58 PM [scraper] [HybridScraper] HTTP failed due to protection: cloudflare
+[0] 8:57:58 PM [scraper] [HybridScraper] Falling back to Puppeteer for attempt 1
+[0] 8:57:58 PM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:57:58 PM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 8:57:58 PM [scraper] [BrowserManager][createPage] Created new page
+[0] 8:57:58 PM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 8:57:58 PM [scraper] [PageSetup][setupPage] Set user agent
+[0] 8:57:58 PM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 8:57:58 PM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 8:57:58 PM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 8:57:58 PM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 8:57:58 PM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 8:58:00 PM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] 8:58:02 PM [scraper] [PuppeteerScraper] Checking for HTMX content...
+[0] 8:58:02 PM [scraper] [PuppeteerScraper] HTMX detection: scriptLoaded=false, hasAttributes=false, elements=0
+[0] 8:58:02 PM [scraper] [PuppeteerScraper] Extracting article content
+[0] 8:58:02 PM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 8:58:02 PM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] 8:58:03 PM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] [875de] GET /articles
+[0] 8:58:04 PM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 8:58:06 PM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] 8:58:09 PM [scraper] [PuppeteerScraper] External validation warning filtered: __name is not defined
+[0] 8:58:09 PM [scraper] [PuppeteerScraper] Content extraction blocked by validation, using fallback method
+[0] 8:58:09 PM [scraper] [PuppeteerScraper] Using fallback content extraction method
+[0] 8:58:09 PM [scraper] [PuppeteerScraper] Fallback extraction: title=84 chars, content=33861 chars
+[0] 8:58:09 PM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 8:58:09 PM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 8:58:09 PM [scraper] [HybridScraper] Scraping successful with puppeteer on attempt 1
+[0] 8:58:09 PM [scraper] [HybridScraper] Scraping completed in 10436ms using puppeteer
+[0] 8:58:09 PM [scraper] [HybridScraper] Success: true, Content length: 5262
+[0] 8:58:09 PM [scraper] [UnifiedScraper] Successfully scraped article HTML (5262 chars)
+[0] 8:58:09 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:58:09 PM [scraper] [ContentExtractor] Attempting AI-powered extraction for https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:58:09 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:58:09 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 8:58:09 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html (5236 chars)
+[0] 8:58:11 PM [scraper] [AIStructureDetector] Structure detected with confidence 0.85
+[0] 8:58:11 PM [scraper] [HybridExtractor] Updated cache for thehackernews.com: 3 successes
+[0] 8:58:11 PM [scraper] [ContentExtractor] AI extraction successful with confidence 0.8500000000000001 using method ai-selectors
+[0] 8:58:11 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:58:11 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:58:11 PM [date-extractor] [DateExtractor] No valid date found in article
+[0] 8:58:11 PM [scraper] [ContentExtractor] Could not extract publish date, will use null
+[0] 8:58:11 PM [scraper] [UnifiedScraper] Extracted article content: title=84 chars, content=4502 chars
+[0] 8:58:12 PM [scraper] [ThreatTracker] Article meets criteria with 1 threats and 1 other keywords
+[0] 8:58:12 PM [scraper] [ThreatTracker] No publish date extracted from article
+[0] 8:58:12 PM [express] Storing the article. Author: undefined, title: Researchers Find Way to Shut Down Cryptominer Campaigns Using Bad Shares and XMRogue, userId: 201b8634-9c4c-4425-b927-c9a75e85f355, sourceId: 106c1cd2-fe28-4b69-8c8a-67c8c6ecbf31
+[0] 8:58:12 PM [scraper] [ThreatTracker] Successfully processed and stored article: https://thehackernews.com/2025/06/researchers-find-way-to-shut-down.html
+[0] 8:58:12 PM [scraper] [ThreatTracker] Processing article: https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:12 PM [scraper] [UnifiedScraper] Scraping article URL: https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:12 PM [scraper] [HybridScraper] Starting unified scraping for: https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:12 PM [scraper] [HybridScraper] Options: isSourceUrl=false, isArticlePage=true, appContext=undefined
+[0] 8:58:12 PM [scraper] [HybridScraper] Attempt 1/3
+[0] 8:58:12 PM [scraper] [HybridScraper] Using default HTTP-first strategy
+[0] 8:58:12 PM [scraper] [HybridScraper] Attempting HTTP scraping
+[0] 8:58:12 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:12 PM [scraper] [HTTPScraper] Attempt 1/2
+[0] 8:58:12 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:58:12 PM [scraper] [HTTPScraper] Retrieved 155125 characters of HTML
+[0] 8:58:13 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:58:13 PM [scraper] [ProtectionBypass] Cloudflare protection detected
+[0] 8:58:13 PM [scraper] [HTTPScraper] Bot protection detected: cloudflare
+[0] 8:58:13 PM [scraper] [HybridScraper] HTTP failed due to protection: cloudflare
+[0] 8:58:13 PM [scraper] [HybridScraper] Falling back to Puppeteer for attempt 1
+[0] 8:58:13 PM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:13 PM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 8:58:13 PM [scraper] [BrowserManager][createPage] Created new page
+[0] 8:58:13 PM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 8:58:13 PM [scraper] [PageSetup][setupPage] Set user agent
+[0] 8:58:13 PM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 8:58:13 PM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 8:58:13 PM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 8:58:13 PM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 8:58:13 PM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] Filter parameters: {}
+[0] 8:58:14 PM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] Received filtered articles: 127
+[0] Filtered articles: 127
+[0] 8:58:16 PM [scraper] [PuppeteerScraper] Checking for HTMX content...
+[0] 8:58:16 PM [scraper] [PuppeteerScraper] HTMX detection: scriptLoaded=false, hasAttributes=false, elements=0
+[0] 8:58:16 PM [scraper] [PuppeteerScraper] Extracting article content
+[0] 8:58:16 PM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 8:58:16 PM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] 8:58:17 PM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] 8:58:18 PM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 8:58:20 PM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] 8:58:23 PM [scraper] [PuppeteerScraper] External validation warning filtered: __name is not defined
+[0] 8:58:23 PM [scraper] [PuppeteerScraper] Content extraction blocked by validation, using fallback method
+[0] 8:58:23 PM [scraper] [PuppeteerScraper] Using fallback content extraction method
+[0] 8:58:23 PM [scraper] [PuppeteerScraper] Fallback extraction: title=85 chars, content=34318 chars
+[0] 8:58:23 PM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 8:58:23 PM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 8:58:23 PM [scraper] [HybridScraper] Scraping successful with puppeteer on attempt 1
+[0] 8:58:23 PM [scraper] [HybridScraper] Scraping completed in 10340ms using puppeteer
+[0] 8:58:23 PM [scraper] [HybridScraper] Success: true, Content length: 5263
+[0] 8:58:23 PM [scraper] [UnifiedScraper] Successfully scraped article HTML (5263 chars)
+[0] 8:58:23 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:58:23 PM [scraper] [ContentExtractor] Attempting AI-powered extraction for https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:23 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
+[0] 8:58:23 PM [scraper] [HybridExtractor] Using cached selectors for thehackernews.com (3 successes)
+[0] 8:58:23 PM [scraper] [HybridExtractor] Updated cache for thehackernews.com: 4 successes
+[0] 8:58:23 PM [scraper] [ContentExtractor] AI extraction successful with confidence 0.8500000000000001 using method ai-selectors
+[0] 8:58:23 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:58:23 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:58:23 PM [date-extractor] [DateExtractor] No valid date found in article
+[0] 8:58:23 PM [scraper] [ContentExtractor] Could not extract publish date, will use null
+[0] 8:58:23 PM [scraper] [UnifiedScraper] Extracted article content: title=85 chars, content=4886 chars
+[0] [9aa3e] GET /articles
+[0] 8:58:26 PM [scraper] [ThreatTracker] Article meets criteria with 2 threats and 1 other keywords
+[0] 8:58:26 PM [scraper] [ThreatTracker] No publish date extracted from article
+[0] 8:58:26 PM [express] Storing the article. Author: undefined, title: Hackers Target Over 70 Microsoft Exchange Servers to Steal Credentials via Keyloggers, userId: 201b8634-9c4c-4425-b927-c9a75e85f355, sourceId: 106c1cd2-fe28-4b69-8c8a-67c8c6ecbf31
+[0] 8:58:26 PM [scraper] [ThreatTracker] Successfully processed and stored article: https://thehackernews.com/2025/06/hackers-target-65-microsoft-exchange.html
