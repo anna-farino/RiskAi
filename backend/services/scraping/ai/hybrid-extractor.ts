@@ -1,0 +1,290 @@
+import { log } from "backend/utils/log";
+import { detectHtmlStructureWithAI, extractContentWithAI, AIStructureResult } from './structure-detector';
+import { ScrapingConfig } from '../types';
+import * as cheerio from 'cheerio';
+
+export interface HybridExtractionResult {
+  title: string;
+  content: string;
+  author: string | null;
+  date: string | null;
+  method: 'ai-selectors' | 'ai-direct' | 'fallback';
+  confidence: number;
+  selectors?: ScrapingConfig;
+}
+
+/**
+ * Cache for successful AI-detected selectors per domain
+ */
+class SelectorCache {
+  private cache = new Map<string, { selectors: ScrapingConfig; timestamp: number; successes: number }>();
+  private readonly TTL = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly MIN_SUCCESSES = 3; // Require 3 successful extractions before caching
+
+  getDomain(url: string): string {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  get(url: string): ScrapingConfig | null {
+    const domain = this.getDomain(url);
+    const cached = this.cache.get(domain);
+    
+    if (!cached) return null;
+    
+    // Check if cache is expired
+    if (Date.now() - cached.timestamp > this.TTL) {
+      this.cache.delete(domain);
+      return null;
+    }
+    
+    // Only return if it has proven successful multiple times
+    if (cached.successes >= this.MIN_SUCCESSES) {
+      log(`[HybridExtractor] Using cached selectors for ${domain} (${cached.successes} successes)`, "scraper");
+      return cached.selectors;
+    }
+    
+    return null;
+  }
+
+  set(url: string, selectors: ScrapingConfig, successful: boolean = true): void {
+    const domain = this.getDomain(url);
+    const existing = this.cache.get(domain);
+    
+    if (existing) {
+      existing.successes += successful ? 1 : -1;
+      existing.timestamp = Date.now();
+      existing.selectors = selectors; // Update with latest selectors
+    } else {
+      this.cache.set(domain, {
+        selectors,
+        timestamp: Date.now(),
+        successes: successful ? 1 : 0
+      });
+    }
+    
+    log(`[HybridExtractor] Updated cache for ${domain}: ${this.cache.get(domain)?.successes} successes`, "scraper");
+  }
+}
+
+const selectorCache = new SelectorCache();
+
+/**
+ * Hybrid AI-powered content extraction with intelligent fallbacks
+ */
+export async function extractWithHybridAI(html: string, sourceUrl: string): Promise<HybridExtractionResult> {
+  log(`[HybridExtractor] Starting hybrid extraction for ${sourceUrl}`, "scraper");
+  
+  // Step 1: Try cached selectors first
+  const cachedSelectors = selectorCache.get(sourceUrl);
+  if (cachedSelectors) {
+    try {
+      const result = await extractWithSelectors(html, cachedSelectors);
+      if (result.confidence > 0.6) {
+        selectorCache.set(sourceUrl, cachedSelectors, true);
+        return {
+          ...result,
+          method: 'ai-selectors',
+          selectors: cachedSelectors
+        };
+      }
+    } catch (error: any) {
+      log(`[HybridExtractor] Cached selectors failed: ${error.message}`, "scraper");
+      selectorCache.set(sourceUrl, cachedSelectors, false);
+    }
+  }
+  
+  // Step 2: AI structure detection + selector-based extraction
+  try {
+    const aiStructure = await detectHtmlStructureWithAI(html, sourceUrl);
+    const scrapingConfig = convertToScrapingConfig(aiStructure);
+    
+    const result = await extractWithSelectors(html, scrapingConfig);
+    
+    // If AI selectors worked well, cache them
+    if (result.confidence > 0.7) {
+      selectorCache.set(sourceUrl, scrapingConfig, true);
+      return {
+        ...result,
+        method: 'ai-selectors',
+        selectors: scrapingConfig
+      };
+    }
+    
+    // If moderate success, continue but don't cache yet
+    if (result.confidence > 0.4) {
+      return {
+        ...result,
+        method: 'ai-selectors',
+        selectors: scrapingConfig
+      };
+    }
+    
+  } catch (error: any) {
+    log(`[HybridExtractor] AI selector detection failed: ${error.message}`, "scraper");
+  }
+  
+  // Step 3: Direct AI content extraction as fallback
+  try {
+    log(`[HybridExtractor] Falling back to direct AI extraction`, "scraper");
+    const aiResult = await extractContentWithAI(html, sourceUrl);
+    
+    return {
+      title: aiResult.title,
+      content: aiResult.content,
+      author: aiResult.author,
+      date: aiResult.date,
+      method: 'ai-direct',
+      confidence: aiResult.confidence
+    };
+    
+  } catch (error: any) {
+    log(`[HybridExtractor] Direct AI extraction failed: ${error.message}`, "scraper-error");
+  }
+  
+  // Step 4: Final fallback to basic selectors
+  log(`[HybridExtractor] All AI methods failed, using basic fallback`, "scraper");
+  const fallbackConfig: ScrapingConfig = {
+    titleSelector: 'h1',
+    contentSelector: 'article, .content, .post, .entry-content, main',
+    authorSelector: '.author, .byline, .writer',
+    dateSelector: 'time, .date, .published',
+    confidence: 0.2
+  };
+  
+  const fallbackResult = await extractWithSelectors(html, fallbackConfig);
+  return {
+    ...fallbackResult,
+    method: 'fallback',
+    selectors: fallbackConfig
+  };
+}
+
+/**
+ * Extract content using provided selectors with Cheerio
+ */
+async function extractWithSelectors(html: string, config: ScrapingConfig): Promise<{
+  title: string;
+  content: string;
+  author: string | null;
+  date: string | null;
+  confidence: number;
+}> {
+  const $ = cheerio.load(html);
+  
+  // Extract title
+  let title = '';
+  if (config.titleSelector) {
+    title = $(config.titleSelector).first().text().trim();
+  }
+  
+  // Extract content
+  let content = '';
+  if (config.contentSelector) {
+    const contentElements = $(config.contentSelector);
+    if (contentElements.length > 0) {
+      // Try to get the largest content block
+      let bestContent = '';
+      contentElements.each((_, el) => {
+        const text = $(el).text().trim();
+        if (text.length > bestContent.length) {
+          bestContent = text;
+        }
+      });
+      content = bestContent;
+    }
+  }
+  
+  // Extract author
+  let author: string | null = null;
+  if (config.authorSelector) {
+    const authorText = $(config.authorSelector).first().text().trim();
+    if (authorText && authorText.length < 100) { // Reasonable author name length
+      author = authorText.replace(/^by\s+/i, '').trim();
+    }
+  }
+  
+  // Extract date
+  let date: string | null = null;
+  if (config.dateSelector) {
+    const dateElement = $(config.dateSelector).first();
+    
+    // Try datetime attribute first
+    let dateText = dateElement.attr('datetime');
+    if (!dateText) {
+      // Try content
+      dateText = dateElement.text().trim();
+    }
+    
+    if (dateText) {
+      // Attempt to parse and format date
+      const parsedDate = parseDate(dateText);
+      if (parsedDate) {
+        date = parsedDate;
+      }
+    }
+  }
+  
+  // Calculate confidence based on extraction success
+  let confidence = config.confidence || 0.5;
+  
+  // Adjust confidence based on actual extraction results
+  if (!title) confidence -= 0.3;
+  if (!content || content.length < 100) confidence -= 0.4;
+  if (!author && config.authorSelector) confidence -= 0.1;
+  if (!date && config.dateSelector) confidence -= 0.1;
+  
+  // Bonus for good extraction
+  if (title && content.length > 500) confidence += 0.2;
+  
+  confidence = Math.min(1.0, Math.max(0.0, confidence));
+  
+  return {
+    title,
+    content,
+    author,
+    date,
+    confidence
+  };
+}
+
+/**
+ * Convert AI structure result to ScrapingConfig format
+ */
+function convertToScrapingConfig(aiResult: AIStructureResult): ScrapingConfig {
+  return {
+    titleSelector: aiResult.titleSelector,
+    contentSelector: aiResult.contentSelector,
+    authorSelector: aiResult.authorSelector,
+    dateSelector: aiResult.dateSelector,
+    articleSelector: aiResult.articleSelector,
+    confidence: aiResult.confidence,
+    alternatives: {
+      dateSelector: aiResult.dateAlternatives?.[0],
+      titleSelector: 'h1, .title, .headline',
+      contentSelector: 'article, .content, .post-content'
+    }
+  };
+}
+
+/**
+ * Parse various date formats to ISO format
+ */
+function parseDate(dateString: string): string | null {
+  try {
+    // Remove common prefixes
+    const cleaned = dateString.replace(/^(published|posted|updated|on)\s+/i, '').trim();
+    
+    const date = new Date(cleaned);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    }
+  } catch {
+    // Ignore parsing errors
+  }
+  
+  return null;
+}

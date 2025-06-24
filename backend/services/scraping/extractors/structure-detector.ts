@@ -1,6 +1,7 @@
 import { log } from "backend/utils/log";
 import { detectHtmlStructure as newsRadarDetection } from 'backend/apps/news-radar/services/openai';
 import { detectHtmlStructure as threatTrackerDetection } from 'backend/apps/threat-tracker/services/openai';
+import { detectHtmlStructureWithAI, AIStructureResult } from '../ai/structure-detector';
 
 export interface ScrapingConfig {
   titleSelector: string;
