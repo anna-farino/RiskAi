@@ -54,10 +54,10 @@ The unified scraping system migration has been **successfully completed** with a
 - Automatic method selection based on response analysis
 - Significant performance gains on simple sites
 
-### 2. Backward Compatibility Approach
-- Legacy function exports maintain existing app interfaces
-- Gradual migration path without breaking changes
-- Apps can adopt unified system incrementally
+### 2. Complete Migration Approach
+- All apps now use unified scraping system directly
+- No legacy wrapper functions or compatibility layers
+- Clean separation between scraping infrastructure and business logic
 
 ### 3. App-Specific Preservation
 - OpenAI integrations remain in app domains

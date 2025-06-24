@@ -61,7 +61,7 @@ async function processArticle(
     }
 
     // Early content extraction to get title for additional duplicate checking
-    const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
+    const articleContent = await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
@@ -69,10 +69,12 @@ async function processArticle(
       return null;
     }
     
-    const articleData = await extractArticleContentWithAI(
-      articleHtml,
-      articleUrl,
-    );
+    const articleData = {
+      title: articleContent.title,
+      content: articleContent.content,
+      author: articleContent.author,
+      publishDate: articleContent.publishDate
+    };
 
     // Additional duplicate check by title similarity to catch same articles with different URLs
     if (articleData.title) {
@@ -334,7 +336,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
 
         // Use OpenAI to detect the HTML structure from this article
         htmlStructure = await detectHtmlStructure(
-          firstArticleHtml,
+          JSON.stringify(firstArticleContent),
           firstArticleUrl,
         );
 
