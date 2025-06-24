@@ -1,10 +1,8 @@
 import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/schema/threat-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
-import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
-import { analyzeContent, detectHtmlStructure } from "../services/openai";
-import { getUserScrapeSchedule, JobInterval, updateUserScrapeSchedule, initializeScheduler } from "../services/scheduler";
-import { extractArticleContent, extractArticleLinks, scrapeUrl } from "../services/scraper";
+import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
+import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler, getSchedulerStatus, reinitializeScheduler } from "../services/scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -12,12 +10,8 @@ import { reqLog } from "backend/utils/req-log";
 
 export const threatRouter = Router();
 
-// Initialize the scheduler when the router is loaded
-initializeScheduler().then(() => {
-  log("[ThreatTracker] Auto-scrape scheduler initialized", "scheduler");
-}).catch(err => {
-  log(`[ThreatTracker] Error initializing auto-scrape scheduler: ${err.message}`, "scheduler");
-});
+// Note: Scheduler is now initialized in backend/index.ts on server startup
+// This prevents duplicate initialization that was causing job conflicts
 
 // Helper function to extract user ID from request
 function getUserId(req: any): string | undefined {
@@ -26,11 +20,12 @@ function getUserId(req: any): string | undefined {
 
 // Sources API
 threatRouter.get("/sources", async (req, res) => {
-  reqLog(req, "GET /sources");
+  reqLog(req, "🔎 GET /sources");
   try {
     const userId = getUserId(req);
-    const sources = await storage.getSources(userId);
-    res.json(sources);
+    const user_sources = await storage.getSources(userId);
+    const default_sources = await storage.getDefaultSources(userId);
+    res.json([...user_sources, ...default_sources]);
   } catch (error: any) {
     console.error("Error fetching sources:", error);
     res.status(500).json({ error: error.message || "Failed to fetch sources" });
@@ -100,7 +95,7 @@ threatRouter.delete("/sources/:id", async (req, res) => {
     }
     
     await storage.deleteSource(sourceId);
-    res.status(204).send();
+    res.json({ message: "Source deleted successfully"});
   } catch (error: any) {
     console.error("Error deleting source:", error);
     res.status(500).json({ error: error.message || "Failed to delete source" });
@@ -272,6 +267,8 @@ threatRouter.get("/articles", async (req, res) => {
         : [req.query.keywordIds as string]
       : undefined;
     
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    
     let startDate: Date | undefined;
     let endDate: Date | undefined;
     
@@ -289,7 +286,8 @@ threatRouter.get("/articles", async (req, res) => {
       keywordIds,
       startDate,
       endDate,
-      userId
+      userId,
+      limit
     });
     
     res.json(articles);
@@ -330,7 +328,7 @@ threatRouter.delete("/articles/:id", async (req, res) => {
     }
     
     await storage.deleteArticle(articleId, userId);
-    res.status(204).send();
+    res.json({ success: true, message: "Article deleted successfully" });
   } catch (error: any) {
     console.error("Error deleting article:", error);
     res.status(500).json({ error: error.message || "Failed to delete article" });
@@ -347,7 +345,8 @@ threatRouter.delete("/articles", async (req, res) => {
       return res.status(500).json({ error: "Failed to delete all articles" });
     }
     
-    res.status(204).send();
+    console.log("Articles deleted!")
+    res.json({ message: "Articles deleted successfully "});
   } catch (error: any) {
     console.error("Error deleting all articles:", error);
     res.status(500).json({ error: error.message || "Failed to delete all articles" });
@@ -443,7 +442,7 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
     }
     
     // Scrape the source
-    const newArticles = await scrapeSource(source);
+    const newArticles = await scrapeSource(source, userId);
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,
@@ -456,92 +455,54 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
   }
 });
 
-// Duplicate management API
-threatRouter.get("/duplicates", async (req, res) => {
-  reqLog(req, "GET /duplicates");
-  try {
-    const userId = getUserId(req);
-    const { findDuplicatesForUser } = await import("../services/duplicate-cleanup");
-    
-    const result = await findDuplicatesForUser(userId);
-    
-    res.json({
-      duplicateGroups: result.duplicateGroups,
-      totalDuplicates: result.totalDuplicates,
-      message: `Found ${result.totalDuplicates} duplicate articles in ${result.duplicateGroups.length} groups`
-    });
-  } catch (error: any) {
-    console.error("Error finding duplicates:", error);
-    res.status(500).json({ error: error.message || "Failed to find duplicates" });
-  }
-});
-
-threatRouter.post("/duplicates/remove", async (req, res) => {
-  reqLog(req, "POST /duplicates/remove");
-  try {
-    const userId = getUserId(req);
-    const { removeDuplicatesForUser } = await import("../services/duplicate-cleanup");
-    
-    const result = await removeDuplicatesForUser(userId);
-    
-    if (result.errors.length > 0) {
-      res.status(207).json({
-        message: `Removed ${result.duplicatesRemoved} duplicates with ${result.errors.length} errors`,
-        duplicatesFound: result.duplicatesFound,
-        duplicatesRemoved: result.duplicatesRemoved,
-        errors: result.errors
-      });
-    } else {
-      res.json({
-        message: `Successfully removed ${result.duplicatesRemoved} duplicate articles`,
-        duplicatesFound: result.duplicatesFound,
-        duplicatesRemoved: result.duplicatesRemoved
-      });
-    }
-  } catch (error: any) {
-    console.error("Error removing duplicates:", error);
-    res.status(500).json({ error: error.message || "Failed to remove duplicates" });
-  }
-});
-
 threatRouter.post("/scrape/all", async (req, res) => {
   reqLog(req, "POST /scrape/all");
   try {
     const userId = getUserId(req);
     
-    // Check if a global scrape is already running
-    if (isGlobalJobRunning()) {
-      return res.status(409).json({ error: "A global scrape job is already running" });
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
     }
     
-    // Start the global scrape job
+    // Check if this user's scrape job is already running
+    if (isUserJobRunning(userId)) {
+      return res.status(409).json({ error: "A scrape job is already running for this user" });
+    }
+    
+    // Start the scrape job for this user
     const job = runGlobalScrapeJob(userId);
     
     res.json({
-      message: "Global scrape job started",
+      message: "Scrape job started for user",
       job
     });
   } catch (error: any) {
-    console.error("Error starting global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to start global scrape job" });
+    console.error("Error starting scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to start scrape job" });
   }
 });
 
 threatRouter.post("/scrape/stop", async (req, res) => {
   reqLog(req, "POST /scrape/stop");
   try {
-    const result = stopGlobalScrapeJob();
+    const userId = getUserId(req);
+    const result = stopGlobalScrapeJob(userId);
     res.json(result);
   } catch (error: any) {
-    console.error("Error stopping global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to stop global scrape job" });
+    console.error("Error stopping scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to stop scrape job" });
   }
 });
 
 threatRouter.get("/scrape/status", async (req, res) => {
   reqLog(req, "GET /scrape/status");
   try {
-    const isRunning = isGlobalJobRunning();
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    const isRunning = isUserJobRunning(userId);
     res.json({ running: isRunning });
   } catch (error: any) {
     console.error("Error checking scrape job status:", error);
@@ -554,7 +515,7 @@ threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");
   try {
     const userId = getUserId(req);
-    const settings = await getUserScrapeSchedule(userId);
+    const settings = await getGlobalScrapeSchedule(userId);
     res.json(settings);
   } catch (error: any) {
     console.error("Error fetching auto-scrape settings:", error);
@@ -573,11 +534,11 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
       return res.status(400).json({ error: "Invalid interval value" });
     }
     
-    // Update the user's schedule
-    const settings = await updateUserScrapeSchedule(
-      userId,
+    // Update the schedule for this user
+    const settings = await updateGlobalScrapeSchedule(
       Boolean(enabled), 
-      interval || JobInterval.DAILY
+      interval || JobInterval.DAILY,
+      userId
     );
     
     res.json(settings);
@@ -586,3 +547,33 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
   }
 });
+
+// Scheduler management endpoints
+threatRouter.get("/scheduler/status", async (req, res) => {
+  reqLog(req, "GET /scheduler/status");
+  try {
+    const status = getSchedulerStatus();
+    res.json(status);
+  } catch (error: any) {
+    console.error("Error fetching scheduler status:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch scheduler status" });
+  }
+});
+
+threatRouter.post("/scheduler/reinitialize", async (req, res) => {
+  reqLog(req, "POST /scheduler/reinitialize");
+  try {
+    const result = await reinitializeScheduler();
+    const status = getSchedulerStatus();
+    res.json({ 
+      success: result, 
+      message: result ? "Scheduler reinitialized successfully" : "Failed to reinitialize scheduler",
+      status
+    });
+  } catch (error: any) {
+    console.error("Error reinitializing scheduler:", error);
+    res.status(500).json({ error: error.message || "Failed to reinitialize scheduler" });
+  }
+});
+
+

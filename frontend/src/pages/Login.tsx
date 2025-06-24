@@ -120,7 +120,7 @@ export default function Login() {
               </div>}
               <Button 
                 type="submit" 
-                className="w-full text-white font-medium transition-all duration-300 bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] hover:opacity-90 h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none" 
+                className="w-full text-white hover:text-white font-medium transition-all duration-300 bg-gradient-to-r from-[#8B5CF6] to-[#06B6D4] hover:from-[#7C3AED] hover:to-[#0891B2] h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none" 
                 disabled={loginIsPending}
               >
                 {loginIsPending ? (

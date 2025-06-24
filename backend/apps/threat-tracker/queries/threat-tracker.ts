@@ -33,7 +33,8 @@ async function executeRawSql<T>(
 
 export interface IStorage {
   // Sources
-  getSources(userId?: string): Promise<ThreatSource[]>;
+  getSources(userId: string): Promise<ThreatSource[]>;
+  getDefaultSources(userId: string): Promise<ThreatSource[]>;
   getSource(id: string): Promise<ThreatSource | undefined>;
   getAutoScrapeSources(userId?: string): Promise<ThreatSource[]>;
   createSource(source: InsertThreatSource): Promise<ThreatSource>;
@@ -59,14 +60,15 @@ export interface IStorage {
 
   // Articles
   getArticle(id: string, userId?: string): Promise<ThreatArticle | undefined>;
+  getArticleByUrl(url: string, userId: string): Promise<ThreatArticle | undefined>;
   getArticles(options?: {
     search?: string;
     keywordIds?: string[];
     startDate?: Date;
     endDate?: Date;
     userId?: string;
+    limit?: number;
   }): Promise<ThreatArticle[]>;
-  getArticleByUrl(url: string, userId: string): Promise<ThreatArticle | undefined>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(
     id: string,
@@ -76,6 +78,7 @@ export interface IStorage {
   deleteAllArticles(userId?: string): Promise<boolean>;
   toggleArticleForCapsule(id: string, marked: boolean): Promise<boolean>;
   getArticlesMarkedForCapsule(userId?: string): Promise<ThreatArticle[]>;
+  getSourceArticleCount(id: string): Promise<number>
 
   // Settings
   getSetting(key: string, userId?: string): Promise<ThreatSetting | undefined>;
@@ -84,22 +87,37 @@ export interface IStorage {
     value: any,
     userId?: string,
   ): Promise<ThreatSetting>;
+  getAllAutoScrapeSettings(): Promise<ThreatSetting[]>;
 }
 
 export const storage: IStorage = {
   // SOURCES
-  getSources: async (userId?: string) => {
+  getSources: async (userId: string) => {
     try {
-      const conditions = [];
-      if (userId) conditions.push(eq(threatSources.userId, userId));
+      console.log("[🔎 SOURCES] userId", userId);
 
-      const query = db.select().from(threatSources);
+      const query = db
+        .select()
+        .from(threatSources)
+        .where(eq(threatSources.userId, userId));
 
-      const finalQuery = conditions.length
-        ? query.where(and(...conditions))
-        : query;
+      return await query.execute();
+    } catch (error) {
+      console.error("Error fetching threat sources:", error);
+      return [];
+    }
+  },
 
-      return await finalQuery.execute();
+  getDefaultSources: async (userId: string) => {
+    try {
+      console.log("[🔎 DEFAULT SOURCES] userId", userId);
+
+      const query = db
+        .select()
+        .from(threatSources)
+        .where(eq(threatSources.isDefault, true));
+
+      return await query.execute();
     } catch (error) {
       console.error("Error fetching threat sources:", error);
       return [];
@@ -122,30 +140,63 @@ export const storage: IStorage = {
 
   getAutoScrapeSources: async (userId?: string) => {
     try {
-      const conditions = [
-        eq(threatSources.active, true),
-        eq(threatSources.includeInAutoScrape, true),
-      ];
-      if (userId) conditions.push(eq(threatSources.userId, userId));
+      // Get default sources (available to all users when they scrape)
+      const defaultSources = await db
 
-      return await db
         .select()
         .from(threatSources)
-        .where(and(...conditions))
+        .where(
+          and(
+            eq(threatSources.isDefault, true),
+            isNull(threatSources.userId),
+            eq(threatSources.active, true),
+            eq(threatSources.includeInAutoScrape, true),
+          ),
+        )
         .execute();
+
+      let userSources: ThreatSource[] = [];
+      if (userId) {
+        userSources = await db
+          .select()
+          .from(threatSources)
+          .where(
+            and(
+              eq(threatSources.userId, userId),
+              eq(threatSources.active, true),
+              eq(threatSources.includeInAutoScrape, true),
+            ),
+          )
+          .execute();
+      }
+
+      // Combine default and user sources
+      return [...defaultSources, ...userSources];
     } catch (error) {
       console.error("Error fetching auto-scrape threat sources:", error);
       return [];
     }
   },
 
-  createSource: async (source: InsertThreatSource) => {
+  createSource: async (source: {
+    url: string;
+    name: string;
+    active?: boolean;
+    includeInAutoScrape?: boolean;
+    scrapingConfig?: any;
+    lastScraped?: Date;
+    userId?: string;
+    isDefault?: boolean;
+}) => {
     try {
       if (!source.name || !source.url) {
         throw new Error("Source must have a name and URL");
       }
 
-      const results = await db.insert(threatSources).values(source).returning();
+      const results = await db
+        .insert(threatSources)
+        .values(source)
+        .returning();
       return results[0];
     } catch (error) {
       console.error("Error creating threat source:", error);
@@ -169,6 +220,39 @@ export const storage: IStorage = {
 
   deleteSource: async (id: string) => {
     try {
+      // First check if this is a default source
+      const source = await db
+        .select()
+        .from(threatSources)
+        .where(eq(threatSources.id, id))
+        .execute();
+
+      if (source.length > 0 && source[0].isDefault) {
+        throw new Error("Cannot delete default sources");
+      }
+
+      // Check if there are associated threat articles
+      const associatedArticles = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+
+      const articleCount = associatedArticles[0]?.count || 0;
+
+      if (articleCount > 0) {
+        // Return special error object with article count for frontend handling
+        const error = new Error(`ARTICLES_EXIST`);
+        (error as any).articleCount = articleCount;
+        throw error;
+      }
+
+      // Delete associated articles if requested
+      if (articleCount > 0) {
+        await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
+      }
+
+      // Delete the source
       await db.delete(threatSources).where(eq(threatSources.id, id));
     } catch (error) {
       console.error("Error deleting threat source:", error);
@@ -200,8 +284,7 @@ export const storage: IStorage = {
           eq(threatKeywords.userId, userId),
           eq(threatKeywords.isDefault, false),
         ];
-        if (category)
-          userConditions.push(eq(threatKeywords.category, category));
+        if (category) userConditions.push(eq(threatKeywords.category, category));
 
         userKeywords = await db
           .select()
@@ -210,7 +293,7 @@ export const storage: IStorage = {
           .execute();
       }
 
-      // Combine and return both default and user keywords
+      // Combine default and user keywords
       return [...defaultKeywords, ...userKeywords];
     } catch (error) {
       console.error("Error fetching threat keywords:", error);
@@ -235,38 +318,38 @@ export const storage: IStorage = {
   getKeywordsByCategory: async (category: string, userId?: string) => {
     try {
       // Get default keywords for this category
-      const defaultConditions = [
-        eq(threatKeywords.category, category),
-        eq(threatKeywords.isDefault, true),
-        isNull(threatKeywords.userId),
-      ];
-
       const defaultKeywords = await db
         .select()
         .from(threatKeywords)
-        .where(and(...defaultConditions))
+        .where(
+          and(
+            eq(threatKeywords.category, category),
+            eq(threatKeywords.isDefault, true),
+            isNull(threatKeywords.userId),
+          ),
+        )
         .execute();
 
-      // Get user-specific keywords for this category if userId is provided
+      // Get user-specific keywords if userId is provided
       let userKeywords: ThreatKeyword[] = [];
       if (userId) {
-        const userConditions = [
-          eq(threatKeywords.category, category),
-          eq(threatKeywords.userId, userId),
-          eq(threatKeywords.isDefault, false),
-        ];
-
         userKeywords = await db
           .select()
           .from(threatKeywords)
-          .where(and(...userConditions))
+          .where(
+            and(
+              eq(threatKeywords.category, category),
+              eq(threatKeywords.userId, userId),
+              eq(threatKeywords.isDefault, false),
+            ),
+          )
           .execute();
       }
 
-      // Combine and return both default and user keywords
+      // Combine default and user keywords
       return [...defaultKeywords, ...userKeywords];
     } catch (error) {
-      console.error(`Error fetching ${category} keywords:`, error);
+      console.error("Error fetching threat keywords by category:", error);
       return [];
     }
   },
@@ -283,14 +366,22 @@ export const storage: IStorage = {
       }
 
       // Ensure isDefault is set to false for user keywords
-      const keywordToCreate: InsertThreatKeyword = {
+      const keywordToCreate: {
+          active?: boolean;
+          userId?: string;
+          isDefault?: boolean;
+          term: string;
+          category: "threat" | "vendor" | "client" | "hardware";
+      } = {
         ...keyword,
+        term: keyword.term!,
+        category: keyword.category!,
         isDefault: false,
       };
 
       const results = await db
         .insert(threatKeywords)
-        .values(keywordToCreate)
+        .values(keyword)
         .returning();
       return results[0];
     } catch (error) {
@@ -318,7 +409,7 @@ export const storage: IStorage = {
 
       // Prevent changing isDefault flag through this endpoint
       const updateData = { ...keyword };
-      delete updateData.isDefault;
+      delete (updateData as any).isDefault;
 
       const results = await db
         .update(threatKeywords)
@@ -359,13 +450,13 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId } = options;
+      const { search, keywordIds, startDate, endDate, userId, limit } = options;
       let query = db.select().from(threatArticles);
 
       // Build WHERE clause based on search parameters
       const conditions = [];
 
-      // Add user filter if specified
+      // CRITICAL FIX: Always filter by user - this ensures user isolation
       if (userId) {
         conditions.push(eq(threatArticles.userId, userId));
       }
@@ -428,12 +519,12 @@ export const storage: IStorage = {
         }
       }
 
-      // Add date range filters
+      // Add date range filters - use publishDate for filtering
       if (startDate) {
-        conditions.push(sql`${threatArticles.scrapeDate} >= ${startDate}`);
+        conditions.push(sql`${threatArticles.publishDate} >= ${startDate}`);
       }
       if (endDate) {
-        conditions.push(sql`${threatArticles.scrapeDate} <= ${endDate}`);
+        conditions.push(sql`${threatArticles.publishDate} <= ${endDate}`);
       }
 
       // Apply conditions if any exist
@@ -441,11 +532,14 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Order by most recent
-      const orderedQuery = query.orderBy(desc(threatArticles.scrapeDate));
+      // Default ordering by publish date (most recent first), then by scrape date for tie-breaking
+      const orderedQuery = query.orderBy(desc(threatArticles.publishDate), desc(threatArticles.scrapeDate));
+
+      // Add limit if specified
+      const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
 
       // Execute the query
-      const result = await orderedQuery.execute();
+      const result = await finalQuery.execute();
       return result;
     } catch (error) {
       console.error("Error fetching threat articles:", error);
@@ -456,6 +550,7 @@ export const storage: IStorage = {
   getArticle: async (id: string, userId?: string) => {
     try {
       const conditions = [eq(threatArticles.id, id)];
+      // CRITICAL FIX: Always filter by user when provided
       if (userId) {
         conditions.push(eq(threatArticles.userId, userId));
       }
@@ -474,15 +569,14 @@ export const storage: IStorage = {
 
   getArticleByUrl: async (url: string, userId: string) => {
     try {
-      const conditions = [
-        eq(threatArticles.url, url),
-        eq(threatArticles.userId, userId)
-      ];
-
       const results = await db
         .select()
         .from(threatArticles)
-        .where(and(...conditions))
+        .where(and(
+          eq(threatArticles.url, url),
+          eq(threatArticles.userId, userId)
+        ))
+        .limit(1)
         .execute();
       return results[0];
     } catch (error) {
@@ -491,8 +585,26 @@ export const storage: IStorage = {
     }
   },
 
-  createArticle: async (article: InsertThreatArticle) => {
+  createArticle: async (article: {
+      url: string;
+      userId?: string;
+      sourceId?: string;
+      title: string;
+      content: string;
+      author?: string;
+      publishDate?: Date;
+      summary?: string;
+      relevanceScore?: string;
+      securityScore?: string;
+      detectedKeywords?: any;
+      markedForCapsule?: boolean;
+  }) => {
     try {
+      // CRITICAL FIX: Ensure userId is always provided when creating articles
+      if (!article.userId) {
+        throw new Error("Article must be associated with a user");
+      }
+
       const results = await db
         .insert(threatArticles)
         .values(article)
@@ -522,9 +634,11 @@ export const storage: IStorage = {
     try {
       const conditions = [eq(threatArticles.id, id)];
 
-      // If userId is provided, only delete the article if it belongs to that user
+      // CRITICAL FIX: Always require userId for deletion to prevent cross-user deletions
       if (userId) {
         conditions.push(eq(threatArticles.userId, userId));
+      } else {
+        throw new Error("User ID required for article deletion");
       }
 
       await db.delete(threatArticles).where(and(...conditions));
@@ -536,20 +650,19 @@ export const storage: IStorage = {
 
   deleteAllArticles: async (userId?: string) => {
     try {
-      if (userId) {
-        // Only delete articles for this specific user
-        await db
-          .delete(threatArticles)
-          .where(eq(threatArticles.userId, userId));
-        return true;
-      } else {
-        // If no userId is provided, we shouldn't delete anything
-        // This protects against accidentally deleting all users' articles
+      // CRITICAL FIX: Always require userId to prevent global deletions
+      if (!userId) {
         console.error(
           "Attempted to delete all articles without specifying userId",
         );
         return false;
       }
+
+      // Only delete articles for this specific user
+      await db
+        .delete(threatArticles)
+        .where(eq(threatArticles.userId, userId));
+      return true;
     } catch (error) {
       console.error("Error deleting all threat articles:", error);
       return false;
@@ -572,7 +685,10 @@ export const storage: IStorage = {
   getArticlesMarkedForCapsule: async (userId?: string) => {
     try {
       const conditions = [eq(threatArticles.markedForCapsule, true)];
-      if (userId) conditions.push(eq(threatArticles.userId, userId));
+      // CRITICAL FIX: Always filter by user when provided
+      if (userId) {
+        conditions.push(eq(threatArticles.userId, userId));
+      }
 
       return await db
         .select()
@@ -591,13 +707,19 @@ export const storage: IStorage = {
   // SETTINGS
   getSetting: async (key: string, userId?: string) => {
     try {
-      // Create user-specific key to work around unique constraint
-      const actualKey = userId ? `${key}_user_${userId}` : key;
-      
+      const conditions = [eq(threatSettings.key, key)];
+      // CRITICAL FIX: Always filter by user when provided for user-specific settings
+      if (userId) {
+        conditions.push(eq(threatSettings.userId, userId));
+      } else {
+        // For global settings, ensure userId is null
+        conditions.push(isNull(threatSettings.userId));
+      }
+
       const results = await db
         .select()
         .from(threatSettings)
-        .where(eq(threatSettings.key, actualKey));
+        .where(and(...conditions));
       return results[0];
     } catch (error) {
       console.error("Error fetching threat setting:", error);
@@ -607,9 +729,6 @@ export const storage: IStorage = {
 
   upsertSetting: async (key: string, value: any, userId?: string) => {
     try {
-      // Create user-specific key to work around unique constraint
-      const actualKey = userId ? `${key}_user_${userId}` : key;
-      
       // Check if the setting exists
       const existingSetting = await storage.getSetting(key, userId);
 
@@ -622,9 +741,9 @@ export const storage: IStorage = {
           .returning();
         return results[0];
       } else {
-        // Create new setting with user-specific key
+        // Create new setting
         const settingData = {
-          key: actualKey,
+          key,
           value,
           userId: userId || null,
         };
@@ -638,6 +757,33 @@ export const storage: IStorage = {
     } catch (error) {
       console.error("Error upserting threat setting:", error);
       throw error;
+    }
+  },
+
+  getAllAutoScrapeSettings: async () => {
+    try {
+      const results = await db
+        .select()
+        .from(threatSettings)
+        .where(eq(threatSettings.key, "auto-scrape"));
+      return results;
+    } catch (error) {
+      console.error("Error fetching all auto-scrape settings:", error);
+      return [];
+    }
+  },
+
+  getSourceArticleCount: async (id: string) => {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(threatArticles)
+        .where(eq(threatArticles.sourceId, id))
+        .execute();
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error("Error getting source article count:", error);
+      return 0;
     }
   },
 };

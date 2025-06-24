@@ -7,6 +7,7 @@ import { dashboardChildren } from './dashboard/dashboardChildren.tsx'
 import DashboardLayout from '@/components/layout/DashboardLayout.tsx'
 import Auth0ProviderWithNavigate from '@/auth0-provider-with-navigate.tsx'
 import LoginPageForAuth0 from '@/login-page-for-auth0.tsx'
+import LoadingScreen from '@/components/LoadingScreen'
 
 export const router = createBrowserRouter([
   {
@@ -27,7 +28,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoutesWrapper>
         <DashboardLayout/>
       </ProtectedRoutesWrapper>,
-    hydrateFallbackElement: <h1>Loading...</h1>,
+    hydrateFallbackElement: <LoadingScreen />,
     children: dashboardChildren 
   },
   //{

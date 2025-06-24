@@ -12,6 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Globe, AlertTriangle, Clock, Mail, Shield } from "lucide-react";
+import SampleDataPopulator from "@/components/SampleDataPopulator";
 
 export default function Settings() {
   const [ resetOpen, setResetOpen ] = useState(false)
@@ -122,6 +123,7 @@ export default function Settings() {
               </div>
               <Switch
                 id="two-factor-authentication"
+                disabled={twoFAmutation.isPending}
                 checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
                 onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
               />
@@ -393,6 +395,21 @@ export default function Settings() {
             
           </div>
         </div>}
+
+        {/* Developer Tools Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+              <Shield className="h-6 w-6 text-[#BF00FF]" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Developer Tools</h2>
+              <p className="text-sm text-gray-400">Development and testing utilities</p>
+            </div>
+          </div>
+          
+          <SampleDataPopulator />
+        </div>
         
       </div>
     </div>

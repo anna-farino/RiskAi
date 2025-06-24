@@ -1,13 +1,25 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Clock, User, Loader2, AlertTriangle, Shield, CheckCircle2, Zap, Send } from "lucide-react";
+import {
+  Trash2,
+  Clock,
+  User,
+  Loader2,
+  AlertTriangle,
+  Shield,
+  CheckCircle2,
+  Zap,
+  Send,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { Progress } from "@/components/ui/progress";
+import { formatDateOnly } from "@/utils/date-utils";
+
 
 // Extend the ThreatArticle type to include securityScore
 interface ExtendedThreatArticle extends ThreatArticle {
@@ -20,6 +32,8 @@ interface ThreatArticleCardProps {
   isPending?: boolean;
   onKeywordClick?: (keyword: string, category: string) => void;
   onSendToCapsule?: (url: string) => void;
+  articleIndex?: number;
+  totalArticles?: number;
 }
 
 interface KeywordCategories {
@@ -29,10 +43,18 @@ interface KeywordCategories {
   hardware: string[];
 }
 
-export function ThreatArticleCard({ article, onDelete, isPending = false, onKeywordClick, onSendToCapsule }: ThreatArticleCardProps) {
+export function ThreatArticleCard({
+  article,
+  onDelete,
+  isPending = false,
+  onKeywordClick,
+  onSendToCapsule,
+  articleIndex,
+  totalArticles,
+}: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
-  
+
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -53,19 +75,21 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
   };
 
   // Parse the relevance score (either string or number)
-  const relevanceScore = typeof article.relevanceScore === 'string' 
-    ? parseInt(article.relevanceScore, 10) 
-    : (article.relevanceScore || 0);
-  
+  const relevanceScore =
+    typeof article.relevanceScore === "string"
+      ? parseInt(article.relevanceScore, 10)
+      : article.relevanceScore || 0;
+
   // Parse the security/severity score (either string or number)
-  const securityScore = typeof article.securityScore === 'string' 
-    ? parseInt(article.securityScore, 10) 
-    : (article.securityScore || 0);
-  
+  const securityScore =
+    typeof article.securityScore === "string"
+      ? parseInt(article.securityScore, 10)
+      : article.securityScore || 0;
+
   // Safety check in case scores are NaN
   const normalizedRelevanceScore = isNaN(relevanceScore) ? 0 : relevanceScore;
   const normalizedSecurityScore = isNaN(securityScore) ? 0 : securityScore;
-  
+
   // Calculate color based on score (0-10 scale)
   const getScoreColor = (score: number) => {
     if (score >= 8) return "text-red-500";
@@ -73,7 +97,7 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
     if (score >= 4) return "text-yellow-500";
     return "text-green-500";
   };
-  
+
   // Progress bar color based on score
   const getProgressColor = (score: number) => {
     if (score >= 8) return "bg-red-500";
@@ -81,26 +105,30 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
     if (score >= 4) return "bg-yellow-500";
     return "bg-green-500";
   };
-  
+
   // Get all detected keywords from the different categories
   const getDetectedKeywords = (): KeywordCategories => {
-    if (!article.detectedKeywords) return { threats: [], vendors: [], clients: [], hardware: [] };
-    
+    if (!article.detectedKeywords)
+      return { threats: [], vendors: [], clients: [], hardware: [] };
+
     try {
       // If it's already an object with categories
-      if (typeof article.detectedKeywords === 'object' && !Array.isArray(article.detectedKeywords)) {
+      if (
+        typeof article.detectedKeywords === "object" &&
+        !Array.isArray(article.detectedKeywords)
+      ) {
         return article.detectedKeywords as KeywordCategories;
       }
-      
+
       // If it's a string, parse it
-      if (typeof article.detectedKeywords === 'string') {
+      if (typeof article.detectedKeywords === "string") {
         try {
           return JSON.parse(article.detectedKeywords) as KeywordCategories;
         } catch (e) {
           return { threats: [], vendors: [], clients: [], hardware: [] };
         }
       }
-      
+
       // Default empty structure
       return { threats: [], vendors: [], clients: [], hardware: [] };
     } catch (e) {
@@ -108,10 +136,12 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
       return { threats: [], vendors: [], clients: [], hardware: [] };
     }
   };
-  
+
   const detectedKeywords = getDetectedKeywords();
-  const hasKeywords = Object.values(detectedKeywords).some((arr: string[]) => arr.length > 0);
-  
+  const hasKeywords = Object.values(detectedKeywords).some(
+    (arr: string[]) => arr.length > 0,
+  );
+
   // Get the accent color based on threat severity
   const getAccentColor = () => {
     if (normalizedSecurityScore >= 8) return "from-red-500/30";
@@ -119,43 +149,59 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
     if (normalizedSecurityScore >= 4) return "from-yellow-500/30";
     return "from-green-500/30";
   };
-  
+
   return (
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
-      <div 
+      <div
         className={cn(
-          "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden", 
+          "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
           "hover:border-slate-600/80 transition-all duration-300",
           "flex flex-col relative",
-          isPending && "bg-black/30"
+          isPending && "bg-black/30",
         )}
       >
-        <div className={cn(
-          "h-1.5 w-full bg-gradient-to-r", 
-          isPending ? "from-slate-500/50 to-slate-700/50 animate-pulse" : getAccentColor()
-        )}></div>
-        
+        <div
+          className={cn(
+            "h-1.5 w-full bg-gradient-to-r",
+            isPending
+              ? "from-slate-500/50 to-slate-700/50 animate-pulse"
+              : getAccentColor(),
+          )}
+        ></div>
+
         <div className="flex-1 p-5 flex flex-col">
           <div className="flex justify-between items-start mb-3">
-            <a 
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors pr-2 hover:underline cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {article.title}
-            </a>
-            
+            <div className="flex-1 pr-2">
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors hover:underline cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {article.title}
+              </a>
+            </div>
+
             {/* Threat severity score badge */}
-            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
-              <Zap className={cn("h-3.5 w-3.5", getScoreColor(normalizedSecurityScore))} />
-              <span className={cn("text-xs font-semibold", getScoreColor(normalizedSecurityScore))}>
+            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full flex-shrink-0">
+              <Zap
+                className={cn(
+                  "h-3.5 w-3.5",
+                  getScoreColor(normalizedSecurityScore),
+                )}
+              />
+              <span
+                className={cn(
+                  "text-xs font-semibold",
+                  getScoreColor(normalizedSecurityScore),
+                )}
+              >
                 {normalizedSecurityScore}/10
               </span>
             </div>
           </div>
-          
+
           {/* Score indicators */}
           <div className="space-y-3 mb-3">
             {/* Severity score indicator */}
@@ -164,35 +210,51 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                 <span className="text-xs text-slate-400 flex items-center gap-1">
                   <Zap className="h-3 w-3" /> Threat Severity
                 </span>
-                <span className={cn("text-xs font-medium", getScoreColor(normalizedSecurityScore))}>
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    getScoreColor(normalizedSecurityScore),
+                  )}
+                >
                   {normalizedSecurityScore * 10}%
                 </span>
               </div>
-              <Progress 
-                value={normalizedSecurityScore * 10} 
-                className="h-1.5 bg-slate-700/50" 
-                indicatorClassName={cn("transition-all", getProgressColor(normalizedSecurityScore))}
+              <Progress
+                value={normalizedSecurityScore * 10}
+                className="h-1.5 bg-slate-700/50"
+                indicatorClassName={cn(
+                  "transition-all",
+                  getProgressColor(normalizedSecurityScore),
+                )}
               />
             </div>
-            
+
             {/* Relevance score indicator */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <span className="text-xs text-slate-400 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" /> Relevance Score
                 </span>
-                <span className={cn("text-xs font-medium", getScoreColor(normalizedRelevanceScore))}>
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    getScoreColor(normalizedRelevanceScore),
+                  )}
+                >
                   {normalizedRelevanceScore * 10}%
                 </span>
               </div>
-              <Progress 
-                value={normalizedRelevanceScore * 10} 
-                className="h-1.5 bg-slate-700/50" 
-                indicatorClassName={cn("transition-all", getProgressColor(normalizedRelevanceScore))}
+              <Progress
+                value={normalizedRelevanceScore * 10}
+                className="h-1.5 bg-slate-700/50"
+                indicatorClassName={cn(
+                  "transition-all",
+                  getProgressColor(normalizedRelevanceScore),
+                )}
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 mb-3">
             {article.author && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
@@ -200,127 +262,168 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                 <span>{article.author}</span>
               </div>
             )}
-            
-            {/* Show publish date if available, otherwise show scrape date */}
-            {(article.publishDate || article.scrapeDate) && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Clock className="h-3 w-3" />
-                <span>
-                  {article.publishDate 
-                    ? `Published ${formatDistanceToNow(new Date(article.publishDate))} ago`
-                    : `Scraped ${formatDistanceToNow(new Date(article.scrapeDate))} ago`
-                  }
-                </span>
-              </div>
-            )}
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <Clock className="h-3 w-3" />
+              <span>
+                {article.publishDate
+                  ? `Published ${formatDateOnly(article.publishDate)}`
+                  : article.scrapeDate
+                    ? `Article Pulled ${formatDateOnly(article.scrapeDate)}`
+                    : "Unknown date"}
+              </span>
+            </div>
           </div>
-          
+
           <p className="text-sm text-slate-300 mb-4 line-clamp-3 flex-1">
             {article.summary}
           </p>
-          
+
           {hasKeywords && (
             <div className="space-y-2 mb-4">
-              {detectedKeywords.threats && detectedKeywords.threats.length > 0 && (
-                <div>
-                  <span className="text-xs text-red-400 flex items-center gap-1 mb-1">
-                    <AlertTriangle className="h-3 w-3" /> Threats
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.threats.map((keyword: string) => (
-                      <Badge 
-                        key={`threat-${keyword}`} 
-                        variant="outline"
-                        className="bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-300 border-red-500/30 cursor-pointer transition-colors"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (onKeywordClick) onKeywordClick(keyword, 'threat');
-                        }}
-                      >
-                        {keyword}
-                      </Badge>
-                    ))}
+              {detectedKeywords.threats &&
+                detectedKeywords.threats.length > 0 && (
+                  <div>
+                    <span className="text-xs text-red-400 flex items-center gap-1 mb-1">
+                      <AlertTriangle className="h-3 w-3" /> Threats
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detectedKeywords.threats
+                        .slice(0, 3)
+                        .map((keyword: string) => (
+                          <Badge
+                            key={`threat-${keyword}`}
+                            variant="outline"
+                            className="bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-300 border-red-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (onKeywordClick)
+                                onKeywordClick(keyword, "threat");
+                            }}
+                          >
+                            {keyword}
+                          </Badge>
+                        ))}
+                      {detectedKeywords.threats.length > 3 && (
+                        <span className="text-xs text-red-400">
+                          +{detectedKeywords.threats.length - 3}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {detectedKeywords.vendors && detectedKeywords.vendors.length > 0 && (
-                <div>
-                  <span className="text-xs text-blue-400 flex items-center gap-1 mb-1">
-                    <Shield className="h-3 w-3" /> Vendors
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.vendors.map((keyword: string) => (
-                      <Badge 
-                        key={`vendor-${keyword}`} 
-                        variant="outline"
-                        className="bg-blue-500/10 text-xs text-blue-300 hover:bg-blue-500/20 hover:text-blue-300 border-blue-500/30 cursor-pointer transition-colors"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (onKeywordClick) onKeywordClick(keyword, 'vendor');
-                        }}
-                      >
-                        {keyword}
-                      </Badge>
-                    ))}
+                )}
+
+              {detectedKeywords.vendors &&
+                detectedKeywords.vendors.length > 0 && (
+                  <div>
+                    <span className="text-xs text-blue-400 flex items-center gap-1 mb-1">
+                      <Shield className="h-3 w-3" /> Vendors
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detectedKeywords.vendors
+                        .slice(0, 3)
+                        .map((keyword: string) => (
+                          <Badge
+                            key={`vendor-${keyword}`}
+                            variant="outline"
+                            className="bg-blue-500/10 text-xs text-blue-300 hover:bg-blue-500/20 hover:text-blue-300 border-blue-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (onKeywordClick)
+                                onKeywordClick(keyword, "vendor");
+                            }}
+                          >
+                            {keyword}
+                          </Badge>
+                        ))}
+                      {detectedKeywords.vendors.length > 3 && (
+                        <span className="text-xs text-blue-400">
+                          +{detectedKeywords.vendors.length - 3}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {detectedKeywords.clients && detectedKeywords.clients.length > 0 && (
-                <div>
-                  <span className="text-xs text-purple-400 flex items-center gap-1 mb-1">
-                    <CheckCircle2 className="h-3 w-3" /> Clients
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.clients.map((keyword: string) => (
-                      <Badge 
-                        key={`client-${keyword}`} 
-                        variant="outline"
-                        className="bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/30 cursor-pointer transition-colors"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (onKeywordClick) onKeywordClick(keyword, 'client');
-                        }}
-                      >
-                        {keyword}
-                      </Badge>
-                    ))}
+                )}
+
+              {detectedKeywords.clients &&
+                detectedKeywords.clients.length > 0 && (
+                  <div>
+                    <span className="text-xs text-purple-400 flex items-center gap-1 mb-1">
+                      <CheckCircle2 className="h-3 w-3" /> Clients
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detectedKeywords.clients
+                        .slice(0, 3)
+                        .map((keyword: string) => (
+                          <Badge
+                            key={`client-${keyword}`}
+                            variant="outline"
+                            className="bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (onKeywordClick)
+                                onKeywordClick(keyword, "client");
+                            }}
+                          >
+                            {keyword}
+                          </Badge>
+                        ))}
+                      {detectedKeywords.clients.length > 3 && (
+                        <span className="text-xs text-purple-400">
+                          +{detectedKeywords.clients.length - 3}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {detectedKeywords.hardware && detectedKeywords.hardware.length > 0 && (
-                <div>
-                  <span className="text-xs text-amber-400 flex items-center gap-1 mb-1">
-                    <Shield className="h-3 w-3" /> Hardware/Software
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detectedKeywords.hardware.map((keyword: string) => (
-                      <Badge 
-                        key={`hardware-${keyword}`} 
-                        variant="outline"
-                        className="bg-amber-500/10 text-xs text-amber-300 hover:bg-amber-500/20 hover:text-amber-300 border-amber-500/30 cursor-pointer transition-colors"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (onKeywordClick) onKeywordClick(keyword, 'hardware');
-                        }}
-                      >
-                        {keyword}
-                      </Badge>
-                    ))}
+                )}
+
+              {detectedKeywords.hardware &&
+                detectedKeywords.hardware.length > 0 && (
+                  <div>
+                    <span className="text-xs text-amber-400 flex items-center gap-1 mb-1">
+                      <Shield className="h-3 w-3" /> Hardware/Software
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detectedKeywords.hardware
+                        .slice(0, 3)
+                        .map((keyword: string) => (
+                          <Badge
+                            key={`hardware-${keyword}`}
+                            variant="outline"
+                            className="bg-amber-500/10 text-xs text-amber-300 hover:bg-amber-500/20 hover:text-amber-300 border-amber-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (onKeywordClick)
+                                onKeywordClick(keyword, "hardware");
+                            }}
+                          >
+                            {keyword}
+                          </Badge>
+                        ))}
+                      {detectedKeywords.hardware.length > 3 && (
+                        <span className="text-xs text-amber-400">
+                          +{detectedKeywords.hardware.length - 3}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           )}
-          
-          <div className="flex items-center justify-end mt-auto pt-3 border-t border-slate-700/50">
-            <div className="flex items-center gap-2">
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
+            {/* Article counter */}
+            {articleIndex !== undefined && totalArticles !== undefined && (
+              <div className="text-xs text-slate-400 flex-shrink-0">
+                Article {articleIndex + 1} of {totalArticles}
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {onSendToCapsule && (
                 <Button
                   variant="ghost"
@@ -331,7 +434,8 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                     "h-fit w-fit p-2",
                     "border border-slate-700 rounded-full",
                     "text-slate-400 hover:text-blue-400 hover:bg-blue-400/10",
-                    (isPending || sendingToCapsule) && "cursor-not-allowed opacity-70"
+                    (isPending || sendingToCapsule) &&
+                      "cursor-not-allowed opacity-70",
                   )}
                   title="Send to News Capsule"
                 >
@@ -342,7 +446,7 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                   )}
                 </Button>
               )}
-              
+
               <DeleteAlertDialog
                 open={openAlert}
                 setOpen={setOpenAlert}
@@ -352,7 +456,7 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                   variant="ghost"
                   size="icon"
                   disabled={isPending}
-                  onClick={(e)=> {
+                  onClick={(e) => {
                     e.preventDefault();
                     setOpenAlert(true);
                   }}
@@ -360,7 +464,7 @@ export function ThreatArticleCard({ article, onDelete, isPending = false, onKeyw
                     "h-fit w-fit p-2",
                     "border border-slate-700 rounded-full",
                     "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
-                    isPending && "cursor-not-allowed opacity-70"
+                    isPending && "cursor-not-allowed opacity-70",
                   )}
                 >
                   {isPending ? (

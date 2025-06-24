@@ -29,7 +29,7 @@ export async function detectHtmlStructure(html: string, sourceUrl: string) {
     }
 
     // If the content is still too large, limit it further
-    const MAX_LENGTH = 20000; // conservative limit to stay under token limits
+    const MAX_LENGTH = 50000; // conservative limit to stay under token limits
     if (processedHtml.length > MAX_LENGTH) {
       log(
         `[ThreatTracker] Truncating HTML from ${processedHtml.length} to ${MAX_LENGTH} characters`,
@@ -48,12 +48,21 @@ Analyze this HTML and tell me the CSS selector I should use to get:
 3. The author (if available)
 4. The publish date (if available)
 
+For the publish date, look for:
+- <time> elements with datetime attributes
+- Elements with classes like "date", "published", "publish-date", "article-date", "timestamp"
+- Elements with data attributes like "data-date", "data-published", "data-timestamp"
+- Meta tags with property="article:published_time" or name="date"
+- JSON-LD structured data with datePublished
+- Elements containing text that looks like dates (but be careful not to confuse with author names)
+
 Return your answer in valid JSON format like this:
 {
   "title": "CSS selector for title",
   "content": "CSS selector for main content",
   "author": "CSS selector for author, or null if not found",
-  "date": "CSS selector for publish date, or null if not found"
+  "date": "CSS selector for publish date, or null if not found",
+  "dateAlternatives": ["alternative CSS selector 1", "alternative CSS selector 2"]
 }
 `;
 
@@ -106,29 +115,102 @@ export async function identifyArticleLinks(
     );
 
     // For simplified HTML, extract directly to a more processable format
+    let links = [];
+    let htmxLinks = [];
+    let potentialArticleUrls = [];
+
     if (isSimplifiedHtml) {
-      // Instead of using regex (which is losing data), extract href and text using a more robust approach
-      const linkItems = linksText.split('<div class="article-link-item">').slice(1); // Skip first empty element
+      // Extract all links
+      const linkRegex = /<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
+      let match;
       const links = [];
-      
-      for (const item of linkItems) {
-        // Extract href from <a href="...">
-        const hrefMatch = item.match(/href="([^"]*)"/);
-        if (!hrefMatch) continue;
-        
-        const href = hrefMatch[1];
-        
-        // Extract text content between <a> tags, handling potential nested HTML
-        const aTagMatch = item.match(/<a[^>]*>(.*?)<\/a>/s);
-        if (!aTagMatch) continue;
-        
-        let text = aTagMatch[1];
-        // Clean any remaining HTML tags from the text
-        text = text.replace(/<[^>]+>/g, '').trim();
-        
-        links.push({ href, text });
+
+      while ((match = linkRegex.exec(linksText)) !== null) {
+        links.push({
+          href: match[1],
+          text: match[2].replace(/<[^>]+>/g, "").trim(), // Strip HTML from link text
+        });
       }
-      
+
+      // Look for HTMX patterns
+      const htmxPatterns = [
+        { pattern: /\/media\/items\/.*-\d+\/?$/i, type: 'foojobs-article' },
+        { pattern: /\/items\/[^/]+\/$/i, type: 'htmx-item' },
+        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' }
+      ];
+
+      // Perform initial pattern matching to identify likely article links
+      links.forEach(link => {
+        const url = link.href;
+        const text = link.text;
+
+        // Check for common article URL patterns
+        const isArticleByUrl = 
+          url.includes('/article/') || 
+          url.includes('/blog/') || 
+          url.includes('/news/') ||
+          url.match(/\/(posts?|stories?|updates?)\//) ||
+          url.match(/\d{4}\/\d{2}\//) || // Date pattern like /2023/05/
+          url.match(/\/(cve|security|vulnerability|threat)-/) ||
+          url.match(/\.com\/[^/]+\/[^/]+\/[^/]+/); // 3-level path like domain.com/section/topic/article-title
+
+        // Check for article title patterns
+        const isArticleByTitle = 
+          text.length > 20 && // Longer titles are often articles
+          (
+            text.includes(': ') || // Title pattern with colon
+            text.match(/^(how|why|what|when)\s+/i) || // "How to..." titles
+            text.match(/[—\-\|]\s/) // Title with separator
+          );
+
+        // Check for security keywords in title
+        const securityKeywords = ['security', 'cyber', 'hack', 'threat', 'vulnerability', 'breach', 'attack', 'malware', 'phishing', 'ransomware'];
+        const hasSecurityKeyword = securityKeywords.some(keyword => 
+          text.toLowerCase().includes(keyword)
+        );
+
+        // Check if URL matches HTMX patterns
+        const htmxMatch = htmxPatterns.find(pattern => url.match(pattern.pattern));
+        if (htmxMatch) {
+          htmxLinks.push({
+            href: url,
+            text: text,
+            pattern: htmxMatch.type
+          });
+
+          // Auto-include links that match specific HTMX patterns (like FooJobs)
+          if (htmxMatch.type === 'foojobs-article' || url.includes('/media/items/')) {
+            potentialArticleUrls.push(url);
+            log(`[ThreatTracker] Auto-detected HTMX article: ${url}`, "openai");
+          }
+        }
+
+        // Include article-like links for AI processing
+        if (isArticleByUrl || isArticleByTitle || hasSecurityKeyword) {
+          // For article URLs that don't match specific patterns, we'll let the AI evaluate them
+          if (!potentialArticleUrls.includes(url)) {
+            potentialArticleUrls.push(url);
+          }
+        }
+      });
+
+      // Log information about the processing
+      log(`[ThreatTracker] Extracted ${links.length} total links`, "openai");
+      log(`[ThreatTracker] Found ${htmxLinks.length} potential HTMX links`, "openai");
+      log(`[ThreatTracker] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`, "openai");
+
+      // If we found HTMX article links, prioritize those and skip AI processing in some cases
+      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern === 'foojobs-article')) {
+        log(`[ThreatTracker] FooJobs article pattern detected, using HTMX-specific handling`, "openai");
+
+        // Return immediately if we found enough HTMX articles
+        if (potentialArticleUrls.length >= 5) {
+          log(`[ThreatTracker] Found ${potentialArticleUrls.length} FooJobs articles via pattern matching`, "openai");
+          return potentialArticleUrls;
+        }
+      }
+
+      // Convert links to format for AI processing
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
         .join("\n");
@@ -139,9 +221,20 @@ export async function identifyArticleLinks(
       "openai",
     );
 
-    // Debug log: Print the structured HTML being sent to OpenAI
+    // Truncate input if it's too large to prevent JSON parsing errors
+    const maxInputLength = 50000; // Limit to 50k characters to prevent truncation
+    let truncatedLinksText = linksText;
+    if (linksText.length > maxInputLength) {
+      log(
+        `[ThreatTracker] Input too large (${linksText.length} chars), truncating to ${maxInputLength} chars`,
+        "openai",
+      );
+      truncatedLinksText = linksText.substring(0, maxInputLength) + "\n... [truncated for size]";
+    }
+
+    // Debug log: Print the structured HTML being sent to OpenAI (truncated for debug)
     log(
-      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis:\n${linksText}`,
+      `[ThreatTracker] Structured HTML being sent to OpenAI for analysis (${truncatedLinksText.length} chars)`,
       "openai-debug",
     );
 
@@ -169,7 +262,7 @@ export async function identifyArticleLinks(
         },
         {
           role: "user",
-          content: `Here are the links with their titles and context:\n${linksText}`,
+          content: `Here are the links with their titles and context:\n${truncatedLinksText}`,
         },
       ],
       temperature: 0.2,
@@ -181,7 +274,43 @@ export async function identifyArticleLinks(
       throw new Error("No content received from OpenAI");
     }
 
-    const result = JSON.parse(responseText);
+    // Attempt to parse JSON with better error handling
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError: any) {
+      log(
+        `[ThreatTracker] JSON parse error, response text length: ${responseText.length}`,
+        "openai-error",
+      );
+      log(
+        `[ThreatTracker] Response text preview: ${responseText.substring(0, 500)}...`,
+        "openai-error",
+      );
+      
+      // Try to extract valid JSON from truncated response
+      const jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[[^\]]*\]/);
+      if (jsonMatch) {
+        try {
+          const partialJson = jsonMatch[0] + ']}';
+          result = JSON.parse(partialJson);
+          log(`[ThreatTracker] Recovered from truncated JSON`, "openai");
+        } catch (recoveryError) {
+          // If recovery fails, return empty array instead of crashing
+          log(`[ThreatTracker] JSON recovery failed, returning empty array`, "openai-error");
+          return [];
+        }
+      } else {
+        log(`[ThreatTracker] Could not recover JSON, returning empty array`, "openai-error");
+        return [];
+      }
+    }
+
+    if (!result.articleUrls || !Array.isArray(result.articleUrls)) {
+      log(`[ThreatTracker] Invalid response format, returning empty array`, "openai-error");
+      return [];
+    }
+
     log(
       `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
       "openai",
@@ -193,7 +322,8 @@ export async function identifyArticleLinks(
       "openai-error",
     );
     console.error("Error identifying article links:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent scraper crash
+    return [];
   }
 }
 

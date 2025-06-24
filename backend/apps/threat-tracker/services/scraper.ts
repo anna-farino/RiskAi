@@ -8,6 +8,52 @@ import { log } from "backend/utils/log";
 import vanillaPuppeteer from 'puppeteer';
 import { detectHtmlStructure } from './openai';
 import { identifyArticleLinks } from './openai';
+import { extractPublishDate, separateDateFromAuthor } from './date-extractor';
+
+/**
+ * Sanitize CSS selectors to prevent invalid pseudo-selectors like :contains()
+ */
+function sanitizeSelector(selector: string): string {
+  if (!selector) return "";
+
+  // Check if the selector contains date-like patterns (months, parentheses with timezones, etc.)
+  if (
+    /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(
+      selector,
+    ) ||
+    selector.includes("AM") ||
+    selector.includes("PM") ||
+    selector.includes("(") ||
+    selector.includes(")")
+  ) {
+    // This is likely a date string, not a CSS selector
+    return "";
+  }
+
+  // Check if the selector starts with words that suggest it's not a CSS selector
+  // Common patterns like "By Author Name" or "Published: Date"
+  if (
+    /^(By|Published:|Posted:|Date:|Author:|Not available)\s?/i.test(selector)
+  ) {
+    // This is likely text content, not a CSS selector
+    // Return an empty string to skip using it as a selector
+    return "";
+  }
+
+  // Remove unsupported pseudo-classes like :contains, :has, etc.
+  return (
+    selector
+      // Remove :contains(...) pseudo-class
+      .replace(/\:contains\([^\)]+\)/g, "")
+      // Remove :has(...) pseudo-class
+      .replace(/\:has\([^\)]+\)/g, "")
+      // Remove other non-standard pseudo-classes (anything after : that's not a standard pseudo-class)
+      .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+      // Clean up any resulting double spaces
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
@@ -90,10 +136,18 @@ async function getBrowser(): Promise<Browser> {
           '--ignore-certificate-errors',
           '--allow-running-insecure-content',
           '--disable-web-security',
-          '--disable-blink-features=AutomationControlled'
+          '--disable-blink-features=AutomationControlled',
         ],
         executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 180000 // 3 minute timeout on browser launch
+        // OLD SETTINGS
+        //timeout: 180000 // 3 minute timeout on browser launch
+        // NEW SETTINGS:
+        timeout: 60000, // Reduce from 180000
+        protocolTimeout: 180000, // ADD THIS - prevents "Runtime.callFunctionOn timed out"
+        handleSIGINT: false, // ADD THESE to prevent premature shutdown
+        handleSIGTERM: false,
+        handleSIGHUP: false
+        // END NEW SETTINGS
       });
       log("[ThreatTracker][getBrowser] Browser launched successfully", "scraper");
     } catch (error: any) {
@@ -140,28 +194,100 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log('[ThreatTracker] Timeout waiting for links, continuing anyway', "scraper");
   });
   
-  // Use existing link data if provided, otherwise extract from page
+  // Check for HTMX usage on the page (do this regardless of existing link data)
+  const hasHtmx = await page.evaluate(() => {
+    // More comprehensive HTMX detection
+    const htmxScriptPatterns = [
+      'script[src*="htmx"]',
+      'script[src*="hx."]',
+      'script[data-turbo-track*="htmx"]'
+    ];
+    
+    const htmxAttributePatterns = [
+      '[hx-get]', '[hx-post]', '[hx-put]', '[hx-patch]', '[hx-delete]',
+      '[hx-trigger]', '[hx-target]', '[hx-swap]', '[hx-include]',
+      '[hx-push-url]', '[hx-select]', '[hx-vals]', '[hx-confirm]',
+      '[hx-disable]', '[hx-indicator]', '[hx-params]', '[hx-encoding]',
+      '[data-hx-get]', '[data-hx-post]', '[data-hx-trigger]'
+    ];
+
+    // Check for script tags
+    let scriptLoaded = false;
+    for (const pattern of htmxScriptPatterns) {
+      if (document.querySelector(pattern)) {
+        scriptLoaded = true;
+        break;
+      }
+    }
+    
+    // Check for inline scripts containing "htmx" (since :contains() is not valid in querySelector)
+    if (!scriptLoaded) {
+      const allScripts = Array.from(document.querySelectorAll('script'));
+      scriptLoaded = allScripts.some(script => {
+        const scriptContent = script.textContent || script.innerHTML || '';
+        const scriptSrc = script.src || '';
+        return scriptContent.includes('htmx') || scriptSrc.includes('htmx');
+      });
+    }
+    
+    // Check for HTMX in window object
+    const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+    
+    // Check for any HTMX attributes
+    let hasHxAttributes = false;
+    for (const pattern of htmxAttributePatterns) {
+      if (document.querySelector(pattern)) {
+        hasHxAttributes = true;
+        break;
+      }
+    }
+    
+    // Get all hx-get elements (most common)
+    const hxGetElements = Array.from(document.querySelectorAll('[hx-get], [data-hx-get]')).map(el => ({
+      url: el.getAttribute('hx-get') || el.getAttribute('data-hx-get'),
+      trigger: el.getAttribute('hx-trigger') || el.getAttribute('data-hx-trigger') || 'click'
+    }));
+    
+    // Additional debug info
+    const allScripts = Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline').slice(0, 10);
+    const sampleElements = Array.from(document.querySelectorAll('*')).slice(0, 50).map(el => ({
+      tag: el.tagName,
+      attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).slice(0, 5)
+    }));
+    
+    return {
+      scriptLoaded,
+      htmxInWindow,
+      hasHxAttributes,
+      hxGetElements,
+      debug: {
+        totalElements: document.querySelectorAll('*').length,
+        scripts: allScripts,
+        sampleElements: sampleElements.slice(0, 10)
+      }
+    };
+  });
+
+  log(`[ThreatTracker] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`, "scraper");
+  log(`[ThreatTracker] Page Debug Info: totalElements=${hasHtmx.debug.totalElements}, scripts=[${hasHtmx.debug.scripts.join(', ')}]`, "scraper-debug");
+
+  // Use existing link data if provided, but force fresh extraction for HTMX sites
   let articleLinkData: Array<{href: string, text: string, parentText: string, parentClass: string}>;
   
-  if (existingLinkData && existingLinkData.length > 0) {
+  const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
+  const shouldForceExtraction = isHtmxSite && existingLinkData && existingLinkData.length < 15;
+  
+  if (existingLinkData && existingLinkData.length > 0 && !shouldForceExtraction) {
     log(`[ThreatTracker] Using provided link data (${existingLinkData.length} links)`, "scraper");
     articleLinkData = existingLinkData;
   } else {
-    log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
+    if (shouldForceExtraction) {
+      log(`[ThreatTracker] HTMX site detected with insufficient links (${existingLinkData?.length || 0}), forcing fresh extraction`, "scraper");
+    } else {
+      log('[ThreatTracker] No existing link data provided, extracting links from page', "scraper");
+    }
 
-    // Check for HTMX usage on the page
-    const hasHtmx = await page.evaluate(() => {
-      return {
-        scriptLoaded: !!document.querySelector('script[src*="htmx"]'),
-        hasHxAttributes: !!document.querySelector('[hx-get], [hx-post], [hx-trigger]'),
-        hxGetElements: Array.from(document.querySelectorAll('[hx-get]')).map(el => ({
-          url: el.getAttribute('hx-get'),
-          trigger: el.getAttribute('hx-trigger') || 'click'
-        }))
-      };
-    });
-
-    if (hasHtmx.scriptLoaded || hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log('[ThreatTracker] HTMX detected on page, handling dynamic content...', "scraper");
       
       // Wait longer for initial HTMX content to load (some triggers on page load)
@@ -180,6 +306,114 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
         
         // Wait a bit longer for these load-triggered requests to complete
         await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      // Specifically for foorilla.com and similar sites, manually fetch HTMX content
+      log(`[ThreatTracker] Attempting to load HTMX content directly...`, "scraper");
+      
+      // Get the current page URL to construct proper HTMX endpoints
+      const currentUrl = page.url();
+      const baseUrl = new URL(currentUrl).origin;
+      
+      // Manually fetch HTMX endpoints that contain articles
+      const htmxContent = await page.evaluate(async (baseUrl) => {
+        let totalContentLoaded = 0;
+        
+        // Common HTMX endpoints for article content
+        const endpoints = [
+          '/media/items/',
+          '/media/items/top/',
+          '/media/items/recent/',
+          '/media/items/popular/',
+          '/media/cybersecurity/items/',
+          '/media/cybersecurity/items/top/'
+        ];
+        
+        // Get CSRF token from page if available
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                         document.querySelector('input[name="_token"]')?.getAttribute('value') ||
+                         document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+        
+        // Get screen size info for headers
+        const screenType = window.innerWidth < 768 ? 'M' : 'D';
+        
+        for (const endpoint of endpoints) {
+          try {
+            const headers = {
+              'HX-Request': 'true',
+              'HX-Current-URL': window.location.href,
+              'Accept': 'text/html, */*'
+            };
+            
+            // Add CSRF token if available
+            if (csrfToken) {
+              headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            // Add screen type header
+            headers['X-Screen'] = screenType;
+            
+            console.log(`Fetching HTMX content from: ${baseUrl}${endpoint}`);
+            const response = await fetch(`${baseUrl}${endpoint}`, { headers });
+            
+            if (response.ok) {
+              const html = await response.text();
+              console.log(`Loaded ${html.length} chars from ${endpoint}`);
+              
+              // Insert content into page
+              const container = document.createElement('div');
+              container.className = 'htmx-injected-content';
+              container.setAttribute('data-source', endpoint);
+              container.innerHTML = html;
+              document.body.appendChild(container);
+              totalContentLoaded += html.length;
+            }
+          } catch (e) {
+            console.error(`Error fetching ${endpoint}:`, e);
+          }
+        }
+        
+        return totalContentLoaded;
+      }, baseUrl);
+      
+      if (htmxContent > 0) {
+        log(`[ThreatTracker] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
+        // Wait for any additional processing
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      
+      // Also try triggering visible HTMX elements
+      const triggeredElements = await page.evaluate(() => {
+        let triggered = 0;
+        
+        // Look for clickable HTMX elements
+        const htmxElements = document.querySelectorAll('[hx-get]');
+        htmxElements.forEach((el, index) => {
+          if (index < 10) { // Limit to first 10
+            const url = el.getAttribute('hx-get');
+            const trigger = el.getAttribute('hx-trigger') || 'click';
+            
+            // Skip if it's a load trigger (already processed) or if it looks like a filter/search
+            if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
+              return;
+            }
+            
+            // Check if element is visible
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              console.log(`Clicking HTMX element: ${url}`);
+              (el as HTMLElement).click();
+              triggered++;
+            }
+          }
+        });
+        
+        return triggered;
+      });
+      
+      if (triggeredElements > 0) {
+        log(`[ThreatTracker] Triggered ${triggeredElements} HTMX elements via click`, "scraper");
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
     
@@ -218,7 +452,7 @@ async function extractArticleLinksStructured(page: Page, existingLinkData?: Arra
     log(`[ThreatTracker] Fewer than 20 links found, trying additional techniques...`, "scraper");
     
     // For HTMX pages: Special handling of dynamic content
-    if (hasHtmx.hasHxAttributes) {
+    if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
       log(`[ThreatTracker] Attempting to interact with HTMX elements to load more content`, "scraper");
       
       // First try: Click on any "load more" or pagination buttons that might trigger HTMX loading
@@ -473,105 +707,149 @@ export async function scrapeUrl(url: string, isArticlePage: boolean = false, scr
 
       // Extract article content using the provided scraping config
       const articleContent = await page.evaluate((config) => {
-        // First try using the provided selectors
-        if (config) {
-          const title = config.titleSelector || config.title 
-            ? document.querySelector(config.titleSelector || config.title)?.textContent?.trim() 
-            : '';
+        try {
+          // Sanitize selector function (copied from server-side)
+          function sanitizeSelector(selector) {
+            if (!selector) return "";
             
-          const content = config.contentSelector || config.content 
-            ? document.querySelector(config.contentSelector || config.content)?.textContent?.trim() 
-            : '';
+            // Check if the selector contains date-like patterns or text content
+            if (
+              /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(selector) ||
+              selector.includes("AM") ||
+              selector.includes("PM") ||
+              selector.includes("(") ||
+              selector.includes(")")
+            ) {
+              return "";
+            }
             
-          const author = config.authorSelector || config.author 
-            ? document.querySelector(config.authorSelector || config.author)?.textContent?.trim() 
-            : '';
+            if (/^(By|Published:|Posted:|Date:|Author:|Not available)\s?/i.test(selector)) {
+              return "";
+            }
             
-          const date = config.dateSelector || config.date 
-            ? document.querySelector(config.dateSelector || config.date)?.textContent?.trim() 
-            : '';
-
-          if (content) {
-            return { title, content, author, date };
+            // Remove unsupported pseudo-classes like :contains, :has, etc.
+            return selector
+              .replace(/\:contains\([^\)]+\)/g, "")
+              .replace(/\:has\([^\)]+\)/g, "")
+              .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+              .replace(/\s+/g, " ")
+              .trim();
           }
-        }
+        
+          // First try using the provided selectors
+          if (config) {
+            const titleSelector = sanitizeSelector(config.titleSelector || config.title);
+            const contentSelector = sanitizeSelector(config.contentSelector || config.content);
+            const authorSelector = sanitizeSelector(config.authorSelector || config.author);
+            const dateSelector = sanitizeSelector(config.dateSelector || config.date);
+            
+            const title = titleSelector 
+              ? document.querySelector(titleSelector)?.textContent?.trim() 
+              : '';
+              
+            const content = contentSelector 
+              ? document.querySelector(contentSelector)?.textContent?.trim() 
+              : '';
+              
+            const author = authorSelector 
+              ? document.querySelector(authorSelector)?.textContent?.trim() 
+              : '';
+              
+            const date = dateSelector 
+              ? document.querySelector(dateSelector)?.textContent?.trim() 
+              : '';
 
-        // Fallback selectors if config fails
-        const fallbackSelectors = {
-          content: [
-            'article',
-            '.article-content',
-            '.article-body',
-            'main .content',
-            '.post-content',
-            '#article-content',
-            '.story-content'
-          ],
-          title: ['h1', '.article-title', '.post-title'],
-          author: ['.author', '.byline', '.article-author'],
-          date: [
-            'time',
-            '[datetime]',
-            '.article-date',
-            '.post-date',
-            '.published-date',
-            '.timestamp'
-          ]
-        };
-
-        // Try fallback selectors
-        let content = '';
-        for (const selector of fallbackSelectors.content) {
-          const element = document.querySelector(selector);
-          if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
-            content = element.textContent?.trim() || '';
-            break;
+            if (content) {
+              return { title, content, author, date };
+            }
           }
-        }
 
-        // If still no content, get the main content or body
-        if (!content || content.length < 100) {
-          const main = document.querySelector('main');
-          if (main) {
-            content = main.textContent?.trim() || '';
+          // Fallback selectors if config fails
+          const fallbackSelectors = {
+            content: [
+              'article',
+              '.article-content',
+              '.article-body',
+              'main .content',
+              '.post-content',
+              '#article-content',
+              '.story-content'
+            ],
+            title: ['h1', '.article-title', '.post-title'],
+            author: ['.author', '.byline', '.article-author'],
+            date: [
+              'time',
+              '[datetime]',
+              '.article-date',
+              '.post-date',
+              '.published-date',
+              '.timestamp'
+            ]
+          };
+
+          // Try fallback selectors
+          let content = '';
+          for (const selector of fallbackSelectors.content) {
+            const element = document.querySelector(selector);
+            if (element && element.textContent?.trim() && element.textContent?.trim().length > 100) {
+              content = element.textContent?.trim() || '';
+              break;
+            }
           }
-          
+
+          // If still no content, get the main content or body
           if (!content || content.length < 100) {
-            content = document.body.textContent?.trim() || '';
+            const main = document.querySelector('main');
+            if (main) {
+              content = main.textContent?.trim() || '';
+            }
+            
+            if (!content || content.length < 100) {
+              content = document.body.textContent?.trim() || '';
+            }
           }
-        }
 
-        // Try to get title
-        let title = '';
-        for (const selector of fallbackSelectors.title) {
-          const element = document.querySelector(selector);
-          if (element) {
-            title = element.textContent?.trim() || '';
-            break;
+          // Try to get title
+          let title = '';
+          for (const selector of fallbackSelectors.title) {
+            const element = document.querySelector(selector);
+            if (element) {
+              title = element.textContent?.trim() || '';
+              break;
+            }
           }
-        }
 
-        // Try to get author
-        let author = '';
-        for (const selector of fallbackSelectors.author) {
-          const element = document.querySelector(selector);
-          if (element) {
-            author = element.textContent?.trim() || '';
-            break;
+          // Try to get author
+          let author = '';
+          for (const selector of fallbackSelectors.author) {
+            const element = document.querySelector(selector);
+            if (element) {
+              author = element.textContent?.trim() || '';
+              break;
+            }
           }
-        }
 
-        // Try to get date
-        let date = '';
-        for (const selector of fallbackSelectors.date) {
-          const element = document.querySelector(selector);
-          if (element) {
-            date = element.textContent?.trim() || '';
-            break;
+          // Try to get date
+          let date = '';
+          for (const selector of fallbackSelectors.date) {
+            const element = document.querySelector(selector);
+            if (element) {
+              date = element.textContent?.trim() || '';
+              break;
+            }
           }
-        }
 
-        return { title, content, author, date };
+          return { title, content, author, date };
+        } catch (error) {
+          // If there's an error in the page evaluation, return fallback values
+          console.error('Error in page evaluation:', error.message);
+          return { 
+            title: document.title || '',
+            content: document.body ? document.body.textContent?.trim() || '' : '',
+            author: '',
+            date: ''
+          };
+        }
       }, scrapingConfig);
 
       log(`[ThreatTracker] Extraction results: title length=${articleContent.title?.length || 0}, content length=${articleContent.content?.length || 0}`, "scraper");
@@ -730,11 +1008,14 @@ export async function extractArticleContent(
     if (html.includes('<div class="content">')) {
       const $ = cheerio.load(html);
       
+      // Use comprehensive date extraction for processed HTML too
+      const publishDate = await extractPublishDate(html, htmlStructure);
+      
       return {
         title: $('h1').first().text().trim(),
         content: $('.content').text().trim(),
         author: $('.author').text().trim() || undefined,
-        date: $('.date').text().trim() || undefined
+        date: publishDate ? publishDate.toISOString() : undefined
       };
     }
     
@@ -784,25 +1065,47 @@ export async function extractArticleContent(
       });
     }
 
-    // Extract author if available
+    // Use comprehensive date extraction
+    log(`[ThreatTracker] Starting comprehensive date extraction`, "scraper");
+    const publishDate = await extractPublishDate(html, htmlStructure);
+    if (publishDate) {
+      result.date = publishDate.toISOString();
+      log(`[ThreatTracker] Successfully extracted publish date: ${result.date}`, "scraper");
+    } else {
+      log(`[ThreatTracker] No valid publish date found`, "scraper");
+    }
+
+    // Extract author with improved handling
     const authorSelector = htmlStructure.authorSelector || htmlStructure.author;
     if (authorSelector) {
       const authorText = $(authorSelector).first().text().trim();
       if (authorText) {
-        result.author = authorText;
+        // Use the date/author separator utility to clean up mixed content
+        const separated = separateDateFromAuthor(authorText);
+        
+        // If we found a date in the author field and don't have a date yet, use it
+        if (separated.date && !result.date) {
+          const fallbackDate = await extractPublishDate(`<div class="date">${separated.date}</div>`, {});
+          if (fallbackDate) {
+            result.date = fallbackDate.toISOString();
+            log(`[ThreatTracker] Extracted date from author field: ${result.date}`, "scraper");
+          }
+        }
+        
+        // Only set author if we have a valid author name (not a date)
+        if (separated.author) {
+          result.author = separated.author;
+        } else if (!separated.date) {
+          // Only use the original text as author if it doesn't look like a date
+          const dateIndicators = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}|\d{1,2}\s+(days?|weeks?|months?|years?)\s+ago)\b/i;
+          if (!dateIndicators.test(authorText)) {
+            result.author = authorText;
+          }
+        }
       }
     }
 
-    // Extract date if available
-    const dateSelector = htmlStructure.dateSelector || htmlStructure.date;
-    if (dateSelector) {
-      const dateText = $(dateSelector).first().text().trim();
-      if (dateText) {
-        result.date = dateText;
-      }
-    }
-
-    log(`[ThreatTracker] Extraction complete: title=${result.title ? 'found' : 'not found'}, content=${result.content.length} chars`, "scraper");
+    log(`[ThreatTracker] Extraction complete: title=${result.title ? 'found' : 'not found'}, content=${result.content.length} chars, date=${result.date ? 'found' : 'not found'}`, "scraper");
     return result;
   } catch (error: any) {
     log(`[ThreatTracker] Error extracting article content: ${error.message}`, "scraper-error");

@@ -11,9 +11,9 @@ export default function AuthLayout({
 }: Props) {
   return (
     <div className={`flex ${twHeight} items-center justify-center bg-slate-900 bg-[radial-gradient(ellipse_at_center,rgba(94,58,162,0.05)_0%,rgba(0,0,0,0)_80%)]`}>
-      <div className="absolute top-4 right-4">
+      {false && <div className="absolute top-4 right-4">
         <ModeToggle />
-      </div>
+      </div>}
       <div className="w-full max-w-md flex flex-col items-center px-4 sm:px-0">
         <div className="mb-8 flex flex-col items-center">
           <div className="mb-4">

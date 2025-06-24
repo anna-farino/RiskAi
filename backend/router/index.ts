@@ -28,6 +28,8 @@ const config = {
 
 // The `auth` router attaches /login, /logout
 // and /callback routes to the baseURL
+import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
+import sendGrid from 'backend/utils/sendGrid';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
@@ -72,5 +74,9 @@ router.delete('/secrets', deleteSecrets)
 
 // DEV only
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
+
+// Sample Data Population API endpoints
+router.get('/sample-data/status', verifyToken, doubleCsrfProtection, noSimpleRequests, handleCheckSampleDataStatus)
+router.post('/sample-data/populate', verifyToken, doubleCsrfProtection, noSimpleRequests, handlePopulateSampleData)
 
 export default router;

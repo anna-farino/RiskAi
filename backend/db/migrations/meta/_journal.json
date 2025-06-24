@@ -127,6 +127,55 @@
       "when": 1748463340700,
       "tag": "0017_useful_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1748988658974,
+      "tag": "0018_far_amazoness",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1749133961369,
+      "tag": "0019_lying_mad_thinker",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1749330969910,
+      "tag": "0020_skinny_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1749331904158,
+      "tag": "0021_lowly_nekra",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1749358020467,
+      "tag": "0022_black_king_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1749412192424,
+      "tag": "0023_friendly_warbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1749490792552,
+      "tag": "0024_orange_shiva",
+      "breakpoints": true
     }
   ]
 }

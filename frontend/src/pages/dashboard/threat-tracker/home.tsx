@@ -4,7 +4,10 @@ import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
-import type { ThreatArticle, ThreatKeyword } from "@shared/db/schema/threat-tracker/index";
+import type {
+  ThreatArticle,
+  ThreatKeyword,
+} from "@shared/db/schema/threat-tracker/index";
 import { queryClient } from "@/lib/query-client";
 import {
   Loader2,
@@ -17,6 +20,8 @@ import {
   X,
   Plus,
   Check,
+  FileText,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +45,7 @@ import { ThreatArticleCard } from "./components/threat-article-card";
 
 export default function ThreatHome() {
   const { toast } = useToast();
-  
+
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
@@ -49,28 +54,41 @@ export default function ThreatHome() {
     endDate?: Date;
   }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
-  const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] = useState<boolean>(false);
+  const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] =
+    useState<boolean>(false);
   const [keywordSearchTerm, setKeywordSearchTerm] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Local state for optimistic UI updates
   const [localArticles, setLocalArticles] = useState<ThreatArticle[]>([]);
   // Track pending operations for visual feedback
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
-  
+  // Track last visit timestamp for "new" badge functionality
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
+  // Track sorting state for surfacing new articles
+  const [sortNewToTop, setSortNewToTop] = useState<boolean>(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const articlesPerPage = 20;
+  // Track selected article from dashboard
+  const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
+
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords`, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/keywords`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...csfrHeaderObject(),
+            },
           },
-        });
-        if (!response.ok) throw new Error('Failed to fetch keywords');
+        );
+        if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
         return data || [];
       } catch (error) {
@@ -78,48 +96,51 @@ export default function ThreatHome() {
         return [];
       }
     },
+    staleTime: 0, // Always refetch on component mount
+    refetchOnMount: true, // Force refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
-  
+
   // Build query string for filtering
   const buildQueryString = () => {
     const params = new URLSearchParams();
-    
+
     if (searchTerm) {
       params.append("search", searchTerm);
     }
-    
+
     if (selectedKeywordIds.length > 0) {
-      selectedKeywordIds.forEach(id => {
+      selectedKeywordIds.forEach((id) => {
         params.append("keywordIds", id);
       });
     }
-    
+
     if (dateRange.startDate) {
       params.append("startDate", dateRange.startDate.toISOString());
     }
-    
+
     if (dateRange.endDate) {
       params.append("endDate", dateRange.endDate.toISOString());
     }
-    
+
     return params.toString();
   };
-  
+
   // Articles query with filtering
   const articles = useQuery<ThreatArticle[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/articles`, searchTerm, selectedKeywordIds, dateRange],
+    queryKey: [
+      `${serverUrl}/api/threat-tracker/articles`,
+      searchTerm,
+      selectedKeywordIds,
+      dateRange,
+    ],
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ''}`;
-        
+        const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+
         console.log("Fetching articles with URL:", url);
-        console.log("Filter parameters:", {
-          search: searchTerm,
-          keywordIds: selectedKeywordIds,
-          ...dateRange
-        });
-        
+
         const response = await fetch(url, {
           method: "GET",
           credentials: "include",
@@ -127,8 +148,8 @@ export default function ThreatHome() {
             ...csfrHeaderObject(),
           },
         });
-        
-        if (!response.ok) throw new Error('Failed to fetch articles');
+
+        if (!response.ok) throw new Error("Failed to fetch articles");
         const data = await response.json();
         console.log("Received filtered articles:", data.length);
         return data || [];
@@ -138,38 +159,89 @@ export default function ThreatHome() {
       }
     },
   });
-  
+
+  // Initialize last visit timestamp from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('threat-tracker-last-visit');
+    setLastVisitTimestamp(stored);
+
+    // Update last visit timestamp when component mounts
+    const currentTime = new Date().toISOString();
+    localStorage.setItem('threat-tracker-last-visit', currentTime);
+  }, []);
+
+  // Check for selected threat article from dashboard
+  useEffect(() => {
+    const selectedThreatData = sessionStorage.getItem('selectedThreatArticle');
+    if (selectedThreatData) {
+      try {
+        const selectedThreat = JSON.parse(selectedThreatData);
+        setHighlightedArticleId(selectedThreat.id);
+        
+        window.scrollTo(0,0)
+        // Clear the session storage to prevent repeat highlighting
+        sessionStorage.removeItem('selectedThreatArticle');
+
+      } catch (error) {
+        console.error("Error parsing selected threat article:", error);
+        sessionStorage.removeItem('selectedThreatArticle');
+      }
+    }
+  }, [toast]);
+
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
-      setLocalArticles(articles.data);
+      let sortedArticles = [...articles.data];
+      
+      // If there's a highlighted article, move it to the top
+      if (highlightedArticleId) {
+        const highlightedIndex = sortedArticles.findIndex(article => article.id === highlightedArticleId);
+        if (highlightedIndex > 0) {
+          const highlightedArticle = sortedArticles.splice(highlightedIndex, 1)[0];
+          sortedArticles.unshift(highlightedArticle);
+        }
+      }
+      
+      setLocalArticles(sortedArticles);
     }
-  }, [articles.data]);
+  }, [articles.data, highlightedArticleId]);
+
+  // Reset pagination when filters change or when an article is highlighted
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setKeywordAutocompleteOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-  
+
   // Delete article mutation
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/articles/${id}`);
+      return apiRequest(
+        "DELETE",
+        `${serverUrl}/api/threat-tracker/articles/${id}`,
+      );
     },
     onMutate: (id) => {
       // Optimistic update - remove article from local state
-      setLocalArticles(prev => prev.filter(article => article.id !== id));
+      setLocalArticles((prev) => prev.filter((article) => article.id !== id));
       // Add to pending operations
-      setPendingItems(prev => new Set(prev).add(id));
+      setPendingItems((prev) => new Set(prev).add(id));
     },
     onSuccess: (_, id) => {
       toast({
@@ -177,32 +249,37 @@ export default function ThreatHome() {
         description: "The article has been successfully deleted.",
       });
       // Remove from pending operations
-      setPendingItems(prev => {
+      setPendingItems((prev) => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
       });
       // Invalidate queries to refetch data
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+      });
     },
     onError: (error, id) => {
       console.error("Error deleting article:", error);
       toast({
         title: "Error deleting article",
-        description: "There was an error deleting the article. Please try again.",
+        description:
+          "There was an error deleting the article. Please try again.",
         variant: "destructive",
       });
       // Revert optimistic update
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+      });
       // Remove from pending operations
-      setPendingItems(prev => {
+      setPendingItems((prev) => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
       });
     },
   });
-  
+
   // Delete all articles mutation
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
@@ -218,67 +295,77 @@ export default function ThreatHome() {
         description: "All articles have been successfully deleted.",
       });
       // Invalidate queries to refetch data
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+      });
     },
     onError: (error) => {
       console.error("Error deleting all articles:", error);
       toast({
         title: "Error deleting articles",
-        description: "There was an error deleting all articles. Please try again.",
+        description:
+          "There was an error deleting all articles. Please try again.",
         variant: "destructive",
       });
       // Revert optimistic update
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+      });
     },
   });
-  
+
   // Mark article for capsule mutation
   const markArticleForCapsule = useMutation({
     mutationFn: async ({ id, marked }: { id: string; marked: boolean }) => {
-      const endpoint = marked ? 
-        `${serverUrl}/api/threat-tracker/articles/${id}/mark-for-capsule` : 
-        `${serverUrl}/api/threat-tracker/articles/${id}/unmark-for-capsule`;
+      const endpoint = marked
+        ? `${serverUrl}/api/threat-tracker/articles/${id}/mark-for-capsule`
+        : `${serverUrl}/api/threat-tracker/articles/${id}/unmark-for-capsule`;
       return apiRequest("POST", endpoint);
     },
     onMutate: ({ id, marked }) => {
       // Add to pending operations
-      setPendingItems(prev => new Set(prev).add(id));
+      setPendingItems((prev) => new Set(prev).add(id));
       // Optimistic update
-      setLocalArticles(prev => 
-        prev.map(article => 
-          article.id === id 
-            ? { ...article, markedForCapsule: marked } 
-            : article
-        )
+      setLocalArticles((prev) =>
+        prev.map((article) =>
+          article.id === id
+            ? { ...article, markedForCapsule: marked }
+            : article,
+        ),
       );
     },
     onSuccess: (_, { id, marked }) => {
       toast({
         title: marked ? "Article marked for News Capsule" : "Article unmarked",
-        description: marked 
-          ? "The article has been marked and can be included in News Capsule reports." 
+        description: marked
+          ? "The article has been marked and can be included in News Capsule reports."
           : "The article has been unmarked for News Capsule.",
       });
       // Remove from pending operations
-      setPendingItems(prev => {
+      setPendingItems((prev) => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
       });
       // Invalidate queries to refetch data
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+      });
     },
     onError: (error, { id }) => {
       console.error("Error marking article:", error);
       toast({
         title: "Error updating article",
-        description: "There was an error updating the article. Please try again.",
+        description:
+          "There was an error updating the article. Please try again.",
         variant: "destructive",
       });
       // Revert optimistic update
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/articles`] });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+      });
       // Remove from pending operations
-      setPendingItems(prev => {
+      setPendingItems((prev) => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
@@ -289,15 +376,18 @@ export default function ThreatHome() {
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
-      const response = await fetch(`${serverUrl}/api/news-capsule/process-url`, {
-        method: "POST",
-        credentials: 'include',
-        headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject(),
+      const response = await fetch(
+        `${serverUrl}/api/news-capsule/process-url`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          body: JSON.stringify({ url }),
         },
-        body: JSON.stringify({ url }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to send to capsule: ${response.statusText}`);
@@ -311,94 +401,103 @@ export default function ThreatHome() {
       console.error("Send to capsule error:", error);
       toast({
         title: "Error",
-        description: "Failed to send article to News Capsule. Please try again.",
+        description:
+          "Failed to send article to News Capsule. Please try again.",
         variant: "destructive",
       });
     }
   };
-  
+
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
-    setSelectedKeywordIds(prev => 
+    setSelectedKeywordIds((prev) =>
       prev.includes(keywordId)
-        ? prev.filter(id => id !== keywordId)
-        : [...prev, keywordId]
+        ? prev.filter((id) => id !== keywordId)
+        : [...prev, keywordId],
     );
   };
-  
+
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedKeywordIds([]);
     setDateRange({});
   };
-  
+
   // Function to handle article deletion
   const handleDeleteArticle = (id: string) => {
     deleteArticle.mutate(id);
   };
-  
+
   // Function to handle marking for capsule
   const handleMarkForCapsule = (id: string, currentlyMarked: boolean) => {
     markArticleForCapsule.mutate({ id, marked: !currentlyMarked });
   };
-  
+
   // Handle delete all articles
   const handleDeleteAllArticles = () => {
     deleteAllArticles.mutate();
   };
-  
+
   // Group keywords by category
   const keywordsByCategory = {
-    threat: keywords.data?.filter(k => k.category === 'threat') || [],
-    vendor: keywords.data?.filter(k => k.category === 'vendor') || [],
-    client: keywords.data?.filter(k => k.category === 'client') || [],
-    hardware: keywords.data?.filter(k => k.category === 'hardware') || [],
+    threat: keywords.data?.filter((k) => k.category === "threat") || [],
+    vendor: keywords.data?.filter((k) => k.category === "vendor") || [],
+    client: keywords.data?.filter((k) => k.category === "client") || [],
+    hardware: keywords.data?.filter((k) => k.category === "hardware") || [],
   };
 
   // Filter keywords for autocomplete based on search term and only show keywords detected in articles
   const filteredKeywords = useMemo(() => {
     if (!keywords.data || !articles.data) return [];
-    
+
     // Get all detected keywords from articles
     const detectedKeywordTerms = new Set<string>();
-    articles.data.forEach(article => {
+    articles.data.forEach((article) => {
       if (article.detectedKeywords) {
         const detected = article.detectedKeywords as any;
-        ['threats', 'vendors', 'clients', 'hardware'].forEach(category => {
+        ["threats", "vendors", "clients", "hardware"].forEach((category) => {
           if (detected[category] && Array.isArray(detected[category])) {
             detected[category].forEach((term: string) => {
               detectedKeywordTerms.add(term.toLowerCase());
             });
-          } else if (detected[category] && typeof detected[category] === 'string') {
+          } else if (
+            detected[category] &&
+            typeof detected[category] === "string"
+          ) {
             // Handle case where it's stored as a string
-            detected[category].split(',').forEach((term: string) => {
+            detected[category].split(",").forEach((term: string) => {
               detectedKeywordTerms.add(term.trim().toLowerCase());
             });
           }
         });
       }
     });
-    
+
     return keywords.data.filter((keyword) => {
-      const matchesSearch = keywordSearchTerm === "" || 
+      const matchesSearch =
+        keywordSearchTerm === "" ||
         keyword.term.toLowerCase().includes(keywordSearchTerm.toLowerCase());
       const notAlreadySelected = !selectedKeywordIds.includes(keyword.id);
-      const hasBeenDetected = detectedKeywordTerms.has(keyword.term.toLowerCase());
-      return matchesSearch && notAlreadySelected && keyword.active && hasBeenDetected;
+      const hasBeenDetected = detectedKeywordTerms.has(
+        keyword.term.toLowerCase(),
+      );
+      return (
+        matchesSearch && notAlreadySelected && keyword.active && hasBeenDetected
+      );
     });
   }, [keywords.data, keywordSearchTerm, selectedKeywordIds, articles.data]);
 
   // Get selected keywords for display
   const selectedKeywords = useMemo(() => {
     if (!keywords.data) return [];
-    return keywords.data.filter(k => selectedKeywordIds.includes(k.id));
+    return keywords.data.filter((k) => selectedKeywordIds.includes(k.id));
   }, [keywords.data, selectedKeywordIds]);
 
   // Add keyword to selection
   const addKeywordToFilter = (keywordId: string) => {
     if (!selectedKeywordIds.includes(keywordId)) {
-      setSelectedKeywordIds(prev => [...prev, keywordId]);
+      setSelectedKeywordIds((prev) => [...prev, keywordId]);
     }
     setKeywordSearchTerm("");
     setKeywordAutocompleteOpen(false);
@@ -406,37 +505,135 @@ export default function ThreatHome() {
 
   // Remove keyword from selection
   const removeKeywordFromFilter = (keywordId: string) => {
-    setSelectedKeywordIds(prev => prev.filter(id => id !== keywordId));
+    setSelectedKeywordIds((prev) => prev.filter((id) => id !== keywordId));
   };
-  
+
+  // Calculate new articles count
+  const newArticlesCount = useMemo(() => {
+    if (!lastVisitTimestamp || !localArticles.length) return 0;
+
+    const lastVisit = new Date(lastVisitTimestamp);
+    return localArticles.filter(article => {
+      if (!article.scrapeDate) return false;
+      const scrapeDate = new Date(article.scrapeDate);
+      return scrapeDate > lastVisit;
+    }).length;
+  }, [lastVisitTimestamp, localArticles]);
+
+  // Function to check if an article is new
+  const isArticleNew = (article: ThreatArticle): boolean => {
+    if (!lastVisitTimestamp || !article.scrapeDate) return false;
+    const lastVisit = new Date(lastVisitTimestamp);
+    const scrapeDate = new Date(article.scrapeDate);
+    return scrapeDate > lastVisit;
+  };
+
+  // Computed property for sorted articles - surface new articles to top when sortNewToTop is true
+  const sortedArticles = useMemo(() => {
+    if (!sortNewToTop) return localArticles;
+    
+    return [...localArticles].sort((a, b) => {
+      const aIsNew = isArticleNew(a);
+      const bIsNew = isArticleNew(b);
+      
+      // If both are new or both are not new, maintain original order
+      if (aIsNew === bIsNew) return 0;
+      
+      // New articles come first
+      return aIsNew ? -1 : 1;
+    });
+  }, [localArticles, sortNewToTop, lastVisitTimestamp]);
+
+  // Function to handle clicking the "New" button to surface new articles
+  const handleSurfaceNewArticles = () => {
+    setSortNewToTop(true);
+  };
+
+  // Calculate pagination values
+  const totalArticles = sortedArticles.length;
+  const totalPages = Math.ceil(totalArticles / articlesPerPage);
+  const startIndex = (currentPage - 1) * articlesPerPage;
+  const endIndex = startIndex + articlesPerPage;
+  const paginatedArticles = sortedArticles.slice(startIndex, endIndex);
+
+  // Pagination navigation functions
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <>
-      <div className="flex flex-col gap-6 md:gap-10 mb-10">
+      <div className="flex flex-col gap-6 md:gap-10 mb-6">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             Threat Tracker
           </h1>
-          <p className="text-lg text-slate-300 max-w-3xl">
-            Monitor cybersecurity threats affecting your vendors, clients, and hardware/software to stay ahead of potential vulnerabilities.
+          <p className="text-muted-foreground max-w-3xl">
+            Monitor cybersecurity threats affecting your vendors, clients, and
+            hardware/software to stay ahead of potential vulnerabilities.
           </p>
         </div>
-
-
       </div>
 
       <div className="flex flex-col w-full gap-4">
-        <div className="flex flex-col md:flex-row justify-between gap-4">
-          <div className="relative w-full md:w-1/2">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search articles..."
-              className="pl-9 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-300">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-medium">
+                  {localArticles.length} Potential Threats
+                </span>
+              </div>
+              {newArticlesCount > 0 && !sortNewToTop && (
+                <button
+                  onClick={handleSurfaceNewArticles}
+                  className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                  title={`Click to surface ${newArticlesCount} new articles to top`}
+                >
+                  <Star className="h-3 w-3 text-[#BF00FF]" />
+                  <span className="text-xs font-medium text-[#BF00FF]">
+                    {newArticlesCount} New
+                  </span>
+                </button>
+              )}
+              {sortNewToTop && (
+                <button
+                  onClick={() => setSortNewToTop(false)}
+                  className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
+                  title="Click to return to chronological order"
+                >
+                  <Check className="h-3 w-3 text-[#00FFFF]" />
+                  <span className="text-xs font-medium text-[#00FFFF]">
+                    Sorted
+                  </span>
+                </button>
+              )}
+            </div>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search articles..."
+                className="pl-9 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-          
-          <div className="flex flex-row gap-2">
+
+          <div className="flex flex-row gap-2 flex-shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -452,57 +649,37 @@ export default function ThreatHome() {
               )}
             </Button>
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex items-center gap-1.5"
-                  disabled={localArticles.length === 0 || deleteAllArticles.isPending}
-                >
-                  {deleteAllArticles.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Clear All
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action will permanently delete all threat articles. This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAllArticles}>
-                    Delete All
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {highlightedArticleId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                onClick={() => setHighlightedArticleId(null)}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear Selection
+              </Button>
+            )}
           </div>
         </div>
-        
+
         {/* Filters section */}
         {isFilterOpen && (
           <div className="p-4 border rounded-lg bg-card">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-medium">Filter Options</h3>
               <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={clearFilters}
                   className="h-8 px-2 text-xs"
                 >
                   Clear all
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsFilterOpen(false)}
                   className="h-8 w-8 p-0"
                 >
@@ -510,11 +687,13 @@ export default function ThreatHome() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               {/* Simple Keyword Filter */}
               <div>
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Filter by Keywords</h4>
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">
+                  Filter by Keywords
+                </h4>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -525,10 +704,13 @@ export default function ThreatHome() {
                       setKeywordSearchTerm(e.target.value);
                       // Auto-filter based on search term
                       if (e.target.value.trim()) {
-                        const matchingKeywords = keywords.data?.filter(k => 
-                          k.term.toLowerCase().includes(e.target.value.toLowerCase()) && 
-                          k.active &&
-                          !selectedKeywordIds.includes(k.id)
+                        const matchingKeywords = keywords.data?.filter(
+                          (k) =>
+                            k.term
+                              .toLowerCase()
+                              .includes(e.target.value.toLowerCase()) &&
+                            k.active &&
+                            !selectedKeywordIds.includes(k.id),
                         );
                         if (matchingKeywords && matchingKeywords.length > 0) {
                           setKeywordAutocompleteOpen(true);
@@ -538,28 +720,38 @@ export default function ThreatHome() {
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && filteredKeywords.length > 0) {
+                      if (e.key === "Enter" && filteredKeywords.length > 0) {
                         addKeywordToFilter(filteredKeywords[0].id);
                       }
                     }}
                   />
                   {/* Simple dropdown for matching keywords */}
                   {keywordAutocompleteOpen && filteredKeywords.length > 0 && (
-                    <div ref={dropdownRef} className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div
+                      ref={dropdownRef}
+                      className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto"
+                    >
                       {filteredKeywords.slice(0, 5).map((keyword) => (
                         <div
                           key={keyword.id}
                           className="px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-2"
                           onClick={() => addKeywordToFilter(keyword.id)}
                         >
-                          <div className={`h-2 w-2 rounded-full ${
-                            keyword.category === 'threat' ? 'bg-red-500' :
-                            keyword.category === 'vendor' ? 'bg-blue-500' :
-                            keyword.category === 'client' ? 'bg-green-500' :
-                            'bg-orange-500'
-                          }`} />
+                          <div
+                            className={`h-2 w-2 rounded-full ${
+                              keyword.category === "threat"
+                                ? "bg-red-500"
+                                : keyword.category === "vendor"
+                                  ? "bg-blue-500"
+                                  : keyword.category === "client"
+                                    ? "bg-green-500"
+                                    : "bg-orange-500"
+                            }`}
+                          />
                           <span className="text-sm">{keyword.term}</span>
-                          <span className="text-xs text-muted-foreground ml-auto">{keyword.category}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {keyword.category}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -570,7 +762,9 @@ export default function ThreatHome() {
               {/* Selected Keywords Display */}
               {selectedKeywords.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">Active Keyword Filters</h4>
+                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">
+                    Active Keyword Filters
+                  </h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedKeywords.map((keyword) => (
                       <Badge
@@ -586,11 +780,10 @@ export default function ThreatHome() {
                   </div>
                 </div>
               )}
-              
             </div>
           </div>
         )}
-        
+
         {/* Articles display */}
         <div className="space-y-4">
           {articles.isLoading ? (
@@ -598,32 +791,155 @@ export default function ThreatHome() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : localArticles.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {localArticles.map((article) => (
-                <ThreatArticleCard
-                  key={article.id}
-                  article={article}
-                  isPending={pendingItems.has(article.id)}
-                  onDelete={() => handleDeleteArticle(article.id)}
-                  onKeywordClick={(keyword, category) => {
-                    // Add the keyword to the filter
-                    const keywordObj = keywords.data?.find(k => k.term === keyword && k.category === category);
-                    if (keywordObj && !selectedKeywordIds.includes(keywordObj.id)) {
-                      setSelectedKeywordIds(prev => [...prev, keywordObj.id]);
-                    }
-                  }}
-                  onSendToCapsule={sendToCapsule}
-                />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                {paginatedArticles.map((article, index) => (
+                <div key={article.id} className={cn(
+                  "relative",
+                  article.id === highlightedArticleId && "bg-primary/10"
+                )}>
+                  {isArticleNew(article) && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
+                        NEW
+                      </Badge>
+                    </div>
+                  )}
+                  <ThreatArticleCard
+                    article={article}
+                    isPending={pendingItems.has(article.id)}
+                    onDelete={() => handleDeleteArticle(article.id)}
+                    onKeywordClick={(keyword, category) => {
+                      // Add the keyword to the filter
+                      const keywordObj = keywords.data?.find(
+                        (k) => k.term === keyword && k.category === category,
+                      );
+                      if (
+                        keywordObj &&
+                        !selectedKeywordIds.includes(keywordObj.id)
+                      ) {
+                        setSelectedKeywordIds((prev) => [...prev, keywordObj.id]);
+                      }
+                    }}
+                    onSendToCapsule={sendToCapsule}
+                    articleIndex={startIndex + index}
+                    totalArticles={totalArticles}
+                  />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t border-slate-700/50">
+                  <div className="text-sm text-slate-400">
+                    Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ArrowRight className="h-3 w-3 rotate-180" />
+                    </Button>
+                    
+                    {/* Page numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNumber;
+                        if (totalPages <= 5) {
+                          pageNumber = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNumber = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNumber = totalPages - 4 + i;
+                        } else {
+                          pageNumber = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNumber}
+                            variant={currentPage === pageNumber ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => goToPage(pageNumber)}
+                            className="h-8 w-8 p-0 text-xs"
+                          >
+                            {pageNumber}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Clear All Button - Bottom of page */}
+              {totalArticles > 0 && (
+                <div className="flex justify-center mt-8 pt-6 border-t border-slate-700/50">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex items-center gap-1.5"
+                        disabled={deleteAllArticles.isPending}
+                      >
+                        {deleteAllArticles.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Delete All Articles ({totalArticles})
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action will permanently delete all {totalArticles} threat articles.
+                          This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAllArticles}>
+                          Delete All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 px-4 rounded-lg border border-dashed">
-              <h3 className="font-semibold text-xl mb-2">No threat articles found</h3>
+              <h3 className="font-semibold text-xl mb-2">
+                No threat articles found
+              </h3>
               <p className="text-muted-foreground text-center max-w-md mb-6">
-                Start by adding sources and keywords to monitor for security threats, or adjust your search filters.
+                Start by adding sources and keywords to monitor for security
+                threats, or adjust your search filters.
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
-                <Button asChild className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]">
+                <Button
+                  asChild
+                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                >
                   <Link to="/dashboard/threat/sources">Add Sources</Link>
                 </Button>
                 <Button variant="outline" asChild>

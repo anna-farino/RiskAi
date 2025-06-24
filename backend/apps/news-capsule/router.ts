@@ -2,11 +2,10 @@ import { Router } from 'express';
 import { processUrl } from './process-url';
 import { addToReport } from './add-to-report';
 import { getReports } from './get-reports';
-import { db } from '../../db/db';
-import { capsuleArticles } from '../../../shared/db/schema/news-capsule';
-import { eq, desc } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
-import { FullRequest } from '../../middleware';
+import { deleteReport } from './delete-report';
+import { removeArticleFromReport } from './remove-article-from-report';
+import { getCapsueArticles } from './get-articles';
+import { deleteCapsuleArticle } from './delete-article';
 
 const router = Router();
 
@@ -16,62 +15,20 @@ router.post('/process-url', processUrl);
 // Add article(s) to a report
 router.post('/add-to-report', addToReport);
 
+// Remove article from report
+router.delete('/reports/:reportId/articles/:articleId', removeArticleFromReport);
+
+// Delete a report
+router.delete('/reports/:id', deleteReport);
+
 // Get all reports with their articles
 router.get('/reports', getReports);
 
 // Get all capsule articles for the current user
-router.get('/articles', async (req, res) => {
-  try {
-    const userId = (req as FullRequest).user.id;
-    const articles = await db
-      .select()
-      .from(capsuleArticles)
-      .where(eq(capsuleArticles.userId, userId))
-      .orderBy(desc(capsuleArticles.createdAt));
-    
-    // Filter out articles marked for deletion from processed articles view
-    const visibleArticles = articles.filter(article => !article.markedForDeletion);
-    
-    res.json(visibleArticles);
-  } catch (error) {
-    console.error('Error fetching capsule articles:', error);
-    res.status(500).json({ error: 'Failed to fetch articles' });
-  }
-});
+router.get('/articles', getCapsueArticles);
 
 // Delete a capsule article
-router.delete('/articles/:id', async (req, res) => {
-  try {
-    const userId = (req as FullRequest).user.id;
-    const articleId = req.params.id;
-    
-    // Verify the article belongs to the user before deleting
-    const existingArticle = await db
-      .select()
-      .from(capsuleArticles)
-      .where(eq(capsuleArticles.id, articleId))
-      .limit(1);
-    
-    if (existingArticle.length === 0) {
-      return res.status(404).json({ error: 'Article not found' });
-    }
-    
-    if (existingArticle[0].userId !== userId) {
-      return res.status(403).json({ error: 'Not authorized to delete this article' });
-    }
-    
-    // Always mark article as deleted for processing list but keep in database for reports
-    await db
-      .update(capsuleArticles)
-      .set({ markedForDeletion: true })
-      .where(eq(capsuleArticles.id, articleId));
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting capsule article:', error);
-    console.error('Error details:', error.message);
-    res.status(500).json({ error: 'Failed to delete article', details: error.message });
-  }
-});
+router.delete('/articles/:id', deleteCapsuleArticle);
+
 
 export { router as newsCapsuleRouter };

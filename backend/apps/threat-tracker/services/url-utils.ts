@@ -50,3 +50,40 @@ export function urlsMatch(url1: string, url2: string): boolean {
   const normalized2 = normalizeUrl(url2);
   return normalized1 === normalized2;
 }
+
+/**
+ * Calculate title similarity using Levenshtein distance
+ * Returns a value between 0 and 1, where 1 means identical titles
+ */
+export function titleSimilarity(title1: string, title2: string): number {
+  if (!title1 || !title2) return 0;
+  
+  // Normalize titles for comparison
+  const normalize = (str: string) => str.toLowerCase().trim().replace(/\s+/g, ' ');
+  const norm1 = normalize(title1);
+  const norm2 = normalize(title2);
+  
+  if (norm1 === norm2) return 1;
+  
+  // Calculate Levenshtein distance
+  const matrix = Array(norm2.length + 1).fill(null).map(() => Array(norm1.length + 1).fill(null));
+  
+  for (let i = 0; i <= norm1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= norm2.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= norm2.length; j++) {
+    for (let i = 1; i <= norm1.length; i++) {
+      const cost = norm1[i - 1] === norm2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j - 1][i] + 1,     // deletion
+        matrix[j][i - 1] + 1,     // insertion
+        matrix[j - 1][i - 1] + cost // substitution
+      );
+    }
+  }
+  
+  const distance = matrix[norm2.length][norm1.length];
+  const maxLength = Math.max(norm1.length, norm2.length);
+  
+  return maxLength === 0 ? 1 : (maxLength - distance) / maxLength;
+}

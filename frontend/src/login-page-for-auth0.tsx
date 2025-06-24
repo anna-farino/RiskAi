@@ -5,7 +5,14 @@ import { serverUrl } from "./utils/server-url";
 
 export default function LoginPageForAuth0() {
 
-  const { loginWithRedirect, logout, loginWithPopup, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
+  const { 
+    loginWithRedirect, 
+    logout, 
+    loginWithPopup, 
+    isAuthenticated, 
+    user, 
+    getAccessTokenSilently 
+  } = useAuth0()
 
   async function handleLogin() {
     await loginWithRedirect({
@@ -17,6 +24,7 @@ export default function LoginPageForAuth0() {
       },
     });
   };
+
   async function handleLogout() {
     await logout({
       logoutParams: {

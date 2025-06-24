@@ -24,7 +24,7 @@ export const keywords = pgTable("keywords", {
 
 export const articles = pgTable("articles", {
   id: uuid("id").defaultRandom().primaryKey(),
-  sourceId: uuid("source_id").references(() => sources.id),
+  sourceId: uuid("source_id").references(() => sources.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   content: text("content").notNull(),
   url: text("url").notNull(),
@@ -38,7 +38,7 @@ export const articles = pgTable("articles", {
 
 export const settings = pgTable("settings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  key: text("key").notNull().unique(),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
   userId: uuid("user_id").references(() => users.id),
@@ -81,7 +81,9 @@ export type Source = typeof sources.$inferSelect;
 export type InsertSource = z.infer<typeof insertSourceSchema>;
 export type Keyword = typeof keywords.$inferSelect;
 export type InsertKeyword = z.infer<typeof insertKeywordSchema>;
-export type Article = typeof articles.$inferSelect;
+export type Article = typeof articles.$inferSelect & {
+  sourceName?: string;
+};
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;

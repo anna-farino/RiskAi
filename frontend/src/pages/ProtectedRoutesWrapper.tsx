@@ -2,6 +2,7 @@ import { csfrHeader, csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LoadingScreen from "@/components/LoadingScreen";
 
 type Props = {
     children: React.ReactNode;
@@ -32,7 +33,7 @@ export default function ProtectedRoutesWrapper({ children }: Props) {
   }, [])
 
   if (!isAuthenticated) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
 
   return (

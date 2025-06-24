@@ -1,0 +1,1 @@
+ALTER TABLE "threat_settings" DROP CONSTRAINT "threat_settings_key_unique";

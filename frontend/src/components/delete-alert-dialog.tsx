@@ -49,6 +49,7 @@ export function DeleteAlertDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleAction}
+            className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
           >
             Continue
           </AlertDialogAction>
