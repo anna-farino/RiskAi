@@ -4,7 +4,7 @@ import { capsuleArticles } from "../../../shared/db/schema/news-capsule";
 import { openai } from "../../services/openai";
 import { FullRequest } from "../../middleware";
 import { log } from "../../utils/log";
-import { UnifiedScrapingService } from "../../services/scraping";
+import { UnifiedScrapingService } from "backend/services/scraping";
 
 const scrapingService = new UnifiedScrapingService();
 

@@ -1,4 +1,4 @@
-import { UnifiedScrapingService } from '../../../services/scraping';
+import { UnifiedScrapingService } from 'backend/services/scraping';
 import { analyzeContent } from './openai';
 
 // News Radar now uses unified scraping system directly
