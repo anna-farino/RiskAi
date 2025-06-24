@@ -516,37 +516,116 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
 }
 
 /**
- * Fallback content extraction when validation errors prevent normal evaluation
+ * AI-optimized content extraction when validation errors prevent normal evaluation
+ * Uses AI-detected selectors for better extraction under restrictions
  */
-async function extractContentWithFallback(page: Page): Promise<string> {
+async function extractContentWithAIFallback(page: Page, scrapingConfig?: any): Promise<string> {
   try {
-    log(`[PuppeteerScraper] Using fallback content extraction method`, "scraper");
+    log(`[PuppeteerScraper] Using AI-optimized fallback content extraction method`, "scraper");
     
     // Use basic DOM queries that are less likely to trigger validation
     const title = await page.title();
     const url = page.url();
     
-    // Try to get content using page.$eval which may bypass some validation
+    // Try to extract content using AI-detected selectors if available
     let content = '';
+    let author = '';
+    let date = '';
+    
+    if (scrapingConfig) {
+      try {
+        // Use AI-detected selectors with safer extraction methods
+        if (scrapingConfig.titleSelector) {
+          const titleEl = await page.$(scrapingConfig.titleSelector);
+          if (titleEl) {
+            const titleText = await titleEl.evaluate(el => el.textContent?.trim());
+            if (titleText) title = titleText;
+          }
+        }
+        
+        if (scrapingConfig.contentSelector) {
+          const contentEl = await page.$(scrapingConfig.contentSelector);
+          if (contentEl) {
+            const contentText = await contentEl.evaluate(el => el.textContent?.trim());
+            if (contentText) content = contentText;
+          }
+        }
+        
+        if (scrapingConfig.authorSelector) {
+          const authorEl = await page.$(scrapingConfig.authorSelector);
+          if (authorEl) {
+            const authorText = await authorEl.evaluate(el => el.textContent?.trim());
+            if (authorText) author = authorText;
+          }
+        }
+        
+        if (scrapingConfig.dateSelector) {
+          const dateEl = await page.$(scrapingConfig.dateSelector);
+          if (dateEl) {
+            const dateText = await dateEl.evaluate(el => el.getAttribute('datetime') || el.textContent?.trim());
+            if (dateText) date = dateText;
+          }
+        }
+        
+        log(`[PuppeteerScraper] AI-optimized extraction: title=${title.length} chars, content=${content.length} chars, author=${author.length} chars`, "scraper");
+        
+      } catch (selectorError: any) {
+        log(`[PuppeteerScraper] AI selector extraction failed, using basic fallback: ${selectorError.message}`, "scraper");
+      }
+    }
+    
+    // Fallback to basic extraction if AI selectors didn't work
+    if (!content) {
+      try {
+        content = await page.$eval('body', el => el.textContent?.trim() || '') || '';
+      } catch {
+        content = 'Content extraction restricted by validation system';
+      }
+    }
+    
+    return `<html><body>
+      <h1>${title}</h1>
+      ${author ? `<div class="author">${author}</div>` : ''}
+      ${date ? `<time datetime="${date}">${date}</time>` : ''}
+      <div class="content">${content.substring(0, 5000)}</div>
+      <div class="extraction-note">Content extracted using AI-optimized validation-safe method</div>
+    </body></html>`;
+    
+  } catch (error: any) {
+    log(`[PuppeteerScraper] AI-optimized fallback extraction failed: ${error.message}`, "scraper-error");
+    return await extractContentWithFallback(page);
+  }
+}
+
+/**
+ * Basic fallback content extraction when all other methods fail
+ */
+async function extractContentWithFallback(page: Page): Promise<string> {
+  try {
+    log(`[PuppeteerScraper] Using basic fallback content extraction method`, "scraper");
+    
+    const title = await page.title();
+    let content = '';
+    
     try {
       content = await page.$eval('body', el => el.textContent?.trim() || '') || '';
     } catch {
-      content = 'Content extraction restricted by validation system';
+      content = 'Content extraction severely restricted by validation system';
     }
     
-    log(`[PuppeteerScraper] Fallback extraction: title=${title.length} chars, content=${content.length} chars`, "scraper");
+    log(`[PuppeteerScraper] Basic fallback extraction: title=${title.length} chars, content=${content.length} chars`, "scraper");
     
     return `<html><body>
       <h1>${title}</h1>
       <div class="content">${content.substring(0, 5000)}</div>
-      <div class="extraction-note">Content extracted using validation-safe fallback method</div>
+      <div class="extraction-note">Content extracted using basic validation-safe fallback method</div>
     </body></html>`;
     
   } catch (error: any) {
-    log(`[PuppeteerScraper] Fallback extraction also failed: ${error.message}`, "scraper-error");
+    log(`[PuppeteerScraper] Basic fallback extraction also failed: ${error.message}`, "scraper-error");
     return `<html><body>
       <div class="content">Content extraction severely restricted by validation system</div>
-      <div class="error-note">Both primary and fallback extraction methods blocked</div>
+      <div class="error-note">All extraction methods blocked by validation</div>
     </body></html>`;
   }
 }

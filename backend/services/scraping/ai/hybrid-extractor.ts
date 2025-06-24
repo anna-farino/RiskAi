@@ -15,10 +15,13 @@ export interface HybridExtractionResult {
 
 /**
  * Cache for successful AI-detected selectors per domain
+ * Also includes article-level processing cache to prevent duplicates
  */
 class SelectorCache {
   private cache = new Map<string, { selectors: ScrapingConfig; timestamp: number; successes: number }>();
+  private articleProcessingCache = new Map<string, { timestamp: number; result: HybridExtractionResult }>();
   private readonly TTL = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly ARTICLE_CACHE_TTL = 60 * 60 * 1000; // 1 hour for article processing
   private readonly MIN_SUCCESSES = 1; // Cache after first successful extraction
 
   getDomain(url: string): string {
@@ -76,6 +79,37 @@ class SelectorCache {
     const cacheStatus = this.cache.get(domain);
     log(`[HybridExtractor] Updated cache for ${domain}: ${cacheStatus?.successes} successes, will_use_cache: ${(cacheStatus?.successes || 0) >= this.MIN_SUCCESSES}`, "scraper");
   }
+
+  // Article-level caching to prevent duplicate processing
+  getArticleCache(url: string): HybridExtractionResult | null {
+    const cached = this.articleProcessingCache.get(url);
+    if (!cached) return null;
+    
+    if (Date.now() - cached.timestamp > this.ARTICLE_CACHE_TTL) {
+      this.articleProcessingCache.delete(url);
+      return null;
+    }
+    
+    log(`[HybridExtractor] Using cached article result for ${url}`, "scraper");
+    return cached.result;
+  }
+
+  setArticleCache(url: string, result: HybridExtractionResult): void {
+    this.articleProcessingCache.set(url, {
+      timestamp: Date.now(),
+      result: { ...result }
+    });
+    log(`[HybridExtractor] Cached article result for ${url}`, "scraper");
+  }
+
+  clearExpiredArticleCache(): void {
+    const now = Date.now();
+    for (const [url, cached] of this.articleProcessingCache.entries()) {
+      if (now - cached.timestamp > this.ARTICLE_CACHE_TTL) {
+        this.articleProcessingCache.delete(url);
+      }
+    }
+  }
 }
 
 const selectorCache = new SelectorCache();
@@ -86,6 +120,12 @@ const selectorCache = new SelectorCache();
 export async function extractWithHybridAI(html: string, sourceUrl: string): Promise<HybridExtractionResult> {
   log(`[HybridExtractor] Starting hybrid extraction for ${sourceUrl}`, "scraper");
   
+  // Step 0: Check for cached article processing result first (prevents duplicates)
+  const cachedArticle = selectorCache.getArticleCache(sourceUrl);
+  if (cachedArticle) {
+    return cachedArticle;
+  }
+  
   // Step 1: Try cached selectors first
   const cachedSelectors = selectorCache.get(sourceUrl);
   if (cachedSelectors) {
@@ -95,11 +135,13 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
       if (result.confidence > 0.5) {
         selectorCache.set(sourceUrl, cachedSelectors, true);
         log(`[HybridExtractor] Cache hit successful with confidence ${result.confidence}`, "scraper");
-        return {
+        const cachedResult = {
           ...result,
           method: 'ai-selectors',
           selectors: cachedSelectors
         };
+        selectorCache.setArticleCache(sourceUrl, cachedResult);
+        return cachedResult;
       }
     } catch (error: any) {
       log(`[HybridExtractor] Cached selectors failed: ${error.message}`, "scraper");
@@ -117,11 +159,13 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
     // Cache selectors if they work at all (lowered threshold for immediate caching)
     if (result.confidence > 0.5) {
       selectorCache.set(sourceUrl, scrapingConfig, true);
-      return {
+      const aiResult = {
         ...result,
         method: 'ai-selectors',
         selectors: scrapingConfig
       };
+      selectorCache.setArticleCache(sourceUrl, aiResult);
+      return aiResult;
     }
     
     // If moderate success, still return but don't cache
@@ -166,11 +210,16 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
   };
   
   const fallbackResult = await extractWithSelectors(html, fallbackConfig);
-  return {
+  const finalResult = {
     ...fallbackResult,
     method: 'fallback',
     selectors: fallbackConfig
   };
+  
+  // Cache the final result to prevent duplicate processing
+  selectorCache.setArticleCache(sourceUrl, finalResult);
+  
+  return finalResult;
 }
 
 /**
