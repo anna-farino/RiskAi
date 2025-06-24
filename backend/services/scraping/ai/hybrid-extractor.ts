@@ -19,7 +19,7 @@ export interface HybridExtractionResult {
 class SelectorCache {
   private cache = new Map<string, { selectors: ScrapingConfig; timestamp: number; successes: number }>();
   private readonly TTL = 24 * 60 * 60 * 1000; // 24 hours
-  private readonly MIN_SUCCESSES = 3; // Require 3 successful extractions before caching
+  private readonly MIN_SUCCESSES = 1; // Cache after first successful extraction
 
   getDomain(url: string): string {
     try {
@@ -33,20 +33,25 @@ class SelectorCache {
     const domain = this.getDomain(url);
     const cached = this.cache.get(domain);
     
-    if (!cached) return null;
+    if (!cached) {
+      log(`[HybridExtractor] No cache found for ${domain}`, "scraper");
+      return null;
+    }
     
     // Check if cache is expired
     if (Date.now() - cached.timestamp > this.TTL) {
       this.cache.delete(domain);
+      log(`[HybridExtractor] Cache expired for ${domain}`, "scraper");
       return null;
     }
     
-    // Only return if it has proven successful multiple times
+    // Only return if it has proven successful
     if (cached.successes >= this.MIN_SUCCESSES) {
       log(`[HybridExtractor] Using cached selectors for ${domain} (${cached.successes} successes)`, "scraper");
       return cached.selectors;
     }
     
+    log(`[HybridExtractor] Cache exists for ${domain} but insufficient successes (${cached.successes}/${this.MIN_SUCCESSES})`, "scraper");
     return null;
   }
 
@@ -55,9 +60,11 @@ class SelectorCache {
     const existing = this.cache.get(domain);
     
     if (existing) {
-      existing.successes += successful ? 1 : -1;
+      existing.successes = successful ? existing.successes + 1 : Math.max(0, existing.successes - 1);
       existing.timestamp = Date.now();
-      existing.selectors = selectors; // Update with latest selectors
+      if (successful) {
+        existing.selectors = selectors;
+      }
     } else {
       this.cache.set(domain, {
         selectors,
@@ -66,7 +73,8 @@ class SelectorCache {
       });
     }
     
-    log(`[HybridExtractor] Updated cache for ${domain}: ${this.cache.get(domain)?.successes} successes`, "scraper");
+    const cacheStatus = this.cache.get(domain);
+    log(`[HybridExtractor] Updated cache for ${domain}: ${cacheStatus?.successes} successes, will_use_cache: ${(cacheStatus?.successes || 0) >= this.MIN_SUCCESSES}`, "scraper");
   }
 }
 
@@ -81,10 +89,12 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
   // Step 1: Try cached selectors first
   const cachedSelectors = selectorCache.get(sourceUrl);
   if (cachedSelectors) {
+    log(`[HybridExtractor] Found cached selectors for ${selectorCache.getDomain(sourceUrl)}`, "scraper");
     try {
       const result = await extractWithSelectors(html, cachedSelectors);
-      if (result.confidence > 0.6) {
+      if (result.confidence > 0.5) {
         selectorCache.set(sourceUrl, cachedSelectors, true);
+        log(`[HybridExtractor] Cache hit successful with confidence ${result.confidence}`, "scraper");
         return {
           ...result,
           method: 'ai-selectors',
@@ -104,8 +114,8 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
     
     const result = await extractWithSelectors(html, scrapingConfig);
     
-    // If AI selectors worked well, cache them
-    if (result.confidence > 0.7) {
+    // Cache selectors if they work at all (lowered threshold for immediate caching)
+    if (result.confidence > 0.5) {
       selectorCache.set(sourceUrl, scrapingConfig, true);
       return {
         ...result,
@@ -114,8 +124,8 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
       };
     }
     
-    // If moderate success, continue but don't cache yet
-    if (result.confidence > 0.4) {
+    // If moderate success, still return but don't cache
+    if (result.confidence > 0.3) {
       return {
         ...result,
         method: 'ai-selectors',

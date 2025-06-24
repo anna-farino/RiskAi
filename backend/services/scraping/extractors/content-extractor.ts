@@ -61,8 +61,14 @@ export async function extractPublishDateEnhanced(html: string, config?: Scraping
   try {
     log(`[ContentExtractor] Extracting publish date`, "scraper");
     
-    // Use Threat Tracker's enhanced date extraction
-    const publishDate = await extractPublishDate(html, config);
+    // Convert ScrapingConfig to the format expected by extractPublishDate
+    const htmlStructure = config ? {
+      date: config.dateSelector,
+      dateAlternatives: config.dateAlternatives || []
+    } : undefined;
+    
+    // Use Threat Tracker's enhanced date extraction with AI-detected selectors
+    const publishDate = await extractPublishDate(html, htmlStructure);
     
     if (publishDate) {
       log(`[ContentExtractor] Successfully extracted publish date: ${publishDate.toISOString()}`, "scraper");
@@ -288,7 +294,13 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
           // Extract date separately using enhanced method
           let publishDate: Date | null = null;
           try {
-            publishDate = await extractPublishDateEnhanced(html, config);
+            // Pass AI-detected selectors to date extraction for better results
+            const aiDateConfig = aiResult.selectors ? {
+              ...config,
+              dateSelector: aiResult.selectors.dateSelector,
+              dateAlternatives: aiResult.selectors.dateAlternatives || []
+            } : config;
+            publishDate = await extractPublishDateEnhanced(html, aiDateConfig);
           } catch (dateError) {
             log(`[ContentExtractor] AI extraction date parsing failed: ${dateError}`, "scraper");
           }
