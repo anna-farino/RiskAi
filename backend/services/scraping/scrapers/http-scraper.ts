@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { detectBotProtection, ProtectionInfo } from '../core/protection-bypass';
+import { detectProtection, ProtectionInfo } from '../core/protection-bypass';
 
 export interface HTTPScrapingOptions {
   maxRetries?: number;

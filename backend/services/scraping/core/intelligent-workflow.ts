@@ -1,6 +1,5 @@
 import { log } from "backend/utils/log";
-import { httpScraper } from '../scrapers/http-scraper';
-import { puppeteerScraper } from '../scrapers/puppeteer-scraper';
+import { scrapeUrl as hybridScrape } from '../scrapers/hybrid-scraper';
 import { extractWithHybridAI } from '../ai/hybrid-extractor';
 import { extractArticleContent } from '../extractors/content-extractor';
 import { detectProtection } from './protection-bypass';
@@ -110,7 +109,7 @@ export async function executeIntelligentWorkflow(url: string): Promise<Intellige
     log(`[IntelligentWorkflow] Step 1: Found cached selectors for domain`, "scraper");
     
     // Try HTTP scraping with cached selectors
-    const httpResult = await httpScraper.scrape(url);
+    const httpResult = await hybridScrape(url, { isArticlePage: true, scrapingConfig: cachedSelectors });
     if (httpResult.success) {
       const content = await extractArticleContent(httpResult.html, cachedSelectors, url);
       
@@ -130,7 +129,7 @@ export async function executeIntelligentWorkflow(url: string): Promise<Intellige
   
   // Step 2: HTTP scrape
   log(`[IntelligentWorkflow] Step 2: Performing HTTP scrape`, "scraper");
-  const httpResult = await httpScraper.scrape(url);
+  const httpResult = await hybridScrape(url, { isArticlePage: true });
   
   if (httpResult.success) {
     // Step 3a: HTTP Success → OpenAI analysis
@@ -204,9 +203,9 @@ async function executeAIAnalysisWorkflow(html: string, url: string, method: stri
  * Execute Puppeteer workflow when HTTP fails or protection is detected
  */
 async function executePuppeteerWorkflow(url: string): Promise<IntelligentWorkflowResult> {
-  const puppeteerResult = await puppeteerScraper.scrape(url, {
+  const puppeteerResult = await hybridScrape(url, {
     isArticlePage: true,
-    protectionBypass: true,
+    forcePuppeteer: true,
     waitForContent: true
   });
   

@@ -1,6 +1,5 @@
 import type { Page } from 'puppeteer';
 import { log } from "backend/utils/log";
-import * as cheerio from 'cheerio';
 
 export interface ProtectionInfo {
   detected: boolean;
@@ -70,71 +69,32 @@ export function detectProtection(html: string, url: string): ProtectionInfo {
     };
   }
 
-  // Incapsula detection
-  if (response?.headers.get("x-iinfo") ||
-      response?.headers.get("x-cdn") === "Incapsula" ||
-      html.includes("/_Incapsula_") ||
-      html.includes("window._icdt") ||
-      html.includes("_Incapsula_Resource")) {
-    log(`[ProtectionBypass] Imperva Incapsula protection detected`, "scraper");
-    return {
-      hasProtection: true,
-      type: "incapsula",
-      confidence: 0.9,
-      details: "Incapsula protection detected"
-    };
+  // Check for weak indicators only if content is very small
+  if (html.length < 5000) {
+    const weakSignatures = ['cloudflare', 'cf-ray', 'datadome', 'incapsula'];
+    if (weakSignatures.some(sig => htmlLower.includes(sig))) {
+      log(`[ProtectionBypass] Weak protection indicators with small content (${html.length} chars)`, "scraper");
+      return {
+        detected: true,
+        type: 'generic',
+        confidence: 0.6,
+        requiresPuppeteer: true
+      };
+    }
   }
+  
+  return {
+    detected: false,
+    type: 'none',
+    confidence: 0,
+    requiresPuppeteer: false
+  };
+}
 
-  // Cloudflare detection
-  if (response?.headers.get("server")?.toLowerCase().includes("cloudflare") ||
-      $('*:contains("Checking your browser")').length > 0 ||
-      $('*:contains("DDoS protection")').length > 0 ||
-      html.toLowerCase().includes("cloudflare") ||
-      $('*[class*="cf-"]').length > 0 ||
-      html.includes("CloudFlare")) {
-    log(`[ProtectionBypass] Cloudflare protection detected`, "scraper");
-    return {
-      hasProtection: true,
-      type: "cloudflare", 
-      confidence: 0.85,
-      details: "Cloudflare challenge or DDoS protection detected"
-    };
-  }
-
-  // Rate limiting detection
-  if (response?.status === 429 || response?.headers.get("retry-after")) {
-    log(`[ProtectionBypass] Rate limiting detected (Status: ${response?.status})`, "scraper");
-    return {
-      hasProtection: true,
-      type: "rate_limit",
-      confidence: 1.0,
-      details: "Rate limit detected"
-    };
-  }
-
-  // Cookie-based challenges
-  if (response?.headers.get("set-cookie")?.includes("challenge") ||
-      response?.headers.get("set-cookie")?.includes("verify")) {
-    log(`[ProtectionBypass] Cookie-based challenge detected`, "scraper");
-    return {
-      hasProtection: true,
-      type: "cookie_check",
-      confidence: 0.8,
-      details: "Cookie challenge detected"
-    };
-  }
-
-  // Generic CAPTCHA detection
-  if ($('*:contains("CAPTCHA")').length > 0 ||
-      $('*:contains("Are you a human")').length > 0 ||
-      $('*:contains("prove you are human")').length > 0 ||
-      $('iframe[src*="captcha"]').length > 0 ||
-      $('iframe[src*="recaptcha"]').length > 0 ||
-      html.includes("captcha") ||
-      html.includes("Captcha")) {
-    log(`[ProtectionBypass] CAPTCHA challenge detected`, "scraper");
-    return {
-      hasProtection: true,
+// Legacy function for backward compatibility
+export function detectBotProtection(html: string): ProtectionInfo {
+  return detectProtection(html, '');
+}
       type: "captcha",
       confidence: 0.9,
       details: "CAPTCHA challenge detected"
