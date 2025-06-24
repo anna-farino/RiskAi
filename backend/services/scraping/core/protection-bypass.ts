@@ -3,33 +3,70 @@ import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
 
 export interface ProtectionInfo {
-  hasProtection: boolean;
+  detected: boolean;
   type: 'datadome' | 'cloudflare' | 'incapsula' | 'captcha' | 'rate_limit' | 'cookie_check' | 'generic' | 'none';
   confidence: number;
-  details: string;
+  requiresPuppeteer: boolean;
 }
 
 /**
- * Detect bot protection systems from HTML content and response headers
- * Consolidates detection logic from News Radar, Threat Tracker, and News Capsule
+ * Intelligent protection detection - only flags actual blocking, not just presence
+ * Prevents false positives when substantial content is successfully retrieved
  */
-export function detectBotProtection(html: string, response?: Response): ProtectionInfo {
-  const $ = cheerio.load(html);
+export function detectProtection(html: string, url: string): ProtectionInfo {
+  const htmlLower = html.toLowerCase();
   log(`[ProtectionBypass] Analyzing response for bot protection`, "scraper");
 
-  // High-priority DataDome detection (returns 401 status)
-  if (response?.headers.get("x-datadome") || 
-      response?.headers.get("x-dd-b") ||
-      html.includes("captcha-delivery.com") ||
-      html.includes("datadome") ||
-      html.includes("Please enable JS and disable any ad blocker") ||
-      (response?.status === 401 && html.includes("geo.captcha-delivery.com"))) {
-    log(`[ProtectionBypass] DataDome protection detected`, "scraper");
+  // Only detect protection if content is clearly blocked (not just presence of protection headers)
+  // This prevents false positives when we successfully got valid content
+  
+  // Strong protection indicators (content is blocked)
+  const strongBlockingSignatures = [
+    'checking your browser',
+    'ddos protection by cloudflare',
+    'please wait while we check your browser',
+    'browser checking',
+    'blocked by datadome',
+    'our system thinks you might be a robot',
+    'blocked by incapsula',
+    'access denied',
+    'please verify you are human',
+    'security check',
+    'captcha-delivery.com'
+  ];
+  
+  // Check if we have substantial content (not a protection page)
+  const hasSubstantialContent = html.length > 10000 && (
+    htmlLower.includes('<article') ||
+    htmlLower.includes('<main') ||
+    htmlLower.includes('class="content') ||
+    htmlLower.includes('class="post') ||
+    htmlLower.includes('<p>') // Basic paragraph content
+  );
+  
+  // If we have substantial content, don't trigger protection detection
+  if (hasSubstantialContent) {
+    log(`[ProtectionBypass] Content appears substantial (${html.length} chars), skipping protection bypass`, "scraper");
     return {
-      hasProtection: true,
-      type: "datadome",
-      confidence: 0.95,
-      details: "DataDome protection detected - requires JavaScript challenge completion"
+      detected: false,
+      type: 'none',
+      confidence: 0,
+      requiresPuppeteer: false
+    };
+  }
+  
+  // Only flag protection if we see strong blocking indicators
+  if (strongBlockingSignatures.some(sig => htmlLower.includes(sig))) {
+    const protectionType = htmlLower.includes('cloudflare') ? 'cloudflare' :
+                          htmlLower.includes('datadome') ? 'datadome' :
+                          htmlLower.includes('incapsula') ? 'incapsula' : 'generic';
+    
+    log(`[ProtectionBypass] Strong protection blocking detected: ${protectionType}`, "scraper");
+    return {
+      detected: true,
+      type: protectionType,
+      confidence: 0.9,
+      requiresPuppeteer: true
     };
   }
 
