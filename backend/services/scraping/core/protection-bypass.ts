@@ -243,13 +243,13 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
         log(`[ProtectionBypass] Attempting generic protection bypass`, "scraper");
         
         // Wait for page to load completely
-        await page.waitForLoadState('networkidle');
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Perform human-like actions
         await page.mouse.move(100, 100);
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await page.mouse.move(200, 200);
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         log(`[ProtectionBypass] Generic protection bypass completed`, "scraper");
         return true;

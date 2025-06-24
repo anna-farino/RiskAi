@@ -131,11 +131,12 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Resolved core efficiency issues** identified in user log analysis showing 249K chars unnecessarily re-scraped
 - **Fixed AI extraction integration** - restored URL parameter passing resolving "AI extraction unavailable" errors
 - **Fixed protection over-detection** - prevents false Cloudflare flags when substantial content successfully retrieved
+- **Fixed lazy loading false positives** - substantial content (10K+ chars) skips dynamic detection, uses HTTP directly
 - **Implemented intelligent 6-step workflow**: Cache check → HTTP scrape → AI analysis → Extract → Cache → Process remaining
-- **Eliminated processing loops** - single workflow path replacing multiple extraction attempts and "desperate_fallbacks"
+- **Eliminated processing loops** - single workflow path replacing multiple extraction attempts and "desperate_fallbacks"  
 - **Enhanced protection detection** - only triggers Puppeteer on actual content blocking, not presence of protection headers
 - **Added domain-level selector caching** - prevents redundant OpenAI analysis between articles from same source
-- **System now achieves** HTTP-first efficiency, 0.9+ AI confidence vs 0.4 fallbacks, and intelligent resource management
+- **System now achieves** HTTP-first efficiency with 101K+ char content processed directly, eliminating unnecessary Puppeteer fallbacks
 
 ### June 24, 2025 - External Validation Error Filtering Implemented
 - **Implemented error classification system** to handle external validation false positives

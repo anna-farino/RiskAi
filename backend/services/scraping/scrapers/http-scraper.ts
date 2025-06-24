@@ -74,14 +74,30 @@ function addCookiesToHeaders(headers: Record<string, string>): Record<string, st
  * Consolidates detection logic from News Radar
  */
 export function detectRequiresPuppeteer(html: string, response: Response): boolean {
+  const htmlLower = html.toLowerCase();
+  
+  // Check if we have substantial content first - if so, don't require Puppeteer
+  const hasSubstantialContent = html.length > 10000 && (
+    htmlLower.includes('<article') ||
+    htmlLower.includes('<main') ||
+    htmlLower.includes('class="content') ||
+    htmlLower.includes('class="post') ||
+    htmlLower.includes('<p>') // Basic paragraph content
+  );
+  
+  if (hasSubstantialContent) {
+    log(`[HTTPScraper] Substantial content found (${html.length} chars), using HTTP content directly`, "scraper");
+    return false;
+  }
+
   // Check for bot protection first (highest priority)
-  const protection = detectProtection(html, response);
+  const protection = detectProtection(html, '');
   if (protection.detected) {
     log(`[HTTPScraper] Bot protection detected (${protection.type}): requires Puppeteer`, "scraper");
     return true;
   }
 
-  // Check for React app indicators
+  // Check for React app indicators (only if content is not substantial)
   const isReactApp = 
     html.includes('id="__next"') ||
     html.includes('data-reactroot') ||
@@ -96,42 +112,46 @@ export function detectRequiresPuppeteer(html: string, response: Response): boole
     return true;
   }
 
-  // Check for lazy loading patterns
-  const hasLazyLoad = 
-    html.includes('lazy-load') ||
-    html.includes('lazyload') ||
-    html.includes('loading="lazy"') ||
-    html.includes('data-src') ||
-    html.includes('infinite-scroll') ||
-    html.includes('ng-lazy') ||
-    html.includes('v-lazy') ||
-    html.includes('IntersectionObserver');
+  // Only check for lazy loading if content is small (less than 10K chars)
+  if (html.length < 10000) {
+    const hasLazyLoad = 
+      html.includes('lazy-load') ||
+      html.includes('lazyload') ||
+      html.includes('loading="lazy"') ||
+      html.includes('data-src') ||
+      html.includes('infinite-scroll') ||
+      html.includes('ng-lazy') ||
+      html.includes('v-lazy') ||
+      html.includes('IntersectionObserver');
 
-  if (hasLazyLoad) {
-    log(`[HTTPScraper] Lazy loading detected: requires Puppeteer`, "scraper");
-    return true;
+    if (hasLazyLoad) {
+      log(`[HTTPScraper] Lazy loading detected with small content (${html.length} chars): requires Puppeteer`, "scraper");
+      return true;
+    }
   }
 
-  // Check for HTMX patterns
-  const hasHtmx = 
-    html.includes('htmx.min.js') ||
-    html.includes('htmx.js') ||
-    html.includes('hx-get') ||
-    html.includes('hx-post') ||
-    html.includes('hx-trigger') ||
-    html.includes('hx-target') ||
-    html.includes('hx-swap');
+  // Check for HTMX patterns (only if content is small)
+  if (html.length < 10000) {
+    const hasHtmx = 
+      html.includes('htmx.min.js') ||
+      html.includes('htmx.js') ||
+      html.includes('hx-get') ||
+      html.includes('hx-post') ||
+      html.includes('hx-trigger') ||
+      html.includes('hx-target') ||
+      html.includes('hx-swap');
 
-  if (hasHtmx) {
-    log(`[HTTPScraper] HTMX detected: requires Puppeteer`, "scraper");
-    return true;
-  }
+    if (hasHtmx) {
+      log(`[HTTPScraper] HTMX detected with small content (${html.length} chars): requires Puppeteer`, "scraper");
+      return true;
+    }
 
-  // Check for insufficient content (likely dynamic)
-  const linkCount = (html.match(/<a[^>]+href/gi) || []).length;
-  if (linkCount < 10) {
-    log(`[HTTPScraper] Insufficient links detected (${linkCount}): likely requires Puppeteer`, "scraper");
-    return true;
+    // Check for insufficient content (likely dynamic) - only for small content
+    const linkCount = (html.match(/<a[^>]+href/gi) || []).length;
+    if (linkCount < 10) {
+      log(`[HTTPScraper] Insufficient links detected (${linkCount}) with small content: likely requires Puppeteer`, "scraper");
+      return true;
+    }
   }
 
   return false;
@@ -268,7 +288,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
         log(`[HTTPScraper] Retrieved ${html.length} characters of HTML`, "scraper");
 
         // Check for bot protection in content
-        protectionInfo = detectProtection(html, response);
+        protectionInfo = detectProtection(html, url);
         if (protectionInfo.detected) {
           log(`[HTTPScraper] Bot protection detected: ${protectionInfo.type}`, "scraper");
           return {
@@ -295,7 +315,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
               detected: true,
               type: 'generic',
               confidence: 0.7,
-              requiresPuppeteer: 'Dynamic content requires JavaScript execution'
+              requiresPuppeteer: true
             },
             statusCode: response.status,
             finalUrl: response.url
