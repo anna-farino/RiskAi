@@ -25,9 +25,10 @@ export const router = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <ProtectedRoutesWrapper>
+    element: 
+      <Auth0ProviderWithNavigate>
         <DashboardLayout/>
-      </ProtectedRoutesWrapper>,
+      </Auth0ProviderWithNavigate>,
     hydrateFallbackElement: <LoadingScreen />,
     children: dashboardChildren 
   },

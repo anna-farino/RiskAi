@@ -14,8 +14,10 @@ import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'bac
 import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
-import { auth0 } from 'backend/middleware/auth0';
 //import { auth, requiresAuth } from 'express-openid-connect';
+import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
+import sendGrid from 'backend/utils/sendGrid';
+import { auth0CheckJwt } from 'backend/middleware/auth0';
 
 const config = {
   authRequired: false,
@@ -26,26 +28,14 @@ const config = {
   secret: 'LONG_RANDOM_STRING'
 };
 
-// The `auth` router attaches /login, /logout
-// and /callback routes to the baseURL
-import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
-import sendGrid from 'backend/utils/sendGrid';
-
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 //router.use(auth(config));
 router.get('/auth0test', 
-  auth0, 
+  auth0CheckJwt, 
   (req, res) => {
   res.json({ loggedIn: true })
 })
-//router.get('/auth0test', 
-//  //requiresAuth(), 
-//  (req, res) => {
-//  console.log("SUCCESS!")
-//  res.json({ loggedIn: req.oidc.isAuthenticated() })
-//  //res.json({ result: "success!" })
-//})
 
 // HELLO WORLD route
 //router.get('/test', limiter, handleTest)
@@ -55,6 +45,7 @@ router.get('/auth0test',
 router.use('/auth', limiter, authRouter)
 
 // PROTECTIONS
+router.use(auth0CheckJwt)
 router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 //router.use(verifyToken)

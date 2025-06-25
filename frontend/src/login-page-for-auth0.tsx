@@ -4,7 +4,6 @@ import { serverUrl } from "./utils/server-url";
 
 
 export default function LoginPageForAuth0() {
-
   const { 
     loginWithRedirect, 
     logout, 
@@ -43,22 +42,11 @@ export default function LoginPageForAuth0() {
         accessToken = await getAccessTokenSilently({
           authorizationParams: {
             audience: 'http://localhost:5002',
-            //scope: 'read:settings write:settings'
           }
         })
       } catch(error) {
         console.error((error as any).message.toString())
-        if (false && (error as any).message.toString() === "Consent required") {
-          loginWithPopup({
-            authorizationParams: {
-              audience: 'http://localhost:5002',
-              scope: 'read:settings write:settings',
-              prompt: "consent", // Explicitly request consent
-            },
-          });
-        }
       }
-      //console.log("accessToken", accessToken)
       const response = await fetch(serverUrl + '/api/auth0test', {
         method: 'GET',
         headers: {
