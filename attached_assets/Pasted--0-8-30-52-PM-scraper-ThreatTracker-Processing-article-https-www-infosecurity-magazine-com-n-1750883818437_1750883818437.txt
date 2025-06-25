@@ -1,0 +1,155 @@
+[0] 8:30:52 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:52 PM [scraper] [UnifiedScraper] Starting article scraping: https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:52 PM [scraper] [UnifiedScraper] Attempting HTTP scrape
+[0] 8:30:52 PM [scraper] [HybridScraper] Starting streamlined scraping for: https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:52 PM [scraper] [HybridScraper] Method: http, Source: false, Article: true
+[0] 8:30:52 PM [scraper] [HybridScraper] Using forced method for workflow step: http
+[0] 8:30:52 PM [scraper] [HybridScraper] Executing HTTP scraping
+[0] 8:30:52 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:52 PM [scraper] [HTTPScraper] Attempt 1/5
+[0] 8:30:52 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:30:52 PM [scraper] [HTTPScraper] Retrieved 101264 characters of HTML
+[0] 8:30:52 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:30:53 PM [scraper] [ProtectionBypass] No bot protection detected
+[0] 8:30:53 PM [scraper] [HTTPScraper] Successfully retrieved content (101264 chars)
+[0] 8:30:53 PM [scraper] [HybridScraper] Scraping completed in 169ms using http
+[0] 8:30:53 PM [scraper] [HybridScraper] Success: true, Content length: 101264
+[0] 8:30:53 PM [scraper] [UnifiedScraper] HTTP scrape successful (101264 chars)
+[0] 8:30:53 PM [scraper] [UnifiedScraper] Extracting article content
+[0] 8:30:53 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:30:53 PM [scraper] [ContentExtractor] Attempting AI extraction
+[0] 8:30:53 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:53 PM [scraper] [HybridExtractor] No cache found for infosecurity-magazine.com
+[0] 8:30:53 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 8:30:53 PM [scraper] [AIStructureDetector] Truncating HTML from 60033 to 45000 chars
+[0] 8:30:53 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/ (45037 chars)
+[0] 8:30:55 PM [scraper] [AIStructureDetector] Structure detected with confidence 0.95
+[0] 8:30:55 PM [scraper] [HybridExtractor] Updated cache for infosecurity-magazine.com: 1 successes, will_use_cache: true
+[0] 8:30:55 PM [scraper] [HybridExtractor] Cached article result for https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:55 PM [scraper] [ContentExtractor] AI extraction successful (confidence: 1)
+[0] 8:30:55 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:30:55 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:30:55 PM [date-extractor] [DateExtractor] Found date in meta tag "meta[property="article:published_time"]": 2025-06-23T10:30:00
+[0] 8:30:55 PM [scraper] [ContentExtractor] Successfully extracted publish date: 2025-06-23T10:30:00.000Z
+[0] 8:30:55 PM [scraper] [UnifiedScraper] Extracted article content (title=59 chars, content=3349 chars)
+[0] 8:30:56 PM [scraper] [ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: https://www.infosecurity-magazine.com/news/cyber-essentials-breaks-quarterly/
+[0] 8:30:56 PM [scraper] [ThreatTracker] Valid threats: 0, Valid vendors: 0, Valid clients: 1, Valid hardware: 0
+[0] 8:30:56 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/chinese-lapdogs-orb-network/
+[0] 8:30:57 PM [scraper] [ThreatTracker] Article already exists for this user: https://www.infosecurity-magazine.com/news/chinese-lapdogs-orb-network
+[0] 8:30:57 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/hackers-financial-businesses-africa/
+[0] 8:30:57 PM [scraper] [ThreatTracker] Article already exists for this user: https://www.infosecurity-magazine.com/news/hackers-financial-businesses-africa
+[0] 8:30:57 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/microsoft-noauth-flaw-2025/
+[0] 8:30:57 PM [scraper] [ThreatTracker] Article already exists for this user: https://www.infosecurity-magazine.com/news/microsoft-noauth-flaw-2025
+[0] 8:30:57 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/sap-gui-vulnerable-weak-encryption/
+[0] 8:30:57 PM [scraper] [ThreatTracker] Article already exists for this user: https://www.infosecurity-magazine.com/news/sap-gui-vulnerable-weak-encryption
+[0] 8:30:57 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:57 PM [scraper] [UnifiedScraper] Starting article scraping: https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:57 PM [scraper] [UnifiedScraper] Attempting HTTP scrape
+[0] 8:30:57 PM [scraper] [HybridScraper] Starting streamlined scraping for: https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:57 PM [scraper] [HybridScraper] Method: http, Source: false, Article: true
+[0] 8:30:57 PM [scraper] [HybridScraper] Using forced method for workflow step: http
+[0] 8:30:57 PM [scraper] [HybridScraper] Executing HTTP scraping
+[0] 8:30:57 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:57 PM [scraper] [HTTPScraper] Attempt 1/5
+[0] 8:30:57 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:30:57 PM [scraper] [HTTPScraper] Retrieved 102624 characters of HTML
+[0] 8:30:57 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:30:57 PM [scraper] [ProtectionBypass] No bot protection detected
+[0] 8:30:57 PM [scraper] [HTTPScraper] Successfully retrieved content (102624 chars)
+[0] 8:30:57 PM [scraper] [HybridScraper] Scraping completed in 226ms using http
+[0] 8:30:57 PM [scraper] [HybridScraper] Success: true, Content length: 102624
+[0] 8:30:57 PM [scraper] [UnifiedScraper] HTTP scrape successful (102624 chars)
+[0] 8:30:57 PM [scraper] [UnifiedScraper] Extracting article content
+[0] 8:30:57 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:30:57 PM [scraper] [ContentExtractor] Attempting AI extraction
+[0] 8:30:57 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:57 PM [scraper] [HybridExtractor] Using cached selectors for infosecurity-magazine.com (1 successes)
+[0] 8:30:57 PM [scraper] [HybridExtractor] Found cached selectors for infosecurity-magazine.com
+[0] 8:30:57 PM [scraper] [HybridExtractor] Updated cache for infosecurity-magazine.com: 2 successes, will_use_cache: true
+[0] 8:30:57 PM [scraper] [HybridExtractor] Cache hit successful with confidence 1
+[0] 8:30:57 PM [scraper] [HybridExtractor] Cached article result for https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:57 PM [scraper] [ContentExtractor] AI extraction successful (confidence: 1)
+[0] 8:30:57 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:30:57 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:30:57 PM [date-extractor] [DateExtractor] Found date in meta tag "meta[property="article:published_time"]": 2025-06-25T10:15:00
+[0] 8:30:57 PM [scraper] [ContentExtractor] Successfully extracted publish date: 2025-06-25T10:15:00.000Z
+[0] 8:30:57 PM [scraper] [UnifiedScraper] Extracted article content (title=70 chars, content=3646 chars)
+[0] 8:30:59 PM [scraper] [ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: https://www.infosecurity-magazine.com/news/common-good-cyber-non-profit/
+[0] 8:30:59 PM [scraper] [ThreatTracker] Valid threats: 0, Valid vendors: 0, Valid clients: 1, Valid hardware: 0
+[0] 8:30:59 PM [scraper] [ThreatTracker] Processing article: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:30:59 PM [scraper] [UnifiedScraper] Starting article scraping: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:30:59 PM [scraper] [UnifiedScraper] Attempting HTTP scrape
+[0] 8:30:59 PM [scraper] [HybridScraper] Starting streamlined scraping for: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:30:59 PM [scraper] [HybridScraper] Method: http, Source: false, Article: true
+[0] 8:30:59 PM [scraper] [HybridScraper] Using forced method for workflow step: http
+[0] 8:30:59 PM [scraper] [HybridScraper] Executing HTTP scraping
+[0] 8:30:59 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:30:59 PM [scraper] [HTTPScraper] Attempt 1/5
+[0] 8:30:59 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:30:59 PM [scraper] [HTTPScraper] Retrieved 100572 characters of HTML
+[0] 8:30:59 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:30:59 PM [scraper] [ProtectionBypass] Cloudflare protection detected
+[0] 8:30:59 PM [scraper] [HTTPScraper] Successfully retrieved content (100572 chars)
+[0] 8:30:59 PM [scraper] [HybridScraper] Scraping completed in 179ms using http
+[0] 8:30:59 PM [scraper] [HybridScraper] Success: true, Content length: 100572
+[0] 8:30:59 PM [scraper] [UnifiedScraper] HTTP scrape successful (100572 chars)
+[0] 8:30:59 PM [scraper] [UnifiedScraper] Using Puppeteer fallback
+[0] 8:30:59 PM [scraper] [HybridScraper] Starting streamlined scraping for: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:30:59 PM [scraper] [HybridScraper] Method: puppeteer, Source: false, Article: true
+[0] 8:30:59 PM [scraper] [HybridScraper] Using forced method for workflow step: puppeteer
+[0] 8:30:59 PM [scraper] [HybridScraper] Executing Puppeteer scraping
+[0] 8:30:59 PM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:30:59 PM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 8:30:59 PM [scraper] [BrowserManager][createPage] Created new page
+[0] 8:30:59 PM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 8:30:59 PM [scraper] [PageSetup][setupPage] Set user agent
+[0] 8:30:59 PM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 8:30:59 PM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 8:30:59 PM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 8:30:59 PM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 8:30:59 PM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 8:31:01 PM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] 8:31:03 PM [scraper] [PuppeteerScraper] Bot protection detected, attempting bypass
+[0] 8:31:03 PM [scraper] [ProtectionBypass] Attempting to bypass generic protection
+[0] 8:31:03 PM [scraper] [ProtectionBypass] Generic protection detected - performing standard bypass
+[0] 8:31:03 PM [scraper] [ProtectionBypass] Performing human-like actions for bot evasion
+[0] 8:31:07 PM [scraper] [ProtectionBypass] Human-like actions completed
+[0] 8:31:07 PM [scraper] [PuppeteerScraper] Protection bypass successful
+[0] 8:31:10 PM [scraper] [PuppeteerScraper] Extracting article content
+[0] 8:31:10 PM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 8:31:10 PM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] [28092] GET /articles
+[0] Filter parameters: {}
+[0] 8:31:11 PM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] Received filtered articles: 127
+[0] Filtered articles: 127
+[0] 8:31:13 PM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 8:31:14 PM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] 8:31:17 PM [scraper] [PuppeteerScraper] External validation warning filtered: __name is not defined
+[0] 8:31:17 PM [scraper] [PuppeteerScraper] Content extraction blocked by validation, using fallback method
+[0] 8:31:17 PM [scraper] [PuppeteerScraper] Using basic fallback content extraction method
+[0] 8:31:17 PM [scraper] [PuppeteerScraper] Basic fallback extraction: title=89 chars, content=18679 chars
+[0] 8:31:17 PM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 8:31:17 PM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 8:31:17 PM [scraper] [HybridScraper] Scraping completed in 18327ms using puppeteer
+[0] 8:31:17 PM [scraper] [HybridScraper] Success: true, Content length: 5273
+[0] 8:31:17 PM [scraper] [UnifiedScraper] Puppeteer fallback successful (5273 chars)
+[0] 8:31:17 PM [scraper] [UnifiedScraper] Extracting article content
+[0] 8:31:17 PM [scraper] [ContentExtractor] Starting content extraction
+[0] 8:31:17 PM [scraper] [ContentExtractor] Attempting AI extraction
+[0] 8:31:17 PM [scraper] [HybridExtractor] Starting hybrid extraction for https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:31:17 PM [scraper] [HybridExtractor] Using cached selectors for infosecurity-magazine.com (2 successes)
+[0] 8:31:17 PM [scraper] [HybridExtractor] Found cached selectors for infosecurity-magazine.com
+[0] 8:31:17 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 8:31:17 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/ (5247 chars)
+[0] 8:31:21 PM [scraper] [AIStructureDetector] Structure detected with confidence 0.9
+[0] 8:31:21 PM [scraper] [HybridExtractor] Updated cache for infosecurity-magazine.com: 3 successes, will_use_cache: true
+[0] 8:31:21 PM [scraper] [HybridExtractor] Cached article result for https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:31:21 PM [scraper] [ContentExtractor] AI extraction successful (confidence: 0.9000000000000001)
+[0] 8:31:21 PM [scraper] [ContentExtractor] Extracting publish date
+[0] 8:31:21 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 8:31:21 PM [date-extractor] [DateExtractor] No valid date found in article
+[0] 8:31:21 PM [scraper] [ContentExtractor] Could not extract publish date, will use null
+[0] 8:31:21 PM [scraper] [UnifiedScraper] Extracted article content (title=89 chars, content=961 chars)
+[0] 8:31:26 PM [scraper] [ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: https://www.infosecurity-magazine.com/news/rogue-wordpress-plugin-skim-credit/
+[0] 8:31:26 PM [scraper] [ThreatTracker] Valid threats: 0, Valid vendors: 0, Valid clients: 0, Valid hardware: 0
