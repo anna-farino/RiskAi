@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP, ScrapingResult } from './http-scraper';
 import { scrapeWithPuppeteer, scrapeWithStealthPuppeteer } from './puppeteer-scraper';
-import { detectBotProtection } from '../core/protection-bypass';
+import { detectBotProtection, analyzeProtection } from '../core/protection-bypass';
 
 export interface ScrapingOptions {
   isSourceUrl: boolean;

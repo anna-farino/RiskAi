@@ -127,15 +127,15 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### June 24, 2025 - AI-Powered Content Extraction System Optimization Complete
-- **Successfully restored OpenAI structure detection** lost during unified scraping migration
-- **Implemented 4-phase optimization plan** addressing all identified performance issues
-- **Phase 1 - Caching System**: Reduced MIN_SUCCESSES to 1 for immediate selector caching
-- **Phase 2 - AI Integration**: Connected AI-detected selectors to date extraction system
-- **Phase 3 - Duplicate Elimination**: Added article-level caching preventing redundant processing
-- **Phase 4 - Validation Optimization**: Enhanced fallback extraction using AI selectors under restrictions
-- **Achieved performance targets**: 60-80% API call reduction, 90%+ date extraction, 5-10x speed improvement
-- **System now operates** with 0.9+ confidence, full metadata extraction, and intelligent resource optimization
+### June 25, 2025 - Workflow Refactoring and Optimization Complete
+- **Eliminated redundant processing loops** identified in user log analysis
+- **Fixed AI extraction unavailable issue** by properly passing URL parameters to content extraction
+- **Enhanced protection detection** to preserve usable HTML content despite Cloudflare headers
+- **Implemented cache-first workflow strategy** checking selectors before determining scraping method
+- **Integrated selector cache** with hybrid scraper for intelligent HTTP vs Puppeteer decisions
+- **Optimized batch processing** to establish selectors once per domain, reuse for subsequent articles
+- **Achieved targeted workflow**: Only use Puppeteer when HTTP genuinely fails, not when protection detected but content usable
+- **System now follows** efficient 5-step workflow: cache check → HTTP scrape → AI analysis → selector storage → batch processing
 
 ### June 24, 2025 - External Validation Error Filtering Implemented
 - **Implemented error classification system** to handle external validation false positives

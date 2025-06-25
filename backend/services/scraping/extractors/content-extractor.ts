@@ -270,7 +270,7 @@ function handlePreProcessedContent(html: string): ArticleContent | null {
 
 /**
  * Main content extraction function with AI-powered extraction and traditional fallbacks
- * Now integrates OpenAI structure detection as primary method
+ * Enhanced with proper URL parameter support for workflow optimization
  */
 export async function extractArticleContent(html: string, config: ScrapingConfig, sourceUrl?: string): Promise<ArticleContent> {
   try {
