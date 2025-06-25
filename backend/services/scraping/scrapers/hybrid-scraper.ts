@@ -87,77 +87,7 @@ async function determineScrapingMethod(url: string, options?: ScrapingOptions): 
       
 
         if (options.appContext === 'threat-tracker' || 
-            (lastResult && lastResult.protectionDetected?.confidence && lastResult.protectionDetected.confidence > 0.8)) {
-          log(`[HybridScraper] Using enhanced stealth Puppeteer`, "scraper");
-          result = await scrapeWithStealthPuppeteer(url, {
-            isArticlePage: options.isArticlePage,
-            scrapingConfig: options.scrapingConfig,
-            customHeaders: options.customHeaders,
-            timeout: options.timeout || 60000
-          });
-        } else {
-          result = await scrapeWithPuppeteer(url, {
-            isArticlePage: options.isArticlePage,
-            handleHTMX: true,
-            scrollToLoad: !options.isArticlePage,
-            protectionBypass: true,
-            scrapingConfig: options.scrapingConfig,
-            customHeaders: options.customHeaders,
-            timeout: options.timeout || 60000
-          });
-        }
-      }
 
-      // Check if this attempt was successful
-      if (result.success) {
-        log(`[HybridScraper] Scraping successful with ${result.method} on attempt ${attempt}`, "scraper");
-        return result;
-      }
-
-      lastResult = result;
-      log(`[HybridScraper] Attempt ${attempt} failed with ${result.method}`, "scraper");
-
-      // Add delay before retry (except for last attempt)
-      if (attempt < maxRetries) {
-        const retryDelay = Math.min(1000 * attempt, 5000);
-        log(`[HybridScraper] Waiting ${retryDelay}ms before retry`, "scraper");
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
-
-    } catch (error: any) {
-      log(`[HybridScraper] Attempt ${attempt} threw error: ${error.message}`, "scraper-error");
-      
-      if (attempt === maxRetries) {
-        return {
-          html: '',
-          success: false,
-          method: 'http',
-          responseTime: 0,
-          statusCode: 0,
-          finalUrl: url
-        };
-      }
-    }
-  }
-
-  // All attempts failed
-  log(`[HybridScraper] All ${maxRetries} attempts failed`, "scraper-error");
-  return lastResult || {
-    html: '',
-    success: false,
-    method: 'http',
-    responseTime: 0,
-    statusCode: 0,
-    finalUrl: url
-  };
-}
-
-/**
- * Main unified scraping function
- * Entry point for all scraping operations across all apps
- */
-export async function scrapeUrl(url: string, options: ScrapingOptions): Promise<ScrapingResult> {
-  const startTime = Date.now();
   
   try {
     log(`[HybridScraper] Starting streamlined scraping for: ${url}`, "scraper");
