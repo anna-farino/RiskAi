@@ -1,6 +1,6 @@
 import { log } from "backend/utils/log";
 import { scrapeUrl as hybridScrape, ScrapingOptions } from './scrapers/hybrid-scraper';
-import { extractArticleLinks } from './extractors/link-extractor';
+import { extractArticleLinks, LinkExtractionOptions } from './extractors/link-extractor';
 import { extractArticleContent, extractWithFallbacks, ArticleContent } from './extractors/content-extractor';
 import { detectHtmlStructureWithFallbacks, ScrapingConfig } from './extractors/structure-detector';
 import { BrowserManager } from './core/browser-manager';
@@ -36,92 +36,153 @@ export interface BatchProgress {
 export class UnifiedScrapingService {
   
   /**
-   * Scrape a source URL to extract article links
-   * Used by News Radar and Threat Tracker for discovering articles
+   * Streamlined source scraping following 11-step workflow
+   * Steps 1-4: Load source, quick DOM scrape, bot protection if needed, OpenAI link extraction
    */
   async scrapeSourceUrl(url: string, options?: SourceScrapingOptions): Promise<string[]> {
     try {
-      log(`[UnifiedScraper] Scraping source URL for article links: ${url}`, "scraper");
+      log(`[UnifiedScraper] Starting streamlined source scraping: ${url}`, "scraper");
 
-      // Configure scraping options for source page
-      const scrapingOptions: ScrapingOptions = {
-        isSourceUrl: true,
-        isArticlePage: false,
-        appContext: options?.appType,
-        retryAttempts: 3
-      };
-
-      // Scrape the source page HTML
-      const result = await hybridScrape(url, scrapingOptions);
+      // Step 1: Load source page
+      log(`[UnifiedScraper] Step 1: Loading source page`, "scraper");
       
-      if (!result.success) {
-        throw new Error(`Failed to scrape source URL: ${result.statusCode || 'Unknown error'}`);
+      // Step 2: Try quick DOM scrape first
+      log(`[UnifiedScraper] Step 2: Attempting quick DOM scrape`, "scraper");
+      let html = '';
+      let needsBotProtectionBypass = false;
+      
+      try {
+        const quickResult = await hybridScrape(url, {
+          isSourceUrl: true,
+          isArticlePage: false,
+          forceMethod: 'http',
+          timeout: 30000
+        });
+        
+        if (quickResult.success) {
+          html = quickResult.html;
+          log(`[UnifiedScraper] Step 2: Quick DOM scrape successful (${html.length} chars)`, "scraper");
+        } else {
+          needsBotProtectionBypass = true;
+        }
+      } catch (error) {
+        needsBotProtectionBypass = true;
+        log(`[UnifiedScraper] Step 2: Quick scrape failed, will need bot protection bypass`, "scraper");
       }
 
-      log(`[UnifiedScraper] Successfully scraped source HTML (${result.html.length} chars)`, "scraper");
-
-      // Extract article links from the HTML
-      const articleLinks = await extractArticleLinks(
-        result.html,
-        url,
-        {
-          aiContext: options?.aiContext,
-          includePatterns: options?.includePatterns,
-          excludePatterns: options?.excludePatterns,
-          maxLinks: options?.maxLinks
+      // Step 3: Bot protection bypass if needed
+      if (needsBotProtectionBypass) {
+        log(`[UnifiedScraper] Step 3: Bot protection detected, bypassing with Puppeteer`, "scraper");
+        const protectedResult = await hybridScrape(url, {
+          isSourceUrl: true,
+          isArticlePage: false,
+          forceMethod: 'puppeteer',
+          appContext: options?.appType,
+          timeout: 60000
+        });
+        
+        if (!protectedResult.success) {
+          throw new Error(`Failed to bypass bot protection for: ${url}`);
         }
-      );
+        html = protectedResult.html;
+        log(`[UnifiedScraper] Step 3: Bot protection bypassed successfully (${html.length} chars)`, "scraper");
+      }
 
-      log(`[UnifiedScraper] Extracted ${articleLinks.length} article links from source`, "scraper");
+      // Step 4: Send HTML to OpenAI for link extraction
+      log(`[UnifiedScraper] Step 4: Sending HTML to OpenAI for link extraction`, "scraper");
+      const extractionOptions: LinkExtractionOptions = {
+        includePatterns: options?.includePatterns,
+        excludePatterns: options?.excludePatterns,
+        aiContext: options?.aiContext,
+        maxLinks: options?.maxLinks || 50,
+        minimumTextLength: 20
+      };
+
+      const articleLinks = await extractArticleLinks(html, url, extractionOptions);
+      
+      log(`[UnifiedScraper] Steps 1-4 complete: Extracted ${articleLinks.length} article links`, "scraper");
       return articleLinks;
 
     } catch (error: any) {
-      log(`[UnifiedScraper] Error scraping source URL: ${error.message}`, "scraper-error");
-      throw new Error(`Failed to scrape source URL: ${error.message}`);
+      log(`[UnifiedScraper] Error in streamlined source scraping: ${error.message}`, "scraper-error");
+      throw error;
     }
   }
 
   /**
-   * Scrape an individual article URL to extract structured content
-   * Used by all three apps for processing individual articles
+   * Streamlined article scraping following 11-step workflow  
+   * Steps 5-11: Follow article link, quick scrape, HTML selector detection, element extraction
    */
   async scrapeArticleUrl(url: string, config?: ScrapingConfig): Promise<ArticleContent> {
     try {
-      log(`[UnifiedScraper] Scraping article URL: ${url}`, "scraper");
+      log(`[UnifiedScraper] Starting streamlined article scraping: ${url}`, "scraper");
 
-      // Configure scraping options for article page
-      const scrapingOptions: ScrapingOptions = {
-        isSourceUrl: false,
-        isArticlePage: true,
-        scrapingConfig: config,
-        retryAttempts: 3
-      };
+      // Step 5: Follow first link to article page (already done by caller)
+      log(`[UnifiedScraper] Step 5: Following article link: ${url}`, "scraper");
 
-      // Scrape the article page HTML
-      const result = await hybridScrape(url, scrapingOptions);
+      // Step 6: Try quick scrape of DOM
+      log(`[UnifiedScraper] Step 6: Attempting quick DOM scrape of article`, "scraper");
+      let html = '';
+      let scrapingSuccessful = false;
       
-      if (!result.success) {
-        throw new Error(`Failed to scrape article URL: ${result.statusCode || 'Unknown error'}`);
+      try {
+        const quickResult = await hybridScrape(url, {
+          isSourceUrl: false,
+          isArticlePage: true,
+          forceMethod: 'http',
+          timeout: 30000
+        });
+        
+        if (quickResult.success) {
+          html = quickResult.html;
+          scrapingSuccessful = true;
+          log(`[UnifiedScraper] Step 6: Quick DOM scrape successful (${html.length} chars)`, "scraper");
+        }
+      } catch (error) {
+        log(`[UnifiedScraper] Step 6: Quick scrape failed`, "scraper");
       }
 
-      log(`[UnifiedScraper] Successfully scraped article HTML (${result.html.length} chars)`, "scraper");
-
-      // If no config provided, detect structure
+      // Step 7 & 8: HTML selector detection (with or without bot protection bypass)
       let articleConfig = config;
-      if (!articleConfig) {
-        log(`[UnifiedScraper] No scraping config provided, detecting HTML structure`, "scraper");
-        articleConfig = await this.detectArticleStructure(url, result.html);
+      
+      if (scrapingSuccessful) {
+        // Step 7: Successful scrape - send HTML to OpenAI for selector detection
+        log(`[UnifiedScraper] Step 7: Sending HTML to OpenAI for selector detection`, "scraper");
+        if (!articleConfig) {
+          articleConfig = await this.detectArticleStructure(url, html);
+        }
+      } else {
+        // Step 8: Unsuccessful scrape - bypass bot protection then do selector detection
+        log(`[UnifiedScraper] Step 8: Bypassing bot protection for article scraping`, "scraper");
+        const protectedResult = await hybridScrape(url, {
+          isSourceUrl: false,
+          isArticlePage: true,
+          forceMethod: 'puppeteer',
+          timeout: 60000
+        });
+        
+        if (!protectedResult.success) {
+          throw new Error(`Failed to scrape article after bot protection bypass: ${url}`);
+        }
+        
+        html = protectedResult.html;
+        log(`[UnifiedScraper] Step 8: Bot protection bypassed, sending HTML to OpenAI for selector detection`, "scraper");
+        
+        if (!articleConfig) {
+          articleConfig = await this.detectArticleStructure(url, html);
+        }
       }
 
-      // Extract structured content from the HTML with AI enhancement
-      const articleContent = await extractArticleContent(result.html, articleConfig, url);
+      // Steps 9-11: Extract body copy, title, publish date, author elements and content
+      log(`[UnifiedScraper] Steps 9-11: Extracting structured content using detected selectors`, "scraper");
+      const articleContent = await extractArticleContent(html, articleConfig);
 
-      log(`[UnifiedScraper] Extracted article content: title=${articleContent.title.length} chars, content=${articleContent.content.length} chars`, "scraper");
+      log(`[UnifiedScraper] Steps 5-11 complete: Extracted article content (title=${articleContent.title.length} chars, content=${articleContent.content.length} chars)`, "scraper");
       return articleContent;
 
     } catch (error: any) {
-      log(`[UnifiedScraper] Error scraping article URL: ${error.message}`, "scraper-error");
-      throw new Error(`Failed to scrape article URL: ${error.message}`);
+      log(`[UnifiedScraper] Error in streamlined article scraping: ${error.message}`, "scraper-error"); 
+      throw error;
     }
   }
 
