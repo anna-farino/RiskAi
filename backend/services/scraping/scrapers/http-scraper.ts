@@ -1,5 +1,6 @@
 import { log } from "backend/utils/log";
 import { detectProtection, ProtectionInfo } from '../core/protection-bypass';
+import { validateUrlModification } from '../utils/url-validator';
 
 export interface HTTPScrapingOptions {
   maxRetries?: number;
