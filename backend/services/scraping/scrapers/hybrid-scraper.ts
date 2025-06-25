@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP, ScrapingResult } from './http-scraper';
 import { scrapeWithPuppeteer, scrapeWithStealthPuppeteer } from './puppeteer-scraper';
-import { detectProtection } from '../core/protection-bypass';
+import { detectBotProtection } from '../core/protection-bypass';
 
 export interface ScrapingOptions {
   isSourceUrl: boolean;
@@ -96,7 +96,7 @@ async function scrapeWithFallback(url: string, options: ScrapingOptions): Promis
 
         // Check if HTTP failed due to protection or dynamic content
         if (!result.success) {
-          if (result.protectionDetected?.detected) {
+          if (result.protectionDetected?.hasProtection) {
             log(`[HybridScraper] HTTP failed due to protection: ${result.protectionDetected.type}`, "scraper");
           } else {
             log(`[HybridScraper] HTTP failed: switching to Puppeteer`, "scraper");

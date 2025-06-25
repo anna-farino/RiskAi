@@ -1,6 +1,5 @@
 import { log } from "backend/utils/log";
-import { detectProtection, ProtectionInfo } from '../core/protection-bypass';
-import { validateUrlModification } from '../utils/url-validator';
+import { detectBotProtection, ProtectionInfo } from '../core/protection-bypass';
 
 export interface HTTPScrapingOptions {
   maxRetries?: number;
@@ -75,30 +74,14 @@ function addCookiesToHeaders(headers: Record<string, string>): Record<string, st
  * Consolidates detection logic from News Radar
  */
 export function detectRequiresPuppeteer(html: string, response: Response): boolean {
-  const htmlLower = html.toLowerCase();
-  
-  // Check if we have substantial content first - if so, don't require Puppeteer
-  const hasSubstantialContent = html.length > 10000 && (
-    htmlLower.includes('<article') ||
-    htmlLower.includes('<main') ||
-    htmlLower.includes('class="content') ||
-    htmlLower.includes('class="post') ||
-    htmlLower.includes('<p>') // Basic paragraph content
-  );
-  
-  if (hasSubstantialContent) {
-    log(`[HTTPScraper] Substantial content found (${html.length} chars), using HTTP content directly`, "scraper");
-    return false;
-  }
-
   // Check for bot protection first (highest priority)
-  const protection = detectProtection(html, '');
-  if (protection.detected) {
+  const protection = detectBotProtection(html, response);
+  if (protection.hasProtection) {
     log(`[HTTPScraper] Bot protection detected (${protection.type}): requires Puppeteer`, "scraper");
     return true;
   }
 
-  // Check for React app indicators (only if content is not substantial)
+  // Check for React app indicators
   const isReactApp = 
     html.includes('id="__next"') ||
     html.includes('data-reactroot') ||
@@ -113,46 +96,42 @@ export function detectRequiresPuppeteer(html: string, response: Response): boole
     return true;
   }
 
-  // Only check for lazy loading if content is small (less than 10K chars)
-  if (html.length < 10000) {
-    const hasLazyLoad = 
-      html.includes('lazy-load') ||
-      html.includes('lazyload') ||
-      html.includes('loading="lazy"') ||
-      html.includes('data-src') ||
-      html.includes('infinite-scroll') ||
-      html.includes('ng-lazy') ||
-      html.includes('v-lazy') ||
-      html.includes('IntersectionObserver');
+  // Check for lazy loading patterns
+  const hasLazyLoad = 
+    html.includes('lazy-load') ||
+    html.includes('lazyload') ||
+    html.includes('loading="lazy"') ||
+    html.includes('data-src') ||
+    html.includes('infinite-scroll') ||
+    html.includes('ng-lazy') ||
+    html.includes('v-lazy') ||
+    html.includes('IntersectionObserver');
 
-    if (hasLazyLoad) {
-      log(`[HTTPScraper] Lazy loading detected with small content (${html.length} chars): requires Puppeteer`, "scraper");
-      return true;
-    }
+  if (hasLazyLoad) {
+    log(`[HTTPScraper] Lazy loading detected: requires Puppeteer`, "scraper");
+    return true;
   }
 
-  // Check for HTMX patterns (only if content is small)
-  if (html.length < 10000) {
-    const hasHtmx = 
-      html.includes('htmx.min.js') ||
-      html.includes('htmx.js') ||
-      html.includes('hx-get') ||
-      html.includes('hx-post') ||
-      html.includes('hx-trigger') ||
-      html.includes('hx-target') ||
-      html.includes('hx-swap');
+  // Check for HTMX patterns
+  const hasHtmx = 
+    html.includes('htmx.min.js') ||
+    html.includes('htmx.js') ||
+    html.includes('hx-get') ||
+    html.includes('hx-post') ||
+    html.includes('hx-trigger') ||
+    html.includes('hx-target') ||
+    html.includes('hx-swap');
 
-    if (hasHtmx) {
-      log(`[HTTPScraper] HTMX detected with small content (${html.length} chars): requires Puppeteer`, "scraper");
-      return true;
-    }
+  if (hasHtmx) {
+    log(`[HTTPScraper] HTMX detected: requires Puppeteer`, "scraper");
+    return true;
+  }
 
-    // Check for insufficient content (likely dynamic) - only for small content
-    const linkCount = (html.match(/<a[^>]+href/gi) || []).length;
-    if (linkCount < 10) {
-      log(`[HTTPScraper] Insufficient links detected (${linkCount}) with small content: likely requires Puppeteer`, "scraper");
-      return true;
-    }
+  // Check for insufficient content (likely dynamic)
+  const linkCount = (html.match(/<a[^>]+href/gi) || []).length;
+  if (linkCount < 10) {
+    log(`[HTTPScraper] Insufficient links detected (${linkCount}): likely requires Puppeteer`, "scraper");
+    return true;
   }
 
   return false;
@@ -221,11 +200,6 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
           redirect: options?.followRedirects !== false ? 'follow' : 'manual'
         });
 
-        // Log redirect information for debugging URL modification issues
-        if (response.url !== url) {
-          log(`[HTTPScraper] URL redirected from ${url} to ${response.url}`, "scraper");
-        }
-
         clearTimeout(timeoutId);
 
         log(`[HTTPScraper] Response received: ${response.status} ${response.statusText}`, "scraper");
@@ -235,25 +209,6 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
 
         // Handle special status codes
         if (!response.ok) {
-          // Handle 404 errors that might be caused by URL date modification
-          if (response.status === 404 && response.url !== url) {
-            log(`[HTTPScraper] 404 after URL modification: ${url} → ${response.url}`, "scraper-error");
-            return {
-              html: '',
-              success: false,
-              method: 'http',
-              responseTime: Date.now() - startTime,
-              protectionDetected: {
-                detected: true,
-                type: 'generic',
-                confidence: 0.9,
-                requiresPuppeteer: true
-              },
-              statusCode: response.status,
-              finalUrl: response.url
-            };
-          }
-
           // Check for DataDome 401 errors
           if (response.status === 401 && (
             response.headers.get("x-datadome") || 
@@ -266,10 +221,10 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
               method: 'http',
               responseTime: Date.now() - startTime,
               protectionDetected: {
-                detected: true,
+                hasProtection: true,
                 type: 'datadome',
                 confidence: 0.95,
-                requiresPuppeteer: true
+                details: 'DataDome 401 authentication required'
               },
               statusCode: response.status,
               finalUrl: response.url
@@ -285,10 +240,10 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
               method: 'http',
               responseTime: Date.now() - startTime,
               protectionDetected: {
-                detected: true,
+                hasProtection: true,
                 type: 'generic',
                 confidence: 0.8,
-                requiresPuppeteer: true
+                details: '403 Forbidden - likely bot protection'
               },
               statusCode: response.status,
               finalUrl: response.url
@@ -311,30 +266,10 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
         // Get response body
         const html = await response.text();
         log(`[HTTPScraper] Retrieved ${html.length} characters of HTML`, "scraper");
-        
-        // Validate URL modifications and detect problematic redirects
-        const urlValidation = validateUrlModification(url, response.url, response.status, html);
-        if (!urlValidation.isValid) {
-          log(`[HTTPScraper] Invalid URL modification detected: ${urlValidation.modificationReason}`, "scraper-error");
-          return {
-            html,
-            success: false,
-            method: 'http',
-            responseTime: Date.now() - startTime,
-            protectionDetected: {
-              detected: true,
-              type: 'generic',
-              confidence: 0.9,
-              requiresPuppeteer: true
-            },
-            statusCode: 404, // Override status to reflect actual issue
-            finalUrl: response.url
-          };
-        }
 
         // Check for bot protection in content
-        protectionInfo = detectProtection(html, url);
-        if (protectionInfo.detected) {
+        protectionInfo = detectBotProtection(html, response);
+        if (protectionInfo.hasProtection) {
           log(`[HTTPScraper] Bot protection detected: ${protectionInfo.type}`, "scraper");
           return {
             html,
@@ -357,10 +292,10 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
             method: 'http',
             responseTime: Date.now() - startTime,
             protectionDetected: {
-              detected: true,
+              hasProtection: true,
               type: 'generic',
               confidence: 0.7,
-              requiresPuppeteer: true
+              details: 'Dynamic content requires JavaScript execution'
             },
             statusCode: response.status,
             finalUrl: response.url

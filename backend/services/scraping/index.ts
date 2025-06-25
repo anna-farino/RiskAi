@@ -3,7 +3,6 @@ import { scrapeUrl as hybridScrape, ScrapingOptions } from './scrapers/hybrid-sc
 import { extractArticleLinks } from './extractors/link-extractor';
 import { extractArticleContent, extractWithFallbacks, ArticleContent } from './extractors/content-extractor';
 import { detectHtmlStructureWithFallbacks, ScrapingConfig } from './extractors/structure-detector';
-import { executeIntelligentWorkflow, processMultipleArticles } from './core/intelligent-workflow';
 import { BrowserManager } from './core/browser-manager';
 
 export interface SourceScrapingOptions {
@@ -88,43 +87,41 @@ export class UnifiedScrapingService {
    */
   async scrapeArticleUrl(url: string, config?: ScrapingConfig): Promise<ArticleContent> {
     try {
-      log(`[UnifiedScraper] Starting intelligent workflow for: ${url}`, "scraper");
-      
-      // Use intelligent 6-step workflow instead of basic scraping
-      const result = await executeIntelligentWorkflow(url);
-      
-      log(`[UnifiedScraper] Intelligent workflow completed: ${result.workflowStep}, confidence=${result.confidence}`, "scraper");
-      
-      return {
-        title: result.title,
-        content: result.content,
-        author: result.author,
-        publishDate: result.publishDate,
-        extractionMethod: result.extractionMethod,
-        confidence: result.confidence
-      };
-      
-    } catch (error: any) {
-      log(`[UnifiedScraper] Intelligent workflow failed, falling back to traditional method: ${error.message}`, "scraper");
-      
-      // Fallback to traditional method if intelligent workflow fails
+      log(`[UnifiedScraper] Scraping article URL: ${url}`, "scraper");
+
+      // Configure scraping options for article page
       const scrapingOptions: ScrapingOptions = {
         isSourceUrl: false,
         isArticlePage: true,
         scrapingConfig: config,
         retryAttempts: 3
       };
-      
+
+      // Scrape the article page HTML
       const result = await hybridScrape(url, scrapingOptions);
       
       if (!result.success) {
-        throw new Error(`All scraping methods failed: ${result.statusCode || 'Unknown error'}`);
+        throw new Error(`Failed to scrape article URL: ${result.statusCode || 'Unknown error'}`);
       }
-      
-      const articleConfig = config || await this.detectArticleStructure(url, result.html);
+
+      log(`[UnifiedScraper] Successfully scraped article HTML (${result.html.length} chars)`, "scraper");
+
+      // If no config provided, detect structure
+      let articleConfig = config;
+      if (!articleConfig) {
+        log(`[UnifiedScraper] No scraping config provided, detecting HTML structure`, "scraper");
+        articleConfig = await this.detectArticleStructure(url, result.html);
+      }
+
+      // Extract structured content from the HTML with AI enhancement
       const articleContent = await extractArticleContent(result.html, articleConfig);
-      
+
+      log(`[UnifiedScraper] Extracted article content: title=${articleContent.title.length} chars, content=${articleContent.content.length} chars`, "scraper");
       return articleContent;
+
+    } catch (error: any) {
+      log(`[UnifiedScraper] Error scraping article URL: ${error.message}`, "scraper-error");
+      throw new Error(`Failed to scrape article URL: ${error.message}`);
     }
   }
 
