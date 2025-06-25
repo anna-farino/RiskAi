@@ -107,41 +107,18 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
 }
 
 /**
- * Detect dynamic content requirements
- * Based on News Radar's dynamic content detection
+ * Quick link quality check - only validate link count for basic functionality
  */
-function detectDynamicContent(html: string): boolean {
+function hasUsableLinks(html: string): boolean {
   const $ = cheerio.load(html);
+  const linkCount = $('a[href]').length;
   
-  const isDynamic = 
-    // Framework root elements
-    $('#__next').length > 0 ||
-    $('[data-reactroot]').length > 0 ||
-    // Dynamic loading scripts
-    $('script[src*="/_next/"]').length > 0 ||
-    $('script[src*="/chunks/"]').length > 0 ||
-    $('script[src*="/bundles/"]').length > 0 ||
-    // Content placeholders
-    $('.loading').length > 0 ||
-    $('.skeleton').length > 0 ||
-    $('[data-loading]').length > 0 ||
-    // Script contents for dynamic indicators
-    $('script:contains("window.__INITIAL_STATE__")').length > 0 ||
-    $('script:contains("window.__PRELOADED_STATE__")').length > 0 ||
-    // HTMX detection
-    html.includes('htmx.min.js') ||
-    html.includes('htmx.js') ||
-    $('script[src*="htmx"]').length > 0 ||
-    $('[hx-get]').length > 0 ||
-    $('[hx-post]').length > 0 ||
-    // Low link count
-    $('a[href]').length < 10;
-    
-  if (isDynamic) {
-    log(`[LinkExtractor] Dynamic content detected, requires Puppeteer processing`, "scraper");
+  if (linkCount < 5) {
+    log(`[LinkExtractor] Insufficient links detected (${linkCount}), likely requires JavaScript`, "scraper");
+    return false;
   }
   
-  return isDynamic;
+  return true;
 }
 
 /**
@@ -269,24 +246,16 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
 export async function extractArticleLinks(
   html: string,
   baseUrl: string,
-  options?: LinkExtractionOptions,
-  page?: Page
+  options?: LinkExtractionOptions
 ): Promise<string[]> {
   try {
     log(`[LinkExtractor] Starting article link extraction for: ${baseUrl}`, "scraper");
     
     let linkData: LinkData[] = [];
     
-    // Check if we need dynamic content processing
-    const requiresDynamic = detectDynamicContent(html);
-    
-    if (requiresDynamic && page) {
-      log(`[LinkExtractor] Using Puppeteer for dynamic content extraction`, "scraper");
-      linkData = await extractLinksFromPage(page, baseUrl, options);
-    } else {
-      log(`[LinkExtractor] Using static HTML extraction`, "scraper");
-      linkData = extractLinksFromHTML(html, baseUrl, options);
-    }
+    // Always use static HTML extraction first - OpenAI will handle complex patterns
+    log(`[LinkExtractor] Using static HTML extraction`, "scraper");
+    linkData = extractLinksFromHTML(html, baseUrl, options);
     
     if (linkData.length === 0) {
       log(`[LinkExtractor] No links found`, "scraper");

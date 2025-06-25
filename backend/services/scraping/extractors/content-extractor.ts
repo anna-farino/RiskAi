@@ -64,7 +64,7 @@ export async function extractPublishDateEnhanced(html: string, config?: Scraping
     // Convert ScrapingConfig to the format expected by extractPublishDate
     const htmlStructure = config ? {
       date: config.dateSelector,
-      dateAlternatives: config.dateAlternatives || []
+      dateAlternatives: []
     } : undefined;
     
     // Use Threat Tracker's enhanced date extraction with AI-detected selectors
@@ -269,101 +269,55 @@ function handlePreProcessedContent(html: string): ArticleContent | null {
 }
 
 /**
- * Main content extraction function with AI-powered extraction and traditional fallbacks
- * Enhanced with proper URL parameter support for workflow optimization
+ * Streamlined content extraction - simplified 2-step approach
+ * Step 1: AI extraction if available, Step 2: Selector-based extraction
  */
 export async function extractArticleContent(html: string, config: ScrapingConfig, sourceUrl?: string): Promise<ArticleContent> {
   try {
     log(`[ContentExtractor] Starting content extraction`, "scraper");
 
-    // First, check if this is pre-processed content
-    const preProcessed = handlePreProcessedContent(html);
-    if (preProcessed) {
-      return preProcessed;
-    }
-
-    // Step 1: Try AI-powered hybrid extraction first if URL available
+    // Step 1: AI extraction if URL and API key available
     if (sourceUrl && process.env.OPENAI_API_KEY) {
       try {
-        log(`[ContentExtractor] Attempting AI-powered extraction for ${sourceUrl}`, "scraper");
+        log(`[ContentExtractor] Attempting AI extraction`, "scraper");
         const aiResult = await extractWithHybridAI(html, sourceUrl);
         
-        if (aiResult.confidence > 0.6) {
-          log(`[ContentExtractor] AI extraction successful with confidence ${aiResult.confidence} using method ${aiResult.method}`, "scraper");
+        if (aiResult.confidence > 0.5) {
+          log(`[ContentExtractor] AI extraction successful (confidence: ${aiResult.confidence})`, "scraper");
           
-          // Extract date separately using enhanced method
-          let publishDate: Date | null = null;
-          try {
-            // Pass AI-detected selectors to date extraction for better results
-            const aiDateConfig = aiResult.selectors ? {
-              ...config,
-              dateSelector: aiResult.selectors.dateSelector,
-              dateAlternatives: aiResult.selectors.dateAlternatives || []
-            } : config;
-            publishDate = await extractPublishDateEnhanced(html, aiDateConfig);
-          } catch (dateError) {
-            log(`[ContentExtractor] AI extraction date parsing failed: ${dateError}`, "scraper");
-          }
+          const publishDate = await extractPublishDateEnhanced(html, config);
           
           return {
             title: cleanAndNormalizeContent(aiResult.title),
             content: cleanAndNormalizeContent(aiResult.content), 
             author: aiResult.author || undefined,
-            publishDate: publishDate,
+            publishDate,
             extractionMethod: `ai_${aiResult.method}`,
             confidence: aiResult.confidence
           };
         }
-        
-        log(`[ContentExtractor] AI extraction had moderate confidence (${aiResult.confidence}), falling back to traditional methods`, "scraper");
       } catch (error: any) {
-        log(`[ContentExtractor] AI extraction failed: ${error.message}, falling back to traditional methods`, "scraper");
+        log(`[ContentExtractor] AI extraction failed: ${error.message}`, "scraper");
       }
-    } else {
-      log(`[ContentExtractor] AI extraction unavailable (missing URL or API key), using traditional methods`, "scraper");
     }
 
-    // Step 2: Fall back to traditional selector-based extraction
-    log(`[ContentExtractor] Using traditional selector-based extraction`, "scraper");
+    // Step 2: Selector-based extraction
+    log(`[ContentExtractor] Using selector-based extraction`, "scraper");
     const $ = cleanHtmlForExtraction(html);
     
-    let result: Partial<ArticleContent> = {};
-    let confidence = 0;
-
-    // Try primary selectors first
-    log(`[ContentExtractor] Attempting extraction with primary selectors`, "scraper");
-    result = extractWithPrimarySelectors($, config);
+    // Try primary selectors first, then fallbacks
+    let result = extractWithPrimarySelectors($, config);
+    let confidence = 0.8;
     
-    if (result.title && result.content && result.content.length > 50) {
-      confidence = 0.9;
-      log(`[ContentExtractor] Primary selector extraction successful`, "scraper");
-    } else {
-      // Try fallback selectors
-      log(`[ContentExtractor] Primary selectors insufficient, trying fallbacks`, "scraper");
+    if (!result.title || !result.content || result.content.length < 50) {
+      log(`[ContentExtractor] Primary selectors insufficient, using fallbacks`, "scraper");
       const fallbackResult = extractWithFallbackSelectors($);
       
-      // Merge results, preferring non-empty values
       result.title = result.title || fallbackResult.title;
       result.content = (result.content && result.content.length > 50) ? result.content : fallbackResult.content;
       result.author = result.author || fallbackResult.author;
       result.extractionMethod = fallbackResult.extractionMethod;
-      
-      if (result.title && result.content && result.content.length > 50) {
-        confidence = 0.7;
-        log(`[ContentExtractor] Fallback selector extraction successful`, "scraper");
-      } else {
-        // Try desperate fallbacks
-        log(`[ContentExtractor] Fallback selectors insufficient, trying desperate measures`, "scraper");
-        const desperateResult = extractWithDesperateFallbacks($);
-        
-        result.title = result.title || desperateResult.title;
-        result.content = (result.content && result.content.length > 50) ? result.content : desperateResult.content;
-        result.author = result.author || desperateResult.author;
-        result.extractionMethod = desperateResult.extractionMethod;
-        
-        confidence = 0.4;
-        log(`[ContentExtractor] Desperate fallback extraction completed`, "scraper");
-      }
+      confidence = 0.6;
     }
 
     // Clean and normalize the extracted content
