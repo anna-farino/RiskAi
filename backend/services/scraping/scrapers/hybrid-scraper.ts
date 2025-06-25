@@ -1,3 +1,7 @@
+// DEPRECATED: This file is replaced by unified-scraper-v2.ts
+// The hybrid scraper layer has been eliminated in the streamlined refactoring
+// All apps now use StreamlinedUnifiedScraper directly
+
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP, ScrapingResult } from './http-scraper';
 import { scrapeWithPuppeteer, scrapeWithStealthPuppeteer } from './puppeteer-scraper';
