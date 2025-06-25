@@ -175,7 +175,7 @@ export class UnifiedScrapingService {
 
       // Steps 9-11: Extract body copy, title, publish date, author elements and content
       log(`[UnifiedScraper] Steps 9-11: Extracting structured content using detected selectors`, "scraper");
-      const articleContent = await extractArticleContent(html, articleConfig);
+      const articleContent = await extractArticleContent(html, articleConfig, url);
 
       log(`[UnifiedScraper] Steps 5-11 complete: Extracted article content (title=${articleContent.title.length} chars, content=${articleContent.content.length} chars)`, "scraper");
       return articleContent;
