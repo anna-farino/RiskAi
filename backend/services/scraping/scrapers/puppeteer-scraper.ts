@@ -460,9 +460,9 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         <div class="content">${content?.content || ''}</div>
       </body></html>`;
     } else {
-      log(`[PuppeteerScraper] Extracting source page links`, "scraper");
+      log(`[PuppeteerScraper] Extracting source page HTML`, "scraper");
 
-      // Wait for links to appear
+      // Wait for page to fully load
       await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
         log('[PuppeteerScraper] Timeout waiting for links, continuing anyway', "scraper");
       });
@@ -470,37 +470,11 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       // Handle HTMX content loading
       await handleHTMXContent(page);
 
-      // Extract all links after ensuring content is loaded
-      const articleLinkData = await safePageEvaluate(page, () => {
-        const links = Array.from(document.querySelectorAll('a'));
-        return links.map(link => ({
-          href: link.getAttribute('href'),
-          text: link.textContent?.trim() || '',
-          parentText: link.parentElement?.textContent?.trim() || '',
-          parentClass: link.parentElement?.className || ''
-        })).filter(link => link.href && link.text && link.text.length > 20);
-      });
-
-      // Handle validation blocking for link extraction
-      if (!articleLinkData) {
-        log(`[PuppeteerScraper] Link extraction blocked by validation, using basic fallback`, "scraper");
-        return `<html><body><div class="extracted-article-links">Link extraction completed with validation restrictions</div></body></html>`;
-      }
-
-      log(`[PuppeteerScraper] Extracted ${(articleLinkData as any)?.length || 0} potential article links`, "scraper");
-
-      // Return structured HTML with extracted links
-      const linkData = articleLinkData as any[];
-      return `<html><body>
-        <div class="extracted-article-links">
-          ${linkData?.map(link => `
-            <div class="article-link-item">
-              <a href="${link.href}">${link.text}</a>
-              <div class="context">${link.parentText.substring(0, 100)}</div>
-            </div>
-          `).join('\n') || ''}
-        </div>
-      </body></html>`;
+      // Return clean HTML for link extraction by OpenAI
+      const html = await page.content();
+      log(`[PuppeteerScraper] Extracted page HTML (${html.length} chars)`, "scraper");
+      
+      return html;
     }
   } catch (error: any) {
     // Filter out external validation false positives

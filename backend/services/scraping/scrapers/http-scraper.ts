@@ -70,67 +70,21 @@ function addCookiesToHeaders(headers: Record<string, string>): Record<string, st
 }
 
 /**
- * Detect if content requires Puppeteer based on HTML analysis
- * Consolidates detection logic from News Radar
+ * Check if HTTP scraping should be attempted based on HTML quality
+ * Only escalates to Puppeteer for actual bot protection, not content patterns
  */
-export function detectRequiresPuppeteer(html: string, response: Response): boolean {
-  // Check for bot protection first (highest priority)
+export function shouldTryPuppeteer(html: string, response: Response): boolean {
+  // Only check for actual bot protection that blocks HTTP requests
   const protection = detectBotProtection(html, response);
   if (protection.hasProtection) {
     log(`[HTTPScraper] Bot protection detected (${protection.type}): requires Puppeteer`, "scraper");
     return true;
   }
 
-  // Check for React app indicators
-  const isReactApp = 
-    html.includes('id="__next"') ||
-    html.includes('data-reactroot') ||
-    html.includes('window.__INITIAL_STATE__') ||
-    html.includes('window.__PRELOADED_STATE__') ||
-    html.includes('/_next/') ||
-    html.includes('/chunks/') ||
-    html.includes('/bundles/');
-
-  if (isReactApp) {
-    log(`[HTTPScraper] React application detected: requires Puppeteer`, "scraper");
-    return true;
-  }
-
-  // Check for lazy loading patterns
-  const hasLazyLoad = 
-    html.includes('lazy-load') ||
-    html.includes('lazyload') ||
-    html.includes('loading="lazy"') ||
-    html.includes('data-src') ||
-    html.includes('infinite-scroll') ||
-    html.includes('ng-lazy') ||
-    html.includes('v-lazy') ||
-    html.includes('IntersectionObserver');
-
-  if (hasLazyLoad) {
-    log(`[HTTPScraper] Lazy loading detected: requires Puppeteer`, "scraper");
-    return true;
-  }
-
-  // Check for HTMX patterns
-  const hasHtmx = 
-    html.includes('htmx.min.js') ||
-    html.includes('htmx.js') ||
-    html.includes('hx-get') ||
-    html.includes('hx-post') ||
-    html.includes('hx-trigger') ||
-    html.includes('hx-target') ||
-    html.includes('hx-swap');
-
-  if (hasHtmx) {
-    log(`[HTTPScraper] HTMX detected: requires Puppeteer`, "scraper");
-    return true;
-  }
-
-  // Check for insufficient content (likely dynamic)
-  const linkCount = (html.match(/<a[^>]+href/gi) || []).length;
-  if (linkCount < 10) {
-    log(`[HTTPScraper] Insufficient links detected (${linkCount}): likely requires Puppeteer`, "scraper");
+  // Check for completely empty or minimal content (likely blocked)
+  const contentLength = html.replace(/<[^>]*>/g, '').trim().length;
+  if (contentLength < 100) {
+    log(`[HTTPScraper] Minimal content detected (${contentLength} chars): requires Puppeteer`, "scraper");
     return true;
   }
 
@@ -267,43 +221,11 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
         const html = await response.text();
         log(`[HTTPScraper] Retrieved ${html.length} characters of HTML`, "scraper");
 
-        // Check for bot protection in content
+        // Only check for actual bot protection that blocks content
         protectionInfo = detectBotProtection(html, response);
-        if (protectionInfo.hasProtection) {
-          log(`[HTTPScraper] Bot protection detected: ${protectionInfo.type}`, "scraper");
-          return {
-            html,
-            success: false,
-            method: 'http',
-            responseTime: Date.now() - startTime,
-            protectionDetected: protectionInfo,
-            statusCode: response.status,
-            finalUrl: response.url
-          };
-        }
-
-        // Check if content requires Puppeteer
-        const requiresPuppeteer = detectRequiresPuppeteer(html, response);
-        if (requiresPuppeteer) {
-          log(`[HTTPScraper] Dynamic content detected, requires Puppeteer`, "scraper");
-          return {
-            html,
-            success: false,
-            method: 'http',
-            responseTime: Date.now() - startTime,
-            protectionDetected: {
-              hasProtection: true,
-              type: 'generic',
-              confidence: 0.7,
-              details: 'Dynamic content requires JavaScript execution'
-            },
-            statusCode: response.status,
-            finalUrl: response.url
-          };
-        }
-
-        // Success case
-        log(`[HTTPScraper] Successfully retrieved content without protection`, "scraper");
+        
+        // Success case - let extraction logic determine if content is usable
+        log(`[HTTPScraper] Successfully retrieved content (${html.length} chars)`, "scraper");
         return {
           html,
           success: true,
