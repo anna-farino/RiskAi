@@ -115,6 +115,14 @@ class SelectorCache {
 const selectorCache = new SelectorCache();
 
 /**
+ * Check if cached selectors exist for a domain (exposed for workflow optimization)
+ */
+export function hasCachedSelectorsForDomain(url: string): boolean {
+  const domain = selectorCache.getDomain(url);
+  return selectorCache.get(url) !== null;
+}
+
+/**
  * Hybrid AI-powered content extraction with intelligent fallbacks
  */
 export async function extractWithHybridAI(html: string, sourceUrl: string): Promise<HybridExtractionResult> {

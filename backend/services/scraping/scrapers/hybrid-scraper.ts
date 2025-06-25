@@ -113,6 +113,12 @@ async function scrapeWithFallback(url: string, options: ScrapingOptions): Promis
             customHeaders: options.customHeaders,
             timeout: options.timeout || 60000
           });
+        } else {
+          // Check if content has protection but is still usable for AI analysis
+          const protectionInfo = analyzeProtection(result.html, result.statusCode || 200, {});
+          if (protectionInfo.type === 'cloudflare-bypassed') {
+            log(`[HybridScraper] HTTP retrieved usable content despite protection, will proceed with AI analysis`, "scraper");
+          }
         }
       } else {
         log(`[HybridScraper] Using Puppeteer method`, "scraper");
@@ -195,6 +201,17 @@ export async function scrapeUrl(url: string, options: ScrapingOptions): Promise<
     log(`[HybridScraper] Starting unified scraping for: ${url}`, "scraper");
     log(`[HybridScraper] Options: isSourceUrl=${options.isSourceUrl}, isArticlePage=${options.isArticlePage}, appContext=${options.appContext}`, "scraper");
 
+    // Step 1: Check for cached selectors first to determine optimal strategy
+    const domain = getDomain(url);
+    const hasCachedSelectors = checkSelectorCache(domain);
+    
+    if (hasCachedSelectors) {
+      log(`[HybridScraper] Found cached selectors for ${domain}, using optimized HTTP-first approach`, "scraper");
+      return await scrapeWithCachedSelectors(url, options);
+    }
+
+    log(`[HybridScraper] No cached selectors for ${domain}, will establish selectors via AI analysis`, "scraper");
+
     // Validate URL
     if (!url || !url.startsWith('http')) {
       throw new Error(`Invalid URL provided: ${url}`);
@@ -235,6 +252,63 @@ export async function scrapeUrl(url: string, options: ScrapingOptions): Promise<
       finalUrl: url
     };
   }
+}
+
+/**
+ * Extract domain from URL for cache lookups
+ */
+function getDomain(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Check if we have cached selectors for this domain
+ */
+function checkSelectorCache(domain: string): boolean {
+  try {
+    const { hasCachedSelectorsForDomain } = require('../ai/hybrid-extractor');
+    return hasCachedSelectorsForDomain(`https://${domain}/test`);
+  } catch (error) {
+    log(`[HybridScraper] Error checking selector cache: ${error}`, "scraper");
+    return false;
+  }
+}
+
+/**
+ * Optimized scraping path when we have cached selectors
+ */
+async function scrapeWithCachedSelectors(url: string, options: ScrapingOptions): Promise<ScrapingResult> {
+  log(`[HybridScraper] Using cached selectors workflow for: ${url}`, "scraper");
+  
+  // Try HTTP first with cached selectors
+  try {
+    const result = await scrapeWithHTTP(url, {
+      timeout: options.timeout || 30000,
+      customHeaders: options.customHeaders
+    });
+
+    if (result.success) {
+      log(`[HybridScraper] HTTP successful with cached selectors, content length: ${result.html.length}`, "scraper");
+      return result;
+    }
+  } catch (error: any) {
+    log(`[HybridScraper] HTTP failed with cached selectors, falling back to Puppeteer: ${error.message}`, "scraper");
+  }
+
+  // Fallback to Puppeteer if HTTP fails
+  return await scrapeWithPuppeteer(url, {
+    isArticlePage: options.isArticlePage,
+    handleHTMX: true,
+    scrollToLoad: !options.isArticlePage,
+    protectionBypass: true,
+    customHeaders: options.customHeaders,
+    timeout: options.timeout || 60000
+  });
 }
 
 /**
