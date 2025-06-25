@@ -220,6 +220,11 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
           redirect: options?.followRedirects !== false ? 'follow' : 'manual'
         });
 
+        // Log redirect information for debugging URL modification issues
+        if (response.url !== url) {
+          log(`[HTTPScraper] URL redirected from ${url} to ${response.url}`, "scraper");
+        }
+
         clearTimeout(timeoutId);
 
         log(`[HTTPScraper] Response received: ${response.status} ${response.statusText}`, "scraper");
@@ -229,6 +234,25 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
 
         // Handle special status codes
         if (!response.ok) {
+          // Handle 404 errors that might be caused by URL date modification
+          if (response.status === 404 && response.url !== url) {
+            log(`[HTTPScraper] 404 after URL modification: ${url} → ${response.url}`, "scraper-error");
+            return {
+              html: '',
+              success: false,
+              method: 'http',
+              responseTime: Date.now() - startTime,
+              protectionDetected: {
+                detected: true,
+                type: 'generic',
+                confidence: 0.9,
+                requiresPuppeteer: true
+              },
+              statusCode: response.status,
+              finalUrl: response.url
+            };
+          }
+
           // Check for DataDome 401 errors
           if (response.status === 401 && (
             response.headers.get("x-datadome") || 
@@ -286,6 +310,26 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
         // Get response body
         const html = await response.text();
         log(`[HTTPScraper] Retrieved ${html.length} characters of HTML`, "scraper");
+        
+        // Validate URL modifications and detect problematic redirects
+        const urlValidation = validateUrlModification(url, response.url, response.status, html);
+        if (!urlValidation.isValid) {
+          log(`[HTTPScraper] Invalid URL modification detected: ${urlValidation.modificationReason}`, "scraper-error");
+          return {
+            html,
+            success: false,
+            method: 'http',
+            responseTime: Date.now() - startTime,
+            protectionDetected: {
+              detected: true,
+              type: 'generic',
+              confidence: 0.9,
+              requiresPuppeteer: true
+            },
+            statusCode: 404, // Override status to reflect actual issue
+            finalUrl: response.url
+          };
+        }
 
         // Check for bot protection in content
         protectionInfo = detectProtection(html, url);

@@ -127,6 +127,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 25, 2025 - URL Modification Detection and Validation System
+- **Identified URL modification issue** - NYTimes URLs changing dates (2025/06/20 → 2025/06/24) during scraping causing 404 errors
+- **Implemented URL validation system** - detects problematic URL modifications and date changes during HTTP requests
+- **Added 404 content detection** - identifies when servers return 200 OK but with 404 content after URL modifications
+- **Enhanced redirect logging** - tracks URL changes during request processing for debugging URL modification issues
+- **Created validation utilities** - comprehensive URL modification detection for news article date patterns
+- **Improved error handling** - properly categorizes URL modification failures requiring Puppeteer fallback
+
 ### June 24, 2025 - Intelligent 6-Step Workflow Implementation Complete
 - **Resolved core efficiency issues** identified in user log analysis showing 249K chars unnecessarily re-scraped
 - **Fixed AI extraction integration** - restored URL parameter passing resolving "AI extraction unavailable" errors
