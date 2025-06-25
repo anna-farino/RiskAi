@@ -127,15 +127,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### June 25, 2025 - Workflow Refactoring and Optimization Complete
-- **Eliminated redundant processing loops** identified in user log analysis
-- **Fixed AI extraction unavailable issue** by properly passing URL parameters to content extraction
-- **Enhanced protection detection** to preserve usable HTML content despite Cloudflare headers
-- **Implemented cache-first workflow strategy** checking selectors before determining scraping method
-- **Integrated selector cache** with hybrid scraper for intelligent HTTP vs Puppeteer decisions
-- **Optimized batch processing** to establish selectors once per domain, reuse for subsequent articles
-- **Achieved targeted workflow**: Only use Puppeteer when HTTP genuinely fails, not when protection detected but content usable
-- **System now follows** efficient 5-step workflow: cache check → HTTP scrape → AI analysis → selector storage → batch processing
+### June 25, 2025 - Complete Scraping Workflow Refactoring
+- **Eliminated duplicate link extraction** happening in both PuppeteerScraper and LinkExtractor
+- **Removed redundant bot protection handling** occurring after links were already obtained
+- **Implemented streamlined 11-step workflow** following user's methodical specification
+- **Consolidated scraping logic** to eliminate complex fallback chains and decision trees
+- **Simplified method determination** removing redundant strategy calculations
+- **Preserved JavaScript and HTMX capabilities** while eliminating unnecessary processing
+- **Workflow now follows** exact 11-step process: source load → quick DOM → bot bypass if needed → OpenAI links → article follow → quick DOM → selector detection → element extraction → content processing
 
 ### June 24, 2025 - External Validation Error Filtering Implemented
 - **Implemented error classification system** to handle external validation false positives

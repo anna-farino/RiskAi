@@ -1,0 +1,53 @@
+[0] 12:37:03 AM [scraper] [UnifiedScraper] Scraping source URL for article links: https://thehackernews.com/
+[0] 12:37:03 AM [scraper] [HybridScraper] Starting unified scraping for: https://thehackernews.com/
+[0] 12:37:03 AM [scraper] [HybridScraper] Options: isSourceUrl=true, isArticlePage=false, appContext=threat-tracker
+[0] 12:37:03 AM [scraper] [HybridExtractor] No cache found for thehackernews.com
+[0] 12:37:03 AM [scraper] [HybridScraper] No cached selectors for thehackernews.com, will establish selectors via AI analysis
+[0] 12:37:03 AM [scraper] [HybridScraper] Attempt 1/3
+[0] 12:37:03 AM [scraper] [HybridScraper] Threat Tracker context: preferring Puppeteer for stealth
+[0] 12:37:03 AM [scraper] [HybridScraper] Using Puppeteer method
+[0] 12:37:03 AM [scraper] [HybridScraper] Using enhanced stealth Puppeteer
+[0] 12:37:03 AM [scraper] [PuppeteerScraper] Using enhanced stealth mode for: https://thehackernews.com/
+[0] 12:37:03 AM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://thehackernews.com/
+[0] 12:37:03 AM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 12:37:03 AM [scraper] [BrowserManager][getBrowser] Browser launched successfully
+[0] 12:37:04 AM [scraper] [BrowserManager][createPage] Created new page
+[0] 12:37:04 AM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 12:37:04 AM [scraper] [PageSetup][setupPage] Set user agent
+[0] 12:37:04 AM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 12:37:04 AM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 12:37:04 AM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 12:37:04 AM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 12:37:04 AM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 12:37:05 AM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] [35de5] GET /scrape/status
+[0] 12:37:07 AM [scraper] [PuppeteerScraper] Checking for HTMX content...
+[0] 12:37:07 AM [scraper] [PuppeteerScraper] HTMX detection: scriptLoaded=false, hasAttributes=false, elements=0
+[0] 12:37:07 AM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 12:37:07 AM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] 12:37:08 AM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] 12:37:10 AM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 12:37:11 AM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] [8cc68] GET /scrape/status
+[0] 12:37:14 AM [scraper] [PuppeteerScraper] Extracting source page links
+[0] 12:37:14 AM [scraper] [PuppeteerScraper] Checking for HTMX content...
+[0] 12:37:14 AM [scraper] [PuppeteerScraper] HTMX detection: scriptLoaded=false, hasAttributes=false, elements=0
+[0] 12:37:14 AM [scraper] [PuppeteerScraper] Extracted 41 potential article links
+[0] 12:37:14 AM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 12:37:14 AM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 12:37:14 AM [scraper] [HybridScraper] Scraping successful with puppeteer on attempt 1
+[0] 12:37:14 AM [scraper] [HybridScraper] Scraping completed in 11361ms using puppeteer
+[0] 12:37:14 AM [scraper] [HybridScraper] Success: true, Content length: 33843
+[0] 12:37:14 AM [scraper] [UnifiedScraper] Successfully scraped source HTML (33843 chars)
+[0] 12:37:14 AM [scraper] [LinkExtractor] Starting article link extraction for: https://thehackernews.com/
+[0] 12:37:14 AM [scraper] [LinkExtractor] Using static HTML extraction
+[0] 12:37:14 AM [scraper] [LinkExtractor] Extracted 36 potential article links from HTML
+[0] 12:37:14 AM [scraper] [LinkExtractor] Using AI to identify article links with context: cybersecurity threats and security incidents
+[0] [Link Detection] Analyzing 2231 structured link entries
+[0] [20ec7] GET /scrape/status
+[0] [d1e57] GET /scrape/status
+[0] [Link Detection] OpenAI identified 27 article links
+[0] 12:37:29 AM [scraper] [LinkExtractor] AI identified 27 article links
+[0] 12:37:29 AM [scraper] [LinkExtractor] Final result: 27 article links extracted
+[0] 12:37:29 AM [scraper] [UnifiedScraper] Extracted 27 article links from source
+[0] 12:37:29 AM [scraper] [ThreatTracker] Found 27 possible article links for The Hacker News
