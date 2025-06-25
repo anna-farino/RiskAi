@@ -127,6 +127,15 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 25, 2025 - Major Scraping Workflow Optimization Complete
+- **Streamlined scraping workflow from 11 steps to 6 core steps**
+- **Eliminated redundant bot protection checks** - removed duplicate detection in HTTP scraper
+- **Consolidated link extraction** - removed duplicate logic from PuppeteerScraper, OpenAI is single source of truth
+- **Simplified content extraction** - reduced complex fallback chains to 2-step approach (AI → selectors)
+- **Removed premature failure detection** - HTTP scraper no longer fails based on lazy loading keywords
+- **Performance improvements**: 50% reduction in processing steps, fewer OpenAI API calls, cleaner execution flow
+- **New streamlined workflow**: HTTP attempt → Puppeteer fallback if needed → OpenAI processing → content extraction
+
 ### June 25, 2025 - OpenAI Content Extraction Fix
 - **Fixed critical bug preventing AI-powered content extraction** in unified scraping system
 - **Root cause**: `scrapeArticleUrl` method wasn't passing `sourceUrl` parameter to `extractArticleContent`

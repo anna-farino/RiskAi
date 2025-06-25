@@ -338,13 +338,7 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
     }
 
     // Log extraction results
-    log(`[ContentExtractor] Extraction completed:`, "scraper");
-    log(`  - Title: ${finalResult.title.length} characters`, "scraper");
-    log(`  - Content: ${finalResult.content.length} characters`, "scraper");
-    log(`  - Author: ${finalResult.author ? 'found' : 'not found'}`, "scraper");
-    log(`  - Date: ${finalResult.publishDate ? 'found' : 'not found'}`, "scraper");
-    log(`  - Method: ${finalResult.extractionMethod}`, "scraper");
-    log(`  - Confidence: ${finalResult.confidence}`, "scraper");
+    log(`[ContentExtractor] Extraction completed - Method: ${finalResult.extractionMethod}, Confidence: ${finalResult.confidence}`, "scraper");
 
     return finalResult;
 
