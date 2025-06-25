@@ -8,59 +8,10 @@ export interface ScrapingOptions {
   isArticlePage: boolean;
   forceMethod?: 'http' | 'puppeteer';
   scrapingConfig?: any;
-  retryAttempts?: number;
-  appContext?: 'news-radar' | 'threat-tracker' | 'news-capsule';
-  customHeaders?: Record<string, string>;
   timeout?: number;
-}
-
-/**
- * Determine optimal scraping method based on URL and context
- * Makes intelligent decisions about HTTP vs Puppeteer usage
- */
-export async function determineScrapingMethod(url: string, options?: ScrapingOptions): Promise<'http' | 'puppeteer'> {
-  try {
-    // Force method if specified
-    if (options?.forceMethod) {
-      log(`[HybridScraper] Using forced method: ${options.forceMethod}`, "scraper");
-      return options.forceMethod;
-    }
-
-    // Threat Tracker context prefers Puppeteer for stealth
-    if (options?.appContext === 'threat-tracker') {
-      log(`[HybridScraper] Threat Tracker context: preferring Puppeteer for stealth`, "scraper");
-      return 'puppeteer';
-    }
-
-    // Known problematic domains that require Puppeteer
-    const puppeteerDomains = [
-      'marketwatch.com',
-      'bleepingcomputer.com',
-      'threatpost.com',
-      'darkreading.com',
-      'krebsonsecurity.com'
-    ];
-
-    const domain = new URL(url).hostname.toLowerCase();
-    if (puppeteerDomains.some(puppeteerDomain => domain.includes(puppeteerDomain))) {
-      log(`[HybridScraper] Known protected domain detected: ${domain}, using Puppeteer`, "scraper");
-      return 'puppeteer';
-    }
-
-    // For News Capsule, try HTTP first since it's single URL processing
-    if (options?.appContext === 'news-capsule') {
-      log(`[HybridScraper] News Capsule context: trying HTTP first`, "scraper");
-      return 'http';
-    }
-
-    // Default to HTTP first for News Radar efficiency
-    log(`[HybridScraper] Using default HTTP-first strategy`, "scraper");
-    return 'http';
-
-  } catch (error: any) {
-    log(`[HybridScraper] Error determining scraping method: ${error.message}`, "scraper-error");
-    return 'http'; // Default fallback
-  }
+  retryAttempts?: number;
+  customHeaders?: Record<string, string>;
+  appContext?: string;
 }
 
 /**
@@ -84,10 +35,13 @@ async function determineScrapingMethod(url: string, options?: ScrapingOptions): 
     return 'http';
   }
 }
-      
 
-        if (options.appContext === 'threat-tracker' || 
-
+/**
+ * Main unified scraping function
+ * Entry point for all scraping operations across all apps
+ */
+export async function scrapeUrl(url: string, options: ScrapingOptions): Promise<ScrapingResult> {
+  const startTime = Date.now();
   
   try {
     log(`[HybridScraper] Starting streamlined scraping for: ${url}`, "scraper");
@@ -125,31 +79,6 @@ async function determineScrapingMethod(url: string, options?: ScrapingOptions): 
       statusCode: 0,
       finalUrl: url
     };
-  }
-}
-
-/**
- * Extract domain from URL for cache lookups
- */
-function getDomain(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.replace(/^www\./, '');
-  } catch {
-    return url;
-  }
-}
-
-/**
- * Check if we have cached selectors for this domain
- */
-function checkSelectorCache(domain: string): boolean {
-  try {
-    const { hasCachedSelectorsForDomain } = require('../ai/hybrid-extractor');
-    return hasCachedSelectorsForDomain(`https://${domain}/test`);
-  } catch (error) {
-    log(`[HybridScraper] Error checking selector cache: ${error}`, "scraper");
-    return false;
   }
 }
 
@@ -198,39 +127,52 @@ export async function quickScrape(url: string, options?: Partial<ScrapingOptions
 }
 
 /**
- * Robust scraping for protected content (optimized for success rate)
- * Uses Puppeteer with full protection bypass
+ * Protected scraping with stealth capabilities
+ * Uses Puppeteer with bot protection bypass
  */
-export async function robustScrape(url: string, options?: Partial<ScrapingOptions>): Promise<ScrapingResult> {
-  log(`[HybridScraper] Performing robust scrape for: ${url}`, "scraper");
+export async function protectedScrape(url: string, options?: Partial<ScrapingOptions>): Promise<ScrapingResult> {
+  log(`[HybridScraper] Performing protected scrape for: ${url}`, "scraper");
   
-  const robustOptions: ScrapingOptions = {
+  const protectedOptions: ScrapingOptions = {
     isSourceUrl: false,
     isArticlePage: true,
-    retryAttempts: 3,
+    retryAttempts: 2,
     forceMethod: 'puppeteer',
-    appContext: 'threat-tracker', // Use threat tracker context for maximum stealth
     ...options
   };
 
-  return await scrapeUrl(url, robustOptions);
+  return await scrapeUrl(url, protectedOptions);
 }
 
 /**
- * Smart scraping that adapts based on previous results
- * Learns from failures and adjusts strategy
+ * Batch scraping for multiple URLs
+ * Optimizes for throughput while maintaining reliability
  */
-export async function adaptiveScrape(url: string, options: ScrapingOptions, previousFailures?: string[]): Promise<ScrapingResult> {
-  log(`[HybridScraper] Performing adaptive scrape for: ${url}`, "scraper");
+export async function batchScrape(urls: string[], options?: Partial<ScrapingOptions>): Promise<ScrapingResult[]> {
+  log(`[HybridScraper] Starting batch scrape for ${urls.length} URLs`, "scraper");
   
-  const domain = new URL(url).hostname;
-  
-  // If this domain has failed before, use more aggressive approach
-  if (previousFailures && previousFailures.includes(domain)) {
-    log(`[HybridScraper] Domain ${domain} has previous failures, using robust approach`, "scraper");
-    return await robustScrape(url, options);
-  }
+  const results = await Promise.allSettled(
+    urls.map(url => scrapeUrl(url, {
+      isSourceUrl: false,
+      isArticlePage: true,
+      retryAttempts: 1,
+      ...options
+    }))
+  );
 
-  // Otherwise, use standard hybrid approach
-  return await scrapeUrl(url, options);
+  return results.map((result, index) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    } else {
+      log(`[HybridScraper] Batch scrape failed for URL ${index}: ${result.reason}`, "scraper-error");
+      return {
+        html: '',
+        success: false,
+        method: 'http',
+        responseTime: 0,
+        statusCode: 0,
+        finalUrl: urls[index]
+      };
+    }
+  });
 }
