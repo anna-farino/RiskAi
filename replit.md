@@ -127,6 +127,13 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 25, 2025 - OpenAI Content Extraction Fix
+- **Fixed critical bug preventing AI-powered content extraction** in unified scraping system
+- **Root cause**: `scrapeArticleUrl` method wasn't passing `sourceUrl` parameter to `extractArticleContent`
+- **Solution**: Added missing `url` parameter in `backend/services/scraping/index.ts` line 178
+- **Impact**: System now properly attempts OpenAI extraction before falling back to selectors
+- **Expected improvement**: Higher extraction accuracy, fewer fallback attempts, better content quality
+
 ### June 25, 2025 - Complete Scraping Workflow Refactoring
 - **Eliminated duplicate link extraction** happening in both PuppeteerScraper and LinkExtractor
 - **Removed redundant bot protection handling** occurring after links were already obtained
