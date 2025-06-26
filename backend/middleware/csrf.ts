@@ -12,7 +12,7 @@ type CsrfCookieOptions = {
   httpOnly: boolean
 }
 
-let domain = ''
+let domain: string | undefined = ''
 
 switch(process.env.NODE_ENV) {
   case 'production':
@@ -20,7 +20,8 @@ switch(process.env.NODE_ENV) {
     break
   case 'staging':
     //domain = "preview.risqai.co"
-    domain = 'kind-pebble-02817100f.6.azurestaticapps.net'
+    //domain = 'kind-pebble-02817100f.6.azurestaticapps.net'
+    domain = undefined
     break
   case 'development':
     domain = "localhost"
