@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { log } from "backend/utils/log";
-import { ScrapingConfig } from '../types';
+import { ScrapingConfig } from '../extractors/structure-detector';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -94,12 +94,16 @@ ${processedHtml}`;
     });
 
     const response = completion.choices[0].message.content || "";
+    log(`[AIStructureDetector] Raw AI response: ${response.substring(0, 500)}...`, "scraper");
+    
     const result = JSON.parse(response);
     
-    log(`[AIStructureDetector] Structure detected with confidence ${result.confidence}`, "scraper");
+    log(`[AIStructureDetector] Parsed result - title: ${result.titleSelector}, content: ${result.contentSelector}, confidence: ${result.confidence}`, "scraper");
     
     // Validate and sanitize selectors
     const sanitized = sanitizeAIResult(result);
+    
+    log(`[AIStructureDetector] Final sanitized selectors - title: ${sanitized.titleSelector}, content: ${sanitized.contentSelector}`, "scraper");
     
     return sanitized;
 

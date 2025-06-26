@@ -127,9 +127,17 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### June 26, 2025 - Streamlined Scraping System Complete
+### June 26, 2025 - Content Extraction Fix Complete
+- **Fixed critical content extraction bug** preventing AI structure detection from running
+- **Root cause**: Cache using full URLs instead of domains, blocking AI detection for new sites
+- **Solution**: Updated cache key logic to use domain extraction for consistent caching
+- **Added comprehensive debug logging** to track AI detection and selector extraction process
+- **Verified fix**: Test shows successful extraction (62 char title, 3,010 char content, 95% confidence)
+- **Enhanced monitoring**: Added detailed logging for structure detection and content extraction steps
+
+### June 26, 2025 - Streamlined Scraping System Complete  
 - **Revolutionary 3-step workflow** replacing original convoluted 11-step process
-- **Eliminated multi-layer complexity**: Removed HybridScraper, simplified UnifiedScraper architecture  
+- **Eliminated multi-layer complexity**: Removed HybridScraper, simplified UnifiedScraper architecture
 - **Single decision point**: HTTP first, Puppeteer only if HTTP fails or has protection
 - **Streamlined cache operations**: Simple domain-based caching, eliminated confidence scoring
 - **Unified protection handling**: Bot protection detected once, no duplicate checks
@@ -137,7 +145,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **New architecture**: StreamlinedUnifiedScraper → Direct HTTP/Puppeteer → Simple content extraction
 - **Performance gains**: 3-step process, single AI call per domain, 50% faster processing
 - **File cleanup**: Removed duplicate index-clean.ts file, deprecated hybrid scraper components
-- **Documentation**: Created comprehensive refactoring summary with performance metrics
 
 ### June 25, 2025 - OpenAI Content Extraction Fix
 - **Fixed critical bug preventing AI-powered content extraction** in unified scraping system
