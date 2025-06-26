@@ -19,7 +19,8 @@ switch(process.env.NODE_ENV) {
     domain = "app.risqai.co"
     break
   case 'staging':
-    domain = "preview.risqai.co"
+    //domain = "preview.risqai.co"
+    domain = 'https://kind-pebble-02817100f.6.azurestaticapps.net'
     break
   case 'development':
     domain = "localhost"
