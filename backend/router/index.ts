@@ -61,7 +61,11 @@ router.delete('/secrets', deleteSecrets)
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
 // Sample Data Population API endpoints
-router.get('/sample-data/status', verifyToken, doubleCsrfProtection, noSimpleRequests, handleCheckSampleDataStatus)
-router.post('/sample-data/populate', verifyToken, doubleCsrfProtection, noSimpleRequests, handlePopulateSampleData)
+router.get('/sample-data/status', verifyToken, 
+  //doubleCsrfProtection, 
+  noSimpleRequests, handleCheckSampleDataStatus)
+router.post('/sample-data/populate', verifyToken, 
+  //doubleCsrfProtection, 
+noSimpleRequests, handlePopulateSampleData)
 
 export default router;
