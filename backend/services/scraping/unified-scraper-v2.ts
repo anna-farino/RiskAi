@@ -98,6 +98,23 @@ class RobustCache {
  */
 export class StreamlinedUnifiedScraper {
   private cache = new RobustCache();
+  
+  /**
+   * Validate config to ensure selectors are not corrupted
+   */
+  private isValidConfig(config: ScrapingConfig): boolean {
+    const hasValidTitle = config.titleSelector && 
+                         typeof config.titleSelector === 'string' && 
+                         config.titleSelector !== 'undefined' && 
+                         config.titleSelector.trim().length > 0;
+                         
+    const hasValidContent = config.contentSelector && 
+                           typeof config.contentSelector === 'string' && 
+                           config.contentSelector !== 'undefined' && 
+                           config.contentSelector.trim().length > 0;
+    
+    return hasValidTitle && hasValidContent;
+  }
 
   /**
    * Step 1: Simple method selection
@@ -280,8 +297,16 @@ export class StreamlinedUnifiedScraper {
         // HTTP content needs AI structure detection and selector extraction
         log(`[SimpleScraper] Using HTTP content with AI structure detection`, "scraper");
         
-        // Step 2: Get structure config (cache or AI)
-        const structureConfig = config || await this.getStructureConfig(url, contentResult.html);
+        // Step 2: Get structure config (validate config first, then cache or AI)
+        let structureConfig = config;
+        
+        // Validate the passed config to ensure it doesn't contain corrupted selectors
+        if (config && (!this.isValidConfig(config))) {
+          log(`[SimpleScraper] Invalid config passed, using AI detection instead`, "scraper");
+          structureConfig = null;
+        }
+        
+        structureConfig = structureConfig || await this.getStructureConfig(url, contentResult.html);
 
         // Step 3: Extract content using selectors
         const extracted = this.extractContentWithSelectors(contentResult.html, structureConfig);

@@ -331,36 +331,28 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
       try {
-        // Scrape the first article to get its HTML
+        // Let the unified scraper handle structure detection automatically
+        // It will use AI detection and cache the results properly
         const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl);
 
-        // Use OpenAI to detect the HTML structure from this article
-        htmlStructure = await detectHtmlStructure(
-          JSON.stringify(firstArticleContent),
-          firstArticleUrl,
-        );
-
         log(
-          `[ThreatTracker] Step 7: Detected HTML structure for articles`,
+          `[ThreatTracker] Step 7: Structure detection handled by unified scraper`,
           "scraper",
         );
 
-        // Save the detected structure for future use
-        await storage.updateSource(source.id, {
-          scrapingConfig: htmlStructure,
-        });
+        // Don't save anything to database - let the unified scraper handle caching internally
+        // This prevents corrupted selectors from being stored
+        
+        // Clear htmlStructure so we don't pass corrupted config to processArticle
+        htmlStructure = null;
+        
       } catch (error: any) {
         log(
-          `[ThreatTracker] Error detecting HTML structure from first article: ${error.message}`,
+          `[ThreatTracker] Error in structure detection: ${error.message}`,
           "scraper-error",
         );
-        // Continue with a basic structure instead of failing
-        htmlStructure = {
-          title: "h1",
-          content: "article",
-          author: ".author",
-          date: "time",
-        };
+        // Set to null to let unified scraper handle detection
+        htmlStructure = null;
       }
     }
 
