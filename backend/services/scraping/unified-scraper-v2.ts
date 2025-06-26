@@ -87,21 +87,7 @@ export class StreamlinedUnifiedScraper {
     return puppeteerResult.html;
   }
 
-  /**
-   * Determine context for structure detection based on URL
-   */
-  private getContextForUrl(url: string): string {
-    const domain = new URL(url).hostname.toLowerCase();
-    
-    // Security and cybersecurity domains
-    if (domain.includes('security') || domain.includes('cyber') || domain.includes('threat') ||
-        domain.includes('infosecurity') || domain.includes('darkweb') || domain.includes('bleeping')) {
-      return 'cybersecurity threats and security incidents';
-    }
-    
-    // Business and general news
-    return 'news and business articles';
-  }
+
 
   /**
    * Step 2: Simple structure detection
@@ -117,7 +103,13 @@ export class StreamlinedUnifiedScraper {
     
     // Use AI to detect structure with appropriate context
     log(`[SimpleScraper] Detecting structure with AI`, "scraper");
-    const context = this.getContextForUrl(url);
+    // Determine context based on URL domain
+    const domain = new URL(url).hostname.toLowerCase();
+    const context = domain.includes('security') || domain.includes('cyber') || domain.includes('threat') ||
+                   domain.includes('infosecurity') || domain.includes('darkweb') || domain.includes('bleeping') 
+                   ? 'cybersecurity threats and security incidents' 
+                   : 'news and business articles';
+    
     const structure = await detectHtmlStructure(html, url, context);
     
     // Convert AI result to ScrapingConfig
