@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { detectHtmlStructure as newsRadarDetection } from 'backend/apps/news-radar/services/openai';
 import { detectHtmlStructure as threatTrackerDetection } from 'backend/apps/threat-tracker/services/openai';
-import { detectHtmlStructureWithAI, AIStructureResult } from '../ai/structure-detector';
+// Removed AI structure detector import - using app-specific detection
 
 export interface ScrapingConfig {
   titleSelector: string;
@@ -301,25 +301,7 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
   }
 }
 
-/**
- * Convert unified AI structure result to ScrapingConfig format
- */
-function convertAIStructureToScrapingConfig(aiResult: AIStructureResult): ScrapingConfig {
-  return {
-    titleSelector: aiResult.titleSelector,
-    contentSelector: aiResult.contentSelector,
-    authorSelector: aiResult.authorSelector,
-    dateSelector: aiResult.dateSelector,
-    articleSelector: aiResult.articleSelector,
-    confidence: aiResult.confidence,
-    alternatives: {
-      dateSelector: aiResult.dateAlternatives?.[0],
-      titleSelector: generateFallbackSelectors('title')[0],
-      contentSelector: generateFallbackSelectors('content')[0],
-      authorSelector: generateFallbackSelectors('author')[0]
-    }
-  };
-}
+// Removed AIStructureResult conversion function - using direct ScrapingConfig approach
 
 /**
  * Enhance scraping config with comprehensive fallback selectors

@@ -1,8 +1,8 @@
 import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
-import { ScrapingConfig, generateFallbackSelectors, sanitizeSelector } from './structure-detector';
+import { ScrapingConfig, generateFallbackSelectors, sanitizeSelector, detectHtmlStructure } from './structure-detector';
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
-import { extractWithHybridAI, HybridExtractionResult } from '../ai/hybrid-extractor';
+// Removed hybrid AI extraction - using simplified approach
 
 export interface ArticleContent {
   title: string;
@@ -277,23 +277,28 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
     log(`[ContentExtractor] Starting content extraction`, "scraper");
 
     // Step 1: AI extraction if URL and API key available
+    // Streamlined extraction - use structure detector directly
     if (sourceUrl && process.env.OPENAI_API_KEY) {
       try {
-        log(`[ContentExtractor] Attempting AI extraction`, "scraper");
-        const aiResult = await extractWithHybridAI(html, sourceUrl);
+        log(`[ContentExtractor] Attempting structure detection`, "scraper");
+        const detectedConfig = await detectHtmlStructure(html, sourceUrl);
         
-        if (aiResult.confidence > 0.5) {
-          log(`[ContentExtractor] AI extraction successful (confidence: ${aiResult.confidence})`, "scraper");
+        if (detectedConfig.confidence > 0.5) {
+          log(`[ContentExtractor] Structure detection successful (confidence: ${detectedConfig.confidence})`, "scraper");
           
-          const publishDate = await extractPublishDateEnhanced(html, config);
+          const publishDate = await extractPublishDateEnhanced(html, detectedConfig);
+          
+          // Extract using detected selectors
+          const $ = cleanHtmlForExtraction(html);
+          const extracted = extractWithPrimarySelectors($, detectedConfig);
           
           return {
-            title: cleanAndNormalizeContent(aiResult.title),
-            content: cleanAndNormalizeContent(aiResult.content), 
-            author: aiResult.author || undefined,
+            title: cleanAndNormalizeContent(extracted.title),
+            content: cleanAndNormalizeContent(extracted.content), 
+            author: extracted.author || undefined,
             publishDate,
-            extractionMethod: `ai_${aiResult.method}`,
-            confidence: aiResult.confidence
+            extractionMethod: `ai_structure_detection`,
+            confidence: detectedConfig.confidence
           };
         }
       } catch (error: any) {
