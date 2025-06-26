@@ -3,7 +3,7 @@ import { scrapeWithHTTP, ScrapingResult } from './scrapers/http-scraper';
 import { scrapeWithPuppeteer } from './scrapers/puppeteer-scraper';
 import { extractArticleLinks, LinkExtractionOptions } from './extractors/link-extractor';
 import { ScrapingConfig } from './extractors/structure-detector';
-import { detectHtmlStructure } from './extractors/structure-detector';
+import { detectHtmlStructureWithAI } from './ai/structure-detector';
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
 import * as cheerio from 'cheerio';
 
@@ -87,8 +87,6 @@ export class StreamlinedUnifiedScraper {
     return puppeteerResult.html;
   }
 
-
-
   /**
    * Step 2: Simple structure detection
    * Check cache first, then AI if needed
@@ -101,16 +99,9 @@ export class StreamlinedUnifiedScraper {
       return cached;
     }
     
-    // Use AI to detect structure with appropriate context
+    // Use AI to detect structure
     log(`[SimpleScraper] Detecting structure with AI`, "scraper");
-    // Determine context based on URL domain
-    const domain = new URL(url).hostname.toLowerCase();
-    const context = domain.includes('security') || domain.includes('cyber') || domain.includes('threat') ||
-                   domain.includes('infosecurity') || domain.includes('darkweb') || domain.includes('bleeping') 
-                   ? 'cybersecurity threats and security incidents' 
-                   : 'news and business articles';
-    
-    const structure = await detectHtmlStructure(html, url, context);
+    const structure = await detectHtmlStructureWithAI(html, url);
     
     // Convert AI result to ScrapingConfig
     const config: ScrapingConfig = {

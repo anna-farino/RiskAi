@@ -72,13 +72,9 @@ StreamlinedUnifiedScraper → HTTP or Puppeteer → Simple Content Extraction
 - `backend/services/scraping/index.ts` - Delegates to streamlined scraper
 - `replit.md` - Updated with refactoring documentation
 
-### Deprecated Files (Removed)
-- `backend/services/scraping/scrapers/hybrid-scraper.ts` - Deleted (replaced by streamlined system)
-- `backend/services/scraping/ai/hybrid-extractor.ts` - Deleted (complex cache logic eliminated)
-- `backend/services/scraping/ai/structure-detector.ts` - Deleted (consolidated into unified detector)
-- `backend/services/scraping/index-clean.ts` - Deleted (duplicate of index.ts)
-- `test-frame-safe-scraper.js` - Deleted (obsolete test file)
-- `test-scraper.sh` - Deleted (obsolete test script)
+### Deprecated Files (Marked but Preserved)
+- `backend/services/scraping/scrapers/hybrid-scraper.ts` - Marked as deprecated
+- `backend/services/scraping/ai/hybrid-extractor.ts` - Complex cache logic eliminated
 
 ## App Integration Status
 
