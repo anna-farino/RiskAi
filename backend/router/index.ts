@@ -41,7 +41,7 @@ router.get('/test-articles', testArticles)
 router.use('/auth', limiter, authRouter)
 
 // PROTECTIONS
-router.use(doubleCsrfProtection)
+//router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 router.use(verifyToken)
 
