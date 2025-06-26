@@ -62,7 +62,7 @@ export class StreamlinedUnifiedScraper {
    * Step 1: Simple method selection
    * HTTP first, Puppeteer only if HTTP fails or protection blocks content
    */
-  private async getContent(url: string, isArticle: boolean = false): Promise<string> {
+  private async getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
     // Try HTTP first
     const httpResult = await scrapeWithHTTP(url, { timeout: 30000 });
     
@@ -73,7 +73,7 @@ export class StreamlinedUnifiedScraper {
       if (httpResult.protectionDetected?.hasProtection) {
         log(`[SimpleScraper] Protection detected but HTTP content sufficient, proceeding with HTTP`, "scraper");
       }
-      return httpResult.html;
+      return { html: httpResult.html, method: 'http' };
     }
     
     // Only use Puppeteer if HTTP truly failed or returned insufficient content
@@ -88,7 +88,7 @@ export class StreamlinedUnifiedScraper {
     }
     
     log(`[SimpleScraper] Puppeteer successful (${puppeteerResult.html.length} chars)`, "scraper");
-    return puppeteerResult.html;
+    return { html: puppeteerResult.html, method: 'puppeteer' };
   }
 
   /**
@@ -96,18 +96,17 @@ export class StreamlinedUnifiedScraper {
    * Check cache first, then AI if needed
    */
   private async getStructureConfig(url: string, html: string): Promise<ScrapingConfig> {
-    // Extract domain for consistent caching
-    const domain = new URL(url).hostname;
-    
-    // Check cache first using domain
-    const cached = this.cache.get(domain);
+    // Check cache first using URL (cache class handles domain extraction)
+    const cached = this.cache.get(url);
     if (cached) {
+      const domain = this.cache.getDomain(url);
       log(`[SimpleScraper] Using cached structure for domain: ${domain}`, "scraper");
       log(`[SimpleScraper] Cached selectors - title: ${cached.titleSelector}, content: ${cached.contentSelector}`, "scraper");
       return cached;
     }
     
     // Use AI to detect structure
+    const domain = this.cache.getDomain(url);
     log(`[SimpleScraper] No cache found for ${domain}, detecting structure with AI`, "scraper");
     const structure = await detectHtmlStructureWithAI(html, url);
     
@@ -123,8 +122,8 @@ export class StreamlinedUnifiedScraper {
       confidence: structure.confidence
     };
     
-    // Cache the result using domain
-    this.cache.set(domain, config);
+    // Cache the result using URL (cache class handles domain extraction)
+    this.cache.set(url, config);
     log(`[SimpleScraper] Cached structure for domain: ${domain}`, "scraper");
     
     return config;
@@ -167,6 +166,23 @@ export class StreamlinedUnifiedScraper {
   }
 
   /**
+   * Extract content from Puppeteer's structured HTML format
+   * Puppeteer returns pre-extracted content wrapped in simple HTML structure
+   */
+  private extractFromPuppeteerHTML(html: string): Partial<ArticleContent> {
+    const $ = cheerio.load(html);
+    
+    return {
+      title: $('h1').text().trim(),
+      content: $('.content').text().trim(),
+      author: $('.author').text().trim() || undefined,
+      publishDate: $('.date').text().trim() ? new Date($('.date').text().trim()) : undefined,
+      extractionMethod: 'puppeteer',
+      confidence: 0.9
+    };
+  }
+
+  /**
    * Streamlined source scraping - 3 steps total
    */
   async scrapeSourceUrl(url: string, options?: SourceScrapingOptions): Promise<string[]> {
@@ -174,7 +190,7 @@ export class StreamlinedUnifiedScraper {
       log(`[SimpleScraper] Starting source scraping: ${url}`, "scraper");
 
       // Step 1: Get content (HTTP or Puppeteer)
-      const html = await this.getContent(url, false);
+      const result = await this.getContent(url, false);
 
       // Step 2: Extract links with AI
       const extractionOptions: LinkExtractionOptions = {
@@ -185,7 +201,7 @@ export class StreamlinedUnifiedScraper {
         minimumTextLength: 20
       };
 
-      const articleLinks = await extractArticleLinks(html, url, extractionOptions);
+      const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
       
       log(`[SimpleScraper] Extracted ${articleLinks.length} article links`, "scraper");
       return articleLinks;
@@ -204,36 +220,59 @@ export class StreamlinedUnifiedScraper {
       log(`[SimpleScraper] Starting article scraping: ${url}`, "scraper");
 
       // Step 1: Get content (HTTP or Puppeteer)
-      const html = await this.getContent(url, true);
+      const contentResult = await this.getContent(url, true);
 
-      // Step 2: Get structure config (cache or AI)
-      const structureConfig = config || await this.getStructureConfig(url, html);
+      // Handle different extraction approaches based on method
+      if (contentResult.method === 'puppeteer') {
+        // Puppeteer returns pre-extracted content in structured HTML format
+        log(`[SimpleScraper] Using Puppeteer pre-extracted content`, "scraper");
+        const extracted = this.extractFromPuppeteerHTML(contentResult.html);
+        
+        const result: ArticleContent = {
+          title: extracted.title || '',
+          content: extracted.content || '',
+          author: extracted.author,
+          publishDate: extracted.publishDate,
+          extractionMethod: 'puppeteer',
+          confidence: 0.9
+        };
 
-      // Step 3: Extract content using selectors
-      const extracted = this.extractContentWithSelectors(html, structureConfig);
+        log(`[SimpleScraper] Extracted article (title=${result.title.length} chars, content=${result.content.length} chars)`, "scraper");
+        return result;
+        
+      } else {
+        // HTTP content needs AI structure detection and selector extraction
+        log(`[SimpleScraper] Using HTTP content with AI structure detection`, "scraper");
+        
+        // Step 2: Get structure config (cache or AI)
+        const structureConfig = config || await this.getStructureConfig(url, contentResult.html);
 
-      // Extract publish date
-      let publishDate: Date | null = null;
-      try {
-        publishDate = await extractPublishDate(html, {
-          date: structureConfig.dateSelector,
-          dateAlternatives: []
-        });
-      } catch (error) {
-        log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
+        // Step 3: Extract content using selectors
+        const extracted = this.extractContentWithSelectors(contentResult.html, structureConfig);
+
+        // Extract publish date
+        let publishDate: Date | null = null;
+        try {
+          publishDate = await extractPublishDate(contentResult.html, {
+            date: structureConfig.dateSelector,
+            dateAlternatives: []
+          });
+        } catch (error) {
+          log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
+        }
+
+        const result: ArticleContent = {
+          title: extracted.title || '',
+          content: extracted.content || '',
+          author: extracted.author,
+          publishDate,
+          extractionMethod: 'selectors',
+          confidence: extracted.confidence || 0.9
+        };
+
+        log(`[SimpleScraper] Extracted article (title=${result.title.length} chars, content=${result.content.length} chars)`, "scraper");
+        return result;
       }
-
-      const result: ArticleContent = {
-        title: extracted.title || '',
-        content: extracted.content || '',
-        author: extracted.author,
-        publishDate,
-        extractionMethod: extracted.extractionMethod || 'selectors',
-        confidence: extracted.confidence || 0.9
-      };
-
-      log(`[SimpleScraper] Extracted article (title=${result.title.length} chars, content=${result.content.length} chars)`, "scraper");
-      return result;
 
     } catch (error: any) {
       log(`[SimpleScraper] Error in article scraping: ${error.message}`, "scraper-error");

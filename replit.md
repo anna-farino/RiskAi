@@ -127,6 +127,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 26, 2025 - HTTP vs Puppeteer Decision Logic Fix Complete
+- **Fixed faulty decision logic** causing unnecessary Puppeteer usage when HTTP content was sufficient
+- **Root cause**: System switching to Puppeteer whenever protection detected, even if HTTP succeeded
+- **Solution**: Updated logic to use HTTP content if successful and >1000 chars, regardless of protection detection
+- **Enhanced method tracking**: Added method identification to handle HTTP vs Puppeteer content appropriately
+- **Performance improvement**: Avoids 20+ second Puppeteer operations when HTTP already works
+- **Verified fix**: Same failing URL now uses HTTP with AI detection (69 char title, 3,947 char content)
+
 ### June 26, 2025 - Content Extraction Fix Complete
 - **Fixed critical content extraction bug** preventing AI structure detection from running
 - **Root cause**: Cache using full URLs instead of domains, blocking AI detection for new sites
