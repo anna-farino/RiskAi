@@ -61,7 +61,8 @@ async function processArticle(
     }
 
     // Early content extraction to get title for additional duplicate checking
-    const articleContent = await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure);
+    // Removed htmlStructure parameter to allow AI structure detection
+    const articleContent = await scrapingService.scrapeArticleUrl(articleUrl);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
