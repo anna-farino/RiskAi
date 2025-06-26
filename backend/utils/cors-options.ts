@@ -7,7 +7,7 @@ export const corsOptions = {
     'https://preview-risqai-frontend.onrender.com',
     'https://preview.risqai.co',
     'https://app.risqai.co',
-    'https://kind-pebble-02817100f.6.azurestaticapps.net/',
+    'https://kind-pebble-02817100f.6.azurestaticapps.net',
     /\.replit\.dev$/,
     /\.repl\.co$/,
     /\.spock\.replit\.dev$/
