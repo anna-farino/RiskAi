@@ -127,6 +127,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 26, 2025 - Cache Validation Fix Complete
+- **Fixed cache corruption** causing "undefined" selectors to block content extraction
+- **Root cause**: Corrupted cache entries persisting with invalid selector values
+- **Solution**: Added cache validation logic to detect and clear corrupted entries automatically
+- **Enhanced debugging**: Added comprehensive cache lookup logging with detailed selector validation
+- **Automatic recovery**: System now clears invalid cache and runs AI detection when corruption detected
+- **Verified fix**: Corrupted cache cleared, AI detection runs, successful extraction (61 char title, 3,139 char content)
+
+### June 26, 2025 - Cache Consistency Fix Complete
+- **Fixed cache inconsistency** causing AI structure detection to skip with "undefined" selectors
+- **Root cause**: Mismatched domain extraction between getStructureConfig and SimpleCache class
+- **Solution**: Unified cache key logic to use consistent URL-to-domain extraction across all methods
+- **Enhanced logging**: Added detailed cache lookup and AI detection logging for debugging
+- **Verified fix**: AI detection now runs properly when cache misses occur (62 char title, 3,010 char content)
+
 ### June 26, 2025 - HTTP vs Puppeteer Decision Logic Fix Complete
 - **Fixed faulty decision logic** causing unnecessary Puppeteer usage when HTTP content was sufficient
 - **Root cause**: System switching to Puppeteer whenever protection detected, even if HTTP succeeded

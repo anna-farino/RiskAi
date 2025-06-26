@@ -49,6 +49,12 @@ class SimpleCache {
     this.cache.set(domain, config);
     log(`[SimpleScraper] Cached selectors for ${domain}`, "scraper");
   }
+  
+  delete(url: string): void {
+    const domain = this.getDomain(url);
+    this.cache.delete(domain);
+    log(`[SimpleScraper] Cleared cache for ${domain}`, "scraper");
+  }
 }
 
 /**
@@ -98,16 +104,27 @@ export class StreamlinedUnifiedScraper {
   private async getStructureConfig(url: string, html: string): Promise<ScrapingConfig> {
     // Check cache first using URL (cache class handles domain extraction)
     const cached = this.cache.get(url);
+    const domain = this.cache.getDomain(url);
+    
+    log(`[SimpleScraper] Cache lookup for domain: ${domain}`, "scraper");
+    
     if (cached) {
-      const domain = this.cache.getDomain(url);
-      log(`[SimpleScraper] Using cached structure for domain: ${domain}`, "scraper");
-      log(`[SimpleScraper] Cached selectors - title: ${cached.titleSelector}, content: ${cached.contentSelector}`, "scraper");
-      return cached;
+      log(`[SimpleScraper] Found cached structure for domain: ${domain}`, "scraper");
+      log(`[SimpleScraper] Cached selectors - title: "${cached.titleSelector}", content: "${cached.contentSelector}"`, "scraper");
+      
+      // Validate cached selectors are not undefined/null
+      if (!cached.titleSelector || !cached.contentSelector || 
+          cached.titleSelector === 'undefined' || cached.contentSelector === 'undefined') {
+        log(`[SimpleScraper] Cached selectors are invalid, clearing cache and running AI detection`, "scraper");
+        // Clear the invalid cache entry
+        this.cache.delete(url);
+      } else {
+        return cached;
+      }
     }
     
     // Use AI to detect structure
-    const domain = this.cache.getDomain(url);
-    log(`[SimpleScraper] No cache found for ${domain}, detecting structure with AI`, "scraper");
+    log(`[SimpleScraper] No valid cache found for ${domain}, detecting structure with AI`, "scraper");
     const structure = await detectHtmlStructureWithAI(html, url);
     
     // Log what AI detected
