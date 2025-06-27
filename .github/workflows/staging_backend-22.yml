@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -16,30 +16,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '22.x'
-
-      - name: Install dependencies
-        run: |
-          npm install
-          npm install --workspace=backend
-
-      - name: Build backend
-        run: npm run build --workspace=backend
-
-      - name: Prepare for deployment
-        run: |
-          cd backend
-          # Remove dev dependencies to reduce size
-          npm prune --production
-          # Ensure node_modules is not compressed
-          if [ -f node_modules.tar.gz ]; then
-            rm node_modules.tar.gz
-          fi
-          cd ..
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -54,4 +30,3 @@ jobs:
           app-name: 'backend-22'
           slot-name: 'Production'
           package: './backend'
-          clean: true  # This will clean old files
