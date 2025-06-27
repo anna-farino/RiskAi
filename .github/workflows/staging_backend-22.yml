@@ -22,35 +22,19 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: Install root dependencies
-        run: npm install
-
-      - name: Install backend dependencies
-        run: npm install --workspace=backend
-
-      - name: Build backend
-        run: npm run build --workspace=backend
-
-      - name: Prepare deployment package
+      - name: Install and build
         run: |
-          # Create a deployment directory
-          mkdir -p deploy-package
+          # Install dependencies
+          npm install
+          npm install --workspace=backend
           
-          # Copy backend files
-          cp -r backend/dist deploy-package/
-          cp backend/package.json deploy-package/
-          cp backend/package-lock.json deploy-package/ 2>/dev/null || true
+          # Build backend
+          npm run build --workspace=backend
           
-          # Install production dependencies in the deployment package
-          cd deploy-package
-          npm install --production
+          # Remove dev dependencies to reduce size
+          cd backend
+          npm prune --production
           cd ..
-          
-          # Verify the deployment package
-          echo "Contents of deploy-package:"
-          ls -la deploy-package/
-          echo "Checking if argon2 is installed:"
-          ls -la deploy-package/node_modules/argon2 || echo "argon2 not found"
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -64,4 +48,4 @@ jobs:
         with:
           app-name: 'backend-22'
           slot-name: 'Production'
-          package: './deploy-package'
+          package: './backend'
