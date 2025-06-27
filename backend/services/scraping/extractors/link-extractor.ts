@@ -83,7 +83,7 @@ export function filterLinksByPatterns(
 function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtractionOptions): LinkData[] {
   const $ = cheerio.load(html);
   const links: LinkData[] = [];
-  const minimumTextLength = options?.minimumTextLength || 20;
+  const minimumTextLength = options?.minimumTextLength || 5;
   
   $('a[href]').each((_, element) => {
     const href = $(element).attr('href');

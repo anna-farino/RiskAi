@@ -117,17 +117,37 @@ export class StreamlinedUnifiedScraper {
   }
 
   /**
-   * Step 1: Simple method selection
-   * HTTP first, Puppeteer only if HTTP fails or protection blocks content
+   * Step 1: Smart method selection
+   * HTTP first, but switch to Puppeteer for dynamic content sites
    */
   private async getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
     // Try HTTP first
     const httpResult = await scrapeWithHTTP(url, { timeout: 30000 });
     
-    // If HTTP succeeds, use it regardless of protection detection
-    // Protection detection is informational - what matters is if we got content
+    // If HTTP succeeds, check if content looks dynamic/incomplete
     if (httpResult.success && httpResult.html.length > 1000) {
       log(`[SimpleScraper] HTTP successful (${httpResult.html.length} chars)`, "scraper");
+      
+      // For source pages (not articles), check if we need dynamic content loading
+      if (!isArticle) {
+        const needsDynamicLoading = this.detectDynamicContentNeeds(httpResult.html, url);
+        if (needsDynamicLoading) {
+          log(`[SimpleScraper] Dynamic content detected, switching to Puppeteer for better link extraction`, "scraper");
+          const puppeteerResult = await scrapeWithPuppeteer(url, {
+            timeout: 60000,
+            isArticlePage: false,
+            handleHTMX: true,
+            scrollToLoad: true,
+            protectionBypass: true
+          });
+          
+          if (puppeteerResult.success) {
+            log(`[SimpleScraper] Puppeteer dynamic content successful (${puppeteerResult.html.length} chars)`, "scraper");
+            return { html: puppeteerResult.html, method: 'puppeteer' };
+          }
+        }
+      }
+      
       if (httpResult.protectionDetected?.hasProtection) {
         log(`[SimpleScraper] Protection detected but HTTP content sufficient, proceeding with HTTP`, "scraper");
       }
@@ -138,7 +158,10 @@ export class StreamlinedUnifiedScraper {
     log(`[SimpleScraper] HTTP insufficient (success: ${httpResult.success}, length: ${httpResult.html.length}), using Puppeteer fallback`, "scraper");
     const puppeteerResult = await scrapeWithPuppeteer(url, {
       timeout: 60000,
-      isArticlePage: isArticle
+      isArticlePage: isArticle,
+      handleHTMX: !isArticle,
+      scrollToLoad: !isArticle,
+      protectionBypass: true
     });
     
     if (!puppeteerResult.success) {
@@ -147,6 +170,54 @@ export class StreamlinedUnifiedScraper {
     
     log(`[SimpleScraper] Puppeteer successful (${puppeteerResult.html.length} chars)`, "scraper");
     return { html: puppeteerResult.html, method: 'puppeteer' };
+  }
+
+  /**
+   * Detect if a page needs dynamic content loading (HTMX, JavaScript, etc.)
+   */
+  private detectDynamicContentNeeds(html: string, url: string): boolean {
+    const htmlLower = html.toLowerCase();
+    
+    // Check for specific dynamic content indicators
+    const dynamicIndicators = [
+      // HTMX indicators  
+      'hx-get', 'hx-post', 'hx-trigger', 'htmx',
+      // JavaScript loading indicators
+      'load-more', 'lazy-load', 'infinite-scroll',
+      // Modern framework indicators
+      'data-react', 'ng-app', 'v-if', '@click',
+      // Loading states
+      'skeleton', 'loading', 'spinner',
+      // Empty content containers
+      'articles-container', 'posts-container', 'content-loader'
+    ];
+    
+    const hasDynamicIndicators = dynamicIndicators.some(indicator => 
+      htmlLower.includes(indicator)
+    );
+    
+    // Check for specific patterns that indicate dynamic content
+    const hasMinimalLinks = (html.match(/<a[^>]*href[^>]*>/gi) || []).length < 10;
+    const hasEmptyContainers = htmlLower.includes('container') && 
+                              (htmlLower.includes('empty') || htmlLower.includes('no-content'));
+    
+    // Known dynamic sites that need JavaScript
+    const knownDynamicSites = [
+      'foorilla.com',
+      'medium.com', 
+      'substack.com',
+      'dev.to'
+    ];
+    
+    const isDynamicSite = knownDynamicSites.some(site => url.includes(site));
+    
+    const needsDynamic = hasDynamicIndicators || hasMinimalLinks || hasEmptyContainers || isDynamicSite;
+    
+    if (needsDynamic) {
+      log(`[SimpleScraper] Dynamic content detected - indicators: ${hasDynamicIndicators}, minimal links: ${hasMinimalLinks}, known site: ${isDynamicSite}`, "scraper");
+    }
+    
+    return needsDynamic;
   }
 
   /**
@@ -251,7 +322,7 @@ export class StreamlinedUnifiedScraper {
         excludePatterns: options?.excludePatterns,
         aiContext: options?.aiContext,
         maxLinks: options?.maxLinks || 50,
-        minimumTextLength: 20
+        minimumTextLength: 5  // Reduced from 20 to capture more dynamic content links
       };
 
       const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
