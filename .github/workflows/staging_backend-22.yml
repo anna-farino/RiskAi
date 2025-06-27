@@ -29,4 +29,4 @@ jobs:
         with:
           app-name: 'backend-22'
           slot-name: 'Production'
-          package: './backend'
+          package: '.'
