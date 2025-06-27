@@ -40,8 +40,13 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
+    // DEBUG: Log URL before and after normalization to identify modification
+    log(`[ThreatTracker] DEBUG - Original article URL: ${articleUrl}`, "scraper-debug");
+    
     // Normalize the URL to handle variations (trailing slashes, query params)
     const normalizedUrl = normalizeUrl(articleUrl);
+    
+    log(`[ThreatTracker] DEBUG - Normalized article URL: ${normalizedUrl}`, "scraper-debug");
     
     // Check if we already have this article FOR THIS USER - use direct URL lookup for efficiency
     const existingArticle = await storage.getArticleByUrl(normalizedUrl, userId);
@@ -309,6 +314,12 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       `[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`,
       "scraper",
     );
+    
+    // DEBUG: Log all extracted URLs to identify where modification occurs
+    log(`[ThreatTracker] DEBUG - All extracted URLs from source:`, "scraper-debug");
+    processedLinks.forEach((url, index) => {
+      log(`[ThreatTracker] DEBUG - Extracted URL ${index + 1}: ${url}`, "scraper-debug");
+    });
 
     // Use source's existing scraping config (unified service handles structure detection internally)
     let htmlStructure = source.scrapingConfig;

@@ -214,6 +214,12 @@ export async function identifyArticleLinks(
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
         .join("\n");
+        
+      // Debug: Log original URLs being sent to OpenAI
+      log(`[ThreatTracker] DEBUG - Original URLs being sent to OpenAI:`, "openai-debug");
+      links.forEach((link, index) => {
+        log(`[ThreatTracker] DEBUG - Original URL ${index + 1}: ${link.href}`, "openai-debug");
+      });
     }
 
     log(
@@ -315,6 +321,13 @@ export async function identifyArticleLinks(
       `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
       "openai",
     );
+    
+    // Debug: Log original vs returned URLs to identify modification
+    log(`[ThreatTracker] DEBUG - OpenAI returned URLs:`, "openai-debug");
+    result.articleUrls.forEach((url: string, index: number) => {
+      log(`[ThreatTracker] DEBUG - Returned URL ${index + 1}: ${url}`, "openai-debug");
+    });
+    
     return result.articleUrls;
   } catch (error: any) {
     log(
