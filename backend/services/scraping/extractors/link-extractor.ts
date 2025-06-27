@@ -103,7 +103,6 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
   });
   
   log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML`, "scraper");
-  //log(`[LinkExtractor] Potential links: ${JSON.stringify(links, null, 2)}`, "scraper");
   return links;
 }
 
@@ -269,6 +268,8 @@ export async function extractArticleLinks(
     
     // Only normalize relative URLs to absolute - preserve all absolute URLs exactly
     links = normalizeUrls(links, baseUrl);
+    
+    log(`[LinkExtractor] After normalization: ${links.length} links with absolute URLs`, "scraper");
     
     // Use AI to identify article links if context provided
     if (options?.aiContext) {

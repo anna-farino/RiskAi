@@ -127,18 +127,25 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### June 27, 2025 - URL Preservation Fix Complete
+### June 27, 2025 - Complete URL Processing Fix
 - **Fixed critical URL modification bug** in Threat Tracker causing article URLs to lose path segments like `/expert-insights/`
-- **Root cause**: Multiple normalization layers in unified scraper were modifying absolute URLs
-- **Primary issue**: News Radar OpenAI function being used for Threat Tracker processing without proper URL preservation
+- **Fixed relative URL processing bug** causing domains to be missing from relative URLs like `/hawaiian-airlines-cyberattack-flights-safe`
+- **Root causes identified**:
+  - Multiple normalization layers in unified scraper were modifying absolute URLs
+  - News Radar OpenAI function being used for Threat Tracker processing without proper URL preservation  
+  - Relative URLs not being normalized before AI processing in Threat Tracker context
 - **Solution implemented**:
   - Enhanced both OpenAI prompts with explicit URL preservation instructions
   - Updated link extraction to use correct Threat Tracker OpenAI function for cybersecurity context
   - Modified `normalizeUrls` function to only convert relative URLs, preserving absolute URLs exactly
+  - Added pre-normalization of relative URLs before AI processing to ensure absolute URLs
   - Removed aggressive URL normalization from article processing pipeline
-- **Impact**: URLs like `https://thehackernews.com/expert-insights/2025/06/article.html` now preserved exactly as extracted
-- **Verification**: Comprehensive testing confirms URLs maintain original structure including all path segments
-- **Database storage**: Articles now stored with original URLs to maintain exact link references
+  - Enhanced logging to track URL normalization process
+- **Impact**: 
+  - Absolute URLs like `https://thehackernews.com/expert-insights/2025/06/article.html` preserved exactly
+  - Relative URLs like `/hawaiian-airlines-cyberattack-flights-safe` correctly converted to `https://therecord.media/hawaiian-airlines-cyberattack-flights-safe`
+- **Verification**: Comprehensive testing confirms both absolute URL preservation and relative URL conversion work correctly
+- **Database storage**: Articles now stored with properly formatted absolute URLs
 
 ### June 26, 2025 - Complete Cache Corruption Fix
 - **Root cause identified**: Threat Tracker passing corrupted database configs that bypass cache validation
