@@ -44,7 +44,5 @@ jobs:
           app-name: 'backend-22'
           slot-name: 'Production'
           package: './backend'
-          slot-name: 'Production'
-          package: './backend'
 
           
