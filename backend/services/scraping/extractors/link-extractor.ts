@@ -103,7 +103,7 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
   });
   
   log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML`, "scraper");
-  log(`[LinkExtractor] Potential links: ${JSON.stringify(links.slice(0, 10), null, 2)}${links.length > 10 ? ` ... and ${links.length - 10} more` : ''}`, "scraper");
+  log(`[LinkExtractor] Potential links: ${JSON.stringify(links, null, 2)}`, "scraper");
   return links;
 }
 
@@ -298,7 +298,7 @@ export async function extractArticleLinks(
     }
     
     log(`[LinkExtractor] Final result: ${links.length} article links extracted`, "scraper");
-    log(`[LinkExtractor] Final links: ${JSON.stringify(links.slice(0, 10), null, 2)}${links.length > 10 ? ` ... and ${links.length - 10} more` : ''}`, "scraper");
+    log(`[LinkExtractor] Final links: ${JSON.stringify(links, null, 2)}`, "scraper");
     return links;
     
   } catch (error: any) {
