@@ -40,8 +40,7 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
-    // DEBUG: Log original article URL 
-    log(`[ThreatTracker] DEBUG - Processing article URL: ${articleUrl}`, "scraper-debug");
+
     
     // Check if we already have this article FOR THIS USER - use original URL for lookup
     // We'll handle URL variations through title similarity instead of URL normalization
@@ -308,11 +307,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       "scraper",
     );
     
-    // DEBUG: Log all extracted URLs to identify where modification occurs
-    log(`[ThreatTracker] DEBUG - All extracted URLs from source:`, "scraper-debug");
-    processedLinks.forEach((url, index) => {
-      log(`[ThreatTracker] DEBUG - Extracted URL ${index + 1}: ${url}`, "scraper-debug");
-    });
+
 
     // Use source's existing scraping config (unified service handles structure detection internally)
     let htmlStructure = source.scrapingConfig;

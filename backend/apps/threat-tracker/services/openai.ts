@@ -319,11 +319,7 @@ export async function identifyArticleLinks(
       "openai",
     );
     
-    // Debug: Log original vs returned URLs to identify modification
-    log(`[ThreatTracker] DEBUG - OpenAI returned URLs:`, "openai-debug");
-    result.articleUrls.forEach((url: string, index: number) => {
-      log(`[ThreatTracker] DEBUG - Returned URL ${index + 1}: ${url}`, "openai-debug");
-    });
+
     
     return result.articleUrls;
   } catch (error: any) {
