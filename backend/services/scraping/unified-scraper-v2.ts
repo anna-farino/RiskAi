@@ -201,17 +201,7 @@ export class StreamlinedUnifiedScraper {
     const hasEmptyContainers = htmlLower.includes('container') && 
                               (htmlLower.includes('empty') || htmlLower.includes('no-content'));
     
-    // Known dynamic sites that need JavaScript
-    const knownDynamicSites = [
-      'foorilla.com',
-      'medium.com', 
-      'substack.com',
-      'dev.to'
-    ];
-    
-    const isDynamicSite = knownDynamicSites.some(site => url.includes(site));
-    
-    const needsDynamic = hasDynamicIndicators || hasMinimalLinks || hasEmptyContainers || isDynamicSite;
+    const needsDynamic = hasDynamicIndicators || hasMinimalLinks || hasEmptyContainers;
     
     if (needsDynamic) {
       log(`[SimpleScraper] Dynamic content detected - indicators: ${hasDynamicIndicators}, minimal links: ${hasMinimalLinks}, known site: ${isDynamicSite}`, "scraper");
