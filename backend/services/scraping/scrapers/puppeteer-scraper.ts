@@ -94,8 +94,7 @@ async function handleHTMXContent(page: Page): Promise<void> {
 
     // Handle HTMX content if detected OR if page looks like it needs dynamic loading
     const needsDynamicLoading = htmxInfo && (htmxInfo.scriptLoaded || htmxInfo.htmxInWindow || htmxInfo.hasHxAttributes) ||
-                               page.url().includes('foorilla.com') || // Known dynamic sites
-                               await page.evaluate(() => document.querySelectorAll('a').length < 10); // Very few links
+                               await page.evaluate(() => document.querySelectorAll('a').length < 10); // Very few links indicate dynamic content
     
     if (needsDynamicLoading) {
       log(`[PuppeteerScraper] Dynamic content loading needed, handling...`, "scraper");

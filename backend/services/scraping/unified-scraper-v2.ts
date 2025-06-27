@@ -201,10 +201,29 @@ export class StreamlinedUnifiedScraper {
     const hasEmptyContainers = htmlLower.includes('container') && 
                               (htmlLower.includes('empty') || htmlLower.includes('no-content'));
     
-    const needsDynamic = hasDynamicIndicators || hasMinimalLinks || hasEmptyContainers;
+    // Check for JavaScript frameworks and dynamic loading patterns
+    const hasJavaScriptFrameworks = htmlLower.includes('react') || 
+                                   htmlLower.includes('vue') || 
+                                   htmlLower.includes('angular') ||
+                                   htmlLower.includes('next.js') ||
+                                   htmlLower.includes('nuxt');
+    
+    // Check for async loading patterns
+    const hasAsyncPatterns = htmlLower.includes('async') || 
+                            htmlLower.includes('defer') ||
+                            htmlLower.includes('fetch(') ||
+                            htmlLower.includes('ajax');
+    
+    // Check for content placeholders that suggest dynamic loading
+    const hasPlaceholders = htmlLower.includes('placeholder') ||
+                           htmlLower.includes('skeleton') ||
+                           htmlLower.includes('loading');
+    
+    const needsDynamic = hasDynamicIndicators || hasMinimalLinks || hasEmptyContainers || 
+                        hasJavaScriptFrameworks || hasAsyncPatterns || hasPlaceholders;
     
     if (needsDynamic) {
-      log(`[SimpleScraper] Dynamic content detected - indicators: ${hasDynamicIndicators}, minimal links: ${hasMinimalLinks}, known site: ${isDynamicSite}`, "scraper");
+      log(`[SimpleScraper] Dynamic content detected - HTMX/indicators: ${hasDynamicIndicators}, minimal links: ${hasMinimalLinks}, JS frameworks: ${hasJavaScriptFrameworks}, async patterns: ${hasAsyncPatterns}, placeholders: ${hasPlaceholders}`, "scraper");
     }
     
     return needsDynamic;

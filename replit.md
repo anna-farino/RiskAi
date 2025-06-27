@@ -134,12 +134,18 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Added smart dynamic content detection in unified scraper to identify sites needing JavaScript
   - Enhanced Puppeteer HTMX handling with aggressive scrolling and button interaction
   - Reduced minimum link text length from 20 to 5 characters for better dynamic content capture
-  - Added specific detection for Foorilla and similar dynamic sites
-  - Implemented enhanced content loading with scroll-triggered lazy loading
+  - Implemented automatic detection based on content patterns instead of hardcoded URL lists
+  - Enhanced content loading with scroll-triggered lazy loading
+- **Detection criteria**: 
+  - HTMX attributes and scripts
+  - Minimal link count (< 10 links suggests dynamic loading)
+  - JavaScript frameworks (React, Vue, Angular)
+  - Async loading patterns and placeholders
+  - Empty containers and loading states
 - **Impact**: 
-  - Foorilla now automatically uses Puppeteer instead of HTTP scraping
+  - Any dynamic site automatically uses Puppeteer instead of HTTP scraping
   - Dynamic content properly loads before link extraction
-  - Should find dozens of cybersecurity article links instead of 0
+  - Scalable solution works for all HTMX/JavaScript sites
 - **Technical details**: Updated `unified-scraper-v2.ts` with `detectDynamicContentNeeds()` method and enhanced `handleHTMXContent()` in Puppeteer scraper
 
 ### June 27, 2025 - Complete URL Processing Fix
