@@ -136,9 +136,8 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Updated link extraction to use correct Threat Tracker OpenAI function for cybersecurity context
   - Modified `normalizeUrls` function to only convert relative URLs, preserving absolute URLs exactly
   - Removed aggressive URL normalization from article processing pipeline
-- **Impact**: URLs are now preserved exactly as they appear in source HTML throughout entire pipeline
-- **Verification**: Debug logging confirms URLs maintain original structure at every processing step
-- **Result**: System correctly preserves URLs as found on source pages; any URL variations reflect actual site content
+- **Impact**: URLs like `https://thehackernews.com/expert-insights/2025/06/article.html` now preserved exactly as extracted
+- **Verification**: Comprehensive testing confirms URLs maintain original structure including all path segments
 - **Database storage**: Articles now stored with original URLs to maintain exact link references
 
 ### June 26, 2025 - Complete Cache Corruption Fix
