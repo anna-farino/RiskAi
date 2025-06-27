@@ -25,12 +25,6 @@ jobs:
       - name: Install root dependencies
         run: npm install
 
-      - name: Install Puppeteer Chromium
-        run: npx puppeteer browsers install chrome
-
-      - name: Build backend
-        run: npm run build --workspace=backend
-
       - name: Login to Azure
         uses: azure/login@v2
         with:
