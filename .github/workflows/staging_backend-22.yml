@@ -28,6 +28,9 @@ jobs:
       - name: Install backend dependencies
         run: npm install --workspace=backend
 
+      - name: Build backend
+        run: npm run build --workspace=backend
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -39,6 +42,8 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'backend-22'
+          slot-name: 'Production'
+          package: './backend'
           slot-name: 'Production'
           package: './backend'
 
