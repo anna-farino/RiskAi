@@ -214,12 +214,6 @@ export async function identifyArticleLinks(
       linksText = links
         .map((link) => `URL: ${link.href}, Text: ${link.text}`)
         .join("\n");
-        
-      // Debug: Log original URLs being sent to OpenAI
-      log(`[ThreatTracker] DEBUG - Original URLs being sent to OpenAI:`, "openai-debug");
-      links.forEach((link, index) => {
-        log(`[ThreatTracker] DEBUG - Original URL ${index + 1}: ${link.href}`, "openai-debug");
-      });
     }
 
     log(
@@ -254,6 +248,8 @@ export async function identifyArticleLinks(
             2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
             3. Proper article context (not navigation/category pages)
 
+            CRITICAL: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
+            
             Return only links that are very likely to be actual articles.
             Exclude:
             - Category pages
@@ -264,7 +260,8 @@ export async function identifyArticleLinks(
             - Pagination links
             - General company information pages
 
-            Return JSON in format: { articleUrls: string[] }`,
+            Return JSON in format: { articleUrls: string[] }
+            Each URL in articleUrls must be copied exactly as provided in the input without any modifications.`,
         },
         {
           role: "user",

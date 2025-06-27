@@ -40,20 +40,16 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
-    // DEBUG: Log URL before and after normalization to identify modification
-    log(`[ThreatTracker] DEBUG - Original article URL: ${articleUrl}`, "scraper-debug");
+    // DEBUG: Log original article URL 
+    log(`[ThreatTracker] DEBUG - Processing article URL: ${articleUrl}`, "scraper-debug");
     
-    // Normalize the URL to handle variations (trailing slashes, query params)
-    const normalizedUrl = normalizeUrl(articleUrl);
-    
-    log(`[ThreatTracker] DEBUG - Normalized article URL: ${normalizedUrl}`, "scraper-debug");
-    
-    // Check if we already have this article FOR THIS USER - use direct URL lookup for efficiency
-    const existingArticle = await storage.getArticleByUrl(normalizedUrl, userId);
+    // Check if we already have this article FOR THIS USER - use original URL for lookup
+    // We'll handle URL variations through title similarity instead of URL normalization
+    const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
 
     if (existingArticle) {
       log(
-        `[ThreatTracker] Article already exists for this user: ${normalizedUrl}`,
+        `[ThreatTracker] Article already exists for this user: ${articleUrl}`,
         "scraper",
       );
       return null;
@@ -207,17 +203,14 @@ async function processArticle(
     // Use the cleaned author field (OpenAI extractor ensures proper field separation)
     let actualAuthor = articleData.author;
 
-    // Store the normalized URL to prevent future duplicates
-    const urlToStore = normalizeUrl(articleUrl);
-
     log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}, sourceId: ${sourceId}`);
 
-    // Store the article in the database using normalized URL for consistency
+    // Store the article in the database using original URL to preserve exact links
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-      url: normalizedUrl, // Use normalized URL for consistency
+      url: articleUrl, // Use original URL to preserve exact structure
       author: articleData.author,
       publishDate: publishDate,
       summary: analysis.summary,
