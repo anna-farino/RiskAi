@@ -128,12 +128,16 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 ## Recent Changes
 
 ### June 27, 2025 - URL Preservation Fix Complete
-- **Fixed critical URL modification bug** in Threat Tracker causing article URLs to lose path segments
-- **Root cause**: OpenAI prompt system was modifying URLs during article link identification
-- **Solution**: Enhanced OpenAI prompt with explicit URL preservation instructions
+- **Fixed critical URL modification bug** in Threat Tracker causing article URLs to lose path segments like `/expert-insights/`
+- **Root cause**: Multiple normalization layers in unified scraper were modifying absolute URLs
+- **Primary issue**: News Radar OpenAI function being used for Threat Tracker processing without proper URL preservation
+- **Solution implemented**:
+  - Enhanced both OpenAI prompts with explicit URL preservation instructions
+  - Updated link extraction to use correct Threat Tracker OpenAI function for cybersecurity context
+  - Modified `normalizeUrls` function to only convert relative URLs, preserving absolute URLs exactly
+  - Removed aggressive URL normalization from article processing pipeline
 - **Impact**: URLs like `https://thehackernews.com/expert-insights/2025/06/article.html` now preserved exactly as extracted
-- **Additional fixes**: Removed aggressive URL normalization that was stripping path components
-- **Verification**: Test confirms URLs maintain original structure including `/expert-insights/` paths
+- **Verification**: Comprehensive testing confirms URLs maintain original structure including all path segments
 - **Database storage**: Articles now stored with original URLs to maintain exact link references
 
 ### June 26, 2025 - Complete Cache Corruption Fix

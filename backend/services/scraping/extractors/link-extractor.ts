@@ -19,8 +19,8 @@ export interface LinkData {
 }
 
 /**
- * Normalize URLs to handle variations
- * Consolidates URL normalization logic from both apps
+ * Normalize URLs to handle variations - PRESERVES absolute URLs exactly
+ * Only converts relative URLs to absolute, does not modify existing absolute URLs
  */
 export function normalizeUrls(links: string[], baseUrl: string): string[] {
   const urlObject = new URL(baseUrl);
@@ -28,12 +28,12 @@ export function normalizeUrls(links: string[], baseUrl: string): string[] {
   
   return links.map(link => {
     try {
-      // If already absolute, return as-is (after decoding)
+      // If already absolute, return EXACTLY as-is (only decode HTML entities)
       if (link.startsWith('http://') || link.startsWith('https://')) {
         return link.replace(/&amp;/g, '&');
       }
       
-      // Handle relative URLs
+      // Only handle relative URLs - convert to absolute
       const absoluteUrl = link.startsWith('/') 
         ? `${baseDomain}${link}` 
         : `${baseDomain}/${link}`;
@@ -266,13 +266,28 @@ export async function extractArticleLinks(
     let links = linkData.map(link => link.href);
     links = filterLinksByPatterns(links, options?.includePatterns, options?.excludePatterns);
     
-    // Normalize URLs
+    // Only normalize relative URLs to absolute - preserve all absolute URLs exactly
     links = normalizeUrls(links, baseUrl);
     
     // Use AI to identify article links if context provided
     if (options?.aiContext) {
-      links = await identifyArticleLinksWithAI(linkData, options.aiContext);
-      links = normalizeUrls(links, baseUrl);
+      // For Threat Tracker, use the correct OpenAI function that preserves URLs
+      if (options.aiContext.includes('cybersecurity') || options.aiContext.includes('threat')) {
+        // Import the Threat Tracker function that has proper URL preservation
+        const { identifyArticleLinks } = await import('backend/apps/threat-tracker/services/openai.js');
+        
+        // Create structured HTML for Threat Tracker analysis
+        const structuredHtml = linkData
+          .map(link => `<a href="${link.href}">${link.text}</a>`)
+          .join('\n');
+        
+        links = await identifyArticleLinks(structuredHtml);
+      } else {
+        // Use News Radar function for other contexts
+        links = await identifyArticleLinksWithAI(linkData, options.aiContext);
+        // Only normalize relative URLs, not absolute ones
+        links = links.filter(link => link.startsWith('http')); // Keep only absolute URLs to avoid re-normalization
+      }
     }
     
     // Apply max links limit
