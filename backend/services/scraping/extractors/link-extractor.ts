@@ -103,7 +103,7 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
   });
   
   log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML`, "scraper");
-  log(`[LinkExtractor] Potential links: ${JSON.stringify(links, null, 2)}`, "scraper");
+  //log(`[LinkExtractor] Potential links: ${JSON.stringify(links, null, 2)}`, "scraper");
   return links;
 }
 
@@ -277,17 +277,23 @@ export async function extractArticleLinks(
         // Import the Threat Tracker function that has proper URL preservation
         const { identifyArticleLinks } = await import('backend/apps/threat-tracker/services/openai.js');
         
-        // Create structured HTML for Threat Tracker analysis
+        // Create structured HTML for Threat Tracker analysis with NORMALIZED URLs
         const structuredHtml = linkData
-          .map(link => `<a href="${link.href}">${link.text}</a>`)
+          .map(link => {
+            // Normalize the URL before sending to AI to ensure absolute URLs
+            const normalizedHref = link.href.startsWith('http') ? link.href : 
+              (link.href.startsWith('/') ? new URL(link.href, baseUrl).toString() : 
+              new URL('/' + link.href, baseUrl).toString());
+            return `<a href="${normalizedHref}">${link.text}</a>`;
+          })
           .join('\n');
         
         links = await identifyArticleLinks(structuredHtml);
       } else {
         // Use News Radar function for other contexts
         links = await identifyArticleLinksWithAI(linkData, options.aiContext);
-        // Only normalize relative URLs, not absolute ones
-        links = links.filter(link => link.startsWith('http')); // Keep only absolute URLs to avoid re-normalization
+        // Ensure all URLs are absolute after AI processing
+        links = normalizeUrls(links, baseUrl);
       }
     }
     
@@ -298,7 +304,7 @@ export async function extractArticleLinks(
     }
     
     log(`[LinkExtractor] Final result: ${links.length} article links extracted`, "scraper");
-    log(`[LinkExtractor] Final links: ${JSON.stringify(links, null, 2)}`, "scraper");
+    //log(`[LinkExtractor] Final links: ${JSON.stringify(links, null, 2)}`, "scraper");
     return links;
     
   } catch (error: any) {
