@@ -127,13 +127,13 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### June 26, 2025 - Complete Cache System Rewrite
-- **Completely rewrote cache system** with robust validation and corruption detection
-- **Root cause**: Previous validation attempts weren't properly integrated into cache retrieval flow
-- **Solution**: RobustCache class with built-in validation that automatically handles corrupted entries
-- **Enhanced validation**: Comprehensive selector validation including string type checking and "undefined" detection
-- **Automatic recovery**: Invalid cache entries cleared immediately, AI detection runs seamlessly
-- **Verified fix**: Clean cache operations, reliable AI detection, successful extraction (62 char title, 3,010 char content)
+### June 26, 2025 - Complete Cache Corruption Fix
+- **Root cause identified**: Threat Tracker passing corrupted database configs that bypass cache validation
+- **Fixed application layer**: Added config validation in unified scraper to reject corrupted selectors
+- **Updated background jobs**: Removed old corrupted OpenAI function calls, let unified scraper handle detection
+- **Enhanced validation**: Config parameters validated before use, "undefined" selectors automatically rejected
+- **Verified fix**: Corrupted configs properly rejected, AI detection runs correctly, successful extraction (61 char title, 3,139 char content)
+- **System flow**: Config validation → Cache lookup → AI detection → Reliable content extraction
 
 ### June 26, 2025 - Cache Consistency Fix Complete
 - **Fixed cache inconsistency** causing AI structure detection to skip with "undefined" selectors
