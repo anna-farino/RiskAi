@@ -31,6 +31,27 @@ jobs:
       - name: Build backend
         run: npm run build --workspace=backend
 
+      - name: Prepare deployment package
+        run: |
+          # Create a deployment directory
+          mkdir -p deploy-package
+          
+          # Copy backend files
+          cp -r backend/dist deploy-package/
+          cp backend/package.json deploy-package/
+          cp backend/package-lock.json deploy-package/ 2>/dev/null || true
+          
+          # Install production dependencies in the deployment package
+          cd deploy-package
+          npm install --production
+          cd ..
+          
+          # Verify the deployment package
+          echo "Contents of deploy-package:"
+          ls -la deploy-package/
+          echo "Checking if argon2 is installed:"
+          ls -la deploy-package/node_modules/argon2 || echo "argon2 not found"
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -38,11 +59,9 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}
 
-      - name: Deploy backend folder to Azure Web App
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'backend-22'
           slot-name: 'Production'
-          package: './backend'
-
-          
+          package: './deploy-package'
