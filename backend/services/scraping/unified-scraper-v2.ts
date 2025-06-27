@@ -322,7 +322,7 @@ export class StreamlinedUnifiedScraper {
         excludePatterns: options?.excludePatterns,
         aiContext: options?.aiContext,
         maxLinks: options?.maxLinks || 50,
-        minimumTextLength: 5  // Reduced from 20 to capture more dynamic content links
+        minimumTextLength: 15  // Reduced from 20 to capture more dynamic content links
       };
 
       const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
