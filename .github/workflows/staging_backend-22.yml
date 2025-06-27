@@ -22,18 +22,23 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: Install and build
+      - name: Install dependencies
         run: |
-          # Install dependencies
           npm install
           npm install --workspace=backend
-          
-          # Build backend
-          npm run build --workspace=backend
-          
-          # Remove dev dependencies to reduce size
+
+      - name: Build backend
+        run: npm run build --workspace=backend
+
+      - name: Prepare for deployment
+        run: |
           cd backend
+          # Remove dev dependencies to reduce size
           npm prune --production
+          # Ensure node_modules is not compressed
+          if [ -f node_modules.tar.gz ]; then
+            rm node_modules.tar.gz
+          fi
           cd ..
 
       - name: Login to Azure
@@ -49,3 +54,4 @@ jobs:
           app-name: 'backend-22'
           slot-name: 'Production'
           package: './backend'
+          clean: true  # This will clean old files
