@@ -92,12 +92,16 @@ async function handleHTMXContent(page: Page): Promise<void> {
 
     log(`[PuppeteerScraper] HTMX detection: scriptLoaded=${htmxInfo?.scriptLoaded}, hasAttributes=${htmxInfo?.hasHxAttributes}, elements=${htmxInfo?.hxGetElements?.length || 0}`, "scraper");
 
-    // Handle HTMX content if detected
-    if (htmxInfo && (htmxInfo.scriptLoaded || htmxInfo.htmxInWindow || htmxInfo.hasHxAttributes)) {
-      log(`[PuppeteerScraper] HTMX detected, handling dynamic content...`, "scraper");
+    // Handle HTMX content if detected OR if page looks like it needs dynamic loading
+    const needsDynamicLoading = htmxInfo && (htmxInfo.scriptLoaded || htmxInfo.htmxInWindow || htmxInfo.hasHxAttributes) ||
+                               page.url().includes('foorilla.com') || // Known dynamic sites
+                               await page.evaluate(() => document.querySelectorAll('a').length < 10); // Very few links
+    
+    if (needsDynamicLoading) {
+      log(`[PuppeteerScraper] Dynamic content loading needed, handling...`, "scraper");
 
-      // Wait for initial HTMX content to load
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Wait longer for initial content to load on dynamic sites
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Manually fetch common HTMX endpoints
       const currentUrl = page.url();
@@ -201,7 +205,26 @@ async function handleHTMXContent(page: Page): Promise<void> {
         await new Promise(resolve => setTimeout(resolve, 3000));
       }
 
-      // Try clicking "load more" buttons
+      // Enhanced content loading for dynamic sites
+      await page.evaluate(() => {
+        // Scroll through the page to trigger lazy loading
+        let scrolled = 0;
+        const maxScrolls = 5;
+        
+        const scrollInterval = setInterval(() => {
+          if (scrolled < maxScrolls) {
+            window.scrollTo(0, document.body.scrollHeight * (scrolled + 1) / maxScrolls);
+            scrolled++;
+          } else {
+            clearInterval(scrollInterval);
+          }
+        }, 1000);
+      });
+      
+      // Wait for scroll-triggered content
+      await new Promise(resolve => setTimeout(resolve, 6000));
+
+      // Try clicking "load more" buttons and pagination
       const clickedButtons = await safePageEvaluate(page, () => {
         const buttonSelectors = [
           'button:not([disabled])',
@@ -210,22 +233,37 @@ async function handleHTMXContent(page: Page): Promise<void> {
           '[hx-get]:not([hx-trigger="load"])',
           '.pagination a',
           '.load-more',
-          '[role="button"]'
+          '[role="button"]',
+          // Additional selectors for common dynamic site patterns
+          '.btn-load-more',
+          '.load-next',
+          '[data-load]',
+          '.infinite-scroll-trigger'
         ];
 
         let clicked = 0;
         buttonSelectors.forEach(selector => {
           document.querySelectorAll(selector).forEach(el => {
             const text = el.textContent?.toLowerCase() || '';
+            const classList = el.className.toLowerCase();
+            const dataAttrs = Array.from(el.attributes).map(attr => attr.name.toLowerCase()).join(' ');
+            
             const isLoadMoreButton = 
               text.includes('more') ||
               text.includes('load') ||
               text.includes('next') ||
-              text.includes('pag');
+              text.includes('pag') ||
+              classList.includes('load') ||
+              classList.includes('more') ||
+              dataAttrs.includes('load');
 
             if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
-              (el as HTMLElement).click();
-              clicked++;
+              try {
+                (el as HTMLElement).click();
+                clicked++;
+              } catch (e) {
+                console.log('Click failed for:', text || selector);
+              }
             }
           });
         });

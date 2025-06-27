@@ -127,6 +127,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### June 27, 2025 - HTMX Dynamic Content Loading Fix Complete
+- **Fixed critical HTMX scraping issue** preventing detection of article links on dynamic sites like Foorilla
+- **Root cause**: System using HTTP scraping for dynamic sites that require JavaScript/HTMX to load content
+- **Solution implemented**:
+  - Added smart dynamic content detection in unified scraper to identify sites needing JavaScript
+  - Enhanced Puppeteer HTMX handling with aggressive scrolling and button interaction
+  - Reduced minimum link text length from 20 to 5 characters for better dynamic content capture
+  - Added specific detection for Foorilla and similar dynamic sites
+  - Implemented enhanced content loading with scroll-triggered lazy loading
+- **Impact**: 
+  - Foorilla now automatically uses Puppeteer instead of HTTP scraping
+  - Dynamic content properly loads before link extraction
+  - Should find dozens of cybersecurity article links instead of 0
+- **Technical details**: Updated `unified-scraper-v2.ts` with `detectDynamicContentNeeds()` method and enhanced `handleHTMXContent()` in Puppeteer scraper
+
 ### June 27, 2025 - Complete URL Processing Fix
 - **Fixed critical URL modification bug** in Threat Tracker causing article URLs to lose path segments like `/expert-insights/`
 - **Fixed relative URL processing bug** causing domains to be missing from relative URLs like `/hawaiian-airlines-cyberattack-flights-safe`
