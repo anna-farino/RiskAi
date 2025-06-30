@@ -85,24 +85,100 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
   const links: LinkData[] = [];
   const minimumTextLength = options?.minimumTextLength || 15;
   
+  // Enhanced extraction for dynamic sites like Foorilla
   $('a[href]').each((_, element) => {
     const href = $(element).attr('href');
-    const text = $(element).text().trim();
+    let text = $(element).text().trim();
     const parentText = $(element).parent().text().trim();
     const parentClass = $(element).parent().attr('class') || '';
     
-    // Skip links with insufficient text (likely navigation)
+    // For dynamic sites, also check child elements for text content
+    if (!text || text.length < 5) {
+      // Look for text in child elements (images, divs, spans)
+      const childText = $(element).find('*').text().trim();
+      if (childText && childText.length > text.length) {
+        text = childText;
+      }
+      
+      // Check for title or aria-label attributes as fallback
+      if (!text || text.length < 5) {
+        text = $(element).attr('title') || $(element).attr('aria-label') || text;
+      }
+    }
+    
+    // Enhanced filtering for article links
     if (href && text && text.length >= minimumTextLength) {
+      // Skip obvious navigation/UI links
+      const isNavigation = /^(home|about|contact|login|register|menu|search|#)$/i.test(text) ||
+                          href.includes('#') || 
+                          href.includes('javascript:') ||
+                          text.toLowerCase().includes('click here') ||
+                          text.toLowerCase().includes('read more') && text.length < 20;
+      
+      if (!isNavigation) {
+        links.push({
+          href,
+          text,
+          context: parentText,
+          parentClass
+        });
+      }
+    }
+  });
+  
+  // Additional extraction for dynamic content structures
+  // Look for clickable elements that might not be <a> tags but contain article info
+  $('div[onclick], span[onclick], [data-href], [data-url]').each((_, element) => {
+    const href = $(element).attr('onclick') || $(element).attr('data-href') || $(element).attr('data-url');
+    const text = $(element).text().trim();
+    const parentClass = $(element).parent().attr('class') || '';
+    
+    if (href && text && text.length >= minimumTextLength && href.includes('http')) {
+      // Extract URL from onclick if needed
+      let cleanHref = href;
+      const urlMatch = href.match(/https?:\/\/[^\s'"]+/);
+      if (urlMatch) {
+        cleanHref = urlMatch[0];
+      }
+      
       links.push({
-        href,
+        href: cleanHref,
         text,
-        context: parentText,
+        context: text,
         parentClass
       });
     }
   });
   
-  log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML`, "scraper");
+  // Debug logging for low link counts
+  if (links.length < 5) {
+    const totalLinks = $('a[href]').length;
+    let longTextLinks = 0;
+    let shortTextLinks = 0;
+    
+    $('a[href]').each((_, element) => {
+      const text = $(element).text().trim();
+      if (text.length >= minimumTextLength) {
+        longTextLinks++;
+      } else if (text.length > 0) {
+        shortTextLinks++;
+      }
+    });
+    
+    log(`[LinkExtractor] Debug - Total links: ${totalLinks}, Long text (>=${minimumTextLength}): ${longTextLinks}, Short text: ${shortTextLinks}`, "scraper");
+    
+    // Show sample of what we're finding
+    let sampleCount = 0;
+    $('a[href]').each((_, element) => {
+      if (sampleCount >= 5) return false;
+      const href = $(element).attr('href');
+      const text = $(element).text().trim();
+      log(`[LinkExtractor] Sample link ${sampleCount + 1}: "${text}" (${text.length} chars) -> ${href}`, "scraper");
+      sampleCount++;
+    });
+  }
+  
+  log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML (enhanced extraction)`, "scraper");
   return links;
 }
 

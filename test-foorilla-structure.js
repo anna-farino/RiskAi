@@ -2,8 +2,8 @@
  * Test script to analyze Foorilla HTML structure after HTMX loading
  */
 
-const puppeteer = require('puppeteer');
-const cheerio = require('cheerio');
+import puppeteer from 'puppeteer';
+import * as cheerio from 'cheerio';
 
 async function analyzeFoorillaStructure() {
   let browser;
@@ -35,7 +35,7 @@ async function analyzeFoorillaStructure() {
     });
     
     // Wait for HTMX to load
-    await page.waitForTimeout(3000);
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Get initial HTML
     let html = await page.content();
@@ -62,7 +62,7 @@ async function analyzeFoorillaStructure() {
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Click any load more buttons
     const loadMoreClicked = await page.evaluate(() => {
@@ -86,7 +86,7 @@ async function analyzeFoorillaStructure() {
     console.log(`👆 Clicked ${loadMoreClicked} load more elements`);
     
     // Wait for content to load
-    await page.waitForTimeout(5000);
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Get final HTML
     html = await page.content();
