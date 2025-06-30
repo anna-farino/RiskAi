@@ -34,8 +34,8 @@
     "drizzle-zod": "^0.7.1",
     "esbuild": "^0.25.2",
     "framer-motion": "^12.11.3",
-    "nodemon": "^3.1.9",
     "jspdf": "^3.0.1",
+    "nodemon": "^3.1.9",
     "openai": "^4.98.0",
     "puppeteer": "^24.5.0",
     "puppeteer-extra": "^3.3.6",
@@ -45,7 +45,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.0",
+    "drizzle-kit": "^0.31.4",
     "tsx": "^4.19.3"
   }
 }
