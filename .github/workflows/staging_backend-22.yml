@@ -23,7 +23,12 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F12CA1AA54C34611AB5747A144391442 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}
-
+      
+      - name: Run Drizzle migrations
+        run: npx drizzle-kit migrate --config=drizzle.config.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
