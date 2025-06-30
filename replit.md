@@ -127,20 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### June 30, 2025 - Foorilla Link Extraction Fix Complete
-- **Fixed critical link extraction issue** where only 2 links were found instead of expected 15+ article links  
-- **Root cause**: Minimum text length filtering was too restrictive (15-20 characters) for Foorilla's link structure
-- **Solution implemented**:
-  - Reduced minimum text length from 15 to 5 characters across all extraction points
-  - Updated unified scraper source extraction settings
-  - Fixed both static HTML and dynamic Puppeteer extraction methods
-  - Removed all hardcoded site-specific matching for truly dynamic detection
-- **Impact**: 
-  - Foorilla should now find 15+ cybersecurity article links instead of 2
-  - More comprehensive link extraction for all dynamic content sites
-  - Better compatibility with sites using shorter link text patterns
-- **Technical details**: Updated `link-extractor.ts` and `unified-scraper-v2.ts` minimum text length settings
-
 ### June 27, 2025 - HTMX Dynamic Content Loading Fix Complete
 - **Fixed critical HTMX scraping issue** preventing detection of article links on dynamic sites like Foorilla
 - **Root cause**: System using HTTP scraping for dynamic sites that require JavaScript/HTMX to load content

@@ -83,7 +83,7 @@ export function filterLinksByPatterns(
 function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtractionOptions): LinkData[] {
   const $ = cheerio.load(html);
   const links: LinkData[] = [];
-  const minimumTextLength = options?.minimumTextLength || 5;
+  const minimumTextLength = options?.minimumTextLength || 15;
   
   $('a[href]').each((_, element) => {
     const href = $(element).attr('href');
@@ -226,9 +226,9 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
       })).filter(link => 
         link.href && 
         link.text && 
-        link.text.length >= (minimumTextLength || 5)
+        link.text.length >= (minimumTextLength || 20)
       );
-    }, options?.minimumTextLength || 5);
+    }, options?.minimumTextLength || 20);
     
     log(`[LinkExtractor] Extracted ${linkData.length} links from dynamic page`, "scraper");
     return linkData;
