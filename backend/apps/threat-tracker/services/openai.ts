@@ -132,11 +132,15 @@ export async function identifyArticleLinks(
         });
       }
 
-      // Look for HTMX patterns
+      // Look for HTMX patterns - enhanced for Foorilla detection
       const htmxPatterns = [
         { pattern: /\/media\/items\/.*-\d+\/?$/i, type: 'foojobs-article' },
         { pattern: /\/items\/[^/]+\/$/i, type: 'htmx-item' },
-        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' }
+        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' },
+        // Enhanced Foorilla-specific patterns
+        { pattern: /foorilla\.com\/.*\/.*\//i, type: 'foorilla-article' },
+        { pattern: /\/cybersecurity\/.*\//i, type: 'cybersecurity-article' },
+        { pattern: /\/media\/.*\/.*\//i, type: 'media-article' }
       ];
 
       // Perform initial pattern matching to identify likely article links
@@ -144,7 +148,7 @@ export async function identifyArticleLinks(
         const url = link.href;
         const text = link.text;
 
-        // Check for common article URL patterns
+        // Check for common article URL patterns - enhanced for Foorilla
         const isArticleByUrl = 
           url.includes('/article/') || 
           url.includes('/blog/') || 
@@ -152,15 +156,26 @@ export async function identifyArticleLinks(
           url.match(/\/(posts?|stories?|updates?)\//) ||
           url.match(/\d{4}\/\d{2}\//) || // Date pattern like /2023/05/
           url.match(/\/(cve|security|vulnerability|threat)-/) ||
-          url.match(/\.com\/[^/]+\/[^/]+\/[^/]+/); // 3-level path like domain.com/section/topic/article-title
+          url.match(/\.com\/[^/]+\/[^/]+\/[^/]+/) || // 3-level path like domain.com/section/topic/article-title
+          // Foorilla-specific patterns
+          (url.includes('foorilla.com') && url.split('/').length >= 5) || // Foorilla multi-level URLs
+          url.includes('/cybersecurity/') || // Cybersecurity section URLs
+          url.includes('/media/') || // Media section URLs
+          url.match(/\/[^/]+-[^/]+-[^/]+/) || // Hyphenated article titles
+          url.match(/\/[^/]+\/[^/]+\/[^/]+\/$/); // Trailing slash pattern common in Foorilla
 
-        // Check for article title patterns
+        // Check for article title patterns - more inclusive for Foorilla
         const isArticleByTitle = 
-          text.length > 20 && // Longer titles are often articles
+          text.length > 10 && // Reduced from 20 to be more inclusive
           (
             text.includes(': ') || // Title pattern with colon
             text.match(/^(how|why|what|when)\s+/i) || // "How to..." titles
-            text.match(/[—\-\|]\s/) // Title with separator
+            text.match(/[—\-\|]\s/) || // Title with separator
+            // Enhanced patterns for cybersecurity articles
+            text.match(/\b(attack|breach|vulnerability|exploit|malware|hack|threat|security|cyber)\b/i) ||
+            text.match(/\b(CVE|vulnerability|patch|update|fix)\b/i) ||
+            text.length > 30 || // Longer titles are likely articles
+            text.match(/^[A-Z].*[a-z].*[A-Z]/) // Mixed case suggests article title
           );
 
         // Check for security keywords in title
@@ -178,10 +193,12 @@ export async function identifyArticleLinks(
             pattern: htmxMatch.type
           });
 
-          // Auto-include links that match specific HTMX patterns (like FooJobs)
-          if (htmxMatch.type === 'foojobs-article' || url.includes('/media/items/')) {
+          // Auto-include links that match specific HTMX patterns
+          if (htmxMatch.type === 'foojobs-article' || url.includes('/media/items/') || 
+              htmxMatch.type === 'foorilla-article' || htmxMatch.type === 'cybersecurity-article' ||
+              htmxMatch.type === 'media-article') {
             potentialArticleUrls.push(url);
-            log(`[ThreatTracker] Auto-detected HTMX article: ${url}`, "openai");
+            log(`[ThreatTracker] Auto-detected HTMX article (${htmxMatch.type}): ${url}`, "openai");
           }
         }
 
@@ -200,12 +217,17 @@ export async function identifyArticleLinks(
       log(`[ThreatTracker] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`, "openai");
 
       // If we found HTMX article links, prioritize those and skip AI processing in some cases
-      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern === 'foojobs-article')) {
-        log(`[ThreatTracker] FooJobs article pattern detected, using HTMX-specific handling`, "openai");
+      const hasFoorillaPatterns = htmxLinks.some(link => 
+        link.pattern === 'foojobs-article' || link.pattern === 'foorilla-article' || 
+        link.pattern === 'cybersecurity-article' || link.pattern === 'media-article'
+      );
+      
+      if (htmxLinks.length > 0 && hasFoorillaPatterns) {
+        log(`[ThreatTracker] Foorilla/HTMX article patterns detected, using enhanced pattern matching`, "openai");
 
-        // Return immediately if we found enough HTMX articles
+        // Return immediately if we found enough articles via pattern matching
         if (potentialArticleUrls.length >= 5) {
-          log(`[ThreatTracker] Found ${potentialArticleUrls.length} FooJobs articles via pattern matching`, "openai");
+          log(`[ThreatTracker] Found ${potentialArticleUrls.length} articles via enhanced pattern matching`, "openai");
           return potentialArticleUrls;
         }
       }
