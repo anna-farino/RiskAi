@@ -321,10 +321,17 @@ export async function identifyArticleLinks(
               return true;
             }
             
-            // Avoid URLs that look truncated (ending with single letter, dash, or common truncation patterns)
-            if (cleanUrl.endsWith('-') || 
-                cleanUrl.match(/[a-z]$/) ||
-                cleanUrl.match(/-[a-z]{1,2}$/)) {
+            // Avoid URLs that look truncated (ending with dash or suspicious patterns)
+            if (cleanUrl.endsWith('-')) {
+              return false;
+            }
+            
+            // Check for suspicious truncation patterns (ending with partial words or single letters after dash/slash)
+            if (cleanUrl.match(/[-\/][a-z]$/) || // Ends with dash or slash followed by single letter
+                cleanUrl.match(/[a-z]-[a-z]$/) || // Ends with letter-dash-letter pattern 
+                cleanUrl.match(/[0-9][a-z]$/) || // Ends with number followed by single letter
+                cleanUrl.match(/^\w+$/) || // Only contains letters/numbers (no domain structure)
+                cleanUrl.length < 20) { // Very short URLs are suspicious
               return false;
             }
             

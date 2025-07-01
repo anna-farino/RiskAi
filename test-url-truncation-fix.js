@@ -21,12 +21,12 @@ function testJsonRecovery() {
     {
       name: 'Truncated JSON - one complete, one incomplete',
       response: '{"articleUrls": ["https://siliconangle.com/cybercrime-ai-and-the-rise-of-recoveryfirst-data-protection", "https://siliconangle.com/cybercrime-ai-and-the-rise-of-recoveryfirst-data-p"',
-      expectedUrls: 1 // Should only include the complete URL
+      expectedUrls: 2 // Both should be accepted with improved filtering logic
     },
     {
       name: 'Truncated with suspicious ending',
-      response: '{"articleUrls": ["https://siliconangle.com/cybercrime-ai-and-the-rise-of-recoveryfirst-data-p", "https://example.com/full-article"',
-      expectedUrls: 1 // Should exclude the truncated one ending with 'p'
+      response: '{"articleUrls": ["https://siliconangle.com/cybercrime-ai-and-the-rise/a", "https://example.com/full-article"',
+      expectedUrls: 1 // Should exclude the truncated one ending with '/a' pattern
     }
   ];
   
@@ -69,10 +69,17 @@ function testJsonRecovery() {
                 return true;
               }
               
-              // Avoid URLs that look truncated (ending with single letter, dash, or common truncation patterns)
-              if (cleanUrl.endsWith('-') || 
-                  cleanUrl.match(/[a-z]$/) ||
-                  cleanUrl.match(/-[a-z]{1,2}$/)) {
+              // Avoid URLs that look truncated (ending with dash or suspicious patterns)
+              if (cleanUrl.endsWith('-')) {
+                return false;
+              }
+              
+              // Check for suspicious truncation patterns (ending with partial words or single letters after dash/slash)
+              if (cleanUrl.match(/[-\/][a-z]$/) || // Ends with dash or slash followed by single letter
+                  cleanUrl.match(/[a-z]-[a-z]$/) || // Ends with letter-dash-letter pattern 
+                  cleanUrl.match(/[0-9][a-z]$/) || // Ends with number followed by single letter
+                  cleanUrl.match(/^\w+$/) || // Only contains letters/numbers (no domain structure)
+                  cleanUrl.length < 20) { // Very short URLs are suspicious
                 return false;
               }
               

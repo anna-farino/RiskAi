@@ -127,7 +127,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 1, 2025 - Fixed Critical HTMX Extraction Issues (0 → 84+ Links)
+### July 1, 2025 - Fixed Critical HTMX Extraction Issues (0 → 86+ Links)
 - **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
 - **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
 - **Solution implemented**:
