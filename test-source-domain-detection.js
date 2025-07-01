@@ -104,41 +104,53 @@ async function testSourceDomainDetection() {
         
         // Extract source domain for aggregated content
         let sourceDomain = '';
-        const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, .tdi_65');
-        if (articleContainer) {
-          // Look for source domain in various common patterns
-          const sourceElement = articleContainer.querySelector('.text-end small') || 
-                               articleContainer.querySelector('.source') ||
-                               articleContainer.querySelector('.domain') ||
-                               articleContainer.querySelector('[class*="source"]') ||
-                               articleContainer.querySelector('small:last-child') ||
-                               articleContainer.querySelector('.attribution');
-          
-          if (sourceElement) {
-            const sourceText = sourceElement.textContent?.trim() || '';
-            // Extract domain from text (look for domain patterns)
-            const domainMatch = sourceText.match(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/);
+        
+        // First try to find in immediate article context (Foorilla pattern)
+        const listItem = element.closest('li, .list-group-item');
+        if (listItem) {
+          // Look for domain in small elements within the same list item
+          const smallElements = Array.from(listItem.querySelectorAll('small'));
+          for (const small of smallElements) {
+            const sourceText = small.textContent?.trim() || '';
+            // Check if this small element contains only a domain
+            const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
             if (domainMatch) {
-              sourceDomain = domainMatch[1];
+              const domain = domainMatch[1];
+              // Filter out common non-source domains
+              if (!domain.includes('foorilla') && 
+                  !domain.includes('google') && 
+                  !domain.includes('facebook') && 
+                  !domain.includes('twitter') &&
+                  !domain.includes('localStorage') &&
+                  !domain.includes('document.') &&
+                  domain.length > 5) {
+                sourceDomain = domain;
+                break;
+              }
             }
           }
-          
-          // If no source found yet, look for other indicators
-          if (!sourceDomain) {
-            const contextText = articleContainer.textContent || '';
-            // Look for domain patterns in the full context
-            const domains = contextText.match(/\b([a-zA-Z0-9-]+\.[a-zA-Z]{2,})\b/g);
-            if (domains) {
-              // Filter out common non-source domains
-              const filteredDomains = domains.filter(d => 
-                !d.includes('foorilla') && 
-                !d.includes('google') && 
-                !d.includes('facebook') && 
-                !d.includes('twitter') &&
-                d.length > 5
-              );
-              if (filteredDomains.length > 0) {
-                sourceDomain = filteredDomains[0];
+        }
+        
+        // Fallback: broader article container search
+        if (!sourceDomain) {
+          const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
+          if (articleContainer) {
+            const smallElements = Array.from(articleContainer.querySelectorAll('small'));
+            for (const small of smallElements) {
+              const sourceText = small.textContent?.trim() || '';
+              const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+              if (domainMatch) {
+                const domain = domainMatch[1];
+                if (!domain.includes('foorilla') && 
+                    !domain.includes('google') && 
+                    !domain.includes('facebook') && 
+                    !domain.includes('twitter') &&
+                    !domain.includes('localStorage') &&
+                    !domain.includes('document.') &&
+                    domain.length > 5) {
+                  sourceDomain = domain;
+                  break;
+                }
               }
             }
           }
