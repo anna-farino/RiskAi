@@ -127,26 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 1, 2025 - Enhanced HTMX Article Filtering for Foorilla
-- **Enhanced AI article filtering** to better identify Foorilla cybersecurity articles
-- **Root cause**: Advanced HTMX extraction was working (finding 14 links) but AI filtering was too strict (only 1 article identified)
-- **Solution implemented**:
-  - Enhanced pattern matching in OpenAI analysis to include Foorilla-specific URL patterns
-  - Added more inclusive article title detection (reduced minimum length from 20 to 10 characters)
-  - Added cybersecurity keyword patterns for title matching (attack, breach, vulnerability, hack, threat, security, malware, cyber)
-  - Enhanced URL pattern detection for multi-level Foorilla URLs (/media/cybersecurity/article-name/)
-  - Modified AI prompt to be more inclusive for cybersecurity sites like Foorilla
-  - Added pattern-based bypass logic to skip AI filtering when sufficient articles found via patterns
-- **Enhanced patterns include**:
-  - Foorilla-specific URL patterns with multi-level paths
-  - Cybersecurity section detection (/cybersecurity/, /media/)
-  - Enhanced title matching with mixed case and keyword detection
-  - Auto-detection of HTMX article patterns for immediate inclusion
-- **Impact**: 
-  - Should now properly identify 15+ articles from Foorilla cybersecurity page
-  - More inclusive filtering while maintaining quality for cybersecurity content
-  - Pattern-based detection reduces dependency on AI filtering for known site structures
-
 ### July 1, 2025 - Complete HTMX Link Extraction Rewrite
 - **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
 - **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
