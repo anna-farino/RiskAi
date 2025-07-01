@@ -131,12 +131,12 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
 - **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
 - **Solution implemented**:
-  - **Comprehensive link filtering**: Improved article detection with inclusive filtering for better coverage of legitimate articles
-  - **Aggressive HTMX triggering**: Modified system to trigger up to 50 HTMX elements instead of just 10 for maximum content loading
-  - **Improved context extraction**: Enhanced link context extraction using closest parent elements (article, .post, .item, .tdi_65, etc.)
-  - **Multi-trigger support**: Added support for mouseover, focus, and other HTMX trigger types beyond just click events
-  - **Comprehensive re-extraction**: After all HTMX content loading, perform complete re-extraction with improved filtering logic
-  - **Better element detection**: Enhanced visibility checks and intelligent filtering to skip search/filter elements while processing content elements
+  - **Dynamic source domain detection**: Multi-strategy approach that works across different aggregated content site patterns
+  - **Comprehensive attribution detection**: Supports 5+ common patterns including small elements, "via:" attribution, data attributes, source classes, and citation elements
+  - **Relative URL handling**: Automatically searches surrounding elements for base domains when articles have relative URLs
+  - **Progressive container search**: Searches from list items to article containers to broader content areas for maximum coverage
+  - **Intelligent domain filtering**: Automatically excludes current site, social media, and non-source domains
+  - **Enhanced element detection**: Beyond `<a[href]>` tags to include JavaScript-based navigation patterns
 - **Advanced detection includes**:
   - Script tag patterns, inline script content scanning, window object checks
   - Complete HTMX attribute pattern matching including data-* variants
