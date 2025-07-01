@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP, ScrapingResult } from './scrapers/http-scraper';
 import { scrapeWithPuppeteer } from './scrapers/puppeteer-scraper';
-import { extractArticleLinks, LinkExtractionOptions } from './extractors/link-extractor';
+import { extractArticleLinks, extractArticleLinksFromPage, LinkExtractionOptions } from './extractors/link-extractor';
 import { ScrapingConfig } from './extractors/structure-detector';
 import { detectHtmlStructureWithAI } from './ai/structure-detector';
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
@@ -316,7 +316,7 @@ export class StreamlinedUnifiedScraper {
   }
 
   /**
-   * Streamlined source scraping - 3 steps total
+   * Advanced source scraping with sophisticated HTMX handling
    */
   async scrapeSourceUrl(url: string, options?: SourceScrapingOptions): Promise<string[]> {
     try {
@@ -325,7 +325,10 @@ export class StreamlinedUnifiedScraper {
       // Step 1: Get content (HTTP or Puppeteer)
       const result = await this.getContent(url, false);
 
-      // Step 2: Extract links with AI
+      // Step 2: Check if we need advanced HTMX extraction
+      const needsAdvancedExtraction = result.method === 'puppeteer' || 
+        this.detectDynamicContentNeeds(result.html, url);
+
       const extractionOptions: LinkExtractionOptions = {
         includePatterns: options?.includePatterns,
         excludePatterns: options?.excludePatterns,
@@ -334,14 +337,68 @@ export class StreamlinedUnifiedScraper {
         minimumTextLength: 15  // Reduced from 20 to capture more dynamic content links
       };
 
-      const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
-      
-      log(`[SimpleScraper] Extracted ${articleLinks.length} article links`, "scraper");
-      return articleLinks;
+      // Step 3: Use advanced extraction for HTMX/dynamic sites
+      if (needsAdvancedExtraction) {
+        log(`[SimpleScraper] Dynamic content detected, using advanced HTMX extraction`, "scraper");
+        return await this.extractLinksWithAdvancedHTMX(url, extractionOptions);
+      } else {
+        // Step 3: Extract links with standard method for static sites
+        const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
+        log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
+        return articleLinks;
+      }
 
     } catch (error: any) {
       log(`[SimpleScraper] Error in source scraping: ${error.message}`, "scraper-error");
       throw error;
+    }
+  }
+
+  /**
+   * Advanced HTMX link extraction using dedicated Puppeteer page
+   */
+  private async extractLinksWithAdvancedHTMX(url: string, options: LinkExtractionOptions): Promise<string[]> {
+    let page = null;
+    
+    try {
+      log(`[SimpleScraper] Starting advanced HTMX link extraction for: ${url}`, "scraper");
+      
+      // Import browser manager and setup
+      const { getBrowser } = await import('./core/browser-manager');
+      const { setupSourcePage } = await import('./core/page-setup');
+      
+      // Create dedicated page for advanced extraction
+      const browser = await getBrowser();
+      page = await browser.newPage();
+      
+      // Set up page for source scraping
+      await setupSourcePage(page, {
+        timeout: 60000,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      });
+      
+      // Navigate to the page
+      log(`[SimpleScraper] Navigating to ${url} for advanced extraction`, "scraper");
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      
+      // Use the new advanced HTMX extraction
+      const articleLinks = await extractArticleLinksFromPage(page, url, options);
+      
+      log(`[SimpleScraper] Advanced HTMX extraction completed: ${articleLinks.length} links found`, "scraper");
+      return articleLinks;
+      
+    } catch (error: any) {
+      log(`[SimpleScraper] Error in advanced HTMX extraction: ${error.message}`, "scraper-error");
+      throw error;
+    } finally {
+      // Clean up the page
+      if (page) {
+        try {
+          await page.close();
+        } catch (closeError) {
+          log(`[SimpleScraper] Error closing page: ${closeError}`, "scraper-error");
+        }
+      }
     }
   }
 
