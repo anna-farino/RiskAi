@@ -2,83 +2,59 @@
  * Test script to verify HTMX scraping fix for Foorilla
  */
 
-import { streamlinedScraper } from './backend/services/scraping/unified-scraper-v2.js';
+import { UnifiedScraperV2 } from './backend/services/scraping/unified-scraper-v2.ts';
 
 async function testFoorillaHTMXFix() {
-  console.log('🧪 Testing Foorilla HTMX scraping fix...\n');
+  console.log('🔍 Testing Foorilla HTMX scraping fix...');
   
   try {
+    const scraper = new UnifiedScraperV2();
     const url = 'https://foorilla.com/media/cybersecurity/';
-    console.log(`📄 Testing URL: ${url}`);
     
-    // Test with threat tracker context (cybersecurity)
-    const options = {
-      aiContext: "cybersecurity threats and security incidents",
-      appType: 'threat-tracker',
-      maxLinks: 30
-    };
+    console.log(`📄 Testing enhanced extraction on: ${url}`);
     
-    console.log('⚙️ Options:', JSON.stringify(options, null, 2));
-    console.log('\n🔍 Starting source scraping...\n');
+    // Test the link extraction with enhanced AI filtering
+    const result = await scraper.extractLinks(url, {
+      maxLinks: 20,
+      aiContext: 'cybersecurity threats and vulnerabilities'
+    });
     
-    const startTime = Date.now();
-    const articleLinks = await streamlinedScraper.scrapeSourceUrl(url, options);
-    const endTime = Date.now();
+    console.log('\n📊 Enhanced Results:');
+    console.log(`   - Links found: ${result.links.length}`);
+    console.log(`   - Method used: ${result.metadata?.method || 'unknown'}`);
+    console.log(`   - HTMX detected: ${result.metadata?.hasHTMX || false}`);
+    console.log(`   - Dynamic content: ${result.metadata?.hasDynamicContent || false}`);
     
-    console.log(`\n✅ Scraping completed in ${endTime - startTime}ms`);
-    console.log(`📊 Results: Found ${articleLinks.length} article links`);
-    
-    if (articleLinks.length > 0) {
-      console.log('\n🎯 Sample article links found:');
-      articleLinks.slice(0, 10).forEach((link, index) => {
-        console.log(`  ${index + 1}. ${link}`);
+    if (result.links.length >= 15) {
+      console.log('\n✅ SUCCESS: Found 15+ article links!');
+      console.log('\n🔗 Sample extracted links:');
+      result.links.slice(0, 10).forEach((link, i) => {
+        console.log(`   ${i + 1}. ${link.text?.substring(0, 50)}... -> ${link.href}`);
       });
-      
-      if (articleLinks.length > 10) {
-        console.log(`  ... and ${articleLinks.length - 10} more links`);
-      }
-      
-      console.log('\n✅ SUCCESS: HTMX scraping is now working!');
-      console.log(`   - Found ${articleLinks.length} links (expected: >0)`);
-      console.log('   - Dynamic content loading successful');
-      
-      // Test article scraping on first link
-      if (articleLinks.length > 0) {
-        console.log('\n🔗 Testing article content extraction...');
-        try {
-          const firstArticle = articleLinks[0];
-          console.log(`📰 Testing article: ${firstArticle}`);
-          
-          const articleContent = await streamlinedScraper.scrapeArticleUrl(firstArticle);
-          
-          console.log(`📝 Article extraction results:`);
-          console.log(`   - Title: "${articleContent.title}" (${articleContent.title.length} chars)`);
-          console.log(`   - Content: ${articleContent.content.length} chars`);
-          console.log(`   - Author: ${articleContent.author || 'Not found'}`);
-          console.log(`   - Method: ${articleContent.extractionMethod}`);
-          console.log(`   - Confidence: ${articleContent.confidence}`);
-          
-          if (articleContent.title.length > 0 && articleContent.content.length > 100) {
-            console.log('\n✅ Article extraction also working correctly!');
-          } else {
-            console.log('\n⚠️ Article extraction needs improvement');
-          }
-          
-        } catch (articleError) {
-          console.log('\n❌ Article extraction failed:', articleError.message);
-        }
-      }
-      
     } else {
-      console.log('\n❌ FAILED: Still no links found');
-      console.log('   Expected: Multiple cybersecurity article links');
-      console.log('   Got: 0 links');
-      console.log('\n🔧 The HTMX fix may need further refinement');
+      console.log(`\n⚠️ Still finding only ${result.links.length} links`);
+      console.log('🔧 Debugging the extracted links:');
+      result.links.forEach((link, i) => {
+        console.log(`   ${i + 1}. "${link.text}" -> ${link.href}`);
+      });
     }
     
+    console.log('\n🎯 Pattern Analysis:');
+    const patterns = {
+      foorilla: result.links.filter(l => l.href.includes('foorilla.com')).length,
+      cybersecurity: result.links.filter(l => l.href.includes('/cybersecurity/')).length,
+      media: result.links.filter(l => l.href.includes('/media/')).length,
+      multiLevel: result.links.filter(l => l.href.split('/').length >= 6).length
+    };
+    
+    console.log(`   - Foorilla links: ${patterns.foorilla}`);
+    console.log(`   - Cybersecurity section: ${patterns.cybersecurity}`);
+    console.log(`   - Media section: ${patterns.media}`);
+    console.log(`   - Multi-level URLs: ${patterns.multiLevel}`);
+    
   } catch (error) {
-    console.error('\n❌ Test failed with error:', error.message);
-    console.error('Stack:', error.stack);
+    console.error('❌ Test failed:', error.message);
+    console.error('Stack trace:', error.stack);
   }
 }
 

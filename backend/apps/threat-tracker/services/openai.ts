@@ -266,16 +266,20 @@ export async function identifyArticleLinks(
         {
           role: "system",
           content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
-            1. Article-style titles (descriptive)
-            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
+            1. Article-style titles (descriptive, even if short)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, /media/, /cybersecurity/, dates, years, CVE numbers)
             3. Proper article context (not navigation/category pages)
+            4. SPECIAL: For foorilla.com URLs, be more inclusive - include URLs with multi-level paths like /media/cybersecurity/article-name/
+            5. Cybersecurity-related titles containing keywords like: attack, breach, vulnerability, hack, threat, security, malware, cyber
 
             CRITICAL: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
             
-            Return only links that are very likely to be actual articles.
+            Be MORE INCLUSIVE for cybersecurity and technology news sites like Foorilla.com.
+            Include articles that may have shorter titles but clear article-like URLs.
+            
             Exclude:
-            - Category pages
-            - Tag pages
+            - Category pages (but include subcategory articles)
+            - Tag pages  
             - Author pages
             - Navigation links
             - Search results
