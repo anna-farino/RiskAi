@@ -482,14 +482,45 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                     (parent.getAttribute('data-post-id') ? `/post/${parent.getAttribute('data-post-id')}` : '');
             }
             
-            // If still no href and this looks like an article title, construct a placeholder
+            // If still no href and this looks like an article title, construct a URL
             if (!href && text.split(' ').length >= 4) {
-              // Generate a slug from the title for potential URL construction
+              // Generate a slug from the title for URL construction
               const slug = text.toLowerCase()
                 .replace(/[^a-z0-9\s]/g, '')
                 .replace(/\s+/g, '-')
                 .substring(0, 50);
-              href = `/article/${slug}`;
+              
+              // Try to detect source domain from context first
+              const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
+              let tempSourceDomain = '';
+              if (articleContainer) {
+                // Look for source domain in small elements (same logic as below)
+                const smallElements = Array.from(articleContainer.querySelectorAll('small'));
+                for (const small of smallElements) {
+                  const sourceText = small.textContent?.trim() || '';
+                  const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+                  if (domainMatch) {
+                    const domain = domainMatch[1];
+                    if (!domain.includes('foorilla') && 
+                        !domain.includes('google') && 
+                        !domain.includes('facebook') && 
+                        !domain.includes('twitter') &&
+                        !domain.includes('localStorage') &&
+                        !domain.includes('document.') &&
+                        domain.length > 5) {
+                      tempSourceDomain = domain;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              // Construct URL with source domain if available
+              if (tempSourceDomain) {
+                href = `https://${tempSourceDomain}/${slug}`;
+              } else {
+                href = `/article/${slug}`;
+              }
             }
           }
           const context = element.parentElement?.textContent?.trim() || '';
@@ -498,11 +529,55 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           // Get more comprehensive context
           const fullContext = element.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
           
+          // Extract source domain for aggregated content
+          let sourceDomain = '';
+          const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
+          if (articleContainer) {
+            // Look for source domain in small elements (Foorilla pattern)
+            const smallElements = Array.from(articleContainer.querySelectorAll('small'));
+            for (const small of smallElements) {
+              const sourceText = small.textContent?.trim() || '';
+              // Check if this small element contains a domain pattern
+              const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+              if (domainMatch) {
+                const domain = domainMatch[1];
+                // Filter out common non-source domains
+                if (!domain.includes('foorilla') && 
+                    !domain.includes('google') && 
+                    !domain.includes('facebook') && 
+                    !domain.includes('twitter') &&
+                    !domain.includes('localStorage') &&
+                    !domain.includes('document.') &&
+                    domain.length > 5) {
+                  sourceDomain = domain;
+                  break;
+                }
+              }
+            }
+            
+            // Fallback: look for other source patterns
+            if (!sourceDomain) {
+              const sourceElement = articleContainer.querySelector('.source') ||
+                                   articleContainer.querySelector('.domain') ||
+                                   articleContainer.querySelector('[class*="source"]') ||
+                                   articleContainer.querySelector('.attribution');
+              
+              if (sourceElement) {
+                const sourceText = sourceElement.textContent?.trim() || '';
+                const domainMatch = sourceText.match(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/);
+                if (domainMatch) {
+                  sourceDomain = domainMatch[1];
+                }
+              }
+            }
+          }
+          
           return {
             href,
             text,
             context: fullContext.substring(0, 200), // Limit context length
-            parentClass
+            parentClass,
+            sourceDomain: sourceDomain || '' // Include detected source domain
           };
         }).filter(link => {
           const href = link.href;
