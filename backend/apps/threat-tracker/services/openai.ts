@@ -299,18 +299,37 @@ export async function identifyArticleLinks(
         if (jsonMatch) {
           // Extract complete URLs from the partial array content
           const partialContent = jsonMatch[1];
-          const urlMatches = partialContent.match(/"https?:\/\/[^"]*"/g) || [];
+          // More comprehensive URL extraction that handles both complete and incomplete URLs
+          const urlMatches = partialContent.match(/"https?:\/\/[^"]*"?/g) || [];
           
           // Only include complete URLs (no truncated ones)
           const completeUrls = urlMatches.filter(url => {
-            const cleanUrl = url.slice(1, -1); // Remove quotes
+            // Clean the URL string (remove quotes, handle incomplete quotes)
+            let cleanUrl = url;
+            if (cleanUrl.startsWith('"')) cleanUrl = cleanUrl.slice(1);
+            if (cleanUrl.endsWith('"')) cleanUrl = cleanUrl.slice(0, -1);
+            
+            // Basic length check
+            if (cleanUrl.length < 10) return false;
+            
             // Check if URL looks complete (not truncated)
-            return cleanUrl.length > 10 && 
-                   !cleanUrl.endsWith('-') && 
-                   !cleanUrl.match(/[a-z]$/) || // Avoid URLs ending with single letter
-                   cleanUrl.endsWith('/') || 
-                   cleanUrl.includes('?') ||
-                   cleanUrl.includes('#');
+            // URLs ending with these patterns are likely complete
+            if (cleanUrl.endsWith('/') || 
+                cleanUrl.includes('?') ||
+                cleanUrl.includes('#') ||
+                cleanUrl.match(/\.(html|php|aspx|jsp)$/)) {
+              return true;
+            }
+            
+            // Avoid URLs that look truncated (ending with single letter, dash, or common truncation patterns)
+            if (cleanUrl.endsWith('-') || 
+                cleanUrl.match(/[a-z]$/) ||
+                cleanUrl.match(/-[a-z]{1,2}$/)) {
+              return false;
+            }
+            
+            // If URL is reasonably long and doesn't show truncation patterns, include it
+            return cleanUrl.length > 30;
           });
           
           if (completeUrls.length > 0) {
