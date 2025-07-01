@@ -311,14 +311,14 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                   
                   // Trigger the element based on its trigger type
                   if (trigger.includes('click') || trigger === 'click') {
-                    (el as HTMLElement).click();
+                    el.click();
                     triggered++;
                   } else if (trigger.includes('mouseover')) {
                     const event = new MouseEvent('mouseover', { bubbles: true });
                     el.dispatchEvent(event);
                     triggered++;
                   } else if (trigger.includes('focus')) {
-                    (el as HTMLElement).focus();
+                    el.focus();
                     triggered++;
                   }
                 }
@@ -426,7 +426,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               const rect = el.getBoundingClientRect();
               if (rect.width > 0 && rect.height > 0) {
                 console.log(`Clicking HTMX element: ${url}`);
-                (el as HTMLElement).click();
+                el.click();
                 triggered++;
               }
             }
@@ -575,8 +575,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             for (const selector of attributionSelectors) {
               const elements = Array.from(searchElement.querySelectorAll(selector));
               for (const el of elements) {
-                const element = el as HTMLElement;
-                const text = element.textContent?.trim() || '';
+                const text = el.textContent?.trim() || '';
                 // Look for standalone domain pattern
                 const domainMatch = text.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
                 if (domainMatch) {
@@ -606,8 +605,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               // Then check child elements
               const attrElements = Array.from(searchElement.querySelectorAll(`[${attr}]`));
               for (const el of attrElements) {
-                const element = el as HTMLElement;
-                const childDomain = element.getAttribute(attr);
+                const childDomain = el.getAttribute(attr);
                 if (childDomain && isValidSourceDomain(childDomain)) {
                   return childDomain;
                 }
@@ -749,7 +747,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                 
                 if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
                   console.log('Clicking element:', text);
-                  (el as HTMLElement).click();
+                  el.click();
                   clicked++;
                 }
               });
@@ -859,8 +857,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             const parentClass = link.parentElement?.className || '';
             
             // Get more comprehensive context
-            const linkElement = link as HTMLElement;
-            const fullContext = linkElement.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
+            const fullContext = link.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
             
             return {
               href,

@@ -127,9 +127,9 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 1, 2025 - Fixed Critical HTMX Extraction Issues (0 → 84+ Links)
+### July 1, 2025 - Fixed Critical JavaScript Evaluation Error and HTMX Extraction (0 → 84+ Links)
 - **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
-- **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
+- **Root cause**: TypeScript syntax `as HTMLElement` was being used in browser evaluation context causing `__name is not defined` JavaScript errors, plus basic HTMX detection
 - **Solution implemented**:
   - **Dynamic source domain detection**: Multi-strategy approach that works across different aggregated content site patterns
   - **Comprehensive attribution detection**: Supports 5+ common patterns including small elements, "via:" attribution, data attributes, source classes, and citation elements
