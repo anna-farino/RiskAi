@@ -127,32 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 1, 2025 - Comprehensive HTMX Implementation Complete
-- **Implemented working HTMX code** from proven Threat Tracker implementation to fix dynamic content scraping
-- **Root cause**: Previous HTMX implementation was basic and didn't handle complex dynamic sites like Foorilla
+### June 27, 2025 - HTMX Dynamic Content Loading Fix Complete
+- **Fixed critical HTMX scraping issue** preventing detection of article links on dynamic sites like Foorilla
+- **Root cause**: System using HTTP scraping for dynamic sites that require JavaScript/HTMX to load content
 - **Solution implemented**:
-  - Replaced basic HTMX detection with comprehensive pattern matching from working implementation
-  - Added manual HTMX endpoint fetching with proper headers (HX-Request, CSRF tokens)
-  - Implemented element interaction for load-more buttons and pagination triggers
-  - Added network monitoring to track and inject HTMX responses
-  - Enhanced scrolling and lazy loading for dynamic content
-  - Removed all hardcoded URL matching in favor of intelligent pattern detection
-- **Comprehensive HTMX features**: 
-  - Detects HTMX via scripts, inline code, window objects, and 20+ attribute patterns
-  - Manually fetches common endpoints (/media/items/, /cybersecurity/items/, etc.)
-  - Triggers visible HTMX elements and waits for content loading
-  - Handles CSRF tokens and screen type headers automatically
-  - Multiple fallback techniques including element clicking and scrolling
-- **Architecture updates**:
-  - New `extractArticleLinksFromPage()` function for comprehensive HTMX handling
-  - Enhanced unified scraper to use advanced HTMX extraction for dynamic sites
-  - Reduced minimum text length to 5 characters for dynamic content
-  - Extended timeouts to 90 seconds for HTMX content loading
+  - Added smart dynamic content detection in unified scraper to identify sites needing JavaScript
+  - Enhanced Puppeteer HTMX handling with aggressive scrolling and button interaction
+  - Reduced minimum link text length from 20 to 5 characters for better dynamic content capture
+  - Implemented automatic detection based on content patterns instead of hardcoded URL lists
+  - Enhanced content loading with scroll-triggered lazy loading
+- **Detection criteria**: 
+  - HTMX attributes and scripts
+  - Minimal link count (< 10 links suggests dynamic loading)
+  - JavaScript frameworks (React, Vue, Angular)
+  - Async loading patterns and placeholders
+  - Empty containers and loading states
 - **Impact**: 
-  - Foorilla and similar HTMX sites now properly extract article links
-  - System automatically detects any dynamic site without hardcoded lists
-  - Comprehensive solution handles all HTMX patterns and loading methods
-- **Technical details**: Refactored `link-extractor.ts` with proven HTMX implementation, updated `unified-scraper-v2.ts` for dynamic content handling
+  - Any dynamic site automatically uses Puppeteer instead of HTTP scraping
+  - Dynamic content properly loads before link extraction
+  - Scalable solution works for all HTMX/JavaScript sites
+- **Technical details**: Updated `unified-scraper-v2.ts` with `detectDynamicContentNeeds()` method and enhanced `handleHTMXContent()` in Puppeteer scraper
 
 ### June 27, 2025 - Complete URL Processing Fix
 - **Fixed critical URL modification bug** in Threat Tracker causing article URLs to lose path segments like `/expert-insights/`

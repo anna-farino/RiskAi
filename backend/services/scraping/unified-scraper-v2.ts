@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP, ScrapingResult } from './scrapers/http-scraper';
 import { scrapeWithPuppeteer } from './scrapers/puppeteer-scraper';
-import { extractArticleLinks, extractArticleLinksFromPage, LinkExtractionOptions } from './extractors/link-extractor';
+import { extractArticleLinks, LinkExtractionOptions } from './extractors/link-extractor';
 import { ScrapingConfig } from './extractors/structure-detector';
 import { detectHtmlStructureWithAI } from './ai/structure-detector';
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
@@ -325,19 +325,15 @@ export class StreamlinedUnifiedScraper {
       // Step 1: Get content (HTTP or Puppeteer)
       const result = await this.getContent(url, false);
 
-      // Step 2: Extract links with AI and comprehensive HTMX handling
+      // Step 2: Extract links with AI
       const extractionOptions: LinkExtractionOptions = {
         includePatterns: options?.includePatterns,
         excludePatterns: options?.excludePatterns,
         aiContext: options?.aiContext,
         maxLinks: options?.maxLinks || 50,
-        minimumTextLength: 5  // Reduced for dynamic content that may have shorter link text
+        minimumTextLength: 15  // Reduced from 20 to capture more dynamic content links
       };
 
-      // For dynamic content that was scraped with Puppeteer, we already have enhanced content
-      // The comprehensive HTMX handling is built into the link extractor
-
-      // Fallback to standard HTML extraction for non-dynamic content
       const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
       
       log(`[SimpleScraper] Extracted ${articleLinks.length} article links`, "scraper");
