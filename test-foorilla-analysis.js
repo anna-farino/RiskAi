@@ -1,210 +1,212 @@
 /**
- * Test script to analyze Foorilla HTMX structure and debug link extraction
+ * Test script to analyze Foorilla page structure and identify why we're only getting 1 article
  */
 
 import puppeteer from 'puppeteer';
 
-async function analyzeFoorillaStructure() {
-  console.log('🔍 Analyzing Foorilla HTMX structure...');
-  
+async function analyzeFoorilla() {
   const browser = await puppeteer.launch({
     headless: false,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-web-security',
-      '--disable-features=VizDisplayCompositor'
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-blink-features=AutomationControlled'
     ]
   });
 
+  const page = await browser.newPage();
+  
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    console.log('🔍 Analyzing Foorilla page structure...');
     
-    console.log('📄 Loading Foorilla cybersecurity page...');
+    await page.setViewport({ width: 1200, height: 800 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log('📄 Loading initial page...');
     await page.goto('https://foorilla.com/media/cybersecurity/', { 
       waitUntil: 'networkidle0',
-      timeout: 30000 
+      timeout: 60000 
     });
-
-    // Wait for initial load
+    
+    // Wait a bit for any dynamic content
     await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Analyze page structure
-    const pageAnalysis = await page.evaluate(() => {
-      const analysis = {
-        totalLinks: document.querySelectorAll('a').length,
-        htmxElements: {
-          hxGet: document.querySelectorAll('[hx-get]').length,
-          hxPost: document.querySelectorAll('[hx-post]').length,
-          hxTrigger: document.querySelectorAll('[hx-trigger]').length,
-          allHx: document.querySelectorAll('[class*="hx-"], [hx-get], [hx-post], [hx-trigger]').length
-        },
-        scripts: Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline').filter(s => s.includes('htmx') || s.includes('HTMX')),
-        htmxInWindow: typeof window.htmx !== 'undefined',
-        loadingElements: document.querySelectorAll('.loading, .spinner, [data-loading]').length,
-        articleElements: document.querySelectorAll('article, .article, .post, .news-item, .media-item').length,
-        linkPatterns: []
-      };
-
-      // Analyze link patterns
+    
+    console.log('\n📊 Initial page analysis:');
+    
+    // Check for HTMX
+    const htmxElements = await page.evaluate(() => {
+      const elements = document.querySelectorAll('[hx-get], [hx-post], [data-hx-get], [data-hx-post], [hx-trigger], [data-hx-trigger]');
+      return elements.length;
+    });
+    console.log(`HTMX elements found: ${htmxElements}`);
+    
+    // Check for scripts that might indicate dynamic loading
+    const scripts = await page.evaluate(() => {
+      const scriptTags = Array.from(document.querySelectorAll('script'));
+      return scriptTags.map(s => s.src || 'inline').filter(s => s.includes('htmx') || s.includes('ajax') || s.includes('load'));
+    });
+    console.log(`Dynamic loading scripts: ${scripts.length}`, scripts);
+    
+    // Get initial link count
+    const initialLinks = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a[href]'));
-      links.forEach(link => {
-        const href = link.href;
-        const text = link.textContent?.trim() || '';
-        if (href.includes('/media/') || text.length > 20) {
-          analysis.linkPatterns.push({
-            href: href,
-            text: text.substring(0, 100),
-            classes: link.className,
-            parent: link.parentElement?.tagName
-          });
-        }
-      });
-
-      return analysis;
+      return {
+        total: links.length,
+        withText: links.filter(l => l.textContent.trim().length > 5).length,
+        articleLike: links.filter(l => {
+          const text = l.textContent.trim();
+          const href = l.href;
+          return text.length > 10 && (
+            href.includes('/article/') || 
+            href.includes('/post/') || 
+            href.includes('/news/') ||
+            text.split(' ').length >= 3
+          );
+        }).length
+      };
     });
-
-    console.log('📊 Initial Page Analysis:');
-    console.log('- Total links:', pageAnalysis.totalLinks);
-    console.log('- HTMX elements:', pageAnalysis.htmxElements);
-    console.log('- HTMX scripts:', pageAnalysis.scripts);
-    console.log('- HTMX in window:', pageAnalysis.htmxInWindow);
-    console.log('- Article elements:', pageAnalysis.articleElements);
-    console.log('- Link patterns found:', pageAnalysis.linkPatterns.length);
-
-    // Look for dynamic content loading
-    console.log('\n🔄 Looking for dynamic content...');
+    console.log(`Initial links - Total: ${initialLinks.total}, With text: ${initialLinks.withText}, Article-like: ${initialLinks.articleLike}`);
     
-    // Check for load more buttons or pagination
-    const interactiveElements = await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button, [role="button"], .load-more, .pagination a, [hx-get]'));
-      return buttons.map(el => ({
-        tagName: el.tagName,
-        text: el.textContent?.trim() || '',
-        classes: el.className,
-        hxGet: el.getAttribute('hx-get'),
-        hxTrigger: el.getAttribute('hx-trigger'),
-        visible: el.offsetHeight > 0 && el.offsetWidth > 0
-      })).filter(el => el.visible);
+    // Look for load more buttons or pagination
+    const loadMoreElements = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button, a, div'));
+      return buttons.filter(b => {
+        const text = b.textContent.toLowerCase();
+        return text.includes('load more') || 
+               text.includes('show more') || 
+               text.includes('view more') ||
+               text.includes('next page') ||
+               b.classList.toString().includes('load') ||
+               b.classList.toString().includes('more');
+      }).map(b => ({
+        text: b.textContent.trim(),
+        classes: b.className,
+        tag: b.tagName
+      }));
     });
-
-    console.log('🎯 Interactive elements found:');
-    interactiveElements.forEach((el, i) => {
-      console.log(`  ${i+1}. ${el.tagName} - "${el.text}" (${el.classes})`);
-      if (el.hxGet) console.log(`     HTMX: ${el.hxGet}`);
-    });
-
-    // Try to trigger dynamic content loading
-    if (interactiveElements.length > 0) {
-      console.log('\n🚀 Attempting to trigger dynamic content...');
-      
-      // Try clicking load more or pagination elements
-      const triggered = await page.evaluate(() => {
-        let clicked = 0;
-        const selectors = [
-          'button:contains("Load")',
-          'button:contains("More")',
-          '.load-more',
-          '.pagination a:last-child',
-          '[hx-get]:not([hx-trigger="load"])'
-        ];
-
-        // Try manual clicking of visible elements
-        const clickableElements = document.querySelectorAll('button, [role="button"], .load-more, .pagination a');
-        clickableElements.forEach(el => {
-          const text = el.textContent?.toLowerCase() || '';
-          const rect = el.getBoundingClientRect();
-          
-          if (rect.height > 0 && rect.width > 0 && 
-              (text.includes('more') || text.includes('load') || text.includes('next'))) {
-            try {
-              el.click();
-              clicked++;
-              console.log('Clicked:', text);
-            } catch (e) {
-              console.log('Failed to click:', text);
-            }
-          }
-        });
-
-        return clicked;
-      });
-
-      console.log(`Triggered ${triggered} elements`);
-      
-      // Wait for content to load
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Re-analyze after interaction
-      const postInteractionAnalysis = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a[href]'));
-        const articleLinks = links.filter(link => {
-          const href = link.href;
-          const text = link.textContent?.trim() || '';
-          return href.includes('/media/') || 
-                 href.includes('/article/') || 
-                 href.includes('/news/') ||
-                 (text.length > 20 && !href.includes('#'));
-        });
-
-        return {
-          totalLinks: links.length,
-          potentialArticles: articleLinks.map(link => ({
-            href: link.href,
-            text: link.textContent?.trim().substring(0, 100)
-          }))
-        };
-      });
-
-      console.log('\n📈 Post-interaction analysis:');
-      console.log('- Total links:', postInteractionAnalysis.totalLinks);
-      console.log('- Potential articles:', postInteractionAnalysis.potentialArticles.length);
-      
-      if (postInteractionAnalysis.potentialArticles.length > 0) {
-        console.log('\n🎯 Found article links:');
-        postInteractionAnalysis.potentialArticles.slice(0, 10).forEach((link, i) => {
-          console.log(`  ${i+1}. ${link.href}`);
-          console.log(`     "${link.text}"`);
-        });
-      }
-    }
-
-    // Check network requests
-    console.log('\n🌐 Monitoring network requests...');
-    const networkRequests = [];
+    console.log(`Load more elements found: ${loadMoreElements.length}`, loadMoreElements);
     
-    page.on('response', response => {
-      if (response.url().includes('foorilla.com') && 
-          (response.url().includes('/media/') || response.url().includes('/api/'))) {
-        networkRequests.push({
-          url: response.url(),
-          status: response.status(),
-          contentType: response.headers()['content-type']
-        });
-      }
-    });
-
-    // Scroll and wait for any lazy loading
+    // Scroll and see if more content loads
+    console.log('\n🔄 Testing scroll loading...');
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
-    
     await new Promise(resolve => setTimeout(resolve, 3000));
-
-    if (networkRequests.length > 0) {
-      console.log('📡 Network requests detected:');
-      networkRequests.forEach(req => {
-        console.log(`  ${req.status} ${req.url} (${req.contentType})`);
+    
+    // Check for lazy loading containers
+    const lazyContainers = await page.evaluate(() => {
+      const containers = Array.from(document.querySelectorAll('div, section'));
+      return containers.filter(c => {
+        const classes = c.className.toLowerCase();
+        const id = c.id.toLowerCase();
+        return classes.includes('lazy') || 
+               classes.includes('infinite') || 
+               classes.includes('load') ||
+               id.includes('posts') ||
+               id.includes('articles');
+      }).map(c => ({
+        tag: c.tagName,
+        classes: c.className,
+        id: c.id,
+        childCount: c.children.length
+      }));
+    });
+    console.log(`Lazy loading containers: ${lazyContainers.length}`, lazyContainers);
+    
+    // After scroll - check link count again
+    const afterScrollLinks = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a[href]'));
+      return {
+        total: links.length,
+        withText: links.filter(l => l.textContent.trim().length > 5).length,
+        articleLike: links.filter(l => {
+          const text = l.textContent.trim();
+          const href = l.href;
+          return text.length > 10 && (
+            href.includes('/article/') || 
+            href.includes('/post/') || 
+            href.includes('/news/') ||
+            text.split(' ').length >= 3
+          );
+        }).length
+      };
+    });
+    console.log(`After scroll - Total: ${afterScrollLinks.total}, With text: ${afterScrollLinks.withText}, Article-like: ${afterScrollLinks.articleLike}`);
+    
+    // Look for specific article containers
+    const articleContainers = await page.evaluate(() => {
+      const selectors = [
+        'article',
+        '.post',
+        '.article',
+        '.news-item',
+        '.content-item',
+        '[class*="post"]',
+        '[class*="article"]',
+        '.entry',
+        '.item'
+      ];
+      
+      const results = {};
+      selectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          results[selector] = {
+            count: elements.length,
+            sample: Array.from(elements).slice(0, 3).map(el => ({
+              classes: el.className,
+              id: el.id,
+              hasLink: !!el.querySelector('a[href]'),
+              textLength: el.textContent.trim().length
+            }))
+          };
+        }
       });
-    }
-
+      return results;
+    });
+    console.log('\n📰 Article containers found:', articleContainers);
+    
+    // Get some sample article links with full details
+    const sampleLinks = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a[href]'))
+        .filter(l => {
+          const text = l.textContent.trim();
+          const href = l.href;
+          return text.length > 15 && text.split(' ').length >= 3 && 
+                 !href.includes('#') && 
+                 !href.includes('javascript:') &&
+                 href.startsWith('http');
+        })
+        .slice(0, 10);
+        
+      return links.map(l => ({
+        href: l.href,
+        text: l.textContent.trim().substring(0, 100),
+        parentClass: l.closest('[class]')?.className || '',
+        parentTag: l.parentElement?.tagName || ''
+      }));
+    });
+    
+    console.log('\n🔗 Sample article links:');
+    sampleLinks.forEach((link, i) => {
+      console.log(`${i + 1}. ${link.text}`);
+      console.log(`   URL: ${link.href}`);
+      console.log(`   Parent: ${link.parentTag}.${link.parentClass}`);
+      console.log('');
+    });
+    
+    console.log(`\n📈 Summary: Found ${sampleLinks.length} quality article links out of ${afterScrollLinks.total} total links`);
+    
   } catch (error) {
-    console.error('❌ Error analyzing Foorilla:', error.message);
+    console.error('❌ Analysis failed:', error);
   } finally {
     await browser.close();
   }
 }
 
-analyzeFoorillaStructure().catch(console.error);
+analyzeFoorilla().catch(console.error);

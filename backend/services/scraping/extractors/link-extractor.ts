@@ -398,15 +398,48 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         { timeout: 10000 }
       ).catch(() => log('[LinkExtractor] Timeout waiting for loading indicators', "scraper"));
 
-      // Extract all links after ensuring content is loaded
+      // Extract all links after ensuring content is loaded - comprehensive extraction
       articleLinkData = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a'));
-        return links.map(link => ({
-          href: link.getAttribute('href') || '',
-          text: link.textContent?.trim() || '',
-          context: link.parentElement?.textContent?.trim() || '',
-          parentClass: link.parentElement?.className || ''
-        })).filter(link => link.href); // Only keep links with href attribute
+        const links = Array.from(document.querySelectorAll('a[href]'));
+        return links.map(link => {
+          const href = link.getAttribute('href') || '';
+          const text = link.textContent?.trim() || '';
+          const context = link.parentElement?.textContent?.trim() || '';
+          const parentClass = link.parentElement?.className || '';
+          
+          // Get more comprehensive context
+          const linkElement = link as HTMLElement;
+          const fullContext = linkElement.closest('article, .post, .item, .entry, .content, .card')?.textContent?.trim() || context;
+          
+          return {
+            href,
+            text,
+            context: fullContext.substring(0, 200), // Limit context length
+            parentClass
+          };
+        }).filter(link => {
+          // More inclusive filtering - keep links that look like articles
+          const href = link.href;
+          const text = link.text;
+          
+          // Skip obvious non-article links
+          if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) {
+            return false;
+          }
+          
+          // Skip navigation and utility links
+          const textLower = text.toLowerCase();
+          if (textLower.includes('login') || textLower.includes('register') || 
+              textLower.includes('contact') || textLower.includes('about') ||
+              textLower.includes('privacy') || textLower.includes('terms') ||
+              textLower.includes('home') || textLower.includes('menu') ||
+              text.length < 5) {
+            return false;
+          }
+          
+          // Keep links that look like articles (have reasonable text length and word count)
+          return text.length >= 5 && text.split(' ').length >= 2;
+        });
       });
 
       log(`[LinkExtractor] Extracted ${articleLinkData.length} potential article links`, "scraper");
