@@ -506,8 +506,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                 for (const selector of attributionSelectors) {
                   const elements = Array.from(searchElement.querySelectorAll(selector));
                   for (const el of elements) {
-                    const element = el as HTMLElement;
-                    const textContent = element.textContent?.trim() || '';
+                    const textContent = el.textContent?.trim() || '';
                     const domainMatch = textContent.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
                     if (domainMatch) {
                       const domain = domainMatch[1];
