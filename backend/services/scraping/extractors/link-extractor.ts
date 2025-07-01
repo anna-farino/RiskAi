@@ -201,7 +201,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
       }
       
       // Check for HTMX in window object
-      const htmxInWindow = typeof (window as any).htmx !== 'undefined';
+      const htmxInWindow = typeof window.htmx !== 'undefined';
       
       // Check for any HTMX attributes
       let hasHxAttributes = false;
