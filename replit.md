@@ -127,6 +127,32 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 1, 2025 - Complete HTMX Link Extraction Rewrite
+- **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
+- **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
+- **Solution implemented**:
+  - Completely rewrote `extractLinksFromPage` function in `link-extractor.ts` with comprehensive HTMX detection
+  - Added 13 different HTMX attribute patterns for complete detection coverage
+  - Implemented direct HTMX endpoint fetching for sites like Foorilla with specific endpoint patterns
+  - Added intelligent element triggering for clickable HTMX elements with visibility checks
+  - Enhanced scrolling techniques and loading indicator detection for better dynamic content handling
+  - Created `extractArticleLinksFromPage` function for direct Puppeteer page-based extraction
+  - Modified unified scraper to use advanced extraction when HTMX/dynamic content detected
+- **Advanced detection includes**:
+  - Script tag patterns, inline script content scanning, window object checks
+  - Complete HTMX attribute pattern matching including data-* variants
+  - Element triggering with smart filtering (skip search/filter elements)
+  - Direct endpoint fetching with proper headers (HX-Request, CSRF tokens, screen size)
+  - Network request interception and manual fetching for content-loading endpoints
+- **Architecture updates**:
+  - New `extractLinksWithAdvancedHTMX` method in unified scraper for dedicated HTMX handling
+  - Smart detection logic to choose between standard and advanced extraction methods
+  - Proper browser management integration with automatic page cleanup
+- **Impact**: 
+  - HTMX sites like Foorilla will now properly load dynamic content before link extraction
+  - System automatically detects when advanced extraction is needed
+  - Maintains performance for static sites while providing comprehensive dynamic site support
+
 ### June 27, 2025 - HTMX Dynamic Content Loading Fix Complete
 - **Fixed critical HTMX scraping issue** preventing detection of article links on dynamic sites like Foorilla
 - **Root cause**: System using HTTP scraping for dynamic sites that require JavaScript/HTMX to load content

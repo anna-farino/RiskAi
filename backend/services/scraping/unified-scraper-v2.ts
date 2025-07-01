@@ -363,19 +363,11 @@ export class StreamlinedUnifiedScraper {
     try {
       log(`[SimpleScraper] Starting advanced HTMX link extraction for: ${url}`, "scraper");
       
-      // Import browser manager and setup
-      const { getBrowser } = await import('./core/browser-manager');
+      // Import setup functions
       const { setupSourcePage } = await import('./core/page-setup');
       
-      // Create dedicated page for advanced extraction
-      const browser = await getBrowser();
-      page = await browser.newPage();
-      
-      // Set up page for source scraping
-      await setupSourcePage(page, {
-        timeout: 60000,
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      });
+      // Create and setup page for advanced extraction
+      page = await setupSourcePage();
       
       // Navigate to the page
       log(`[SimpleScraper] Navigating to ${url} for advanced extraction`, "scraper");
