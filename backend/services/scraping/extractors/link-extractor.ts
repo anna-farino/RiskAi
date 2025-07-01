@@ -261,10 +261,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         log('[LinkExtractor] HTMX detected on page, handling dynamic content...', "scraper");
         
         // Wait longer for initial HTMX content to load (some triggers on page load)
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        
-        // For HTMX elements with 'load' trigger, content should already be loaded
-        // But HTMX may use other triggers (click, etc.), so we'll need to check
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
         // Get all HTMX load endpoints that should have been triggered
         const loadTriggers = hasHtmx.hxGetElements.filter(el => 
@@ -274,8 +271,67 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         if (loadTriggers.length > 0) {
           log(`[LinkExtractor] Found ${loadTriggers.length} HTMX endpoints triggered on load`, "scraper");
           
-          // Wait a bit longer for these load-triggered requests to complete
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // Wait for these load-triggered requests to complete
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        
+        // More aggressive HTMX content loading - trigger ALL visible HTMX elements
+        const allTriggeredElements = await page.evaluate(() => {
+          let triggered = 0;
+          
+          // Get all HTMX elements with different triggers
+          const htmxSelectors = [
+            '[hx-get]', '[hx-post]', '[data-hx-get]', '[data-hx-post]',
+            '[hx-trigger]', '[data-hx-trigger]'
+          ];
+          
+          const allHtmxElements = [];
+          htmxSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+              if (!allHtmxElements.includes(el)) {
+                allHtmxElements.push(el);
+              }
+            });
+          });
+          
+          console.log(`Found ${allHtmxElements.length} total HTMX elements`);
+          
+          allHtmxElements.forEach((el, index) => {
+            if (index < 50) { // Process up to 50 elements
+              const url = el.getAttribute('hx-get') || el.getAttribute('data-hx-get') || 
+                         el.getAttribute('hx-post') || el.getAttribute('data-hx-post');
+              const trigger = el.getAttribute('hx-trigger') || el.getAttribute('data-hx-trigger') || 'click';
+              
+              // Skip search/filter elements or already processed load triggers
+              if (url && !url.includes('search') && !url.includes('filter') && trigger !== 'load') {
+                // Check if element is visible and potentially clickable
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                  console.log(`Triggering HTMX element ${index}: ${url} (trigger: ${trigger})`);
+                  
+                  // Trigger the element based on its trigger type
+                  if (trigger.includes('click') || trigger === 'click') {
+                    (el as HTMLElement).click();
+                    triggered++;
+                  } else if (trigger.includes('mouseover')) {
+                    const event = new MouseEvent('mouseover', { bubbles: true });
+                    el.dispatchEvent(event);
+                    triggered++;
+                  } else if (trigger.includes('focus')) {
+                    (el as HTMLElement).focus();
+                    triggered++;
+                  }
+                }
+              }
+            }
+          });
+          
+          return triggered;
+        });
+        
+        if (allTriggeredElements > 0) {
+          log(`[LinkExtractor] Triggered ${allTriggeredElements} HTMX elements for content loading`, "scraper");
+          await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
         }
 
         // Specifically for foorilla.com and similar sites, manually fetch HTMX content
@@ -450,9 +506,10 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         "scraper-debug",
       );
 
-      // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
-      if (articleLinkData.length < 20) {
-        log(`[LinkExtractor] Fewer than 20 links found, trying additional techniques...`, "scraper");
+      // If fewer than 50 links were found, wait longer and try scrolling to load more dynamic content
+      // Foorilla analysis shows 77 article-like links should be available
+      if (articleLinkData.length < 50) {
+        log(`[LinkExtractor] Fewer than 50 links found (${articleLinkData.length}), trying additional techniques...`, "scraper");
         
         // For HTMX pages: Special handling of dynamic content
         if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
@@ -582,15 +639,48 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         // Wait for additional time to let dynamic content load
         await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // Try extracting links again after all our techniques
+        // Try extracting links again after all our techniques - use comprehensive extraction
         articleLinkData = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a'));
-          return links.map(link => ({
-            href: link.getAttribute('href') || '',
-            text: link.textContent?.trim() || '',
-            context: link.parentElement?.textContent?.trim() || '',
-            parentClass: link.parentElement?.className || ''
-          })).filter(link => link.href); // Only keep links with href attribute
+          const links = Array.from(document.querySelectorAll('a[href]'));
+          return links.map(link => {
+            const href = link.getAttribute('href') || '';
+            const text = link.textContent?.trim() || '';
+            const context = link.parentElement?.textContent?.trim() || '';
+            const parentClass = link.parentElement?.className || '';
+            
+            // Get more comprehensive context
+            const linkElement = link as HTMLElement;
+            const fullContext = linkElement.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
+            
+            return {
+              href,
+              text,
+              context: fullContext.substring(0, 200), // Limit context length
+              parentClass
+            };
+          }).filter(link => {
+            // More inclusive filtering - keep links that look like articles
+            const href = link.href;
+            const text = link.text;
+            
+            // Skip obvious non-article links
+            if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) {
+              return false;
+            }
+            
+            // Skip navigation and utility links
+            const textLower = text.toLowerCase();
+            if (textLower.includes('login') || textLower.includes('register') || 
+                textLower.includes('contact') || textLower.includes('about') ||
+                textLower.includes('privacy') || textLower.includes('terms') ||
+                textLower.includes('home') || textLower.includes('menu') ||
+                text.length < 5) {
+              return false;
+            }
+            
+            // Keep links that look like articles (have reasonable text length and word count)
+            return text.length >= 5 && text.split(' ').length >= 2;
+          });
         });
         
         log(`[LinkExtractor] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
