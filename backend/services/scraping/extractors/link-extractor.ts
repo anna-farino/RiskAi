@@ -85,70 +85,24 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
   const links: LinkData[] = [];
   const minimumTextLength = options?.minimumTextLength || 15;
   
-  // Comprehensive debugging to match test script behavior
-  const totalLinksFound = $('a[href]').length;
-  log(`[LinkExtractor] Starting extraction - HTML length: ${html.length}, Total <a> tags found: ${totalLinksFound}`, "scraper");
-  
-  let processedCount = 0;
-  let skippedNavigation = 0;
-  let skippedNoContent = 0;
-  let extractedCount = 0;
-  
-  // For HTMX/dynamic sites: Extract ALL links, let OpenAI do the filtering
   $('a[href]').each((_, element) => {
-    processedCount++;
     const href = $(element).attr('href');
-    let text = $(element).text().trim();
+    const text = $(element).text().trim();
     const parentText = $(element).parent().text().trim();
     const parentClass = $(element).parent().attr('class') || '';
     
-    // Debug first few links
-    if (processedCount <= 5) {
-      log(`[LinkExtractor] Processing link ${processedCount}: href="${href}", text="${text}" (${text.length} chars)`, "scraper");
-    }
-    
-    // Get text from any available source
-    if (!text) {
-      text = $(element).find('*').text().trim() || 
-             $(element).attr('title') || 
-             $(element).attr('aria-label') || 
-             $(element).find('img').attr('alt') || 
-             'Link';
-    }
-    
-    // Extract ALL links - even those with empty href, let OpenAI filter everything
-    links.push({
-      href: href || '',
-      text: text || 'Link',
-      context: parentText,
-      parentClass
-    });
-    extractedCount++;
-    
-    if (extractedCount <= 5) {
-      log(`[LinkExtractor] Extracted link ${extractedCount}: "${text}" -> ${href || 'empty'}`, "scraper");
+    // Skip links with insufficient text (likely navigation)
+    if (href && text && text.length >= minimumTextLength) {
+      links.push({
+        href,
+        text,
+        context: parentText,
+        parentClass
+      });
     }
   });
   
-  // No additional extraction needed - we're sending all <a> tags to OpenAI
-  
-  // Enhanced debugging for dynamic site extraction
-  log(`[LinkExtractor] Processing summary - Processed: ${processedCount}, Extracted: ${extractedCount}, Skipped navigation: ${skippedNavigation}, Skipped no-content: ${skippedNoContent}`, "scraper");
-  log(`[LinkExtractor] HTML analysis - Total <a> tags: ${processedCount}, Extracted for AI: ${links.length}`, "scraper");
-  
-  if (links.length > 0) {
-    // Show sample of extracted links
-    log(`[LinkExtractor] Sample extracted links:`, "scraper");
-    links.slice(0, 5).forEach((link, index) => {
-      log(`  ${index + 1}. "${link.text}" (${link.text.length} chars) -> ${link.href}`, "scraper");
-    });
-    
-    if (links.length > 5) {
-      log(`  ... and ${links.length - 5} more links extracted for AI analysis`, "scraper");
-    }
-  }
-  
-  log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML (enhanced extraction)`, "scraper");
+  log(`[LinkExtractor] Extracted ${links.length} potential article links from HTML`, "scraper");
   return links;
 }
 
