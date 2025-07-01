@@ -201,7 +201,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
       }
       
       // Check for HTMX in window object
-      const htmxInWindow = typeof window.htmx !== 'undefined';
+      const htmxInWindow = typeof (window as any).htmx !== 'undefined';
       
       // Check for any HTMX attributes
       let hasHxAttributes = false;
@@ -311,14 +311,14 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                   
                   // Trigger the element based on its trigger type
                   if (trigger.includes('click') || trigger === 'click') {
-                    el.click();
+                    (el as HTMLElement).click();
                     triggered++;
                   } else if (trigger.includes('mouseover')) {
                     const event = new MouseEvent('mouseover', { bubbles: true });
                     el.dispatchEvent(event);
                     triggered++;
                   } else if (trigger.includes('focus')) {
-                    el.focus();
+                    (el as HTMLElement).focus();
                     triggered++;
                   }
                 }
@@ -426,7 +426,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               const rect = el.getBoundingClientRect();
               if (rect.width > 0 && rect.height > 0) {
                 console.log(`Clicking HTMX element: ${url}`);
-                el.click();
+                (el as HTMLElement).click();
                 triggered++;
               }
             }
@@ -490,58 +490,55 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                 .replace(/\s+/g, '-')
                 .substring(0, 50);
               
-              // Try to detect source domain from context first using dynamic approach
+              // Try to detect source domain from context first
               let tempSourceDomain = '';
               
-              // Use the same dynamic detection logic (defined below)
-              const detectSourceDomainForURL = (searchElement) => {
-                if (!searchElement) return '';
-                
-                const attributionSelectors = [
-                  'small', '.source', '.attribution', '.domain', '.site', '.from',
-                  '[class*="source"]', '[class*="attribution"]', '[class*="domain"]',
-                  'cite', '.cite', '.credit', '.via', '.by-line', '.meta'
-                ];
-                
-                for (const selector of attributionSelectors) {
-                  const elements = Array.from(searchElement.querySelectorAll(selector));
-                  for (const el of elements) {
-                    const textContent = el.textContent?.trim() || '';
-                    const domainMatch = textContent.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+              // First try list item (Foorilla pattern)
+              const listItem = element.closest('li, .list-group-item');
+              if (listItem) {
+                const smallElements = Array.from(listItem.querySelectorAll('small'));
+                for (const small of smallElements) {
+                  const sourceText = small.textContent?.trim() || '';
+                  const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+                  if (domainMatch) {
+                    const domain = domainMatch[1];
+                    if (!domain.includes('foorilla') && 
+                        !domain.includes('google') && 
+                        !domain.includes('facebook') && 
+                        !domain.includes('twitter') &&
+                        !domain.includes('localStorage') &&
+                        !domain.includes('document.') &&
+                        domain.length > 5) {
+                      tempSourceDomain = domain;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              // Fallback to broader container search
+              if (!tempSourceDomain) {
+                const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
+                if (articleContainer) {
+                  const smallElements = Array.from(articleContainer.querySelectorAll('small'));
+                  for (const small of smallElements) {
+                    const sourceText = small.textContent?.trim() || '';
+                    const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
                     if (domainMatch) {
                       const domain = domainMatch[1];
-                      const currentSiteDomain = window.location.hostname.replace(/^www\./, '');
-                      const excludePatterns = [
-                        currentSiteDomain, 'google', 'facebook', 'twitter', 'instagram', 
-                        'linkedin', 'youtube', 'tiktok', 'localhost', 'example.com',
-                        'localStorage', 'document.', 'window.', 'undefined', 'null'
-                      ];
-                      
-                      if (!excludePatterns.some(pattern => domain.includes(pattern)) && 
-                          domain.includes('.') && 
-                          domain.length > 5 &&
-                          !domain.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-                        return domain;
+                      if (!domain.includes('foorilla') && 
+                          !domain.includes('google') && 
+                          !domain.includes('facebook') && 
+                          !domain.includes('twitter') &&
+                          !domain.includes('localStorage') &&
+                          !domain.includes('document.') &&
+                          domain.length > 5) {
+                        tempSourceDomain = domain;
+                        break;
                       }
                     }
                   }
                 }
-                return '';
-              };
-              
-              // Try multiple container levels for source detection
-              const searchContainers = [
-                element.closest('li, .list-group-item'),
-                element.closest('article, .post, .item, .entry'),
-                element.closest('.content, .card, .story'),
-                element.closest('div[class*="item"], div[class*="post"], div[class*="article"]'),
-                element.parentElement,
-                element.parentElement?.parentElement
-              ].filter(Boolean);
-              
-              for (const container of searchContainers) {
-                tempSourceDomain = detectSourceDomainForURL(container);
-                if (tempSourceDomain) break;
               }
               
               // Construct URL with source domain if available
@@ -558,121 +555,58 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           // Get more comprehensive context
           const fullContext = element.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
           
-          // Extract source domain for aggregated content - Dynamic approach
+          // Extract source domain for aggregated content
           let sourceDomain = '';
           
-          // Dynamic source domain detection strategy
-          const detectSourceDomain = (searchElement) => {
-            if (!searchElement) return '';
-            
-            // Strategy 1: Look for domains in various element types that commonly contain attribution
-            const attributionSelectors = [
-              'small', '.source', '.attribution', '.domain', '.site', '.from',
-              '[class*="source"]', '[class*="attribution"]', '[class*="domain"]',
-              'cite', '.cite', '.credit', '.via', '.by-line', '.meta'
-            ];
-            
-            for (const selector of attributionSelectors) {
-              const elements = Array.from(searchElement.querySelectorAll(selector));
-              for (const el of elements) {
-                const text = el.textContent?.trim() || '';
-                // Look for standalone domain pattern
-                const domainMatch = text.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+          // First try to find in immediate article context (Foorilla pattern)
+          const listItem = element.closest('li, .list-group-item');
+          if (listItem) {
+            // Look for domain in small elements within the same list item
+            const smallElements = Array.from(listItem.querySelectorAll('small'));
+            for (const small of smallElements) {
+              const sourceText = small.textContent?.trim() || '';
+              // Check if this small element contains only a domain
+              const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
+              if (domainMatch) {
+                const domain = domainMatch[1];
+                // Filter out common non-source domains
+                if (!domain.includes('foorilla') && 
+                    !domain.includes('google') && 
+                    !domain.includes('facebook') && 
+                    !domain.includes('twitter') &&
+                    !domain.includes('localStorage') &&
+                    !domain.includes('document.') &&
+                    domain.length > 5) {
+                  sourceDomain = domain;
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Fallback: broader article container search
+          if (!sourceDomain) {
+            const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
+            if (articleContainer) {
+              const smallElements = Array.from(articleContainer.querySelectorAll('small'));
+              for (const small of smallElements) {
+                const sourceText = small.textContent?.trim() || '';
+                const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
                 if (domainMatch) {
                   const domain = domainMatch[1];
-                  if (isValidSourceDomain(domain)) {
-                    return domain;
-                  }
-                }
-                
-                // Look for "via domain.com" or "source: domain.com" patterns
-                const viaMatch = text.match(/(?:via|source|from):\s*([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/i);
-                if (viaMatch && isValidSourceDomain(viaMatch[1])) {
-                  return viaMatch[1];
-                }
-              }
-            }
-            
-            // Strategy 2: Look for domains in data attributes (check element itself first)
-            const dataAttrs = ['data-source', 'data-domain', 'data-site', 'data-from'];
-            for (const attr of dataAttrs) {
-              // Check the search element itself first
-              const domain = searchElement.getAttribute(attr);
-              if (domain && isValidSourceDomain(domain)) {
-                return domain;
-              }
-              
-              // Then check child elements
-              const attrElements = Array.from(searchElement.querySelectorAll(`[${attr}]`));
-              for (const el of attrElements) {
-                const childDomain = el.getAttribute(attr);
-                if (childDomain && isValidSourceDomain(childDomain)) {
-                  return childDomain;
-                }
-              }
-            }
-            
-            // Strategy 3: If href is relative, look for base domain in surrounding elements
-            if (href && href.startsWith('/') && !href.startsWith('//')) {
-              // Search progressively wider for domain indicators
-              const searchAreas = [searchElement];
-              let current = searchElement.parentElement;
-              let depth = 0;
-              
-              while (current && depth < 3) {
-                searchAreas.push(current);
-                current = current.parentElement;
-                depth++;
-              }
-              
-              for (const area of searchAreas) {
-                // Look for any domain mentioned in text content (more permissive)
-                const areaText = area.textContent || '';
-                const domains = areaText.match(/\b([a-zA-Z0-9-]+\.[a-zA-Z]{2,})\b/g);
-                if (domains) {
-                  for (const domain of domains) {
-                    if (isValidSourceDomain(domain)) {
-                      return domain;
-                    }
+                  if (!domain.includes('foorilla') && 
+                      !domain.includes('google') && 
+                      !domain.includes('facebook') && 
+                      !domain.includes('twitter') &&
+                      !domain.includes('localStorage') &&
+                      !domain.includes('document.') &&
+                      domain.length > 5) {
+                    sourceDomain = domain;
+                    break;
                   }
                 }
               }
             }
-            
-            return '';
-          };
-          
-          // Helper function to validate if a domain is a legitimate source
-          const isValidSourceDomain = (domain) => {
-            if (!domain || domain.length < 4) return false;
-            
-            // Filter out current site and common non-source domains
-            const currentSiteDomain = window.location.hostname.replace(/^www\./, '');
-            const excludePatterns = [
-              currentSiteDomain, 'google', 'facebook', 'twitter', 'instagram', 
-              'linkedin', 'youtube', 'tiktok', 'localhost', 'example.com',
-              'localStorage', 'document.', 'window.', 'undefined', 'null'
-            ];
-            
-            return !excludePatterns.some(pattern => domain.includes(pattern)) && 
-                   domain.includes('.') && 
-                   domain.length > 5 &&
-                   !domain.match(/^\d+\.\d+\.\d+\.\d+$/); // Exclude IP addresses
-          };
-          
-          // Try multiple container levels for source detection
-          const searchContainers = [
-            element.closest('li, .list-group-item'), // List items (common in feeds)
-            element.closest('article, .post, .item, .entry'), // Article containers
-            element.closest('.content, .card, .story'), // Content containers  
-            element.closest('div[class*="item"], div[class*="post"], div[class*="article"]'), // Dynamic class containers
-            element.parentElement, // Direct parent
-            element.parentElement?.parentElement // Grandparent
-          ].filter(Boolean);
-          
-          for (const container of searchContainers) {
-            sourceDomain = detectSourceDomain(container);
-            if (sourceDomain) break;
           }
           
           return {
@@ -747,7 +681,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                 
                 if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
                   console.log('Clicking element:', text);
-                  el.click();
+                  (el as HTMLElement).click();
                   clicked++;
                 }
               });
@@ -857,7 +791,8 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             const parentClass = link.parentElement?.className || '';
             
             // Get more comprehensive context
-            const fullContext = link.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
+            const linkElement = link as HTMLElement;
+            const fullContext = linkElement.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
             
             return {
               href,
