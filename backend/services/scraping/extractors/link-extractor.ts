@@ -86,180 +86,55 @@ function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtra
   const minimumTextLength = options?.minimumTextLength || 15;
   
   // Comprehensive debugging to match test script behavior
-  const totalLinks = $('a[href]').length;
-  log(`[LinkExtractor] Starting extraction - HTML length: ${html.length}, Total <a> tags found: ${totalLinks}`, "scraper");
+  const totalLinksFound = $('a[href]').length;
+  log(`[LinkExtractor] Starting extraction - HTML length: ${html.length}, Total <a> tags found: ${totalLinksFound}`, "scraper");
   
   let processedCount = 0;
   let skippedNavigation = 0;
   let skippedNoContent = 0;
   let extractedCount = 0;
   
-  // Enhanced extraction for dynamic sites like Foorilla
+  // For HTMX/dynamic sites: Extract ALL links, let OpenAI do the filtering
   $('a[href]').each((_, element) => {
+    processedCount++;
     const href = $(element).attr('href');
     let text = $(element).text().trim();
     const parentText = $(element).parent().text().trim();
     const parentClass = $(element).parent().attr('class') || '';
     
-    // For dynamic sites, also check child elements for text content
-    if (!text || text.length < 5) {
-      // Look for text in child elements (images, divs, spans)
-      const childText = $(element).find('*').text().trim();
-      if (childText && childText.length > text.length) {
-        text = childText;
-      }
-      
-      // Check for title or aria-label attributes as fallback
-      if (!text || text.length < 5) {
-        text = $(element).attr('title') || $(element).attr('aria-label') || text;
-      }
+    // Debug first few links
+    if (processedCount <= 5) {
+      log(`[LinkExtractor] Processing link ${processedCount}: href="${href}", text="${text}" (${text.length} chars)`, "scraper");
     }
     
-    // Special handling for Foorilla-style structures
-    // Check if this is an image link with alt text or nearby text
-    if ((!text || text.length < minimumTextLength) && $(element).find('img').length > 0) {
-      const imgAlt = $(element).find('img').attr('alt') || '';
-      const imgTitle = $(element).find('img').attr('title') || '';
-      const nearbyText = $(element).siblings().text().trim();
-      
-      // Use the longest available text
-      const candidateTexts = [text, imgAlt, imgTitle, nearbyText].filter(t => t && t.length > 0);
-      if (candidateTexts.length > 0) {
-        text = candidateTexts.reduce((longest, current) => 
-          current.length > longest.length ? current : longest
-        );
-      }
+    // Get text from any available source
+    if (!text) {
+      text = $(element).find('*').text().trim() || 
+             $(element).attr('title') || 
+             $(element).attr('aria-label') || 
+             $(element).find('img').attr('alt') || 
+             'Link';
     }
     
-    // For content cards, check if parent contains article-like text
-    if ((!text || text.length < minimumTextLength) && parentClass.includes('card') || parentClass.includes('item') || parentClass.includes('article')) {
-      const cardText = $(element).closest('[class*="card"], [class*="item"], [class*="article"]').text().trim();
-      if (cardText && cardText.length >= minimumTextLength) {
-        // Extract the first meaningful sentence/title from card text
-        const sentences = cardText.split(/[.!?]/).filter(s => s.trim().length >= minimumTextLength);
-        if (sentences.length > 0) {
-          text = sentences[0].trim();
-        }
-      }
-    }
-    
-    // For HTMX/dynamic sites, extract ALL links and let OpenAI filter them
-    // Only do basic filtering to remove obvious non-content links
-    if (href && text) {
-      // Skip obvious navigation/UI links but be much more permissive
-      const isNavigation = href.includes('#') || 
-                          href.includes('javascript:') ||
-                          href.includes('mailto:') ||
-                          href.includes('tel:') ||
-                          /^(#|javascript:|mailto:|tel:)/.test(href);
-      
-      // Skip links with no meaningful content at all
-      const hasNoContent = !text.trim() && !$(element).find('img').length;
-      
-      if (!isNavigation && !hasNoContent) {
-        // Use any available text, even if short - OpenAI will determine relevance
-        let finalText = text || $(element).attr('title') || $(element).attr('aria-label') || `Link to ${href}`;
-        
-        links.push({
-          href,
-          text: finalText,
-          context: parentText,
-          parentClass
-        });
-      }
-    }
-  });
-  
-  // Additional extraction for dynamic content structures
-  // Look for clickable elements that might not be <a> tags but contain article info
-  $('div[onclick], span[onclick], [data-href], [data-url]').each((_, element) => {
-    const href = $(element).attr('onclick') || $(element).attr('data-href') || $(element).attr('data-url');
-    const text = $(element).text().trim();
-    const parentClass = $(element).parent().attr('class') || '';
-    
-    if (href && text && text.length >= minimumTextLength && href.includes('http')) {
-      // Extract URL from onclick if needed
-      let cleanHref = href;
-      const urlMatch = href.match(/https?:\/\/[^\s'"]+/);
-      if (urlMatch) {
-        cleanHref = urlMatch[0];
-      }
-      
-      links.push({
-        href: cleanHref,
-        text,
-        context: text,
-        parentClass
-      });
-    }
-  });
-  
-  // Extract from common article/content structures used by modern sites
-  // Look for title elements within clickable containers
-  $('[class*="article"], [class*="post"], [class*="item"], [class*="card"], [class*="content"]').each((_, container) => {
-    const $container = $(container);
-    
-    // Find links within this container
-    const links_in_container = $container.find('a[href]');
-    
-    links_in_container.each((_, linkEl) => {
-      const href = $(linkEl).attr('href');
-      let text = $(linkEl).text().trim();
-      
-      // Always try to enhance link text from container context
-      if (href) {
-        // Look for heading elements
-        const headingSelectors = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', '[class*="title"]', '[class*="heading"]'];
-        
-        for (const selector of headingSelectors) {
-          const heading = $container.find(selector).first().text().trim();
-          if (heading && heading.length >= minimumTextLength) {
-            text = heading;
-            break;
-          }
-        }
-        
-        // If still no good text, use the first substantial text from the container
-        if (!text || text.length < minimumTextLength) {
-          const containerText = $container.text().trim();
-          if (containerText.length >= minimumTextLength) {
-            // Extract first sentence or meaningful chunk
-            const sentences = containerText.split(/[.!?]/).filter(s => s.trim().length >= minimumTextLength);
-            if (sentences.length > 0) {
-              text = sentences[0].trim();
-            } else if (containerText.length <= 200) { // Use whole text if not too long
-              text = containerText;
-            }
-          }
-        }
-        
-        // Add any link with meaningful content, let OpenAI filter for articles
-        if (text && href) {
-          const isNavigation = href.includes('#') || 
-                              href.includes('javascript:') ||
-                              href.includes('mailto:') ||
-                              href.includes('tel:');
-          
-          if (!isNavigation) {
-            // Check if we already have this link to avoid duplicates
-            const existingLink = links.find(l => l.href === href);
-            if (!existingLink) {
-              links.push({
-                href,
-                text,
-                context: $container.text().trim().substring(0, 100),
-                parentClass: $container.attr('class') || ''
-              });
-            }
-          }
-        }
-      }
+    // Extract ALL links - even those with empty href, let OpenAI filter everything
+    links.push({
+      href: href || '',
+      text: text || 'Link',
+      context: parentText,
+      parentClass
     });
+    extractedCount++;
+    
+    if (extractedCount <= 5) {
+      log(`[LinkExtractor] Extracted link ${extractedCount}: "${text}" -> ${href || 'empty'}`, "scraper");
+    }
   });
+  
+  // No additional extraction needed - we're sending all <a> tags to OpenAI
   
   // Enhanced debugging for dynamic site extraction
-  const totalLinks = $('a[href]').length;
-  log(`[LinkExtractor] HTML analysis - Total <a> tags: ${totalLinks}, Extracted for AI: ${links.length}`, "scraper");
+  log(`[LinkExtractor] Processing summary - Processed: ${processedCount}, Extracted: ${extractedCount}, Skipped navigation: ${skippedNavigation}, Skipped no-content: ${skippedNoContent}`, "scraper");
+  log(`[LinkExtractor] HTML analysis - Total <a> tags: ${processedCount}, Extracted for AI: ${links.length}`, "scraper");
   
   if (links.length > 0) {
     // Show sample of extracted links
