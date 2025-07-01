@@ -345,14 +345,12 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         const htmxContent = await page.evaluate(async (currentBaseUrl) => {
           let totalContentLoaded = 0;
           
-          // Common HTMX endpoints for article content
+          // Common HTMX endpoints for article content (based on working endpoints)
           const endpoints = [
             '/media/items/',
             '/media/items/top/',
             '/media/items/recent/',
-            '/media/items/popular/',
-            '/media/cybersecurity/items/',
-            '/media/cybersecurity/items/top/'
+            '/media/items/popular/'
           ];
           
           // Get CSRF token from page if available
@@ -456,16 +454,28 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
 
       // Extract all links after ensuring content is loaded - comprehensive extraction
       articleLinkData = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a[href]'));
-        return links.map(link => {
-          const href = link.getAttribute('href') || '';
-          const text = link.textContent?.trim() || '';
-          const context = link.parentElement?.textContent?.trim() || '';
-          const parentClass = link.parentElement?.className || '';
+        // Get both <a> tags and potentially clickable elements that might be articles
+        const allElements = Array.from(document.querySelectorAll('a, div[onclick], div[data-url], span[onclick], [data-href]'));
+        
+        return allElements.map(element => {
+          // Try multiple ways to get the URL
+          let href = element.getAttribute('href') || 
+                    element.getAttribute('data-url') || 
+                    element.getAttribute('data-href') || '';
+          
+          // For onclick elements, try to extract URL from onclick
+          if (!href && element.getAttribute('onclick')) {
+            const onclick = element.getAttribute('onclick');
+            const urlMatch = onclick.match(/['"]([^'"]*\/[^'"]*)['"]/);
+            if (urlMatch) href = urlMatch[1];
+          }
+          
+          const text = element.textContent?.trim() || '';
+          const context = element.parentElement?.textContent?.trim() || '';
+          const parentClass = element.parentElement?.className || '';
           
           // Get more comprehensive context
-          const linkElement = link as HTMLElement;
-          const fullContext = linkElement.closest('article, .post, .item, .entry, .content, .card')?.textContent?.trim() || context;
+          const fullContext = element.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
           
           return {
             href,
@@ -474,27 +484,27 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             parentClass
           };
         }).filter(link => {
-          // More inclusive filtering - keep links that look like articles
           const href = link.href;
           const text = link.text;
           
-          // Skip obvious non-article links
-          if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) {
-            return false;
-          }
+          // Keep links with meaningful text, even if href is empty initially
+          if (!text || text.length < 3) return false;
           
           // Skip navigation and utility links
           const textLower = text.toLowerCase();
           if (textLower.includes('login') || textLower.includes('register') || 
               textLower.includes('contact') || textLower.includes('about') ||
               textLower.includes('privacy') || textLower.includes('terms') ||
-              textLower.includes('home') || textLower.includes('menu') ||
-              text.length < 5) {
+              textLower.includes('menu')) {
             return false;
           }
           
-          // Keep links that look like articles (have reasonable text length and word count)
-          return text.length >= 5 && text.split(' ').length >= 2;
+          // Skip very short navigation text
+          if (text.length < 3 || ['top', 'new', 'old', 'all'].includes(textLower)) {
+            return false;
+          }
+          
+          return true;
         });
       });
 
@@ -506,10 +516,9 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         "scraper-debug",
       );
 
-      // If fewer than 50 links were found, wait longer and try scrolling to load more dynamic content
-      // Foorilla analysis shows 77 article-like links should be available
-      if (articleLinkData.length < 50) {
-        log(`[LinkExtractor] Fewer than 50 links found (${articleLinkData.length}), trying additional techniques...`, "scraper");
+      // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
+      if (articleLinkData.length < 20) {
+        log(`[LinkExtractor] Fewer than 20 links found (${articleLinkData.length}), trying additional techniques...`, "scraper");
         
         // For HTMX pages: Special handling of dynamic content
         if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
@@ -668,18 +677,18 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               return false;
             }
             
-            // Skip navigation and utility links
+            // Skip navigation and utility links but be more lenient
             const textLower = text.toLowerCase();
             if (textLower.includes('login') || textLower.includes('register') || 
                 textLower.includes('contact') || textLower.includes('about') ||
                 textLower.includes('privacy') || textLower.includes('terms') ||
-                textLower.includes('home') || textLower.includes('menu') ||
-                text.length < 5) {
+                textLower.includes('home') || textLower.includes('menu')) {
               return false;
             }
             
-            // Keep links that look like articles (have reasonable text length and word count)
-            return text.length >= 5 && text.split(' ').length >= 2;
+            // Keep links that look like articles (have reasonable text length)
+            // Allow single meaningful words as they're common on news sites
+            return text.length >= 3;
           });
         });
         

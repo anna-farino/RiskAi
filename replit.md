@@ -131,7 +131,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
 - **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
 - **Solution implemented**:
-  - **Enhanced extraction aggressiveness**: Increased link detection threshold from 20 to 50 links to match real-world HTMX sites
   - **Comprehensive link filtering**: Improved article detection with inclusive filtering for better coverage of legitimate articles
   - **Aggressive HTMX triggering**: Modified system to trigger up to 50 HTMX elements instead of just 10 for maximum content loading
   - **Improved context extraction**: Enhanced link context extraction using closest parent elements (article, .post, .item, .tdi_65, etc.)
