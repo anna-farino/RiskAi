@@ -463,6 +463,8 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                     element.getAttribute('data-url') || 
                     element.getAttribute('data-href') || '';
           
+          const text = element.textContent?.trim() || '';
+          
           // For onclick elements, try to extract URL from onclick
           if (!href && element.getAttribute('onclick')) {
             const onclick = element.getAttribute('onclick');
@@ -470,7 +472,26 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             if (urlMatch) href = urlMatch[1];
           }
           
-          const text = element.textContent?.trim() || '';
+          // For elements without href, try to construct URL from context
+          if (!href && text && text.length > 10) {
+            // Look for parent containers that might have URL information
+            const parent = element.closest('[data-url], [data-link], [data-post-id]');
+            if (parent) {
+              href = parent.getAttribute('data-url') || 
+                    parent.getAttribute('data-link') || 
+                    (parent.getAttribute('data-post-id') ? `/post/${parent.getAttribute('data-post-id')}` : '');
+            }
+            
+            // If still no href and this looks like an article title, construct a placeholder
+            if (!href && text.split(' ').length >= 4) {
+              // Generate a slug from the title for potential URL construction
+              const slug = text.toLowerCase()
+                .replace(/[^a-z0-9\s]/g, '')
+                .replace(/\s+/g, '-')
+                .substring(0, 50);
+              href = `/article/${slug}`;
+            }
+          }
           const context = element.parentElement?.textContent?.trim() || '';
           const parentClass = element.parentElement?.className || '';
           
