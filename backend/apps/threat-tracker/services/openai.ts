@@ -291,21 +291,54 @@ export async function identifyArticleLinks(
         "openai-error",
       );
       
-      // Try to extract valid JSON from truncated response
-      const jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[[^\]]*\]/);
-      if (jsonMatch) {
-        try {
-          const partialJson = jsonMatch[0] + ']}';
-          result = JSON.parse(partialJson);
-          log(`[ThreatTracker] Recovered from truncated JSON`, "openai");
-        } catch (recoveryError) {
-          // If recovery fails, return empty array instead of crashing
-          log(`[ThreatTracker] JSON recovery failed, returning empty array`, "openai-error");
+      // Try to extract valid JSON from truncated response with better URL preservation
+      let jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[(.*)\]/s);
+      if (!jsonMatch) {
+        // If complete array not found, try to find partial array and extract complete URLs
+        jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[(.*)/s);
+        if (jsonMatch) {
+          // Extract complete URLs from the partial array content
+          const partialContent = jsonMatch[1];
+          const urlMatches = partialContent.match(/"https?:\/\/[^"]*"/g) || [];
+          
+          // Only include complete URLs (no truncated ones)
+          const completeUrls = urlMatches.filter(url => {
+            const cleanUrl = url.slice(1, -1); // Remove quotes
+            // Check if URL looks complete (not truncated)
+            return cleanUrl.length > 10 && 
+                   !cleanUrl.endsWith('-') && 
+                   !cleanUrl.match(/[a-z]$/) || // Avoid URLs ending with single letter
+                   cleanUrl.endsWith('/') || 
+                   cleanUrl.includes('?') ||
+                   cleanUrl.includes('#');
+          });
+          
+          if (completeUrls.length > 0) {
+            try {
+              const reconstructedJson = `{"articleUrls": [${completeUrls.join(',')}]}`;
+              result = JSON.parse(reconstructedJson);
+              log(`[ThreatTracker] Recovered ${completeUrls.length} complete URLs from truncated JSON`, "openai");
+            } catch (recoveryError) {
+              log(`[ThreatTracker] JSON reconstruction failed, returning empty array`, "openai-error");
+              return [];
+            }
+          } else {
+            log(`[ThreatTracker] No complete URLs found in truncated response, returning empty array`, "openai-error");
+            return [];
+          }
+        } else {
+          log(`[ThreatTracker] Could not find articleUrls array in response, returning empty array`, "openai-error");
           return [];
         }
       } else {
-        log(`[ThreatTracker] Could not recover JSON, returning empty array`, "openai-error");
-        return [];
+        try {
+          const partialJson = jsonMatch[0] + '}';
+          result = JSON.parse(partialJson);
+          log(`[ThreatTracker] Recovered from complete JSON match`, "openai");
+        } catch (recoveryError) {
+          log(`[ThreatTracker] JSON recovery from complete match failed, returning empty array`, "openai-error");
+          return [];
+        }
       }
     }
 

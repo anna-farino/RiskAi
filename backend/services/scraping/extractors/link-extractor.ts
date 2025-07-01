@@ -488,7 +488,8 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               const slug = text.toLowerCase()
                 .replace(/[^a-z0-9\s]/g, '')
                 .replace(/\s+/g, '-')
-                .substring(0, 50);
+                .replace(/^-+|-+$/g, '') // Remove leading/trailing dashes
+                .replace(/-{2,}/g, '-'); // Replace multiple dashes with single dash
               
               // Try to detect source domain from context first
               let tempSourceDomain = '';
