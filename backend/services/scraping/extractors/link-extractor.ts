@@ -259,186 +259,60 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
       }
 
       if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
-        log('[LinkExtractor] HTMX detected on page, handling dynamic content...', "scraper");
+        log('[LinkExtractor] HTMX detected on page, using advanced multi-level extraction...', "scraper");
         
-        // Wait longer for initial HTMX content to load (some triggers on page load)
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        // Get all HTMX load endpoints that should have been triggered
-        const loadTriggers = hasHtmx.hxGetElements.filter(el => 
-          el.trigger === 'load' || el.trigger.includes('load')
-        );
-        
-        if (loadTriggers.length > 0) {
-          log(`[LinkExtractor] Found ${loadTriggers.length} HTMX endpoints triggered on load`, "scraper");
-          
-          // Wait for these load-triggered requests to complete
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-        
-        // More aggressive HTMX content loading - trigger ALL visible HTMX elements
-        const allTriggeredElements = await page.evaluate(() => {
-          let triggered = 0;
-          
-          // Get all HTMX elements with different triggers
-          const htmxSelectors = [
-            '[hx-get]', '[hx-post]', '[data-hx-get]', '[data-hx-post]',
-            '[hx-trigger]', '[data-hx-trigger]'
-          ];
-          
-          const allHtmxElements = [];
-          htmxSelectors.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-              if (!allHtmxElements.includes(el)) {
-                allHtmxElements.push(el);
-              }
-            });
-          });
-          
-          console.log(`Found ${allHtmxElements.length} total HTMX elements`);
-          
-          allHtmxElements.forEach((el, index) => {
-            if (index < 50) { // Process up to 50 elements
-              const url = el.getAttribute('hx-get') || el.getAttribute('data-hx-get') || 
-                         el.getAttribute('hx-post') || el.getAttribute('data-hx-post');
-              const trigger = el.getAttribute('hx-trigger') || el.getAttribute('data-hx-trigger') || 'click';
-              
-              // Skip search/filter elements or already processed load triggers
-              if (url && !url.includes('search') && !url.includes('filter') && trigger !== 'load') {
-                // Check if element is visible and potentially clickable
-                const rect = el.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                  console.log(`Triggering HTMX element ${index}: ${url} (trigger: ${trigger})`);
-                  
-                  // Trigger the element based on its trigger type
-                  if (trigger.includes('click') || trigger === 'click') {
-                    (el as HTMLElement).click();
-                    triggered++;
-                  } else if (trigger.includes('mouseover')) {
-                    const event = new MouseEvent('mouseover', { bubbles: true });
-                    el.dispatchEvent(event);
-                    triggered++;
-                  } else if (trigger.includes('focus')) {
-                    (el as HTMLElement).focus();
-                    triggered++;
-                  }
-                }
-              }
-            }
-          });
-          
-          return triggered;
+        // Use the new advanced HTMX extractor
+        const htmxLinks = await extractLinksWithHTMX(page, baseUrl, {
+          maxElements: 50,
+          maxWaitTime: 3000,
+          useMultiLevel: true
         });
         
-        if (allTriggeredElements > 0) {
-          log(`[LinkExtractor] Triggered ${allTriggeredElements} HTMX elements for content loading`, "scraper");
-          await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
-        }
-
-        // Specifically for foorilla.com and similar sites, manually fetch HTMX content
-        log(`[LinkExtractor] Attempting to load HTMX content directly...`, "scraper");
+        log(`[LinkExtractor] Advanced HTMX extraction found ${htmxLinks.length} external links`, "scraper");
         
-        // Get the current page URL to construct proper HTMX endpoints
-        const currentUrl = page.url();
-        const currentBaseUrl = new URL(currentUrl).origin;
-        
-        // Manually fetch HTMX endpoints that contain articles
-        const htmxContent = await page.evaluate(async (currentBaseUrl) => {
-          let totalContentLoaded = 0;
+        if (htmxLinks.length > 0) {
+          // Convert external links to LinkData format for consistency
+          articleLinkData = htmxLinks.map(href => ({
+            href,
+            text: href.split('/').pop() || href,
+            context: 'HTMX loaded content',
+            parentClass: 'htmx-content'
+          }));
           
-          // Common HTMX endpoints for article content (based on working endpoints)
-          const endpoints = [
-            '/media/items/',
-            '/media/items/top/',
-            '/media/items/recent/',
-            '/media/items/popular/'
-          ];
+          log(`[LinkExtractor] Converted ${articleLinkData.length} HTMX links to LinkData format`, "scraper");
+        } else {
+          // Fallback to basic link extraction if advanced HTMX method returns no results
+          log(`[LinkExtractor] Advanced HTMX extraction found no links, falling back to basic extraction`, "scraper");
           
-          // Get CSRF token from page if available
-          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                           document.querySelector('input[name="_token"]')?.getAttribute('value') ||
-                           document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+          // Wait for initial load-triggered HTMX content
+          await new Promise(resolve => setTimeout(resolve, 5000));
           
-          // Get screen size info for headers
-          const screenType = window.innerWidth < 768 ? 'M' : 'D';
-          
-          for (const endpoint of endpoints) {
-            try {
-              const headers = {
-                'HX-Request': 'true',
-                'HX-Current-URL': window.location.href,
-                'Accept': 'text/html, */*'
-              };
+          // Extract links from page as-is
+          const linkData = await page.evaluate(() => {
+            const links = [];
+            const allLinks = Array.from(document.querySelectorAll('a[href]'));
+            
+            for (const link of allLinks) {
+              const href = (link as HTMLAnchorElement).href;
+              const text = (link as HTMLAnchorElement).textContent?.trim() || '';
+              const parentText = (link as HTMLAnchorElement).parentElement?.textContent?.trim() || '';
+              const parentClass = (link as HTMLAnchorElement).parentElement?.className || '';
               
-              // Add CSRF token if available
-              if (csrfToken) {
-                headers['X-CSRFToken'] = csrfToken;
-              }
-              
-              // Add screen type header
-              headers['X-Screen'] = screenType;
-              
-              console.log(`Fetching HTMX content from: ${currentBaseUrl}${endpoint}`);
-              const response = await fetch(`${currentBaseUrl}${endpoint}`, { headers });
-              
-              if (response.ok) {
-                const html = await response.text();
-                console.log(`Loaded ${html.length} chars from ${endpoint}`);
-                
-                // Insert content into page
-                const container = document.createElement('div');
-                container.className = 'htmx-injected-content';
-                container.setAttribute('data-source', endpoint);
-                container.innerHTML = html;
-                document.body.appendChild(container);
-                totalContentLoaded += html.length;
-              }
-            } catch (e) {
-              console.error(`Error fetching ${endpoint}:`, e);
-            }
-          }
-          
-          return totalContentLoaded;
-        }, currentBaseUrl);
-        
-        if (htmxContent > 0) {
-          log(`[LinkExtractor] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
-          // Wait for any additional processing
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-        
-        // Also try triggering visible HTMX elements
-        const triggeredElements = await page.evaluate(() => {
-          let triggered = 0;
-          
-          // Look for clickable HTMX elements
-          const htmxElements = document.querySelectorAll('[hx-get]');
-          htmxElements.forEach((el, index) => {
-            if (index < 10) { // Limit to first 10
-              const url = el.getAttribute('hx-get');
-              const trigger = el.getAttribute('hx-trigger') || 'click';
-              
-              // Skip if it's a load trigger (already processed) or if it looks like a filter/search
-              if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
-                return;
-              }
-              
-              // Check if element is visible
-              const rect = el.getBoundingClientRect();
-              if (rect.width > 0 && rect.height > 0) {
-                console.log(`Clicking HTMX element: ${url}`);
-                (el as HTMLElement).click();
-                triggered++;
+              if (href && text && text.length >= 5) {
+                links.push({
+                  href,
+                  text,
+                  context: parentText,
+                  parentClass
+                });
               }
             }
+            
+            return links;
           });
           
-          return triggered;
-        });
-        
-        if (triggeredElements > 0) {
-          log(`[LinkExtractor] Triggered ${triggeredElements} HTMX elements via click`, "scraper");
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          articleLinkData = linkData;
+          log(`[LinkExtractor] Fallback extraction found ${articleLinkData.length} links`, "scraper");
         }
       }
       

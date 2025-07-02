@@ -5,7 +5,7 @@
  */
 
 import { Page } from 'puppeteer';
-import { log } from '../../../shared/logger';
+import { log } from 'backend/utils/log';
 
 export interface HTMXElement {
   selector: string;
@@ -110,7 +110,7 @@ export async function detectHTMXElements(page: Page): Promise<HTMXElement[]> {
  */
 export async function extractExternalLinksFromContent(page: Page, baseUrl: string): Promise<string[]> {
   const externalLinks = await page.evaluate((baseUrl) => {
-    const allLinks = Array.from(document.querySelectorAll('a[href]'));
+    const allLinks = Array.from(document.querySelectorAll('a[href]')) as HTMLAnchorElement[];
     const baseDomain = new URL(baseUrl).hostname;
     
     return allLinks
@@ -129,7 +129,7 @@ export async function extractExternalLinksFromContent(page: Page, baseUrl: strin
   }, baseUrl);
   
   // Remove duplicates
-  return [...new Set(externalLinks)];
+  return Array.from(new Set(externalLinks));
 }
 
 /**
@@ -263,7 +263,7 @@ export async function extractLinksWithMultiLevelHTMX(
     }
     
     // Remove duplicates and return
-    const uniqueLinks = [...new Set(allExternalLinks)];
+    const uniqueLinks = Array.from(new Set(allExternalLinks));
     
     log(`[HTMXExtractor] Multi-level extraction complete: ${uniqueLinks.length} unique external links found`, "scraper");
     
