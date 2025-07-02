@@ -341,10 +341,70 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         const currentUrl = page.url();
         const currentBaseUrl = new URL(currentUrl).origin;
         
-        // Fetch all HTMX endpoints that contain articles and wait for them to load
-        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
-          let totalContentLoaded = 0;
+        // Fetch all HTMX endpoints and extract external URLs directly from responses
+        const externalUrlsFromHTMX = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
+          const allExternalUrls = [];
           const loadedEndpoints = [];
+          const currentDomain = new URL(currentBaseUrl).hostname;
+          
+          // Function to extract external URLs from HTML response
+          const extractExternalUrls = (html, sourceEndpoint) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const links = doc.querySelectorAll('a[href]');
+            const externalUrls = [];
+            
+            links.forEach(link => {
+              const href = link.getAttribute('href');
+              const text = link.textContent?.trim() || '';
+              
+              if (!href || href.length < 5 || !text || text.length < 10) return;
+              
+              try {
+                const absoluteUrl = href.startsWith('http') ? href : 
+                  (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+                
+                const urlObj = new URL(absoluteUrl);
+                
+                // Only keep external URLs (not the current site)
+                if (urlObj.hostname !== currentDomain) {
+                  const hostname = urlObj.hostname.toLowerCase();
+                  
+                  // Filter for legitimate article domains
+                  const articleDomains = [
+                    'siliconangle.com', 'techcrunch.com', 'wired.com', 'arstechnica.com',
+                    'zdnet.com', 'cnet.com', 'engadget.com', 'theverge.com',
+                    'reuters.com', 'bloomberg.com', 'wsj.com', 'nytimes.com',
+                    'washingtonpost.com', 'cnn.com', 'bbc.com', 'guardian.com',
+                    'forbes.com', 'medium.com', 'substack.com', 'hackread.com',
+                    'cybersecuritynews.com', 'securityboulevard.com', 'threatpost.com',
+                    'darkreading.com', 'infosecurity-magazine.com', 'therecord.media'
+                  ];
+                  
+                  const isArticleDomain = articleDomains.some(domain => hostname.includes(domain)) ||
+                                        hostname.includes('news') || hostname.includes('blog') ||
+                                        hostname.includes('tech') || hostname.includes('cyber') ||
+                                        hostname.includes('security') || hostname.includes('hack');
+                  
+                  if (isArticleDomain) {
+                    console.log(`Found external article URL: ${absoluteUrl}`);
+                    console.log(`  Text: ${text.substring(0, 100)}...`);
+                    
+                    externalUrls.push({
+                      url: absoluteUrl,
+                      text: text,
+                      domain: hostname,
+                      source: sourceEndpoint
+                    });
+                  }
+                }
+              } catch (urlError) {
+                console.error(`Error processing URL ${href}:`, urlError);
+              }
+            });
+            
+            return externalUrls;
+          };
           
           // First: Fetch all hx-get endpoints found on the page
           for (const element of hxGetElements) {
@@ -366,14 +426,10 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                 const html = await response.text();
                 console.log(`Loaded ${html.length} chars from ${element.url}`);
                 
-                // Insert content into page with identifiable container
-                const container = document.createElement('div');
-                container.className = 'htmx-loaded-content';
-                container.setAttribute('data-source', element.url);
-                container.innerHTML = html;
-                document.body.appendChild(container);
+                // Extract external URLs directly from the response
+                const urlsFromEndpoint = extractExternalUrls(html, element.url);
+                allExternalUrls.push(...urlsFromEndpoint);
                 
-                totalContentLoaded += html.length;
                 loadedEndpoints.push(element.url);
               }
             } catch (e) {
@@ -406,184 +462,54 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                 const html = await response.text();
                 console.log(`Loaded ${html.length} chars from common endpoint ${endpoint}`);
                 
-                const container = document.createElement('div');
-                container.className = 'htmx-common-content';
-                container.setAttribute('data-source', endpoint);
-                container.innerHTML = html;
-                document.body.appendChild(container);
+                // Extract external URLs directly from this endpoint response
+                const urlsFromCommonEndpoint = extractExternalUrls(html, endpoint);
+                allExternalUrls.push(...urlsFromCommonEndpoint);
                 
-                totalContentLoaded += html.length;
+                loadedEndpoints.push(endpoint);
               }
             } catch (e) {
               console.error(`Error fetching common endpoint ${endpoint}:`, e);
             }
           }
           
-          return totalContentLoaded;
-        }, currentBaseUrl, hasHtmx.hxGetElements);
-        
-        if (htmxContent > 0) {
-          log(`[LinkExtractor] Step 1 Complete: Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
-          // Wait for content to fully render
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-        
-        // Step 2: Extract external article URLs from all the loaded HTMX content
-        log(`[LinkExtractor] Step 2: Extracting external article URLs from loaded content...`, "scraper");
-        
-        const externalArticleUrls = await page.evaluate((currentBaseUrl) => {
-          const externalUrls = [];
-          const currentDomain = new URL(currentBaseUrl).hostname;
-          
-          // Look for links in the whole page now that HTMX content has been loaded
-          // The HTMX content is loaded into the existing DOM structure, not our artificial containers
-          const allLinks = document.querySelectorAll('a');
-          console.log(`Found ${allLinks.length} total links to analyze after HTMX loading`);
-          
-          // Debug: Let's examine the structure of links that have the article titles we want
-          const debugLinks = [];
-          allLinks.forEach((link, index) => {
-            const text = link.textContent?.trim() || '';
-            if (text.includes('KnowBe4') || text.includes('Cybercrime') || text.includes('cybersecurity')) {
-              const allAttributes = {};
-              for (let attr of link.attributes) {
-                allAttributes[attr.name] = attr.value;
-              }
-              debugLinks.push({
-                text: text,
-                attributes: allAttributes,
-                innerHTML: link.innerHTML.substring(0, 200),
-                outerHTML: link.outerHTML.substring(0, 300)
-              });
-            }
-          });
-          
-          console.log(`Debug: Found ${debugLinks.length} links with article titles:`, debugLinks);
-          
-          // Focus on links that look like external article links
-          allLinks.forEach((link, index) => {
-            const href = link.getAttribute('href') || link.getAttribute('data-href') || 
-                        link.getAttribute('data-url') || link.getAttribute('data-link');
-            const text = link.textContent?.trim() || '';
-            
-            // Skip links without text or minimal text
-            if (!text || text.length < 10) return;
-            
-            // Debug: Log all attributes for links with our target titles
-            if (text.includes('KnowBe4') || text.includes('Cybercrime')) {
-              const allAttrs = {};
-              for (let attr of link.attributes) {
-                allAttrs[attr.name] = attr.value;
-              }
-              console.log(`Target link found: "${text.substring(0, 50)}" - Attributes:`, allAttrs);
-            }
-            
-            if (!href || href.length < 5) return;
-            
-            try {
-              // Create absolute URL if needed
-              const absoluteUrl = href.startsWith('http') ? href : 
-                (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
-              
-              const urlObj = new URL(absoluteUrl);
-              
-              // Only keep external URLs (not the current site)
-              if (urlObj.hostname !== currentDomain) {
-                // Filter for legitimate article URLs
-                const hostname = urlObj.hostname.toLowerCase();
-                const pathname = urlObj.pathname.toLowerCase();
-                
-                // Common article domains and patterns
-                const articleDomains = [
-                  'siliconangle.com', 'techcrunch.com', 'wired.com', 'arstechnica.com',
-                  'zdnet.com', 'cnet.com', 'engadget.com', 'theverge.com',
-                  'reuters.com', 'bloomberg.com', 'wsj.com', 'nytimes.com',
-                  'washingtonpost.com', 'cnn.com', 'bbc.com', 'guardian.com',
-                  'forbes.com', 'medium.com', 'substack.com', 'hackread.com',
-                  'cybersecuritynews.com', 'securityboulevard.com', 'threatpost.com',
-                  'darkreading.com', 'infosecurity-magazine.com', 'therecord.media'
-                ];
-                
-                // Article path patterns
-                const articlePatterns = [
-                  '/article/', '/news/', '/blog/', '/post/', '/story/',
-                  '/2024/', '/2025/', '/cybersecurity/', '/security/',
-                  '/tech/', '/technology/', '/knowbe4', '/cybercrime'
-                ];
-                
-                // Check if this looks like an article URL
-                const isArticleDomain = articleDomains.some(domain => hostname.includes(domain)) ||
-                                      hostname.includes('news') || hostname.includes('blog') ||
-                                      hostname.includes('tech') || hostname.includes('cyber') ||
-                                      hostname.includes('security') || hostname.includes('hack');
-                
-                const hasArticlePath = articlePatterns.some(pattern => pathname.includes(pattern)) ||
-                                     pathname.split('/').length >= 3; // Has meaningful path structure
-                
-                const hasReasonableText = text.length >= 10 && 
-                                        !text.toLowerCase().includes('click here') &&
-                                        !text.toLowerCase().includes('read more') &&
-                                        !text.toLowerCase().includes('continue reading') &&
-                                        !text.toLowerCase().includes('view all') &&
-                                        !text.toLowerCase().includes('see more');
-                
-                // Include if it matches article criteria
-                if ((isArticleDomain || hasArticlePath) && hasReasonableText) {
-                  console.log(`Found external article URL: ${absoluteUrl}`);
-                  console.log(`  Text: ${text.substring(0, 100)}...`);
-                  console.log(`  Domain: ${hostname}`);
-                  
-                  externalUrls.push({
-                    url: absoluteUrl,
-                    text: text,
-                    domain: hostname,
-                    pathname: pathname
-                  });
-                }
-              }
-            } catch (urlError) {
-              console.error(`Error processing URL ${href}:`, urlError);
-            }
-          });
-          
-          // Remove duplicates based on URL
+          // Remove duplicates
           const uniqueUrls = [];
           const seenUrls = new Set();
           
-          externalUrls.forEach(item => {
+          allExternalUrls.forEach(item => {
             if (!seenUrls.has(item.url)) {
               seenUrls.add(item.url);
               uniqueUrls.push(item);
             }
           });
           
-          console.log(`Found ${uniqueUrls.length} unique external article URLs`);
+          console.log(`Found ${uniqueUrls.length} unique external URLs from HTMX endpoints`);
           uniqueUrls.forEach((item, index) => {
-            console.log(`${index + 1}. ${item.url}`);
+            console.log(`${index + 1}. ${item.url} (from ${item.source})`);
             console.log(`    Text: ${item.text.substring(0, 80)}...`);
           });
           
           return uniqueUrls;
-        }, currentBaseUrl);
+        }, currentBaseUrl, hasHtmx.hxGetElements);
         
-        if (externalArticleUrls.length > 0) {
-          log(`[LinkExtractor] Step 2 Complete: Found ${externalArticleUrls.length} external article URLs`, "scraper");
+        if (externalUrlsFromHTMX.length > 0) {
+          log(`[LinkExtractor] Step 1 Complete: Found ${externalUrlsFromHTMX.length} external URLs from HTMX endpoints`, "scraper");
           
-          // Return only the URLs (not the metadata)
-          articleLinkData = externalArticleUrls.map(item => ({
+          // Convert to LinkData format and return immediately
+          articleLinkData = externalUrlsFromHTMX.map(item => ({
             href: item.url,
             text: item.text,
             context: `External article from ${item.domain} - ${item.text.substring(0, 50)}...`,
             parentClass: 'htmx-external-article'
           }));
           
-          log(`[LinkExtractor] Converted to ${articleLinkData.length} LinkData objects for further processing`, "scraper");
+          log(`[LinkExtractor] HTMX extraction successful - returning ${articleLinkData.length} external article URLs`, "scraper");
         } else {
-          log(`[LinkExtractor] Step 2: No external article URLs found, will proceed with standard extraction`, "scraper");
-          
-          // If no external URLs found, proceed with standard extraction
+          log(`[LinkExtractor] No external URLs found from HTMX endpoints, will proceed with standard extraction`, "scraper");
           articleLinkData = [];
         }
+
         
         // Skip the old HTMX element triggering - we now use direct endpoint fetching
       }
