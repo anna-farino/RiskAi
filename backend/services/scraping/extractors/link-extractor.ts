@@ -334,111 +334,287 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
         }
 
-        // Specifically for foorilla.com and similar sites, manually fetch HTMX content
-        log(`[LinkExtractor] Attempting to load HTMX content directly...`, "scraper");
+        // Step 1: Load all HTMX content by triggering elements and fetching endpoints
+        log(`[LinkExtractor] Step 1: Loading all HTMX content...`, "scraper");
         
         // Get the current page URL to construct proper HTMX endpoints
         const currentUrl = page.url();
         const currentBaseUrl = new URL(currentUrl).origin;
         
-        // Manually fetch HTMX endpoints that contain articles
-        const htmxContent = await page.evaluate(async (currentBaseUrl) => {
+        // Fetch all HTMX endpoints that contain articles and wait for them to load
+        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
           let totalContentLoaded = 0;
+          const loadedEndpoints = [];
           
-          // Common HTMX endpoints for article content (based on working endpoints)
-          const endpoints = [
+          // First: Fetch all hx-get endpoints found on the page
+          for (const element of hxGetElements) {
+            if (!element.url) continue;
+            
+            try {
+              const fullUrl = element.url.startsWith('http') ? element.url : `${currentBaseUrl}${element.url}`;
+              
+              console.log(`Fetching HTMX endpoint: ${fullUrl}`);
+              const response = await fetch(fullUrl, {
+                headers: {
+                  'HX-Request': 'true',
+                  'HX-Current-URL': window.location.href,
+                  'Accept': 'text/html, */*'
+                }
+              });
+              
+              if (response.ok) {
+                const html = await response.text();
+                console.log(`Loaded ${html.length} chars from ${element.url}`);
+                
+                // Insert content into page with identifiable container
+                const container = document.createElement('div');
+                container.className = 'htmx-loaded-content';
+                container.setAttribute('data-source', element.url);
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                
+                totalContentLoaded += html.length;
+                loadedEndpoints.push(element.url);
+              }
+            } catch (e) {
+              console.error(`Error fetching ${element.url}:`, e);
+            }
+          }
+          
+          // Also try common HTMX patterns for sites like Foorilla
+          const commonEndpoints = [
             '/media/items/',
             '/media/items/top/',
             '/media/items/recent/',
             '/media/items/popular/'
           ];
           
-          // Get CSRF token from page if available
-          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                           document.querySelector('input[name="_token"]')?.getAttribute('value') ||
-                           document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
-          
-          // Get screen size info for headers
-          const screenType = window.innerWidth < 768 ? 'M' : 'D';
-          
-          for (const endpoint of endpoints) {
+          for (const endpoint of commonEndpoints) {
+            if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
+            
             try {
-              const headers = {
-                'HX-Request': 'true',
-                'HX-Current-URL': window.location.href,
-                'Accept': 'text/html, */*'
-              };
-              
-              // Add CSRF token if available
-              if (csrfToken) {
-                headers['X-CSRFToken'] = csrfToken;
-              }
-              
-              // Add screen type header
-              headers['X-Screen'] = screenType;
-              
-              console.log(`Fetching HTMX content from: ${currentBaseUrl}${endpoint}`);
-              const response = await fetch(`${currentBaseUrl}${endpoint}`, { headers });
+              console.log(`Trying common HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+              const response = await fetch(`${currentBaseUrl}${endpoint}`, {
+                headers: {
+                  'HX-Request': 'true',
+                  'HX-Current-URL': window.location.href,
+                  'Accept': 'text/html, */*'
+                }
+              });
               
               if (response.ok) {
                 const html = await response.text();
-                console.log(`Loaded ${html.length} chars from ${endpoint}`);
+                console.log(`Loaded ${html.length} chars from common endpoint ${endpoint}`);
                 
-                // Insert content into page
                 const container = document.createElement('div');
-                container.className = 'htmx-injected-content';
+                container.className = 'htmx-common-content';
                 container.setAttribute('data-source', endpoint);
                 container.innerHTML = html;
                 document.body.appendChild(container);
+                
                 totalContentLoaded += html.length;
               }
             } catch (e) {
-              console.error(`Error fetching ${endpoint}:`, e);
+              console.error(`Error fetching common endpoint ${endpoint}:`, e);
             }
           }
           
           return totalContentLoaded;
-        }, currentBaseUrl);
+        }, currentBaseUrl, hasHtmx.hxGetElements);
         
         if (htmxContent > 0) {
-          log(`[LinkExtractor] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
-          // Wait for any additional processing
+          log(`[LinkExtractor] Step 1 Complete: Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
+          // Wait for content to fully render
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
         
-        // Also try triggering visible HTMX elements
-        const triggeredElements = await page.evaluate(() => {
-          let triggered = 0;
+        // Step 2: Extract external article URLs from all the loaded HTMX content
+        log(`[LinkExtractor] Step 2: Extracting external article URLs from loaded content...`, "scraper");
+        
+        const externalArticleUrls = await page.evaluate((currentBaseUrl) => {
+          const externalUrls = [];
+          const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // Look for clickable HTMX elements
-          const htmxElements = document.querySelectorAll('[hx-get]');
-          htmxElements.forEach((el, index) => {
-            if (index < 10) { // Limit to first 10
-              const url = el.getAttribute('hx-get');
-              const trigger = el.getAttribute('hx-trigger') || 'click';
+          // Look specifically in HTMX-loaded content containers
+          const htmxContainers = document.querySelectorAll('.htmx-loaded-content, .htmx-common-content, .htmx-injected-content');
+          
+          console.log(`Found ${htmxContainers.length} HTMX content containers to analyze`);
+          
+          htmxContainers.forEach((container, index) => {
+            const sourceEndpoint = container.getAttribute('data-source') || 'unknown';
+            console.log(`Analyzing container ${index + 1} from endpoint: ${sourceEndpoint}`);
+            
+            // Find all links within this HTMX-loaded content
+            const links = container.querySelectorAll('a[href]');
+            console.log(`Found ${links.length} links in container ${index + 1}`);
+            
+            links.forEach(link => {
+              const href = link.getAttribute('href');
+              const text = link.textContent?.trim() || '';
               
-              // Skip if it's a load trigger (already processed) or if it looks like a filter/search
-              if (trigger === 'load' || url?.includes('search') || url?.includes('filter')) {
-                return;
-              }
+              if (!href || href.length < 5) return;
               
-              // Check if element is visible
-              const rect = el.getBoundingClientRect();
-              if (rect.width > 0 && rect.height > 0) {
-                console.log(`Clicking HTMX element: ${url}`);
-                (el as HTMLElement).click();
-                triggered++;
+              try {
+                // Create absolute URL if needed
+                const absoluteUrl = href.startsWith('http') ? href : 
+                  (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+                
+                const urlObj = new URL(absoluteUrl);
+                
+                // Only keep external URLs (not the current site)
+                if (urlObj.hostname !== currentDomain) {
+                  // Filter for legitimate article URLs
+                  const hostname = urlObj.hostname.toLowerCase();
+                  const pathname = urlObj.pathname.toLowerCase();
+                  
+                  // Common article domains and patterns
+                  const articleDomains = [
+                    'siliconangle.com', 'techcrunch.com', 'wired.com', 'arstechnica.com',
+                    'zdnet.com', 'cnet.com', 'engadget.com', 'theverge.com',
+                    'reuters.com', 'bloomberg.com', 'wsj.com', 'nytimes.com',
+                    'washingtonpost.com', 'cnn.com', 'bbc.com', 'guardian.com',
+                    'forbes.com', 'medium.com', 'substack.com'
+                  ];
+                  
+                  // Article path patterns
+                  const articlePatterns = [
+                    '/article/', '/news/', '/blog/', '/post/', '/story/',
+                    '/2024/', '/2025/', '/cybersecurity/', '/security/',
+                    '/tech/', '/technology/'
+                  ];
+                  
+                  // Check if this looks like an article URL
+                  const isArticleDomain = articleDomains.some(domain => hostname.includes(domain)) ||
+                                        hostname.includes('news') || hostname.includes('blog') ||
+                                        hostname.includes('tech') || hostname.includes('cyber');
+                  
+                  const hasArticlePath = articlePatterns.some(pattern => pathname.includes(pattern)) ||
+                                       pathname.split('/').length >= 3; // Has meaningful path structure
+                  
+                  const hasReasonableText = text.length >= 10 && 
+                                          !text.toLowerCase().includes('click here') &&
+                                          !text.toLowerCase().includes('read more') &&
+                                          !text.toLowerCase().includes('continue reading');
+                  
+                  // Include if it matches article criteria
+                  if ((isArticleDomain || hasArticlePath) && hasReasonableText) {
+                    console.log(`Found external article URL: ${absoluteUrl} (${text.substring(0, 50)}...)`);
+                    externalUrls.push({
+                      url: absoluteUrl,
+                      text: text,
+                      source: sourceEndpoint,
+                      domain: hostname
+                    });
+                  }
+                }
+              } catch (urlError) {
+                console.error(`Error processing URL ${href}:`, urlError);
               }
+            });
+          });
+          
+          // Remove duplicates based on URL
+          const uniqueUrls = [];
+          const seenUrls = new Set();
+          
+          externalUrls.forEach(item => {
+            if (!seenUrls.has(item.url)) {
+              seenUrls.add(item.url);
+              uniqueUrls.push(item);
             }
           });
           
-          return triggered;
-        });
+          console.log(`Found ${uniqueUrls.length} unique external article URLs`);
+          uniqueUrls.forEach((item, index) => {
+            console.log(`${index + 1}. ${item.url} (from ${item.source})`);
+          });
+          
+          return uniqueUrls;
+        }, currentBaseUrl);
         
-        if (triggeredElements > 0) {
-          log(`[LinkExtractor] Triggered ${triggeredElements} HTMX elements via click`, "scraper");
-          await new Promise(resolve => setTimeout(resolve, 5000));
+        if (externalArticleUrls.length > 0) {
+          log(`[LinkExtractor] Step 2 Complete: Found ${externalArticleUrls.length} external article URLs`, "scraper");
+          
+          // Return only the URLs (not the metadata)
+          articleLinkData = externalArticleUrls.map(item => ({
+            href: item.url,
+            text: item.text,
+            context: `External article from ${item.domain}`,
+            parentClass: 'htmx-external-article'
+          }));
+          
+          log(`[LinkExtractor] Converted to ${articleLinkData.length} LinkData objects for further processing`, "scraper");
+        } else {
+          log(`[LinkExtractor] Step 2: No external article URLs found in HTMX content, falling back to regular extraction`, "scraper");
+          
+          // Fallback: Extract external URLs from the entire page if no HTMX content yielded results
+          const fallbackExternalUrls = await page.evaluate((currentBaseUrl) => {
+            const externalUrls = [];
+            const currentDomain = new URL(currentBaseUrl).hostname;
+            
+            // Search the entire page for external article links
+            const allLinks = document.querySelectorAll('a[href]');
+            console.log(`Fallback: Analyzing ${allLinks.length} links from entire page`);
+            
+            allLinks.forEach(link => {
+              const href = link.getAttribute('href');
+              const text = link.textContent?.trim() || '';
+              
+              if (!href || href.length < 5) return;
+              
+              try {
+                const absoluteUrl = href.startsWith('http') ? href : 
+                  (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+                
+                const urlObj = new URL(absoluteUrl);
+                
+                // Only keep external URLs
+                if (urlObj.hostname !== currentDomain) {
+                  const hostname = urlObj.hostname.toLowerCase();
+                  const pathname = urlObj.pathname.toLowerCase();
+                  
+                  // Check for article indicators
+                  const isNewsOrTechDomain = hostname.includes('news') || hostname.includes('blog') ||
+                                           hostname.includes('tech') || hostname.includes('cyber') ||
+                                           hostname.includes('silicon') || hostname.includes('wire') ||
+                                           hostname.includes('reuters') || hostname.includes('bloomberg');
+                  
+                  const hasArticlePath = pathname.includes('/article/') || pathname.includes('/news/') ||
+                                       pathname.includes('/blog/') || pathname.includes('/post/') ||
+                                       pathname.includes('/2024/') || pathname.includes('/2025/') ||
+                                       pathname.split('/').length >= 3;
+                  
+                  const hasGoodText = text.length >= 15 && text.split(' ').length >= 3;
+                  
+                  if ((isNewsOrTechDomain || hasArticlePath) && hasGoodText) {
+                    console.log(`Fallback found external URL: ${absoluteUrl}`);
+                    externalUrls.push({
+                      url: absoluteUrl,
+                      text: text,
+                      domain: hostname
+                    });
+                  }
+                }
+              } catch (urlError) {
+                // Skip invalid URLs
+              }
+            });
+            
+            return externalUrls.slice(0, 20); // Limit fallback results
+          }, currentBaseUrl);
+          
+          if (fallbackExternalUrls.length > 0) {
+            log(`[LinkExtractor] Fallback found ${fallbackExternalUrls.length} external article URLs`, "scraper");
+            articleLinkData = fallbackExternalUrls.map(item => ({
+              href: item.url,
+              text: item.text,
+              context: `External article from ${item.domain}`,
+              parentClass: 'fallback-external-article'
+            }));
+          }
         }
+        
+        // Skip the old HTMX element triggering - we now use direct endpoint fetching
       }
       
       // Wait for any remaining dynamic content to load
@@ -452,224 +628,10 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         { timeout: 10000 }
       ).catch(() => log('[LinkExtractor] Timeout waiting for loading indicators', "scraper"));
 
-      // Extract all links after ensuring content is loaded - comprehensive extraction
-      articleLinkData = await page.evaluate(() => {
-        // Get both <a> tags and potentially clickable elements that might be articles
-        const allElements = Array.from(document.querySelectorAll('a, div[onclick], div[data-url], span[onclick], [data-href]'));
+      // If we haven't found external URLs through HTMX processing, use standard extraction
+      if (!articleLinkData || articleLinkData.length === 0) {
+        log(`[LinkExtractor] No HTMX external URLs found, using standard link extraction`, "scraper");
         
-        return allElements.map(element => {
-          // Try multiple ways to get the URL
-          let href = element.getAttribute('href') || 
-                    element.getAttribute('data-url') || 
-                    element.getAttribute('data-href') || '';
-          
-          const text = element.textContent?.trim() || '';
-          
-          // For onclick elements, try to extract URL from onclick
-          if (!href && element.getAttribute('onclick')) {
-            const onclick = element.getAttribute('onclick');
-            const urlMatch = onclick.match(/['"]([^'"]*\/[^'"]*)['"]/);
-            if (urlMatch) href = urlMatch[1];
-          }
-          
-          // For elements without href, try to construct URL from context
-          if (!href && text && text.length > 10) {
-            // Look for parent containers that might have URL information
-            const parent = element.closest('[data-url], [data-link], [data-post-id]');
-            if (parent) {
-              href = parent.getAttribute('data-url') || 
-                    parent.getAttribute('data-link') || 
-                    (parent.getAttribute('data-post-id') ? `/post/${parent.getAttribute('data-post-id')}` : '');
-            }
-            
-            // If still no href and this looks like an article title, construct a placeholder
-            if (!href && text.split(' ').length >= 4) {
-              // Generate a slug from the title for potential URL construction
-              const slug = text.toLowerCase()
-                .replace(/[^a-z0-9\s]/g, '')
-                .replace(/\s+/g, '-')
-                .substring(0, 50);
-              href = `/article/${slug}`;
-            }
-          }
-          const context = element.parentElement?.textContent?.trim() || '';
-          const parentClass = element.parentElement?.className || '';
-          
-          // Get more comprehensive context
-          const fullContext = element.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
-          
-          return {
-            href,
-            text,
-            context: fullContext.substring(0, 200), // Limit context length
-            parentClass
-          };
-        }).filter(link => {
-          const href = link.href;
-          const text = link.text;
-          
-          // Keep links with meaningful text, even if href is empty initially
-          if (!text || text.length < 3) return false;
-          
-          // Skip navigation and utility links
-          const textLower = text.toLowerCase();
-          if (textLower.includes('login') || textLower.includes('register') || 
-              textLower.includes('contact') || textLower.includes('about') ||
-              textLower.includes('privacy') || textLower.includes('terms') ||
-              textLower.includes('menu')) {
-            return false;
-          }
-          
-          // Skip very short navigation text
-          if (text.length < 3 || ['top', 'new', 'old', 'all'].includes(textLower)) {
-            return false;
-          }
-          
-          return true;
-        });
-      });
-
-      log(`[LinkExtractor] Extracted ${articleLinkData.length} potential article links`, "scraper");
-
-      // Debug log: Print the extracted links data
-      log(
-        `[LinkExtractor] Extracted links data:\n${JSON.stringify(articleLinkData, null, 2)}`,
-        "scraper-debug",
-      );
-
-      // If fewer than 20 links were found, wait longer and try scrolling to load more dynamic content
-      if (articleLinkData.length < 20) {
-        log(`[LinkExtractor] Fewer than 20 links found (${articleLinkData.length}), trying additional techniques...`, "scraper");
-        
-        // For HTMX pages: Special handling of dynamic content
-        if (hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes) {
-          log(`[LinkExtractor] Attempting to interact with HTMX elements to load more content`, "scraper");
-          
-          // First try: Click on any "load more" or pagination buttons that might trigger HTMX loading
-          const clickedButtons = await page.evaluate(() => {
-            const buttonSelectors = [
-              'button:not([disabled])', 
-              'a.more', 
-              'a.load-more', 
-              '[hx-get]:not([hx-trigger="load"])',
-              '.pagination a', 
-              '.load-more',
-              '[role="button"]'
-            ];
-            
-            let clicked = 0;
-            buttonSelectors.forEach(selector => {
-              document.querySelectorAll(selector).forEach(el => {
-                // Check if element is visible and might be a "load more" button
-                const text = el.textContent?.toLowerCase() || '';
-                const isLoadMoreButton = text.includes('more') || 
-                                         text.includes('load') || 
-                                         text.includes('next') ||
-                                         text.includes('pag');
-                
-                if (isLoadMoreButton && el.getBoundingClientRect().height > 0) {
-                  console.log('Clicking element:', text);
-                  (el as HTMLElement).click();
-                  clicked++;
-                }
-              });
-            });
-            return clicked;
-          });
-          
-          if (clickedButtons > 0) {
-            log(`[LinkExtractor] Clicked ${clickedButtons} potential "load more" elements`, "scraper");
-            // Wait for HTMX to process the click and load content
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
-          
-          // Second try: Directly call HTMX endpoints if we see hx-get attributes
-          // that might be loading article content
-          if (hasHtmx.hxGetElements.length > 0) {
-            const filteredEndpoints = hasHtmx.hxGetElements.filter(el => 
-              el.url && (el.url.includes('item') || 
-              el.url.includes('article') || 
-              el.url.includes('content') ||
-              el.url.includes('page') ||
-              el.url.includes('list'))
-            );
-            
-            if (filteredEndpoints.length > 0) {
-              log(`[LinkExtractor] Monitoring network requests for HTMX endpoints...`, "scraper");
-              
-              // Setup request interception to see responses from HTMX requests
-              await page.setRequestInterception(true);
-              
-              // Keep track of intercepted responses
-              const interceptedResponses: Record<string, boolean> = {};
-              
-              // Track responses and gather content
-              page.on('response', async response => {
-                const url = response.url();
-                // Check if this response is for one of our HTMX endpoints
-                if (filteredEndpoints.some(ep => url.includes(ep.url || ''))) {
-                  interceptedResponses[url] = true;
-                  log(`[LinkExtractor] Intercepted HTMX response from: ${url}`, "scraper");
-                }
-              });
-              
-              // Allow all requests to continue
-              page.on('request', request => request.continue());
-              
-              // Trigger HTMX requests directly via fetch
-              await page.evaluate((endpoints) => {
-                endpoints.forEach(async endpoint => {
-                  try {
-                    console.log(`Manually fetching HTMX endpoint: ${endpoint.url}`);
-                    const response = await fetch(endpoint.url, {
-                      headers: {
-                        'HX-Request': 'true',
-                        'Accept': 'text/html, */*'
-                      }
-                    });
-                    if (response.ok) {
-                      const html = await response.text();
-                      console.log(`Fetched ${html.length} chars from ${endpoint.url}`);
-                      // Insert content into page
-                      const div = document.createElement('div');
-                      div.className = 'scraper-injected-content';
-                      div.innerHTML = html;
-                      document.body.appendChild(div);
-                    }
-                  } catch (e) {
-                    console.error(`Error fetching ${endpoint.url}:`, e);
-                  }
-                });
-              }, filteredEndpoints);
-              
-              // Wait for any HTMX requests to complete
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              
-              // Disable request interception
-              await page.setRequestInterception(false);
-            }
-          }
-        }
-        
-        // Standard approach: Scroll through the page to trigger lazy loading
-        log(`[LinkExtractor] Scrolling page to trigger lazy loading...`, "scraper");
-        await page.evaluate(() => {
-          window.scrollTo(0, document.body.scrollHeight / 3);
-          return new Promise(resolve => setTimeout(resolve, 1000));
-        });
-        await page.evaluate(() => {
-          window.scrollTo(0, document.body.scrollHeight * 2 / 3);
-          return new Promise(resolve => setTimeout(resolve, 1000));
-        });
-        await page.evaluate(() => {
-          window.scrollTo(0, document.body.scrollHeight);
-          return new Promise(resolve => setTimeout(resolve, 1000));
-        });
-        
-        // Wait for additional time to let dynamic content load
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // Try extracting links again after all our techniques - use comprehensive extraction
         articleLinkData = await page.evaluate(() => {
           const links = Array.from(document.querySelectorAll('a[href]'));
           return links.map(link => {
@@ -678,43 +640,66 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             const context = link.parentElement?.textContent?.trim() || '';
             const parentClass = link.parentElement?.className || '';
             
-            // Get more comprehensive context
-            const linkElement = link as HTMLElement;
-            const fullContext = linkElement.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
-            
             return {
               href,
               text,
-              context: fullContext.substring(0, 200), // Limit context length
+              context: context.substring(0, 200),
               parentClass
             };
           }).filter(link => {
-            // More inclusive filtering - keep links that look like articles
-            const href = link.href;
             const text = link.text;
+            if (!text || text.length < 3) return false;
             
-            // Skip obvious non-article links
-            if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) {
-              return false;
-            }
-            
-            // Skip navigation and utility links but be more lenient
             const textLower = text.toLowerCase();
             if (textLower.includes('login') || textLower.includes('register') || 
                 textLower.includes('contact') || textLower.includes('about') ||
-                textLower.includes('privacy') || textLower.includes('terms') ||
-                textLower.includes('home') || textLower.includes('menu')) {
+                textLower.includes('privacy') || textLower.includes('terms')) {
               return false;
             }
             
-            // Keep links that look like articles (have reasonable text length)
-            // Allow single meaningful words as they're common on news sites
-            return text.length >= 3;
+            return true;
           });
         });
-        
-        log(`[LinkExtractor] After all techniques: Extracted ${articleLinkData.length} potential article links`, "scraper");
       }
+
+      log(`[LinkExtractor] Final extraction result: ${articleLinkData.length} potential article links`, "scraper");
+
+      // Debug log: Print the extracted links data
+      log(
+        `[LinkExtractor] Extracted links data:\n${JSON.stringify(articleLinkData, null, 2)}`,
+        "scraper-debug",
+      );
+
+      // For HTMX sites, we've already used the streamlined two-step approach above.
+      // For non-HTMX sites with few links, try basic scrolling to trigger lazy loading
+      if (articleLinkData.length < 20 && !(hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes)) {
+        log(`[LinkExtractor] Non-HTMX site with few links (${articleLinkData.length}), trying basic scrolling`, "scraper");
+        
+        // Basic scrolling for lazy loading on non-HTMX sites
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight / 2);
+          return new Promise(resolve => setTimeout(resolve, 2000));
+        });
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight);
+          return new Promise(resolve => setTimeout(resolve, 2000));
+        });
+        
+        // Re-extract after scrolling
+        const additionalLinks = await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a[href]'));
+          return links.map(link => ({
+            href: link.getAttribute('href') || '',
+            text: link.textContent?.trim() || '',
+            context: link.parentElement?.textContent?.trim() || '',
+            parentClass: link.parentElement?.className || ''
+          })).filter(link => link.text.length >= 3);
+        });
+        
+        if (additionalLinks.length > articleLinkData.length) {
+          log(`[LinkExtractor] Found ${additionalLinks.length - articleLinkData.length} additional links after scrolling`, "scraper");
+          articleLinkData = additionalLinks;
+        }
     }
     
     log(`[LinkExtractor] Final extraction: ${articleLinkData.length} links from dynamic page`, "scraper");
