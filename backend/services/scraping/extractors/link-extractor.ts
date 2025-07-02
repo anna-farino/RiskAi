@@ -428,11 +428,11 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
         
-        // Step 2: Extract external article URLs from all the loaded HTMX content
-        log(`[LinkExtractor] Step 2: Extracting external article URLs from loaded content...`, "scraper");
+        // Step 2: Extract article URLs from loaded HTMX content (including empty href elements)
+        log(`[LinkExtractor] Step 2: Extracting article URLs from loaded content (including HTMX click handlers)...`, "scraper");
         
         const externalArticleUrls = await page.evaluate((currentBaseUrl) => {
-          const externalUrls = [];
+          const articleUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
           // Look specifically in HTMX-loaded content containers
@@ -444,106 +444,198 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             const sourceEndpoint = container.getAttribute('data-source') || 'unknown';
             console.log(`Analyzing container ${index + 1} from endpoint: ${sourceEndpoint}`);
             
-            // Find all links within this HTMX-loaded content
-            const links = container.querySelectorAll('a[href]');
-            console.log(`Found ${links.length} links in container ${index + 1}`);
+            // Find all clickable elements that might be article links (not just a[href])
+            const clickableElements = container.querySelectorAll('a, [onclick], [hx-get], [data-hx-get], .clickable, [role="button"]');
+            console.log(`Found ${clickableElements.length} clickable elements in container ${index + 1}`);
             
-            links.forEach(link => {
-              const href = link.getAttribute('href');
-              const text = link.textContent?.trim() || '';
+            clickableElements.forEach(element => {
+              const text = element.textContent?.trim() || '';
               
-              if (!href || href.length < 5) return;
+              // Skip elements with too little text (likely navigation/buttons)
+              if (!text || text.length < 20) return;
               
-              try {
-                // Create absolute URL if needed
-                const absoluteUrl = href.startsWith('http') ? href : 
+              // Look for article-like text patterns
+              const textLower = text.toLowerCase();
+              
+              // Skip obvious navigation/UI elements
+              if (textLower.includes('login') || textLower.includes('register') || 
+                  textLower.includes('subscribe') || textLower.includes('contact') ||
+                  textLower.includes('about us') || textLower.includes('privacy') ||
+                  textLower.includes('terms') || textLower.includes('click here') ||
+                  textLower.includes('read more') || textLower.includes('view all') ||
+                  textLower.includes('load more') || textLower.includes('show more')) {
+                return;
+              }
+              
+              // Look for multiple potential URL sources
+              let articleUrl = null;
+              
+              // 1. Check standard href attribute
+              const href = element.getAttribute('href');
+              if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
+                articleUrl = href.startsWith('http') ? href : 
                   (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+              }
+              
+              // 2. Check data attributes for URLs
+              if (!articleUrl) {
+                const dataAttributes = ['data-url', 'data-link', 'data-href', 'data-target', 'data-article-url'];
+                for (const attr of dataAttributes) {
+                  const dataUrl = element.getAttribute(attr);
+                  if (dataUrl && dataUrl.length > 5) {
+                    articleUrl = dataUrl.startsWith('http') ? dataUrl : 
+                      (dataUrl.startsWith('/') ? `${currentBaseUrl}${dataUrl}` : `${currentBaseUrl}/${dataUrl}`);
+                    break;
+                  }
+                }
+              }
+              
+              // 3. Check HTMX attributes
+              if (!articleUrl) {
+                const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
+                if (hxGet && hxGet.length > 5) {
+                  articleUrl = hxGet.startsWith('http') ? hxGet : 
+                    (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
+                }
+              }
+              
+              // 4. For elements with empty href, try to extract URL from onclick or other attributes
+              if (!articleUrl) {
+                const onclick = element.getAttribute('onclick');
+                if (onclick) {
+                  // Extract URL from onclick handlers like: window.location='url' or window.open('url')
+                  const urlMatch = onclick.match(/(?:window\.location|window\.open|location\.href)\s*=\s*['"]([^'"]+)['"]/);
+                  if (urlMatch && urlMatch[1]) {
+                    const extractedUrl = urlMatch[1];
+                    articleUrl = extractedUrl.startsWith('http') ? extractedUrl : 
+                      (extractedUrl.startsWith('/') ? `${currentBaseUrl}${extractedUrl}` : `${currentBaseUrl}/${extractedUrl}`);
+                  }
+                }
+              }
+              
+              // 5. If still no URL found, create a synthetic article identifier based on text
+              // This handles cases where articles are loaded via complex HTMX/JS patterns
+              if (!articleUrl && text.length >= 30) {
+                // Check if this looks like an article title (has meaningful structure)
+                const wordCount = text.split(/\s+/).length;
+                const hasCapitalization = /[A-Z]/.test(text);
+                const hasArticleKeywords = /\b(how|why|what|when|where|new|latest|breaking|report|analysis|study|research|cybersecurity|ai|technology|data|security|breach|attack|threat|vulnerability|malware|ransomware|phishing)\b/i.test(text);
                 
-                const urlObj = new URL(absoluteUrl);
-                
-                // Only keep external URLs (not the current site)
-                if (urlObj.hostname !== currentDomain) {
-                  // Filter for legitimate article URLs
+                if (wordCount >= 5 && hasCapitalization && hasArticleKeywords) {
+                  // Create a searchable identifier that we can use to find the actual article
+                  const parentClass = element.parentElement?.className || '';
+                  const context = element.parentElement?.textContent?.trim() || '';
+                  
+                  console.log(`Found potential article without URL: "${text}" (parent class: ${parentClass})`);
+                  articleUrls.push({
+                    url: '', // Empty URL indicates this needs special handling
+                    text: text,
+                    source: sourceEndpoint,
+                    domain: 'htmx-article',
+                    parentClass: parentClass,
+                    context: context.substring(0, 200),
+                    needsSpecialHandling: true
+                  });
+                  return;
+                }
+              }
+              
+              // If we found a URL, validate and add it
+              if (articleUrl) {
+                try {
+                  const urlObj = new URL(articleUrl);
                   const hostname = urlObj.hostname.toLowerCase();
                   const pathname = urlObj.pathname.toLowerCase();
                   
-                  // Common article domains and patterns
-                  const articleDomains = [
-                    'siliconangle.com', 'techcrunch.com', 'wired.com', 'arstechnica.com',
-                    'zdnet.com', 'cnet.com', 'engadget.com', 'theverge.com',
-                    'reuters.com', 'bloomberg.com', 'wsj.com', 'nytimes.com',
-                    'washingtonpost.com', 'cnn.com', 'bbc.com', 'guardian.com',
-                    'forbes.com', 'medium.com', 'substack.com'
-                  ];
+                  // Check if this is an external article URL or a meaningful internal article
+                  const isExternal = urlObj.hostname !== currentDomain;
+                  const isArticlePattern = pathname.includes('/article/') || pathname.includes('/news/') ||
+                                        pathname.includes('/blog/') || pathname.includes('/post/') ||
+                                        pathname.includes('/story/') || pathname.includes('/cybersecurity/') ||
+                                        pathname.includes('/security/') || pathname.includes('/tech/') ||
+                                        pathname.includes('/2024/') || pathname.includes('/2025/') ||
+                                        pathname.split('/').length >= 3;
                   
-                  // Article path patterns
-                  const articlePatterns = [
-                    '/article/', '/news/', '/blog/', '/post/', '/story/',
-                    '/2024/', '/2025/', '/cybersecurity/', '/security/',
-                    '/tech/', '/technology/'
-                  ];
+                  const isNewsOrTechDomain = hostname.includes('news') || hostname.includes('blog') ||
+                                           hostname.includes('tech') || hostname.includes('cyber') ||
+                                           hostname.includes('silicon') || hostname.includes('wire') ||
+                                           hostname.includes('security') || hostname.includes('threat');
                   
-                  // Check if this looks like an article URL
-                  const isArticleDomain = articleDomains.some(domain => hostname.includes(domain)) ||
-                                        hostname.includes('news') || hostname.includes('blog') ||
-                                        hostname.includes('tech') || hostname.includes('cyber');
-                  
-                  const hasArticlePath = articlePatterns.some(pattern => pathname.includes(pattern)) ||
-                                       pathname.split('/').length >= 3; // Has meaningful path structure
-                  
-                  const hasReasonableText = text.length >= 10 && 
-                                          !text.toLowerCase().includes('click here') &&
-                                          !text.toLowerCase().includes('read more') &&
-                                          !text.toLowerCase().includes('continue reading');
-                  
-                  // Include if it matches article criteria
-                  if ((isArticleDomain || hasArticlePath) && hasReasonableText) {
-                    console.log(`Found external article URL: ${absoluteUrl} (${text.substring(0, 50)}...)`);
-                    externalUrls.push({
-                      url: absoluteUrl,
+                  if (isExternal || isArticlePattern || isNewsOrTechDomain) {
+                    console.log(`Found article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
+                    articleUrls.push({
+                      url: articleUrl,
                       text: text,
                       source: sourceEndpoint,
-                      domain: hostname
+                      domain: hostname,
+                      isExternal: isExternal
                     });
                   }
+                } catch (urlError) {
+                  console.error(`Error processing URL ${articleUrl}:`, urlError);
                 }
-              } catch (urlError) {
-                console.error(`Error processing URL ${href}:`, urlError);
               }
             });
           });
           
-          // Remove duplicates based on URL
+          // Remove duplicates based on URL and text
           const uniqueUrls = [];
           const seenUrls = new Set();
+          const seenTexts = new Set();
           
-          externalUrls.forEach(item => {
-            if (!seenUrls.has(item.url)) {
-              seenUrls.add(item.url);
+          articleUrls.forEach(item => {
+            const identifier = item.url || item.text; // Use text as identifier for empty URLs
+            if (!seenUrls.has(identifier) && !seenTexts.has(item.text)) {
+              seenUrls.add(identifier);
+              seenTexts.add(item.text);
               uniqueUrls.push(item);
             }
           });
           
-          console.log(`Found ${uniqueUrls.length} unique external article URLs`);
+          console.log(`Found ${uniqueUrls.length} unique article URLs/identifiers`);
           uniqueUrls.forEach((item, index) => {
-            console.log(`${index + 1}. ${item.url} (from ${item.source})`);
+            if (item.url) {
+              console.log(`${index + 1}. ${item.url} (from ${item.source})`);
+            } else {
+              console.log(`${index + 1}. [HTMX Article] "${item.text.substring(0, 60)}..." (from ${item.source})`);
+            }
           });
           
           return uniqueUrls;
         }, currentBaseUrl);
         
         if (externalArticleUrls.length > 0) {
-          log(`[LinkExtractor] Step 2 Complete: Found ${externalArticleUrls.length} external article URLs`, "scraper");
+          log(`[LinkExtractor] Step 2 Complete: Found ${externalArticleUrls.length} article URLs/identifiers`, "scraper");
           
-          // Return only the URLs (not the metadata)
-          articleLinkData = externalArticleUrls.map(item => ({
-            href: item.url,
-            text: item.text,
-            context: `External article from ${item.domain}`,
-            parentClass: 'htmx-external-article'
-          }));
+          // Convert to LinkData format, handling both URLs and articles without URLs
+          articleLinkData = externalArticleUrls.map(item => {
+            if (item.needsSpecialHandling && !item.url) {
+              // For articles without URLs, we'll need to create a mechanism to find them
+              // This could involve clicking the element or searching for the article by title
+              return {
+                href: '', // Empty href but we preserve the text and context
+                text: item.text,
+                context: item.context || `HTMX article from ${item.source}`,
+                parentClass: item.parentClass || 'htmx-article-no-url'
+              };
+            } else {
+              // Standard URL-based articles
+              return {
+                href: item.url,
+                text: item.text,
+                context: item.isExternal ? `External article from ${item.domain}` : `Article from ${item.domain}`,
+                parentClass: 'htmx-article-with-url'
+              };
+            }
+          });
           
           log(`[LinkExtractor] Converted to ${articleLinkData.length} LinkData objects for further processing`, "scraper");
+          
+          // Log special cases
+          const specialHandlingCount = articleLinkData.filter(item => !item.href).length;
+          if (specialHandlingCount > 0) {
+            log(`[LinkExtractor] Found ${specialHandlingCount} articles without direct URLs that need special handling`, "scraper");
+          }
         } else {
           log(`[LinkExtractor] Step 2: No external article URLs found in HTMX content, falling back to regular extraction`, "scraper");
           
@@ -733,8 +825,75 @@ export async function extractArticleLinksFromPage(
       return [];
     }
     
-    // Apply pattern filters
-    let links = linkData.map(link => link.href);
+    // Handle articles without URLs differently
+    const articlesWithUrls = linkData.filter(link => link.href && link.href.length > 0);
+    const articlesWithoutUrls = linkData.filter(link => !link.href || link.href.length === 0);
+    
+    if (articlesWithoutUrls.length > 0) {
+      log(`[LinkExtractor] Found ${articlesWithoutUrls.length} articles without direct URLs - attempting to resolve them`, "scraper");
+      
+      // For articles without URLs, try to find them by examining DOM more thoroughly
+      for (const article of articlesWithoutUrls.slice(0, 10)) { // Limit to avoid excessive processing
+        try {
+          const clickResult = await page.evaluate((articleText) => {
+            // Find the element containing this article text
+            const allElements = document.querySelectorAll('a, [onclick], [hx-get], [data-hx-get], .clickable, [role="button"]');
+            
+            for (const element of allElements) {
+              const elementText = element.textContent?.trim() || '';
+              if (elementText === articleText || elementText.includes(articleText.substring(0, 40))) {
+                // Found the element, try to extract URL information
+                const href = element.getAttribute('href');
+                const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
+                const onclick = element.getAttribute('onclick');
+                const dataUrl = element.getAttribute('data-url') || element.getAttribute('data-link');
+                
+                // Try to extract any navigational URL
+                let extractedUrl = null;
+                
+                if (href && href !== '' && href !== '#') {
+                  extractedUrl = href;
+                } else if (hxGet) {
+                  extractedUrl = hxGet;
+                } else if (dataUrl) {
+                  extractedUrl = dataUrl;
+                } else if (onclick) {
+                  const urlMatch = onclick.match(/(?:window\.location|window\.open|location\.href)\s*=\s*['"]([^'"]+)['"]/);
+                  if (urlMatch) {
+                    extractedUrl = urlMatch[1];
+                  }
+                }
+                
+                if (extractedUrl) {
+                  return { success: true, url: extractedUrl };
+                }
+              }
+            }
+            return { success: false, url: null };
+          }, article.text);
+          
+          if (clickResult.success && clickResult.url) {
+            const absoluteUrl = clickResult.url.startsWith('http') ? clickResult.url : 
+              (clickResult.url.startsWith('/') ? new URL(clickResult.url, baseUrl).toString() : 
+              new URL('/' + clickResult.url, baseUrl).toString());
+            
+            articlesWithUrls.push({
+              href: absoluteUrl,
+              text: article.text,
+              context: article.context + ' (URL resolved)',
+              parentClass: article.parentClass
+            });
+            
+            log(`[LinkExtractor] Resolved URL for "${article.text.substring(0, 40)}...": ${absoluteUrl}`, "scraper");
+          }
+        } catch (error) {
+          log(`[LinkExtractor] Error resolving URL for article: ${error.message}`, "scraper-error");
+        }
+      }
+    }
+    
+    // Apply pattern filters to articles with URLs
+    let links = articlesWithUrls.map(link => link.href);
     links = filterLinksByPatterns(links, options?.includePatterns, options?.excludePatterns);
     
     // Only normalize relative URLs to absolute - preserve all absolute URLs exactly
