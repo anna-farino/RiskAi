@@ -127,30 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 2, 2025 - Complete Foorilla Source URL Extraction Implementation
-- **Implemented three-step extraction process** to get original source articles from aggregator sites like Foorilla
-- **Root cause**: System was extracting Foorilla internal URLs instead of the original source articles embedded within those pages
-- **Enhanced three-step workflow**:
-  - **Step 1: Load HTMX content** - Fetch dynamic content from HTMX endpoints
-  - **Step 2: Extract Foorilla URLs** - Identify internal aggregator URLs like `/media/items/article-title-63670/`
-  - **Step 3: Extract original sources** - Follow each Foorilla URL and extract the actual source article links
-- **Key improvements**:
-  - **Source URL extraction**: Fetches content from each Foorilla page to find embedded original article links
-  - **Comprehensive source detection**: Searches for links to siliconangle.com, techcrunch.com, reuters.com, etc.
-  - **Smart filtering**: Excludes social media, ads, and internal links to focus on legitimate news sources
-  - **URL replacement**: Replaces Foorilla aggregator URLs with direct links to original articles
-  - **Fallback handling**: Keeps Foorilla URL if original source cannot be extracted
-- **Technical implementation**:
-  - Added Step 3 processing for Foorilla-style aggregator URLs
-  - Implemented comprehensive source link detection with multiple selector patterns
-  - Added external link validation and social media filtering
-  - Created URL replacement logic to provide direct access to source articles
-- **Impact**:
-  - **Direct source access**: Users get original article URLs instead of aggregator page URLs
-  - **Improved content quality**: Access to full articles from legitimate news sources
-  - **Reduced intermediary steps**: Direct links eliminate need to navigate through aggregator pages
-  - **Better data integrity**: Original source URLs provide authentic article content
-
 ### July 2, 2025 - Enhanced HTMX Empty Href Extraction Complete
 - **Fixed critical HTMX extraction issue** where articles with empty href attributes were not being detected
 - **Root cause**: System only looked for traditional href links, but HTMX articles use JavaScript handlers, data attributes, and event triggers
