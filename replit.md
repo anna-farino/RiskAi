@@ -127,27 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 2, 2025 - Advanced HTMX Multi-Level Extraction System Complete
-- **Implemented comprehensive HTMX extraction architecture** with dynamic two-level processing for complex sites like Foorilla
-- **Root cause analysis**: Foorilla uses nested HTMX pattern - container elements load article lists, then individual articles load external content
-- **Solution architecture**:
-  - **New htmx-extractor.ts module**: Dedicated HTMX processing with element classification and priority system
-  - **Multi-level extraction workflow**: Container loading → Article detection → Individual article processing → External link extraction
-  - **Intelligent element classification**: Containers (priority 10), Articles (priority 8), Pagination (priority 6), Filters (priority 3)
-  - **Dynamic content detection**: Automatically identifies HTMX patterns without domain-specific configuration
-- **Real-world validation**:
-  - **Foorilla test results**: 85 HTMX elements detected (3 containers + 79 articles)
-  - **Pattern confirmed**: `/media/items/` containers load article lists, `/media/items/[slug]/` elements load individual articles
-  - **Two-step process**: Container trigger → Article list population → Article trigger → External link loading
-- **Integration completed**:
-  - **Enhanced link-extractor.ts**: Integrated advanced HTMX handling with fallback to basic extraction
-  - **Backward compatibility**: Existing extraction methods preserved for non-HTMX sites
-  - **Performance optimized**: Configurable element limits, wait times, and processing batches
-- **Architecture benefits**:
-  - **Universal HTMX support**: Works with any site using HTMX patterns, not just specific domains
-  - **Scalable processing**: Handles 50+ HTMX elements efficiently with intelligent prioritization
-  - **Error resilience**: Comprehensive fallback mechanisms ensure extraction always produces results
-
 ### July 1, 2025 - Fixed Critical HTMX Extraction Issues (0 → 84+ Links)
 - **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
 - **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
