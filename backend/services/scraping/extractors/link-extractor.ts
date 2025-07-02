@@ -435,115 +435,82 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           const externalUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // Look for links in the whole page now that HTMX content has been loaded
-          // The HTMX content is loaded into the existing DOM structure, not our artificial containers
-          const allLinks = document.querySelectorAll('a');
-          console.log(`Found ${allLinks.length} total links to analyze after HTMX loading`);
+          // Look specifically in HTMX-loaded content containers
+          const htmxContainers = document.querySelectorAll('.htmx-loaded-content, .htmx-common-content, .htmx-injected-content');
           
-          // Debug: Let's examine the structure of links that have the article titles we want
-          const debugLinks = [];
-          allLinks.forEach((link, index) => {
-            const text = link.textContent?.trim() || '';
-            if (text.includes('KnowBe4') || text.includes('Cybercrime') || text.includes('cybersecurity')) {
-              const allAttributes = {};
-              for (let attr of link.attributes) {
-                allAttributes[attr.name] = attr.value;
-              }
-              debugLinks.push({
-                text: text,
-                attributes: allAttributes,
-                innerHTML: link.innerHTML.substring(0, 200),
-                outerHTML: link.outerHTML.substring(0, 300)
-              });
-            }
-          });
+          console.log(`Found ${htmxContainers.length} HTMX content containers to analyze`);
           
-          console.log(`Debug: Found ${debugLinks.length} links with article titles:`, debugLinks);
-          
-          // Focus on links that look like external article links
-          allLinks.forEach((link, index) => {
-            const href = link.getAttribute('href') || link.getAttribute('data-href') || 
-                        link.getAttribute('data-url') || link.getAttribute('data-link');
-            const text = link.textContent?.trim() || '';
+          htmxContainers.forEach((container, index) => {
+            const sourceEndpoint = container.getAttribute('data-source') || 'unknown';
+            console.log(`Analyzing container ${index + 1} from endpoint: ${sourceEndpoint}`);
             
-            // Skip links without text or minimal text
-            if (!text || text.length < 10) return;
+            // Find all links within this HTMX-loaded content
+            const links = container.querySelectorAll('a[href]');
+            console.log(`Found ${links.length} links in container ${index + 1}`);
             
-            // Debug: Log all attributes for links with our target titles
-            if (text.includes('KnowBe4') || text.includes('Cybercrime')) {
-              const allAttrs = {};
-              for (let attr of link.attributes) {
-                allAttrs[attr.name] = attr.value;
-              }
-              console.log(`Target link found: "${text.substring(0, 50)}" - Attributes:`, allAttrs);
-            }
-            
-            if (!href || href.length < 5) return;
-            
-            try {
-              // Create absolute URL if needed
-              const absoluteUrl = href.startsWith('http') ? href : 
-                (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+            links.forEach(link => {
+              const href = link.getAttribute('href');
+              const text = link.textContent?.trim() || '';
               
-              const urlObj = new URL(absoluteUrl);
+              if (!href || href.length < 5) return;
               
-              // Only keep external URLs (not the current site)
-              if (urlObj.hostname !== currentDomain) {
-                // Filter for legitimate article URLs
-                const hostname = urlObj.hostname.toLowerCase();
-                const pathname = urlObj.pathname.toLowerCase();
+              try {
+                // Create absolute URL if needed
+                const absoluteUrl = href.startsWith('http') ? href : 
+                  (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
                 
-                // Common article domains and patterns
-                const articleDomains = [
-                  'siliconangle.com', 'techcrunch.com', 'wired.com', 'arstechnica.com',
-                  'zdnet.com', 'cnet.com', 'engadget.com', 'theverge.com',
-                  'reuters.com', 'bloomberg.com', 'wsj.com', 'nytimes.com',
-                  'washingtonpost.com', 'cnn.com', 'bbc.com', 'guardian.com',
-                  'forbes.com', 'medium.com', 'substack.com', 'hackread.com',
-                  'cybersecuritynews.com', 'securityboulevard.com', 'threatpost.com',
-                  'darkreading.com', 'infosecurity-magazine.com', 'therecord.media'
-                ];
+                const urlObj = new URL(absoluteUrl);
                 
-                // Article path patterns
-                const articlePatterns = [
-                  '/article/', '/news/', '/blog/', '/post/', '/story/',
-                  '/2024/', '/2025/', '/cybersecurity/', '/security/',
-                  '/tech/', '/technology/', '/knowbe4', '/cybercrime'
-                ];
-                
-                // Check if this looks like an article URL
-                const isArticleDomain = articleDomains.some(domain => hostname.includes(domain)) ||
-                                      hostname.includes('news') || hostname.includes('blog') ||
-                                      hostname.includes('tech') || hostname.includes('cyber') ||
-                                      hostname.includes('security') || hostname.includes('hack');
-                
-                const hasArticlePath = articlePatterns.some(pattern => pathname.includes(pattern)) ||
-                                     pathname.split('/').length >= 3; // Has meaningful path structure
-                
-                const hasReasonableText = text.length >= 10 && 
-                                        !text.toLowerCase().includes('click here') &&
-                                        !text.toLowerCase().includes('read more') &&
-                                        !text.toLowerCase().includes('continue reading') &&
-                                        !text.toLowerCase().includes('view all') &&
-                                        !text.toLowerCase().includes('see more');
-                
-                // Include if it matches article criteria
-                if ((isArticleDomain || hasArticlePath) && hasReasonableText) {
-                  console.log(`Found external article URL: ${absoluteUrl}`);
-                  console.log(`  Text: ${text.substring(0, 100)}...`);
-                  console.log(`  Domain: ${hostname}`);
+                // Only keep external URLs (not the current site)
+                if (urlObj.hostname !== currentDomain) {
+                  // Filter for legitimate article URLs
+                  const hostname = urlObj.hostname.toLowerCase();
+                  const pathname = urlObj.pathname.toLowerCase();
                   
-                  externalUrls.push({
-                    url: absoluteUrl,
-                    text: text,
-                    domain: hostname,
-                    pathname: pathname
-                  });
+                  // Common article domains and patterns
+                  const articleDomains = [
+                    'siliconangle.com', 'techcrunch.com', 'wired.com', 'arstechnica.com',
+                    'zdnet.com', 'cnet.com', 'engadget.com', 'theverge.com',
+                    'reuters.com', 'bloomberg.com', 'wsj.com', 'nytimes.com',
+                    'washingtonpost.com', 'cnn.com', 'bbc.com', 'guardian.com',
+                    'forbes.com', 'medium.com', 'substack.com'
+                  ];
+                  
+                  // Article path patterns
+                  const articlePatterns = [
+                    '/article/', '/news/', '/blog/', '/post/', '/story/',
+                    '/2024/', '/2025/', '/cybersecurity/', '/security/',
+                    '/tech/', '/technology/'
+                  ];
+                  
+                  // Check if this looks like an article URL
+                  const isArticleDomain = articleDomains.some(domain => hostname.includes(domain)) ||
+                                        hostname.includes('news') || hostname.includes('blog') ||
+                                        hostname.includes('tech') || hostname.includes('cyber');
+                  
+                  const hasArticlePath = articlePatterns.some(pattern => pathname.includes(pattern)) ||
+                                       pathname.split('/').length >= 3; // Has meaningful path structure
+                  
+                  const hasReasonableText = text.length >= 10 && 
+                                          !text.toLowerCase().includes('click here') &&
+                                          !text.toLowerCase().includes('read more') &&
+                                          !text.toLowerCase().includes('continue reading');
+                  
+                  // Include if it matches article criteria
+                  if ((isArticleDomain || hasArticlePath) && hasReasonableText) {
+                    console.log(`Found external article URL: ${absoluteUrl} (${text.substring(0, 50)}...)`);
+                    externalUrls.push({
+                      url: absoluteUrl,
+                      text: text,
+                      source: sourceEndpoint,
+                      domain: hostname
+                    });
+                  }
                 }
+              } catch (urlError) {
+                console.error(`Error processing URL ${href}:`, urlError);
               }
-            } catch (urlError) {
-              console.error(`Error processing URL ${href}:`, urlError);
-            }
+            });
           });
           
           // Remove duplicates based on URL
@@ -559,8 +526,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           
           console.log(`Found ${uniqueUrls.length} unique external article URLs`);
           uniqueUrls.forEach((item, index) => {
-            console.log(`${index + 1}. ${item.url}`);
-            console.log(`    Text: ${item.text.substring(0, 80)}...`);
+            console.log(`${index + 1}. ${item.url} (from ${item.source})`);
           });
           
           return uniqueUrls;
@@ -573,16 +539,79 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           articleLinkData = externalArticleUrls.map(item => ({
             href: item.url,
             text: item.text,
-            context: `External article from ${item.domain} - ${item.text.substring(0, 50)}...`,
+            context: `External article from ${item.domain}`,
             parentClass: 'htmx-external-article'
           }));
           
           log(`[LinkExtractor] Converted to ${articleLinkData.length} LinkData objects for further processing`, "scraper");
         } else {
-          log(`[LinkExtractor] Step 2: No external article URLs found, will proceed with standard extraction`, "scraper");
+          log(`[LinkExtractor] Step 2: No external article URLs found in HTMX content, falling back to regular extraction`, "scraper");
           
-          // If no external URLs found, proceed with standard extraction
-          articleLinkData = [];
+          // Fallback: Extract external URLs from the entire page if no HTMX content yielded results
+          const fallbackExternalUrls = await page.evaluate((currentBaseUrl) => {
+            const externalUrls = [];
+            const currentDomain = new URL(currentBaseUrl).hostname;
+            
+            // Search the entire page for external article links
+            const allLinks = document.querySelectorAll('a[href]');
+            console.log(`Fallback: Analyzing ${allLinks.length} links from entire page`);
+            
+            allLinks.forEach(link => {
+              const href = link.getAttribute('href');
+              const text = link.textContent?.trim() || '';
+              
+              if (!href || href.length < 5) return;
+              
+              try {
+                const absoluteUrl = href.startsWith('http') ? href : 
+                  (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+                
+                const urlObj = new URL(absoluteUrl);
+                
+                // Only keep external URLs
+                if (urlObj.hostname !== currentDomain) {
+                  const hostname = urlObj.hostname.toLowerCase();
+                  const pathname = urlObj.pathname.toLowerCase();
+                  
+                  // Check for article indicators
+                  const isNewsOrTechDomain = hostname.includes('news') || hostname.includes('blog') ||
+                                           hostname.includes('tech') || hostname.includes('cyber') ||
+                                           hostname.includes('silicon') || hostname.includes('wire') ||
+                                           hostname.includes('reuters') || hostname.includes('bloomberg');
+                  
+                  const hasArticlePath = pathname.includes('/article/') || pathname.includes('/news/') ||
+                                       pathname.includes('/blog/') || pathname.includes('/post/') ||
+                                       pathname.includes('/2024/') || pathname.includes('/2025/') ||
+                                       pathname.split('/').length >= 3;
+                  
+                  const hasGoodText = text.length >= 15 && text.split(' ').length >= 3;
+                  
+                  if ((isNewsOrTechDomain || hasArticlePath) && hasGoodText) {
+                    console.log(`Fallback found external URL: ${absoluteUrl}`);
+                    externalUrls.push({
+                      url: absoluteUrl,
+                      text: text,
+                      domain: hostname
+                    });
+                  }
+                }
+              } catch (urlError) {
+                // Skip invalid URLs
+              }
+            });
+            
+            return externalUrls.slice(0, 20); // Limit fallback results
+          }, currentBaseUrl);
+          
+          if (fallbackExternalUrls.length > 0) {
+            log(`[LinkExtractor] Fallback found ${fallbackExternalUrls.length} external article URLs`, "scraper");
+            articleLinkData = fallbackExternalUrls.map(item => ({
+              href: item.url,
+              text: item.text,
+              context: `External article from ${item.domain}`,
+              parentClass: 'fallback-external-article'
+            }));
+          }
         }
         
         // Skip the old HTMX element triggering - we now use direct endpoint fetching
