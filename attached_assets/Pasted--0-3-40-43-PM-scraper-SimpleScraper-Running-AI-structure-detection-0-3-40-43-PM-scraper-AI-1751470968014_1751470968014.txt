@@ -1,0 +1,25 @@
+[0] 3:40:43 PM [scraper] [SimpleScraper] Running AI structure detection
+[0] 3:40:43 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 3:40:43 PM [scraper] [AIStructureDetector] Truncating HTML from 106689 to 45000 chars
+[0] 3:40:43 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://gbhackers.com/cybercriminals-use-malicious-pdfs/ (45037 chars)
+[0] 3:40:46 PM [scraper] [AIStructureDetector] Raw AI response: {
+[0]   "titleSelector": "h1.tdb-title-text",
+[0]   "contentSelector": "div.tdb-single_content",
+[0]   "authorSelector": "a.tdb-author-name",
+[0]   "dateSelector": "time.entry-date",
+[0]   "articleSelector": "article#template-id-146627",
+[0]   "dateAlternatives": ["div.tdb-single_date time.entry-date", "div.tdb-single_date"],
+[0]   "confidence": 0.9
+[0] }...
+[0] 3:40:46 PM [scraper] [AIStructureDetector] Parsed result - title: h1.tdb-title-text, content: div.tdb-single_content, confidence: 0.9
+[0] 3:40:46 PM [scraper] [AIStructureDetector] Final sanitized selectors - title: h1.tdb-title-text, content: div.tdb-single_content
+[0] 3:40:46 PM [scraper] [SimpleScraper] AI detected selectors - title: h1.tdb-title-text, content: div.tdb-single_content, author: a.tdb-author-name, confidence: 0.9
+[0] 3:40:46 PM [scraper] [RobustCache] Cached valid selectors for gbhackers.com
+[0] 3:40:46 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1.tdb-title-text", content: "div.tdb-single_content"
+[0] 3:40:46 PM [scraper] [SimpleScraper] Title extracted: "Cybercriminals Use Malicious PDFs to Impersonate Microsoft, DocuSign, and Dropbox in Targeted Phishing Attacks" (110 chars)
+[0] 3:40:46 PM [scraper] [SimpleScraper] Content extracted: 0 chars from 0 elements
+[0] 3:40:46 PM [scraper] [SimpleScraper] Author extracted: "Aman Mishra"
+[0] 3:40:46 PM [date-extractor] [DateExtractor] Starting comprehensive date extraction
+[0] 3:40:46 PM [date-extractor] [DateExtractor] Found date via structure-primary selector "time.entry-date" (datetime): 2025-07-02T14:16:00+00:00
+[0] 3:40:46 PM [scraper] [SimpleScraper] Extracted article (title=110 chars, content=0 chars)
+[0] 3:40:46 PM [scraper] [ThreatTracker] Could not extract sufficient content from https://gbhackers.com/cybercriminals-use-malicious-pdfs/
