@@ -127,6 +127,32 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 2, 2025 - Dynamic Content Detection False Positive Fix Complete
+- **Fixed false positive detection** causing unnecessary Puppeteer usage on normal news sites
+- **Root cause**: Broad detection patterns triggering on common web elements (async scripts, form placeholders)
+- **Example**: TheRecord.media was switching to Puppeteer despite successful HTTP scraping (105,508 chars)
+- **Enhanced detection logic**:
+  - **Primary indicators**: Strong HTMX evidence (`hx-get=`, `htmx.min.js`, actual HTMX attributes)
+  - **Secondary indicators**: Specific dynamic loading patterns (`load-more`, `lazy-load`, `data-react-root`)
+  - **Tertiary indicators**: Content-specific loading states (`content-skeleton`, `articles-loading`)
+  - **Multiple signal requirement**: Weak signals must combine to trigger Puppeteer switch
+- **Key improvements**:
+  - **Eliminated async false positives**: No longer triggers on normal `<script async>` tags
+  - **Refined placeholder detection**: Focuses on content loading, not form placeholders
+  - **Stronger HTMX patterns**: Looks for actual HTMX usage, not just keyword presence
+  - **Reduced link threshold**: From 10 to 5 links for more precise minimal content detection
+  - **Enhanced SPA detection**: Proper React/Vue/Angular root element detection
+- **Decision matrix**:
+  - **Strong evidence**: HTMX attributes, SPA frameworks → Switch to Puppeteer
+  - **Medium evidence**: Very few links (< 5), empty containers with loading → Switch to Puppeteer  
+  - **Weak evidence**: Multiple signals required (dynamic loading + content loading) → Switch to Puppeteer
+  - **Normal sites**: Async scripts, form placeholders, adequate links → Stay with HTTP
+- **Impact**:
+  - **Eliminates unnecessary Puppeteer usage** on sites like TheRecord.media where HTTP works fine
+  - **Maintains HTMX functionality** for sites like Foorilla that need dynamic content loading
+  - **Improved performance** by avoiding 20+ second Puppeteer operations when HTTP is sufficient
+  - **Better resource utilization** with more precise dynamic content detection
+
 ### July 2, 2025 - Enhanced HTMX Empty Href Extraction Complete
 - **Fixed critical HTMX extraction issue** where articles with empty href attributes were not being detected
 - **Root cause**: System only looked for traditional href links, but HTMX articles use JavaScript handlers, data attributes, and event triggers

@@ -174,56 +174,72 @@ export class StreamlinedUnifiedScraper {
 
   /**
    * Detect if a page needs dynamic content loading (HTMX, JavaScript, etc.)
+   * Enhanced to reduce false positives while maintaining HTMX functionality
    */
   private detectDynamicContentNeeds(html: string, url: string): boolean {
     const htmlLower = html.toLowerCase();
     
-    // Check for specific dynamic content indicators
-    const dynamicIndicators = [
-      // HTMX indicators  
-      'hx-get', 'hx-post', 'hx-trigger', 'htmx',
-      // JavaScript loading indicators
-      'load-more', 'lazy-load', 'infinite-scroll',
-      // Modern framework indicators
-      'data-react', 'ng-app', 'v-if', '@click',
-      // Loading states
-      'skeleton', 'loading', 'spinner',
-      // Empty content containers
-      'articles-container', 'posts-container', 'content-loader'
+    // PRIMARY: Strong HTMX indicators (high confidence)
+    const strongHTMXIndicators = [
+      'hx-get=', 'hx-post=', 'hx-trigger=', 'data-hx-get=', 'data-hx-post=',
+      'htmx.min.js', 'htmx.js', 'unpkg.com/htmx'
     ];
     
-    const hasDynamicIndicators = dynamicIndicators.some(indicator => 
+    const hasStrongHTMX = strongHTMXIndicators.some(indicator => 
       htmlLower.includes(indicator)
     );
     
-    // Check for specific patterns that indicate dynamic content
-    const hasMinimalLinks = (html.match(/<a[^>]*href[^>]*>/gi) || []).length < 10;
-    const hasEmptyContainers = htmlLower.includes('container') && 
-                              (htmlLower.includes('empty') || htmlLower.includes('no-content'));
+    // SECONDARY: Dynamic loading patterns (medium confidence)
+    const dynamicLoadingIndicators = [
+      'load-more', 'lazy-load', 'infinite-scroll', 'ajax-load',
+      'data-react-root', 'ng-app=', 'v-app', '@click='
+    ];
     
-    // Check for JavaScript frameworks and dynamic loading patterns
-    const hasJavaScriptFrameworks = htmlLower.includes('react') || 
-                                   htmlLower.includes('vue') || 
-                                   htmlLower.includes('angular') ||
-                                   htmlLower.includes('next.js') ||
-                                   htmlLower.includes('nuxt');
+    const hasDynamicLoading = dynamicLoadingIndicators.some(indicator => 
+      htmlLower.includes(indicator)
+    );
     
-    // Check for async loading patterns
-    const hasAsyncPatterns = htmlLower.includes('async') || 
-                            htmlLower.includes('defer') ||
-                            htmlLower.includes('fetch(') ||
-                            htmlLower.includes('ajax');
+    // TERTIARY: Content loading states (low confidence - need multiple signals)
+    const contentLoadingStates = [
+      'content-skeleton', 'article-skeleton', 'loading-spinner',
+      'posts-loading', 'articles-loading', 'content-placeholder'
+    ];
     
-    // Check for content placeholders that suggest dynamic loading
-    const hasPlaceholders = htmlLower.includes('placeholder') ||
-                           htmlLower.includes('skeleton') ||
-                           htmlLower.includes('loading');
+    const hasContentLoading = contentLoadingStates.some(indicator => 
+      htmlLower.includes(indicator)
+    );
     
-    const needsDynamic = hasDynamicIndicators || hasMinimalLinks || hasEmptyContainers || 
-                        hasJavaScriptFrameworks || hasAsyncPatterns || hasPlaceholders;
+    // Check for minimal links (strong indicator if very few)
+    const linkCount = (html.match(/<a[^>]*href[^>]*>/gi) || []).length;
+    const hasVeryFewLinks = linkCount < 5; // Reduced threshold for stronger signal
+    
+    // Check for empty content containers with loading indicators
+    const hasEmptyContentContainers = (
+      htmlLower.includes('articles-container') || 
+      htmlLower.includes('posts-container') ||
+      htmlLower.includes('content-container')
+    ) && (
+      htmlLower.includes('loading') || 
+      htmlLower.includes('spinner') ||
+      htmlLower.includes('skeleton')
+    );
+    
+    // SPA frameworks (high confidence for dynamic content)
+    const hasSPAFrameworks = htmlLower.includes('react-root') || 
+                            htmlLower.includes('ng-app') || 
+                            htmlLower.includes('vue-app') ||
+                            htmlLower.includes('__next') ||
+                            htmlLower.includes('nuxt');
+    
+    // Decision logic: Require stronger evidence to switch to Puppeteer
+    const needsDynamic = hasStrongHTMX || // Strong HTMX evidence
+                        hasSPAFrameworks || // SPA framework detected
+                        hasVeryFewLinks || // Very minimal links
+                        hasEmptyContentContainers || // Empty containers with loading
+                        (hasDynamicLoading && hasContentLoading); // Multiple weak signals
     
     if (needsDynamic) {
-      log(`[SimpleScraper] Dynamic content detected - HTMX/indicators: ${hasDynamicIndicators}, minimal links: ${hasMinimalLinks}, JS frameworks: ${hasJavaScriptFrameworks}, async patterns: ${hasAsyncPatterns}, placeholders: ${hasPlaceholders}`, "scraper");
+      log(`[SimpleScraper] Dynamic content detected - Strong HTMX: ${hasStrongHTMX}, SPA frameworks: ${hasSPAFrameworks}, very few links: ${hasVeryFewLinks} (${linkCount}), dynamic loading: ${hasDynamicLoading}, content loading: ${hasContentLoading}, empty containers: ${hasEmptyContentContainers}`, "scraper");
     }
     
     return needsDynamic;
