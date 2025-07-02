@@ -2,6 +2,7 @@ import type { Page } from 'puppeteer';
 import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
 import { detectArticleLinks } from 'backend/apps/news-radar/services/openai';
+import { extractLinksWithHTMX, detectHTMXElements } from './htmx-extractor';
 
 export interface LinkExtractionOptions {
   includePatterns?: string[];
