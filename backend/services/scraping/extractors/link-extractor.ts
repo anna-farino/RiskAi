@@ -243,6 +243,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
 
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];
+    let htmxExternalLinksExtracted = false; // Track if HTMX external links were successfully extracted
     // HTMX external links will be integrated directly into articleLinkData
     
     const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
@@ -445,9 +446,16 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             parentClass: 'htmx-external-link'
           }));
           
-          // Append HTMX external links to the main article data
-          articleLinkData = [...(articleLinkData || []), ...htmxExternalLinks];
-          log(`[LinkExtractor] Added ${htmxExternalLinks.length} HTMX external links to article data`, "scraper");
+          // For HTMX sites, prioritize external links over main page links
+          if (htmxExternalLinks.length > 0) {
+            articleLinkData = htmxExternalLinks; // Replace main page links with external links
+            htmxExternalLinksExtracted = true; // Mark that we have external links
+            log(`[LinkExtractor] Using ${htmxExternalLinks.length} HTMX external links as primary data source`, "scraper");
+          } else {
+            // Fallback: append to existing data if no external links found
+            articleLinkData = [...(articleLinkData || []), ...htmxExternalLinks];
+            log(`[LinkExtractor] Added ${htmxExternalLinks.length} HTMX external links to article data`, "scraper");
+          }
           
           // Wait for any additional processing
           await new Promise(resolve => setTimeout(resolve, 3000));
@@ -499,8 +507,10 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         { timeout: 10000 }
       ).catch(() => log('[LinkExtractor] Timeout waiting for loading indicators', "scraper"));
 
-      // Extract all links after ensuring content is loaded - comprehensive extraction
-      articleLinkData = await page.evaluate(() => {
+      // Extract all links after ensuring content is loaded - but skip if HTMX external links already extracted
+      if (!htmxExternalLinksExtracted) {
+        log('[LinkExtractor] Running main page extraction since HTMX external links not found', "scraper");
+        articleLinkData = await page.evaluate(() => {
         // Get both <a> tags and potentially clickable elements that might be articles
         const allElements = Array.from(document.querySelectorAll('a, div[onclick], div[data-url], span[onclick], [data-href]'));
         
@@ -690,6 +700,9 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
       });
 
       log(`[LinkExtractor] Extracted ${articleLinkData.length} potential article links`, "scraper");
+      } else {
+        log(`[LinkExtractor] Skipping main page extraction - using ${articleLinkData.length} HTMX external links`, "scraper");
+      }
 
       // Debug log: Print the extracted links data
       log(
