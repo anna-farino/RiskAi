@@ -127,28 +127,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 1, 2025 - Complete HTMX External Link Extraction Implementation
-- **Implemented advanced HTMX link extraction system** with two-stage process for external link discovery
-- **Root cause**: Foorilla uses HTMX endpoints (`hx-get="/media/items/article-id/"`) that dynamically load content containing external article links
-- **Two-stage extraction process**:
-  1. **Extract HTMX endpoints**: Find all `hx-get` attributes pointing to `/media/items/[article-id]/` paths
+### July 2, 2025 - Complete HTMX External Link Extraction Rearchitecture
+- **Successfully rearchitected HTMX extraction** to extract external article URLs from dynamically loaded content instead of internal page URLs
+- **Root cause**: Previous implementation extracted article URLs from main page instead of external links from HTMX-loaded content
+- **Two-stage extraction process implemented**:
+  1. **Extract HTMX endpoints**: Find all `hx-get` attributes pointing to `/media/items/[article-id]/` paths (79+ endpoints found)
   2. **Fetch external links**: Make HTMX requests to each endpoint and extract external article URLs from loaded content
-- **Key implementation details**:
-  - **Smart endpoint filtering**: Automatically filters article endpoints vs navigation/filter endpoints
-  - **Proper HTMX headers**: Uses `HX-Request: true`, `HX-Trigger`, and `HX-Target` headers for authentic requests
-  - **External link extraction**: Parses loaded HTML content to find actual external article URLs (not Foorilla URLs)
-  - **Batch processing**: Processes up to 15 article endpoints with rate limiting to avoid overwhelming servers
-  - **Error handling**: Graceful fallback when individual HTMX requests fail
-- **Enhanced extraction workflow**:
-  - Detect HTMX sites using script patterns, window objects, and hx-* attributes
-  - Extract 79+ article endpoints from `/media/items/` pattern matching
-  - Fetch each endpoint individually to load dynamic content containing external links
-  - Parse external links from loaded content (e.g., SiliconANGLE, SecurityBoulevard URLs)
-  - Integrate external links into main extraction pipeline alongside standard link detection
-- **Architecture updates**:
-  - Enhanced `extractLinksWithAdvancedHTMX` method with endpoint-specific HTMX handling
-  - Added HTMX external link extraction to main link extraction pipeline
-  - Proper variable scoping and integration with existing AI-powered link filtering
+- **Key architectural fixes**:
+  - **External link parsing**: Now correctly extracts external URLs (e.g., `https://siliconangle.com/2025/07/01/cybercrime-rise-recovery-first-ai-data-protection-dataprotectionageofai/`) from HTMX-loaded content
+  - **Proper content targeting**: Parses the HTML response from each HTMX endpoint to find external article links within loaded content
+  - **Variable scoping fix**: Integrated HTMX external links directly into `articleLinkData` to resolve TypeScript scoping issues
+  - **Article title preservation**: Maintains original article titles from main page while extracting external URLs from loaded content
+- **Enhanced workflow**:
+  - Detect HTMX sites using comprehensive script and attribute detection
+  - Extract article endpoints using `/media/items/` pattern matching with smart filtering
+  - Fetch each endpoint with proper HTMX headers (`HX-Request: true`, `HX-Trigger`, `HX-Target`)
+  - Parse loaded HTML to extract external links (filtering out internal Foorilla URLs)
+  - Integrate external links into main extraction pipeline with original article titles
+- **Verification testing**:
+  - Confirmed HTMX endpoints return external links via curl testing
+  - Verified endpoint `cybercrime-ai-and-the-rise-of-recovery-first-data-protection-63581/` returns SiliconANGLE external URL
+  - Architecture correctly handles dynamic content loading and external link extraction
 - **Impact**: 
   - **Revolutionary external link discovery**: Now properly extracts external article URLs (SiliconANGLE, SecurityBoulevard, etc.) instead of internal Foorilla links
   - **79+ HTMX endpoints discovered**: System identifies and processes all available article endpoints automatically
