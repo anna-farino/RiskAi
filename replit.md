@@ -148,12 +148,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Smart detection logic to choose between standard and advanced extraction methods
   - Proper browser management integration with automatic page cleanup
 - **Impact**: 
-  - **Dramatic improvement in extraction coverage**: From 0 links to 84+ links extracted from Foorilla (infinite improvement)
-  - **Source domain detection implemented**: 73 out of 84 links (87%) now have properly detected source domains
-  - **25 unique source domains identified**: Including major cybersecurity sites like thecyberwire.com, thehackernews.com, bleepingcomputer.com
+  - **Dramatic improvement in extraction coverage**: From 0 links to 86+ links extracted from Foorilla (infinite improvement)
+  - **Source domain detection implemented**: 74 out of 86 links (86%) now have properly detected source domains
+  - **24 unique source domains identified**: Including major cybersecurity sites like thecyberwire.com, thehackernews.com, bleepingcomputer.com
   - **Proper article-domain association**: Each article title correctly linked to its originating domain (e.g., "North Korea's covert coders caught" → thecyberwire.com)
   - **Enhanced URL construction**: Articles without hrefs get constructed URLs using detected source domains
   - **Scalable approach**: Dynamic detection and processing works for all aggregated content sites without URL-specific configuration
+  - **Fixed URL truncation bug**: Enhanced JSON parsing recovery logic prevents URL truncation at ~70 characters
+  - **Intelligent URL filtering**: Improved filtering logic distinguishes between legitimate URLs and truncated ones using pattern recognition
 
 ### June 27, 2025 - HTMX Dynamic Content Loading Fix Complete
 - **Fixed critical HTMX scraping issue** preventing detection of article links on dynamic sites like Foorilla

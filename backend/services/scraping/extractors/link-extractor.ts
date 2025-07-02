@@ -334,74 +334,103 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
         }
 
-        // Specifically for foorilla.com and similar sites, manually fetch HTMX content
-        log(`[LinkExtractor] Attempting to load HTMX content directly...`, "scraper");
+        // Extract HTMX article endpoints and fetch external links
+        log(`[LinkExtractor] Extracting HTMX article endpoints and fetching external links...`, "scraper");
         
-        // Get the current page URL to construct proper HTMX endpoints
         const currentUrl = page.url();
         const currentBaseUrl = new URL(currentUrl).origin;
         
-        // Manually fetch HTMX endpoints that contain articles
-        const htmxContent = await page.evaluate(async (currentBaseUrl) => {
-          let totalContentLoaded = 0;
+        // First extract all hx-get endpoints that look like articles
+        const articleEndpoints = await page.evaluate(() => {
+          const elements = document.querySelectorAll('[hx-get]');
+          return Array.from(elements)
+            .map(el => ({
+              hxGet: el.getAttribute('hx-get'),
+              text: el.textContent?.trim().substring(0, 100) || '',
+              tagName: el.tagName.toLowerCase()
+            }))
+            .filter(endpoint => 
+              endpoint.hxGet && 
+              endpoint.hxGet.includes('/media/items/') &&
+              endpoint.text.length > 10 && // Has meaningful text
+              !endpoint.hxGet.includes('/media/items/top/') && // Avoid navigation endpoints
+              !endpoint.hxGet.includes('/media/filter/') &&
+              !endpoint.hxGet.includes('/topics/')
+            )
+            .slice(0, 20); // Limit to first 20 article endpoints
+        });
+        
+        log(`[LinkExtractor] Found ${articleEndpoints.length} article endpoints to process`, "scraper");
+        
+        // Now fetch each article endpoint to extract external links
+        const externalLinks = await page.evaluate(async (articleEndpoints, baseUrl) => {
+          const allLinks = [];
           
-          // Common HTMX endpoints for article content (based on working endpoints)
-          const endpoints = [
-            '/media/items/',
-            '/media/items/top/',
-            '/media/items/recent/',
-            '/media/items/popular/'
-          ];
+          // Set up HTMX headers
+          const htmxHeaders = {
+            'HX-Request': 'true',
+            'HX-Trigger': 'article-link',
+            'HX-Target': 'content-container',
+            'Accept': 'text/html, */*'
+          };
           
-          // Get CSRF token from page if available
-          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                           document.querySelector('input[name="_token"]')?.getAttribute('value') ||
-                           document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
-          
-          // Get screen size info for headers
-          const screenType = window.innerWidth < 768 ? 'M' : 'D';
-          
-          for (const endpoint of endpoints) {
+          for (let i = 0; i < Math.min(articleEndpoints.length, 15); i++) {
+            const endpoint = articleEndpoints[i];
+            const fullUrl = `${baseUrl}${endpoint.hxGet}`;
+            
             try {
-              const headers = {
-                'HX-Request': 'true',
-                'HX-Current-URL': window.location.href,
-                'Accept': 'text/html, */*'
-              };
+              console.log(`Fetching article endpoint ${i + 1}/${Math.min(articleEndpoints.length, 15)}: ${fullUrl}`);
               
-              // Add CSRF token if available
-              if (csrfToken) {
-                headers['X-CSRFToken'] = csrfToken;
-              }
-              
-              // Add screen type header
-              headers['X-Screen'] = screenType;
-              
-              console.log(`Fetching HTMX content from: ${currentBaseUrl}${endpoint}`);
-              const response = await fetch(`${currentBaseUrl}${endpoint}`, { headers });
+              const response = await fetch(fullUrl, { 
+                headers: htmxHeaders
+              });
               
               if (response.ok) {
                 const html = await response.text();
-                console.log(`Loaded ${html.length} chars from ${endpoint}`);
                 
-                // Insert content into page
-                const container = document.createElement('div');
-                container.className = 'htmx-injected-content';
-                container.setAttribute('data-source', endpoint);
-                container.innerHTML = html;
-                document.body.appendChild(container);
-                totalContentLoaded += html.length;
+                // Parse the HTML to extract external links
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                const links = tempDiv.querySelectorAll('a[href]');
+                Array.from(links).forEach(link => {
+                  const href = link.getAttribute('href');
+                  const text = link.textContent?.trim() || '';
+                  
+                  // Only include external links (not foorilla.com links)
+                  if (href && href.startsWith('http') && !href.includes('foorilla.com')) {
+                    allLinks.push({
+                      href: href,
+                      text: text,
+                      sourceEndpoint: endpoint.hxGet,
+                      sourceText: endpoint.text
+                    });
+                  }
+                });
+                
+                // Small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 200));
               }
-            } catch (e) {
-              console.error(`Error fetching ${endpoint}:`, e);
+            } catch (error) {
+              console.error(`Error fetching ${fullUrl}:`, error);
             }
           }
           
-          return totalContentLoaded;
-        }, currentBaseUrl);
+          return allLinks;
+        }, articleEndpoints, currentBaseUrl);
         
-        if (htmxContent > 0) {
-          log(`[LinkExtractor] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
+        log(`[LinkExtractor] Extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
+        
+        // Convert external links to LinkData format for integration with existing system
+        const htmxLinkData = externalLinks.map(link => ({
+          href: link.href,
+          text: link.text,
+          context: link.sourceText,
+          parentClass: 'htmx-external-link'
+        }));
+        
+        if (externalLinks.length > 0) {
+          log(`[LinkExtractor] Successfully extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
           // Wait for any additional processing
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
