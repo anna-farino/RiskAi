@@ -127,6 +127,32 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 2, 2025 - Enhanced HTMX Empty Href Extraction Complete
+- **Fixed critical HTMX extraction issue** where articles with empty href attributes were not being detected
+- **Root cause**: System only looked for traditional href links, but HTMX articles use JavaScript handlers, data attributes, and event triggers
+- **Enhanced extraction logic**:
+  - **Multi-source URL detection**: Checks href, hx-get, data-url, onclick, and other attributes
+  - **Clickable element expansion**: Searches for all interactive elements, not just `a[href]`
+  - **Article pattern recognition**: Identifies articles by text patterns and structure even without URLs
+  - **Empty href resolution**: Specifically handles elements with empty or missing href attributes
+  - **HTMX content processing**: Analyzes dynamically loaded content containers
+- **Key improvements**:
+  - **Handles empty href cases**: Processes articles like "How KnowBe4 is advancing AI-driven cybersecurity with Just-in-Time training" with `href=""`
+  - **Multiple URL sources**: Extracts from data-url, hx-get, onclick handlers, and other attributes
+  - **Smart text filtering**: Identifies legitimate articles vs navigation elements by content length and keywords
+  - **DOM re-inspection**: Attempts to resolve URLs by re-examining page structure for articles without direct URLs
+  - **Context preservation**: Maintains parent class and metadata for better article identification
+- **Technical implementation**:
+  - Enhanced `extractLinksFromPage` to handle clickable elements beyond traditional links
+  - Added URL resolution logic for multiple attribute sources
+  - Implemented article pattern recognition using keywords and text structure
+  - Created fallback mechanisms to resolve URLs from articles with empty href attributes
+- **Impact**:
+  - **Resolves screenshot issue**: Now correctly processes articles with empty href attributes and meaningful titles
+  - **Improved HTMX support**: Handles complex HTMX patterns used by dynamic news aggregators
+  - **Better article detection**: Identifies more articles through enhanced pattern recognition
+  - **Comprehensive URL extraction**: Extracts URLs from any clickable element attribute or handler
+
 ### July 2, 2025 - Streamlined HTMX External URL Extraction Complete
 - **Implemented streamlined two-step HTMX extraction process** specifically targeting external article URLs
 - **Root cause**: Previous HTMX extraction was collecting internal navigation links instead of final external article URLs

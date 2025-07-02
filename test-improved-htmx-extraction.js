@@ -149,18 +149,16 @@ async function testImprovedHTMXExtraction() {
 }
 
 // Run the test
-if (require.main === module) {
-  testImprovedHTMXExtraction()
-    .then(result => {
-      console.log('\n📋 Final Test Results:');
-      console.log(JSON.stringify(result, null, 2));
-      
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch(error => {
-      console.error('Test execution failed:', error);
-      process.exit(1);
-    });
-}
+testImprovedHTMXExtraction()
+  .then(result => {
+    console.log('\n📋 Final Test Results:');
+    console.log(JSON.stringify(result, null, 2));
+    
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch(error => {
+    console.error('Test execution failed:', error);
+    process.exit(1);
+  });
 
-module.exports = { testImprovedHTMXExtraction };
+export { testImprovedHTMXExtraction };
