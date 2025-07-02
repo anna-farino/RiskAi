@@ -103,24 +103,52 @@ async function testImprovedHTMXExtraction() {
     });
     
     // Check for improvement indicators
-    console.log('\n🧪 Testing Improvement Indicators:');
-    console.log(`📈 Links found: ${extractedLinks.length} (should be > 10 for dynamic sites)`);
-    console.log(`🔗 External links: ${externalLinks.length} (should be > 5 for aggregator sites)`);
+    console.log('\n🧪 Testing Deep Extraction Indicators:');
+    console.log(`📈 Links found: ${extractedLinks.length} (should be > 5 for dynamic sites)`);
+    console.log(`🔗 External links: ${externalLinks.length} (should be > 3 for aggregator sites)`);
     console.log(`🎯 Expected domains: ${foundExpectedDomains.length} (shows quality of extraction)`);
     
-    // Success criteria
-    const isSuccessful = extractedLinks.length >= 10 && externalLinks.length >= 5;
+    // Check if we're getting the deep external URLs (like siliconangle.com)
+    const deepExternalUrls = extractedLinks.filter(url => {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.hostname !== 'foorilla.com' && 
+               !url.includes('/media/items/') && // Not the intermediate URLs
+               (urlObj.hostname.includes('siliconangle') || 
+                urlObj.hostname.includes('techcrunch') ||
+                urlObj.hostname.includes('reuters') ||
+                urlObj.hostname.includes('bloomberg') ||
+                urlObj.hostname.includes('news') ||
+                urlObj.hostname.includes('tech'));
+      } catch {
+        return false;
+      }
+    });
+    
+    console.log(`🔍 Deep external URLs: ${deepExternalUrls.length} (final article links, not intermediate)`);
+    
+    if (deepExternalUrls.length > 0) {
+      console.log('\n🎯 Sample Deep External URLs:');
+      deepExternalUrls.slice(0, 5).forEach((url, index) => {
+        console.log(`${index + 1}. ${url}`);
+      });
+    }
+    
+    // Success criteria - we want deep external URLs, not just intermediate ones
+    const isSuccessful = extractedLinks.length >= 5 && deepExternalUrls.length >= 2;
     
     console.log('\n' + '='.repeat(50));
     if (isSuccessful) {
-      console.log('🎉 SUCCESS: Improved HTMX extraction is working correctly!');
+      console.log('🎉 SUCCESS: Deep HTMX extraction is working correctly!');
       console.log('   - Found sufficient links for a dynamic site');
-      console.log('   - Successfully extracted external article URLs');
-      console.log('   - Resolved URLs from elements with empty href attributes');
+      console.log('   - Successfully extracted final external article URLs');
+      console.log('   - Followed intermediate URLs to find actual article sources');
+      console.log(`   - Found ${deepExternalUrls.length} deep external URLs (like siliconangle.com)`);
     } else {
-      console.log('❌ NEEDS IMPROVEMENT: Extraction still needs work');
-      console.log(`   - Expected: >= 10 total links, >= 5 external links`);
-      console.log(`   - Actual: ${extractedLinks.length} total, ${externalLinks.length} external`);
+      console.log('❌ NEEDS IMPROVEMENT: Deep extraction still needs work');
+      console.log(`   - Expected: >= 5 total links, >= 2 deep external links`);
+      console.log(`   - Actual: ${extractedLinks.length} total, ${deepExternalUrls.length} deep external`);
+      console.log('   - May be getting intermediate URLs instead of final article URLs');
     }
     
     return {

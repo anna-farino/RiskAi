@@ -607,35 +607,182 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         if (externalArticleUrls.length > 0) {
           log(`[LinkExtractor] Step 2 Complete: Found ${externalArticleUrls.length} article URLs/identifiers`, "scraper");
           
-          // Convert to LinkData format, handling both URLs and articles without URLs
-          articleLinkData = externalArticleUrls.map(item => {
-            if (item.needsSpecialHandling && !item.url) {
-              // For articles without URLs, we'll need to create a mechanism to find them
-              // This could involve clicking the element or searching for the article by title
-              return {
-                href: '', // Empty href but we preserve the text and context
-                text: item.text,
-                context: item.context || `HTMX article from ${item.source}`,
-                parentClass: item.parentClass || 'htmx-article-no-url'
-              };
-            } else {
-              // Standard URL-based articles
-              return {
-                href: item.url,
-                text: item.text,
-                context: item.isExternal ? `External article from ${item.domain}` : `Article from ${item.domain}`,
-                parentClass: 'htmx-article-with-url'
-              };
+          // Step 3: For internal article URLs (like /media/items/...), fetch them and extract the final external URLs
+          log(`[LinkExtractor] Step 3: Extracting final external URLs from internal article pages...`, "scraper");
+          
+          const finalExternalUrls = [];
+          const currentDomain = new URL(currentBaseUrl).hostname;
+          
+          for (const item of externalArticleUrls) {
+            if (item.url && !item.isExternal) {
+              // This is an internal URL that likely contains the actual external article link
+              try {
+                log(`[LinkExtractor] Fetching internal article page: ${item.url.substring(0, 60)}...`, "scraper");
+                
+                const articlePageContent = await page.evaluate(async (articleUrl) => {
+                  try {
+                    const response = await fetch(articleUrl, {
+                      headers: {
+                        'HX-Request': 'true',
+                        'HX-Current-URL': window.location.href,
+                        'Accept': 'text/html, */*'
+                      }
+                    });
+                    
+                    if (response.ok) {
+                      const html = await response.text();
+                      console.log(`Fetched article page content: ${html.length} characters`);
+                      
+                      // Create a temporary container to parse the content
+                      const tempDiv = document.createElement('div');
+                      tempDiv.innerHTML = html;
+                      
+                      // Look for external links in this article content
+                      const externalLinks = [];
+                      const allLinks = tempDiv.querySelectorAll('a[href]');
+                      
+                      allLinks.forEach(link => {
+                        const href = link.getAttribute('href');
+                        const text = link.textContent?.trim() || '';
+                        
+                        if (href && href.length > 10) {
+                          try {
+                            // Create absolute URL
+                            const absoluteUrl = href.startsWith('http') ? href : 
+                              (href.startsWith('/') ? `${window.location.origin}${href}` : `${window.location.origin}/${href}`);
+                            
+                            const urlObj = new URL(absoluteUrl);
+                            
+                            // Check if this is an external URL
+                            if (urlObj.hostname !== window.location.hostname) {
+                              // Look for patterns that indicate this is the main article link
+                              const isMainArticle = 
+                                // Link text is substantial (likely the main article)
+                                (text.length > 30 && text.length < 200) ||
+                                // Has article-like URL patterns
+                                /\/(article|news|blog|post|story|tech|cybersecurity|security)\//.test(urlObj.pathname) ||
+                                // Has date patterns in URL
+                                /\/20\d{2}\//.test(urlObj.pathname) ||
+                                // Is a news/tech domain
+                                /(news|tech|cyber|security|wire|silicon|bloomberg|reuters|guardian|forbes|medium)/.test(urlObj.hostname) ||
+                                // Parent element indicates it's the main content
+                                link.closest('.article-content, .content, .post-content, [class*="article"], [class*="content"]');
+                              
+                              if (isMainArticle) {
+                                console.log(`Found external article: ${absoluteUrl} ("${text.substring(0, 40)}...")`);
+                                externalLinks.push({
+                                  url: absoluteUrl,
+                                  text: text,
+                                  domain: urlObj.hostname,
+                                  isMainArticle: true
+                                });
+                              }
+                            }
+                          } catch (urlError) {
+                            // Skip invalid URLs
+                          }
+                        }
+                      });
+                      
+                      // Also look for URLs in meta tags or JSON-LD
+                      const metaUrls = [];
+                      
+                      // Check for canonical URLs
+                      const canonical = tempDiv.querySelector('link[rel="canonical"]');
+                      if (canonical) {
+                        const canonicalUrl = canonical.getAttribute('href');
+                        if (canonicalUrl && canonicalUrl.startsWith('http') && !canonicalUrl.includes(window.location.hostname)) {
+                          metaUrls.push({
+                            url: canonicalUrl,
+                            text: 'Canonical URL',
+                            domain: new URL(canonicalUrl).hostname,
+                            isMainArticle: true
+                          });
+                        }
+                      }
+                      
+                      // Check for meta og:url
+                      const ogUrl = tempDiv.querySelector('meta[property="og:url"]');
+                      if (ogUrl) {
+                        const ogUrlValue = ogUrl.getAttribute('content');
+                        if (ogUrlValue && ogUrlValue.startsWith('http') && !ogUrlValue.includes(window.location.hostname)) {
+                          metaUrls.push({
+                            url: ogUrlValue,
+                            text: 'Open Graph URL',
+                            domain: new URL(ogUrlValue).hostname,
+                            isMainArticle: true
+                          });
+                        }
+                      }
+                      
+                      return [...externalLinks, ...metaUrls];
+                    }
+                    
+                    return [];
+                  } catch (error) {
+                    console.error(`Error fetching article content: ${error.message}`);
+                    return [];
+                  }
+                }, item.url);
+                
+                // Add the found external URLs to our final list
+                articlePageContent.forEach(externalItem => {
+                  finalExternalUrls.push({
+                    url: externalItem.url,
+                    text: externalItem.text || item.text, // Fall back to original text if needed
+                    source: item.url,
+                    domain: externalItem.domain,
+                    isExternal: true
+                  });
+                });
+                
+                if (articlePageContent.length > 0) {
+                  log(`[LinkExtractor] Extracted ${articlePageContent.length} external URLs from ${item.url.substring(0, 60)}...`, "scraper");
+                }
+                
+              } catch (error) {
+                log(`[LinkExtractor] Error processing internal article URL ${item.url}: ${error.message}`, "scraper-error");
+              }
+            } else if (item.isExternal) {
+              // This is already an external URL, keep it
+              finalExternalUrls.push(item);
             }
-          });
-          
-          log(`[LinkExtractor] Converted to ${articleLinkData.length} LinkData objects for further processing`, "scraper");
-          
-          // Log special cases
-          const specialHandlingCount = articleLinkData.filter(item => !item.href).length;
-          if (specialHandlingCount > 0) {
-            log(`[LinkExtractor] Found ${specialHandlingCount} articles without direct URLs that need special handling`, "scraper");
           }
+          
+          // Convert to LinkData format
+          if (finalExternalUrls.length > 0) {
+            log(`[LinkExtractor] Step 3 Complete: Found ${finalExternalUrls.length} final external article URLs`, "scraper");
+            
+            articleLinkData = finalExternalUrls.map(item => ({
+              href: item.url,
+              text: item.text,
+              context: `External article from ${item.domain} (via ${item.source ? 'internal page' : 'direct'})`,
+              parentClass: 'htmx-external-article-final'
+            }));
+          } else {
+            // Fallback to original extraction if no external URLs found
+            log(`[LinkExtractor] Step 3: No external URLs found, falling back to original results`, "scraper");
+            
+            articleLinkData = externalArticleUrls.map(item => {
+              if (item.needsSpecialHandling && !item.url) {
+                return {
+                  href: '',
+                  text: item.text,
+                  context: item.context || `HTMX article from ${item.source}`,
+                  parentClass: item.parentClass || 'htmx-article-no-url'
+                };
+              } else {
+                return {
+                  href: item.url,
+                  text: item.text,
+                  context: item.isExternal ? `External article from ${item.domain}` : `Article from ${item.domain}`,
+                  parentClass: 'htmx-article-with-url'
+                };
+              }
+            });
+          }
+          
+          log(`[LinkExtractor] Final conversion: ${articleLinkData.length} LinkData objects ready for processing`, "scraper");
         } else {
           log(`[LinkExtractor] Step 2: No external article URLs found in HTMX content, falling back to regular extraction`, "scraper");
           
