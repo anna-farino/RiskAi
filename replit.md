@@ -127,9 +127,10 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 2, 2025 - Complete HTMX External Link Extraction Rearchitecture
-- **Successfully rearchitected HTMX extraction** to extract external article URLs from dynamically loaded content instead of internal page URLs
-- **Root cause**: Previous implementation extracted article URLs from main page instead of external links from HTMX-loaded content
+### July 2, 2025 - HTMX External Link Extraction Fix In Progress
+- **Identified critical control flow issue** preventing HTMX external links from being returned
+- **Root cause**: Main page extraction runs after HTMX external link extraction and overwrites the correct external URLs with internal Foorilla URLs
+- **Issue location**: Line 508 in link-extractor.ts runs traditional DOM extraction after HTMX processing completes
 - **Two-stage extraction process implemented**:
   1. **Extract HTMX endpoints**: Find all `hx-get` attributes pointing to `/media/items/[article-id]/` paths (79+ endpoints found)
   2. **Fetch external links**: Make HTMX requests to each endpoint and extract external article URLs from loaded content
