@@ -389,23 +389,31 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               if (response.ok) {
                 const html = await response.text();
                 
-                // Parse the HTML to extract external links
+                // Parse the HTML to extract external links from loaded content
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = html;
                 
+                // Look for external links within the loaded article content
                 const links = tempDiv.querySelectorAll('a[href]');
                 Array.from(links).forEach(link => {
                   const href = link.getAttribute('href');
                   const text = link.textContent?.trim() || '';
                   
                   // Only include external links (not foorilla.com links)
+                  // These should be the actual external article URLs like securityboulevard.com, siliconangle.com, etc.
                   if (href && href.startsWith('http') && !href.includes('foorilla.com')) {
+                    // Get the original article title from the endpoint data
+                    const articleTitle = endpoint.text || text;
+                    
                     allLinks.push({
                       href: href,
-                      text: text,
+                      text: articleTitle, // Use the article title from the main page
                       sourceEndpoint: endpoint.hxGet,
-                      sourceText: endpoint.text
+                      sourceText: endpoint.text,
+                      externalUrl: href // This is the actual external URL
                     });
+                    
+                    console.log(`Found external link: ${articleTitle} -> ${href}`);
                   }
                 });
                 
@@ -424,7 +432,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         
         // Convert external links to LinkData format for integration with existing system
         htmxLinkData = externalLinks.map(link => ({
-          href: link.href,
+          href: link.externalUrl || link.href,  // Use the external URL from the loaded content
           text: link.text,
           context: link.sourceText,
           parentClass: 'htmx-external-link'

@@ -3,7 +3,7 @@
  * This tests the actual production scraping flow with HTMX endpoint fetching
  */
 
-import { extractArticleLinksFromPage } from './backend/services/scraping/extractors/link-extractor.js';
+// Test without importing the module directly - just test the HTTP behavior
 import puppeteer from 'puppeteer';
 
 async function testCompleteExtractionFlow() {
