@@ -243,6 +243,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
 
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];
+    let htmxLinkData: LinkData[] = []; // Store HTMX-extracted external links
     
     const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
     const shouldForceExtraction = isHtmxSite && existingLinkData && existingLinkData.length < 15;
@@ -422,7 +423,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         log(`[LinkExtractor] Extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
         
         // Convert external links to LinkData format for integration with existing system
-        const htmxLinkData = externalLinks.map(link => ({
+        htmxLinkData = externalLinks.map(link => ({
           href: link.href,
           text: link.text,
           context: link.sourceText,
@@ -997,6 +998,14 @@ export async function extractArticleLinks(
         // Ensure all URLs are absolute after AI processing
         links = normalizeUrls(links, baseUrl);
       }
+    }
+    
+    // Add HTMX-extracted external links if available
+    if (htmxLinkData && htmxLinkData.length > 0) {
+      log(`[LinkExtractor] Adding ${htmxLinkData.length} HTMX-extracted external links to results`, "scraper");
+      const htmxLinks = htmxLinkData.map(link => link.href);
+      links = [...links, ...htmxLinks];
+      log(`[LinkExtractor] Total links after HTMX integration: ${links.length}`, "scraper");
     }
     
     // Apply max links limit
