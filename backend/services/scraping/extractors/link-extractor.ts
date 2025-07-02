@@ -507,10 +507,9 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         { timeout: 10000 }
       ).catch(() => log('[LinkExtractor] Timeout waiting for loading indicators', "scraper"));
 
-      // Extract all links after ensuring content is loaded - but skip if HTMX external links already extracted
-      if (!htmxExternalLinksExtracted) {
-        log('[LinkExtractor] Running main page extraction since HTMX external links not found', "scraper");
-        articleLinkData = await page.evaluate(() => {
+      // Extract all links after ensuring content is loaded
+      log(`[LinkExtractor] Running main page extraction. Current links: ${articleLinkData.length}`, "scraper");
+      const mainPageLinks = await page.evaluate(() => {
         // Get both <a> tags and potentially clickable elements that might be articles
         const allElements = Array.from(document.querySelectorAll('a, div[onclick], div[data-url], span[onclick], [data-href]'));
         
@@ -699,10 +698,25 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         });
       });
 
-      log(`[LinkExtractor] Extracted ${articleLinkData.length} potential article links`, "scraper");
+      // Merge main page links with existing HTMX external links (if any)
+      if (htmxExternalLinksExtracted) {
+        log(`[LinkExtractor] Merging ${mainPageLinks.length} main page links with ${articleLinkData.length} HTMX external links`, "scraper");
+        
+        // Create a Set of existing URLs to avoid duplicates
+        const existingUrls = new Set(articleLinkData.map(link => link.href));
+        
+        // Add main page links that aren't already present
+        const newMainPageLinks = mainPageLinks.filter(link => !existingUrls.has(link.href));
+        
+        articleLinkData = [...articleLinkData, ...newMainPageLinks];
+        log(`[LinkExtractor] Combined total: ${articleLinkData.length} unique links`, "scraper");
       } else {
-        log(`[LinkExtractor] Skipping main page extraction - using ${articleLinkData.length} HTMX external links`, "scraper");
+        // No HTMX external links, use main page links only
+        articleLinkData = mainPageLinks;
+        log(`[LinkExtractor] Using ${articleLinkData.length} main page links (no HTMX external links found)`, "scraper");
       }
+
+      log(`[LinkExtractor] Final merged result: ${articleLinkData.length} total article links`, "scraper");
 
       // Debug log: Print the extracted links data
       log(
