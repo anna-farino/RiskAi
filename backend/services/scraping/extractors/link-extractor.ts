@@ -243,7 +243,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
 
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];
-    let htmxLinkData: LinkData[] = []; // Store HTMX-extracted external links
+    // HTMX external links will be integrated directly into articleLinkData
     
     const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
     const shouldForceExtraction = isHtmxSite && existingLinkData && existingLinkData.length < 15;
@@ -430,16 +430,25 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         
         log(`[LinkExtractor] Extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
         
-        // Convert external links to LinkData format for integration with existing system
-        htmxLinkData = externalLinks.map(link => ({
-          href: link.externalUrl || link.href,  // Use the external URL from the loaded content
-          text: link.text,
-          context: link.sourceText,
-          parentClass: 'htmx-external-link'
-        }));
+        // External links are now integrated directly into articleLinkData above
         
         if (externalLinks.length > 0) {
           log(`[LinkExtractor] Successfully extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
+          
+          // Add external links to the article data
+          const htmxExternalLinks = externalLinks.map(link => ({
+            href: link.externalUrl || link.href,
+            text: link.text,
+            sourceDomain: '',
+            domain: '',
+            context: link.sourceText,
+            parentClass: 'htmx-external-link'
+          }));
+          
+          // Append HTMX external links to the main article data
+          articleLinkData = [...(articleLinkData || []), ...htmxExternalLinks];
+          log(`[LinkExtractor] Added ${htmxExternalLinks.length} HTMX external links to article data`, "scraper");
+          
           // Wait for any additional processing
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
@@ -1008,13 +1017,7 @@ export async function extractArticleLinks(
       }
     }
     
-    // Add HTMX-extracted external links if available
-    if (htmxLinkData && htmxLinkData.length > 0) {
-      log(`[LinkExtractor] Adding ${htmxLinkData.length} HTMX-extracted external links to results`, "scraper");
-      const htmxLinks = htmxLinkData.map(link => link.href);
-      links = [...links, ...htmxLinks];
-      log(`[LinkExtractor] Total links after HTMX integration: ${links.length}`, "scraper");
-    }
+    // HTMX external links integration moved to proper location
     
     // Apply max links limit
     if (options?.maxLinks && links.length > options.maxLinks) {
