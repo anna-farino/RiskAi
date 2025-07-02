@@ -243,8 +243,6 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
 
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];
-    let htmxExternalLinksExtracted = false; // Track if HTMX external links were successfully extracted
-    // HTMX external links will be integrated directly into articleLinkData
     
     const isHtmxSite = hasHtmx.scriptLoaded || hasHtmx.htmxInWindow || hasHtmx.hasHxAttributes;
     const shouldForceExtraction = isHtmxSite && existingLinkData && existingLinkData.length < 15;
@@ -336,142 +334,74 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
         }
 
-        // Extract HTMX article endpoints and fetch external links
-        log(`[LinkExtractor] Extracting HTMX article endpoints and fetching external links...`, "scraper");
+        // Specifically for foorilla.com and similar sites, manually fetch HTMX content
+        log(`[LinkExtractor] Attempting to load HTMX content directly...`, "scraper");
         
+        // Get the current page URL to construct proper HTMX endpoints
         const currentUrl = page.url();
         const currentBaseUrl = new URL(currentUrl).origin;
         
-        // First extract all hx-get endpoints that look like articles
-        const articleEndpoints = await page.evaluate(() => {
-          const elements = document.querySelectorAll('[hx-get]');
-          return Array.from(elements)
-            .map(el => ({
-              hxGet: el.getAttribute('hx-get'),
-              text: el.textContent?.trim().substring(0, 100) || '',
-              tagName: el.tagName.toLowerCase()
-            }))
-            .filter(endpoint => 
-              endpoint.hxGet && 
-              endpoint.hxGet.includes('/media/items/') &&
-              endpoint.text.length > 10 && // Has meaningful text
-              !endpoint.hxGet.includes('/media/items/top/') && // Avoid navigation endpoints
-              !endpoint.hxGet.includes('/media/filter/') &&
-              !endpoint.hxGet.includes('/topics/')
-            )
-            .slice(0, 20); // Limit to first 20 article endpoints
-        });
-        
-        log(`[LinkExtractor] Found ${articleEndpoints.length} article endpoints to process`, "scraper");
-        
-        // Now fetch each article endpoint to extract external links
-        const externalLinks = await page.evaluate(async (articleEndpoints, baseUrl) => {
-          const allLinks = [];
+        // Manually fetch HTMX endpoints that contain articles
+        const htmxContent = await page.evaluate(async (currentBaseUrl) => {
+          let totalContentLoaded = 0;
           
-          // Set up HTMX headers
-          const htmxHeaders = {
-            'HX-Request': 'true',
-            'HX-Trigger': 'article-link',
-            'HX-Target': 'content-container',
-            'Accept': 'text/html, */*'
-          };
+          // Common HTMX endpoints for article content (based on working endpoints)
+          const endpoints = [
+            '/media/items/',
+            '/media/items/top/',
+            '/media/items/recent/',
+            '/media/items/popular/'
+          ];
           
-          for (let i = 0; i < Math.min(articleEndpoints.length, 15); i++) {
-            const endpoint = articleEndpoints[i];
-            const fullUrl = `${baseUrl}${endpoint.hxGet}`;
-            
+          // Get CSRF token from page if available
+          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                           document.querySelector('input[name="_token"]')?.getAttribute('value') ||
+                           document.querySelector('[name="csrfmiddlewaretoken"]')?.getAttribute('value');
+          
+          // Get screen size info for headers
+          const screenType = window.innerWidth < 768 ? 'M' : 'D';
+          
+          for (const endpoint of endpoints) {
             try {
-              console.log(`Fetching article endpoint ${i + 1}/${Math.min(articleEndpoints.length, 15)}: ${fullUrl}`);
+              const headers = {
+                'HX-Request': 'true',
+                'HX-Current-URL': window.location.href,
+                'Accept': 'text/html, */*'
+              };
               
-              const response = await fetch(fullUrl, { 
-                headers: htmxHeaders
-              });
+              // Add CSRF token if available
+              if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+              }
+              
+              // Add screen type header
+              headers['X-Screen'] = screenType;
+              
+              console.log(`Fetching HTMX content from: ${currentBaseUrl}${endpoint}`);
+              const response = await fetch(`${currentBaseUrl}${endpoint}`, { headers });
               
               if (response.ok) {
                 const html = await response.text();
+                console.log(`Loaded ${html.length} chars from ${endpoint}`);
                 
-                // Parse the HTML to extract external links from loaded content
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                
-                // Look for external links within the loaded article content
-                const links = tempDiv.querySelectorAll('a[href]');
-                Array.from(links).forEach(link => {
-                  const href = link.getAttribute('href');
-                  const text = link.textContent?.trim() || '';
-                  
-                  // Only include external links (not foorilla.com links)
-                  // These should be the actual external article URLs like securityboulevard.com, siliconangle.com, etc.
-                  if (href && href.startsWith('http') && !href.includes('foorilla.com')) {
-                    // Get the original article title from the endpoint data
-                    const articleTitle = endpoint.text || text;
-                    
-                    allLinks.push({
-                      href: href,
-                      text: articleTitle, // Use the article title from the main page
-                      sourceEndpoint: endpoint.hxGet,
-                      sourceText: endpoint.text,
-                      externalUrl: href // This is the actual external URL
-                    });
-                    
-                    console.log(`Found external link: ${articleTitle} -> ${href}`);
-                  }
-                });
-                
-                // Small delay between requests
-                await new Promise(resolve => setTimeout(resolve, 200));
+                // Insert content into page
+                const container = document.createElement('div');
+                container.className = 'htmx-injected-content';
+                container.setAttribute('data-source', endpoint);
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                totalContentLoaded += html.length;
               }
-            } catch (error) {
-              console.error(`Error fetching ${fullUrl}:`, error);
+            } catch (e) {
+              console.error(`Error fetching ${endpoint}:`, e);
             }
           }
           
-          return allLinks;
-        }, articleEndpoints, currentBaseUrl);
+          return totalContentLoaded;
+        }, currentBaseUrl);
         
-        log(`[LinkExtractor] Extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
-        
-        // External links are now integrated directly into articleLinkData above
-        
-        if (externalLinks.length > 0) {
-          log(`[LinkExtractor] Successfully extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
-          
-          // Add external links to the article data
-          const htmxExternalLinks = externalLinks.map(link => {
-            const url = link.externalUrl || link.href;
-            // Extract domain from URL safely
-            let sourceDomain = '';
-            if (url && url.startsWith('http')) {
-              try {
-                const urlParts = url.split('/');
-                if (urlParts.length > 2) {
-                  sourceDomain = urlParts[2]; // hostname is the 3rd part after protocol
-                }
-              } catch (e) {
-                sourceDomain = '';
-              }
-            }
-            return {
-              href: url,
-              text: link.text,
-              sourceDomain: sourceDomain,
-              domain: sourceDomain,
-              context: link.sourceText,
-              parentClass: 'htmx-external-link'
-            };
-          });
-          
-          // For HTMX sites, prioritize external links over main page links
-          if (htmxExternalLinks.length > 0) {
-            articleLinkData = htmxExternalLinks; // Replace main page links with external links
-            htmxExternalLinksExtracted = true; // Mark that we have external links
-            log(`[LinkExtractor] Using ${htmxExternalLinks.length} HTMX external links as primary data source`, "scraper");
-          } else {
-            // Fallback: append to existing data if no external links found
-            articleLinkData = [...(articleLinkData || []), ...htmxExternalLinks];
-            log(`[LinkExtractor] Added ${htmxExternalLinks.length} HTMX external links to article data`, "scraper");
-          }
-          
+        if (htmxContent > 0) {
+          log(`[LinkExtractor] Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
           // Wait for any additional processing
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
@@ -522,9 +452,8 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         { timeout: 10000 }
       ).catch(() => log('[LinkExtractor] Timeout waiting for loading indicators', "scraper"));
 
-      // Extract all links after ensuring content is loaded
-      log(`[LinkExtractor] Running main page extraction. Current links: ${articleLinkData.length}`, "scraper");
-      const mainPageLinks = await page.evaluate(() => {
+      // Extract all links after ensuring content is loaded - comprehensive extraction
+      articleLinkData = await page.evaluate(() => {
         // Get both <a> tags and potentially clickable elements that might be articles
         const allElements = Array.from(document.querySelectorAll('a, div[onclick], div[data-url], span[onclick], [data-href]'));
         
@@ -553,72 +482,14 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
                     (parent.getAttribute('data-post-id') ? `/post/${parent.getAttribute('data-post-id')}` : '');
             }
             
-            // If still no href and this looks like an article title, construct a URL
+            // If still no href and this looks like an article title, construct a placeholder
             if (!href && text.split(' ').length >= 4) {
-              // Generate a slug from the title for URL construction
+              // Generate a slug from the title for potential URL construction
               const slug = text.toLowerCase()
                 .replace(/[^a-z0-9\s]/g, '')
                 .replace(/\s+/g, '-')
-                .replace(/^-+|-+$/g, '') // Remove leading/trailing dashes
-                .replace(/-{2,}/g, '-'); // Replace multiple dashes with single dash
-              
-              // Try to detect source domain from context first
-              let tempSourceDomain = '';
-              
-              // First try list item (Foorilla pattern)
-              const listItem = element.closest('li, .list-group-item');
-              if (listItem) {
-                const smallElements = Array.from(listItem.querySelectorAll('small'));
-                for (const small of smallElements) {
-                  const sourceText = small.textContent?.trim() || '';
-                  const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
-                  if (domainMatch) {
-                    const domain = domainMatch[1];
-                    if (!domain.includes('foorilla') && 
-                        !domain.includes('google') && 
-                        !domain.includes('facebook') && 
-                        !domain.includes('twitter') &&
-                        !domain.includes('localStorage') &&
-                        !domain.includes('document.') &&
-                        domain.length > 5) {
-                      tempSourceDomain = domain;
-                      break;
-                    }
-                  }
-                }
-              }
-              
-              // Fallback to broader container search
-              if (!tempSourceDomain) {
-                const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
-                if (articleContainer) {
-                  const smallElements = Array.from(articleContainer.querySelectorAll('small'));
-                  for (const small of smallElements) {
-                    const sourceText = small.textContent?.trim() || '';
-                    const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
-                    if (domainMatch) {
-                      const domain = domainMatch[1];
-                      if (!domain.includes('foorilla') && 
-                          !domain.includes('google') && 
-                          !domain.includes('facebook') && 
-                          !domain.includes('twitter') &&
-                          !domain.includes('localStorage') &&
-                          !domain.includes('document.') &&
-                          domain.length > 5) {
-                        tempSourceDomain = domain;
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-              
-              // Construct URL with source domain if available
-              if (tempSourceDomain) {
-                href = `https://${tempSourceDomain}/${slug}`;
-              } else {
-                href = `/article/${slug}`;
-              }
+                .substring(0, 50);
+              href = `/article/${slug}`;
             }
           }
           const context = element.parentElement?.textContent?.trim() || '';
@@ -627,66 +498,11 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           // Get more comprehensive context
           const fullContext = element.closest('article, .post, .item, .entry, .content, .card, .tdi_65')?.textContent?.trim() || context;
           
-          // Extract source domain for aggregated content
-          let sourceDomain = '';
-          
-          // First try to find in immediate article context (Foorilla pattern)
-          const listItem = element.closest('li, .list-group-item');
-          if (listItem) {
-            // Look for domain in small elements within the same list item
-            const smallElements = Array.from(listItem.querySelectorAll('small'));
-            for (const small of smallElements) {
-              const sourceText = small.textContent?.trim() || '';
-              // Check if this small element contains only a domain
-              const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
-              if (domainMatch) {
-                const domain = domainMatch[1];
-                // Filter out common non-source domains
-                if (!domain.includes('foorilla') && 
-                    !domain.includes('google') && 
-                    !domain.includes('facebook') && 
-                    !domain.includes('twitter') &&
-                    !domain.includes('localStorage') &&
-                    !domain.includes('document.') &&
-                    domain.length > 5) {
-                  sourceDomain = domain;
-                  break;
-                }
-              }
-            }
-          }
-          
-          // Fallback: broader article container search
-          if (!sourceDomain) {
-            const articleContainer = element.closest('article, .post, .item, .entry, .content, .card, div[class*="tdi"]');
-            if (articleContainer) {
-              const smallElements = Array.from(articleContainer.querySelectorAll('small'));
-              for (const small of smallElements) {
-                const sourceText = small.textContent?.trim() || '';
-                const domainMatch = sourceText.match(/^([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$/);
-                if (domainMatch) {
-                  const domain = domainMatch[1];
-                  if (!domain.includes('foorilla') && 
-                      !domain.includes('google') && 
-                      !domain.includes('facebook') && 
-                      !domain.includes('twitter') &&
-                      !domain.includes('localStorage') &&
-                      !domain.includes('document.') &&
-                      domain.length > 5) {
-                    sourceDomain = domain;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-          
           return {
             href,
             text,
             context: fullContext.substring(0, 200), // Limit context length
-            parentClass,
-            sourceDomain: sourceDomain || '' // Include detected source domain
+            parentClass
           };
         }).filter(link => {
           const href = link.href;
@@ -700,31 +516,12 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           if (textLower.includes('login') || textLower.includes('register') || 
               textLower.includes('contact') || textLower.includes('about') ||
               textLower.includes('privacy') || textLower.includes('terms') ||
-              textLower.includes('menu') || textLower.includes('clear') ||
-              textLower.includes('hiring') || textLower.includes('media') ||
-              textLower.includes('topics') || textLower.includes('filters') ||
-              textLower.includes('foorilla') || textLower.includes('foo🦍')) {
+              textLower.includes('menu')) {
             return false;
           }
           
-          // Skip very short navigation text but allow longer article titles
-          if (text.length < 3 || ['top', 'new', 'old', 'all', 'clear', 'hiring', 'media', 'topics»', 'filters»'].includes(textLower)) {
-            return false;
-          }
-          
-          // Skip relative navigation URLs that are clearly not articles
-          if (href && (href === '/' || href === '/clear/' || href === '/hiring/' || 
-                       href === '/media/' || href.startsWith('#') || href === '')) {
-            return false;
-          }
-          
-          // Allow article-like content: longer text that looks like headlines
-          if (text.length >= 20 && text.includes(' ')) {
-            return true; // Likely an article title
-          }
-          
-          // Skip very short text unless it has a meaningful href
-          if (text.length < 8 && (!href || href.length < 10)) {
+          // Skip very short navigation text
+          if (text.length < 3 || ['top', 'new', 'old', 'all'].includes(textLower)) {
             return false;
           }
           
@@ -732,72 +529,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         });
       });
 
-      // Merge main page links with existing HTMX external links (if any)
-      if (htmxExternalLinksExtracted) {
-        log(`[LinkExtractor] Merging ${mainPageLinks.length} main page links with ${articleLinkData.length} HTMX external links`, "scraper");
-        
-        // Create a Set of existing URLs to avoid duplicates
-        const existingUrls = new Set(articleLinkData.map(link => link.href));
-        
-        // Add main page links that aren't already present
-        const newMainPageLinks = mainPageLinks.filter(link => !existingUrls.has(link.href));
-        
-        articleLinkData = [...articleLinkData, ...newMainPageLinks];
-        log(`[LinkExtractor] Combined total: ${articleLinkData.length} unique links`, "scraper");
-      } else {
-        // No HTMX external links, use main page links only
-        articleLinkData = mainPageLinks;
-        log(`[LinkExtractor] Using ${articleLinkData.length} main page links (no HTMX external links found)`, "scraper");
-      }
-
-      // Normalize URLs - convert relative URLs to absolute URLs
-      log(`[LinkExtractor] Normalizing ${articleLinkData.length} URLs...`, "scraper");
-      
-      articleLinkData = articleLinkData.map(link => {
-        let normalizedHref = link.href;
-        
-        // Convert relative URLs to absolute URLs
-        if (normalizedHref && !normalizedHref.startsWith('http') && !normalizedHref.startsWith('mailto:')) {
-          if (normalizedHref.startsWith('/')) {
-            // Absolute path - add domain
-            try {
-              const parsedBaseUrl = new URL(baseUrl);
-              normalizedHref = `${parsedBaseUrl.protocol}//${parsedBaseUrl.host}${normalizedHref}`;
-            } catch (e) {
-              // If baseUrl parsing fails, keep original href
-            }
-          } else if (!normalizedHref.startsWith('#')) {
-            // Relative path - add full base URL
-            try {
-              normalizedHref = new URL(normalizedHref, baseUrl).href;
-            } catch (e) {
-              // If URL construction fails, keep original href
-            }
-          }
-        }
-        
-        // Extract source domain if not already set  
-        let sourceDomain = (link as any).sourceDomain || '';
-        if (!sourceDomain && normalizedHref && normalizedHref.startsWith('http')) {
-          try {
-            const urlParts = normalizedHref.split('/');
-            if (urlParts.length > 2) {
-              sourceDomain = urlParts[2]; // hostname is the 3rd part
-            }
-          } catch (e) {
-            sourceDomain = '';
-          }
-        }
-        
-        return {
-          ...link,
-          href: normalizedHref,
-          domain: sourceDomain,
-          sourceDomain: sourceDomain
-        };
-      });
-
-      log(`[LinkExtractor] Final merged result: ${articleLinkData.length} total article links`, "scraper");
+      log(`[LinkExtractor] Extracted ${articleLinkData.length} potential article links`, "scraper");
 
       // Debug log: Print the extracted links data
       log(
@@ -1124,8 +856,6 @@ export async function extractArticleLinks(
         links = normalizeUrls(links, baseUrl);
       }
     }
-    
-    // HTMX external links integration moved to proper location
     
     // Apply max links limit
     if (options?.maxLinks && links.length > options.maxLinks) {

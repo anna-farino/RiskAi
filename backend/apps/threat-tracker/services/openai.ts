@@ -291,80 +291,21 @@ export async function identifyArticleLinks(
         "openai-error",
       );
       
-      // Try to extract valid JSON from truncated response with better URL preservation
-      let jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[(.*)\]/s);
-      if (!jsonMatch) {
-        // If complete array not found, try to find partial array and extract complete URLs
-        jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[(.*)/s);
-        if (jsonMatch) {
-          // Extract complete URLs from the partial array content
-          const partialContent = jsonMatch[1];
-          // More comprehensive URL extraction that handles both complete and incomplete URLs
-          const urlMatches = partialContent.match(/"https?:\/\/[^"]*"?/g) || [];
-          
-          // Only include complete URLs (no truncated ones)
-          const completeUrls = urlMatches.filter(url => {
-            // Clean the URL string (remove quotes, handle incomplete quotes)
-            let cleanUrl = url;
-            if (cleanUrl.startsWith('"')) cleanUrl = cleanUrl.slice(1);
-            if (cleanUrl.endsWith('"')) cleanUrl = cleanUrl.slice(0, -1);
-            
-            // Basic length check
-            if (cleanUrl.length < 10) return false;
-            
-            // Check if URL looks complete (not truncated)
-            // URLs ending with these patterns are likely complete
-            if (cleanUrl.endsWith('/') || 
-                cleanUrl.includes('?') ||
-                cleanUrl.includes('#') ||
-                cleanUrl.match(/\.(html|php|aspx|jsp)$/)) {
-              return true;
-            }
-            
-            // Avoid URLs that look truncated (ending with dash or suspicious patterns)
-            if (cleanUrl.endsWith('-')) {
-              return false;
-            }
-            
-            // Check for suspicious truncation patterns (ending with partial words or single letters after dash/slash)
-            if (cleanUrl.match(/[-\/][a-z]$/) || // Ends with dash or slash followed by single letter
-                cleanUrl.match(/[a-z]-[a-z]$/) || // Ends with letter-dash-letter pattern 
-                cleanUrl.match(/[0-9][a-z]$/) || // Ends with number followed by single letter
-                cleanUrl.match(/^\w+$/) || // Only contains letters/numbers (no domain structure)
-                cleanUrl.length < 20) { // Very short URLs are suspicious
-              return false;
-            }
-            
-            // If URL is reasonably long and doesn't show truncation patterns, include it
-            return cleanUrl.length > 30;
-          });
-          
-          if (completeUrls.length > 0) {
-            try {
-              const reconstructedJson = `{"articleUrls": [${completeUrls.join(',')}]}`;
-              result = JSON.parse(reconstructedJson);
-              log(`[ThreatTracker] Recovered ${completeUrls.length} complete URLs from truncated JSON`, "openai");
-            } catch (recoveryError) {
-              log(`[ThreatTracker] JSON reconstruction failed, returning empty array`, "openai-error");
-              return [];
-            }
-          } else {
-            log(`[ThreatTracker] No complete URLs found in truncated response, returning empty array`, "openai-error");
-            return [];
-          }
-        } else {
-          log(`[ThreatTracker] Could not find articleUrls array in response, returning empty array`, "openai-error");
+      // Try to extract valid JSON from truncated response
+      const jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[[^\]]*\]/);
+      if (jsonMatch) {
+        try {
+          const partialJson = jsonMatch[0] + ']}';
+          result = JSON.parse(partialJson);
+          log(`[ThreatTracker] Recovered from truncated JSON`, "openai");
+        } catch (recoveryError) {
+          // If recovery fails, return empty array instead of crashing
+          log(`[ThreatTracker] JSON recovery failed, returning empty array`, "openai-error");
           return [];
         }
       } else {
-        try {
-          const partialJson = jsonMatch[0] + '}';
-          result = JSON.parse(partialJson);
-          log(`[ThreatTracker] Recovered from complete JSON match`, "openai");
-        } catch (recoveryError) {
-          log(`[ThreatTracker] JSON recovery from complete match failed, returning empty array`, "openai-error");
-          return [];
-        }
+        log(`[ThreatTracker] Could not recover JSON, returning empty array`, "openai-error");
+        return [];
       }
     }
 
