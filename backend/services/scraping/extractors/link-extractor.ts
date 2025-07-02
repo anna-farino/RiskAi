@@ -437,14 +437,29 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           log(`[LinkExtractor] Successfully extracted ${externalLinks.length} external links from HTMX endpoints`, "scraper");
           
           // Add external links to the article data
-          const htmxExternalLinks = externalLinks.map(link => ({
-            href: link.externalUrl || link.href,
-            text: link.text,
-            sourceDomain: '',
-            domain: '',
-            context: link.sourceText,
-            parentClass: 'htmx-external-link'
-          }));
+          const htmxExternalLinks = externalLinks.map(link => {
+            const url = link.externalUrl || link.href;
+            // Extract domain from URL safely
+            let sourceDomain = '';
+            if (url && url.startsWith('http')) {
+              try {
+                const urlParts = url.split('/');
+                if (urlParts.length > 2) {
+                  sourceDomain = urlParts[2]; // hostname is the 3rd part after protocol
+                }
+              } catch (e) {
+                sourceDomain = '';
+              }
+            }
+            return {
+              href: url,
+              text: link.text,
+              sourceDomain: sourceDomain,
+              domain: sourceDomain,
+              context: link.sourceText,
+              parentClass: 'htmx-external-link'
+            };
+          });
           
           // For HTMX sites, prioritize external links over main page links
           if (htmxExternalLinks.length > 0) {
@@ -685,12 +700,21 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           if (textLower.includes('login') || textLower.includes('register') || 
               textLower.includes('contact') || textLower.includes('about') ||
               textLower.includes('privacy') || textLower.includes('terms') ||
-              textLower.includes('menu')) {
+              textLower.includes('menu') || textLower.includes('clear') ||
+              textLower.includes('hiring') || textLower.includes('media') ||
+              textLower.includes('topics') || textLower.includes('filters') ||
+              textLower.includes('foorilla') || textLower.includes('foo🦍')) {
             return false;
           }
           
-          // Skip very short navigation text
-          if (text.length < 3 || ['top', 'new', 'old', 'all'].includes(textLower)) {
+          // Skip very short navigation text and single characters
+          if (text.length < 8 || ['top', 'new', 'old', 'all', 'clear', 'hiring', 'media', 'topics»', 'filters»'].includes(textLower)) {
+            return false;
+          }
+          
+          // Skip relative navigation URLs that are clearly not articles
+          if (href && (href === '/' || href === '/clear/' || href === '/hiring/' || 
+                       href === '/media/' || href.startsWith('#') || href === '')) {
             return false;
           }
           
@@ -715,6 +739,53 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
         articleLinkData = mainPageLinks;
         log(`[LinkExtractor] Using ${articleLinkData.length} main page links (no HTMX external links found)`, "scraper");
       }
+
+      // Normalize URLs - convert relative URLs to absolute URLs
+      log(`[LinkExtractor] Normalizing ${articleLinkData.length} URLs...`, "scraper");
+      
+      articleLinkData = articleLinkData.map(link => {
+        let normalizedHref = link.href;
+        
+        // Convert relative URLs to absolute URLs
+        if (normalizedHref && !normalizedHref.startsWith('http') && !normalizedHref.startsWith('mailto:')) {
+          if (normalizedHref.startsWith('/')) {
+            // Absolute path - add domain
+            try {
+              const parsedBaseUrl = new URL(baseUrl);
+              normalizedHref = `${parsedBaseUrl.protocol}//${parsedBaseUrl.host}${normalizedHref}`;
+            } catch (e) {
+              // If baseUrl parsing fails, keep original href
+            }
+          } else if (!normalizedHref.startsWith('#')) {
+            // Relative path - add full base URL
+            try {
+              normalizedHref = new URL(normalizedHref, baseUrl).href;
+            } catch (e) {
+              // If URL construction fails, keep original href
+            }
+          }
+        }
+        
+        // Extract source domain if not already set  
+        let sourceDomain = (link as any).sourceDomain || '';
+        if (!sourceDomain && normalizedHref && normalizedHref.startsWith('http')) {
+          try {
+            const urlParts = normalizedHref.split('/');
+            if (urlParts.length > 2) {
+              sourceDomain = urlParts[2]; // hostname is the 3rd part
+            }
+          } catch (e) {
+            sourceDomain = '';
+          }
+        }
+        
+        return {
+          ...link,
+          href: normalizedHref,
+          domain: sourceDomain,
+          sourceDomain: sourceDomain
+        };
+      });
 
       log(`[LinkExtractor] Final merged result: ${articleLinkData.length} total article links`, "scraper");
 
