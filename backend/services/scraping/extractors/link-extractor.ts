@@ -707,14 +707,24 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
             return false;
           }
           
-          // Skip very short navigation text and single characters
-          if (text.length < 8 || ['top', 'new', 'old', 'all', 'clear', 'hiring', 'media', 'topics»', 'filters»'].includes(textLower)) {
+          // Skip very short navigation text but allow longer article titles
+          if (text.length < 3 || ['top', 'new', 'old', 'all', 'clear', 'hiring', 'media', 'topics»', 'filters»'].includes(textLower)) {
             return false;
           }
           
           // Skip relative navigation URLs that are clearly not articles
           if (href && (href === '/' || href === '/clear/' || href === '/hiring/' || 
                        href === '/media/' || href.startsWith('#') || href === '')) {
+            return false;
+          }
+          
+          // Allow article-like content: longer text that looks like headlines
+          if (text.length >= 20 && text.includes(' ')) {
+            return true; // Likely an article title
+          }
+          
+          // Skip very short text unless it has a meaningful href
+          if (text.length < 8 && (!href || href.length < 10)) {
             return false;
           }
           
