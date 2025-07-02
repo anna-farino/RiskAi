@@ -127,32 +127,33 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 1, 2025 - Fixed Critical HTMX Extraction Issues (0 → 84+ Links)
-- **Implemented advanced HTMX link extraction system** based on working ThreatTracker implementation
-- **Root cause**: Current HTMX detection was basic and didn't handle dynamic content loading properly
-- **Solution implemented**:
-  - **Comprehensive link filtering**: Improved article detection with inclusive filtering for better coverage of legitimate articles
-  - **Aggressive HTMX triggering**: Modified system to trigger up to 50 HTMX elements instead of just 10 for maximum content loading
-  - **Improved context extraction**: Enhanced link context extraction using closest parent elements (article, .post, .item, .tdi_65, etc.)
-  - **Multi-trigger support**: Added support for mouseover, focus, and other HTMX trigger types beyond just click events
-  - **Comprehensive re-extraction**: After all HTMX content loading, perform complete re-extraction with improved filtering logic
-  - **Better element detection**: Enhanced visibility checks and intelligent filtering to skip search/filter elements while processing content elements
-- **Advanced detection includes**:
-  - Script tag patterns, inline script content scanning, window object checks
-  - Complete HTMX attribute pattern matching including data-* variants
-  - Element triggering with smart filtering (skip search/filter elements)
-  - Direct endpoint fetching with proper headers (HX-Request, CSRF tokens, screen size)
-  - Network request interception and manual fetching for content-loading endpoints
+### July 2, 2025 - Streamlined HTMX External URL Extraction Complete
+- **Implemented streamlined two-step HTMX extraction process** specifically targeting external article URLs
+- **Root cause**: Previous HTMX extraction was collecting internal navigation links instead of final external article URLs
+- **New streamlined approach**:
+  - **Step 1: Load all HTMX content** - Fetch all hx-get endpoints and common HTMX patterns to load dynamic content
+  - **Step 2: Extract external URLs only** - Filter loaded content specifically for external article URLs, ignoring internal navigation
+- **Key improvements**:
+  - **Direct endpoint fetching**: Automatically fetch all discovered hx-get URLs plus common patterns (/media/items/, etc.)
+  - **External URL filtering**: Smart filtering to identify legitimate external article domains (news sites, tech blogs, etc.)
+  - **Pattern-based article detection**: Identifies article URLs by domain patterns and path structures
+  - **Deduplication logic**: Removes duplicate URLs while preserving unique external articles
+  - **Comprehensive domain coverage**: Includes major news sources like siliconangle.com, techcrunch.com, reuters.com, etc.
 - **Architecture updates**:
-  - New `extractLinksWithAdvancedHTMX` method in unified scraper for dedicated HTMX handling
-  - Smart detection logic to choose between standard and advanced extraction methods
-  - Proper browser management integration with automatic page cleanup
-- **Impact**: 
-  - **Dramatic improvement in extraction coverage**: System now targets 50+ links from HTMX sites instead of limiting to 20
-  - **Real-world validation**: Analysis showed Foorilla has 77 article-like links available - system now configured to extract maximum coverage
-  - **Enhanced content loading**: Up to 50 HTMX elements triggered simultaneously for comprehensive dynamic content loading
-  - **Better article detection**: Improved filtering logic reduces false negatives while maintaining quality thresholds
-  - **Scalable approach**: Dynamic detection and processing works for all HTMX sites without URL-specific configuration
+  - Enhanced `extractLinksFromPage` with two-phase HTMX processing
+  - Smart container detection for HTMX-loaded content (.htmx-loaded-content, .htmx-common-content)
+  - External URL validation with hostname filtering
+  - Fallback extraction for cases where HTMX content doesn't yield external URLs
+- **Technical implementation**:
+  - Fetches HTMX endpoints with proper headers (HX-Request, HX-Current-URL)
+  - Inserts loaded content into identifiable containers for targeted extraction
+  - Filters URLs by external domains and article path patterns
+  - Returns only external article URLs, eliminating internal site navigation
+- **Impact**:
+  - **Focus on external articles**: System now extracts final external article URLs instead of internal HTMX slugs
+  - **Simplified workflow**: Two-step process eliminates complex multi-layer extraction logic
+  - **Better quality results**: External URL filtering ensures users get actual readable articles
+  - **Real-world validation**: Designed for sites like Foorilla that load external article links via HTMX
 
 ### June 27, 2025 - HTMX Dynamic Content Loading Fix Complete
 - **Fixed critical HTMX scraping issue** preventing detection of article links on dynamic sites like Foorilla

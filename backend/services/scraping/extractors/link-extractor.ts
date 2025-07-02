@@ -700,6 +700,7 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
           log(`[LinkExtractor] Found ${additionalLinks.length - articleLinkData.length} additional links after scrolling`, "scraper");
           articleLinkData = additionalLinks;
         }
+      }
     }
     
     log(`[LinkExtractor] Final extraction: ${articleLinkData.length} links from dynamic page`, "scraper");
@@ -853,7 +854,8 @@ export async function extractArticleLinks(
     return links;
     
   } catch (error: any) {
-    log(`[LinkExtractor] Error during link extraction: ${error.message}`, "scraper-error");
-    throw new Error(`Failed to extract article links: ${error.message}`);
+    log(`[LinkExtractor] Error during page link extraction: ${error.message}`, "scraper-error");
+    throw new Error(`Failed to extract article links from page: ${error.message}`);
   }
 }
+
