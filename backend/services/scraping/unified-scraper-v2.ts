@@ -279,8 +279,8 @@ export class StreamlinedUnifiedScraper {
   }
 
   /**
-   * Step 3: Simple content extraction
-   * Use selectors to extract content directly
+   * Step 3: Enhanced content extraction with comprehensive recovery
+   * Use selectors to extract content directly with fallback recovery
    */
   private extractContentWithSelectors(html: string, config: ScrapingConfig): Partial<ArticleContent> {
     const $ = cheerio.load(html);
@@ -292,26 +292,508 @@ export class StreamlinedUnifiedScraper {
 
     log(`[SimpleScraper] Extracting content using selectors - title: "${config.titleSelector}", content: "${config.contentSelector}"`, "scraper");
 
-    // Extract title
+    // Phase 1: Detailed selector debugging
+    this.debugSelectorUsage($, config);
+
+    // Extract title with recovery
     if (config.titleSelector) {
-      result.title = $(config.titleSelector).first().text().trim();
-      log(`[SimpleScraper] Title extracted: "${result.title}" (${result.title.length} chars)`, "scraper");
+      result.title = this.extractWithRecovery($, config.titleSelector, 'title');
+      log(`[SimpleScraper] Title extracted: "${result.title}" (${result.title?.length || 0} chars)`, "scraper");
     }
 
-    // Extract content
+    // Extract content with comprehensive recovery
     if (config.contentSelector) {
-      const contentElements = $(config.contentSelector);
-      result.content = contentElements.map((_, el) => $(el).text()).get().join('\n').trim();
-      log(`[SimpleScraper] Content extracted: ${result.content.length} chars from ${contentElements.length} elements`, "scraper");
+      const contentResult = this.extractContentWithRecovery($, config, html);
+      result.content = contentResult.content;
+      result.confidence = Math.min(result.confidence || 0.9, contentResult.confidence);
+      log(`[SimpleScraper] Content extracted: ${result.content?.length || 0} chars (confidence: ${result.confidence})`, "scraper");
     }
 
-    // Extract author
+    // Extract author with recovery
     if (config.authorSelector) {
-      result.author = $(config.authorSelector).first().text().trim();
+      result.author = this.extractWithRecovery($, config.authorSelector, 'author');
       log(`[SimpleScraper] Author extracted: "${result.author}"`, "scraper");
     }
 
     return result;
+  }
+
+  /**
+   * Phase 1: Debug selector usage with comprehensive logging
+   */
+  private debugSelectorUsage($: cheerio.CheerioAPI, config: ScrapingConfig): void {
+    log(`[SelectorDebug] === SELECTOR DEBUGGING START ===`, "scraper");
+    
+    // Debug each selector
+    ['titleSelector', 'contentSelector', 'authorSelector', 'dateSelector'].forEach(selectorType => {
+      const selector = config[selectorType as keyof ScrapingConfig] as string;
+      if (selector && typeof selector === 'string') {
+        const elements = $(selector);
+        log(`[SelectorDebug] ${selectorType}: "${selector}" → ${elements.length} elements found`, "scraper");
+        
+        if (elements.length > 0) {
+          // Log first element details
+          const firstEl = elements.first();
+          const tagName = firstEl.prop('tagName')?.toLowerCase();
+          const classes = firstEl.attr('class');
+          const textPreview = firstEl.text().trim().substring(0, 100);
+          log(`[SelectorDebug] First element: <${tagName}> classes="${classes}" text="${textPreview}..."`, "scraper");
+        } else {
+          // Debug why selector failed
+          this.debugSelectorFailure($, selector, selectorType);
+        }
+      }
+    });
+    
+    log(`[SelectorDebug] === SELECTOR DEBUGGING END ===`, "scraper");
+  }
+
+  /**
+   * Phase 1: Debug why a selector failed to find elements
+   */
+  private debugSelectorFailure($: cheerio.CheerioAPI, selector: string, selectorType: string): void {
+    log(`[SelectorDebug] Analyzing failed selector: ${selector}`, "scraper");
+    
+    // Try variations of the selector
+    const variations = this.generateSelectorVariations(selector);
+    let foundWorking = false;
+    
+    for (const variation of variations) {
+      const elements = $(variation);
+      if (elements.length > 0) {
+        log(`[SelectorDebug] Working variation found: "${variation}" → ${elements.length} elements`, "scraper");
+        foundWorking = true;
+        break;
+      }
+    }
+    
+    if (!foundWorking) {
+      // Try class-based search
+      if (selector.includes('.')) {
+        const className = selector.replace(/^.*\.([^.\s>]+).*$/, '$1');
+        const classElements = $(`[class*="${className}"]`);
+        log(`[SelectorDebug] Class-based search for "${className}": ${classElements.length} elements`, "scraper");
+        
+        if (classElements.length > 0) {
+          classElements.each((i, el) => {
+            if (i < 3) { // Log first 3 matches
+              const $el = $(el);
+              log(`[SelectorDebug] Found element with class containing "${className}": <${$el.prop('tagName')?.toLowerCase()}> class="${$el.attr('class')}"`, "scraper");
+            }
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Phase 2: Generate selector variations for recovery
+   */
+  private generateSelectorVariations(selector: string): string[] {
+    const variations: string[] = [];
+    
+    // Original selector
+    variations.push(selector);
+    
+    // Underscore ↔ hyphen variations
+    if (selector.includes('_')) {
+      variations.push(selector.replace(/_/g, '-'));
+    }
+    if (selector.includes('-')) {
+      variations.push(selector.replace(/-/g, '_'));
+    }
+    
+    // Class attribute variations
+    if (selector.startsWith('.')) {
+      const className = selector.substring(1);
+      variations.push(`[class="${className}"]`);
+      variations.push(`[class*="${className}"]`);
+      variations.push(`[class^="${className}"]`);
+      variations.push(`[class$="${className}"]`);
+    }
+    
+    // Remove pseudo-selectors if present
+    const withoutPseudo = selector.replace(/:[\w-]+(\([^)]*\))?/g, '');
+    if (withoutPseudo !== selector) {
+      variations.push(withoutPseudo);
+    }
+    
+    // Descendant to direct child
+    if (selector.includes(' ')) {
+      variations.push(selector.replace(/\s+/g, ' > '));
+    }
+    
+    // Direct child to descendant
+    if (selector.includes(' > ')) {
+      variations.push(selector.replace(/\s*>\s*/g, ' '));
+    }
+    
+    return [...new Set(variations)]; // Remove duplicates
+  }
+
+  /**
+   * Phase 2: Extract content with comprehensive recovery system
+   */
+  private extractContentWithRecovery($: cheerio.CheerioAPI, config: ScrapingConfig, html: string): { content: string; confidence: number } {
+    // Phase 3: Pre-extraction validation
+    const contentElements = $(config.contentSelector!);
+    
+    if (contentElements.length === 0) {
+      log(`[ContentRecovery] No elements found with primary selector, initiating recovery`, "scraper");
+      return this.recoverContentExtraction($, config, html);
+    }
+    
+    // Extract content from found elements
+    const content = contentElements.map((_, el) => $(el).text()).get().join('\n').trim();
+    
+    if (content.length < 100) {
+      log(`[ContentRecovery] Insufficient content (${content.length} chars), initiating recovery`, "scraper");
+      return this.recoverContentExtraction($, config, html);
+    }
+    
+    // Verify content quality
+    if (this.isLowQualityContent(content)) {
+      log(`[ContentRecovery] Low quality content detected, initiating recovery`, "scraper");
+      return this.recoverContentExtraction($, config, html);
+    }
+    
+    return { content, confidence: 0.9 };
+  }
+
+  /**
+   * Phase 2: Content recovery system
+   */
+  private recoverContentExtraction($: cheerio.CheerioAPI, config: ScrapingConfig, html: string): { content: string; confidence: number } {
+    log(`[ContentRecovery] Starting content recovery process`, "scraper");
+    
+    // Step 1: Try selector variations
+    const variations = this.generateSelectorVariations(config.contentSelector!);
+    
+    for (const variation of variations) {
+      const elements = $(variation);
+      if (elements.length > 0) {
+        const content = elements.map((_, el) => $(el).text()).get().join('\n').trim();
+        if (content.length >= 100 && !this.isLowQualityContent(content)) {
+          log(`[ContentRecovery] Successful recovery with variation: "${variation}" (${content.length} chars)`, "scraper");
+          return { content, confidence: 0.7 };
+        }
+      }
+    }
+    
+    // Step 2: Try similar class patterns
+    if (config.contentSelector!.includes('.')) {
+      const baseClass = config.contentSelector!.replace(/^.*\.([^.\s>]+).*$/, '$1');
+      const similarElements = $(`[class*="${baseClass}"]`);
+      
+      if (similarElements.length > 0) {
+        const content = similarElements.map((_, el) => $(el).text()).get().join('\n').trim();
+        if (content.length >= 100 && !this.isLowQualityContent(content)) {
+          log(`[ContentRecovery] Successful recovery with similar class pattern (${content.length} chars)`, "scraper");
+          return { content, confidence: 0.6 };
+        }
+      }
+    }
+    
+    // Step 3: Try article-related fallbacks
+    const fallbackSelectors = [
+      'article',
+      '.article-content',
+      '.post-content',
+      '.content',
+      'main',
+      '.main-content',
+      '[role="main"]'
+    ];
+    
+    for (const fallback of fallbackSelectors) {
+      const elements = $(fallback);
+      if (elements.length > 0) {
+        const content = elements.map((_, el) => $(el).text()).get().join('\n').trim();
+        if (content.length >= 200 && !this.isLowQualityContent(content)) {
+          log(`[ContentRecovery] Successful recovery with fallback: "${fallback}" (${content.length} chars)`, "scraper");
+          return { content, confidence: 0.5 };
+        }
+      }
+    }
+    
+    // Step 4: Last resort - return whatever we can find
+    const bodyContent = $('body').text().trim();
+    log(`[ContentRecovery] Final fallback to body content (${bodyContent.length} chars)`, "scraper");
+    return { content: bodyContent, confidence: 0.3 };
+  }
+
+  /**
+   * Phase 2: Extract with recovery for title/author fields
+   */
+  private extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType: string): string {
+    // Try primary selector
+    let result = $(selector).first().text().trim();
+    if (result) return result;
+    
+    // Try variations
+    const variations = this.generateSelectorVariations(selector);
+    for (const variation of variations) {
+      result = $(variation).first().text().trim();
+      if (result) {
+        log(`[${fieldType}Recovery] Found using variation: "${variation}"`, "scraper");
+        return result;
+      }
+    }
+    
+    // Field-specific fallbacks
+    const fallbacks = this.getFieldFallbacks(fieldType);
+    for (const fallback of fallbacks) {
+      result = $(fallback).first().text().trim();
+      if (result) {
+        log(`[${fieldType}Recovery] Found using fallback: "${fallback}"`, "scraper");
+        return result;
+      }
+    }
+    
+    return '';
+  }
+
+  /**
+   * Phase 3: Get field-specific fallback selectors
+   */
+  private getFieldFallbacks(fieldType: string): string[] {
+    const fallbacks = {
+      title: ['h1', 'h2', '.title', '.headline', '[role="heading"]'],
+      author: ['.author', '.byline', '[rel="author"]', '.writer'],
+      date: ['time', '[datetime]', '.date', '.published']
+    };
+    
+    return fallbacks[fieldType as keyof typeof fallbacks] || [];
+  }
+
+  /**
+   * Phase 3: Check if content is low quality (navigation, ads, etc.)
+   */
+  private isLowQualityContent(content: string): boolean {
+    const lowQualityPatterns = [
+      /^(menu|navigation|nav|sidebar|footer|header|advertisement|ad|cookie|privacy|terms)/i,
+      /^(home|about|contact|login|register|subscribe|newsletter)/i,
+      /^[\w\s]{1,20}$/,  // Too short
+      /^(.{1,10}\s*){1,5}$/,  // Repeated short phrases
+    ];
+    
+    return lowQualityPatterns.some(pattern => pattern.test(content.trim()));
+  }
+
+  /**
+   * Phase 4: Determine if AI re-analysis should be triggered
+   */
+  private shouldTriggerAIReanalysis(extracted: Partial<ArticleContent>): boolean {
+    // Trigger re-analysis if content is insufficient
+    if (!extracted.content || extracted.content.length < 100) {
+      log(`[AIReanalysis] Triggering due to insufficient content: ${extracted.content?.length || 0} chars`, "scraper");
+      return true;
+    }
+    
+    // Trigger if confidence is too low
+    if ((extracted.confidence || 0) < 0.5) {
+      log(`[AIReanalysis] Triggering due to low confidence: ${extracted.confidence}`, "scraper");
+      return true;
+    }
+    
+    // Trigger if content looks like navigation/metadata
+    if (extracted.content && this.isLowQualityContent(extracted.content)) {
+      log(`[AIReanalysis] Triggering due to low quality content detected`, "scraper");
+      return true;
+    }
+    
+    // Trigger if title is missing
+    if (!extracted.title || extracted.title.length < 10) {
+      log(`[AIReanalysis] Triggering due to insufficient title: ${extracted.title?.length || 0} chars`, "scraper");
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Phase 4: Perform AI re-analysis when initial extraction fails
+   */
+  private async performAIReanalysis(html: string, url: string, previousExtraction: Partial<ArticleContent>): Promise<Partial<ArticleContent>> {
+    try {
+      log(`[AIReanalysis] Starting fresh AI analysis for improved extraction`, "scraper");
+      
+      // Import AI extraction functionality
+      const { extractContentWithAI } = await import('./ai/structure-detector');
+      
+      // Attempt direct AI content extraction
+      const aiResult = await extractContentWithAI(html, url);
+      
+      if (aiResult.confidence > 0.5) {
+        log(`[AIReanalysis] Successful AI re-analysis (confidence: ${aiResult.confidence})`, "scraper");
+        return {
+          title: aiResult.title || previousExtraction.title,
+          content: aiResult.content || previousExtraction.content,
+          author: aiResult.author || previousExtraction.author,
+          extractionMethod: 'ai-reanalysis',
+          confidence: aiResult.confidence
+        };
+      } else {
+        log(`[AIReanalysis] AI re-analysis yielded low confidence, using multi-attempt recovery`, "scraper");
+        return await this.performMultiAttemptRecovery(html, previousExtraction);
+      }
+      
+    } catch (error: any) {
+      log(`[AIReanalysis] AI re-analysis failed: ${error.message}, using multi-attempt recovery`, "scraper-error");
+      return await this.performMultiAttemptRecovery(html, previousExtraction);
+    }
+  }
+
+  /**
+   * Phase 4: Multi-attempt extraction with delays and different parsing methods
+   */
+  private async performMultiAttemptRecovery(html: string, previousExtraction: Partial<ArticleContent>): Promise<Partial<ArticleContent>> {
+    log(`[MultiAttempt] Starting multi-attempt recovery process`, "scraper");
+    
+    const attempts = [
+      // Attempt 1: Different cheerio parsing options
+      () => this.extractWithAlternativeParsing(html, 'xml'),
+      // Attempt 2: Pre-processed HTML cleaning
+      () => this.extractWithCleanedHTML(html),
+      // Attempt 3: Aggressive content extraction
+      () => this.extractWithAggressiveMethod(html)
+    ];
+    
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        log(`[MultiAttempt] Attempt ${i + 1}/3`, "scraper");
+        
+        const result = await attempts[i]();
+        
+        if (result.content && result.content.length >= 200 && !this.isLowQualityContent(result.content)) {
+          log(`[MultiAttempt] Successful recovery on attempt ${i + 1}: ${result.content.length} chars`, "scraper");
+          return {
+            ...result,
+            extractionMethod: `multi-attempt-${i + 1}`,
+            confidence: Math.max(0.4, (result.confidence || 0))
+          };
+        }
+        
+        // Delay between attempts
+        if (i < attempts.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+      } catch (error: any) {
+        log(`[MultiAttempt] Attempt ${i + 1} failed: ${error.message}`, "scraper");
+      }
+    }
+    
+    // If all attempts failed, return the best we have
+    log(`[MultiAttempt] All attempts failed, returning previous extraction`, "scraper");
+    return {
+      ...previousExtraction,
+      extractionMethod: 'recovery-failed',
+      confidence: 0.2
+    };
+  }
+
+  /**
+   * Phase 4: Extract with alternative parsing options
+   */
+  private extractWithAlternativeParsing(html: string, parsingMode: 'html' | 'xml'): Partial<ArticleContent> {
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(html, { 
+      normalizeWhitespace: true,
+      xmlMode: parsingMode === 'xml',
+      decodeEntities: true
+    });
+    
+    // Try aggressive content selectors
+    const contentSelectors = [
+      'article',
+      '[role="main"]',
+      '.content',
+      '.article-content',
+      '.post-content',
+      'main',
+      '.main-content'
+    ];
+    
+    for (const selector of contentSelectors) {
+      const elements = $(selector);
+      if (elements.length > 0) {
+        const content = elements.map((_, el) => $(el).text()).get().join('\n').trim();
+        if (content.length >= 200) {
+          return {
+            title: $('h1').first().text().trim() || $('title').text().trim(),
+            content,
+            confidence: 0.6
+          };
+        }
+      }
+    }
+    
+    return { content: '', confidence: 0.1 };
+  }
+
+  /**
+   * Phase 4: Extract with pre-cleaned HTML
+   */
+  private extractWithCleanedHTML(html: string): Partial<ArticleContent> {
+    // Remove problematic elements that might interfere
+    let cleanedHtml = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '');
+    
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(cleanedHtml);
+    
+    // Look for content in semantic elements
+    const contentElements = $('article, [role="main"], main, .content').first();
+    if (contentElements.length > 0) {
+      const content = contentElements.text().trim();
+      if (content.length >= 200) {
+        return {
+          title: $('h1').first().text().trim(),
+          content,
+          confidence: 0.7
+        };
+      }
+    }
+    
+    return { content: '', confidence: 0.1 };
+  }
+
+  /**
+   * Phase 4: Extract with aggressive method (fallback of last resort)
+   */
+  private extractWithAggressiveMethod(html: string): Partial<ArticleContent> {
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(html);
+    
+    // Get all paragraph text
+    const paragraphs = $('p').map((_, el) => $(el).text().trim()).get();
+    const paragraphText = paragraphs.filter(p => p.length > 20).join('\n');
+    
+    if (paragraphText.length >= 200) {
+      return {
+        title: $('h1, h2, .title, .headline').first().text().trim(),
+        content: paragraphText,
+        confidence: 0.5
+      };
+    }
+    
+    // Last resort: get body text but filter out common navigation
+    const bodyText = $('body').text().trim();
+    const cleanedBodyText = bodyText
+      .split('\n')
+      .filter(line => line.trim().length > 30)
+      .filter(line => !/(menu|navigation|footer|header|subscribe|newsletter)/i.test(line))
+      .join('\n');
+    
+    return {
+      title: $('title').text().trim(),
+      content: cleanedBodyText.substring(0, 5000), // Limit to prevent huge content
+      confidence: 0.3
+    };
   }
 
   /**
@@ -453,8 +935,14 @@ export class StreamlinedUnifiedScraper {
         
         structureConfig = structureConfig || await this.getStructureConfig(url, contentResult.html);
 
-        // Step 3: Extract content using selectors
-        const extracted = this.extractContentWithSelectors(contentResult.html, structureConfig);
+        // Step 3: Extract content with enhanced recovery
+        let extracted = this.extractContentWithSelectors(contentResult.html, structureConfig);
+        
+        // Phase 4: AI re-analysis trigger for failed extractions
+        if (this.shouldTriggerAIReanalysis(extracted)) {
+          log(`[SimpleScraper] Triggering AI re-analysis due to insufficient extraction`, "scraper");
+          extracted = await this.performAIReanalysis(contentResult.html, url, extracted);
+        }
 
         // Extract publish date
         let publishDate: Date | null = null;
@@ -472,11 +960,11 @@ export class StreamlinedUnifiedScraper {
           content: extracted.content || '',
           author: extracted.author,
           publishDate,
-          extractionMethod: 'selectors',
+          extractionMethod: extracted.extractionMethod || 'selectors',
           confidence: extracted.confidence || 0.9
         };
 
-        log(`[SimpleScraper] Extracted article (title=${result.title.length} chars, content=${result.content.length} chars)`, "scraper");
+        log(`[SimpleScraper] Final extraction result (title=${result.title.length} chars, content=${result.content.length} chars, method=${result.extractionMethod}, confidence=${result.confidence})`, "scraper");
         return result;
       }
 

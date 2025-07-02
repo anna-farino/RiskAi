@@ -4,6 +4,41 @@ import { ScrapingConfig, generateFallbackSelectors, sanitizeSelector } from './s
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
 import { extractWithHybridAI, HybridExtractionResult } from '../ai/hybrid-extractor';
 
+/**
+ * Generate selector variations for recovery (adapted from unified scraper)
+ */
+function generateSelectorVariations(selector: string): string[] {
+  const variations: string[] = [];
+  
+  // Original selector
+  variations.push(selector);
+  
+  // Underscore ↔ hyphen variations
+  if (selector.includes('_')) {
+    variations.push(selector.replace(/_/g, '-'));
+  }
+  if (selector.includes('-')) {
+    variations.push(selector.replace(/-/g, '_'));
+  }
+  
+  // Class attribute variations
+  if (selector.startsWith('.')) {
+    const className = selector.substring(1);
+    variations.push(`[class="${className}"]`);
+    variations.push(`[class*="${className}"]`);
+    variations.push(`[class^="${className}"]`);
+    variations.push(`[class$="${className}"]`);
+  }
+  
+  // Remove pseudo-selectors if present
+  const withoutPseudo = selector.replace(/:[\w-]+(\([^)]*\))?/g, '');
+  if (withoutPseudo !== selector) {
+    variations.push(withoutPseudo);
+  }
+  
+  return [...new Set(variations)]; // Remove duplicates
+}
+
 export interface ArticleContent {
   title: string;
   content: string;
@@ -92,30 +127,62 @@ function extractWithPrimarySelectors($: cheerio.CheerioAPI, config: ScrapingConf
     extractionMethod: "primary_selectors"
   };
 
-  // Extract title
+  // Extract title with recovery
   if (config.titleSelector) {
     const sanitizedTitleSelector = sanitizeSelector(config.titleSelector);
     if (sanitizedTitleSelector) {
       result.title = $(sanitizedTitleSelector).first().text().trim();
+      
+      // If title is empty, try variations
+      if (!result.title) {
+        const variations = generateSelectorVariations(sanitizedTitleSelector);
+        for (const variation of variations) {
+          result.title = $(variation).first().text().trim();
+          if (result.title) {
+            log(`[ContentExtractor] Title found using variation: "${variation}"`, "scraper");
+            break;
+          }
+        }
+      }
     }
   }
 
-  // Extract content
+  // Extract content with comprehensive recovery
   if (config.contentSelector) {
     const sanitizedContentSelector = sanitizeSelector(config.contentSelector);
     if (sanitizedContentSelector) {
       result.content = $(sanitizedContentSelector).text().trim();
       
-      // If content is empty but we have an articleSelector, try using it
-      if (!result.content && config.articleSelector) {
-        const articleSelector = sanitizeSelector(config.articleSelector);
-        if (articleSelector) {
-          // Get all paragraph elements within articleSelector
-          result.content = $(articleSelector).find('p').text().trim();
-          
-          // If still empty, get all text
-          if (!result.content) {
-            result.content = $(articleSelector).text().trim();
+      // If content is empty, try recovery methods
+      if (!result.content) {
+        log(`[ContentExtractor] Primary content selector failed, trying recovery methods`, "scraper");
+        
+        // Try selector variations first
+        const variations = generateSelectorVariations(sanitizedContentSelector);
+        for (const variation of variations) {
+          const content = $(variation).text().trim();
+          if (content && content.length >= 100) {
+            result.content = content;
+            log(`[ContentExtractor] Content found using variation: "${variation}" (${content.length} chars)`, "scraper");
+            break;
+          }
+        }
+        
+        // If still empty and we have an articleSelector, try using it
+        if (!result.content && config.articleSelector) {
+          const articleSelector = sanitizeSelector(config.articleSelector);
+          if (articleSelector) {
+            // Get all paragraph elements within articleSelector
+            result.content = $(articleSelector).find('p').text().trim();
+            
+            // If still empty, get all text
+            if (!result.content) {
+              result.content = $(articleSelector).text().trim();
+            }
+            
+            if (result.content) {
+              log(`[ContentExtractor] Content found using articleSelector: ${result.content.length} chars`, "scraper");
+            }
           }
         }
       }

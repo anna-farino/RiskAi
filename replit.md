@@ -127,6 +127,32 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 2, 2025 - Comprehensive Content Extraction Recovery System Complete
+- **Implemented 4-phase selector and content recovery system** to eliminate zero-content extraction failures
+- **Phase 1: Enhanced selector debugging** with comprehensive logging to trace selector flow from AI detection to final usage
+  - Added detailed selector validation logging showing element matches and failure analysis
+  - Implemented automatic selector variation generation (underscore ↔ hyphen, class attribute forms)
+  - Created forensic debugging for failed selectors with class-based pattern matching
+- **Phase 2: Smart selector recovery** with multiple fallback strategies
+  - Automatic detection and correction of selector variations (div.tdb_single_content ↔ div.tdb-single_content)
+  - Multi-method content extraction with confidence scoring
+  - Similar class pattern matching using partial class name searches
+  - Progressive fallback through article-semantic selectors
+- **Phase 3: Pre-extraction validation** with content quality verification
+  - Element existence validation before attempting extraction
+  - Content quality assessment to detect navigation/ads vs article content
+  - Low-quality content filtering with pattern recognition
+  - Field-specific fallback selector hierarchies
+- **Phase 4: AI re-analysis trigger** for failed extractions
+  - Automatic fresh AI analysis when content < 100 characters or confidence < 0.5
+  - Multi-attempt recovery with 2-second delays and different parsing methods
+  - Alternative HTML parsing (XML mode, entity decoding, whitespace normalization)
+  - Aggressive content extraction using paragraph aggregation and body text filtering
+- **Root cause resolution**: Addresses both selector preservation issues and insufficient content scenarios
+- **Recovery pipeline**: 
+  1. Primary selectors → 2. Selector variations → 3. Class pattern matching → 4. Semantic fallbacks → 5. AI re-analysis → 6. Multi-attempt recovery → 7. Aggressive extraction
+- **Impact**: Eliminates zero-content extraction failures while maintaining high-quality results through comprehensive fallback hierarchy
+
 ### July 2, 2025 - Dynamic Content Detection False Positive Fix Complete
 - **Fixed false positive detection** causing unnecessary Puppeteer usage on normal news sites
 - **Root cause**: Broad detection patterns triggering on common web elements (async scripts, form placeholders)
