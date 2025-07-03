@@ -299,8 +299,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     );
     const processedLinks = await scrapingService.scrapeSourceUrl(source.url, {
       aiContext: "cybersecurity threats and security incidents",
-      appType: 'threat-tracker',
-      maxLinks: 30
+      appType: 'threat-tracker'
     });
     log(
       `[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`,
