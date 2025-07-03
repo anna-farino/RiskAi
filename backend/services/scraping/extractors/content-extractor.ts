@@ -27,10 +27,7 @@ import {
 import { 
   extractArticleContent as extractArticleContentComponent 
 } from './content-extraction/main-extractor';
-import { 
-  extractContent as extractContentComponent, 
-  extractWithFallbacks as extractWithFallbacksComponent 
-} from './content-extraction/legacy-compatibility';
+
 
 // Re-export interfaces and functions for backward compatibility
 export { ArticleContentType as ArticleContent };
@@ -43,5 +40,3 @@ export { extractWithFallbackSelectorsComponent as extractWithFallbackSelectors }
 export { extractWithDesperateFallbacksComponent as extractWithDesperateFallbacks };
 export { handlePreProcessedContentComponent as handlePreProcessedContent };
 export { extractArticleContentComponent as extractArticleContent };
-export { extractContentComponent as extractContent };
-export { extractWithFallbacksComponent as extractWithFallbacks };

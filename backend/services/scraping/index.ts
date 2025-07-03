@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { streamlinedScraper, ArticleContent, SourceScrapingOptions } from './unified-scraper-v2';
+import { unifiedScraper as streamlinedScraper, ArticleContent, SourceScrapingOptions } from './unified-scraper-v2';
 import { ScrapingConfig } from './extractors/structure-detector';
 
 export interface BatchOptions {
