@@ -1,14 +1,9 @@
 import { log } from "backend/utils/log";
-import { extractArticleLinks, extractArticleLinksFromPage, LinkExtractionOptions } from '../extractors/link-extractor';
+import { extractArticleLinks, extractArticleLinksFromPage } from '../extractors/link-extraction/dynamic-content-handler';
+import { LinkExtractionOptions, SourceScrapingOptions } from '../types';
 import { getContent, detectDynamicContentNeeds } from './method-selector';
 
-export interface SourceScrapingOptions {
-  aiContext?: string;
-  includePatterns?: string[];
-  excludePatterns?: string[];
-  maxLinks?: number;
-  appType?: 'news-radar' | 'threat-tracker' | 'news-capsule';
-}
+
 
 /**
  * Advanced source scraping with sophisticated HTMX handling
@@ -29,7 +24,7 @@ export async function scrapeSourceUrl(url: string, options?: SourceScrapingOptio
       excludePatterns: options?.excludePatterns,
       aiContext: options?.aiContext,
       maxLinks: options?.maxLinks || 50,
-      minimumTextLength: 15  // Reduced from 20 to capture more dynamic content links
+      minLinkTextLength: 15  // Reduced from 20 to capture more dynamic content links
     };
 
     // Step 3: Use advanced extraction for HTMX/dynamic sites

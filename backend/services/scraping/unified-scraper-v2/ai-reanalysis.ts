@@ -1,5 +1,6 @@
 import { log } from "backend/utils/log";
-import { ArticleContent, isLowQualityContent } from './content-extractor';
+import { ArticleContent } from '../types';
+import { isLowQualityContent } from './content-extractor';
 import * as cheerio from 'cheerio';
 
 /**

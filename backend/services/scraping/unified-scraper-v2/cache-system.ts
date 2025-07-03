@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { ScrapingConfig } from '../extractors/structure-detector';
+import { ScrapingConfig } from '../types';
 
 /**
  * Robust cache system with automatic validation and corruption detection

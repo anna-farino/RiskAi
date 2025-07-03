@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { ScrapingConfig } from '../extractors/structure-detector';
+import { ScrapingConfig } from '../types';
 import { detectHtmlStructureWithAI } from '../ai/structure-detector';
 import { RobustCache } from './cache-system';
 

@@ -1,15 +1,8 @@
 import { log } from "backend/utils/log";
-import { ScrapingConfig } from '../extractors/structure-detector';
+import { ScrapingConfig, ArticleContent } from '../types';
 import * as cheerio from 'cheerio';
 
-export interface ArticleContent {
-  title: string;
-  content: string;
-  author?: string;
-  publishDate?: Date;
-  extractionMethod: string;
-  confidence: number;
-}
+
 
 /**
  * Enhanced content extraction with comprehensive recovery

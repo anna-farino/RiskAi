@@ -1,19 +1,18 @@
 import { log } from "backend/utils/log";
-import { ScrapingConfig } from '../extractors/structure-detector';
+import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from '../types';
 import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
 import { RobustCache } from './cache-system';
 import { getContent } from './method-selector';
 import { getStructureConfig, isValidConfig } from './structure-detector';
 import { 
   extractContentWithSelectors, 
-  extractFromPuppeteerHTML, 
-  ArticleContent 
+  extractFromPuppeteerHTML 
 } from './content-extractor';
 import { 
   shouldTriggerAIReanalysis, 
   performAIReanalysis 
 } from './ai-reanalysis';
-import { scrapeSourceUrl, SourceScrapingOptions } from './source-scraper';
+import { scrapeSourceUrl } from './source-scraper';
 
 /**
  * Streamlined Unified Scraper V2
@@ -118,3 +117,6 @@ export class StreamlinedUnifiedScraper {
     this.cache.clear(url);
   }
 }
+
+// Export singleton instance for backward compatibility
+export const unifiedScraper = new StreamlinedUnifiedScraper();

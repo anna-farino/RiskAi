@@ -1,6 +1,6 @@
 import { log } from "backend/utils/log";
 import { detectHtmlStructureWithAI, extractContentWithAI, AIStructureResult } from './structure-detector';
-import { ScrapingConfig } from '../extractors/structure-detector';
+import { ScrapingConfig } from '../types';
 import * as cheerio from 'cheerio';
 
 export interface HybridExtractionResult {
