@@ -305,7 +305,7 @@ export async function detectHtmlStructure(
     ].join(",");
 
     // If the content is still too large, limit it further
-    const MAX_LENGTH = 20000; // conservative limit to stay under token limits
+    const MAX_LENGTH = 75000; // conservative limit to stay under token limits
     if (processedHtml.length > MAX_LENGTH) {
       console.log(
         `[OpenAI] Truncating HTML from ${processedHtml.length} to ${MAX_LENGTH} characters`,

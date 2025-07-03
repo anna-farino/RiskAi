@@ -29,7 +29,7 @@ export async function detectHtmlStructure(html: string, sourceUrl: string) {
     }
 
     // If the content is still too large, limit it further
-    const MAX_LENGTH = 50000; // conservative limit to stay under token limits
+    const MAX_LENGTH = 75000; // conservative limit to stay under token limits
     if (processedHtml.length > MAX_LENGTH) {
       log(
         `[ThreatTracker] Truncating HTML from ${processedHtml.length} to ${MAX_LENGTH} characters`,
@@ -134,52 +134,66 @@ export async function identifyArticleLinks(
 
       // Look for HTMX patterns
       const htmxPatterns = [
-        { pattern: /\/media\/items\/.*-\d+\/?$/i, type: 'foojobs-article' },
-        { pattern: /\/items\/[^/]+\/$/i, type: 'htmx-item' },
-        { pattern: /\/articles?\/.*\d+/i, type: 'numbered-article' }
+        { pattern: /\/media\/items\/.*-\d+\/?$/i, type: "foojobs-article" },
+        { pattern: /\/items\/[^/]+\/$/i, type: "htmx-item" },
+        { pattern: /\/articles?\/.*\d+/i, type: "numbered-article" },
       ];
 
       // Perform initial pattern matching to identify likely article links
-      links.forEach(link => {
+      links.forEach((link) => {
         const url = link.href;
         const text = link.text;
 
         // Check for common article URL patterns
-        const isArticleByUrl = 
-          url.includes('/article/') || 
-          url.includes('/blog/') || 
-          url.includes('/news/') ||
+        const isArticleByUrl =
+          url.includes("/article/") ||
+          url.includes("/blog/") ||
+          url.includes("/news/") ||
           url.match(/\/(posts?|stories?|updates?)\//) ||
           url.match(/\d{4}\/\d{2}\//) || // Date pattern like /2023/05/
           url.match(/\/(cve|security|vulnerability|threat)-/) ||
           url.match(/\.com\/[^/]+\/[^/]+\/[^/]+/); // 3-level path like domain.com/section/topic/article-title
 
         // Check for article title patterns
-        const isArticleByTitle = 
+        const isArticleByTitle =
           text.length > 20 && // Longer titles are often articles
-          (
-            text.includes(': ') || // Title pattern with colon
+          (text.includes(": ") || // Title pattern with colon
             text.match(/^(how|why|what|when)\s+/i) || // "How to..." titles
-            text.match(/[—\-\|]\s/) // Title with separator
-          );
+            text.match(/[—\-\|]\s/)); // Title with separator
 
         // Check for security keywords in title
-        const securityKeywords = ['security', 'cyber', 'hack', 'threat', 'vulnerability', 'breach', 'attack', 'malware', 'phishing', 'ransomware'];
-        const hasSecurityKeyword = securityKeywords.some(keyword => 
-          text.toLowerCase().includes(keyword)
+        const securityKeywords = [
+          "security",
+          "cyber",
+          "hack",
+          "threat",
+          "vulnerability",
+          "breach",
+          "attack",
+          "malware",
+          "phishing",
+          "ransomware",
+        ];
+        const hasSecurityKeyword = securityKeywords.some((keyword) =>
+          text.toLowerCase().includes(keyword),
         );
 
         // Check if URL matches HTMX patterns
-        const htmxMatch = htmxPatterns.find(pattern => url.match(pattern.pattern));
+        const htmxMatch = htmxPatterns.find((pattern) =>
+          url.match(pattern.pattern),
+        );
         if (htmxMatch) {
           htmxLinks.push({
             href: url,
             text: text,
-            pattern: htmxMatch.type
+            pattern: htmxMatch.type,
           });
 
           // Auto-include links that match specific HTMX patterns (like FooJobs)
-          if (htmxMatch.type === 'foojobs-article' || url.includes('/media/items/')) {
+          if (
+            htmxMatch.type === "foojobs-article" ||
+            url.includes("/media/items/")
+          ) {
             potentialArticleUrls.push(url);
             log(`[ThreatTracker] Auto-detected HTMX article: ${url}`, "openai");
           }
@@ -196,16 +210,31 @@ export async function identifyArticleLinks(
 
       // Log information about the processing
       log(`[ThreatTracker] Extracted ${links.length} total links`, "openai");
-      log(`[ThreatTracker] Found ${htmxLinks.length} potential HTMX links`, "openai");
-      log(`[ThreatTracker] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`, "openai");
+      log(
+        `[ThreatTracker] Found ${htmxLinks.length} potential HTMX links`,
+        "openai",
+      );
+      log(
+        `[ThreatTracker] Identified ${potentialArticleUrls.length} potential article URLs through pattern matching`,
+        "openai",
+      );
 
       // If we found HTMX article links, prioritize those and skip AI processing in some cases
-      if (htmxLinks.length > 0 && htmxLinks.some(link => link.pattern === 'foojobs-article')) {
-        log(`[ThreatTracker] FooJobs article pattern detected, using HTMX-specific handling`, "openai");
+      if (
+        htmxLinks.length > 0 &&
+        htmxLinks.some((link) => link.pattern === "foojobs-article")
+      ) {
+        log(
+          `[ThreatTracker] FooJobs article pattern detected, using HTMX-specific handling`,
+          "openai",
+        );
 
         // Return immediately if we found enough HTMX articles
         if (potentialArticleUrls.length >= 5) {
-          log(`[ThreatTracker] Found ${potentialArticleUrls.length} FooJobs articles via pattern matching`, "openai");
+          log(
+            `[ThreatTracker] Found ${potentialArticleUrls.length} FooJobs articles via pattern matching`,
+            "openai",
+          );
           return potentialArticleUrls;
         }
       }
@@ -222,14 +251,15 @@ export async function identifyArticleLinks(
     );
 
     // Truncate input if it's too large to prevent JSON parsing errors
-    const maxInputLength = 50000; // Limit to 50k characters to prevent truncation
+    const maxInputLength = 75000; // Limit to 50k characters to prevent truncation
     let truncatedLinksText = linksText;
     if (linksText.length > maxInputLength) {
       log(
         `[ThreatTracker] Input too large (${linksText.length} chars), truncating to ${maxInputLength} chars`,
         "openai",
       );
-      truncatedLinksText = linksText.substring(0, maxInputLength) + "\n... [truncated for size]";
+      truncatedLinksText =
+        linksText.substring(0, maxInputLength) + "\n... [truncated for size]";
     }
 
     // Debug log: Print the structured HTML being sent to OpenAI (truncated for debug)
@@ -290,27 +320,38 @@ export async function identifyArticleLinks(
         `[ThreatTracker] Response text preview: ${responseText.substring(0, 500)}...`,
         "openai-error",
       );
-      
+
       // Try to extract valid JSON from truncated response
-      const jsonMatch = responseText.match(/\{.*"articleUrls"\s*:\s*\[[^\]]*\]/);
+      const jsonMatch = responseText.match(
+        /\{.*"articleUrls"\s*:\s*\[[^\]]*\]/,
+      );
       if (jsonMatch) {
         try {
-          const partialJson = jsonMatch[0] + ']}';
+          const partialJson = jsonMatch[0] + "]}";
           result = JSON.parse(partialJson);
           log(`[ThreatTracker] Recovered from truncated JSON`, "openai");
         } catch (recoveryError) {
           // If recovery fails, return empty array instead of crashing
-          log(`[ThreatTracker] JSON recovery failed, returning empty array`, "openai-error");
+          log(
+            `[ThreatTracker] JSON recovery failed, returning empty array`,
+            "openai-error",
+          );
           return [];
         }
       } else {
-        log(`[ThreatTracker] Could not recover JSON, returning empty array`, "openai-error");
+        log(
+          `[ThreatTracker] Could not recover JSON, returning empty array`,
+          "openai-error",
+        );
         return [];
       }
     }
 
     if (!result.articleUrls || !Array.isArray(result.articleUrls)) {
-      log(`[ThreatTracker] Invalid response format, returning empty array`, "openai-error");
+      log(
+        `[ThreatTracker] Invalid response format, returning empty array`,
+        "openai-error",
+      );
       return [];
     }
 
@@ -318,9 +359,7 @@ export async function identifyArticleLinks(
       `[ThreatTracker] OpenAI identified ${result.articleUrls.length} article links`,
       "openai",
     );
-    
 
-    
     return result.articleUrls;
   } catch (error: any) {
     log(
