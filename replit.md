@@ -127,6 +127,23 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 3, 2025 - Phase 2 Content Extraction Componentization Complete
+- **Successfully componentized content-extractor.ts** (870 lines) into 8 focused components
+- **Created specialized modules**:
+  - `selector-utilities.ts` - Selector variation generation and ArticleContent interface
+  - `content-cleaner.ts` - HTML cleaning and content normalization functions
+  - `date-extractor.ts` - Enhanced publish date extraction using Threat Tracker integration
+  - `primary-extractor.ts` - Primary selector-based content extraction with recovery
+  - `fallback-extractor.ts` - Fallback selector patterns for common article structures
+  - `desperate-fallbacks.ts` - Last resort extraction when all selectors fail
+  - `preprocessed-handler.ts` - Structured content parser for Puppeteer pre-processed content
+  - `main-extractor.ts` - Main extraction orchestrator with AI and selector-based methods
+  - `legacy-compatibility.ts` - Backward compatibility wrapper functions
+- **Implemented facade pattern** in main content-extractor.ts for backward compatibility
+- **Reduced from 870 to 47 lines** while preserving all existing functionality
+- **Verified system stability** - server running successfully with both link and content extraction componentized
+- **Next phases planned**: Puppeteer scraper (663 lines), unified scraper v2 (550 lines), structure detector (500+ lines)
+
 ### July 3, 2025 - Phase 1 Link Extraction Componentization Complete
 - **Successfully componentized link-extractor.ts** (1,167 lines) into 6 focused components
 - **Created specialized modules**:
@@ -138,7 +155,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Implemented facade pattern** in main link-extractor.ts for backward compatibility
 - **Maintained all existing functionality** while improving code organization and maintainability
 - **Verified system stability** - server running successfully with componentized structure
-- **Next phases planned**: Content extractor (870 lines), Puppeteer scraper (663 lines), unified scraper v2 (550 lines)
 
 ### July 2, 2025 - Comprehensive Content Extraction Recovery System Complete
 - **Implemented 4-phase selector and content recovery system** to eliminate zero-content extraction failures
