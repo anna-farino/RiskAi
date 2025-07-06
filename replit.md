@@ -127,6 +127,24 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 6, 2025 - Three-Step Deep HTMX Extraction Process Restored
+- **Identified critical functionality loss** during componentization - the three-step deep extraction process was reduced to two steps
+- **Root cause**: System was only looking for direct external URLs in HTMX content, missing the intermediate URL following step
+- **Restored Step 3: Follow Intermediate URLs** - System now follows intermediate URLs like `/media/items/xyz` to extract final external article URLs
+- **Enhanced extraction workflow**:
+  - **Step 1**: Load all HTMX content (102K+ chars from multiple endpoints) ✅
+  - **Step 2**: Extract direct external URLs from loaded content ✅
+  - **Step 3**: If no direct external URLs found, extract intermediate URLs and follow them to get final external article URLs ✅ **RESTORED**
+- **Key improvements**:
+  - **Intermediate URL detection**: Identifies `/media/items/`, `/article/`, `/story/`, `/news/`, `/post/` paths and multi-segment internal URLs
+  - **Deep URL following**: Navigates to each intermediate URL to extract final external article URLs
+  - **Comprehensive external domain matching**: Checks against 40+ major news and tech domains
+  - **Duplicate removal**: Ensures unique final external URLs
+  - **Fallback preservation**: Maintains original fallback extraction if Step 3 fails
+- **Performance considerations**: Limits to 10 intermediate URLs to avoid excessive requests
+- **Impact**: Restores full functionality for sites like Foorilla that use intermediate URLs to link to external articles
+- **Technical details**: Updated `puppeteer-link-handler.ts` with complete three-step extraction process
+
 ### July 3, 2025 - Legacy Code Cleanup and Facade Directory Optimization Complete
 - **Successfully removed all deprecated legacy code** from the componentized scraping system
 - **Fixed import conflicts** in index.ts by properly aliasing imported unifiedScraper to avoid naming conflicts
