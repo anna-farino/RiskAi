@@ -1,0 +1,125 @@
+[0]   {
+[0]     "href": "",
+[0]     "text": "A Group of Young Cybercriminals Poses the ‘Most Imminent Threat’ of Cyberattacks Right Now",
+[0]     "context": "A Group of Young Cybercriminals Poses the ‘Most Imminent Threat’ of Cyberattacks Right Now\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI-powered assistive technologies are changing how we experience and imagine public space",
+[0]     "context": "AI-powered assistive technologies are changing how we experience and imagine public space\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Microsoft's youngest security researcher started collaboration with the company at just 13 — high school junior filed 20 vulnerability reports last summer, named MSRC Most Valuable Researcher twice",
+[0]     "context": "Microsoft's youngest security researcher started collaboration with the company at just 13 — high school junior filed 20 vulnerability reports last summer, named MSRC Most Valuable Researcher twice\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cybersecurity in 2025 Feels Like Pure Chaos",
+[0]     "context": "Cybersecurity in 2025 Feels Like Pure Chaos\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The Seventh Wave: How AI Will Change The Technology Industry",
+[0]     "context": "The Seventh Wave: How AI Will Change The Technology Industry\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Apple's AI Research Has Failed So Spectacularly That It's Considering Just Letting OpenAI Power Siri",
+[0]     "context": "Apple's AI Research Has Failed So Spectacularly That It's Considering Just Letting OpenAI Power Siri\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "US CISA agency extends Iran cyber alert, warns of CNI threat",
+[0]     "context": "US CISA agency extends Iran cyber alert, warns of CNI threat\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How generative AI could help make construction sites safer",
+[0]     "context": "How generative AI could help make construction sites safer\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Nessus for Windows Vulnerabilities Enables Overwrite of Arbitrary Local System Files",
+[0]     "context": "Nessus for Windows Vulnerabilities Enables Overwrite of Arbitrary Local System Files\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How Russia Turned Cyber Attacks Into Real Explosions",
+[0]     "context": "How Russia Turned Cyber Attacks Into Real Explosions\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How to PASS Microsoft Security Exams: SC-300, AZ-500, SC-100 — My Preparation Blueprint!",
+[0]     "context": "How to PASS Microsoft Security Exams: SC-300, AZ-500, SC-100 — My Preparation Blueprint!\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Vision Transformers for Multi-Variable Climate Downscaling: Emulating Regional Climate Models with a Shared Encoder and Multi-Decoder Architecture",
+[0]     "context": "Vision Transformers for Multi-Variable Climate Downscaling: Emulating Regional Climate Models with a Shared Encoder and Multi-Decoder Architecture\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   }
+[0] ]
+[0] 7:12:19 PM [scraper] [LinkExtractor] Final extraction: 128 links from dynamic page
+[0] 7:12:19 PM [scraper] [LinkExtractor] Found 121 articles without direct URLs - attempting to resolve them
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Changelog...": https://foorilla.com/changelog/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "About...": https://foorilla.com/about/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Terms...": https://foorilla.com/terms/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Privacy...": https://foorilla.com/privacy/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Sign up...": https://foorilla.com/account/signin/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Sign in...": https://foorilla.com/account/signin/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Terms of Service...": https://foorilla.com/account/signup/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Refund Policy...": https://foorilla.com/account/signup/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Privacy Policy...": https://foorilla.com/account/signup/
+[0] 7:12:19 PM [scraper] [LinkExtractor] Resolved URL for "Privacy Policy...": https://foorilla.com/account/signup/
+[0] 7:12:19 PM [scraper] [LinkExtractor] After normalization: 17 links with absolute URLs
+[0] 7:12:19 PM [openai] [ThreatTracker] Analyzing 128 structured link entries
+[0] 7:12:19 PM [openai-debug] [ThreatTracker] Structured HTML being sent to OpenAI for analysis (12059 chars)
+[0] [cc8fe] GET /scrape/status
+[0] [ee3e4] GET /scrape/status
+[0] 7:12:28 PM [openai] [ThreatTracker] OpenAI identified 25 article links
+[0] 7:12:28 PM [scraper] [LinkExtractor] Final result: 25 article links extracted from page
+[0] 7:12:28 PM [scraper] [SimpleScraper] Advanced HTMX extraction completed: 25 links found
+[0] 7:12:28 PM [scraper] [ThreatTracker] Found 25 possible article links for Foorilla (formerly FooJobs)
+[0] 7:12:28 PM [scraper] [ThreatTracker] Step 5-6: Processing first article to detect structure
+[0] No source.userId
+[0] 7:12:28 PM [scraper] [ThreatTracker] Step 8-9: Processing first article with detected structure
+[0] 7:12:28 PM [scraper] [ThreatTracker] Processing article: https://foorilla.com/TikTok’s ‘ban’ problem could end soon with a new app and a sale
+[0] 7:12:29 PM [scraper] [SimpleScraper] Starting article scraping: https://foorilla.com/TikTok’s ‘ban’ problem could end soon with a new app and a sale
+[0] 7:12:29 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://foorilla.com/TikTok’s ‘ban’ problem could end soon with a new app and a sale
+[0] 7:12:29 PM [scraper] [HTTPScraper] Attempt 1/5
+[0] 7:12:29 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 7:12:29 PM [scraper] [HTTPScraper] Attempt 1 failed: HTTP error! status: 404
+[0] 7:12:29 PM [scraper] [HTTPScraper] Attempt 2/5
+[0] 7:12:29 PM [scraper] [HTTPScraper] Waiting 2000ms before retry
+[0] 7:12:31 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 7:12:31 PM [scraper] [HTTPScraper] Attempt 2 failed: HTTP error! status: 404
+[0] 7:12:31 PM [scraper] [HTTPScraper] Attempt 3/5
+[0] 7:12:31 PM [scraper] [HTTPScraper] Waiting 4000ms before retry
+[0] [e4ce2] GET /scrape/status
+[0] 7:12:35 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 7:12:35 PM [scraper] [HTTPScraper] Attempt 3 failed: HTTP error! status: 404
+[0] 7:12:35 PM [scraper] [HTTPScraper] Attempt 4/5
+[0] 7:12:35 PM [scraper] [HTTPScraper] Waiting 8000ms before retry
+[0] [c19e6] GET /scrape/status
+[0] 7:12:44 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 7:12:44 PM [scraper] [HTTPScraper] Attempt 4 failed: HTTP error! status: 404
+[0] 7:12:44 PM [scraper] [HTTPScraper] Attempt 5/5
+[0] 7:12:44 PM [scraper] [HTTPScraper] Waiting 10000ms before retry
+[0] [469bb] GET /scrape/status
+[0] [4e06a] GET /scrape/status
+[0] 7:12:54 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 7:12:54 PM [scraper] [HTTPScraper] Attempt 5 failed: HTTP error! status: 404
+[0] 7:12:54 PM [scraper] [HTTPScraper] All attempts exhausted
+[0] 7:12:54 PM [scraper-error] [HTTPScraper] HTTP scraping failed after 5 attempts: HTTP error! status: 404
