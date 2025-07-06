@@ -127,23 +127,28 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 6, 2025 - Three-Step Deep HTMX Extraction Process Restored
+### July 6, 2025 - Domain-Agnostic Three-Step Deep HTMX Extraction Process Implemented
 - **Identified critical functionality loss** during componentization - the three-step deep extraction process was reduced to two steps
 - **Root cause**: System was only looking for direct external URLs in HTMX content, missing the intermediate URL following step
-- **Restored Step 3: Follow Intermediate URLs** - System now follows intermediate URLs like `/media/items/xyz` to extract final external article URLs
+- **Implemented Dynamic Domain-Agnostic Step 3** - System now intelligently identifies and follows any intermediate URLs to extract final external article URLs
 - **Enhanced extraction workflow**:
   - **Step 1**: Load all HTMX content (102K+ chars from multiple endpoints) ✅
   - **Step 2**: Extract direct external URLs from loaded content ✅
-  - **Step 3**: If no direct external URLs found, extract intermediate URLs and follow them to get final external article URLs ✅ **RESTORED**
-- **Key improvements**:
-  - **Intermediate URL detection**: Identifies `/media/items/`, `/article/`, `/story/`, `/news/`, `/post/` paths and multi-segment internal URLs
-  - **Deep URL following**: Navigates to each intermediate URL to extract final external article URLs
-  - **Comprehensive external domain matching**: Checks against 40+ major news and tech domains
-  - **Duplicate removal**: Ensures unique final external URLs
-  - **Fallback preservation**: Maintains original fallback extraction if Step 3 fails
-- **Performance considerations**: Limits to 10 intermediate URLs to avoid excessive requests
-- **Impact**: Restores full functionality for sites like Foorilla that use intermediate URLs to link to external articles
-- **Technical details**: Updated `puppeteer-link-handler.ts` with complete three-step extraction process
+  - **Step 3**: Dynamic domain-agnostic extraction from internal article pages ✅ **ENHANCED**
+- **Domain-agnostic improvements**:
+  - **Dynamic article detection**: Uses content patterns, URL structures, and text length to identify article links regardless of domain
+  - **Intelligent external link identification**: Analyzes link context, parent elements, and content placement to find main article URLs
+  - **Meta tag extraction**: Automatically extracts URLs from canonical, Open Graph, and Twitter card meta tags
+  - **Pattern-based filtering**: Uses dynamic patterns to identify news/tech domains without hardcoded lists
+  - **Content-aware processing**: Analyzes article content structure to identify primary external links
+- **Technical enhancements**:
+  - **Multi-criteria article detection**: Combines URL patterns, text length, and content structure analysis
+  - **Context-aware link scoring**: Evaluates link placement, parent elements, and content relevance
+  - **Comprehensive meta extraction**: Captures canonical URLs, og:url, and twitter:url meta tags
+  - **Flexible domain matching**: Uses regex patterns to identify news/tech domains dynamically
+- **Performance optimizations**: Limits to 10 article pages to avoid excessive requests while maintaining effectiveness
+- **Impact**: Works with any site using HTMX patterns for loading external article content, not just specific domains
+- **Technical details**: Completely rewritten Step 3 in `puppeteer-link-handler.ts` with domain-agnostic approach based on previous successful implementation
 
 ### July 3, 2025 - Legacy Code Cleanup and Facade Directory Optimization Complete
 - **Successfully removed all deprecated legacy code** from the componentized scraping system
