@@ -365,53 +365,74 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           const finalExternalUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // First, identify all potential article URLs from the loaded HTMX content
+          // Use the extracted article links from the HTMX content (including those with empty hrefs)
           const externalArticleUrls = await page.evaluate((currentDomain) => {
-            const containers = document.querySelectorAll('.htmx-loaded-content, .htmx-common-content');
             const articleUrls = [];
             
-            containers.forEach(container => {
-              const links = container.querySelectorAll('a[href]');
-              links.forEach(link => {
-                const href = link.getAttribute('href');
-                const text = link.textContent?.trim() || '';
+            // Look for all article-like links on the page (including those with empty href)
+            const allLinks = document.querySelectorAll('a');
+            
+            allLinks.forEach(link => {
+              const href = link.getAttribute('href');
+              const text = link.textContent?.trim() || '';
+              
+              if (text.length > 20 && text.length < 300) {
+                // Check if this looks like an article based on text content
+                const isArticleLike = 
+                  // Has substantial text (likely article title)
+                  text.length > 30 ||
+                  // Contains article-like keywords
+                  /(cyber|security|tech|ai|microsoft|google|apple|attack|breach|threat|vulnerability|hack|privacy|data|cloud|software|startup|innovation|research|study|report|analysis)/i.test(text) ||
+                  // Has parent elements that suggest article content
+                  link.closest('[class*="article"], [class*="post"], [class*="story"], [class*="content"], [class*="item"], [class*="media"]');
                 
-                if (href && text.length > 10) {
-                  try {
-                    // Create absolute URL
-                    const absoluteUrl = href.startsWith('http') ? href : 
-                      (href.startsWith('/') ? `${window.location.origin}${href}` : `${window.location.origin}/${href}`);
-                    
-                    const urlObj = new URL(absoluteUrl);
-                    
-                    // Determine if this is an external URL or internal article URL
-                    const isExternal = urlObj.hostname !== currentDomain;
-                    
-                    // Look for patterns that suggest this is an article link
-                    const isArticleLike = 
-                      // Has substantial text (likely article title)
-                      (text.length > 20 && text.length < 300) ||
-                      // Has article-like URL patterns
-                      /\/(article|news|blog|post|story|item|media)\//.test(urlObj.pathname) ||
-                      // Has ID or slug patterns
-                      /\/\d+\//.test(urlObj.pathname) ||
-                      // Multi-segment path suggesting content
-                      urlObj.pathname.split('/').filter(segment => segment.length > 0).length >= 2;
-                    
-                    if (isArticleLike) {
-                      articleUrls.push({
-                        url: absoluteUrl,
-                        text: text,
-                        isExternal: isExternal,
-                        domain: urlObj.hostname,
-                        source: container.getAttribute('data-source') || 'htmx-content'
-                      });
+                if (isArticleLike) {
+                  let absoluteUrl = null;
+                  let isExternal = false;
+                  
+                  if (href && href.trim() !== '') {
+                    try {
+                      // Create absolute URL
+                      absoluteUrl = href.startsWith('http') ? href : 
+                        (href.startsWith('/') ? `${window.location.origin}${href}` : `${window.location.origin}/${href}`);
+                      
+                      const urlObj = new URL(absoluteUrl);
+                      isExternal = urlObj.hostname !== currentDomain;
+                    } catch (urlError) {
+                      // Skip invalid URLs
                     }
-                  } catch (urlError) {
-                    // Skip invalid URLs
                   }
+                  
+                  // Look for data attributes that might contain URLs
+                  const dataUrl = link.getAttribute('data-url') || 
+                                 link.getAttribute('data-href') || 
+                                 link.getAttribute('data-link') ||
+                                 link.getAttribute('hx-get') ||
+                                 link.getAttribute('hx-post');
+                  
+                  if (!absoluteUrl && dataUrl) {
+                    try {
+                      absoluteUrl = dataUrl.startsWith('http') ? dataUrl : 
+                        (dataUrl.startsWith('/') ? `${window.location.origin}${dataUrl}` : `${window.location.origin}/${dataUrl}`);
+                      
+                      const urlObj = new URL(absoluteUrl);
+                      isExternal = urlObj.hostname !== currentDomain;
+                    } catch (urlError) {
+                      // Skip invalid URLs
+                    }
+                  }
+                  
+                  articleUrls.push({
+                    url: absoluteUrl,
+                    text: text,
+                    isExternal: isExternal,
+                    domain: absoluteUrl ? new URL(absoluteUrl).hostname : currentDomain,
+                    source: 'page-content',
+                    element: link.outerHTML.substring(0, 200),
+                    parentClass: link.parentElement?.className || ''
+                  });
                 }
-              });
+              }
             });
             
             return articleUrls;
@@ -419,13 +440,187 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           
           log(`[LinkExtractor] Step 3: Found ${externalArticleUrls.length} potential article URLs (internal and external)`, "scraper");
           
-          // Process each article URL to extract final external links
+          // Process each article to find URLs or create internal article URLs for articles with empty hrefs
           const maxArticlesToProcess = Math.min(externalArticleUrls.length, 10);
           
           for (let i = 0; i < maxArticlesToProcess; i++) {
             const item = externalArticleUrls[i];
             
-            if (item.url && !item.isExternal) {
+            if (!item.url || item.url === null) {
+              // This is an article with empty href - try to create an internal URL based on the article text
+              try {
+                log(`[LinkExtractor] Creating internal article URL for: "${item.text.substring(0, 40)}..."`, "scraper");
+                
+                // Create a slug from the article text
+                const slug = item.text.toLowerCase()
+                  .replace(/[^a-z0-9\s-]/g, '')
+                  .replace(/\s+/g, '-')
+                  .replace(/-+/g, '-')
+                  .replace(/^-|-$/g, '');
+                
+                // Try common internal article URL patterns
+                const possibleUrls = [
+                  `${currentBaseUrl}/media/items/${slug}`,
+                  `${currentBaseUrl}/media/cybersecurity/${slug}`,
+                  `${currentBaseUrl}/article/${slug}`,
+                  `${currentBaseUrl}/items/${slug}`,
+                  `${currentBaseUrl}/post/${slug}`,
+                  `${currentBaseUrl}/story/${slug}`
+                ];
+                
+                // Try each possible URL to see if it exists and contains external links
+                for (const possibleUrl of possibleUrls) {
+                  try {
+                    const articlePageContent = await page.evaluate(async (articleUrl, currentDomain) => {
+                      try {
+                        const response = await fetch(articleUrl, {
+                          headers: {
+                            'HX-Request': 'true',
+                            'HX-Current-URL': window.location.href,
+                            'Accept': 'text/html, */*'
+                          }
+                        });
+                        
+                        if (response.ok) {
+                          const html = await response.text();
+                          console.log(`Fetched article page content: ${html.length} characters`);
+                          
+                          // Create a temporary container to parse the content
+                          const tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = html;
+                          
+                          // Look for external links in this article content
+                          const externalLinks = [];
+                          const allLinks = tempDiv.querySelectorAll('a[href]');
+                          
+                          allLinks.forEach(link => {
+                            const href = link.getAttribute('href');
+                            const text = link.textContent?.trim() || '';
+                            
+                            if (href && href.length > 10) {
+                              try {
+                                // Create absolute URL
+                                const absoluteUrl = href.startsWith('http') ? href : 
+                                  (href.startsWith('/') ? `${window.location.origin}${href}` : `${window.location.origin}/${href}`);
+                                
+                                const urlObj = new URL(absoluteUrl);
+                                
+                                // Check if this is an external URL
+                                if (urlObj.hostname !== currentDomain) {
+                                  // Dynamic pattern matching for main article links
+                                  const isMainArticle = 
+                                    // Link text is substantial (likely the main article)
+                                    (text.length > 30 && text.length < 200) ||
+                                    // Has article-like URL patterns
+                                    /\/(article|news|blog|post|story|tech|cybersecurity|security)\//.test(urlObj.pathname) ||
+                                    // Has date patterns in URL
+                                    /\/20\d{2}\//.test(urlObj.pathname) ||
+                                    // Domain suggests news/tech content
+                                    /(news|tech|cyber|security|wire|silicon|bloomberg|reuters|guardian|forbes|medium|times|post|journal|wire|report|today|daily|press|tribune)/.test(urlObj.hostname) ||
+                                    // Parent element indicates it's the main content
+                                    link.closest('.article-content, .content, .post-content, [class*="article"], [class*="content"], [class*="main"], [class*="body"]') ||
+                                    // Link is prominently placed (large text, heading context)
+                                    link.closest('h1, h2, h3, .title, .headline, [class*="title"], [class*="headline"]');
+                                  
+                                  if (isMainArticle) {
+                                    console.log(`Found external article: ${absoluteUrl} ("${text.substring(0, 40)}...")`);
+                                    externalLinks.push({
+                                      url: absoluteUrl,
+                                      text: text,
+                                      domain: urlObj.hostname,
+                                      isMainArticle: true
+                                    });
+                                  }
+                                }
+                              } catch (urlError) {
+                                // Skip invalid URLs
+                              }
+                            }
+                          });
+                          
+                          // Also look for URLs in meta tags or JSON-LD (domain-agnostic approach)
+                          const metaUrls = [];
+                          
+                          // Check for canonical URLs
+                          const canonical = tempDiv.querySelector('link[rel="canonical"]');
+                          if (canonical) {
+                            const canonicalUrl = canonical.getAttribute('href');
+                            if (canonicalUrl && canonicalUrl.startsWith('http') && !canonicalUrl.includes(currentDomain)) {
+                              metaUrls.push({
+                                url: canonicalUrl,
+                                text: 'Canonical URL',
+                                domain: new URL(canonicalUrl).hostname,
+                                isMainArticle: true
+                              });
+                            }
+                          }
+                          
+                          // Check for meta og:url
+                          const ogUrl = tempDiv.querySelector('meta[property="og:url"]');
+                          if (ogUrl) {
+                            const ogUrlValue = ogUrl.getAttribute('content');
+                            if (ogUrlValue && ogUrlValue.startsWith('http') && !ogUrlValue.includes(currentDomain)) {
+                              metaUrls.push({
+                                url: ogUrlValue,
+                                text: 'Open Graph URL',
+                                domain: new URL(ogUrlValue).hostname,
+                                isMainArticle: true
+                              });
+                            }
+                          }
+                          
+                          // Check for Twitter card URL
+                          const twitterUrl = tempDiv.querySelector('meta[name="twitter:url"], meta[property="twitter:url"]');
+                          if (twitterUrl) {
+                            const twitterUrlValue = twitterUrl.getAttribute('content');
+                            if (twitterUrlValue && twitterUrlValue.startsWith('http') && !twitterUrlValue.includes(currentDomain)) {
+                              metaUrls.push({
+                                url: twitterUrlValue,
+                                text: 'Twitter Card URL',
+                                domain: new URL(twitterUrlValue).hostname,
+                                isMainArticle: true
+                              });
+                            }
+                          }
+                          
+                          return [...externalLinks, ...metaUrls];
+                        }
+                        
+                        return [];
+                      } catch (error) {
+                        console.error(`Error fetching article content: ${error.message}`);
+                        return [];
+                      }
+                    }, possibleUrl, currentDomain);
+                    
+                    // If we found external URLs, add them and break out of the loop
+                    if (articlePageContent.length > 0) {
+                      log(`[LinkExtractor] Found ${articlePageContent.length} external URLs from ${possibleUrl}`, "scraper");
+                      
+                      articlePageContent.forEach(externalItem => {
+                        finalExternalUrls.push({
+                          href: externalItem.url,
+                          text: externalItem.text || item.text,
+                          context: `Extracted from ${possibleUrl}`,
+                          parentClass: '',
+                          source: possibleUrl,
+                          domain: externalItem.domain,
+                          isExternal: true
+                        });
+                      });
+                      
+                      break; // Found content, no need to try other URLs
+                    }
+                    
+                  } catch (error) {
+                    log(`[LinkExtractor] Error trying ${possibleUrl}: ${error.message}`, "scraper-error");
+                  }
+                }
+                
+              } catch (error) {
+                log(`[LinkExtractor] Error processing article without URL "${item.text}": ${error.message}`, "scraper-error");
+              }
+            } else if (item.url && !item.isExternal) {
               // This is an internal URL that likely contains the actual external article link
               try {
                 log(`[LinkExtractor] Fetching internal article page: ${item.url.substring(0, 60)}...`, "scraper");
