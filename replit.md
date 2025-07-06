@@ -145,8 +145,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **500ms delays between requests** to avoid overwhelming target servers
   - **Comprehensive error handling** with graceful fallbacks for failed intermediate URLs
   - **Detailed logging** for each step of the three-step process
+- **Critical follow-up fix**: Enhanced URL extraction to handle empty href attributes
+  - **Root cause of empty hrefs**: System was only checking `href` attributes, but HTMX sites use multiple URL sources
+  - **Enhanced URL extraction**: Now checks href, hx-get, data-url, onclick handlers, and parent elements
+  - **Empty href filtering**: Explicitly filters out empty strings and hash-only hrefs
+  - **Multi-source URL detection**: Comprehensive URL extraction from any clickable element attribute
 - **Impact**: 
   - **Eliminates "0 external article URLs" issue** for HTMX sites like Foorilla
+  - **Fixes empty href extraction problem** where articles had text but no URLs
   - **Restores proper external article discovery** for dynamic news aggregators
   - **Maintains domain-agnostic functionality** without hardcoded URL patterns
   - **Improves cybersecurity content collection** through proper deep extraction

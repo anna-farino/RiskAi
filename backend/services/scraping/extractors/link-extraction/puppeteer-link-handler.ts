@@ -283,50 +283,121 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           const urls = [];
           
           containers.forEach(container => {
-            const links = container.querySelectorAll('a[href]');
-            links.forEach(link => {
-              const href = link.getAttribute('href');
-              const text = link.textContent?.trim() || '';
+            // Enhanced URL extraction from multiple sources
+            const elements = container.querySelectorAll('a, [hx-get], [data-url], [onclick*="http"]');
+            
+            elements.forEach(element => {
+              const text = element.textContent?.trim() || '';
               
-              if (href && text.length > 5) {
-                // Look for intermediate article URLs (typically relative paths)
-                // These could be article slugs, media paths, or other intermediate URLs
-                const isIntermediateUrl = (
-                  href.startsWith('/') || // Relative path
-                  href.startsWith('./') || // Relative path
-                  href.startsWith('../') || // Relative path
-                  (!href.startsWith('http') && !href.startsWith('mailto') && !href.startsWith('#')) // Not absolute, not email, not anchor
-                );
-                
-                // Also check for meaningful content patterns
-                const hasArticleContent = (
-                  text.length > 10 && // Meaningful title length
-                  !text.toLowerCase().includes('read more') &&
-                  !text.toLowerCase().includes('continue reading') &&
-                  !text.toLowerCase().includes('view all') &&
-                  !text.toLowerCase().includes('see more') &&
-                  !text.toLowerCase().includes('load more') &&
-                  !href.includes('/search') &&
-                  !href.includes('/filter') &&
-                  !href.includes('/tag') &&
-                  !href.includes('/category') &&
-                  !href.includes('/author') &&
-                  !href.includes('/login') &&
-                  !href.includes('/register')
-                );
-                
-                if (isIntermediateUrl && hasArticleContent) {
-                  // Convert relative URLs to absolute
-                  const fullUrl = href.startsWith('http') ? href : new URL(href, window.location.href).href;
-                  
-                  urls.push({
-                    href: fullUrl,
-                    text: text,
-                    context: link.parentElement?.textContent?.trim() || '',
-                    parentClass: link.parentElement?.className || '',
-                    source: container.getAttribute('data-source') || 'unknown'
-                  });
+              // Skip if text is too short (likely navigation)
+              if (text.length <= 5) return;
+              
+              // Extract URL from multiple possible sources
+              let href = '';
+              
+              // 1. Standard href attribute
+              if (element.hasAttribute('href')) {
+                href = element.getAttribute('href') || '';
+              }
+              
+              // 2. HTMX hx-get attribute
+              if (!href && element.hasAttribute('hx-get')) {
+                href = element.getAttribute('hx-get') || '';
+              }
+              
+              // 3. Data-url attribute
+              if (!href && element.hasAttribute('data-url')) {
+                href = element.getAttribute('data-url') || '';
+              }
+              
+              // 4. Extract from onclick handler
+              if (!href && element.hasAttribute('onclick')) {
+                const onclick = element.getAttribute('onclick') || '';
+                const urlMatch = onclick.match(/(?:window\.location|location\.href|window\.open)\s*[=\(]\s*['"]([^'"]+)['"]/);
+                if (urlMatch) {
+                  href = urlMatch[1];
                 }
+              }
+              
+              // 5. Look for URLs in nearby elements (like parent or sibling elements)
+              if (!href) {
+                const parent = element.parentElement;
+                if (parent) {
+                  const parentHref = parent.getAttribute('href') || parent.getAttribute('data-url') || '';
+                  if (parentHref) href = parentHref;
+                }
+              }
+              
+              // 6. Check for canonical or og:url meta tags within the element
+              if (!href) {
+                const metaCanonical = element.querySelector('meta[rel="canonical"]');
+                const metaOgUrl = element.querySelector('meta[property="og:url"]');
+                if (metaCanonical) href = metaCanonical.getAttribute('href') || '';
+                if (!href && metaOgUrl) href = metaOgUrl.getAttribute('content') || '';
+              }
+              
+              // Skip empty hrefs
+              if (!href || href === '' || href === '#') return;
+              
+              // Look for intermediate article URLs (typically relative paths)
+              const isIntermediateUrl = (
+                href.startsWith('/') || // Relative path
+                href.startsWith('./') || // Relative path
+                href.startsWith('../') || // Relative path
+                (!href.startsWith('http') && !href.startsWith('mailto') && !href.startsWith('#')) // Not absolute, not email, not anchor
+              );
+              
+              // Enhanced article content detection
+              const hasArticleContent = (
+                text.length > 10 && // Meaningful title length
+                !text.toLowerCase().includes('read more') &&
+                !text.toLowerCase().includes('continue reading') &&
+                !text.toLowerCase().includes('view all') &&
+                !text.toLowerCase().includes('see more') &&
+                !text.toLowerCase().includes('load more') &&
+                !text.toLowerCase().includes('sign up') &&
+                !text.toLowerCase().includes('sign in') &&
+                !text.toLowerCase().includes('login') &&
+                !text.toLowerCase().includes('register') &&
+                !text.toLowerCase().includes('subscribe') &&
+                !text.toLowerCase().includes('follow') &&
+                !text.toLowerCase().includes('topics') &&
+                !text.toLowerCase().includes('filters') &&
+                !href.includes('/search') &&
+                !href.includes('/filter') &&
+                !href.includes('/tag') &&
+                !href.includes('/category') &&
+                !href.includes('/author') &&
+                !href.includes('/login') &&
+                !href.includes('/register') &&
+                !href.includes('/account') &&
+                !href.includes('/billing') &&
+                !href.includes('/about') &&
+                !href.includes('/terms') &&
+                !href.includes('/privacy')
+              );
+              
+              // Check if this looks like an article title
+              const looksLikeArticle = (
+                text.length > 15 && // Longer meaningful titles
+                (text.includes(':') || text.includes('?') || text.includes('!') || 
+                 text.split(' ').length > 3) && // Multi-word titles
+                !text.toLowerCase().includes('ago') && // Not timestamps
+                !text.toLowerCase().includes('©') && // Not copyright
+                !text.toLowerCase().includes('made with') // Not footer text
+              );
+              
+              if ((isIntermediateUrl || href.startsWith('http')) && (hasArticleContent || looksLikeArticle)) {
+                // Convert relative URLs to absolute
+                const fullUrl = href.startsWith('http') ? href : new URL(href, window.location.href).href;
+                
+                urls.push({
+                  href: fullUrl,
+                  text: text,
+                  context: element.parentElement?.textContent?.trim() || '',
+                  parentClass: element.parentElement?.className || '',
+                  source: container.getAttribute('data-source') || 'unknown'
+                });
               }
             });
           });
@@ -470,30 +541,135 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         } else {
           log(`[LinkExtractor] No intermediate URLs found in HTMX content, falling back to regular extraction`, "scraper");
           
-          // Fallback: Extract all links from the page (including loaded HTMX content)
+          // Fallback: Extract all links from the page (including loaded HTMX content) with enhanced URL detection
           articleLinkData = await page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a[href]'));
-            return links.map(link => ({
-              href: link.getAttribute('href') || '',
-              text: link.textContent?.trim() || '',
-              context: link.parentElement?.textContent?.trim() || '',
-              parentClass: link.parentElement?.className || ''
-            })).filter(link => link.text.length >= 5);
+            const allElements = Array.from(document.querySelectorAll('a, [hx-get], [data-url], [onclick*="http"]'));
+            const links = [];
+            
+            allElements.forEach(element => {
+              const text = element.textContent?.trim() || '';
+              
+              // Skip if text is too short
+              if (text.length < 5) return;
+              
+              // Extract URL from multiple possible sources
+              let href = '';
+              
+              // 1. Standard href attribute
+              if (element.hasAttribute('href')) {
+                const hrefValue = element.getAttribute('href') || '';
+                if (hrefValue && hrefValue !== '' && hrefValue !== '#') {
+                  href = hrefValue;
+                }
+              }
+              
+              // 2. HTMX hx-get attribute
+              if (!href && element.hasAttribute('hx-get')) {
+                href = element.getAttribute('hx-get') || '';
+              }
+              
+              // 3. Data-url attribute
+              if (!href && element.hasAttribute('data-url')) {
+                href = element.getAttribute('data-url') || '';
+              }
+              
+              // 4. Extract from onclick handler
+              if (!href && element.hasAttribute('onclick')) {
+                const onclick = element.getAttribute('onclick') || '';
+                const urlMatch = onclick.match(/(?:window\.location|location\.href|window\.open)\s*[=\(]\s*['"]([^'"]+)['"]/);
+                if (urlMatch) {
+                  href = urlMatch[1];
+                }
+              }
+              
+              // 5. Look for URLs in nearby elements
+              if (!href) {
+                const parent = element.parentElement;
+                if (parent) {
+                  const parentHref = parent.getAttribute('href') || parent.getAttribute('data-url') || '';
+                  if (parentHref && parentHref !== '' && parentHref !== '#') {
+                    href = parentHref;
+                  }
+                }
+              }
+              
+              // Only add if we found a valid URL
+              if (href && href !== '' && href !== '#') {
+                links.push({
+                  href: href,
+                  text: text,
+                  context: element.parentElement?.textContent?.trim() || '',
+                  parentClass: element.parentElement?.className || ''
+                });
+              }
+            });
+            
+            return links;
           });
         }
         
       } else {
         log('[LinkExtractor] No HTMX detected, extracting links using standard method', "scraper");
         
-        // Standard link extraction for non-HTMX sites
+        // Standard link extraction for non-HTMX sites with enhanced URL detection
         articleLinkData = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href]'));
-          return links.map(link => ({
-            href: link.getAttribute('href') || '',
-            text: link.textContent?.trim() || '',
-            context: link.parentElement?.textContent?.trim() || '',
-            parentClass: link.parentElement?.className || ''
-          })).filter(link => link.text.length >= 5);
+          const allElements = Array.from(document.querySelectorAll('a, [data-url], [onclick*="http"]'));
+          const links = [];
+          
+          allElements.forEach(element => {
+            const text = element.textContent?.trim() || '';
+            
+            // Skip if text is too short
+            if (text.length < 5) return;
+            
+            // Extract URL from multiple possible sources
+            let href = '';
+            
+            // 1. Standard href attribute
+            if (element.hasAttribute('href')) {
+              const hrefValue = element.getAttribute('href') || '';
+              if (hrefValue && hrefValue !== '' && hrefValue !== '#') {
+                href = hrefValue;
+              }
+            }
+            
+            // 2. Data-url attribute
+            if (!href && element.hasAttribute('data-url')) {
+              href = element.getAttribute('data-url') || '';
+            }
+            
+            // 3. Extract from onclick handler
+            if (!href && element.hasAttribute('onclick')) {
+              const onclick = element.getAttribute('onclick') || '';
+              const urlMatch = onclick.match(/(?:window\.location|location\.href|window\.open)\s*[=\(]\s*['"]([^'"]+)['"]/);
+              if (urlMatch) {
+                href = urlMatch[1];
+              }
+            }
+            
+            // 4. Look for URLs in nearby elements
+            if (!href) {
+              const parent = element.parentElement;
+              if (parent) {
+                const parentHref = parent.getAttribute('href') || parent.getAttribute('data-url') || '';
+                if (parentHref && parentHref !== '' && parentHref !== '#') {
+                  href = parentHref;
+                }
+              }
+            }
+            
+            // Only add if we found a valid URL
+            if (href && href !== '' && href !== '#') {
+              links.push({
+                href: href,
+                text: text,
+                context: element.parentElement?.textContent?.trim() || '',
+                parentClass: element.parentElement?.className || ''
+              });
+            }
+          });
+          
+          return links;
         });
       }
 
@@ -520,15 +696,65 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           return new Promise(resolve => setTimeout(resolve, 2000));
         });
         
-        // Re-extract after scrolling
+        // Re-extract after scrolling with enhanced URL detection
         const additionalLinks = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href]'));
-          return links.map(link => ({
-            href: link.getAttribute('href') || '',
-            text: link.textContent?.trim() || '',
-            context: link.parentElement?.textContent?.trim() || '',
-            parentClass: link.parentElement?.className || ''
-          })).filter(link => link.text.length >= 3);
+          const allElements = Array.from(document.querySelectorAll('a, [data-url], [onclick*="http"]'));
+          const links = [];
+          
+          allElements.forEach(element => {
+            const text = element.textContent?.trim() || '';
+            
+            // Skip if text is too short
+            if (text.length < 3) return;
+            
+            // Extract URL from multiple possible sources
+            let href = '';
+            
+            // 1. Standard href attribute
+            if (element.hasAttribute('href')) {
+              const hrefValue = element.getAttribute('href') || '';
+              if (hrefValue && hrefValue !== '' && hrefValue !== '#') {
+                href = hrefValue;
+              }
+            }
+            
+            // 2. Data-url attribute
+            if (!href && element.hasAttribute('data-url')) {
+              href = element.getAttribute('data-url') || '';
+            }
+            
+            // 3. Extract from onclick handler
+            if (!href && element.hasAttribute('onclick')) {
+              const onclick = element.getAttribute('onclick') || '';
+              const urlMatch = onclick.match(/(?:window\.location|location\.href|window\.open)\s*[=\(]\s*['"]([^'"]+)['"]/);
+              if (urlMatch) {
+                href = urlMatch[1];
+              }
+            }
+            
+            // 4. Look for URLs in nearby elements
+            if (!href) {
+              const parent = element.parentElement;
+              if (parent) {
+                const parentHref = parent.getAttribute('href') || parent.getAttribute('data-url') || '';
+                if (parentHref && parentHref !== '' && parentHref !== '#') {
+                  href = parentHref;
+                }
+              }
+            }
+            
+            // Only add if we found a valid URL
+            if (href && href !== '' && href !== '#') {
+              links.push({
+                href: href,
+                text: text,
+                context: element.parentElement?.textContent?.trim() || '',
+                parentClass: element.parentElement?.className || ''
+              });
+            }
+          });
+          
+          return links;
         });
         
         if (additionalLinks.length > articleLinkData.length) {
