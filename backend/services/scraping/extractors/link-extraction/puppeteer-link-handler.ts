@@ -468,32 +468,248 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             articleLinkData = intermediateUrls;
           }
         } else {
-          log(`[LinkExtractor] No intermediate URLs found in HTMX content, falling back to regular extraction`, "scraper");
+          log(`[LinkExtractor] No intermediate URLs found in HTMX content, falling back to enhanced extraction`, "scraper");
           
-          // Fallback: Extract all links from the page (including loaded HTMX content)
+          // Enhanced extraction for HTMX sites with empty href attributes
           articleLinkData = await page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a[href]'));
-            return links.map(link => ({
+            // First, try traditional links
+            const traditionalLinks = Array.from(document.querySelectorAll('a[href]'));
+            const results = traditionalLinks.map(link => ({
               href: link.getAttribute('href') || '',
               text: link.textContent?.trim() || '',
               context: link.parentElement?.textContent?.trim() || '',
-              parentClass: link.parentElement?.className || ''
+              parentClass: link.parentElement?.className || '',
+              dataUrl: link.getAttribute('data-url') || link.getAttribute('data-href') || '',
+              onclick: link.getAttribute('onclick') || ''
             })).filter(link => link.text.length >= 5);
+            
+            // For HTMX sites, also look for clickable elements without href
+            const clickableElements = Array.from(document.querySelectorAll('a, [onclick], [data-url], [data-href], [hx-get], [data-hx-get]'));
+            
+            clickableElements.forEach(element => {
+              const text = element.textContent?.trim() || '';
+              if (text.length >= 10) { // Meaningful article title length
+                const href = element.getAttribute('href') || '';
+                const dataUrl = element.getAttribute('data-url') || element.getAttribute('data-href') || '';
+                const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get') || '';
+                const onclick = element.getAttribute('onclick') || '';
+                
+                // Look for URL in various attributes
+                let extractedUrl = href;
+                if (!extractedUrl && dataUrl) extractedUrl = dataUrl;
+                if (!extractedUrl && hxGet) extractedUrl = hxGet;
+                if (!extractedUrl && onclick) {
+                  // Try to extract URL from onclick handler
+                  const urlMatch = onclick.match(/(?:location\.href|window\.location|goto|navigate)\s*=\s*['"]([^'"]+)['"]/);
+                  if (urlMatch) extractedUrl = urlMatch[1];
+                }
+                
+                // Check if this looks like an article based on text content
+                const isArticleText = (
+                  text.length > 15 && // Meaningful title
+                  !text.toLowerCase().includes('read more') &&
+                  !text.toLowerCase().includes('continue reading') &&
+                  !text.toLowerCase().includes('view all') &&
+                  !text.toLowerCase().includes('see more') &&
+                  !text.toLowerCase().includes('load more') &&
+                  !text.toLowerCase().includes('sign up') &&
+                  !text.toLowerCase().includes('sign in') &&
+                  !text.toLowerCase().includes('login') &&
+                  !text.toLowerCase().includes('register') &&
+                  !text.toLowerCase().includes('follow') &&
+                  !text.toLowerCase().includes('share') &&
+                  !text.toLowerCase().includes('like') &&
+                  !text.toLowerCase().includes('subscribe') &&
+                  !text.toLowerCase().includes('newsletter') &&
+                  !text.toLowerCase().includes('privacy policy') &&
+                  !text.toLowerCase().includes('terms of service') &&
+                  !text.toLowerCase().includes('about') &&
+                  !text.toLowerCase().includes('contact') &&
+                  !text.toLowerCase().includes('home') &&
+                  !text.toLowerCase().includes('menu') &&
+                  !text.toLowerCase().includes('navigation') &&
+                  !text.toLowerCase().includes('topics') &&
+                  !text.toLowerCase().includes('filters') &&
+                  !text.toLowerCase().includes('saved') &&
+                  !text.toLowerCase().includes('following') &&
+                  !text.toLowerCase().includes('sources') &&
+                  !text.toLowerCase().includes('billing') &&
+                  !text.toLowerCase().includes('account') &&
+                  !text.toLowerCase().includes('changelog') &&
+                  !text.toLowerCase().includes('hiring') &&
+                  !text.toLowerCase().includes('media') &&
+                  !text.toLowerCase().includes('foorilla') &&
+                  !text.toLowerCase().includes('foo🦍') &&
+                  !/^\d+[hm]\s+ago$/.test(text) && // Not just timestamps
+                  !/^[0-9]+$/.test(text) && // Not just numbers
+                  text.split(' ').length > 3 // Multi-word titles
+                );
+                
+                if (isArticleText) {
+                  // Check if we already have this link
+                  const existingLink = results.find(r => r.text === text);
+                  if (!existingLink) {
+                    results.push({
+                      href: extractedUrl,
+                      text: text,
+                      context: element.parentElement?.textContent?.trim() || '',
+                      parentClass: element.parentElement?.className || '',
+                      dataUrl: dataUrl,
+                      onclick: onclick
+                    });
+                  } else if (!existingLink.href && extractedUrl) {
+                    // Update existing link with found URL
+                    existingLink.href = extractedUrl;
+                    existingLink.dataUrl = dataUrl;
+                    existingLink.onclick = onclick;
+                  }
+                }
+              }
+            });
+            
+            return results;
           });
+          
+          log(`[LinkExtractor] Enhanced extraction found ${articleLinkData.length} article elements`, "scraper");
+          
+          // For empty href articles, try to resolve URLs by inspecting their click behavior
+          const articlesWithEmptyHref = articleLinkData.filter(link => !link.href && link.text.length > 15);
+          
+          if (articlesWithEmptyHref.length > 0) {
+            log(`[LinkExtractor] Found ${articlesWithEmptyHref.length} articles with empty href, attempting URL resolution`, "scraper");
+            
+            // Try to resolve URLs by examining the page structure and click handlers
+            const resolvedUrls = await page.evaluate(() => {
+              const resolvedLinks = [];
+              
+              // Look for patterns in the page structure
+              const articleContainers = document.querySelectorAll('.hstack, .article-item, .post-item, .news-item, [class*="article"], [class*="post"]');
+              
+              articleContainers.forEach(container => {
+                const titleElement = container.querySelector('a') || container;
+                const title = titleElement.textContent?.trim() || '';
+                
+                if (title.length > 15) {
+                  // Look for URL hints in the container
+                  const urlHints = [
+                    container.getAttribute('data-url'),
+                    container.getAttribute('data-href'),
+                    container.getAttribute('data-link'),
+                    titleElement.getAttribute('data-url'),
+                    titleElement.getAttribute('data-href'),
+                    titleElement.getAttribute('onclick')
+                  ].filter(Boolean);
+                  
+                  let resolvedUrl = '';
+                  for (const hint of urlHints) {
+                    if (hint && hint.includes('http')) {
+                      resolvedUrl = hint;
+                      break;
+                    }
+                    if (hint && hint.includes('/')) {
+                      resolvedUrl = hint;
+                      break;
+                    }
+                  }
+                  
+                  if (resolvedUrl) {
+                    resolvedLinks.push({
+                      title: title,
+                      url: resolvedUrl,
+                      context: container.textContent?.trim() || '',
+                      parentClass: container.className || ''
+                    });
+                  }
+                }
+              });
+              
+              return resolvedLinks;
+            });
+            
+            // Merge resolved URLs back into the article data
+            resolvedUrls.forEach(resolved => {
+              const matchingArticle = articleLinkData.find(article => article.text === resolved.title);
+              if (matchingArticle && !matchingArticle.href) {
+                matchingArticle.href = resolved.url;
+                log(`[LinkExtractor] Resolved URL for article: "${resolved.title}" -> ${resolved.url}`, "scraper-debug");
+              }
+            });
+          }
         }
         
       } else {
-        log('[LinkExtractor] No HTMX detected, extracting links using standard method', "scraper");
+        log('[LinkExtractor] No HTMX detected, extracting links using enhanced standard method', "scraper");
         
-        // Standard link extraction for non-HTMX sites
+        // Enhanced standard link extraction for non-HTMX sites
         articleLinkData = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href]'));
-          return links.map(link => ({
+          // First, try traditional links
+          const traditionalLinks = Array.from(document.querySelectorAll('a[href]'));
+          const results = traditionalLinks.map(link => ({
             href: link.getAttribute('href') || '',
             text: link.textContent?.trim() || '',
             context: link.parentElement?.textContent?.trim() || '',
-            parentClass: link.parentElement?.className || ''
+            parentClass: link.parentElement?.className || '',
+            dataUrl: link.getAttribute('data-url') || link.getAttribute('data-href') || '',
+            onclick: link.getAttribute('onclick') || ''
           })).filter(link => link.text.length >= 5);
+          
+          // Also look for clickable elements without href (some sites use JS navigation)
+          const clickableElements = Array.from(document.querySelectorAll('a, [onclick], [data-url], [data-href]'));
+          
+          clickableElements.forEach(element => {
+            const text = element.textContent?.trim() || '';
+            if (text.length >= 10) { // Meaningful article title length
+              const href = element.getAttribute('href') || '';
+              const dataUrl = element.getAttribute('data-url') || element.getAttribute('data-href') || '';
+              const onclick = element.getAttribute('onclick') || '';
+              
+              // Look for URL in various attributes
+              let extractedUrl = href;
+              if (!extractedUrl && dataUrl) extractedUrl = dataUrl;
+              if (!extractedUrl && onclick) {
+                // Try to extract URL from onclick handler
+                const urlMatch = onclick.match(/(?:location\.href|window\.location|goto|navigate)\s*=\s*['"]([^'"]+)['"]/);
+                if (urlMatch) extractedUrl = urlMatch[1];
+              }
+              
+              // Check if this looks like an article based on text content
+              const isArticleText = (
+                text.length > 15 && // Meaningful title
+                !text.toLowerCase().includes('read more') &&
+                !text.toLowerCase().includes('continue reading') &&
+                !text.toLowerCase().includes('view all') &&
+                !text.toLowerCase().includes('see more') &&
+                !text.toLowerCase().includes('load more') &&
+                !text.toLowerCase().includes('sign up') &&
+                !text.toLowerCase().includes('sign in') &&
+                !text.toLowerCase().includes('login') &&
+                !text.toLowerCase().includes('register') &&
+                text.split(' ').length > 3 // Multi-word titles
+              );
+              
+              if (isArticleText) {
+                // Check if we already have this link
+                const existingLink = results.find(r => r.text === text);
+                if (!existingLink) {
+                  results.push({
+                    href: extractedUrl,
+                    text: text,
+                    context: element.parentElement?.textContent?.trim() || '',
+                    parentClass: element.parentElement?.className || '',
+                    dataUrl: dataUrl,
+                    onclick: onclick
+                  });
+                } else if (!existingLink.href && extractedUrl) {
+                  // Update existing link with found URL
+                  existingLink.href = extractedUrl;
+                  existingLink.dataUrl = dataUrl;
+                  existingLink.onclick = onclick;
+                }
+              }
+            }
+          });
+          
+          return results;
         });
       }
 
