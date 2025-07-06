@@ -1,6 +1,6 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP } from '../scrapers/http-scraper';
-import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper';
+import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper';
 
 /**
  * Smart method selection
