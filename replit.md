@@ -127,6 +127,30 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 6, 2025 - Restored Three-Step HTMX Deep Extraction Process Complete
+- **Fixed critical missing functionality** lost during componentization where HTMX sites returned 0 external article URLs
+- **Root cause**: System was only doing 2-step extraction (load HTMX → extract external URLs) instead of the required 3-step process
+- **Restored complete three-step workflow**:
+  - **Step 1**: Load HTMX content from dynamic endpoints (✅ was working)
+  - **Step 2**: Extract intermediate URLs from loaded content (❌ was missing) 
+  - **Step 3**: Follow intermediate URLs to extract final external article links (❌ was missing)
+- **Enhanced implementation**:
+  - **Domain-agnostic intermediate URL detection** using relative path patterns and content analysis
+  - **Smart intermediate URL filtering** to avoid navigation/admin links
+  - **External article link extraction** via page navigation with comprehensive domain matching
+  - **Proper page state management** returning to original page after extraction
+  - **Enhanced cybersecurity domain coverage** including therecord.media, bleepingcomputer.com
+- **Technical improvements**:
+  - **Process up to 50 intermediate URLs** with intelligent limiting to avoid system overload
+  - **500ms delays between requests** to avoid overwhelming target servers
+  - **Comprehensive error handling** with graceful fallbacks for failed intermediate URLs
+  - **Detailed logging** for each step of the three-step process
+- **Impact**: 
+  - **Eliminates "0 external article URLs" issue** for HTMX sites like Foorilla
+  - **Restores proper external article discovery** for dynamic news aggregators
+  - **Maintains domain-agnostic functionality** without hardcoded URL patterns
+  - **Improves cybersecurity content collection** through proper deep extraction
+
 ### July 3, 2025 - Legacy Code Cleanup and Facade Directory Optimization Complete
 - **Successfully removed all deprecated legacy code** from the componentized scraping system
 - **Fixed import conflicts** in index.ts by properly aliasing imported unifiedScraper to avoid naming conflicts

@@ -275,27 +275,11 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         
         log(`[LinkExtractor] Step 1 Complete: Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints`, "scraper");
         
-        // Step 2: Extract external URLs only from loaded content
-        log(`[LinkExtractor] Step 2: Extracting external URLs from loaded content...`, "scraper");
+        // Step 2: Extract intermediate URLs from loaded content (article/media slugs/paths)
+        log(`[LinkExtractor] Step 2: Extracting intermediate URLs from loaded content...`, "scraper");
         
-        // Extract external article URLs from all loaded content
-        const externalUrls = await page.evaluate(() => {
+        const intermediateUrls = await page.evaluate(() => {
           const containers = document.querySelectorAll('.htmx-loaded-content, .htmx-common-content');
-          const externalDomains = [
-            'techcrunch.com', 'reuters.com', 'bloomberg.com', 'wsj.com', 'ft.com',
-            'theguardian.com', 'bbc.com', 'cnn.com', 'forbes.com', 'fortune.com',
-            'wired.com', 'arstechnica.com', 'theverge.com', 'engadget.com', 'gizmodo.com',
-            'zdnet.com', 'cnet.com', 'techradar.com', 'computerworld.com', 'infoworld.com',
-            'siliconangle.com', 'venturebeat.com', 'crunchbase.com', 'axios.com', 'politico.com',
-            'washingtonpost.com', 'nytimes.com', 'usatoday.com', 'apnews.com', 'npr.org',
-            'cbsnews.com', 'abcnews.go.com', 'nbcnews.com', 'foxnews.com', 'cnbc.com',
-            'marketwatch.com', 'barrons.com', 'economist.com', 'newyorker.com', 'atlantic.com',
-            'yahoo.com', 'msn.com', 'google.com', 'microsoft.com', 'apple.com',
-            'thehackernews.com', 'krebsonsecurity.com', 'darkreading.com', 'securityweek.com',
-            'cybersecuritydive.com', 'threatpost.com', 'infosecurity-magazine.com',
-            'bleepingcomputer.com', 'schneier.com', 'sans.org', 'us-cert.gov'
-          ];
-          
           const urls = [];
           
           containers.forEach(container => {
@@ -305,32 +289,43 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               const text = link.textContent?.trim() || '';
               
               if (href && text.length > 5) {
-                try {
-                  const url = new URL(href, window.location.href);
-                  const hostname = url.hostname.toLowerCase();
+                // Look for intermediate article URLs (typically relative paths)
+                // These could be article slugs, media paths, or other intermediate URLs
+                const isIntermediateUrl = (
+                  href.startsWith('/') || // Relative path
+                  href.startsWith('./') || // Relative path
+                  href.startsWith('../') || // Relative path
+                  (!href.startsWith('http') && !href.startsWith('mailto') && !href.startsWith('#')) // Not absolute, not email, not anchor
+                );
+                
+                // Also check for meaningful content patterns
+                const hasArticleContent = (
+                  text.length > 10 && // Meaningful title length
+                  !text.toLowerCase().includes('read more') &&
+                  !text.toLowerCase().includes('continue reading') &&
+                  !text.toLowerCase().includes('view all') &&
+                  !text.toLowerCase().includes('see more') &&
+                  !text.toLowerCase().includes('load more') &&
+                  !href.includes('/search') &&
+                  !href.includes('/filter') &&
+                  !href.includes('/tag') &&
+                  !href.includes('/category') &&
+                  !href.includes('/author') &&
+                  !href.includes('/login') &&
+                  !href.includes('/register')
+                );
+                
+                if (isIntermediateUrl && hasArticleContent) {
+                  // Convert relative URLs to absolute
+                  const fullUrl = href.startsWith('http') ? href : new URL(href, window.location.href).href;
                   
-                  // Check if this is an external URL from a known news/article domain
-                  const isExternal = externalDomains.some(domain => 
-                    hostname.includes(domain) || hostname.endsWith(domain)
-                  );
-                  
-                  // Also check for article-like path patterns
-                  const hasArticlePattern = /\/(article|story|news|post|blog|feature|analysis|report|opinion)\//.test(url.pathname) ||
-                                          /\d{4}\/\d{2}\/\d{2}/.test(url.pathname) || // Date patterns
-                                          /\d{4}-\d{2}-\d{2}/.test(url.pathname) ||
-                                          url.pathname.split('/').length > 2; // Multi-segment paths
-                  
-                  if (isExternal || hasArticlePattern) {
-                    urls.push({
-                      href: url.href,
-                      text: text,
-                      context: link.parentElement?.textContent?.trim() || '',
-                      parentClass: link.parentElement?.className || '',
-                      source: container.getAttribute('data-source') || 'unknown'
-                    });
-                  }
-                } catch (e) {
-                  // Invalid URL, skip
+                  urls.push({
+                    href: fullUrl,
+                    text: text,
+                    context: link.parentElement?.textContent?.trim() || '',
+                    parentClass: link.parentElement?.className || '',
+                    source: container.getAttribute('data-source') || 'unknown'
+                  });
                 }
               }
             });
@@ -350,14 +345,130 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           return uniqueUrls;
         });
         
-        log(`[LinkExtractor] Step 2 Complete: Found ${externalUrls.length} external article URLs`, "scraper");
+        log(`[LinkExtractor] Step 2 Complete: Found ${intermediateUrls.length} intermediate article URLs`, "scraper");
         
-        // If we found external URLs, use them; otherwise fall back to regular extraction
-        if (externalUrls.length > 0) {
-          articleLinkData = externalUrls;
-          log(`[LinkExtractor] Using ${externalUrls.length} external URLs from HTMX content`, "scraper");
+        // Step 3: Follow intermediate URLs to extract final external article links
+        log(`[LinkExtractor] Step 3: Following intermediate URLs to extract final external article links...`, "scraper");
+        
+        const finalExternalUrls = [];
+        
+        if (intermediateUrls.length > 0) {
+          // Limit to reasonable number of intermediate URLs to avoid overwhelming the system
+          const urlsToFollow = intermediateUrls.slice(0, Math.min(50, intermediateUrls.length));
+          
+          for (const intermediateUrl of urlsToFollow) {
+            try {
+              log(`[LinkExtractor] Following intermediate URL: ${intermediateUrl.href}`, "scraper-debug");
+              
+              // Navigate to the intermediate URL
+              await page.goto(intermediateUrl.href, { 
+                waitUntil: 'networkidle2', 
+                timeout: 10000 
+              });
+              
+              // Extract external article links from this intermediate page
+              const pageExternalLinks = await page.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a[href]'));
+                const externalLinks = [];
+                
+                links.forEach(link => {
+                  const href = link.getAttribute('href');
+                  const text = link.textContent?.trim() || '';
+                  
+                  if (href && text.length > 5) {
+                    try {
+                      const url = new URL(href, window.location.href);
+                      const hostname = url.hostname.toLowerCase();
+                      const currentHostname = window.location.hostname.toLowerCase();
+                      
+                      // Check if this is an external URL (different domain)
+                      const isExternal = hostname !== currentHostname;
+                      
+                      // Look for article-like patterns
+                      const hasArticlePattern = (
+                        /\/(article|story|news|post|blog|feature|analysis|report|opinion|press-release|announcement)\//.test(url.pathname) ||
+                        /\d{4}\/\d{2}\/\d{2}/.test(url.pathname) || // Date patterns
+                        /\d{4}-\d{2}-\d{2}/.test(url.pathname) ||
+                        url.pathname.split('/').length > 2 || // Multi-segment paths
+                        text.length > 20 // Meaningful title length
+                      );
+                      
+                      // Also check for known news/media domains
+                      const knownDomains = [
+                        'techcrunch.com', 'reuters.com', 'bloomberg.com', 'wsj.com', 'ft.com',
+                        'theguardian.com', 'bbc.com', 'cnn.com', 'forbes.com', 'fortune.com',
+                        'wired.com', 'arstechnica.com', 'theverge.com', 'engadget.com', 'gizmodo.com',
+                        'zdnet.com', 'cnet.com', 'techradar.com', 'computerworld.com', 'infoworld.com',
+                        'siliconangle.com', 'venturebeat.com', 'axios.com', 'politico.com',
+                        'washingtonpost.com', 'nytimes.com', 'usatoday.com', 'apnews.com', 'npr.org',
+                        'cbsnews.com', 'abcnews.go.com', 'nbcnews.com', 'foxnews.com', 'cnbc.com',
+                        'marketwatch.com', 'barrons.com', 'economist.com', 'newyorker.com', 'atlantic.com',
+                        'thehackernews.com', 'krebsonsecurity.com', 'darkreading.com', 'securityweek.com',
+                        'cybersecuritydive.com', 'threatpost.com', 'infosecurity-magazine.com',
+                        'bleepingcomputer.com', 'schneier.com', 'sans.org', 'therecord.media'
+                      ];
+                      
+                      const isFromKnownDomain = knownDomains.some(domain => 
+                        hostname.includes(domain) || hostname.endsWith(domain)
+                      );
+                      
+                      if (isExternal && (hasArticlePattern || isFromKnownDomain)) {
+                        externalLinks.push({
+                          href: url.href,
+                          text: text,
+                          context: link.parentElement?.textContent?.trim() || '',
+                          parentClass: link.parentElement?.className || '',
+                          intermediateSource: window.location.href
+                        });
+                      }
+                    } catch (e) {
+                      // Invalid URL, skip
+                    }
+                  }
+                });
+                
+                return externalLinks;
+              });
+              
+              // Add found external links to our collection
+              pageExternalLinks.forEach(link => {
+                // Check for duplicates
+                const isDuplicate = finalExternalUrls.some(existing => existing.href === link.href);
+                if (!isDuplicate) {
+                  finalExternalUrls.push(link);
+                }
+              });
+              
+              log(`[LinkExtractor] Found ${pageExternalLinks.length} external links from ${intermediateUrl.href}`, "scraper-debug");
+              
+              // Small delay to avoid overwhelming the server
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+            } catch (error) {
+              log(`[LinkExtractor] Error following intermediate URL ${intermediateUrl.href}: ${error.message}`, "scraper-error");
+              // Continue with next URL
+            }
+          }
+          
+          log(`[LinkExtractor] Step 3 Complete: Found ${finalExternalUrls.length} final external article URLs`, "scraper");
+          
+          // Return to the original page to maintain proper state
+          try {
+            await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 10000 });
+            log(`[LinkExtractor] Returned to original page: ${baseUrl}`, "scraper-debug");
+          } catch (error) {
+            log(`[LinkExtractor] Warning: Could not return to original page: ${error.message}`, "scraper-error");
+          }
+          
+          if (finalExternalUrls.length > 0) {
+            articleLinkData = finalExternalUrls;
+            log(`[LinkExtractor] Using ${finalExternalUrls.length} external URLs from three-step extraction`, "scraper");
+          } else {
+            log(`[LinkExtractor] No external URLs found via three-step extraction, falling back to intermediate URLs`, "scraper");
+            articleLinkData = intermediateUrls;
+          }
         } else {
-          log(`[LinkExtractor] No external URLs found in HTMX content, falling back to regular extraction`, "scraper");
+          log(`[LinkExtractor] No intermediate URLs found in HTMX content, falling back to regular extraction`, "scraper");
           
           // Fallback: Extract all links from the page (including loaded HTMX content)
           articleLinkData = await page.evaluate(() => {
