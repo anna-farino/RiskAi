@@ -127,6 +127,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 7, 2025 - Contextual HTMX Endpoint Detection Fix Complete
+- **Fixed critical source-URL context awareness issue** where HTMX sites pulled content from wrong sections
+- **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) instead of contextual ones based on source URL
+- **Example**: When scraping `https://foorilla.com/media/cybersecurity/`, system incorrectly tried `/media/items/` instead of `/media/cybersecurity/items/`
+- **Enhanced contextual endpoint generation**:
+  - **URL path analysis**: Extracts category from source URL path structure
+  - **Category-specific endpoints**: For `/media/cybersecurity/` generates `/media/cybersecurity/items/`, `/media/cybersecurity/latest/`, etc.
+  - **Dynamic pattern matching**: Works for any category path structure (`/media/{category}/`)
+  - **Fallback hierarchy**: Tries contextual endpoints first, then generic ones if needed
+  - **Domain-agnostic approach**: No hardcoded URLs, works for any site with similar path structures
+- **Technical implementation**:
+  - Enhanced `puppeteer-link-handler.ts` with contextual endpoint detection logic
+  - Path parsing to extract categories from URLs like `/media/cybersecurity/` → `cybersecurity`
+  - Generated contextual endpoint patterns: `/media/{category}/items/`, `/media/{category}/latest/`, etc.
+  - Comprehensive fallback to generic patterns when contextual ones fail
+- **Impact**: 
+  - **Eliminates wrong-section content extraction** for sites with organized content hierarchies
+  - **Maintains domain-agnostic functionality** without hardcoding specific site URLs
+  - **Improves content relevance** by pulling from correct content sections
+  - **Critical for cybersecurity news aggregators** that organize content by topic
+
 ### July 6, 2025 - Restored Three-Step HTMX Deep Extraction Process Complete
 - **Fixed critical missing functionality** lost during componentization where HTMX sites returned 0 external article URLs
 - **Root cause**: System was only doing 2-step extraction (load HTMX → extract external URLs) instead of the required 3-step process

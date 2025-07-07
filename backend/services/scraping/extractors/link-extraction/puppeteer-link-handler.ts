@@ -230,19 +230,65 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Also try common HTMX patterns for sites like Foorilla
-          const commonEndpoints = [
-            '/media/items/',
-            '/media/items/top/',
-            '/media/items/recent/',
-            '/media/items/popular/'
-          ];
+          // Try contextual HTMX patterns based on current URL path
+          const currentUrl = new URL(window.location.href);
+          const currentPath = currentUrl.pathname;
           
-          for (const endpoint of commonEndpoints) {
+          // Generate contextual endpoints based on the source URL
+          const contextualEndpoints = [];
+          
+          if (currentPath.includes('/media/cybersecurity')) {
+            contextualEndpoints.push(
+              '/media/cybersecurity/items/',
+              '/media/cybersecurity/items/top/',
+              '/media/cybersecurity/items/recent/',
+              '/media/cybersecurity/items/popular/',
+              '/media/cybersecurity/latest/',
+              '/media/cybersecurity/trending/'
+            );
+          } else if (currentPath.includes('/media/')) {
+            // Extract the specific media category from the URL
+            const pathParts = currentPath.split('/');
+            const mediaIndex = pathParts.indexOf('media');
+            if (mediaIndex >= 0 && mediaIndex < pathParts.length - 1) {
+              const category = pathParts[mediaIndex + 1];
+              if (category && category !== '') {
+                contextualEndpoints.push(
+                  `/media/${category}/items/`,
+                  `/media/${category}/items/top/`,
+                  `/media/${category}/items/recent/`,
+                  `/media/${category}/items/popular/`,
+                  `/media/${category}/latest/`,
+                  `/media/${category}/trending/`
+                );
+              }
+            }
+            
+            // Also try generic media endpoints as fallback
+            contextualEndpoints.push(
+              '/media/items/',
+              '/media/items/top/',
+              '/media/items/recent/',
+              '/media/items/popular/'
+            );
+          } else {
+            // For non-media pages, try generic patterns
+            contextualEndpoints.push(
+              '/items/',
+              '/articles/',
+              '/news/',
+              '/posts/',
+              '/content/'
+            );
+          }
+          
+          console.log(`Generated ${contextualEndpoints.length} contextual endpoints for ${currentPath}:`, contextualEndpoints);
+          
+          for (const endpoint of contextualEndpoints) {
             if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
             
             try {
-              console.log(`Trying common HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+              console.log(`Trying contextual HTMX endpoint: ${currentBaseUrl}${endpoint}`);
               const response = await fetch(`${currentBaseUrl}${endpoint}`, {
                 headers: {
                   'HX-Request': 'true',
@@ -253,7 +299,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               
               if (response.ok) {
                 const html = await response.text();
-                console.log(`Loaded ${html.length} chars from common endpoint ${endpoint}`);
+                console.log(`Loaded ${html.length} chars from contextual endpoint ${endpoint}`);
                 
                 // Insert content into page with identifiable container
                 const container = document.createElement('div');
@@ -264,9 +310,11 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 
                 totalContentLoaded += html.length;
                 loadedEndpoints.push(endpoint);
+              } else {
+                console.log(`Endpoint ${endpoint} returned ${response.status}`);
               }
             } catch (e) {
-              console.error(`Error fetching common endpoint ${endpoint}:`, e);
+              console.error(`Error fetching contextual endpoint ${endpoint}:`, e);
             }
           }
           
