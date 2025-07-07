@@ -125,7 +125,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         }
         
         // More aggressive HTMX content loading - trigger ALL visible HTMX elements
-        const allTriggeredElements = await page.evaluate((sourceUrl: string) => {
+        const allTriggeredElements = await page.evaluate(() => {
           let triggered = 0;
           
           // Get all HTMX elements with different triggers
@@ -176,9 +176,9 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           });
           
           return triggered;
-        }, baseUrl);
+        });
         
-        if (typeof allTriggeredElements === 'number' && allTriggeredElements > 0) {
+        if (allTriggeredElements > 0) {
           log(`[LinkExtractor] Triggered ${allTriggeredElements} HTMX elements for content loading`, "scraper");
           await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
         }
@@ -191,7 +191,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         const currentBaseUrl = new URL(currentUrl).origin;
         
         // Fetch all HTMX endpoints that contain articles and wait for them to load
-        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements, sourceUrl) => {
+        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
           let totalContentLoaded = 0;
           const loadedEndpoints = [];
           
@@ -230,9 +230,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Try contextual HTMX patterns based on source URL path
-          // Use the source URL that was passed to the scraper, not the current page URL
-          const currentUrl = new URL(sourceUrl);
+          // Try contextual HTMX patterns based on current URL path
+          const currentUrl = new URL(window.location.href);
           const currentPath = currentUrl.pathname;
           
           // Generate contextual endpoints based on the source URL
@@ -320,7 +319,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           }
           
           return { totalContentLoaded, loadedEndpoints };
-        }, baseUrl, hasHtmx.hxGetElements, baseUrl);
+        }, currentBaseUrl, hasHtmx.hxGetElements);
         
         log(`[LinkExtractor] Step 1 Complete: Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints`, "scraper");
         

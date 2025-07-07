@@ -40,20 +40,8 @@ export function extractWithFallbackSelectors($: cheerio.CheerioAPI): Partial<Art
   for (const selector of authorFallbacks) {
     if (!result.author) {
       const author = $(selector).first().text().trim();
-      if (author && author.length > 0 && author.length < 100) {
-        result.author = author.replace(/^By\s+/i, '').trim();
-        if (result.author) break;
-      }
-    }
-  }
-
-  // Try fallback date selectors
-  const dateFallbacks = generateFallbackSelectors('date');
-  for (const selector of dateFallbacks) {
-    if (!result.date) {
-      let dateText = $(selector).attr('datetime') || $(selector).attr('content') || $(selector).text().trim();
-      if (dateText && dateText.length > 0 && dateText.length < 100) {
-        result.date = dateText;
+      if (author) {
+        result.author = author;
         break;
       }
     }

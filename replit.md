@@ -127,31 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 7, 2025 - Author and Date Extraction Enhancement Complete
-- **Fixed critical author and date extraction failures** caused by "null" string selectors and inadequate fallback patterns
-- **Root cause analysis**: 
-  - Many sources had hardcoded `"author":"null"` and `"date":"null"` strings treated as literal CSS selectors
-  - Generic selectors like `.date` didn't match actual website structures
-  - Missing comprehensive fallback patterns for when primary selectors failed
-- **Enhanced selector sanitization**:
-  - **Null string handling**: Properly converts "null", "undefined", and empty strings to `undefined`
-  - **Validation improvements**: `sanitizeAndValidateSelector()` function prevents invalid selectors from being used
-  - **Fallback alternatives**: Added author and date fallback selectors to AI-detected structure configs
-- **Comprehensive fallback extraction**:
-  - **Author fallbacks**: 14 common selectors including `.author`, `.byline`, `.journalist`, `meta[name="author"]`
-  - **Date fallbacks**: 18 comprehensive selectors including `time[datetime]`, `meta[property="article:published_time"]`, various date classes
-  - **Attribute extraction**: Enhanced date extraction to check `datetime`, `content`, and text attributes
-  - **Text cleaning**: Automatic removal of "By " prefixes from author names
-- **Multi-layer extraction process**:
-  - **Primary selectors** → **Selector variations** → **Common fallbacks** → **Alternative selectors** → **Fallback extractor**
-  - **Enhanced logging**: Detailed debugging for failed extraction attempts
-  - **Length validation**: Prevents extraction of invalid content (too short/long)
-- **Impact**: 
-  - **Eliminates null selector failures** that prevented author/date extraction
-  - **Dramatically improves extraction success rate** through comprehensive fallback hierarchies  
-  - **Better content metadata** for news articles across all sources
-  - **Enhanced debugging** with detailed logging for troubleshooting extraction issues
-
 ### July 7, 2025 - Contextual HTMX Endpoint Detection Fix Complete
 - **Fixed critical source-URL context awareness issue** where HTMX sites pulled content from wrong sections
 - **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) instead of contextual ones based on source URL
