@@ -190,7 +190,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         const sourceBaseUrl = new URL(baseUrl).origin;
         
         // Fetch all HTMX endpoints that contain articles and wait for them to load
-        const htmxContent = await page.evaluate(async (sourceBaseUrl, hxGetElements) => {
+        const htmxContent = await page.evaluate(async (sourceBaseUrl, baseUrl, hxGetElements) => {
           let totalContentLoaded = 0;
           const loadedEndpoints = [];
           
@@ -363,7 +363,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           }
           
           return { totalContentLoaded, loadedEndpoints };
-        }, sourceBaseUrl, hasHtmx.hxGetElements);
+        }, sourceBaseUrl, baseUrl, hasHtmx.hxGetElements);
         
         log(`[LinkExtractor] Step 1 Complete: Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints`, "scraper");
         
