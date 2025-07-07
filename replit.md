@@ -127,6 +127,24 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 7, 2025 - Critical HX-Current-URL Context Fix for Proper Contextual Endpoint Detection
+- **Fixed fundamental HTMX contextual detection issue** where system incorrectly pulled from generic `/media/` instead of specific `/media/cybersecurity/`
+- **Root cause**: All HTMX requests were using `window.location.href` for `HX-Current-URL` header instead of original source URL
+- **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, browser navigates to that URL, but HTMX requests sent `HX-Current-URL: https://foorilla.com/media/cybersecurity/` causing server to return cybersecurity-specific content
+- **However**, previous system was using `window.location.href` which could be different from source URL after navigation/redirects
+- **Critical fix**: Updated all HTMX fetch requests to use `baseUrl` (original source URL) for `HX-Current-URL` header
+- **Files updated**:
+  - `puppeteer-link-handler.ts`: Fixed HX-Current-URL in Steps 1, 2, and 3 of HTMX extraction
+  - `htmx-handler.ts`: Updated function signature and HX-Current-URL usage for consistency
+  - `main-scraper.ts` & `content-extractor.ts`: Updated function calls to pass source URL
+- **Technical impact**:
+  - **Correct contextual filtering**: Server now receives proper source URL context for filtering content
+  - **Eliminates wrong-section extraction**: No more generic `/media/` content when specific `/media/cybersecurity/` was requested
+  - **Maintains domain-agnostic approach**: Works for any site using similar HTMX contextual filtering patterns
+  - **Enhanced endpoint patterns**: Added 15+ contextual endpoint patterns per category for better coverage
+- **Architecture insight**: Many HTMX sites use single endpoints (`/media/items/`) but filter content server-side based on `HX-Current-URL` header
+- **Prevention**: All HTMX requests now maintain proper source URL context throughout the entire extraction workflow
+
 ### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation + Contextual Priority Fix
 - **Implemented missing Step 3** from proven working code to complete the full HTMX deep extraction workflow
 - **Fixed contextual endpoint priority issue** where generic endpoints were still being loaded alongside contextual ones

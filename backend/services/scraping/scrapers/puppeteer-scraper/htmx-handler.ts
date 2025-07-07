@@ -6,7 +6,7 @@ import { safePageEvaluate } from './error-handler';
  * Handle HTMX content loading on dynamic pages
  * Consolidates HTMX handling from News Radar
  */
-export async function handleHTMXContent(page: Page): Promise<void> {
+export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise<void> {
   try {
     log(`[PuppeteerScraper] Checking for HTMX content...`, "scraper");
 
@@ -50,10 +50,10 @@ export async function handleHTMXContent(page: Page): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Manually fetch common HTMX endpoints
-      const currentUrl = page.url();
+      const currentUrl = sourceUrl || page.url();
       const baseUrl = new URL(currentUrl).origin;
 
-      const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl) => {
+      const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl, currentUrl) => {
         let totalContentLoaded = 0;
 
         // Common HTMX endpoints for article content
@@ -79,7 +79,7 @@ export async function handleHTMXContent(page: Page): Promise<void> {
           try {
             const headers: Record<string, string> = {
               'HX-Request': 'true',
-              'HX-Current-URL': window.location.href,
+              'HX-Current-URL': currentUrl,
               'Accept': 'text/html, */*',
               'X-Screen': screenType
             };
@@ -107,7 +107,7 @@ export async function handleHTMXContent(page: Page): Promise<void> {
         }
 
         return totalContentLoaded;
-      }, baseUrl);
+      }, baseUrl, currentUrl);
 
       // Handle validation blocking for HTMX content loading
       if (htmxContentLoaded === null) {

@@ -205,7 +205,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               const response = await fetch(fullUrl, {
                 headers: {
                   'HX-Request': 'true',
-                  'HX-Current-URL': window.location.href,
+                  'HX-Current-URL': baseUrl,
                   'Accept': 'text/html, */*'
                 }
               });
@@ -251,7 +251,16 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               '/media/cybersecurity/items/recent/',
               '/media/cybersecurity/items/popular/',
               '/media/cybersecurity/latest/',
-              '/media/cybersecurity/trending/'
+              '/media/cybersecurity/trending/',
+              '/media/cybersecurity/page/1/',
+              '/media/cybersecurity/page/2/',
+              '/media/cybersecurity/list/',
+              '/media/cybersecurity/feed/',
+              '/media/cybersecurity/ajax/',
+              '/media/cybersecurity/load/',
+              '/media/cybersecurity/more/',
+              '/media/cybersecurity/posts/',
+              '/media/cybersecurity/articles/'
             );
           } else if (currentPath.includes('/media/')) {
             // Extract the specific media category from the URL
@@ -266,7 +275,16 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                   `/media/${category}/items/recent/`,
                   `/media/${category}/items/popular/`,
                   `/media/${category}/latest/`,
-                  `/media/${category}/trending/`
+                  `/media/${category}/trending/`,
+                  `/media/${category}/page/1/`,
+                  `/media/${category}/page/2/`,
+                  `/media/${category}/list/`,
+                  `/media/${category}/feed/`,
+                  `/media/${category}/ajax/`,
+                  `/media/${category}/load/`,
+                  `/media/${category}/more/`,
+                  `/media/${category}/posts/`,
+                  `/media/${category}/articles/`
                 );
               }
             }
@@ -279,11 +297,23 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               '/articles/',
               '/news/',
               '/posts/',
-              '/content/'
+              '/content/',
+              '/page/1/',
+              '/page/2/',
+              '/list/',
+              '/feed/',
+              '/ajax/',
+              '/load/',
+              '/more/'
             );
           }
           
-          console.log(`Generated ${contextualEndpoints.length} contextual endpoints for ${currentPath}:`, contextualEndpoints);
+          console.log(`=== CONTEXTUAL ENDPOINT DETECTION DEBUG ===`);
+          console.log(`Source URL: ${baseUrl}`);
+          console.log(`Extracted path: ${currentPath}`);
+          console.log(`Generated ${contextualEndpoints.length} contextual endpoints:`, contextualEndpoints);
+          console.log(`Available ${genericEndpoints.length} generic endpoints:`, genericEndpoints);
+          console.log(`=== STARTING ENDPOINT FETCH ATTEMPTS ===`);
           
           // Try contextual endpoints first
           let contextualContentLoaded = 0;
@@ -295,14 +325,15 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               const response = await fetch(`${sourceBaseUrl}${endpoint}`, {
                 headers: {
                   'HX-Request': 'true',
-                  'HX-Current-URL': window.location.href,
+                  'HX-Current-URL': baseUrl,
                   'Accept': 'text/html, */*'
                 }
               });
               
               if (response.ok) {
                 const html = await response.text();
-                console.log(`Loaded ${html.length} chars from contextual endpoint ${endpoint}`);
+                console.log(`✅ SUCCESS: Contextual endpoint ${endpoint} returned ${html.length} chars`);
+                console.log(`Content preview: ${html.substring(0, 200)}...`);
                 
                 // Insert content into page with identifiable container
                 const container = document.createElement('div');
@@ -315,7 +346,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 contextualContentLoaded += html.length;
                 loadedEndpoints.push(endpoint);
               } else {
-                console.log(`Contextual endpoint ${endpoint} returned ${response.status}`);
+                console.log(`❌ FAILED: Contextual endpoint ${endpoint} returned status ${response.status}`);
               }
             } catch (e) {
               console.error(`Error fetching contextual endpoint ${endpoint}:`, e);
@@ -323,8 +354,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           }
           
           // Only try generic endpoints if contextual ones didn't yield sufficient content
-          if (contextualContentLoaded < 5000) {
-            console.log(`Contextual endpoints yielded ${contextualContentLoaded} chars, trying generic endpoints as fallback`);
+          if (contextualContentLoaded < 2000) {
+            console.log(`⚠️  Contextual endpoints yielded insufficient content (${contextualContentLoaded} chars), trying generic endpoints as fallback`);
             
             for (const endpoint of genericEndpoints) {
               if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
@@ -334,7 +365,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 const response = await fetch(`${sourceBaseUrl}${endpoint}`, {
                   headers: {
                     'HX-Request': 'true',
-                    'HX-Current-URL': window.location.href,
+                    'HX-Current-URL': baseUrl,
                     'Accept': 'text/html, */*'
                   }
                 });
@@ -359,8 +390,14 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               }
             }
           } else {
-            console.log(`Contextual endpoints provided sufficient content (${contextualContentLoaded} chars), skipping generic endpoints`);
+            console.log(`✅ Contextual endpoints provided sufficient content (${contextualContentLoaded} chars), skipping generic endpoints`);
           }
+          
+          console.log(`=== HTMX CONTENT LOADING SUMMARY ===`);
+          console.log(`Total content loaded: ${totalContentLoaded} chars`);
+          console.log(`Contextual content: ${contextualContentLoaded} chars`);
+          console.log(`Endpoints loaded: ${loadedEndpoints.length}`);
+          console.log(`Loaded endpoints:`, loadedEndpoints);
           
           return { totalContentLoaded, loadedEndpoints };
         }, sourceBaseUrl, baseUrl, hasHtmx.hxGetElements);
@@ -563,7 +600,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                     const response = await fetch(articleUrl, {
                       headers: {
                         'HX-Request': 'true',
-                        'HX-Current-URL': window.location.href,
+                        'HX-Current-URL': baseUrl,
                         'Accept': 'text/html, */*'
                       }
                     });
