@@ -127,6 +127,32 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation
+- **Implemented missing Step 3** from proven working code to complete the full HTMX deep extraction workflow
+- **Root cause**: System was stopping at Step 2 instead of following internal URLs to extract final external article links
+- **Problem**: Step 2 extracted internal URLs like `/media/cybersecurity/items/123` but didn't fetch those pages to find the actual external article URLs
+- **Complete 3-step workflow now implemented**:
+  - **Step 1**: Load HTMX content from contextual endpoints (`/media/cybersecurity/items/`, etc.) ✅
+  - **Step 2**: Extract article URLs from loaded content (both internal and external) ✅  
+  - **Step 3**: **NEW** - For internal URLs, fetch the article pages and extract final external URLs ✅
+- **Step 3 implementation details**:
+  - **Fetches internal article pages**: Uses fetch() to load each internal URL found in Step 2
+  - **Parses article content**: Creates temporary DOM containers to analyze fetched HTML
+  - **Extracts external links**: Finds actual news article URLs from external domains
+  - **Pattern recognition**: Identifies main articles vs secondary links using URL patterns, text length, and DOM structure
+  - **Meta tag extraction**: Also extracts URLs from canonical links and Open Graph meta tags
+  - **Sophisticated filtering**: Ensures only high-quality external article links are returned
+- **Article quality detection**:
+  - Text length validation (30-200 characters for main articles)
+  - URL pattern matching (`/article/`, `/news/`, `/cybersecurity/`, date patterns)
+  - Domain validation (news, tech, cybersecurity domains)
+  - Content structure analysis (article content containers)
+- **Impact**:
+  - **Solves content extraction issue**: Now gets full article content, real URLs, and proper dates
+  - **Finds actual external articles**: Instead of stopping at internal aggregator URLs
+  - **Comprehensive URL discovery**: Uses both DOM links and meta tag fallbacks
+  - **Maintains quality**: Filters out navigation links and secondary content
+
 ### July 7, 2025 - Contextual HTMX Endpoint Detection Fix Complete
 - **Fixed critical source-URL context awareness issue** where HTMX sites pulled content from wrong sections
 - **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) instead of contextual ones based on source URL
