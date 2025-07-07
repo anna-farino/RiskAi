@@ -186,12 +186,11 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         // Step 1: Load all HTMX content by triggering elements and fetching endpoints
         log(`[LinkExtractor] Step 1: Loading all HTMX content...`, "scraper");
         
-        // Get the current page URL to construct proper HTMX endpoints
-        const currentUrl = page.url();
-        const currentBaseUrl = new URL(currentUrl).origin;
+        // Use the source URL to construct proper HTMX endpoints (not current page URL)
+        const sourceBaseUrl = new URL(baseUrl).origin;
         
         // Fetch all HTMX endpoints that contain articles and wait for them to load
-        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
+        const htmxContent = await page.evaluate(async (sourceBaseUrl, hxGetElements) => {
           let totalContentLoaded = 0;
           const loadedEndpoints = [];
           
@@ -200,7 +199,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             if (!element.url) continue;
             
             try {
-              const fullUrl = element.url.startsWith('http') ? element.url : `${currentBaseUrl}${element.url}`;
+              const fullUrl = element.url.startsWith('http') ? element.url : `${sourceBaseUrl}${element.url}`;
               
               console.log(`Fetching HTMX endpoint: ${fullUrl}`);
               const response = await fetch(fullUrl, {
@@ -230,9 +229,9 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Try contextual HTMX patterns based on current URL path
-          const currentUrl = new URL(window.location.href);
-          const currentPath = currentUrl.pathname;
+          // Try contextual HTMX patterns based on source URL path (not current page URL)
+          const sourceUrl = new URL(baseUrl);
+          const currentPath = sourceUrl.pathname;
           
           // Generate contextual endpoints based on the source URL
           const contextualEndpoints = [];
@@ -292,8 +291,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
             
             try {
-              console.log(`Trying contextual HTMX endpoint: ${currentBaseUrl}${endpoint}`);
-              const response = await fetch(`${currentBaseUrl}${endpoint}`, {
+              console.log(`Trying contextual HTMX endpoint: ${sourceBaseUrl}${endpoint}`);
+              const response = await fetch(`${sourceBaseUrl}${endpoint}`, {
                 headers: {
                   'HX-Request': 'true',
                   'HX-Current-URL': window.location.href,
@@ -331,8 +330,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
               
               try {
-                console.log(`Trying generic HTMX endpoint: ${currentBaseUrl}${endpoint}`);
-                const response = await fetch(`${currentBaseUrl}${endpoint}`, {
+                console.log(`Trying generic HTMX endpoint: ${sourceBaseUrl}${endpoint}`);
+                const response = await fetch(`${sourceBaseUrl}${endpoint}`, {
                   headers: {
                     'HX-Request': 'true',
                     'HX-Current-URL': window.location.href,
@@ -364,16 +363,16 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           }
           
           return { totalContentLoaded, loadedEndpoints };
-        }, currentBaseUrl, hasHtmx.hxGetElements);
+        }, sourceBaseUrl, hasHtmx.hxGetElements);
         
         log(`[LinkExtractor] Step 1 Complete: Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints`, "scraper");
         
         // Step 2: Extract article URLs from loaded HTMX content (including empty href elements) 
         log(`[LinkExtractor] Step 2: Extracting article URLs from loaded content (including HTMX click handlers)...`, "scraper");
         
-        const externalArticleUrls = await page.evaluate((currentBaseUrl) => {
+        const externalArticleUrls = await page.evaluate((sourceBaseUrl) => {
           const articleUrls = [];
-          const currentDomain = new URL(currentBaseUrl).hostname;
+          const currentDomain = new URL(sourceBaseUrl).hostname;
           
           // Look specifically in HTMX-loaded content containers, prioritizing contextual content
           const htmxContainers = document.querySelectorAll('.htmx-contextual-content, .htmx-loaded-content, .htmx-common-content, .htmx-generic-content, .htmx-injected-content');
@@ -414,7 +413,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               const href = element.getAttribute('href');
               if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
                 articleUrl = href.startsWith('http') ? href : 
-                  (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+                  (href.startsWith('/') ? `${sourceBaseUrl}${href}` : `${sourceBaseUrl}/${href}`);
               }
               
               // 2. Check data attributes for URLs
@@ -424,7 +423,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                   const dataUrl = element.getAttribute(attr);
                   if (dataUrl && dataUrl.length > 5) {
                     articleUrl = dataUrl.startsWith('http') ? dataUrl : 
-                      (dataUrl.startsWith('/') ? `${currentBaseUrl}${dataUrl}` : `${currentBaseUrl}/${dataUrl}`);
+                      (dataUrl.startsWith('/') ? `${sourceBaseUrl}${dataUrl}` : `${sourceBaseUrl}/${dataUrl}`);
                     break;
                   }
                 }
@@ -435,7 +434,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
                 if (hxGet && hxGet.length > 5) {
                   articleUrl = hxGet.startsWith('http') ? hxGet : 
-                    (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
+                    (hxGet.startsWith('/') ? `${sourceBaseUrl}${hxGet}` : `${sourceBaseUrl}/${hxGet}`);
                 }
               }
               
@@ -448,7 +447,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                   if (urlMatch && urlMatch[1]) {
                     const extractedUrl = urlMatch[1];
                     articleUrl = extractedUrl.startsWith('http') ? extractedUrl : 
-                      (extractedUrl.startsWith('/') ? `${currentBaseUrl}${extractedUrl}` : `${currentBaseUrl}/${extractedUrl}`);
+                      (extractedUrl.startsWith('/') ? `${sourceBaseUrl}${extractedUrl}` : `${sourceBaseUrl}/${extractedUrl}`);
                   }
                 }
               }
@@ -542,7 +541,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           });
           
           return uniqueUrls;
-        }, currentBaseUrl);
+        }, sourceBaseUrl);
         
         log(`[LinkExtractor] Step 2 Complete: Found ${externalArticleUrls.length} article URLs/identifiers`, "scraper");
         
@@ -551,7 +550,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           log(`[LinkExtractor] Step 3: Extracting final external URLs from internal article pages...`, "scraper");
           
           const finalExternalUrls = [];
-          const currentDomain = new URL(currentBaseUrl).hostname;
+          const currentDomain = new URL(sourceBaseUrl).hostname;
           
           for (const item of externalArticleUrls) {
             if (item.url && !item.isExternal) {
