@@ -144,6 +144,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **Enhanced endpoint patterns**: Added 15+ contextual endpoint patterns per category for better coverage
 - **Architecture insight**: Many HTMX sites use single endpoints (`/media/items/`) but filter content server-side based on `HX-Current-URL` header
 - **Prevention**: All HTMX requests now maintain proper source URL context throughout the entire extraction workflow
+- **Endpoint simplification**: Removed 15+ complex endpoint patterns since HX-Current-URL fix makes server-side filtering handle contextual content properly
 
 ### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation + Contextual Priority Fix
 - **Implemented missing Step 3** from proven working code to complete the full HTMX deep extraction workflow
