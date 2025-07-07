@@ -264,13 +264,13 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               }
             }
             
-            // Also try generic media endpoints as fallback
-            contextualEndpoints.push(
+            // Keep generic endpoints separate for fallback only
+            const genericEndpoints = [
               '/media/items/',
               '/media/items/top/',
               '/media/items/recent/',
               '/media/items/popular/'
-            );
+            ];
           } else {
             // For non-media pages, try generic patterns
             contextualEndpoints.push(
@@ -284,6 +284,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           
           console.log(`Generated ${contextualEndpoints.length} contextual endpoints for ${currentPath}:`, contextualEndpoints);
           
+          // Try contextual endpoints first
+          let contextualContentLoaded = 0;
           for (const endpoint of contextualEndpoints) {
             if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
             
@@ -303,19 +305,60 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 
                 // Insert content into page with identifiable container
                 const container = document.createElement('div');
-                container.className = 'htmx-common-content';
+                container.className = 'htmx-contextual-content';
                 container.setAttribute('data-source', endpoint);
                 container.innerHTML = html;
                 document.body.appendChild(container);
                 
                 totalContentLoaded += html.length;
+                contextualContentLoaded += html.length;
                 loadedEndpoints.push(endpoint);
               } else {
-                console.log(`Endpoint ${endpoint} returned ${response.status}`);
+                console.log(`Contextual endpoint ${endpoint} returned ${response.status}`);
               }
             } catch (e) {
               console.error(`Error fetching contextual endpoint ${endpoint}:`, e);
             }
+          }
+          
+          // Only try generic endpoints if contextual ones didn't yield sufficient content
+          if (contextualContentLoaded < 5000) {
+            console.log(`Contextual endpoints yielded ${contextualContentLoaded} chars, trying generic endpoints as fallback`);
+            
+            for (const endpoint of genericEndpoints) {
+              if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
+              
+              try {
+                console.log(`Trying generic HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+                const response = await fetch(`${currentBaseUrl}${endpoint}`, {
+                  headers: {
+                    'HX-Request': 'true',
+                    'HX-Current-URL': window.location.href,
+                    'Accept': 'text/html, */*'
+                  }
+                });
+                
+                if (response.ok) {
+                  const html = await response.text();
+                  console.log(`Loaded ${html.length} chars from generic endpoint ${endpoint}`);
+                  
+                  const container = document.createElement('div');
+                  container.className = 'htmx-generic-content';
+                  container.setAttribute('data-source', endpoint);
+                  container.innerHTML = html;
+                  document.body.appendChild(container);
+                  
+                  totalContentLoaded += html.length;
+                  loadedEndpoints.push(endpoint);
+                } else {
+                  console.log(`Generic endpoint ${endpoint} returned ${response.status}`);
+                }
+              } catch (e) {
+                console.error(`Error fetching generic endpoint ${endpoint}:`, e);
+              }
+            }
+          } else {
+            console.log(`Contextual endpoints provided sufficient content (${contextualContentLoaded} chars), skipping generic endpoints`);
           }
           
           return { totalContentLoaded, loadedEndpoints };
@@ -330,8 +373,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           const articleUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // Look specifically in HTMX-loaded content containers
-          const htmxContainers = document.querySelectorAll('.htmx-loaded-content, .htmx-common-content, .htmx-injected-content');
+          // Look specifically in HTMX-loaded content containers, prioritizing contextual content
+          const htmxContainers = document.querySelectorAll('.htmx-contextual-content, .htmx-loaded-content, .htmx-common-content, .htmx-generic-content, .htmx-injected-content');
           
           console.log(`Found ${htmxContainers.length} HTMX content containers to analyze`);
           

@@ -127,14 +127,20 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation
+### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation + Contextual Priority Fix
 - **Implemented missing Step 3** from proven working code to complete the full HTMX deep extraction workflow
+- **Fixed contextual endpoint priority issue** where generic endpoints were still being loaded alongside contextual ones
 - **Root cause**: System was stopping at Step 2 instead of following internal URLs to extract final external article links
-- **Problem**: Step 2 extracted internal URLs like `/media/cybersecurity/items/123` but didn't fetch those pages to find the actual external article URLs
+- **Secondary issue**: Generic `/media/items/` endpoints were being loaded even when contextual `/media/cybersecurity/items/` should be prioritized
 - **Complete 3-step workflow now implemented**:
-  - **Step 1**: Load HTMX content from contextual endpoints (`/media/cybersecurity/items/`, etc.) ✅
-  - **Step 2**: Extract article URLs from loaded content (both internal and external) ✅  
-  - **Step 3**: **NEW** - For internal URLs, fetch the article pages and extract final external URLs ✅
+  - **Step 1**: Load HTMX content from contextual endpoints (`/media/cybersecurity/items/`, etc.) with smart fallback ✅
+  - **Step 2**: Extract article URLs from loaded content (both internal and external) with contextual priority ✅  
+  - **Step 3**: For internal URLs, fetch the article pages and extract final external URLs ✅
+- **Enhanced Step 1 contextual prioritization**:
+  - **Contextual endpoints first**: Tries `/media/cybersecurity/items/` before generic `/media/items/`
+  - **Content threshold logic**: Only falls back to generic endpoints if contextual ones yield <5KB content
+  - **Smart container labeling**: Separates contextual vs generic content for Step 2 processing
+  - **Loading optimization**: Skips generic endpoints when contextual ones provide sufficient content
 - **Step 3 implementation details**:
   - **Fetches internal article pages**: Uses fetch() to load each internal URL found in Step 2
   - **Parses article content**: Creates temporary DOM containers to analyze fetched HTML
@@ -148,6 +154,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Domain validation (news, tech, cybersecurity domains)
   - Content structure analysis (article content containers)
 - **Impact**:
+  - **Fixes wrong-section extraction**: Now properly extracts from `/media/cybersecurity/` instead of generic `/media/`
   - **Solves content extraction issue**: Now gets full article content, real URLs, and proper dates
   - **Finds actual external articles**: Instead of stopping at internal aggregator URLs
   - **Comprehensive URL discovery**: Uses both DOM links and meta tag fallbacks
