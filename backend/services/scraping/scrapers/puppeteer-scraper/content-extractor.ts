@@ -22,11 +22,6 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
         function sanitizeSelector(selector: string): string {
           if (!selector) return "";
           
-          // Handle "null" string from AI detection - treat as no selector found
-          if (selector.toLowerCase() === "null") {
-            return "";
-          }
-          
           if (
             /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(selector) ||
             selector.includes("AM") ||

@@ -127,26 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 7, 2025 - "null" String Selector Sanitization Fix Complete
-- **Fixed critical selector validation issue** where AI detection returning `"author": "null"` or `"date": "null"` was treated as valid CSS selector
-- **Root cause**: System was treating the string "null" as a literal CSS selector instead of recognizing it means "no selector found"
-- **Impact on HTMX sources**: Date and author fields not being extracted properly from dynamic content due to invalid "null" selectors
-- **Enhanced sanitization logic**:
-  - **Updated `sanitizeSelector()` function** to detect and handle "null" strings (case-insensitive)
-  - **Added `safeSanitizeSelector()` helper** in main detector for proper conditional handling
-  - **Fixed conditional logic** in `main-detector.ts` that was bypassing null checks
-  - **Consistent handling** across all sanitization points (ai-detector, selector-sanitizer, puppeteer content-extractor)
-- **Technical implementation**:
-  - Enhanced `selector-sanitizer.ts` with explicit "null" string detection
-  - Updated `main-detector.ts` conditional logic to properly handle AI "null" responses
-  - Fixed `puppeteer-scraper/content-extractor.ts` sanitization function
-  - Preserved all existing functionality while adding null string handling
-- **Impact**: 
-  - **Eliminates invalid "null" selector attempts** that cause extraction failures
-  - **Improves date and author extraction** from HTMX-loaded content
-  - **Maintains backward compatibility** with existing valid selectors
-  - **Critical for AI-powered structure detection** accuracy
-
 ### July 7, 2025 - Contextual HTMX Endpoint Detection Fix Complete
 - **Fixed critical source-URL context awareness issue** where HTMX sites pulled content from wrong sections
 - **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) instead of contextual ones based on source URL

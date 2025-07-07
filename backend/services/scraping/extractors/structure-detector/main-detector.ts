@@ -24,22 +24,16 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
       detectedStructure = await newsRadarDetection(html);
     }
 
-    // Helper function to safely sanitize selectors, handling "null" strings from AI
-    const safeSanitizeSelector = (selector: string | null | undefined): string | undefined => {
-      if (!selector || selector === "null" || selector.toLowerCase() === "null") {
-        return undefined;
-      }
-      const sanitized = sanitizeSelector(selector);
-      return sanitized || undefined;
-    };
-
     // Sanitize all detected selectors
     const sanitizedStructure: ScrapingConfig = {
       titleSelector: sanitizeSelector(detectedStructure.titleSelector || detectedStructure.title) || 'h1',
       contentSelector: sanitizeSelector(detectedStructure.contentSelector || detectedStructure.content) || 'article',
-      authorSelector: safeSanitizeSelector(detectedStructure.authorSelector || detectedStructure.author),
-      dateSelector: safeSanitizeSelector(detectedStructure.dateSelector || detectedStructure.date),
-      articleSelector: safeSanitizeSelector(detectedStructure.articleSelector),
+      authorSelector: detectedStructure.authorSelector || detectedStructure.author ? 
+        sanitizeSelector(detectedStructure.authorSelector || detectedStructure.author) : undefined,
+      dateSelector: detectedStructure.dateSelector || detectedStructure.date ? 
+        sanitizeSelector(detectedStructure.dateSelector || detectedStructure.date) : undefined,
+      articleSelector: detectedStructure.articleSelector ? 
+        sanitizeSelector(detectedStructure.articleSelector) : undefined,
       confidence: 0.8, // Default confidence for AI detection
       alternatives: {
         titleSelector: generateFallbackSelectors('title')[0],
