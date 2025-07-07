@@ -237,6 +237,14 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           // Generate contextual endpoints based on the source URL
           const contextualEndpoints = [];
           
+          // Define generic endpoints that work for all sites (declared here for proper scoping)
+          const genericEndpoints = [
+            '/media/items/',
+            '/media/items/top/',
+            '/media/items/recent/',
+            '/media/items/popular/'
+          ];
+          
           if (currentPath.includes('/media/cybersecurity')) {
             contextualEndpoints.push(
               '/media/cybersecurity/items/',
@@ -264,13 +272,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               }
             }
             
-            // Keep generic endpoints separate for fallback only
-            const genericEndpoints = [
-              '/media/items/',
-              '/media/items/top/',
-              '/media/items/recent/',
-              '/media/items/popular/'
-            ];
+            // Generic endpoints are already defined above for fallback
           } else {
             // For non-media pages, try generic patterns
             contextualEndpoints.push(
