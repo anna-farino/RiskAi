@@ -6,6 +6,12 @@ import { log } from "backend/utils/log";
  */
 export function sanitizeSelector(selector: string): string {
   if (!selector) return "";
+  
+  // Handle "null" string from AI detection - treat as no selector found
+  if (selector.toLowerCase() === "null") {
+    log(`[SelectorSanitizer] Treating string "null" as undefined selector`, "scraper");
+    return "";
+  }
 
   // Check if the selector contains date-like patterns (months, parentheses with timezones, etc.)
   if (
