@@ -24,20 +24,31 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
       detectedStructure = await newsRadarDetection(html);
     }
 
-    // Sanitize all detected selectors
+    // Sanitize all detected selectors with proper null handling
+    const authorValue = detectedStructure.authorSelector || detectedStructure.author;
+    const dateValue = detectedStructure.dateSelector || detectedStructure.date;
+    
+    // Helper function to properly handle null/empty values
+    const sanitizeAndValidateSelector = (selector: any): string | undefined => {
+      if (!selector || selector === "null" || selector === "undefined" || selector === "") {
+        return undefined;
+      }
+      return sanitizeSelector(selector);
+    };
+    
     const sanitizedStructure: ScrapingConfig = {
       titleSelector: sanitizeSelector(detectedStructure.titleSelector || detectedStructure.title) || 'h1',
       contentSelector: sanitizeSelector(detectedStructure.contentSelector || detectedStructure.content) || 'article',
-      authorSelector: detectedStructure.authorSelector || detectedStructure.author ? 
-        sanitizeSelector(detectedStructure.authorSelector || detectedStructure.author) : undefined,
-      dateSelector: detectedStructure.dateSelector || detectedStructure.date ? 
-        sanitizeSelector(detectedStructure.dateSelector || detectedStructure.date) : undefined,
+      authorSelector: sanitizeAndValidateSelector(authorValue),
+      dateSelector: sanitizeAndValidateSelector(dateValue),
       articleSelector: detectedStructure.articleSelector ? 
         sanitizeSelector(detectedStructure.articleSelector) : undefined,
       confidence: 0.8, // Default confidence for AI detection
       alternatives: {
         titleSelector: generateFallbackSelectors('title')[0],
-        contentSelector: generateFallbackSelectors('content')[0]
+        contentSelector: generateFallbackSelectors('content')[0],
+        authorSelector: generateFallbackSelectors('author')[0],
+        dateSelector: generateFallbackSelectors('date')[0]
       }
     };
 
