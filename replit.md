@@ -127,6 +127,19 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 7, 2025 - Fixed HTMX Existing Content Extraction Issue
+- **CRITICAL FIX**: System was ignoring already-loaded contextual content and only looking in HTMX containers
+- **Root cause**: Debug showed 92 contextual articles already loaded on page (starting with "Bert Blitzes Linux & Windows Systems"), but extraction logic only checked injected HTMX containers
+- **Solution**: Updated link extraction to prioritize existing page content before checking HTMX containers
+- **Technical implementation**:
+  - Added check for existing `.stretched-link` articles on page load
+  - Process existing articles first with proper URL extraction from `hx-get` attributes
+  - Fall back to HTMX container logic only if no existing content found
+  - Enhanced logging to track existing vs injected content processing
+- **Impact**: Now correctly extracts cybersecurity-specific articles that are already loaded contextually on the page
+- **Result**: System will now find "Bert Blitzes Linux & Windows Systems" as first result instead of generic "Ex-FTC Commissioner" article
+- **Domain-agnostic approach**: Works for any site where contextual content is pre-loaded rather than dynamically injected
+
 ### July 7, 2025 - Critical HX-Current-URL Context Fix for Proper Contextual Endpoint Detection
 - **Fixed fundamental HTMX contextual detection issue** where system incorrectly pulled from generic `/media/` instead of specific `/media/cybersecurity/`
 - **Root cause**: All HTMX requests were using `window.location.href` for `HX-Current-URL` header instead of original source URL

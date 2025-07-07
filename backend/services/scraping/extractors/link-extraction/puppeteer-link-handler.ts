@@ -411,7 +411,78 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           const articleUrls = [];
           const currentDomain = new URL(sourceBaseUrl).hostname;
           
-          // Look specifically in HTMX-loaded content containers, prioritizing contextual content
+          // First, check for existing page content (already loaded contextual articles)
+          const existingArticles = document.querySelectorAll('.stretched-link');
+          console.log(`Found ${existingArticles.length} existing .stretched-link articles on page`);
+          
+          // If we have existing articles, extract from them first
+          if (existingArticles.length > 0) {
+            console.log(`Processing existing page articles...`);
+            existingArticles.forEach((element, index) => {
+              if (index < 50) { // Limit to prevent overwhelming results
+                const text = element.textContent?.trim() || '';
+                
+                // Skip elements with too little text
+                if (!text || text.length < 10) return;
+                
+                console.log(`Processing existing article ${index + 1}: "${text.substring(0, 50)}..."`);
+                
+                // Look for multiple potential URL sources
+                let articleUrl = null;
+                
+                // 1. Check standard href attribute
+                const href = element.getAttribute('href');
+                if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
+                  articleUrl = href.startsWith('http') ? href : 
+                    (href.startsWith('/') ? `${sourceBaseUrl}${href}` : `${sourceBaseUrl}/${href}`);
+                }
+                
+                // 2. Check HTMX attributes (critical for Foorilla-style sites)
+                if (!articleUrl) {
+                  const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
+                  if (hxGet && hxGet.length > 5) {
+                    articleUrl = hxGet.startsWith('http') ? hxGet : 
+                      (hxGet.startsWith('/') ? `${sourceBaseUrl}${hxGet}` : `${sourceBaseUrl}/${hxGet}`);
+                    console.log(`🔗 Found HTMX URL from hx-get: ${hxGet} → ${articleUrl}`);
+                  }
+                }
+                
+                // 3. Check data attributes for URLs
+                if (!articleUrl) {
+                  const dataAttributes = ['data-url', 'data-link', 'data-href', 'data-target', 'data-article-url'];
+                  for (const attr of dataAttributes) {
+                    const dataUrl = element.getAttribute(attr);
+                    if (dataUrl && dataUrl.length > 5) {
+                      articleUrl = dataUrl.startsWith('http') ? dataUrl : 
+                        (dataUrl.startsWith('/') ? `${sourceBaseUrl}${dataUrl}` : `${sourceBaseUrl}/${dataUrl}`);
+                      break;
+                    }
+                  }
+                }
+                
+                // If we found a URL, validate and add it
+                if (articleUrl) {
+                  try {
+                    const urlObj = new URL(articleUrl);
+                    const hostname = urlObj.hostname.toLowerCase();
+                    
+                    console.log(`Found existing article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
+                    articleUrls.push({
+                      url: articleUrl,
+                      text: text,
+                      source: 'existing-page-content',
+                      domain: hostname,
+                      isExternal: urlObj.hostname !== currentDomain
+                    });
+                  } catch (urlError) {
+                    console.error(`Error processing existing article URL ${articleUrl}:`, urlError);
+                  }
+                }
+              }
+            });
+          }
+          
+          // Then, check for HTMX content containers (as fallback or additional content)
           const htmxContainers = document.querySelectorAll('.htmx-contextual-content, .htmx-loaded-content, .htmx-common-content, .htmx-generic-content, .htmx-injected-content');
           
           console.log(`Found ${htmxContainers.length} HTMX content containers to analyze`);
