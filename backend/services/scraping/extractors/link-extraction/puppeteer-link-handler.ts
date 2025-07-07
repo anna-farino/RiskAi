@@ -420,15 +420,16 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             const sourceEndpoint = container.getAttribute('data-source') || 'unknown';
             console.log(`Analyzing container ${index + 1} from endpoint: ${sourceEndpoint}`);
             
-            // Find all clickable elements that might be article links (not just a[href])
-            const clickableElements = container.querySelectorAll('a, [onclick], [hx-get], [data-hx-get], .clickable, [role="button"]');
+            // Find all clickable elements that might be article links, prioritizing HTMX elements
+            const clickableElements = container.querySelectorAll('a, [onclick], [hx-get], [data-hx-get], .clickable, [role="button"], .stretched-link');
             console.log(`Found ${clickableElements.length} clickable elements in container ${index + 1}`);
             
             clickableElements.forEach(element => {
               const text = element.textContent?.trim() || '';
               
               // Skip elements with too little text (likely navigation/buttons)
-              if (!text || text.length < 20) return;
+              // But allow shorter text for HTMX elements that might have concise headlines
+              if (!text || text.length < 10) return;
               
               // Look for article-like text patterns
               const textLower = text.toLowerCase();
@@ -466,12 +467,13 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 }
               }
               
-              // 3. Check HTMX attributes
+              // 3. Check HTMX attributes (critical for Foorilla-style sites)
               if (!articleUrl) {
                 const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
                 if (hxGet && hxGet.length > 5) {
                   articleUrl = hxGet.startsWith('http') ? hxGet : 
                     (hxGet.startsWith('/') ? `${sourceBaseUrl}${hxGet}` : `${sourceBaseUrl}/${hxGet}`);
+                  console.log(`🔗 Found HTMX URL from hx-get: ${hxGet} → ${articleUrl} (text: "${text.substring(0, 50)}...")`);
                 }
               }
               
