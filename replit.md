@@ -127,27 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler - COMPREHENSIVE FIX
-- **CRITICAL FIX**: Fixed contextual endpoint detection to load articles from specific sections instead of generic pages
-- **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) and wrong `HX-Current-URL` headers
-- **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, system was loading generic `/media/` content instead of cybersecurity-specific content
-- **Technical problem**: HTMX servers use `HX-Current-URL` header and endpoint paths to determine which content section to return
+### July 8, 2025 - CRITICAL DISCOVERY: Fixed HTMX Contextual Filtering Through Endpoint Analysis
+- **BREAKTHROUGH DISCOVERY**: Through comprehensive page analysis, discovered that Foorilla uses SAME endpoints but filters content server-side based on `HX-Current-URL` header
+- **Root cause identified**: System was generating fake contextual endpoints like `/media/cybersecurity/items/` (which return 404) instead of using real endpoints with proper headers
+- **Key analysis findings**:
+  - **Real endpoints**: Only `/media/items/top/` and `/media/items/` exist - no category-specific endpoints
+  - **Server filtering mechanism**: `/media/items/top/` returns contextually filtered content based on `HX-Current-URL` header value
+  - **Content differentiation**: `/media/items/top/` with `HX-Current-URL: https://foorilla.com/media/cybersecurity/` returns cybersecurity articles like "Cyber Brief 25-07", "How Russia Turned Cyber Attacks Into Real Explosions"
+  - **Generic endpoint**: `/media/items/` returns same content regardless of `HX-Current-URL` header
 - **Solution implemented**:
-  - **Dynamic contextual endpoint generation**: Extracts category from source URL (`/media/cybersecurity/` → `/media/cybersecurity/items/`)
-  - **Prioritized contextual endpoints**: Tries contextual endpoints first, generic ones only as fallback
-  - **Correct HX-Current-URL header**: Uses original source URL instead of `window.location.href`
-  - **Content threshold logic**: Only tries generic endpoints if contextual ones yield <5KB content
-  - **URL-agnostic approach**: Works for any multi-level path structure (`/{category}/{subcategory}/`)
+  - **Removed fake endpoint generation**: Eliminated non-existent endpoints like `/media/cybersecurity/items/`
+  - **Prioritize contextual endpoint**: Use `/media/items/top/` as primary endpoint for contextual content
+  - **Proper header usage**: Ensure `HX-Current-URL` header matches the source URL being scraped
+  - **Endpoint priority**: Try `/media/items/top/` first, fall back to `/media/items/` only if needed
+- **Technical insight**: Many HTMX sites use identical endpoints but filter content server-side based on request headers, not URL paths
 - **Impact**: 
-  - **Correct contextual filtering**: Server now receives proper context for filtering content by specific section
-  - **Eliminates wrong-section extraction**: No more generic content when specific section was requested
-  - **Finds expected articles**: System should now extract "Why CISOs are making the SASE switch" as first result from cybersecurity section
-  - **Dynamic and scalable**: Works for any similar HTMX site structure without hardcoded URLs
-- **Technical details**:
-  - Enhanced endpoint generation with 10+ contextual patterns per category
-  - Smart fallback hierarchy: contextual → generic → existing content
-  - Proper container labeling for contextual vs generic content
-  - Maintains backward compatibility with single-level paths
+  - **Eliminates 404 errors**: No more requests to non-existent contextual endpoints
+  - **Correct contextual filtering**: Server properly filters content based on source URL context
+  - **Real cybersecurity content**: Should now extract actual cybersecurity articles instead of generic content
+  - **URL-agnostic solution**: Works for any HTMX site using similar server-side filtering patterns
+- **Critical learning**: Always analyze actual endpoint responses rather than assuming URL path-based endpoints exist
 
 ### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler
 - **CRITICAL FIX**: System was sending wrong `HX-Current-URL` header causing server to return content from wrong sections

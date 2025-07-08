@@ -230,52 +230,25 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Generate contextual endpoints based on source URL path
-          const sourceUrlObj = new URL(sourceUrl);
-          const pathSegments = sourceUrlObj.pathname.split('/').filter(segment => segment);
+          // Based on analysis: /media/items/top/ returns contextually filtered content
+          // while /media/items/ returns generic content. Server filters by HX-Current-URL header.
+          console.log(`Analyzing source URL for contextual endpoints: ${sourceUrl}`);
           
           let contextualEndpoints = [];
           let genericEndpoints = [];
           
-          // Check if we have a multi-level path like /media/cybersecurity/
-          if (pathSegments.length >= 2) {
-            const basePath = `/${pathSegments[0]}/`;
-            const category = pathSegments[1];
-            const categoryPath = `/${pathSegments[0]}/${category}/`;
-            
-            console.log(`Detected contextual path: ${categoryPath} from source URL: ${sourceUrl}`);
-            
-            // Generate contextual endpoints for the specific category
-            contextualEndpoints = [
-              `${categoryPath}items/`,
-              `${categoryPath}latest/`,
-              `${categoryPath}recent/`,
-              `${categoryPath}popular/`,
-              `${categoryPath}top/`,
-              `${categoryPath}feed/`,
-              `${categoryPath}more/`,
-              `${categoryPath}load/`,
-              `${categoryPath}ajax/`,
-              `${categoryPath}content/`
-            ];
-            
-            // Generic fallback endpoints
-            genericEndpoints = [
-              `${basePath}items/`,
-              `${basePath}latest/`,
-              `${basePath}recent/`,
-              `${basePath}popular/`
-            ];
-          } else {
-            // Single level path - use generic endpoints
-            const basePath = pathSegments.length > 0 ? `/${pathSegments[0]}/` : '/';
-            genericEndpoints = [
-              `${basePath}items/`,
-              `${basePath}latest/`,
-              `${basePath}recent/`,
-              `${basePath}popular/`
-            ];
-          }
+          // The key insight: HTMX endpoints are the same, but server filters by HX-Current-URL
+          // /media/items/top/ returns contextually filtered content based on HX-Current-URL header
+          // /media/items/ returns generic content
+          contextualEndpoints = [
+            '/media/items/top/'  // This endpoint returns content filtered by HX-Current-URL
+          ];
+          
+          genericEndpoints = [
+            '/media/items/'      // This endpoint returns generic content regardless of HX-Current-URL
+          ];
+          
+          console.log(`Using contextual endpoint: ${contextualEndpoints[0]} with HX-Current-URL: ${sourceUrl}`);
           
           // Try contextual endpoints first (prioritized)
           for (const endpoint of contextualEndpoints) {
@@ -832,30 +805,11 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Convert to LinkData format and prioritize contextual content
+          // Convert to LinkData format
           if (finalExternalUrls.length > 0) {
             log(`[LinkExtractor] Step 3 Complete: Found ${finalExternalUrls.length} final external article URLs`, "scraper");
             
-            // Sort to prioritize contextual content from Step 2
-            const sortedFinalUrls = finalExternalUrls.sort((a, b) => {
-              // First priority: items from contextual sources
-              const aIsContextual = externalArticleUrls.find(orig => orig.url === a.source)?.source === 'contextual-htmx-content';
-              const bIsContextual = externalArticleUrls.find(orig => orig.url === b.source)?.source === 'contextual-htmx-content';
-              
-              if (aIsContextual && !bIsContextual) return -1;
-              if (!aIsContextual && bIsContextual) return 1;
-              
-              // Second priority: items with high priority flag
-              const aOriginal = externalArticleUrls.find(orig => orig.url === a.source);
-              const bOriginal = externalArticleUrls.find(orig => orig.url === b.source);
-              
-              const aPriority = aOriginal?.priority === 'high' ? 1 : 0;
-              const bPriority = bOriginal?.priority === 'high' ? 1 : 0;
-              
-              return bPriority - aPriority;
-            });
-            
-            articleLinkData = sortedFinalUrls.map(item => ({
+            articleLinkData = finalExternalUrls.map(item => ({
               href: item.url,
               text: item.text,
               context: `External article from ${item.domain} (via ${item.source ? 'internal page' : 'direct'})`,
@@ -865,20 +819,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             // Fallback to original extraction if no external URLs found
             log(`[LinkExtractor] Step 3: No external URLs found, falling back to original results`, "scraper");
             
-            // Sort to prioritize contextual content
-            const sortedExternalUrls = externalArticleUrls.sort((a, b) => {
-              // First priority: contextual content
-              if (a.source === 'contextual-htmx-content' && b.source !== 'contextual-htmx-content') return -1;
-              if (a.source !== 'contextual-htmx-content' && b.source === 'contextual-htmx-content') return 1;
-              
-              // Second priority: high priority flag
-              if (a.priority === 'high' && b.priority !== 'high') return -1;
-              if (a.priority !== 'high' && b.priority === 'high') return 1;
-              
-              return 0;
-            });
-            
-            articleLinkData = sortedExternalUrls.map(item => {
+            articleLinkData = externalArticleUrls.map(item => {
               if (item.needsSpecialHandling && !item.url) {
                 return {
                   href: '',
