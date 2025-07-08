@@ -94,7 +94,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     // Handle dynamic content loading if requested
     if (options?.handleHTMX) {
-      await handleHTMXContent(page, url);
+      await handleHTMXContent(page);
     }
 
     if (options?.scrollToLoad) {
