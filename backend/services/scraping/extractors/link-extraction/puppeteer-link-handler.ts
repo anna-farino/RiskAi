@@ -1,6 +1,7 @@
 import type { Page } from 'puppeteer';
 import { log } from "backend/utils/log";
 import { LinkData, LinkExtractionOptions } from './html-link-parser';
+import { extractLinksFromNaturalHTMX } from './enhanced-natural-htmx-handler.js';
 
 /**
  * Extract article links from Puppeteer page with sophisticated HTMX handling
@@ -8,6 +9,42 @@ import { LinkData, LinkExtractionOptions } from './html-link-parser';
  */
 export async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkExtractionOptions, existingLinkData?: LinkData[]): Promise<LinkData[]> {
   try {
+    // PRIORITY: Check for HTMX containers and use natural loading approach if found
+    const hasHTMXContainers = await page.evaluate(() => {
+      const leftContainer = document.querySelector('#mc_1');
+      const rightContainer = document.querySelector('#mc_2');
+      const htmxElements = document.querySelectorAll('[hx-get]');
+      
+      return {
+        hasContainers: !!(leftContainer || rightContainer),
+        hasHTMXElements: htmxElements.length > 0,
+        containerCount: (leftContainer ? 1 : 0) + (rightContainer ? 1 : 0)
+      };
+    });
+    
+    if (hasHTMXContainers.hasContainers || hasHTMXContainers.hasHTMXElements) {
+      log(`[LinkExtractor] Detected HTMX containers (${hasHTMXContainers.containerCount}) or elements, using natural loading approach`, "scraper");
+      
+      try {
+        const naturalLinks = await extractLinksFromNaturalHTMX(page, baseUrl);
+        if (naturalLinks.length > 0) {
+          log(`[LinkExtractor] Natural HTMX extraction successful: ${naturalLinks.length} links found`, "scraper");
+          
+          // Convert to LinkData format
+          const linkData: LinkData[] = naturalLinks.map((url, index) => ({
+            href: url,
+            text: `Article ${index + 1}`, // We'll get actual text in a separate step if needed
+            title: '',
+            type: 'external'
+          }));
+          
+          return linkData;
+        }
+      } catch (error) {
+        log(`[LinkExtractor] Natural HTMX extraction failed: ${error}, falling back to manual approach`, "scraper");
+      }
+    }
+    
     // Wait for any links to appear
     await page.waitForSelector('a', { timeout: 5000 }).catch(() => {
       log('[LinkExtractor] Timeout waiting for links, continuing anyway', "scraper");
