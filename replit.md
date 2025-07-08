@@ -127,67 +127,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler
-- **CRITICAL FIX**: System was sending wrong `HX-Current-URL` header causing server to return content from wrong sections
-- **Root cause**: Code was using `baseUrl` (original source URL) instead of `window.location.href` (current page URL) in HTMX fetch requests
-- **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, system was pulling generic `/media/` content instead of cybersecurity-specific content
-- **Technical problem**: Server-side contextual filtering depends on `HX-Current-URL` header to determine which content section to return
-- **Solution implemented**:
-  - Updated all HTMX fetch requests to use `window.location.href` for `HX-Current-URL` header (matches working code)
-  - Simplified contextual endpoint detection to use generic patterns like working implementation
-  - Added proper existing content check for `.stretched-link` articles already loaded on page
-  - Fixed parameter passing to use `currentBaseUrl` consistently throughout evaluation functions
-- **Impact**: 
-  - **Correct contextual filtering**: Server now receives proper page URL context for filtering content by section
-  - **Eliminates wrong-section extraction**: No more generic `/media/` content when specific `/media/cybersecurity/` was requested
-  - **Finds expected articles**: System should now extract "Bert Blitzes Linux & Windows Systems" as first result from cybersecurity section
-  - **Domain-agnostic solution**: Works for any HTMX site using similar server-side contextual filtering patterns
-
-### July 7, 2025 - Fixed HTMX Existing Content Extraction Issue
-- **CRITICAL FIX**: System was ignoring already-loaded contextual content and only looking in HTMX containers
-- **Root cause**: Debug showed 92 contextual articles already loaded on page (starting with "Bert Blitzes Linux & Windows Systems"), but extraction logic only checked injected HTMX containers
-- **Solution**: Updated link extraction to prioritize existing page content before checking HTMX containers
-- **Technical implementation**:
-  - Added check for existing `.stretched-link` articles on page load
-  - Process existing articles first with proper URL extraction from `hx-get` attributes
-  - Fall back to HTMX container logic only if no existing content found
-  - Enhanced logging to track existing vs injected content processing
-- **Impact**: Now correctly extracts cybersecurity-specific articles that are already loaded contextually on the page
-- **Result**: System will now find "Bert Blitzes Linux & Windows Systems" as first result instead of generic "Ex-FTC Commissioner" article
-- **Domain-agnostic approach**: Works for any site where contextual content is pre-loaded rather than dynamically injected
-
-### July 7, 2025 - Critical HX-Current-URL Context Fix for Proper Contextual Endpoint Detection
-- **Fixed fundamental HTMX contextual detection issue** where system incorrectly pulled from generic `/media/` instead of specific `/media/cybersecurity/`
-- **Root cause**: All HTMX requests were using `window.location.href` for `HX-Current-URL` header instead of original source URL
-- **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, browser navigates to that URL, but HTMX requests sent `HX-Current-URL: https://foorilla.com/media/cybersecurity/` causing server to return cybersecurity-specific content
-- **However**, previous system was using `window.location.href` which could be different from source URL after navigation/redirects
-- **Critical fix**: Updated all HTMX fetch requests to use `baseUrl` (original source URL) for `HX-Current-URL` header
-- **Files updated**:
-  - `puppeteer-link-handler.ts`: Fixed HX-Current-URL in Steps 1, 2, and 3 of HTMX extraction
-  - `htmx-handler.ts`: Updated function signature and HX-Current-URL usage for consistency
-  - `main-scraper.ts` & `content-extractor.ts`: Updated function calls to pass source URL
-- **Technical impact**:
-  - **Correct contextual filtering**: Server now receives proper source URL context for filtering content
-  - **Eliminates wrong-section extraction**: No more generic `/media/` content when specific `/media/cybersecurity/` was requested
-  - **Maintains domain-agnostic approach**: Works for any site using similar HTMX contextual filtering patterns
-  - **Enhanced endpoint patterns**: Added 15+ contextual endpoint patterns per category for better coverage
-- **Architecture insight**: Many HTMX sites use single endpoints (`/media/items/`) but filter content server-side based on `HX-Current-URL` header
-- **Prevention**: All HTMX requests now maintain proper source URL context throughout the entire extraction workflow
-
-### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation + Contextual Priority Fix
+### July 7, 2025 - Complete 3-Step HTMX Deep Extraction Implementation
 - **Implemented missing Step 3** from proven working code to complete the full HTMX deep extraction workflow
-- **Fixed contextual endpoint priority issue** where generic endpoints were still being loaded alongside contextual ones
 - **Root cause**: System was stopping at Step 2 instead of following internal URLs to extract final external article links
-- **Secondary issue**: Generic `/media/items/` endpoints were being loaded even when contextual `/media/cybersecurity/items/` should be prioritized
+- **Problem**: Step 2 extracted internal URLs like `/media/cybersecurity/items/123` but didn't fetch those pages to find the actual external article URLs
 - **Complete 3-step workflow now implemented**:
-  - **Step 1**: Load HTMX content from contextual endpoints (`/media/cybersecurity/items/`, etc.) with smart fallback ✅
-  - **Step 2**: Extract article URLs from loaded content (both internal and external) with contextual priority ✅  
-  - **Step 3**: For internal URLs, fetch the article pages and extract final external URLs ✅
-- **Enhanced Step 1 contextual prioritization**:
-  - **Contextual endpoints first**: Tries `/media/cybersecurity/items/` before generic `/media/items/`
-  - **Content threshold logic**: Only falls back to generic endpoints if contextual ones yield <5KB content
-  - **Smart container labeling**: Separates contextual vs generic content for Step 2 processing
-  - **Loading optimization**: Skips generic endpoints when contextual ones provide sufficient content
+  - **Step 1**: Load HTMX content from contextual endpoints (`/media/cybersecurity/items/`, etc.) ✅
+  - **Step 2**: Extract article URLs from loaded content (both internal and external) ✅  
+  - **Step 3**: **NEW** - For internal URLs, fetch the article pages and extract final external URLs ✅
 - **Step 3 implementation details**:
   - **Fetches internal article pages**: Uses fetch() to load each internal URL found in Step 2
   - **Parses article content**: Creates temporary DOM containers to analyze fetched HTML
@@ -201,7 +148,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Domain validation (news, tech, cybersecurity domains)
   - Content structure analysis (article content containers)
 - **Impact**:
-  - **Fixes wrong-section extraction**: Now properly extracts from `/media/cybersecurity/` instead of generic `/media/`
   - **Solves content extraction issue**: Now gets full article content, real URLs, and proper dates
   - **Finds actual external articles**: Instead of stopping at internal aggregator URLs
   - **Comprehensive URL discovery**: Uses both DOM links and meta tag fallbacks

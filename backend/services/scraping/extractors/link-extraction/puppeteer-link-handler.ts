@@ -230,19 +230,65 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Also try common HTMX patterns for sites like Foorilla
-          const commonEndpoints = [
-            '/media/items/',
-            '/media/items/top/',
-            '/media/items/recent/',
-            '/media/items/popular/'
-          ];
+          // Try contextual HTMX patterns based on current URL path
+          const currentUrl = new URL(window.location.href);
+          const currentPath = currentUrl.pathname;
           
-          for (const endpoint of commonEndpoints) {
+          // Generate contextual endpoints based on the source URL
+          const contextualEndpoints = [];
+          
+          if (currentPath.includes('/media/cybersecurity')) {
+            contextualEndpoints.push(
+              '/media/cybersecurity/items/',
+              '/media/cybersecurity/items/top/',
+              '/media/cybersecurity/items/recent/',
+              '/media/cybersecurity/items/popular/',
+              '/media/cybersecurity/latest/',
+              '/media/cybersecurity/trending/'
+            );
+          } else if (currentPath.includes('/media/')) {
+            // Extract the specific media category from the URL
+            const pathParts = currentPath.split('/');
+            const mediaIndex = pathParts.indexOf('media');
+            if (mediaIndex >= 0 && mediaIndex < pathParts.length - 1) {
+              const category = pathParts[mediaIndex + 1];
+              if (category && category !== '') {
+                contextualEndpoints.push(
+                  `/media/${category}/items/`,
+                  `/media/${category}/items/top/`,
+                  `/media/${category}/items/recent/`,
+                  `/media/${category}/items/popular/`,
+                  `/media/${category}/latest/`,
+                  `/media/${category}/trending/`
+                );
+              }
+            }
+            
+            // Also try generic media endpoints as fallback
+            contextualEndpoints.push(
+              '/media/items/',
+              '/media/items/top/',
+              '/media/items/recent/',
+              '/media/items/popular/'
+            );
+          } else {
+            // For non-media pages, try generic patterns
+            contextualEndpoints.push(
+              '/items/',
+              '/articles/',
+              '/news/',
+              '/posts/',
+              '/content/'
+            );
+          }
+          
+          console.log(`Generated ${contextualEndpoints.length} contextual endpoints for ${currentPath}:`, contextualEndpoints);
+          
+          for (const endpoint of contextualEndpoints) {
             if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
             
             try {
-              console.log(`Trying common HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+              console.log(`Trying contextual HTMX endpoint: ${currentBaseUrl}${endpoint}`);
               const response = await fetch(`${currentBaseUrl}${endpoint}`, {
                 headers: {
                   'HX-Request': 'true',
@@ -253,8 +299,9 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               
               if (response.ok) {
                 const html = await response.text();
-                console.log(`Loaded ${html.length} chars from common endpoint ${endpoint}`);
+                console.log(`Loaded ${html.length} chars from contextual endpoint ${endpoint}`);
                 
+                // Insert content into page with identifiable container
                 const container = document.createElement('div');
                 container.className = 'htmx-common-content';
                 container.setAttribute('data-source', endpoint);
@@ -262,100 +309,28 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 document.body.appendChild(container);
                 
                 totalContentLoaded += html.length;
+                loadedEndpoints.push(endpoint);
+              } else {
+                console.log(`Endpoint ${endpoint} returned ${response.status}`);
               }
             } catch (e) {
-              console.error(`Error fetching common endpoint ${endpoint}:`, e);
+              console.error(`Error fetching contextual endpoint ${endpoint}:`, e);
             }
           }
           
-          return totalContentLoaded;
+          return { totalContentLoaded, loadedEndpoints };
         }, currentBaseUrl, hasHtmx.hxGetElements);
         
-        if (htmxContent > 0) {
-          log(`[LinkExtractor] Step 1 Complete: Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
-          // Wait for content to fully render
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
+        log(`[LinkExtractor] Step 1 Complete: Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints`, "scraper");
         
-        // Step 2: Extract article URLs from loaded HTMX content (including empty href elements)
+        // Step 2: Extract article URLs from loaded HTMX content (including empty href elements) 
         log(`[LinkExtractor] Step 2: Extracting article URLs from loaded content (including HTMX click handlers)...`, "scraper");
         
         const externalArticleUrls = await page.evaluate((currentBaseUrl) => {
           const articleUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // First, check for existing page content (already loaded contextual articles)
-          const existingArticles = document.querySelectorAll('.stretched-link');
-          console.log(`Found ${existingArticles.length} existing .stretched-link articles on page`);
-          
-          // If we have existing articles, extract from them first
-          if (existingArticles.length > 0) {
-            console.log(`Processing existing page articles...`);
-            existingArticles.forEach((element, index) => {
-              if (index < 50) { // Limit to prevent overwhelming results
-                const text = element.textContent?.trim() || '';
-                
-                // Skip elements with too little text
-                if (!text || text.length < 10) return;
-                
-                console.log(`Processing existing article ${index + 1}: "${text.substring(0, 50)}..."`);
-                
-                // Look for multiple potential URL sources
-                let articleUrl = null;
-                
-                // 1. Check standard href attribute
-                const href = element.getAttribute('href');
-                if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
-                  articleUrl = href.startsWith('http') ? href : 
-                    (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
-                }
-                
-                // 2. Check HTMX attributes (critical for Foorilla-style sites)
-                if (!articleUrl) {
-                  const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
-                  if (hxGet && hxGet.length > 5) {
-                    articleUrl = hxGet.startsWith('http') ? hxGet : 
-                      (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
-                    console.log(`🔗 Found HTMX URL from hx-get: ${hxGet} → ${articleUrl}`);
-                  }
-                }
-                
-                // 3. Check data attributes for URLs
-                if (!articleUrl) {
-                  const dataAttributes = ['data-url', 'data-link', 'data-href', 'data-target', 'data-article-url'];
-                  for (const attr of dataAttributes) {
-                    const dataUrl = element.getAttribute(attr);
-                    if (dataUrl && dataUrl.length > 5) {
-                      articleUrl = dataUrl.startsWith('http') ? dataUrl : 
-                        (dataUrl.startsWith('/') ? `${currentBaseUrl}${dataUrl}` : `${currentBaseUrl}/${dataUrl}`);
-                      break;
-                    }
-                  }
-                }
-                
-                // If we found a URL, validate and add it
-                if (articleUrl) {
-                  try {
-                    const urlObj = new URL(articleUrl);
-                    const hostname = urlObj.hostname.toLowerCase();
-                    
-                    console.log(`Found existing article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
-                    articleUrls.push({
-                      url: articleUrl,
-                      text: text,
-                      source: 'existing-page-content',
-                      domain: hostname,
-                      isExternal: urlObj.hostname !== currentDomain
-                    });
-                  } catch (urlError) {
-                    console.error(`Error processing existing article URL ${articleUrl}:`, urlError);
-                  }
-                }
-              }
-            });
-          }
-          
-          // Then, check for HTMX content containers (as fallback or additional content)
+          // Look specifically in HTMX-loaded content containers
           const htmxContainers = document.querySelectorAll('.htmx-loaded-content, .htmx-common-content, .htmx-injected-content');
           
           console.log(`Found ${htmxContainers.length} HTMX content containers to analyze`);
@@ -539,12 +514,12 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               try {
                 log(`[LinkExtractor] Fetching internal article page: ${item.url.substring(0, 60)}...`, "scraper");
                 
-                const articlePageContent = await page.evaluate(async (articleUrl, currentUrl) => {
+                const articlePageContent = await page.evaluate(async (articleUrl) => {
                   try {
                     const response = await fetch(articleUrl, {
                       headers: {
                         'HX-Request': 'true',
-                        'HX-Current-URL': currentUrl,
+                        'HX-Current-URL': window.location.href,
                         'Accept': 'text/html, */*'
                       }
                     });
@@ -643,7 +618,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                     console.error(`Error fetching article content: ${error.message}`);
                     return [];
                   }
-                }, item.url, page.url());
+                }, item.url);
                 
                 // Add the found external URLs to our final list
                 articlePageContent.forEach(externalItem => {
