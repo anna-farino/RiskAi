@@ -127,6 +127,22 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler
+- **CRITICAL FIX**: System was sending wrong `HX-Current-URL` header causing server to return content from wrong sections
+- **Root cause**: Code was using `baseUrl` (original source URL) instead of `window.location.href` (current page URL) in HTMX fetch requests
+- **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, system was pulling generic `/media/` content instead of cybersecurity-specific content
+- **Technical problem**: Server-side contextual filtering depends on `HX-Current-URL` header to determine which content section to return
+- **Solution implemented**:
+  - Updated all HTMX fetch requests to use `window.location.href` for `HX-Current-URL` header (matches working code)
+  - Simplified contextual endpoint detection to use generic patterns like working implementation
+  - Added proper existing content check for `.stretched-link` articles already loaded on page
+  - Fixed parameter passing to use `currentBaseUrl` consistently throughout evaluation functions
+- **Impact**: 
+  - **Correct contextual filtering**: Server now receives proper page URL context for filtering content by section
+  - **Eliminates wrong-section extraction**: No more generic `/media/` content when specific `/media/cybersecurity/` was requested
+  - **Finds expected articles**: System should now extract "Bert Blitzes Linux & Windows Systems" as first result from cybersecurity section
+  - **Domain-agnostic solution**: Works for any HTMX site using similar server-side contextual filtering patterns
+
 ### July 7, 2025 - Fixed HTMX Existing Content Extraction Issue
 - **CRITICAL FIX**: System was ignoring already-loaded contextual content and only looking in HTMX containers
 - **Root cause**: Debug showed 92 contextual articles already loaded on page (starting with "Bert Blitzes Linux & Windows Systems"), but extraction logic only checked injected HTMX containers
