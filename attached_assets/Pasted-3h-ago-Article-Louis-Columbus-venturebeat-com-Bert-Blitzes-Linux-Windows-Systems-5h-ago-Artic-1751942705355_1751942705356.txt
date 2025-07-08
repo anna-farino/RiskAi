@@ -1,0 +1,200 @@
+3h ago
+[Article]
+Louis Columbus · venturebeat.com
+Bert Blitzes Linux & Windows Systems
+5h ago
+[Article]
+Jai Vijayan, Contributing Writer · darkreading.com
+SafePay, unsafe day.
+6h ago
+[Podcast]
+N2K Networks · thecyberwire.com
+Employee gets $920 for credentials used in $140 million bank heist
+7h ago
+[Article]
+Bill Toulas · bleepingcomputer.com
+LogoKit Phishing Kit Used in Government, Banking and Logistics Attacks: Cyble
+7h ago
+[Article]
+Paul Shread · thecyberexpress.com
+New Slopsquatting Attack Exploits Coding Agent Workflows to Deliver Malware
+8h ago
+[Article]
+Aman Mishra · gbhackers.com
+Beware of Bert: New ransomware group targets healthcare, tech firms
+8h ago
+[Article]
+therecord.media
+Non-Human Accounts: The Silent Cybersecurity Risk
+8h ago
+[Video]
+Security Weekly - A CRA Resource · youtube.com
+Scattered Spider weaves web of social-engineered destruction
+8h ago
+[Article]
+Matt Kapko · cyberscoop.com
+Parrot OS 6.4 Released With Update For Popular Penetration Testing Tools
+9h ago
+[Article]
+Guru Baran · cybersecuritynews.com
+Version 1.1 Was Safe… But 1.5 Could Be Malware 🧨
+9h ago
+[Video]
+Security Weekly - A CRA Resource · youtube.com
+Batavia Spyware Targets Employees via Weaponized Word Documents Delivering Malware Payloads
+10h ago
+[Article]
+Aman Mishra · gbhackers.com
+Survey Surfaces Myriad Small Business Security Challenges
+10h ago
+[Article]
+Michael Vizard · securityboulevard.com
+NSB Warns of Cybersecurity Risks Linked to Popular Chinese Apps Like Rednote, Weibo, TikTok, WeChat, and Baidu Cloud
+10h ago
+[Article]
+Aman Mishra · gbhackers.com
+Learn Basics of Pentesting!
+10h ago
+[Video]
+John Hammond · youtube.com
+CitrixBleed2 Fast 2 Furious #technews #cybersecurity @endingwithali
+10h ago
+[Video]
+Hak5 · youtube.com
+Chaos RAT: Genius Admin Tool or Dangerous Malware?
+10h ago
+[Video]
+Security Weekly - A CRA Resource · youtube.com
+New Slopsquatting Attack Leverage Coding Agents Workflows to Deliver Malware
+10h ago
+[Article]
+Guru Baran · cybersecuritynews.com
+Why Identity Automation Fails at 96% of Organizations
+11h ago
+[Article]
+cloudsecurityalliance.org
+Security updates for Monday
+11h ago
+[Article]
+jake · lwn.net
+VenusTech and Salt Typhoon Breach Sheds Light on China’s Covert Cyber Mercenary Networks
+11h ago
+[Article]
+Aman Mishra · gbhackers.com
+Hackers abuse leaked Shellter red team tool to deploy infostealers
+11h ago
+[Article]
+Bill Toulas · bleepingcomputer.com
+Comodo Internet Security 2025 Vulnerabilities Execute Remote Code With SYSTEM Privilege
+12h ago
+[Article]
+Guru Baran · cybersecuritynews.com
+🔴 CYBERSECURITY NEWS HUNTING with @endingwithali
+12h ago
+[Video]
+Hak5 · youtube.com
+NightEagle APT Unleashes Custom Malware and Zero-Days to Infiltrate Industrial Systems
+12h ago
+[Article]
+Aman Mishra · gbhackers.com
+Identity, AI & Access: Highlights from Identiverse 2025 - ESW #414
+12h ago
+[Video]
+Security Weekly - A CRA Resource · youtube.com
+How To Install PwnedCloudOS From Pwned Labs - Cloud Pentesting OS Azure | GCP | AWS
+13h ago
+[Video]
+InfoSec Pat · youtube.com
+Inside the ZIP Trap: How APT36 Targets BOSS Linux to Exfiltrate Critical Data
+13h ago
+[Article]
+Aman Mishra · gbhackers.com
+GOP domestic policy bill includes hundreds of millions for military cyber
+13h ago
+[Article]
+Tim Starks · cyberscoop.com
+MCP Vulnerability Exposes the AI Untrusted Code Crisis
+13h ago
+[Article]
+Dan Fernandez · thenewstack.io
+RingReaper – New Linux EDR Evasion Tool Using io_uring Kernel Feature
+14h ago
+[Article]
+Guru Baran · cybersecuritynews.com
+Threat Actors Turn Job Offers into Scams, Causing Over $264 Million in Losses in 2024
+14h ago
+[Article]
+Aman Mishra · gbhackers.com
+Phishing platforms, infostealers blamed as identity attacks soar
+14h ago
+[Article]
+Connor Jones · theregister.com
+⚡ Weekly Recap: Chrome 0-Day, Ivanti Exploits, MacOS Stealers, Crypto Heists and More
+15h ago
+[Article]
+info@thehackernews.com (The Hacker News) · thehackernews.com
+Top 10 Security Service Edge (SSE) Solutions For Network Security – 2025
+15h ago
+[Article]
+Cyber Writes Team · cybersecuritynews.com
+Comodo Internet Security 2025 Flaws Allow Remote Code Execution With SYSTEM Privileges
+15h ago
+[Article]
+Divya · gbhackers.com
+How IT leaders infuse cyber hygiene into daily work
+15h ago
+[Article]
+Jen A. Miller · ciodive.com
+The dual reality of AI-augmented development: innovation and risk
+15h ago
+[Article]
+Greg Otto · cyberscoop.com
+6th July – Threat Intelligence Report
+15h ago
+[Article]
+tomersp@checkpoint.com · research.checkpoint.com
+10 Best Secure Network As A Service For MSP Providers – 2025
+16h ago
+[Article]
+Cyber Writes Team · cybersecuritynews.com
+Threat Actors Abusing Signed Drivers to Launch Modern Kernel Level Attacks on Windows
+16h ago
+[Article]
+Guru Baran · cybersecuritynews.com
+10 Best Vulnerability Management Tools In 2025
+16h ago
+[Article]
+Cyber Writes Team · cybersecuritynews.com
+Visa's 24/7 war room takes on global cybercriminals
+18h ago
+[Article]
+techxplore.com
+NightEagle APT Attacking Industrial Systems by Exploiting 0-Days and With Adaptive Malware
+18h ago
+[Article]
+Kaaviya · cybersecuritynews.com
+10 Best Network Security Solutions For Chief Security Officer To Consider – 2025
+18h ago
+[Article]
+Cyber Writes Team · cybersecuritynews.com
+Gartner’s view on AI security: A Computer Weekly Downtime Upload podcast
+18h ago
+[Article]
+computerweekly.com
+A week in security (June 30 – July 6)
+19h ago
+[Article]
+malwarebytes.com
+APT36 Attacking BOSS Linux Systems With Weaponized ZIP Files to Steal Sensitive Data
+19h ago
+[Article]
+Guru Baran · cybersecuritynews.com
+AI built it, but can you trust it?
+20h ago
+[Article]
+Mirko Zorz · helpnetsecurity.com
+Review: Attack Surface Management
+21h ago
+[Article]
+Mirko Zorz · helpnetsecurity.com
+Why CISOs are making the SASE switch: Fewer vendors, smarter security, better AI guardrails

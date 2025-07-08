@@ -230,25 +230,25 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Based on analysis: /media/items/top/ returns contextually filtered content
-          // while /media/items/ returns generic content. Server filters by HX-Current-URL header.
-          console.log(`Analyzing source URL for contextual endpoints: ${sourceUrl}`);
+          // Based on user feedback: /media/items/ contains "latest" articles (left side of page)
+          // while /media/items/top/ contains "top" articles (right side of page). We want latest.
+          console.log(`Targeting latest articles from source URL: ${sourceUrl}`);
           
           let contextualEndpoints = [];
           let genericEndpoints = [];
           
-          // The key insight: HTMX endpoints are the same, but server filters by HX-Current-URL
-          // /media/items/top/ returns contextually filtered content based on HX-Current-URL header
-          // /media/items/ returns generic content
+          // The user confirmed: we want "latest" articles from the left side, not "top" from right side
+          // /media/items/ returns the latest articles (what appears in left "Latest" column)
+          // /media/items/top/ returns the top articles (what appears in right "Top" column)
           contextualEndpoints = [
-            '/media/items/top/'  // This endpoint returns content filtered by HX-Current-URL
+            '/media/items/'      // This endpoint returns latest articles (left side) filtered by HX-Current-URL
           ];
           
           genericEndpoints = [
-            '/media/items/'      // This endpoint returns generic content regardless of HX-Current-URL
+            '/media/items/top/'  // This endpoint returns top articles (right side) - use as fallback only
           ];
           
-          console.log(`Using contextual endpoint: ${contextualEndpoints[0]} with HX-Current-URL: ${sourceUrl}`);
+          console.log(`Using latest articles endpoint: ${contextualEndpoints[0]} with HX-Current-URL: ${sourceUrl}`);
           
           // Try contextual endpoints first (prioritized)
           for (const endpoint of contextualEndpoints) {
