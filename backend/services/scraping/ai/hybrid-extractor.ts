@@ -143,9 +143,9 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
       if (result.confidence > 0.5) {
         selectorCache.set(sourceUrl, cachedSelectors, true);
         log(`[HybridExtractor] Cache hit successful with confidence ${result.confidence}`, "scraper");
-        const cachedResult = {
+        const cachedResult: HybridExtractionResult = {
           ...result,
-          method: 'ai-selectors',
+          method: 'ai-selectors' as const,
           selectors: cachedSelectors
         };
         selectorCache.setArticleCache(sourceUrl, cachedResult);
@@ -167,9 +167,9 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
     // Cache selectors if they work at all (lowered threshold for immediate caching)
     if (result.confidence > 0.5) {
       selectorCache.set(sourceUrl, scrapingConfig, true);
-      const aiResult = {
+      const aiResult: HybridExtractionResult = {
         ...result,
-        method: 'ai-selectors',
+        method: 'ai-selectors' as const,
         selectors: scrapingConfig
       };
       selectorCache.setArticleCache(sourceUrl, aiResult);
@@ -218,9 +218,9 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
   };
   
   const fallbackResult = await extractWithSelectors(html, fallbackConfig);
-  const finalResult = {
+  const finalResult: HybridExtractionResult = {
     ...fallbackResult,
-    method: 'fallback',
+    method: 'fallback' as const,
     selectors: fallbackConfig
   };
   
