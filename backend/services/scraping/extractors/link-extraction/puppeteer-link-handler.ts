@@ -531,7 +531,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           log(`[LinkExtractor] Step 3: Extracting final external URLs from internal article pages...`, "scraper");
           
           const finalExternalUrls = [];
-          const currentDomain = new URL(sourceBaseUrl).hostname;
+          const currentDomain = new URL(currentBaseUrl).hostname;
           
           for (const item of externalArticleUrls) {
             if (item.url && !item.isExternal) {
@@ -539,12 +539,12 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               try {
                 log(`[LinkExtractor] Fetching internal article page: ${item.url.substring(0, 60)}...`, "scraper");
                 
-                const articlePageContent = await page.evaluate(async (articleUrl) => {
+                const articlePageContent = await page.evaluate(async (articleUrl, currentUrl) => {
                   try {
                     const response = await fetch(articleUrl, {
                       headers: {
                         'HX-Request': 'true',
-                        'HX-Current-URL': baseUrl,
+                        'HX-Current-URL': currentUrl,
                         'Accept': 'text/html, */*'
                       }
                     });
@@ -643,7 +643,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                     console.error(`Error fetching article content: ${error.message}`);
                     return [];
                   }
-                }, item.url);
+                }, item.url, page.url());
                 
                 // Add the found external URLs to our final list
                 articlePageContent.forEach(externalItem => {
