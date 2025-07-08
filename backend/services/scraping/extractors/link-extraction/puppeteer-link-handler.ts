@@ -358,12 +358,101 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           const articleUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // First, check for existing page content (already loaded contextual articles)
+          // PRIORITY 1: Check for contextual HTMX content first (most relevant)
+          const contextualContainers = document.querySelectorAll('.htmx-contextual-content');
+          console.log(`Found ${contextualContainers.length} contextual HTMX containers`);
+          
+          if (contextualContainers.length > 0) {
+            console.log(`Processing contextual HTMX content first (highest priority)...`);
+            contextualContainers.forEach((container, index) => {
+              const dataSource = container.getAttribute('data-source');
+              console.log(`Processing contextual container ${index + 1} from ${dataSource}`);
+              
+              // Find all clickable elements that might be article links
+              const clickableElements = container.querySelectorAll('a, [onclick], [hx-get], [data-hx-get], .clickable, [role="button"]');
+              console.log(`Found ${clickableElements.length} clickable elements in contextual container ${index + 1}`);
+              
+              clickableElements.forEach(element => {
+                const text = element.textContent?.trim() || '';
+                
+                // Skip elements with too little text (likely navigation/buttons)
+                if (!text || text.length < 20) return;
+                
+                // Look for article-like text patterns
+                const textLower = text.toLowerCase();
+                
+                // Skip obvious navigation/UI elements
+                if (textLower.includes('login') || textLower.includes('register') || 
+                    textLower.includes('subscribe') || textLower.includes('contact') ||
+                    textLower.includes('about us') || textLower.includes('privacy') ||
+                    textLower.includes('terms') || textLower.includes('click here') ||
+                    textLower.includes('read more') || textLower.includes('view all') ||
+                    textLower.includes('load more') || textLower.includes('show more')) {
+                  return;
+                }
+                
+                // Look for multiple potential URL sources
+                let articleUrl = null;
+                
+                // 1. Check standard href attribute
+                const href = element.getAttribute('href');
+                if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
+                  articleUrl = href.startsWith('http') ? href : 
+                    (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
+                }
+                
+                // 2. Check HTMX attributes (critical for contextual content)
+                if (!articleUrl) {
+                  const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
+                  if (hxGet && hxGet.length > 5) {
+                    articleUrl = hxGet.startsWith('http') ? hxGet : 
+                      (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
+                  }
+                }
+                
+                // 3. Check data attributes for URLs
+                if (!articleUrl) {
+                  const dataAttributes = ['data-url', 'data-link', 'data-href', 'data-target', 'data-article-url'];
+                  for (const attr of dataAttributes) {
+                    const dataUrl = element.getAttribute(attr);
+                    if (dataUrl && dataUrl.length > 5) {
+                      articleUrl = dataUrl.startsWith('http') ? dataUrl : 
+                        (dataUrl.startsWith('/') ? `${currentBaseUrl}${dataUrl}` : `${currentBaseUrl}/${dataUrl}`);
+                      break;
+                    }
+                  }
+                }
+                
+                // If we found a URL, validate and add it
+                if (articleUrl) {
+                  try {
+                    const urlObj = new URL(articleUrl);
+                    const hostname = urlObj.hostname.toLowerCase();
+                    
+                    console.log(`Found contextual article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
+                    articleUrls.push({
+                      url: articleUrl,
+                      text: text,
+                      source: 'contextual-htmx-content',
+                      hostname: hostname,
+                      isExternal: hostname !== currentDomain,
+                      priority: 'high' // Mark as high priority
+                    });
+                    
+                  } catch (error) {
+                    console.error(`Invalid URL found: ${articleUrl}`);
+                  }
+                }
+              });
+            });
+          }
+          
+          // PRIORITY 2: Check for existing page content (already loaded contextual articles)
           const existingArticles = document.querySelectorAll('.stretched-link');
           console.log(`Found ${existingArticles.length} existing .stretched-link articles on page`);
           
-          // If we have existing articles, extract from them first
-          if (existingArticles.length > 0) {
+          // Only process existing articles if we didn't find enough contextual content
+          if (existingArticles.length > 0 && articleUrls.length < 5) {
             console.log(`Processing existing page articles...`);
             existingArticles.forEach((element, index) => {
               if (index < 50) { // Limit to prevent overwhelming results
@@ -743,11 +832,30 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Convert to LinkData format
+          // Convert to LinkData format and prioritize contextual content
           if (finalExternalUrls.length > 0) {
             log(`[LinkExtractor] Step 3 Complete: Found ${finalExternalUrls.length} final external article URLs`, "scraper");
             
-            articleLinkData = finalExternalUrls.map(item => ({
+            // Sort to prioritize contextual content from Step 2
+            const sortedFinalUrls = finalExternalUrls.sort((a, b) => {
+              // First priority: items from contextual sources
+              const aIsContextual = externalArticleUrls.find(orig => orig.url === a.source)?.source === 'contextual-htmx-content';
+              const bIsContextual = externalArticleUrls.find(orig => orig.url === b.source)?.source === 'contextual-htmx-content';
+              
+              if (aIsContextual && !bIsContextual) return -1;
+              if (!aIsContextual && bIsContextual) return 1;
+              
+              // Second priority: items with high priority flag
+              const aOriginal = externalArticleUrls.find(orig => orig.url === a.source);
+              const bOriginal = externalArticleUrls.find(orig => orig.url === b.source);
+              
+              const aPriority = aOriginal?.priority === 'high' ? 1 : 0;
+              const bPriority = bOriginal?.priority === 'high' ? 1 : 0;
+              
+              return bPriority - aPriority;
+            });
+            
+            articleLinkData = sortedFinalUrls.map(item => ({
               href: item.url,
               text: item.text,
               context: `External article from ${item.domain} (via ${item.source ? 'internal page' : 'direct'})`,
@@ -757,7 +865,20 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             // Fallback to original extraction if no external URLs found
             log(`[LinkExtractor] Step 3: No external URLs found, falling back to original results`, "scraper");
             
-            articleLinkData = externalArticleUrls.map(item => {
+            // Sort to prioritize contextual content
+            const sortedExternalUrls = externalArticleUrls.sort((a, b) => {
+              // First priority: contextual content
+              if (a.source === 'contextual-htmx-content' && b.source !== 'contextual-htmx-content') return -1;
+              if (a.source !== 'contextual-htmx-content' && b.source === 'contextual-htmx-content') return 1;
+              
+              // Second priority: high priority flag
+              if (a.priority === 'high' && b.priority !== 'high') return -1;
+              if (a.priority !== 'high' && b.priority === 'high') return 1;
+              
+              return 0;
+            });
+            
+            articleLinkData = sortedExternalUrls.map(item => {
               if (item.needsSpecialHandling && !item.url) {
                 return {
                   href: '',

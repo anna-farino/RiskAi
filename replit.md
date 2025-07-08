@@ -127,7 +127,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler - COMPLETE FIX
+### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler - COMPREHENSIVE FIX
 - **CRITICAL FIX**: Fixed contextual endpoint detection to load articles from specific sections instead of generic pages
 - **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) and wrong `HX-Current-URL` headers
 - **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, system was loading generic `/media/` content instead of cybersecurity-specific content
