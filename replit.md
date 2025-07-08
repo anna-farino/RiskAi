@@ -127,23 +127,18 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 7, 2025 - Complete HTMX Contextual Content Preservation Fix
-- **CRITICAL FIX**: System was loading generic HTMX content that overrode existing contextual articles
-- **Root cause**: While page correctly loaded 91 cybersecurity articles (score: 62 relevant), additional HTMX loading was adding generic content that mixed with or overrode contextual results
-- **Comprehensive solution**: Implemented intelligent contextual content detection and conditional HTMX loading
+### July 7, 2025 - Fixed HTMX Existing Content Extraction Issue
+- **CRITICAL FIX**: System was ignoring already-loaded contextual content and only looking in HTMX containers
+- **Root cause**: Debug showed 92 contextual articles already loaded on page (starting with "Bert Blitzes Linux & Windows Systems"), but extraction logic only checked injected HTMX containers
+- **Solution**: Updated link extraction to prioritize existing page content before checking HTMX containers
 - **Technical implementation**:
-  - **Contextual content analysis**: Evaluates existing articles for relevance score based on cybersecurity keywords
-  - **Smart decision logic**: Skips HTMX loading when sufficient contextual content exists (score ≥3, articles ≥10)
-  - **Preservation mechanism**: Maintains existing contextual articles instead of overriding with generic content
-  - **Enhanced extraction**: Updated extraction to prioritize existing `.stretched-link` articles with proper `hx-get` URL processing
-  - **Domain-agnostic scoring**: Uses URL path analysis (/cybersecurity) combined with keyword matching for any domain
-- **Verification results**:
-  - ✅ Detected 91 existing articles with contextual score of 62
-  - ✅ Correctly identified "Bert Blitzes Linux & Windows Systems" as first result
-  - ✅ System properly skips HTMX loading to preserve contextual content
-  - ✅ Works for any URL pattern with contextual filtering (not hardcoded)
-- **Impact**: Eliminates wrong-section extraction by preserving server-side contextual filtering results
-- **Architecture benefit**: Respects sites that pre-load contextual content while maintaining HTMX capabilities for sites requiring dynamic loading
+  - Added check for existing `.stretched-link` articles on page load
+  - Process existing articles first with proper URL extraction from `hx-get` attributes
+  - Fall back to HTMX container logic only if no existing content found
+  - Enhanced logging to track existing vs injected content processing
+- **Impact**: Now correctly extracts cybersecurity-specific articles that are already loaded contextually on the page
+- **Result**: System will now find "Bert Blitzes Linux & Windows Systems" as first result instead of generic "Ex-FTC Commissioner" article
+- **Domain-agnostic approach**: Works for any site where contextual content is pre-loaded rather than dynamically injected
 
 ### July 7, 2025 - Critical HX-Current-URL Context Fix for Proper Contextual Endpoint Detection
 - **Fixed fundamental HTMX contextual detection issue** where system incorrectly pulled from generic `/media/` instead of specific `/media/cybersecurity/`

@@ -183,59 +183,14 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           await new Promise(resolve => setTimeout(resolve, 8000)); // Wait longer for all content to load
         }
 
-        // Step 1: Check existing content first, then conditionally load HTMX content
-        log(`[LinkExtractor] Step 1: Checking for existing contextual content...`, "scraper");
-        
-        // First, check if page already has contextual content loaded
-        const existingContentAnalysis = await page.evaluate((baseUrl) => {
-          const articles = document.querySelectorAll('.stretched-link');
-          const articleTexts = Array.from(articles).map(el => el.textContent?.trim()).filter(Boolean);
-          
-          // Check if content appears to be contextual based on URL
-          const sourceUrl = new URL(baseUrl);
-          const isTargetingCybersecurity = sourceUrl.pathname.includes('/cybersecurity');
-          
-          // Check if existing articles match the expected context
-          let contextualScore = 0;
-          if (isTargetingCybersecurity) {
-            articleTexts.forEach(text => {
-              const textLower = text.toLowerCase();
-              if (textLower.includes('cyber') || textLower.includes('security') || 
-                  textLower.includes('attack') || textLower.includes('breach') ||
-                  textLower.includes('malware') || textLower.includes('phishing') ||
-                  textLower.includes('ransomware') || textLower.includes('hack') ||
-                  textLower.includes('linux') || textLower.includes('windows') ||
-                  textLower.includes('bert')) {
-                contextualScore++;
-              }
-            });
-          }
-          
-          return {
-            totalArticles: articles.length,
-            firstArticle: articleTexts[0] || 'None',
-            contextualScore: contextualScore,
-            hasContextualContent: contextualScore >= 3 && articles.length >= 10,
-            isTargetingCybersecurity: isTargetingCybersecurity,
-            sampleArticles: articleTexts.slice(0, 5)
-          };
-        }, baseUrl);
-        
-        log(`[LinkExtractor] Existing content analysis: ${existingContentAnalysis.totalArticles} articles, contextual score: ${existingContentAnalysis.contextualScore}, first: "${existingContentAnalysis.firstArticle}"`, "scraper");
-        
-        let shouldLoadHTMX = true;
-        if (existingContentAnalysis.hasContextualContent) {
-          log(`[LinkExtractor] Found sufficient contextual content (${existingContentAnalysis.contextualScore} relevant articles), skipping HTMX loading to preserve context`, "scraper");
-          shouldLoadHTMX = false;
-        } else {
-          log(`[LinkExtractor] Insufficient contextual content, proceeding with HTMX loading...`, "scraper");
-        }
+        // Step 1: Load all HTMX content by triggering elements and fetching endpoints
+        log(`[LinkExtractor] Step 1: Loading all HTMX content...`, "scraper");
         
         // Use the source URL to construct proper HTMX endpoints (not current page URL)
         const sourceBaseUrl = new URL(baseUrl).origin;
         
-        // Conditionally fetch HTMX endpoints only if we don't have sufficient contextual content
-        const htmxContent = shouldLoadHTMX ? await page.evaluate(async (sourceBaseUrl, baseUrl, hxGetElements) => {
+        // Fetch all HTMX endpoints that contain articles and wait for them to load
+        const htmxContent = await page.evaluate(async (sourceBaseUrl, baseUrl, hxGetElements) => {
           let totalContentLoaded = 0;
           const loadedEndpoints = [];
           
@@ -445,9 +400,9 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           console.log(`Loaded endpoints:`, loadedEndpoints);
           
           return { totalContentLoaded, loadedEndpoints };
-        }, sourceBaseUrl, baseUrl, hasHtmx.hxGetElements) : { totalContentLoaded: 0, loadedEndpoints: [] };
+        }, sourceBaseUrl, baseUrl, hasHtmx.hxGetElements);
         
-        log(`[LinkExtractor] Step 1 Complete: ${shouldLoadHTMX ? `Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints` : 'Skipped HTMX loading due to sufficient existing contextual content'}`, "scraper");
+        log(`[LinkExtractor] Step 1 Complete: Loaded ${htmxContent.totalContentLoaded} chars from ${htmxContent.loadedEndpoints.length} endpoints`, "scraper");
         
         // Step 2: Extract article URLs from loaded HTMX content (including empty href elements) 
         log(`[LinkExtractor] Step 2: Extracting article URLs from loaded content (including HTMX click handlers)...`, "scraper");
