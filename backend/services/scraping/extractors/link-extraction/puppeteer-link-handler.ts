@@ -354,7 +354,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 if (hxGet && hxGet.length > 5) {
                   articleUrl = hxGet.startsWith('http') ? hxGet : 
                     (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
-                  console.log(`🔗 Found HTMX URL from hx-get: ${hxGet} → ${articleUrl}`);
+                  console.log(`Found HTMX URL from hx-get: ${hxGet} → ${articleUrl}`);
                 }
                 
                 // 2. Check standard href attribute as fallback
@@ -392,7 +392,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                       source: 'cybersecurity-page-content',
                       hostname: hostname,
                       isExternal: hostname !== currentDomain,
-                      priority: 'high' // Mark as high priority since these are the contextual articles
+                      priority: 'high'
                     });
                     
                   } catch (error) {
@@ -405,165 +405,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             });
           }
           
-          // PRIORITY 2: Check for contextual HTMX content containers (only if needed)
-          if (articleUrls.length < 10) {
-            const contextualContainers = document.querySelectorAll('.htmx-contextual-content');
-            console.log(`Found ${contextualContainers.length} contextual HTMX containers`);
-            
-            if (contextualContainers.length > 0) {
-              console.log(`Processing contextual HTMX content...`);
-              contextualContainers.forEach((container, index) => {
-                const dataSource = container.getAttribute('data-source');
-                console.log(`Processing contextual container ${index + 1} from ${dataSource}`);
-                
-                // Find all clickable elements that might be article links
-                const clickableElements = container.querySelectorAll('a, [onclick], [hx-get], [data-hx-get], .clickable, [role="button"]');
-                console.log(`Found ${clickableElements.length} clickable elements in contextual container ${index + 1}`);
-                
-                clickableElements.forEach(element => {
-                  const text = element.textContent?.trim() || '';
-                  
-                  // Skip elements with too little text (likely navigation/buttons)
-                  if (!text || text.length < 20) return;
-                  
-                  // Look for article-like text patterns
-                  const textLower = text.toLowerCase();
-                  
-                  // Skip obvious navigation/UI elements
-                  if (textLower.includes('login') || textLower.includes('register') || 
-                      textLower.includes('subscribe') || textLower.includes('contact') ||
-                      textLower.includes('about us') || textLower.includes('privacy') ||
-                      textLower.includes('terms') || textLower.includes('click here') ||
-                      textLower.includes('read more') || textLower.includes('view all') ||
-                      textLower.includes('load more') || textLower.includes('show more')) {
-                    return;
-                  }
-                  
-                  // Look for multiple potential URL sources
-                  let articleUrl = null;
-                  
-                  // 1. Check standard href attribute
-                  const href = element.getAttribute('href');
-                  if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
-                    articleUrl = href.startsWith('http') ? href : 
-                      (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
-                  }
-                  
-                  // 2. Check HTMX attributes (critical for contextual content)
-                  if (!articleUrl) {
-                    const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
-                    if (hxGet && hxGet.length > 5) {
-                      articleUrl = hxGet.startsWith('http') ? hxGet : 
-                        (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
-                    }
-                  }
-                  
-                  // 3. Check data attributes for URLs
-                  if (!articleUrl) {
-                    const dataAttributes = ['data-url', 'data-link', 'data-href', 'data-target', 'data-article-url'];
-                    for (const attr of dataAttributes) {
-                      const dataUrl = element.getAttribute(attr);
-                      if (dataUrl && dataUrl.length > 5) {
-                        articleUrl = dataUrl.startsWith('http') ? dataUrl : 
-                          (dataUrl.startsWith('/') ? `${currentBaseUrl}${dataUrl}` : `${currentBaseUrl}/${dataUrl}`);
-                        break;
-                      }
-                    }
-                  }
-                  
-                  // If we found a URL, validate and add it
-                  if (articleUrl) {
-                    try {
-                      const urlObj = new URL(articleUrl);
-                      const hostname = urlObj.hostname.toLowerCase();
-                      
-                      console.log(`Found contextual article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
-                      articleUrls.push({
-                        url: articleUrl,
-                        text: text,
-                        source: 'contextual-htmx-content',
-                        hostname: hostname,
-                        isExternal: hostname !== currentDomain,
-                        priority: 'high' // Mark as high priority
-                      });
-                      
-                    } catch (error) {
-                      console.error(`Invalid URL found: ${articleUrl}`);
-                    }
-                  }
-                });
-              });
-            });
-          }
-                
-                // Look for article-like text patterns
-                const textLower = text.toLowerCase();
-                
-                // Skip obvious navigation/UI elements
-                if (textLower.includes('login') || textLower.includes('register') || 
-                    textLower.includes('subscribe') || textLower.includes('contact') ||
-                    textLower.includes('about us') || textLower.includes('privacy') ||
-                    textLower.includes('terms') || textLower.includes('click here') ||
-                    textLower.includes('read more') || textLower.includes('view all') ||
-                    textLower.includes('load more') || textLower.includes('show more')) {
-                  return;
-                }
-                
-                // Look for multiple potential URL sources
-                let articleUrl = null;
-                
-                // 1. Check standard href attribute
-                const href = element.getAttribute('href');
-                if (href && href.length > 5 && href !== '#' && !href.startsWith('javascript:')) {
-                  articleUrl = href.startsWith('http') ? href : 
-                    (href.startsWith('/') ? `${currentBaseUrl}${href}` : `${currentBaseUrl}/${href}`);
-                }
-                
-                // 2. Check HTMX attributes (critical for contextual content)
-                if (!articleUrl) {
-                  const hxGet = element.getAttribute('hx-get') || element.getAttribute('data-hx-get');
-                  if (hxGet && hxGet.length > 5) {
-                    articleUrl = hxGet.startsWith('http') ? hxGet : 
-                      (hxGet.startsWith('/') ? `${currentBaseUrl}${hxGet}` : `${currentBaseUrl}/${hxGet}`);
-                  }
-                }
-                
-                // 3. Check data attributes for URLs
-                if (!articleUrl) {
-                  const dataAttributes = ['data-url', 'data-link', 'data-href', 'data-target', 'data-article-url'];
-                  for (const attr of dataAttributes) {
-                    const dataUrl = element.getAttribute(attr);
-                    if (dataUrl && dataUrl.length > 5) {
-                      articleUrl = dataUrl.startsWith('http') ? dataUrl : 
-                        (dataUrl.startsWith('/') ? `${currentBaseUrl}${dataUrl}` : `${currentBaseUrl}/${dataUrl}`);
-                      break;
-                    }
-                  }
-                }
-                
-                // If we found a URL, validate and add it
-                if (articleUrl) {
-                  try {
-                    const urlObj = new URL(articleUrl);
-                    const hostname = urlObj.hostname.toLowerCase();
-                    
-                    console.log(`Found contextual article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
-                    articleUrls.push({
-                      url: articleUrl,
-                      text: text,
-                      source: 'contextual-htmx-content',
-                      hostname: hostname,
-                      isExternal: hostname !== currentDomain,
-                      priority: 'high' // Mark as high priority
-                    });
-                    
-                  } catch (error) {
-                    console.error(`Invalid URL found: ${articleUrl}`);
-                  }
-                }
-              });
-            });
-          }
+          return articleUrls;
           
           // PRIORITY 2: Check for existing page content (already loaded contextual articles)
           const existingArticles = document.querySelectorAll('.stretched-link');
