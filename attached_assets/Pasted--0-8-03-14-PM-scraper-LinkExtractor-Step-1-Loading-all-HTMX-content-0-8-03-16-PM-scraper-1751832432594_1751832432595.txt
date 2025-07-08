@@ -1,0 +1,822 @@
+[0] 8:03:14 PM [scraper] [LinkExtractor] Step 1: Loading all HTMX content...
+[0] 8:03:16 PM [scraper] [LinkExtractor] Step 1 Complete: Loaded 102631 chars from 6 endpoints
+[0] 8:03:16 PM [scraper] [LinkExtractor] Step 2: Extracting external URLs from loaded content...
+[0] 8:03:16 PM [scraper] [LinkExtractor] Step 2 Complete: Found 0 external article URLs
+[0] 8:03:16 PM [scraper] [LinkExtractor] No external URLs found in HTMX content, falling back to regular extraction
+[0] 8:03:16 PM [scraper] [LinkExtractor] Final extraction result: 128 potential article links
+[0] 8:03:16 PM [scraper-debug] [LinkExtractor] Extracted links data:
+[0] [
+[0]   {
+[0]     "href": "/",
+[0]     "text": "foo🦍",
+[0]     "context": "foo🦍\n        ~/all coding",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "/hiring/",
+[0]     "text": "Hiring",
+[0]     "context": "Hiring",
+[0]     "parentClass": "border-start px-1"
+[0]   },
+[0]   {
+[0]     "href": "/media/",
+[0]     "text": "Media",
+[0]     "context": "Media",
+[0]     "parentClass": "border-start px-1"
+[0]   },
+[0]   {
+[0]     "href": "/account/",
+[0]     "text": "Account",
+[0]     "context": "Account",
+[0]     "parentClass": "border-start px-1 text-bg-light"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Changelog",
+[0]     "context": "Changelog ·\n                    \n                    Billing ·\n                    \n                    About ·\n                    Terms ·\n                    Privacy",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "https://billing.stripe.com/p/login/7sYdR95my8yLelP3DQeEo00",
+[0]     "text": "Billing",
+[0]     "context": "Changelog ·\n                    \n                    Billing ·\n                    \n                    About ·\n                    Terms ·\n                    Privacy",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "About",
+[0]     "context": "Changelog ·\n                    \n                    Billing ·\n                    \n                    About ·\n                    Terms ·\n                    Privacy",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Terms",
+[0]     "context": "Changelog ·\n                    \n                    Billing ·\n                    \n                    About ·\n                    Terms ·\n                    Privacy",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Privacy",
+[0]     "context": "Changelog ·\n                    \n                    Billing ·\n                    \n                    About ·\n                    Terms ·\n                    Privacy",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "/",
+[0]     "text": "foorilla",
+[0]     "context": "v0.9.3 · Made with ☕ + ♥️\n                    © 2025 foorilla",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Sign up",
+[0]     "context": "Sign up",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Sign in",
+[0]     "context": "Sign in",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Terms of Service",
+[0]     "context": "I accept the Terms of Service\n                and Refund Policy",
+[0]     "parentClass": "form-check-label"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Refund Policy",
+[0]     "context": "I accept the Terms of Service\n                and Refund Policy",
+[0]     "parentClass": "form-check-label"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Privacy Policy",
+[0]     "context": "I agree to the Privacy Policy",
+[0]     "parentClass": "form-check-label"
+[0]   },
+[0]   {
+[0]     "href": "https://stripe.com/",
+[0]     "text": "Stripe",
+[0]     "context": "All major credit cards accepted -\n        Payments are processed securely by Stripe.",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Privacy Policy",
+[0]     "context": "Your privacy matters. We comply with Swiss data protection laws and applicable international standards. Please see our\n  Privacy Policy for full details.",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Topics»",
+[0]     "context": "Topics»",
+[0]     "parentClass": "p-1 border-bottom"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Filters»",
+[0]     "context": "Filters»",
+[0]     "parentClass": "p-1 border-bottom"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Followed",
+[0]     "context": "Followed",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Saved",
+[0]     "context": "Saved",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Sources",
+[0]     "context": "Sources",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Following",
+[0]     "context": "Following",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Jussi Aho: The “real” last mile",
+[0]     "context": "Jussi Aho: The “real” last mile\n36m ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The Stop Killing Games initiative has hit a major milestone, but the fight's just begun",
+[0]     "context": "The Stop Killing Games initiative has hit a major milestone, but the fight's just begun\n58m ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "TikTok’s ‘ban’ problem could end soon with a new app and a sale",
+[0]     "context": "TikTok’s ‘ban’ problem could end soon with a new app and a sale\n1h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Four new stable kernels",
+[0]     "context": "Four new stable kernels\n1h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "ULTIMATE KONTEXT LORA TRAINING! BEST RESULTS EVER!",
+[0]     "context": "ULTIMATE KONTEXT LORA TRAINING! BEST RESULTS EVER!\n1h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AMD slashes Ryzen 7000 series CPU pricing to all-time lows — Ryzen 9 7950X drops to $450, Ryzen 7600X at $162",
+[0]     "context": "AMD slashes Ryzen 7000 series CPU pricing to all-time lows — Ryzen 9 7950X drops to $450, Ryzen 7600X at $162\n1h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "From Tech Fail to Treasure Hunt: The Lost Bitcoin Saga",
+[0]     "context": "From Tech Fail to Treasure Hunt: The Lost Bitcoin Saga\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "This app is helping me unwind in new ways, and it might help you breathe your way to a better mood, too",
+[0]     "context": "This app is helping me unwind in new ways, and it might help you breathe your way to a better mood, too\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "These are the 15 office essentials I'll be buying cheap in the Prime Day sales - and it's all the boring stuff I never remember until it's too late",
+[0]     "context": "These are the 15 office essentials I'll be buying cheap in the Prime Day sales - and it's all the boring stuff I never remember until it's too late\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "At least 36 new tech unicorns were minted in 2025 so far",
+[0]     "context": "At least 36 new tech unicorns were minted in 2025 so far\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "X blocks Reuters accounts in India",
+[0]     "context": "X blocks Reuters accounts in India\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The Real Moat in the Age of AI",
+[0]     "context": "The Real Moat in the Age of AI\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Elon Musk and Dogecoin: How the Billionaire Became the 'Dogefather'",
+[0]     "context": "Elon Musk and Dogecoin: How the Billionaire Became the 'Dogefather'\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI GAME MADNESS - Live Stream - Join me & Have Fun",
+[0]     "context": "AI GAME MADNESS - Live Stream - Join me & Have Fun\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Samsung's massive, award-winning 49-inch Odyssey OLED G9 monitor has dropped to just $959 at Amazon, an $840 price reduction",
+[0]     "context": "Samsung's massive, award-winning 49-inch Odyssey OLED G9 monitor has dropped to just $959 at Amazon, an $840 price reduction\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Prime Day deal: Our favorite air purifier is $37 off right now",
+[0]     "context": "Prime Day deal: Our favorite air purifier is $37 off right now\n2h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "17 React Packages Compromised. Are You Safe?",
+[0]     "context": "17 React Packages Compromised. Are You Safe?\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Elon Musk's proposed America Party is already attracting the attention of the ultra-rich",
+[0]     "context": "Elon Musk's proposed America Party is already attracting the attention of the ultra-rich\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Why Some Students Fail at Online Learning",
+[0]     "context": "Why Some Students Fail at Online Learning\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Does Made-in-America Make Sense for PCB Prototyping?",
+[0]     "context": "Does Made-in-America Make Sense for PCB Prototyping?\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Android Weekly Issue #682",
+[0]     "context": "Android Weekly Issue #682\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The best Amazon Prime Day robot vacuum deals you can get now for 2025",
+[0]     "context": "The best Amazon Prime Day robot vacuum deals you can get now for 2025\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How Can Something Be 0 AND 1?!",
+[0]     "context": "How Can Something Be 0 AND 1?!\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Here are 33 of our favorite deals from Amazon’s early Prime Day sale",
+[0]     "context": "Here are 33 of our favorite deals from Amazon’s early Prime Day sale\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Amazon's Echo Spot drops to only $45 for Prime Day",
+[0]     "context": "Amazon's Echo Spot drops to only $45 for Prime Day\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Researchers seek to influence peer review with hidden AI prompts",
+[0]     "context": "Researchers seek to influence peer review with hidden AI prompts\n3h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Yes, you can get some mega laptop deals for creators with up to $550 in savings on my favorite machines - and it's not even Prime Day yet",
+[0]     "context": "Yes, you can get some mega laptop deals for creators with up to $550 in savings on my favorite machines - and it's not even Prime Day yet\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Quantum-Ready = Future-Proof Cybersecurity 🔐",
+[0]     "context": "Quantum-Ready = Future-Proof Cybersecurity 🔐\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The best Prime Day laptop deals: Save on MacBooks, Windows 11 machines, Chromebooks and more",
+[0]     "context": "The best Prime Day laptop deals: Save on MacBooks, Windows 11 machines, Chromebooks and more\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Unfixable Printer Vulnerability Found #technews #cybersecurity @endingwithali",
+[0]     "context": "Unfixable Printer Vulnerability Found #technews #cybersecurity @endingwithali\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Researchers Attempt to Uncover the Origins of Creativity in Diffusion Models",
+[0]     "context": "Researchers Attempt to Uncover the Origins of Creativity in Diffusion Models\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How to watch Summer Games Done Quick 2025",
+[0]     "context": "How to watch Summer Games Done Quick 2025\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Dead RTX 5090 with a cracked PCB gets urgent surgery from repair wizard  — tech casually reballs the core, replaces a memory chip twice, and runs more wires across its traces than the NSA",
+[0]     "context": "Dead RTX 5090 with a cracked PCB gets urgent surgery from repair wizard  — tech casually reballs the core, replaces a memory chip twice, and runs more wires across its traces than the NSA\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Prime Day deals include $100 off the Apple Watch Series 10",
+[0]     "context": "Prime Day deals include $100 off the Apple Watch Series 10\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The Best SSD for the PS5 gets a massive price cut — WD Black SN850X SSD is $179 for 2TB model, or get 4TB for $383 for Prime Day",
+[0]     "context": "The Best SSD for the PS5 gets a massive price cut — WD Black SN850X SSD is $179 for 2TB model, or get 4TB for $383 for Prime Day\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The best Prime Day kitchen deals you can get right now on air fryers, Instant Pots and sous vide machines",
+[0]     "context": "The best Prime Day kitchen deals you can get right now on air fryers, Instant Pots and sous vide machines\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "You Can Earn Bitcoin By Playing These Free Games",
+[0]     "context": "You Can Earn Bitcoin By Playing These Free Games\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Pick up this Dyson cordless vacuum while it's $180 off for Prime Day",
+[0]     "context": "Pick up this Dyson cordless vacuum while it's $180 off for Prime Day\n4h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Amazon Prime Day 2025: The best deals live right now, plus everything else you need to know",
+[0]     "context": "Amazon Prime Day 2025: The best deals live right now, plus everything else you need to know\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Week in Review: Most popular stories on GeekWire for the week of June 29, 2025",
+[0]     "context": "Week in Review: Most popular stories on GeekWire for the week of June 29, 2025\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How Brex is keeping up with AI by embracing the ‘messiness’",
+[0]     "context": "How Brex is keeping up with AI by embracing the ‘messiness’\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Nginx Proxy Manager 2.12.4 Released with Certbot Enhancements",
+[0]     "context": "Nginx Proxy Manager 2.12.4 Released with Certbot Enhancements\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Crazed modder straps DIY copper waterpipes to GTX 1060, sets world overclocking records in 12600KF category — card hits 2,202 MHz, takes top six Fire Strike scores",
+[0]     "context": "Crazed modder straps DIY copper waterpipes to GTX 1060, sets world overclocking records in 12600KF category — card hits 2,202 MHz, takes top six Fire Strike scores\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Best Amazon Prime Day Hard Drive deals 2025 — internal and external HDD deals from WD, Seagate, and Toshiba",
+[0]     "context": "Best Amazon Prime Day Hard Drive deals 2025 — internal and external HDD deals from WD, Seagate, and Toshiba\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "This Roomba combo robot vacuum and mop is nearly half off for Prime Day",
+[0]     "context": "This Roomba combo robot vacuum and mop is nearly half off for Prime Day\n5h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The best Amazon Prime Day deals under $50: Save on gear from Blink, Anker, Samsung and others",
+[0]     "context": "The best Amazon Prime Day deals under $50: Save on gear from Blink, Anker, Samsung and others\n6h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Visiting Our Neighbor Sedna: Feasibility Study of a Mission to This Planetoid",
+[0]     "context": "Visiting Our Neighbor Sedna: Feasibility Study of a Mission to This Planetoid\n6h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The Hidden Mind of AI: Just a Digital Illusion?",
+[0]     "context": "The Hidden Mind of AI: Just a Digital Illusion?\n6h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "NYT Strands hints and answers for Monday, July 7 (game #491)",
+[0]     "context": "NYT Strands hints and answers for Monday, July 7 (game #491)\n6h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Quordle hints and answers for Monday, July 7 (game #1260)",
+[0]     "context": "Quordle hints and answers for Monday, July 7 (game #1260)\n6h ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Latest",
+[0]     "context": "Latest",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Followed",
+[0]     "context": "Followed",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Saved",
+[0]     "context": "Saved",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Sources",
+[0]     "context": "Sources",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Following",
+[0]     "context": "Following",
+[0]     "parentClass": ""
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cyber Brief 25-07 - June 2025",
+[0]     "context": "Cyber Brief 25-07 - June 2025\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How Russia Turned Cyber Attacks Into Real Explosions",
+[0]     "context": "How Russia Turned Cyber Attacks Into Real Explosions\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Hackers Don’t Hack Computers... They Hack People.",
+[0]     "context": "Hackers Don’t Hack Computers... They Hack People.\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cyber Threat Intelligence: 3 Key Benefits For SOCs And MSSPs",
+[0]     "context": "Cyber Threat Intelligence: 3 Key Benefits For SOCs And MSSPs\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Hacktivist Group Launches Attacks on 20+ Critical Sectors Amid Iran–Israel Conflict",
+[0]     "context": "Hacktivist Group Launches Attacks on 20+ Critical Sectors Amid Iran–Israel Conflict\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI Bots Are Working 24/7... and Using Your Credentials",
+[0]     "context": "AI Bots Are Working 24/7... and Using Your Credentials\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Trump’s national cyber director nominee clears Senate committee",
+[0]     "context": "Trump’s national cyber director nominee clears Senate committee\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Why Engineers Should Be in Your Security Calls 👀",
+[0]     "context": "Why Engineers Should Be in Your Security Calls 👀\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How to PASS Microsoft Security Exams: SC-300, AZ-500, SC-100 — My Preparation Blueprint!",
+[0]     "context": "How to PASS Microsoft Security Exams: SC-300, AZ-500, SC-100 — My Preparation Blueprint!\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "hackers trick everyone to run malware (FileFix)",
+[0]     "context": "hackers trick everyone to run malware (FileFix)\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Ootbi by Object First delivers ransomware-proof storage for Veeam",
+[0]     "context": "Ootbi by Object First delivers ransomware-proof storage for Veeam\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cyberattacks hit 20% of law firms last year: Here’s how to stay safe",
+[0]     "context": "Cyberattacks hit 20% of law firms last year: Here’s how to stay safe\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Exabeam expands Nova AI platform with new strategy agent for CISOs",
+[0]     "context": "Exabeam expands Nova AI platform with new strategy agent for CISOs\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Critical Vulnerability in Microsens Devices Exposes Systems to Hackers",
+[0]     "context": "Critical Vulnerability in Microsens Devices Exposes Systems to Hackers\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How SOCs Improve Key Cybersecurity KPIs with Better Threat Analysis",
+[0]     "context": "How SOCs Improve Key Cybersecurity KPIs with Better Threat Analysis\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "North Korean IT Workers Employ New Tactics to Infiltrate Global Organizations",
+[0]     "context": "North Korean IT Workers Employ New Tactics to Infiltrate Global Organizations\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Critical Microsens Product Flaws Allow Hackers to Go ‘From Zero to Hero’",
+[0]     "context": "Critical Microsens Product Flaws Allow Hackers to Go ‘From Zero to Hero’\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How Businesses Can Align Cyber Defenses With Real Threats",
+[0]     "context": "How Businesses Can Align Cyber Defenses With Real Threats\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Ghost in the Machine: A Spy’s Digital Lifeline",
+[0]     "context": "Ghost in the Machine: A Spy’s Digital Lifeline\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "North Korea’s covert coders caught.",
+[0]     "context": "North Korea’s covert coders caught.\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Microsoft Teams to Let Users Add Agents and Bots in Current Conversations",
+[0]     "context": "Microsoft Teams to Let Users Add Agents and Bots in Current Conversations\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "You Can Learn Networking FOR FREE 🤯",
+[0]     "context": "You Can Learn Networking FOR FREE 🤯\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The #1 Cyber Insurance Mistake CISOs Keep Making 😬",
+[0]     "context": "The #1 Cyber Insurance Mistake CISOs Keep Making 😬\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cybercrime, AI and the rise of recovery-first data protection",
+[0]     "context": "Cybercrime, AI and the rise of recovery-first data protection\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "You Have 11 Minutes Before It’s Too Late ⏱️",
+[0]     "context": "You Have 11 Minutes Before It’s Too Late ⏱️\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cyber Brief 25-07 - June 2025",
+[0]     "context": "Cyber Brief 25-07 - June 2025\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cyber Threat Intelligence: 3 Key Benefits For SOCs And MSSPs",
+[0]     "context": "Cyber Threat Intelligence: 3 Key Benefits For SOCs And MSSPs\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Hackers Don’t Hack Computers... They Hack People.",
+[0]     "context": "Hackers Don’t Hack Computers... They Hack People.\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI tools are everywhere, and most are off your radar",
+[0]     "context": "AI tools are everywhere, and most are off your radar\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "U.S. warns of Iranian cyber threats on critical infrastructure",
+[0]     "context": "U.S. warns of Iranian cyber threats on critical infrastructure\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI Tools Transforming Business Operations in 2025",
+[0]     "context": "AI Tools Transforming Business Operations in 2025\n6d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Most Read: Elon Musk xAI Slates Post July 4 Release for Grok 4; Meta Launches Superintelligence Labs in Major AI Restructuring",
+[0]     "context": "Most Read: Elon Musk xAI Slates Post July 4 Release for Grok 4; Meta Launches Superintelligence Labs in Major AI Restructuring\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The one secret to using genAI to boost your brain",
+[0]     "context": "The one secret to using genAI to boost your brain\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "CISA Warns of Chrome 0-Day Vulnerability Exploited in Attacks",
+[0]     "context": "CISA Warns of Chrome 0-Day Vulnerability Exploited in Attacks\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Former OpenAI Board Member Questions Zuckerberg AI Hiring Spree",
+[0]     "context": "Former OpenAI Board Member Questions Zuckerberg AI Hiring Spree\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI job predictions become corporate America’s newest competitive sport",
+[0]     "context": "AI job predictions become corporate America’s newest competitive sport\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI Agents and Agentic AI-Navigating a Plethora of Concepts for Future Manufacturing",
+[0]     "context": "AI Agents and Agentic AI-Navigating a Plethora of Concepts for Future Manufacturing\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Together AI Releases DeepSWE: A Fully Open-Source RL-Trained Coding Agent Based on Qwen3-32B and Achieves 59% on SWEBench",
+[0]     "context": "Together AI Releases DeepSWE: A Fully Open-Source RL-Trained Coding Agent Based on Qwen3-32B and Achieves 59% on SWEBench\n3d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "A Group of Young Cybercriminals Poses the ‘Most Imminent Threat’ of Cyberattacks Right Now",
+[0]     "context": "A Group of Young Cybercriminals Poses the ‘Most Imminent Threat’ of Cyberattacks Right Now\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "AI-powered assistive technologies are changing how we experience and imagine public space",
+[0]     "context": "AI-powered assistive technologies are changing how we experience and imagine public space\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Microsoft's youngest security researcher started collaboration with the company at just 13 — high school junior filed 20 vulnerability reports last summer, named MSRC Most Valuable Researcher twice",
+[0]     "context": "Microsoft's youngest security researcher started collaboration with the company at just 13 — high school junior filed 20 vulnerability reports last summer, named MSRC Most Valuable Researcher twice\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Cybersecurity in 2025 Feels Like Pure Chaos",
+[0]     "context": "Cybersecurity in 2025 Feels Like Pure Chaos\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "The Seventh Wave: How AI Will Change The Technology Industry",
+[0]     "context": "The Seventh Wave: How AI Will Change The Technology Industry\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Apple's AI Research Has Failed So Spectacularly That It's Considering Just Letting OpenAI Power Siri",
+[0]     "context": "Apple's AI Research Has Failed So Spectacularly That It's Considering Just Letting OpenAI Power Siri\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "US CISA agency extends Iran cyber alert, warns of CNI threat",
+[0]     "context": "US CISA agency extends Iran cyber alert, warns of CNI threat\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How generative AI could help make construction sites safer",
+[0]     "context": "How generative AI could help make construction sites safer\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Nessus for Windows Vulnerabilities Enables Overwrite of Arbitrary Local System Files",
+[0]     "context": "Nessus for Windows Vulnerabilities Enables Overwrite of Arbitrary Local System Files\n4d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How Russia Turned Cyber Attacks Into Real Explosions",
+[0]     "context": "How Russia Turned Cyber Attacks Into Real Explosions\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "How to PASS Microsoft Security Exams: SC-300, AZ-500, SC-100 — My Preparation Blueprint!",
+[0]     "context": "How to PASS Microsoft Security Exams: SC-300, AZ-500, SC-100 — My Preparation Blueprint!\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   },
+[0]   {
+[0]     "href": "",
+[0]     "text": "Vision Transformers for Multi-Variable Climate Downscaling: Emulating Regional Climate Models with a Shared Encoder and Multi-Decoder Architecture",
+[0]     "context": "Vision Transformers for Multi-Variable Climate Downscaling: Emulating Regional Climate Models with a Shared Encoder and Multi-Decoder Architecture\n5d ago",
+[0]     "parentClass": "hstack justify-content-between"
+[0]   }
+[0] ]
+[0] 8:03:16 PM [scraper] [LinkExtractor] Final extraction: 128 links from dynamic page
+[0] 8:03:16 PM [scraper] [LinkExtractor] Found 121 articles without direct URLs - attempting to resolve them
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Changelog...": https://foorilla.com/changelog/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "About...": https://foorilla.com/about/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Terms...": https://foorilla.com/terms/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Privacy...": https://foorilla.com/privacy/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Sign up...": https://foorilla.com/account/signin/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Sign in...": https://foorilla.com/account/signin/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Terms of Service...": https://foorilla.com/account/signup/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Refund Policy...": https://foorilla.com/account/signup/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Privacy Policy...": https://foorilla.com/account/signup/
+[0] 8:03:16 PM [scraper] [LinkExtractor] Resolved URL for "Privacy Policy...": https://foorilla.com/account/signup/
+[0] 8:03:16 PM [scraper] [LinkExtractor] After normalization: 17 links with absolute URLs
+[0] 8:03:16 PM [openai] [ThreatTracker] Analyzing 128 structured link entries
+[0] 8:03:16 PM [openai-debug] [ThreatTracker] Structured HTML being sent to OpenAI for analysis (12054 chars)
+[0] [16aec] GET /scrape/status
+[0] [f0f83] GET /scrape/status
+[0] 8:03:25 PM [openai] [ThreatTracker] OpenAI identified 31 article links
+[0] 8:03:25 PM [scraper] [LinkExtractor] Final result: 31 article links extracted from page
+[0] 8:03:25 PM [scraper] [SimpleScraper] Advanced HTMX extraction completed: 31 links found
+[0] 8:03:25 PM [scraper] [ThreatTracker] Found 31 possible article links for Foorilla (formerly FooJobs)
+[0] 8:03:25 PM [scraper] [ThreatTracker] Step 5-6: Processing first article to detect structure
+[0] No source.userId
+[0] 8:03:25 PM [scraper] [ThreatTracker] Step 8-9: Processing first article with detected structure
+[0] 8:03:25 PM [scraper] [ThreatTracker] Processing article: https://foorilla.com/Jussi Aho: The “real” last mile
+[0] 8:03:25 PM [scraper] [SimpleScraper] Starting article scraping: https://foorilla.com/Jussi Aho: The “real” last mile
+[0] 8:03:25 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://foorilla.com/Jussi Aho: The “real” last mile
+[0] 8:03:25 PM [scraper] [HTTPScraper] Attempt 1/5
+[0] 8:03:26 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 8:03:26 PM [scraper] [HTTPScraper] Attempt 1 failed: HTTP error! status: 404
+[0] 8:03:26 PM [scraper] [HTTPScraper] Attempt 2/5
+[0] 8:03:26 PM [scraper] [HTTPScraper] Waiting 2000ms before retry
+[0] 8:03:28 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 8:03:28 PM [scraper] [HTTPScraper] Attempt 2 failed: HTTP error! status: 404
+[0] 8:03:28 PM [scraper] [HTTPScraper] Attempt 3/5
+[0] 8:03:28 PM [scraper] [HTTPScraper] Waiting 4000ms before retry
+[0] [8ba41] GET /scrape/status
+[0] 8:03:32 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 8:03:32 PM [scraper] [HTTPScraper] Attempt 3 failed: HTTP error! status: 404
+[0] 8:03:32 PM [scraper] [HTTPScraper] Attempt 4/5
+[0] 8:03:32 PM [scraper] [HTTPScraper] Waiting 8000ms before retry
+[0] [d4245] GET /scrape/status
+[0] 8:03:36 PM [scheduler] [ThreatTracker] Running scheduler health check
+[0] 8:03:41 PM [scraper] [HTTPScraper] Response received: 404 Not Found
+[0] 8:03:41 PM [scraper] [HTTPScraper] Attempt 4 failed: HTTP error! status: 404
