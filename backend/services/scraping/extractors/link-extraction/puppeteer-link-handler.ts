@@ -191,7 +191,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         const currentBaseUrl = new URL(currentUrl).origin;
         
         // Fetch all HTMX endpoints that contain articles and wait for them to load
-        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
+        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements, sourceUrl) => {
           let totalContentLoaded = 0;
           const loadedEndpoints = [];
           
@@ -206,7 +206,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
               const response = await fetch(fullUrl, {
                 headers: {
                   'HX-Request': 'true',
-                  'HX-Current-URL': window.location.href,
+                  'HX-Current-URL': sourceUrl,
                   'Accept': 'text/html, */*'
                 }
               });
@@ -230,46 +230,120 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
             }
           }
           
-          // Also try common HTMX patterns for sites like Foorilla
-          const commonEndpoints = [
-            '/media/items/',
-            '/media/items/top/',
-            '/media/items/recent/',
-            '/media/items/popular/'
-          ];
+          // Generate contextual endpoints based on source URL path
+          const sourceUrlObj = new URL(sourceUrl);
+          const pathSegments = sourceUrlObj.pathname.split('/').filter(segment => segment);
           
-          for (const endpoint of commonEndpoints) {
-            if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
+          let contextualEndpoints = [];
+          let genericEndpoints = [];
+          
+          // Check if we have a multi-level path like /media/cybersecurity/
+          if (pathSegments.length >= 2) {
+            const basePath = `/${pathSegments[0]}/`;
+            const category = pathSegments[1];
+            const categoryPath = `/${pathSegments[0]}/${category}/`;
+            
+            console.log(`Detected contextual path: ${categoryPath} from source URL: ${sourceUrl}`);
+            
+            // Generate contextual endpoints for the specific category
+            contextualEndpoints = [
+              `${categoryPath}items/`,
+              `${categoryPath}latest/`,
+              `${categoryPath}recent/`,
+              `${categoryPath}popular/`,
+              `${categoryPath}top/`,
+              `${categoryPath}feed/`,
+              `${categoryPath}more/`,
+              `${categoryPath}load/`,
+              `${categoryPath}ajax/`,
+              `${categoryPath}content/`
+            ];
+            
+            // Generic fallback endpoints
+            genericEndpoints = [
+              `${basePath}items/`,
+              `${basePath}latest/`,
+              `${basePath}recent/`,
+              `${basePath}popular/`
+            ];
+          } else {
+            // Single level path - use generic endpoints
+            const basePath = pathSegments.length > 0 ? `/${pathSegments[0]}/` : '/';
+            genericEndpoints = [
+              `${basePath}items/`,
+              `${basePath}latest/`,
+              `${basePath}recent/`,
+              `${basePath}popular/`
+            ];
+          }
+          
+          // Try contextual endpoints first (prioritized)
+          for (const endpoint of contextualEndpoints) {
+            if (loadedEndpoints.includes(endpoint)) continue;
             
             try {
-              console.log(`Trying common HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+              console.log(`Trying contextual HTMX endpoint: ${currentBaseUrl}${endpoint}`);
               const response = await fetch(`${currentBaseUrl}${endpoint}`, {
                 headers: {
                   'HX-Request': 'true',
-                  'HX-Current-URL': window.location.href,
+                  'HX-Current-URL': sourceUrl,
                   'Accept': 'text/html, */*'
                 }
               });
               
               if (response.ok) {
                 const html = await response.text();
-                console.log(`Loaded ${html.length} chars from common endpoint ${endpoint}`);
+                console.log(`Loaded ${html.length} chars from contextual endpoint ${endpoint}`);
                 
                 const container = document.createElement('div');
-                container.className = 'htmx-common-content';
+                container.className = 'htmx-contextual-content';
                 container.setAttribute('data-source', endpoint);
                 container.innerHTML = html;
                 document.body.appendChild(container);
                 
                 totalContentLoaded += html.length;
+                loadedEndpoints.push(endpoint);
               }
             } catch (e) {
-              console.error(`Error fetching common endpoint ${endpoint}:`, e);
+              console.error(`Error fetching contextual endpoint ${endpoint}:`, e);
+            }
+          }
+          
+          // Only try generic endpoints if contextual ones yielded minimal content
+          if (totalContentLoaded < 5000) {
+            for (const endpoint of genericEndpoints) {
+              if (loadedEndpoints.includes(endpoint)) continue;
+              
+              try {
+                console.log(`Trying generic HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+                const response = await fetch(`${currentBaseUrl}${endpoint}`, {
+                  headers: {
+                    'HX-Request': 'true',
+                    'HX-Current-URL': sourceUrl,
+                    'Accept': 'text/html, */*'
+                  }
+                });
+                
+                if (response.ok) {
+                  const html = await response.text();
+                  console.log(`Loaded ${html.length} chars from generic endpoint ${endpoint}`);
+                  
+                  const container = document.createElement('div');
+                  container.className = 'htmx-generic-content';
+                  container.setAttribute('data-source', endpoint);
+                  container.innerHTML = html;
+                  document.body.appendChild(container);
+                  
+                  totalContentLoaded += html.length;
+                }
+              } catch (e) {
+                console.error(`Error fetching generic endpoint ${endpoint}:`, e);
+              }
             }
           }
           
           return totalContentLoaded;
-        }, currentBaseUrl, hasHtmx.hxGetElements);
+        }, currentBaseUrl, hasHtmx.hxGetElements, baseUrl);
         
         if (htmxContent > 0) {
           log(`[LinkExtractor] Step 1 Complete: Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");

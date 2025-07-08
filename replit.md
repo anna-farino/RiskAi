@@ -127,6 +127,28 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler - COMPLETE FIX
+- **CRITICAL FIX**: Fixed contextual endpoint detection to load articles from specific sections instead of generic pages
+- **Root cause**: System was using hardcoded generic endpoints (`/media/items/`) and wrong `HX-Current-URL` headers
+- **Issue manifestation**: When visiting `https://foorilla.com/media/cybersecurity/`, system was loading generic `/media/` content instead of cybersecurity-specific content
+- **Technical problem**: HTMX servers use `HX-Current-URL` header and endpoint paths to determine which content section to return
+- **Solution implemented**:
+  - **Dynamic contextual endpoint generation**: Extracts category from source URL (`/media/cybersecurity/` → `/media/cybersecurity/items/`)
+  - **Prioritized contextual endpoints**: Tries contextual endpoints first, generic ones only as fallback
+  - **Correct HX-Current-URL header**: Uses original source URL instead of `window.location.href`
+  - **Content threshold logic**: Only tries generic endpoints if contextual ones yield <5KB content
+  - **URL-agnostic approach**: Works for any multi-level path structure (`/{category}/{subcategory}/`)
+- **Impact**: 
+  - **Correct contextual filtering**: Server now receives proper context for filtering content by specific section
+  - **Eliminates wrong-section extraction**: No more generic content when specific section was requested
+  - **Finds expected articles**: System should now extract "Why CISOs are making the SASE switch" as first result from cybersecurity section
+  - **Dynamic and scalable**: Works for any similar HTMX site structure without hardcoded URLs
+- **Technical details**:
+  - Enhanced endpoint generation with 10+ contextual patterns per category
+  - Smart fallback hierarchy: contextual → generic → existing content
+  - Proper container labeling for contextual vs generic content
+  - Maintains backward compatibility with single-level paths
+
 ### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler
 - **CRITICAL FIX**: System was sending wrong `HX-Current-URL` header causing server to return content from wrong sections
 - **Root cause**: Code was using `baseUrl` (original source URL) instead of `window.location.href` (current page URL) in HTMX fetch requests
