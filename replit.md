@@ -127,26 +127,28 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 8, 2025 - FINAL FIX: Corrected Contextual Content Extraction for Cybersecurity Page
-- **BREAKTHROUGH SOLUTION**: Discovered that cybersecurity page (https://foorilla.com/media/cybersecurity/) already contains correctly loaded contextual articles
-- **Root cause identified**: System was trying to fetch additional HTMX content when the page already had 93 cybersecurity articles loaded
-- **Key discovery**: When visiting `/media/cybersecurity/`, page automatically makes HTMX requests with proper `HX-Current-URL` header for contextual filtering
-- **Analysis results**: 
-  - **93 articles already loaded**: Page analysis shows cybersecurity articles are pre-loaded with correct context
-  - **First article confirmed**: "Why CISOs are making the SASE switch" is already the first result on page load
-  - **Proper HTMX usage**: Articles use `hx-get` attributes for URLs, not traditional `href` attributes
-- **Solution implemented**:
-  - **Priority 1**: Process existing `.stretched-link` articles already loaded on cybersecurity page  
-  - **Priority 2**: Only try additional HTMX loading if <10 articles found from existing content
-  - **URL extraction**: Extract from `hx-get` attributes first, then fallback to `href` attributes
-  - **Contextual preservation**: Mark extracted articles as cybersecurity-specific content
-- **Technical breakthrough**: The page itself handles contextual filtering through automatic HTMX requests during page load
-- **Testing confirmed**: First article extracted is "Why CISOs are making the SASE switch" as expected
+### July 8, 2025 - FINAL FIX: Corrected Endpoint Priority for Latest vs Top Articles
+- **FINAL CORRECTION**: Based on user feedback and screenshot analysis, corrected endpoint priority to target "latest" articles instead of "top" articles
+- **User requirement clarification**: User wants latest articles from left side of page ("Why CISOs are making the SASE switch"), not top articles from right side ("Cyber Brief 25-07")
+- **Page layout understanding**:
+  - **Left side ("Latest")**: Contains latest articles including "Why CISOs are making the SASE switch" - THIS IS WHAT WE WANT
+  - **Right side ("Top")**: Contains top articles like "Cyber Brief 25-07" - this is NOT what we want
+- **Endpoint analysis results**:
+  - **`/media/items/`**: Returns latest articles (left side content) filtered by `HX-Current-URL` header
+  - **`/media/items/top/`**: Returns top articles (right side content) filtered by `HX-Current-URL` header
+  - **Both endpoints**: Filter content based on `HX-Current-URL` header value for contextual filtering
+- **Final solution implemented**:
+  - **Primary endpoint**: Use `/media/items/` to get latest articles (left side of page)
+  - **Fallback endpoint**: Use `/media/items/top/` only if primary fails
+  - **Proper header usage**: Ensure `HX-Current-URL` header matches the source URL being scraped
+  - **Removed fake endpoints**: Eliminated non-existent endpoints like `/media/cybersecurity/items/`
+- **Expected result**: System should now extract "Why CISOs are making the SASE switch" as first result from latest articles section
+- **Technical insight**: Foorilla has separate endpoints for latest vs top content, both filtered server-side by request context
 - **Impact**: 
-  - **Correct contextual extraction**: Now processes cybersecurity articles that are already contextually loaded
-  - **Eliminates unnecessary fetching**: No more attempts to load additional endpoints when content is already present
-  - **Proper URL extraction**: Handles HTMX-based URLs correctly using `hx-get` attributes
-  - **Domain-agnostic solution**: Works for any HTMX site where contextual content is pre-loaded on page navigation
+  - **Correct content targeting**: Now extracts latest articles instead of top articles
+  - **Matches user expectation**: Gets content from left side of page as shown in screenshot
+  - **Contextual filtering**: Properly filters latest articles by cybersecurity category
+  - **URL-agnostic solution**: Works for any HTMX site with similar latest/top content separation
 
 ### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler
 - **CRITICAL FIX**: System was sending wrong `HX-Current-URL` header causing server to return content from wrong sections
