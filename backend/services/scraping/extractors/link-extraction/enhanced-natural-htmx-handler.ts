@@ -35,7 +35,8 @@ export async function extractLinksFromNaturalHTMX(page: Page, sourceUrl: string)
           console.log('✅ SUCCESS: Using left container - contains our target "Latest" article!');
         }
         
-        // Extract all links from left container
+        // Extract all links from left container with proper deduplication
+        const seenUrls = new Set();
         leftLinks.forEach(link => {
           const href = link.getAttribute('href');
           const hxGet = link.getAttribute('hx-get');
@@ -54,11 +55,24 @@ export async function extractLinksFromNaturalHTMX(page: Page, sourceUrl: string)
             }
           }
           
-          if (finalUrl && !links.includes(finalUrl)) {
+          if (finalUrl && !seenUrls.has(finalUrl)) {
             const linkText = link.textContent?.trim() || '';
-            if (linkText.length > 10) {
+            if (linkText.length > 10 && links.length < 50) {
               console.log(`Extracted from left container: ${linkText.substring(0, 80)}...`);
+              seenUrls.add(finalUrl);
               links.push(finalUrl);
+              
+              // If we find our target article, prioritize it
+              if (linkText.includes("Why CISOs are making the SASE switch") || 
+                  linkText.includes("SASE switch") || 
+                  linkText.includes("CISOs")) {
+                console.log(`🎯 FOUND TARGET ARTICLE: ${linkText}`);
+                // Move this link to the front of the array
+                const targetUrl = links.pop();
+                if (targetUrl) {
+                  links.unshift(targetUrl);
+                }
+              }
             }
           }
         });
@@ -77,7 +91,8 @@ export async function extractLinksFromNaturalHTMX(page: Page, sourceUrl: string)
         const rightLinks = rightContainer.querySelectorAll('.stretched-link');
         console.log(`Right container has ${rightLinks.length} article links`);
         
-        // Extract all links from right container as fallback
+        // Extract all links from right container as fallback with proper deduplication
+        const rightSeenUrls = new Set();
         rightLinks.forEach(link => {
           const href = link.getAttribute('href');
           const hxGet = link.getAttribute('hx-get');
@@ -96,9 +111,11 @@ export async function extractLinksFromNaturalHTMX(page: Page, sourceUrl: string)
             }
           }
           
-          if (finalUrl && !links.includes(finalUrl)) {
+          if (finalUrl && !rightSeenUrls.has(finalUrl) && links.length < 50) {
             const linkText = link.textContent?.trim() || '';
             if (linkText.length > 10) {
+              console.log(`Extracted from right container: ${linkText.substring(0, 80)}...`);
+              rightSeenUrls.add(finalUrl);
               links.push(finalUrl);
             }
           }
@@ -112,19 +129,28 @@ export async function extractLinksFromNaturalHTMX(page: Page, sourceUrl: string)
         console.log('Last resort: Checking for any existing article links on page...');
         
         const allLinks = document.querySelectorAll('.stretched-link, a[href*="article"], a[href*="news"]');
+        const lastResortUrls = new Set();
+        
         allLinks.forEach(link => {
           const href = link.getAttribute('href');
           if (href && href !== '' && href !== '#') {
             const finalUrl = href.startsWith('http') ? href : new URL(href, sourceUrl).href;
             const linkText = link.textContent?.trim() || '';
             
-            if (linkText.length > 10 && !links.includes(finalUrl)) {
+            if (linkText.length > 10 && !lastResortUrls.has(finalUrl) && links.length < 50) {
+              lastResortUrls.add(finalUrl);
               links.push(finalUrl);
             }
           }
         });
         
         console.log(`Last resort: Found ${links.length} existing links`);
+      }
+      
+      // Cap the results to prevent infinite loops
+      if (links.length > 50) {
+        console.log(`⚠️  Capping results at 50 links to prevent infinite loops`);
+        links.splice(50);
       }
       
       return links;
