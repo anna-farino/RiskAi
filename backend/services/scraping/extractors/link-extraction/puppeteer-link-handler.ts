@@ -190,64 +190,91 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         const currentUrl = page.url();
         const currentBaseUrl = new URL(currentUrl).origin;
         
-        // Simplified HTMX processing to avoid hanging
-        log(`[LinkExtractor] Step 1: Attempting to load HTMX content with timeout...`, "scraper");
-        
-        const htmxContent = await Promise.race([
-          // Much simpler approach - just try to load a couple of key endpoints
-          page.evaluate(async (currentBaseUrl) => {
-            let totalContentLoaded = 0;
+        // Fetch all HTMX endpoints that contain articles and wait for them to load
+        const htmxContent = await page.evaluate(async (currentBaseUrl, hxGetElements) => {
+          let totalContentLoaded = 0;
+          const loadedEndpoints = [];
+          
+          // First: Fetch all hx-get endpoints found on the page
+          for (const element of hxGetElements) {
+            if (!element.url) continue;
             
-            // Try only the most essential endpoints to avoid hanging
-            const endpoints = ['/media/items/', '/media/cybersecurity/items/'];
-            
-            for (const endpoint of endpoints) {
-              try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
-                
-                const response = await fetch(`${currentBaseUrl}${endpoint}`, {
-                  headers: {
-                    'HX-Request': 'true',
-                    'HX-Current-URL': window.location.href,
-                    'Accept': 'text/html, */*'
-                  },
-                  signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                  const html = await response.text();
-                  if (html.length > 1000) { // Only use substantial content
-                    const container = document.createElement('div');
-                    container.className = 'htmx-loaded-content';
-                    container.setAttribute('data-source', endpoint);
-                    container.innerHTML = html;
-                    document.body.appendChild(container);
-                    totalContentLoaded += html.length;
-                    console.log(`Loaded ${html.length} chars from ${endpoint}`);
-                  }
+            try {
+              const fullUrl = element.url.startsWith('http') ? element.url : `${currentBaseUrl}${element.url}`;
+              
+              console.log(`Fetching HTMX endpoint: ${fullUrl}`);
+              const response = await fetch(fullUrl, {
+                headers: {
+                  'HX-Request': 'true',
+                  'HX-Current-URL': window.location.href,
+                  'Accept': 'text/html, */*'
                 }
-              } catch (e) {
-                console.error(`Error loading ${endpoint}:`, e);
+              });
+              
+              if (response.ok) {
+                const html = await response.text();
+                console.log(`Loaded ${html.length} chars from ${element.url}`);
+                
+                // Insert content into page with identifiable container
+                const container = document.createElement('div');
+                container.className = 'htmx-loaded-content';
+                container.setAttribute('data-source', element.url);
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                
+                totalContentLoaded += html.length;
+                loadedEndpoints.push(element.url);
               }
+            } catch (e) {
+              console.error(`Error fetching ${element.url}:`, e);
             }
+          }
+          
+          // Also try common HTMX patterns for sites like Foorilla
+          const commonEndpoints = [
+            '/media/items/',
+            '/media/items/top/',
+            '/media/items/recent/',
+            '/media/items/popular/'
+          ];
+          
+          for (const endpoint of commonEndpoints) {
+            if (loadedEndpoints.includes(endpoint)) continue; // Skip if already loaded
             
-            return totalContentLoaded;
-          }, currentBaseUrl),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('HTMX loading timeout')), 5000))
-        ]).catch(error => {
-          log(`[LinkExtractor] Step 1 Error: ${error.message}`, "scraper-error");
-          return 0;
-        });
+            try {
+              console.log(`Trying common HTMX endpoint: ${currentBaseUrl}${endpoint}`);
+              const response = await fetch(`${currentBaseUrl}${endpoint}`, {
+                headers: {
+                  'HX-Request': 'true',
+                  'HX-Current-URL': window.location.href,
+                  'Accept': 'text/html, */*'
+                }
+              });
+              
+              if (response.ok) {
+                const html = await response.text();
+                console.log(`Loaded ${html.length} chars from common endpoint ${endpoint}`);
+                
+                const container = document.createElement('div');
+                container.className = 'htmx-common-content';
+                container.setAttribute('data-source', endpoint);
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                
+                totalContentLoaded += html.length;
+              }
+            } catch (e) {
+              console.error(`Error fetching common endpoint ${endpoint}:`, e);
+            }
+          }
+          
+          return totalContentLoaded;
+        }, currentBaseUrl, hasHtmx.hxGetElements);
         
         if (htmxContent > 0) {
           log(`[LinkExtractor] Step 1 Complete: Successfully loaded ${htmxContent} characters of HTMX content`, "scraper");
-          // Wait for content to fully render (reduced delay)
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          log(`[LinkExtractor] Step 1 Warning: No HTMX content loaded, proceeding with existing content`, "scraper");
+          // Wait for content to fully render
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
         
         // Step 2: Extract article URLs from loaded HTMX content (including empty href elements)
@@ -506,8 +533,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
           const finalExternalUrls = [];
           const currentDomain = new URL(currentBaseUrl).hostname;
           
-          // Process max 5 internal URLs to avoid excessive processing time
-          for (const item of externalArticleUrls.slice(0, 5)) {
+          for (const item of externalArticleUrls) {
             if (item.url && !item.isExternal) {
               // This is an internal URL that likely contains the actual external article link
               try {
@@ -533,25 +559,6 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                       
                       // Look for external links in this article content
                       const externalLinks = [];
-                      
-                      // CRITICAL: Look for "Visit" links which contain the actual external article URL
-                      const visitLinks = tempDiv.querySelectorAll('a[href*="/visit/"]');
-                      console.log(`Found ${visitLinks.length} visit links`);
-                      
-                      // Return visit URLs for processing outside the evaluate context
-                      const visitUrls = [];
-                      visitLinks.forEach(visitLink => {
-                        const visitHref = visitLink.getAttribute('href');
-                        const visitText = visitLink.textContent?.trim() || '';
-                        
-                        if (visitHref && visitText.toLowerCase().includes('visit')) {
-                          const visitUrl = visitHref.startsWith('http') ? visitHref : 
-                            (visitHref.startsWith('/') ? `${window.location.origin}${visitHref}` : `${window.location.origin}/${visitHref}`);
-                          visitUrls.push(visitUrl);
-                        }
-                      });
-                      
-                      // Also look for direct external links (fallback)
                       const allLinks = tempDiv.querySelectorAll('a[href]');
                       
                       allLinks.forEach(link => {
@@ -628,78 +635,29 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                         }
                       }
                       
-                      return { 
-                        externalLinks: [...externalLinks, ...metaUrls],
-                        visitUrls: visitUrls
-                      };
+                      return [...externalLinks, ...metaUrls];
                     }
                     
-                    return { externalLinks: [], visitUrls: [] };
+                    return [];
                   } catch (error) {
                     console.error(`Error fetching article content: ${error.message}`);
-                    return { externalLinks: [], visitUrls: [] };
+                    return [];
                   }
                 }, item.url, page.url());
                 
-                // Process the results from the evaluation
-                const { externalLinks = [], visitUrls = [] } = articlePageContent || {};
-                
                 // Add the found external URLs to our final list
-                externalLinks.forEach(externalItem => {
+                articlePageContent.forEach(externalItem => {
                   finalExternalUrls.push({
                     url: externalItem.url,
-                    text: externalItem.text || item.text,
+                    text: externalItem.text || item.text, // Fall back to original text if needed
                     source: item.url,
                     domain: externalItem.domain,
                     isExternal: true
                   });
                 });
                 
-                // Process visit URLs by navigating to them and capturing redirects
-                // Limit to first 3 visit URLs to avoid excessive processing time
-                for (const visitUrl of visitUrls.slice(0, 3)) {
-                  try {
-                    log(`[LinkExtractor] Following visit URL: ${visitUrl.substring(0, 60)}...`, "scraper");
-                    
-                    // Create a separate page for visit URL processing to avoid affecting main page
-                    const visitPage = await page.browser().newPage();
-                    
-                    try {
-                      await visitPage.goto(visitUrl, { 
-                        waitUntil: 'domcontentloaded',
-                        timeout: 8000 
-                      });
-                      
-                      const finalUrl = visitPage.url();
-                      
-                      // Check if we were redirected to an external domain
-                      const finalDomain = new URL(finalUrl).hostname;
-                      const foorillaDomain = new URL(visitUrl).hostname;
-                      
-                      if (finalDomain !== foorillaDomain) {
-                        const title = await visitPage.title().catch(() => 'External article');
-                        
-                        finalExternalUrls.push({
-                          url: finalUrl,
-                          text: title || item.text,
-                          source: item.url,
-                          domain: finalDomain,
-                          isExternal: true
-                        });
-                        
-                        log(`[LinkExtractor] Visit URL redirected to external article: ${finalDomain}`, "scraper");
-                      }
-                    } finally {
-                      await visitPage.close();
-                    }
-                    
-                  } catch (visitError) {
-                    log(`[LinkExtractor] Error processing visit URL ${visitUrl}: ${visitError.message}`, "scraper-error");
-                  }
-                }
-                
-                if (externalLinks.length > 0 || visitUrls.length > 0) {
-                  log(`[LinkExtractor] Extracted ${externalLinks.length} direct + ${visitUrls.length} visit URLs from ${item.url.substring(0, 60)}...`, "scraper");
+                if (articlePageContent.length > 0) {
+                  log(`[LinkExtractor] Extracted ${articlePageContent.length} external URLs from ${item.url.substring(0, 60)}...`, "scraper");
                 }
                 
               } catch (error) {
