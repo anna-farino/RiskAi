@@ -781,7 +781,8 @@ async function extractLinksFromPage(page: Page, baseUrl: string, options?: LinkE
               }
             });
           }
-                   log(`[LinkExtractor] Final conversion: ${articleLinkData.length} LinkData objects ready for processing`, "scraper");
+          
+          log(`[LinkExtractor] Final conversion: ${articleLinkData.length} LinkData objects ready for processing`, "scraper");
         } else {
           log(`[LinkExtractor] Step 2: No external article URLs found in HTMX content, falling back to regular extraction`, "scraper");
           
@@ -1163,3 +1164,4 @@ export async function extractArticleLinks(
     throw new Error(`Failed to extract article links from page: ${error.message}`);
   }
 }
+

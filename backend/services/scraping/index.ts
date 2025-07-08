@@ -1,6 +1,6 @@
 import { log } from "backend/utils/log";
-import { unifiedScraper as streamlinedScraper } from './unified-scraper-v2';
-import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from './types';
+import { streamlinedScraper, ArticleContent, SourceScrapingOptions } from './unified-scraper-v2';
+import { ScrapingConfig } from './extractors/structure-detector';
 
 export interface BatchOptions {
   concurrency?: number;
