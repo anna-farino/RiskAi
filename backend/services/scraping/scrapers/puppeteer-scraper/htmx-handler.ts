@@ -6,7 +6,7 @@ import { safePageEvaluate } from './error-handler';
  * Handle HTMX content loading on dynamic pages
  * Consolidates HTMX handling from News Radar
  */
-export async function handleHTMXContent(page: Page): Promise<void> {
+export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise<void> {
   try {
     log(`[PuppeteerScraper] Checking for HTMX content...`, "scraper");
 
@@ -50,21 +50,22 @@ export async function handleHTMXContent(page: Page): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Manually fetch common HTMX endpoints
-      const currentUrl = page.url();
+      const currentUrl = sourceUrl || page.url();
       const baseUrl = new URL(currentUrl).origin;
 
-      const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl) => {
+      const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl, currentUrl) => {
         let totalContentLoaded = 0;
 
-        // Common HTMX endpoints for article content
+        // Actual working HTMX endpoints discovered from Foorilla analysis
         const endpoints = [
-          '/media/items/',
-          '/media/items/top/',
-          '/media/items/recent/',
-          '/news/items/',
-          '/articles/items/',
-          '/posts/items/',
-          '/content/items/',
+          '/media/items/',           // Main content endpoint (confirmed working with contextual filtering)
+          '/media/items/top/',       // Top items (confirmed working)
+          '/media/items/followed/',  // Followed items (confirmed working)
+          '/media/items/saved/',     // Saved items (confirmed working)
+          '/topics/media/',          // Topics sidebar (confirmed working with cyber content)
+          '/media/sources/',         // Sources page (confirmed working)
+          '/media/sources/following/', // Following sources (confirmed working)
+          '/media/filter/',          // Filter endpoint (confirmed working)
         ];
 
         // Get CSRF token if available
@@ -75,12 +76,27 @@ export async function handleHTMXContent(page: Page): Promise<void> {
         // Get screen size info for headers
         const screenType = window.innerWidth < 768 ? 'M' : 'D';
 
-        for (const endpoint of endpoints) {
+        // Prioritize main content endpoint first (most likely to have contextual content)
+        const prioritizedEndpoints = [
+          '/media/items/',           // Main content - try this first
+          '/media/items/top/',       // Secondary content options
+          '/media/items/followed/',
+          '/topics/media/',          // Topics sidebar with contextual content
+          '/media/items/saved/',
+          '/media/sources/',
+          '/media/sources/following/',
+          '/media/filter/',
+        ];
+
+        for (const endpoint of prioritizedEndpoints) {
           try {
+            console.log(`🔄 Attempting to load HTMX endpoint: ${endpoint} with context: ${currentUrl}`);
+            
             const headers: Record<string, string> = {
               'HX-Request': 'true',
-              'HX-Current-URL': window.location.href,
+              'HX-Current-URL': currentUrl,  // Critical: This provides the contextual filtering
               'Accept': 'text/html, */*',
+              'X-Requested-With': 'XMLHttpRequest',
               'X-Screen': screenType
             };
 
@@ -93,21 +109,44 @@ export async function handleHTMXContent(page: Page): Promise<void> {
             if (response.ok) {
               const html = await response.text();
               
-              // Insert content into page
-              const container = document.createElement('div');
-              container.className = 'htmx-injected-content';
-              container.setAttribute('data-source', endpoint);
-              container.innerHTML = html;
-              document.body.appendChild(container);
-              totalContentLoaded += html.length;
+              if (html.length > 100) {
+                // Insert content into page
+                const container = document.createElement('div');
+                container.className = 'htmx-injected-content';
+                container.setAttribute('data-source', endpoint);
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                totalContentLoaded += html.length;
+                
+                // Check if content contains cybersecurity-related terms
+                const htmlLower = html.toLowerCase();
+                const containsCyber = htmlLower.includes('cybersecurity') || 
+                                    htmlLower.includes('security') || 
+                                    htmlLower.includes('cyber') ||
+                                    htmlLower.includes('threat') ||
+                                    htmlLower.includes('malware') ||
+                                    htmlLower.includes('breach');
+                
+                console.log(`✅ Loaded ${html.length} chars from ${endpoint} (contextual: ${containsCyber})`);
+                
+                // If main content endpoint loaded successfully with good content, we can stop
+                if (endpoint === '/media/items/' && html.length > 10000) {
+                  console.log(`🎯 Main content endpoint loaded successfully with ${html.length} chars, stopping here`);
+                  break;
+                }
+              } else {
+                console.log(`⚠️  Endpoint ${endpoint} returned minimal content: ${html.length} chars`);
+              }
+            } else {
+              console.log(`❌ Failed to load ${endpoint}: ${response.status}`);
             }
           } catch (e) {
-            console.error(`Error fetching ${endpoint}:`, e);
+            console.error(`💥 Error fetching ${endpoint}:`, e);
           }
         }
 
         return totalContentLoaded;
-      }, baseUrl);
+      }, baseUrl, currentUrl);
 
       // Handle validation blocking for HTMX content loading
       if (htmxContentLoaded === null) {
