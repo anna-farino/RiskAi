@@ -297,10 +297,8 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       `[ThreatTracker] Using unified scraping service for link extraction`,
       "scraper",
     );
-    const processedLinks = await scrapingService.scrapeSourceUrl(source.url, {
-      aiContext: "cybersecurity threats and security incidents",
-      appType: 'threat-tracker'
-    });
+    // Use scrapeSourceUrl which already includes the threat-tracker context
+    const processedLinks = await scrapingService.scrapeSourceUrl(source.url);
     log(
       `[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`,
       "scraper",
