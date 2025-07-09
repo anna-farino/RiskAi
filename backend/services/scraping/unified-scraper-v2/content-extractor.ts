@@ -1,6 +1,7 @@
 import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent } from '../types';
 import * as cheerio from 'cheerio';
+import { sanitizeSelector } from '../extractors/structure-detector/selector-sanitizer';
 
 
 
@@ -23,13 +24,20 @@ export function extractContentWithSelectors(html: string, config: ScrapingConfig
 
   // Extract title with recovery
   if (config.titleSelector) {
-    result.title = extractWithRecovery($, config.titleSelector, 'title');
-    log(`[SimpleScraper] Title extracted: "${result.title}" (${result.title?.length || 0} chars)`, "scraper");
+    const sanitizedSelector = sanitizeSelector(config.titleSelector);
+    if (sanitizedSelector) {
+      result.title = extractWithRecovery($, sanitizedSelector, 'title');
+      log(`[SimpleScraper] Title extracted: "${result.title}" (${result.title?.length || 0} chars)`, "scraper");
+    }
   }
 
   // Extract content with comprehensive recovery
   if (config.contentSelector) {
-    const contentResult = extractContentWithRecovery($, config, html);
+    const sanitizedConfig = {
+      ...config,
+      contentSelector: sanitizeSelector(config.contentSelector) || config.contentSelector
+    };
+    const contentResult = extractContentWithRecovery($, sanitizedConfig, html);
     result.content = contentResult.content;
     result.confidence = Math.min(result.confidence || 0.9, contentResult.confidence);
     log(`[SimpleScraper] Content extracted: ${result.content?.length || 0} chars (confidence: ${result.confidence})`, "scraper");
@@ -37,8 +45,11 @@ export function extractContentWithSelectors(html: string, config: ScrapingConfig
 
   // Extract author with recovery
   if (config.authorSelector) {
-    result.author = extractWithRecovery($, config.authorSelector, 'author');
-    log(`[SimpleScraper] Author extracted: "${result.author}"`, "scraper");
+    const sanitizedSelector = sanitizeSelector(config.authorSelector);
+    if (sanitizedSelector) {
+      result.author = extractWithRecovery($, sanitizedSelector, 'author');
+      log(`[SimpleScraper] Author extracted: "${result.author}"`, "scraper");
+    }
   } else {
     // Try fallback author extraction when no selector provided
     result.author = extractWithRecovery($, '', 'author');
@@ -58,9 +69,17 @@ function debugSelectorUsage($: cheerio.CheerioAPI, config: ScrapingConfig): void
   
   // Debug each selector type, including missing ones
   ['titleSelector', 'contentSelector', 'authorSelector', 'dateSelector'].forEach(selectorType => {
-    const selector = config[selectorType as keyof ScrapingConfig] as string;
+    const rawSelector = config[selectorType as keyof ScrapingConfig] as string;
     
-    if (selector && typeof selector === 'string') {
+    if (rawSelector && typeof rawSelector === 'string') {
+      // Sanitize selector before using it
+      const selector = sanitizeSelector(rawSelector);
+      
+      if (!selector) {
+        log(`[SelectorDebug] ${selectorType}: "${rawSelector}" → REJECTED during sanitization`, "scraper");
+        return;
+      }
+      
       try {
         const elements = $(selector);
         log(`[SelectorDebug] ${selectorType}: "${selector}" → ${elements.length} elements found`, "scraper");
@@ -290,6 +309,11 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
           log(`[${fieldType}Recovery] Rejected contact info as author: "${result}"`, "scraper");
           result = '';
         }
+        // Also check if it looks like a date instead of an author
+        if (/\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d{1,2},?\s*\d{4}|\d{1,2}:\d{2}\s*(AM|PM))/i.test(result)) {
+          log(`[${fieldType}Recovery] Rejected date-like text as author: "${result}"`, "scraper");
+          result = '';
+        }
       }
       
       if (result) return result;
@@ -307,6 +331,11 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
         if (result && fieldType === 'author') {
           if (/^(CONTACT|CONTACTS:|FOR MORE INFORMATION|PRESS CONTACT|MEDIA CONTACT)/i.test(result)) {
             log(`[${fieldType}Recovery] Rejected contact info as author from variation: "${result}"`, "scraper");
+            continue;
+          }
+          // Also check if it looks like a date instead of an author
+          if (/\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d{1,2},?\s*\d{4}|\d{1,2}:\d{2}\s*(AM|PM))/i.test(result)) {
+            log(`[${fieldType}Recovery] Rejected date-like text as author: "${result}"`, "scraper");
             continue;
           }
         }
@@ -338,6 +367,11 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
         // Additional validation: ensure it looks like a person's name
         if (result.length < 3 || result.length > 50 || !/[a-zA-Z]/.test(result)) {
           log(`[${fieldType}Recovery] Rejected invalid author name: "${result}"`, "scraper");
+          continue;
+        }
+        // Also check if it looks like a date instead of an author
+        if (/\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d{1,2},?\s*\d{4}|\d{1,2}:\d{2}\s*(AM|PM))/i.test(result)) {
+          log(`[${fieldType}Recovery] Rejected date-like text as author: "${result}"`, "scraper");
           continue;
         }
       }

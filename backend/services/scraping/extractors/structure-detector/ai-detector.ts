@@ -42,6 +42,7 @@ TASK: Analyze this HTML from ${sourceUrl} and identify the best CSS selectors fo
 
 CRITICAL CSS SELECTOR RULES:
 - ONLY use standard CSS selectors (NO jQuery selectors like :contains(), :has(), etc.)
+- NEVER use selectors like p:contains('APRIL') or div:contains('text') - these WILL FAIL
 - Choose selectors that target the main content, not navigation or sidebar elements
 - Prioritize semantic HTML elements (article, main, section) when available
 - Look for specific class names that indicate content (e.g., .article-content, .post-body)
@@ -63,7 +64,8 @@ AUTHOR DETECTION PATTERNS:
 3. Elements containing "By" followed by a name (but NOT contact info or "CONTACTS:")
 4. Meta tags with author information
 5. DO NOT select elements containing: "CONTACT", "CONTACTS:", "FOR MORE INFORMATION", "PRESS CONTACT"
-6. Ensure the author is a person's name, not a department or contact section
+6. DO NOT select elements that contain dates (JANUARY, FEBRUARY, etc. or time patterns like "12:30 PM")
+7. Ensure the author is a person's name, not a department, contact section, or date/time
 
 Return valid JSON in this exact format:
 {
@@ -203,7 +205,7 @@ function preprocessHtmlForAI(html: string): string {
   processed = processed.replace(/<!--[\s\S]*?-->/g, '');
   
   // Limit size to prevent token overflow
-  const MAX_LENGTH = 45000; // Conservative limit for GPT-4o-mini
+  const MAX_LENGTH = 30000; // More conservative limit to ensure complete responses
   if (processed.length > MAX_LENGTH) {
     log(`[AIStructureDetector] Truncating HTML from ${processed.length} to ${MAX_LENGTH} chars`, "scraper");
     processed = processed.substring(0, MAX_LENGTH) + "\n<!-- [truncated for AI analysis] -->";

@@ -127,32 +127,31 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 9, 2025 - Enhanced AI Scraping Reliability and jQuery Selector Fix Complete
-- **Fixed critical jQuery selector issue** where AI was generating unsupported selectors like `:contains('APRIL')` causing extraction failures
-- **Enhanced author detection filtering** to prevent extracting "CONTACTS:" and other navigation/contact info as article authors
-- **Improved JSON parsing resilience** with smarter cleaning that only escapes control characters within string values
-- **jQuery selector prevention**:
-  - Updated AI prompts to explicitly forbid jQuery-style selectors (`:contains()`, `:has()`, `:eq()`)
-  - Integrated proper selector sanitization to automatically remove jQuery selectors
-  - Added clear CSS selector rules stating "NO jQuery selectors" in AI prompts
-- **Author extraction improvements**:
-  - Filters out contact information patterns (CONTACT, CONTACTS:, FOR MORE INFORMATION, PRESS CONTACT)
-  - Validates author names for reasonable length (3-50 chars) and alphabetic content
-  - Enhanced AI guidance to avoid selecting contact sections as authors
-- **JSON parsing enhancements**:
-  - Smarter cleaning that preserves JSON structure by only escaping within string values
-  - Checks quote count to determine if we're inside a string before escaping
-  - Added truncation fallback at error position for severely corrupted JSON
-  - Applied improvements to both structure detection and direct content extraction
-- **Previous fixes maintained**:
-  - Comprehensive selector debugging showing all 4 types even when missing
-  - Error recovery for malformed JSON responses
-  - AI prompt specificity for reliable detection
+### July 9, 2025 - True Unified AI Detection System Implemented
+- **Fixed critical system disparity**: News Radar and Threat Tracker were using completely different OpenAI functions despite "unified" claims
+- **Implemented true unification**: News Radar now uses centralized AI detection from `ai-detector.ts` instead of its own function
+- **Enhanced selector sanitization**: Selectors are now sanitized BEFORE usage in content extractor, preventing jQuery selector errors
+- **Fixed date/author field confusion**: 
+  - Added date pattern rejection in author extraction (months, time patterns)
+  - Prevents "JULY 09, 2025 01:47 PM (EDT)" from being extracted as author
+  - Enhanced validation to reject date-like text in author fields
+- **Improved AI prompts**: 
+  - More explicit warnings against jQuery selectors like `p:contains('APRIL')`
+  - Added examples of what NOT to use to prevent AI confusion
+  - Enhanced author/date detection guidance
+- **JSON parsing improvements**:
+  - Reduced HTML truncation limit from 45K to 30K for more reliable responses
+  - Better error position handling for truncated JSON
+  - Maintained smart character escaping within string values
+- **Root cause resolution**: 
+  - News Radar was using its own `detectHtmlStructure` with different prompts
+  - This caused inconsistent behavior between apps
+  - Now both apps use the same centralized detection system
 - **Impact**:
-  - Eliminates jQuery selector failures (e.g., `p:contains('APRIL')` now properly sanitized)
-  - Prevents contact info from being extracted as authors
-  - Reduces JSON parsing failures while maintaining content integrity
-  - AI re-analysis now works correctly with proper fallback mechanisms
+  - News Radar and Threat Tracker now behave consistently
+  - jQuery selector errors eliminated through pre-sanitization
+  - Date extraction works properly without field confusion
+  - True app-agnostic, URL-agnostic unified system achieved
 
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection
