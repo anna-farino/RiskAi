@@ -127,6 +127,22 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 9, 2025 - Fixed CSS Selector Parsing Errors in Content Extractor
+- **Fixed critical CSS selector parsing error** causing "Did not expect successive traversals" crashes
+- **Root cause**: Selector variation generation was creating invalid CSS selectors (e.g., "div.content > p" → "div.content > > p")
+- **Solution implemented**:
+  - Added proper validation to prevent double `>` operators in selector variations
+  - Wrapped all selector operations in try-catch blocks to handle parsing errors gracefully
+  - Enhanced error logging to identify problematic selectors without crashing the system
+- **Fixed function import mismatch** in News Radar and News Capsule strategies
+  - Changed `detectArticleLinksWithAI` → `detectArticleLinks` to match actual function names
+  - Fixed parameter mismatches in `detectHtmlStructure` and `extractPublishDate` calls
+- **Impact**: 
+  - **System stability**: Scraping now continues even with invalid AI-detected selectors
+  - **App parity**: News Radar now works as reliably as Threat Tracker
+  - **Error resilience**: Graceful fallback when CSS selectors fail to parse
+  - **Complete decoupling**: All apps use their own OpenAI functions through strategy pattern
+
 ### January 9, 2025 - Implemented Strategy Pattern for App-Agnostic Scraping System
 - **Major refactoring**: Removed all hardcoded cybersecurity biases from shared scraping infrastructure
 - **Strategy pattern implementation**: Created AppScrapingContext interface and app-specific strategies

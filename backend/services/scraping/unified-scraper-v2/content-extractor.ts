@@ -54,19 +54,23 @@ function debugSelectorUsage($: cheerio.CheerioAPI, config: ScrapingConfig): void
   ['titleSelector', 'contentSelector', 'authorSelector', 'dateSelector'].forEach(selectorType => {
     const selector = config[selectorType as keyof ScrapingConfig] as string;
     if (selector && typeof selector === 'string') {
-      const elements = $(selector);
-      log(`[SelectorDebug] ${selectorType}: "${selector}" → ${elements.length} elements found`, "scraper");
-      
-      if (elements.length > 0) {
-        // Log first element details
-        const firstEl = elements.first();
-        const tagName = firstEl.prop('tagName')?.toLowerCase();
-        const classes = firstEl.attr('class');
-        const textPreview = firstEl.text().trim().substring(0, 100);
-        log(`[SelectorDebug] First element: <${tagName}> classes="${classes}" text="${textPreview}..."`, "scraper");
-      } else {
-        // Debug why selector failed
-        debugSelectorFailure($, selector, selectorType);
+      try {
+        const elements = $(selector);
+        log(`[SelectorDebug] ${selectorType}: "${selector}" → ${elements.length} elements found`, "scraper");
+        
+        if (elements.length > 0) {
+          // Log first element details
+          const firstEl = elements.first();
+          const tagName = firstEl.prop('tagName')?.toLowerCase();
+          const classes = firstEl.attr('class');
+          const textPreview = firstEl.text().trim().substring(0, 100);
+          log(`[SelectorDebug] First element: <${tagName}> classes="${classes}" text="${textPreview}..."`, "scraper");
+        } else {
+          // Debug why selector failed
+          debugSelectorFailure($, selector, selectorType);
+        }
+      } catch (error) {
+        log(`[SelectorDebug] Invalid selector "${selector}" for ${selectorType}: ${error.message}`, "scraper-error");
       }
     }
   });
@@ -85,11 +89,16 @@ function debugSelectorFailure($: cheerio.CheerioAPI, selector: string, selectorT
   let foundWorking = false;
   
   for (const variation of variations) {
-    const elements = $(variation);
-    if (elements.length > 0) {
-      log(`[SelectorDebug] Working variation found: "${variation}" → ${elements.length} elements`, "scraper");
-      foundWorking = true;
-      break;
+    try {
+      const elements = $(variation);
+      if (elements.length > 0) {
+        log(`[SelectorDebug] Working variation found: "${variation}" → ${elements.length} elements`, "scraper");
+        foundWorking = true;
+        break;
+      }
+    } catch (error) {
+      log(`[SelectorDebug] Invalid selector variation "${variation}": ${error.message}`, "scraper");
+      // Continue to next variation
     }
   }
   
@@ -144,12 +153,12 @@ export function generateSelectorVariations(selector: string): string[] {
     variations.push(withoutPseudo);
   }
   
-  // Descendant to direct child
-  if (selector.includes(' ')) {
+  // Descendant to direct child (only if not already using >)
+  if (selector.includes(' ') && !selector.includes('>')) {
     variations.push(selector.replace(/\s+/g, ' > '));
   }
   
-  // Direct child to descendant
+  // Direct child to descendant (only if using >)
   if (selector.includes(' > ')) {
     variations.push(selector.replace(/\s*>\s*/g, ' '));
   }
@@ -162,7 +171,13 @@ export function generateSelectorVariations(selector: string): string[] {
  */
 function extractContentWithRecovery($: cheerio.CheerioAPI, config: ScrapingConfig, html: string): { content: string; confidence: number } {
   // Phase 3: Pre-extraction validation
-  const contentElements = $(config.contentSelector!);
+  let contentElements;
+  try {
+    contentElements = $(config.contentSelector!);
+  } catch (error) {
+    log(`[ContentRecovery] Invalid content selector "${config.contentSelector}", initiating recovery: ${error.message}`, "scraper-error");
+    return recoverContentExtraction($, config, html);
+  }
   
   if (contentElements.length === 0) {
     log(`[ContentRecovery] No elements found with primary selector, initiating recovery`, "scraper");
@@ -253,26 +268,41 @@ function recoverContentExtraction($: cheerio.CheerioAPI, config: ScrapingConfig,
  */
 function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType: string): string {
   // Try primary selector
-  let result = $(selector).first().text().trim();
-  if (result) return result;
+  let result = '';
+  try {
+    result = $(selector).first().text().trim();
+    if (result) return result;
+  } catch (error) {
+    log(`[${fieldType}Recovery] Invalid primary selector "${selector}": ${error.message}`, "scraper-error");
+  }
   
   // Try variations
   const variations = generateSelectorVariations(selector);
   for (const variation of variations) {
-    result = $(variation).first().text().trim();
-    if (result) {
-      log(`[${fieldType}Recovery] Found using variation: "${variation}"`, "scraper");
-      return result;
+    try {
+      result = $(variation).first().text().trim();
+      if (result) {
+        log(`[${fieldType}Recovery] Found using variation: "${variation}"`, "scraper");
+        return result;
+      }
+    } catch (error) {
+      log(`[${fieldType}Recovery] Invalid variation "${variation}": ${error.message}`, "scraper");
+      // Continue to next variation
     }
   }
   
   // Field-specific fallbacks
   const fallbacks = getFieldFallbacks(fieldType);
   for (const fallback of fallbacks) {
-    result = $(fallback).first().text().trim();
-    if (result) {
-      log(`[${fieldType}Recovery] Found using fallback: "${fallback}"`, "scraper");
-      return result;
+    try {
+      result = $(fallback).first().text().trim();
+      if (result) {
+        log(`[${fieldType}Recovery] Found using fallback: "${fallback}"`, "scraper");
+        return result;
+      }
+    } catch (error) {
+      log(`[${fieldType}Recovery] Invalid fallback "${fallback}": ${error.message}`, "scraper");
+      // Continue to next fallback
     }
   }
   
