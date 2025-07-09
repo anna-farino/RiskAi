@@ -31,14 +31,14 @@ export function sanitizeSelector(selector: string): string {
     return "";
   }
 
-  // Remove unsupported pseudo-classes like :contains, :has, etc.
+  // Remove only unsupported pseudo-classes, preserve modern CSS
   const sanitized = selector
-    // Remove :contains(...) pseudo-class
+    // Remove :contains(...) pseudo-class (jQuery-specific)
     .replace(/\:contains\([^\)]+\)/g, "")
-    // Remove :has(...) pseudo-class
-    .replace(/\:has\([^\)]+\)/g, "")
-    // Remove other non-standard pseudo-classes
-    .replace(/\:[^(\s|:|>|\.|\[)]+(?=[\s,\]]|$)/g, "")
+    // Keep :has(...) - it's valid modern CSS
+    // Keep :not(...) - it's standard CSS
+    // Only remove jQuery-specific pseudo-classes
+    .replace(/\:(eq|first|last|even|odd|gt|lt)\([^\)]+\)/g, "")
     // Clean up any resulting double spaces
     .replace(/\s+/g, " ")
     .trim();

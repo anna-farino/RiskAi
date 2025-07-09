@@ -49,12 +49,29 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
     sanitizedStructure.confidence = validation.confidence;
 
     if (!validation.isValid) {
-      log(`[StructureDetector] Validation failed, using fallback selectors`, "scraper");
+      log(`[StructureDetector] Validation failed, using selective fallback selectors`, "scraper");
       log(`[StructureDetector] Validation errors: ${validation.errors.join(', ')}`, "scraper-error");
       
-      // Use fallback selectors
-      sanitizedStructure.titleSelector = generateFallbackSelectors('title')[0];
-      sanitizedStructure.contentSelector = generateFallbackSelectors('content')[0];
+      // Only replace selectors that are actually broken, preserve working ones
+      if (!sanitizedStructure.titleSelector || sanitizedStructure.titleSelector.trim() === '') {
+        sanitizedStructure.titleSelector = generateFallbackSelectors('title')[0];
+        log(`[StructureDetector] Using fallback title selector: ${sanitizedStructure.titleSelector}`, "scraper");
+      }
+      
+      if (!sanitizedStructure.contentSelector || sanitizedStructure.contentSelector.trim() === '') {
+        const contentFallbacks = generateFallbackSelectors('content');
+        sanitizedStructure.contentSelector = contentFallbacks[0];
+        log(`[StructureDetector] Using fallback content selector: ${sanitizedStructure.contentSelector}`, "scraper");
+        
+        // Store additional fallbacks for recovery
+        sanitizedStructure.alternatives = sanitizedStructure.alternatives || {};
+        sanitizedStructure.alternatives.contentSelector = contentFallbacks[1];
+        sanitizedStructure.alternatives.contentSelectorList = contentFallbacks.slice(0, 5); // Store first 5 fallbacks
+      }
+      
+      // Preserve working date and author selectors
+      log(`[StructureDetector] Preserving working selectors - date: "${sanitizedStructure.dateSelector}", author: "${sanitizedStructure.authorSelector}"`, "scraper");
+      
       sanitizedStructure.confidence = 0.5;
     }
 

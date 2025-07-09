@@ -11,7 +11,9 @@ export interface ScrapingConfig {
   dateSelector?: string;
   articleSelector?: string;
   confidence: number;
-  alternatives?: Partial<ScrapingConfig>;
+  alternatives?: Partial<ScrapingConfig> & {
+    contentSelectorList?: string[];
+  };
 }
 
 export interface LinkExtractionOptions {

@@ -205,6 +205,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Provides graceful fallback instead of complete failure
   - No artificial limits - extracts full article content
 
+### July 9, 2025 - Fixed Critical Selector Sanitization and Fallback Issues
+- **Fixed over-aggressive sanitization** that was breaking AI-detected selectors by removing valid CSS pseudo-classes like `:has()` and `:not()`
+- **Implemented selective fallback strategy** that preserves working selectors (like `dateSelector: "p.smallp"`) while only replacing broken ones
+- **Enhanced content selector fallbacks** with press-specific selectors (`.press-flex p:not(.smallp)`, `.press-release p`) for better coverage
+- **Root cause resolution**: AI was detecting complex but working selectors that got broken during sanitization, causing content recovery despite working date selectors
+- **Fixed AI re-analysis error** where `detectAIStructure` function didn't exist - corrected to use `detectHtmlStructureWithAI`
+- **Impact**: Working selectors now preserved, better fallbacks for press sites, date extraction works correctly
+
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection
 - **Enhanced JSON parsing error handling** across all OpenAI integrations to prevent "Unterminated string in JSON" failures

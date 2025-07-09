@@ -27,7 +27,13 @@ export class RobustCache {
                            config.contentSelector !== 'undefined' && 
                            config.contentSelector.trim().length > 0;
     
-    return hasValidTitle && hasValidContent;
+    // Allow caching if we have basic selectors, even if some optional ones are missing
+    // Also allow caching if we have working date/author selectors for partial success
+    const hasWorkingSelectors = hasValidTitle || hasValidContent || 
+                               (config.dateSelector && typeof config.dateSelector === 'string' && config.dateSelector.trim().length > 0) ||
+                               (config.authorSelector && typeof config.authorSelector === 'string' && config.authorSelector.trim().length > 0);
+    
+    return hasValidTitle && hasValidContent; // Keep strict validation for now, but we'll enhance this
   }
   
   get(url: string): ScrapingConfig | null {

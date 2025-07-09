@@ -15,6 +15,9 @@ export function generateFallbackSelectors(elementType: 'title' | 'content' | 'au
       '.entry-title'
     ],
     content: [
+      '.press-flex p:not(.smallp)',  // AM Best specific
+      '.press-release p',
+      '.press-content p',
       'article',
       '.article-content',
       '.article-body',
@@ -25,7 +28,13 @@ export function generateFallbackSelectors(elementType: 'title' | 'content' | 'au
       '.entry-content',
       'main',
       '.main-content',
-      '#main-content'
+      '#main-content',
+      '.content p',
+      '.text-content p',
+      '.body-content p',
+      '.press-body p',
+      '.news-content p',
+      '.release-content p'
     ],
     author: [
       '.author',
