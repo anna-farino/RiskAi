@@ -158,13 +158,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Applied to both structure detection and direct content extraction
   - Resolves "Unterminated string in JSON at position 1528" errors
 - **Enhanced JSON response handling**:
-  - Increased max_tokens to 16,000 for content extraction and 2,000 for structure detection
+  - Removed max_tokens limits to avoid any content truncation
   - Adjusted HTML input size to 25K characters for better content coverage
   - Emphasized complete JSON formatting in system messages and prompts
-  - Implemented partial data extraction as fallback for edge cases
+  - Implemented intelligent JSON completion for incomplete responses
+  - Auto-completes unclosed strings and missing fields when responses are cut off
   - Recovers title, content, author, and date even when JSON is truncated
   - Provides graceful fallback instead of complete failure
-  - No artificial content limits - extracts full article content
+  - No artificial limits - extracts full article content
 
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection

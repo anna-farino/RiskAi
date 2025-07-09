@@ -98,7 +98,6 @@ ${processedHtml}`;
         }
       ],
       temperature: 0.2,
-      max_tokens: 2000, // Sufficient for selector detection response
       response_format: { type: "json_object" }
     });
 
@@ -245,7 +244,7 @@ function preprocessHtmlForAI(html: string): string {
   processed = processed.replace(/<!--[\s\S]*?-->/g, '');
   
   // Limit size to prevent token overflow while allowing substantial content
-  const MAX_LENGTH = 25000; // Balanced limit that works with increased max_tokens
+  const MAX_LENGTH = 45000;
   if (processed.length > MAX_LENGTH) {
     log(`[AIStructureDetector] Truncating HTML from ${processed.length} to ${MAX_LENGTH} chars`, "scraper");
     processed = processed.substring(0, MAX_LENGTH) + "\n<!-- [truncated for AI analysis] -->";
@@ -348,7 +347,6 @@ ${processedHtml}`;
         }
       ],
       temperature: 0.1,
-      max_tokens: 16000, // Increased to allow for longer content
       response_format: { type: "json_object" }
     });
 
@@ -366,13 +364,57 @@ ${processedHtml}`;
       
       // More careful JSON extraction - find actual JSON boundaries
       const jsonStart = response.indexOf('{');
-      const jsonEnd = response.lastIndexOf('}');
+      let jsonEnd = response.lastIndexOf('}');
       
-      if (jsonStart === -1 || jsonEnd === -1) {
+      if (jsonStart === -1) {
         throw new Error(`No valid JSON object found in response`);
       }
       
-      // Extract just the JSON portion
+      // Check if this looks like an incomplete response (no closing brace found after substantial content)
+      if (jsonEnd === -1 && response.length > 1000) {
+        log(`[AIStructureDetector] Response appears incomplete (${response.length} chars, no closing brace)`, "scraper");
+        // Try to complete the JSON structure
+        let incompleteJson = response.substring(jsonStart);
+        
+        // Count open braces and quotes to determine what needs closing
+        let braceCount = 0;
+        let inString = false;
+        let lastQuoteIndex = -1;
+        
+        for (let i = 0; i < incompleteJson.length; i++) {
+          const char = incompleteJson[i];
+          if (char === '"' && (i === 0 || incompleteJson[i-1] !== '\\')) {
+            inString = !inString;
+            if (inString) lastQuoteIndex = i;
+          } else if (!inString) {
+            if (char === '{') braceCount++;
+            else if (char === '}') braceCount--;
+          }
+        }
+        
+        // If we're in a string, close it
+        if (inString) {
+          incompleteJson += '"';
+          log(`[AIStructureDetector] Closed unclosed string at position ${lastQuoteIndex}`, "scraper");
+        }
+        
+        // Close any remaining fields
+        if (incompleteJson.includes('"content"') && !incompleteJson.includes('"author"')) {
+          incompleteJson += ', "author": null, "date": null, "confidence": 0.5';
+        }
+        
+        // Close all open braces
+        while (braceCount > 0) {
+          incompleteJson += '}';
+          braceCount--;
+        }
+        
+        log(`[AIStructureDetector] Attempted to complete JSON structure`, "scraper");
+        response = incompleteJson;
+        jsonEnd = response.length - 1;
+      }
+      
+      // Extract the JSON portion
       let jsonPortion = response.substring(jsonStart, jsonEnd + 1);
       let cleanedResponse = jsonPortion;
       
