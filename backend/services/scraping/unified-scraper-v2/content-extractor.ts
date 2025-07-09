@@ -282,6 +282,16 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
   if (selector) {
     try {
       result = $(selector).first().text().trim();
+      
+      // Validate result based on field type
+      if (result && fieldType === 'author') {
+        // Filter out contact information mistakenly identified as author
+        if (/^(CONTACT|CONTACTS:|FOR MORE INFORMATION|PRESS CONTACT|MEDIA CONTACT)/i.test(result)) {
+          log(`[${fieldType}Recovery] Rejected contact info as author: "${result}"`, "scraper");
+          result = '';
+        }
+      }
+      
       if (result) return result;
     } catch (error) {
       log(`[${fieldType}Recovery] Invalid primary selector "${selector}": ${error.message}`, "scraper-error");
@@ -292,6 +302,15 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
     for (const variation of variations) {
       try {
         result = $(variation).first().text().trim();
+        
+        // Validate result based on field type
+        if (result && fieldType === 'author') {
+          if (/^(CONTACT|CONTACTS:|FOR MORE INFORMATION|PRESS CONTACT|MEDIA CONTACT)/i.test(result)) {
+            log(`[${fieldType}Recovery] Rejected contact info as author from variation: "${result}"`, "scraper");
+            continue;
+          }
+        }
+        
         if (result) {
           log(`[${fieldType}Recovery] Found using variation: "${variation}"`, "scraper");
           return result;
@@ -308,6 +327,21 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
   for (const fallback of fallbacks) {
     try {
       result = $(fallback).first().text().trim();
+      
+      // Validate result based on field type
+      if (result && fieldType === 'author') {
+        if (/^(CONTACT|CONTACTS:|FOR MORE INFORMATION|PRESS CONTACT|MEDIA CONTACT)/i.test(result)) {
+          log(`[${fieldType}Recovery] Rejected contact info as author from fallback: "${result}"`, "scraper");
+          continue;
+        }
+        
+        // Additional validation: ensure it looks like a person's name
+        if (result.length < 3 || result.length > 50 || !/[a-zA-Z]/.test(result)) {
+          log(`[${fieldType}Recovery] Rejected invalid author name: "${result}"`, "scraper");
+          continue;
+        }
+      }
+      
       if (result) {
         log(`[${fieldType}Recovery] Found using fallback: "${fallback}"`, "scraper");
         return result;

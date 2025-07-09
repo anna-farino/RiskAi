@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { log } from "backend/utils/log";
+import { sanitizeSelector } from './selector-sanitizer';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -39,12 +40,14 @@ TASK: Analyze this HTML from ${sourceUrl} and identify the best CSS selectors fo
 4. Publish date (if available)
 5. Overall article container (if applicable)
 
-IMPORTANT SELECTION CRITERIA:
+CRITICAL CSS SELECTOR RULES:
+- ONLY use standard CSS selectors (NO jQuery selectors like :contains(), :has(), etc.)
 - Choose selectors that target the main content, not navigation or sidebar elements
 - Prioritize semantic HTML elements (article, main, section) when available
 - Look for specific class names that indicate content (e.g., .article-content, .post-body)
 - For dates, prioritize <time> elements with datetime attributes
 - Avoid generic selectors like 'div' or 'span' unless they have specific classes
+- DO NOT return selectors with :contains(), :has(), :eq(), or other jQuery-specific pseudo-classes
 
 DATE DETECTION PATTERNS (prioritize in this order):
 1. <time> elements with datetime attributes
@@ -55,10 +58,12 @@ DATE DETECTION PATTERNS (prioritize in this order):
 6. Elements containing date-like text patterns
 
 AUTHOR DETECTION PATTERNS:
-1. Elements with classes: author, byline, writer, journalist, by-author
+1. Elements with classes: author, byline, writer, journalist, by-author, article-author
 2. Elements with rel="author" attribute  
-3. Elements containing "By" followed by a name
+3. Elements containing "By" followed by a name (but NOT contact info or "CONTACTS:")
 4. Meta tags with author information
+5. DO NOT select elements containing: "CONTACT", "CONTACTS:", "FOR MORE INFORMATION", "PRESS CONTACT"
+6. Ensure the author is a person's name, not a department or contact section
 
 Return valid JSON in this exact format:
 {
@@ -101,24 +106,64 @@ ${processedHtml}`;
       result = JSON.parse(response);
     } catch (jsonError: any) {
       log(`[AIStructureDetector] JSON parsing failed: ${jsonError.message}`, "openai-error");
-      log(`[AIStructureDetector] Attempting to clean and retry JSON parsing`, "scraper");
+      log(`[AIStructureDetector] Full response: ${response}`, "openai-error");
+      log(`[AIStructureDetector] Attempting to extract and clean JSON`, "scraper");
       
-      // Clean common JSON issues
-      let cleanedResponse = response
-        .replace(/\n/g, ' ')                    // Remove newlines
-        .replace(/\t/g, ' ')                    // Remove tabs
-        .replace(/\\/g, '\\\\')                 // Escape backslashes
-        .replace(/"/g, '\\"')                   // Escape quotes
-        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
-        .replace(/^[^{]*{/, '{')                // Remove text before first {
-        .replace(/}[^}]*$/, '}');               // Remove text after last }
+      // More careful JSON extraction - find actual JSON boundaries
+      const jsonStart = response.indexOf('{');
+      const jsonEnd = response.lastIndexOf('}');
+      
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error(`No valid JSON object found in response`);
+      }
+      
+      // Extract just the JSON portion
+      let jsonPortion = response.substring(jsonStart, jsonEnd + 1);
+      
+      // Try to fix the most common issue: unescaped newlines in string values
+      // Look for patterns like "content": "...text with
+      // newline..." and fix them
+      let cleanedResponse = jsonPortion;
+      
+      // First attempt: try to escape unescaped control characters
+      cleanedResponse = cleanedResponse
+        .replace(/([^\\])([\n\r\t])/g, (match, prefix, char) => {
+          // Check if we're inside a string value by counting quotes
+          const beforeMatch = cleanedResponse.substring(0, cleanedResponse.indexOf(match));
+          const quoteCount = (beforeMatch.match(/"/g) || []).length;
+          
+          // If odd number of quotes, we're inside a string
+          if (quoteCount % 2 === 1) {
+            const escapeMap: {[key: string]: string} = {
+              '\n': '\\n',
+              '\r': '\\r', 
+              '\t': '\\t'
+            };
+            return prefix + escapeMap[char];
+          }
+          return match;
+        });
       
       try {
         result = JSON.parse(cleanedResponse);
         log(`[AIStructureDetector] Successfully parsed cleaned JSON`, "scraper");
       } catch (retryError: any) {
         log(`[AIStructureDetector] JSON cleanup failed: ${retryError.message}`, "openai-error");
-        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+        
+        // Last resort: try to truncate at the error position
+        const errorMatch = retryError.message.match(/position (\d+)/);
+        if (errorMatch) {
+          const errorPos = parseInt(errorMatch[1]);
+          const truncated = cleanedResponse.substring(0, errorPos - 1) + '"}';
+          try {
+            result = JSON.parse(truncated);
+            log(`[AIStructureDetector] Successfully parsed truncated JSON`, "scraper");
+          } catch {
+            throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+          }
+        } else {
+          throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+        }
       }
     }
     
@@ -171,25 +216,25 @@ function preprocessHtmlForAI(html: string): string {
  * Sanitize and validate AI-detected selectors
  */
 function sanitizeAIResult(result: any): AIStructureResult {
-  // Basic selector sanitization
-  const sanitizeSelector = (selector: string | null): string | undefined => {
+  // Use the proper selector sanitizer that removes jQuery selectors
+  const sanitizeSelectorWrapper = (selector: string | null): string | undefined => {
     if (!selector || selector === 'null') return undefined;
     
-    // Remove potentially dangerous characters
-    const cleaned = selector.replace(/[<>'"]/g, '').trim();
+    // Use the imported sanitizeSelector function that handles jQuery selectors
+    const cleaned = sanitizeSelector(selector);
     if (!cleaned) return undefined;
     
     return cleaned;
   };
 
   return {
-    titleSelector: sanitizeSelector(result.titleSelector) || 'h1',
-    contentSelector: sanitizeSelector(result.contentSelector) || 'article',
-    authorSelector: sanitizeSelector(result.authorSelector),
-    dateSelector: sanitizeSelector(result.dateSelector),
-    articleSelector: sanitizeSelector(result.articleSelector),
+    titleSelector: sanitizeSelectorWrapper(result.titleSelector) || 'h1',
+    contentSelector: sanitizeSelectorWrapper(result.contentSelector) || 'article',
+    authorSelector: sanitizeSelectorWrapper(result.authorSelector),
+    dateSelector: sanitizeSelectorWrapper(result.dateSelector),
+    articleSelector: sanitizeSelectorWrapper(result.articleSelector),
     dateAlternatives: Array.isArray(result.dateAlternatives) 
-      ? result.dateAlternatives.map(sanitizeSelector).filter(Boolean)
+      ? result.dateAlternatives.map(sanitizeSelectorWrapper).filter(Boolean)
       : [],
     confidence: Math.min(1.0, Math.max(0.1, parseFloat(result.confidence) || 0.5))
   };
@@ -271,22 +316,60 @@ ${processedHtml}`;
       result = JSON.parse(response);
     } catch (jsonError: any) {
       log(`[AIStructureDetector] JSON parsing failed in direct extraction: ${jsonError.message}`, "openai-error");
+      log(`[AIStructureDetector] Full response: ${response}`, "openai-error");
+      log(`[AIStructureDetector] Attempting to extract and clean JSON`, "scraper");
       
-      // Clean common JSON issues
-      let cleanedResponse = response
-        .replace(/\n/g, ' ')                    // Remove newlines
-        .replace(/\t/g, ' ')                    // Remove tabs
-        .replace(/\\/g, '\\\\')                 // Escape backslashes
-        .replace(/"/g, '\\"')                   // Escape quotes
-        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
-        .replace(/^[^{]*{/, '{')                // Remove text before first {
-        .replace(/}[^}]*$/, '}');               // Remove text after last }
+      // More careful JSON extraction - find actual JSON boundaries
+      const jsonStart = response.indexOf('{');
+      const jsonEnd = response.lastIndexOf('}');
+      
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error(`No valid JSON object found in response`);
+      }
+      
+      // Extract just the JSON portion
+      let jsonPortion = response.substring(jsonStart, jsonEnd + 1);
+      let cleanedResponse = jsonPortion;
+      
+      // Attempt to escape unescaped control characters within string values
+      cleanedResponse = cleanedResponse
+        .replace(/([^\\])([\n\r\t])/g, (match, prefix, char) => {
+          // Check if we're inside a string value by counting quotes
+          const beforeMatch = cleanedResponse.substring(0, cleanedResponse.indexOf(match));
+          const quoteCount = (beforeMatch.match(/"/g) || []).length;
+          
+          // If odd number of quotes, we're inside a string
+          if (quoteCount % 2 === 1) {
+            const escapeMap: {[key: string]: string} = {
+              '\n': '\\n',
+              '\r': '\\r', 
+              '\t': '\\t'
+            };
+            return prefix + escapeMap[char];
+          }
+          return match;
+        });
       
       try {
         result = JSON.parse(cleanedResponse);
         log(`[AIStructureDetector] Successfully parsed cleaned JSON in direct extraction`, "scraper");
       } catch (retryError: any) {
-        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+        log(`[AIStructureDetector] JSON cleanup failed: ${retryError.message}`, "openai-error");
+        
+        // Last resort: try to truncate at the error position
+        const errorMatch = retryError.message.match(/position (\d+)/);
+        if (errorMatch) {
+          const errorPos = parseInt(errorMatch[1]);
+          const truncated = cleanedResponse.substring(0, errorPos - 1) + '"}';
+          try {
+            result = JSON.parse(truncated);
+            log(`[AIStructureDetector] Successfully parsed truncated JSON`, "scraper");
+          } catch {
+            throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+          }
+        } else {
+          throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+        }
       }
     }
     

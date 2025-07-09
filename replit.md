@@ -127,30 +127,38 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 9, 2025 - Enhanced AI Scraping Reliability and jQuery Selector Fix Complete
+- **Fixed critical jQuery selector issue** where AI was generating unsupported selectors like `:contains('APRIL')` causing extraction failures
+- **Enhanced author detection filtering** to prevent extracting "CONTACTS:" and other navigation/contact info as article authors
+- **Improved JSON parsing resilience** with smarter cleaning that only escapes control characters within string values
+- **jQuery selector prevention**:
+  - Updated AI prompts to explicitly forbid jQuery-style selectors (`:contains()`, `:has()`, `:eq()`)
+  - Integrated proper selector sanitization to automatically remove jQuery selectors
+  - Added clear CSS selector rules stating "NO jQuery selectors" in AI prompts
+- **Author extraction improvements**:
+  - Filters out contact information patterns (CONTACT, CONTACTS:, FOR MORE INFORMATION, PRESS CONTACT)
+  - Validates author names for reasonable length (3-50 chars) and alphabetic content
+  - Enhanced AI guidance to avoid selecting contact sections as authors
+- **JSON parsing enhancements**:
+  - Smarter cleaning that preserves JSON structure by only escaping within string values
+  - Checks quote count to determine if we're inside a string before escaping
+  - Added truncation fallback at error position for severely corrupted JSON
+  - Applied improvements to both structure detection and direct content extraction
+- **Previous fixes maintained**:
+  - Comprehensive selector debugging showing all 4 types even when missing
+  - Error recovery for malformed JSON responses
+  - AI prompt specificity for reliable detection
+- **Impact**:
+  - Eliminates jQuery selector failures (e.g., `p:contains('APRIL')` now properly sanitized)
+  - Prevents contact info from being extracted as authors
+  - Reduces JSON parsing failures while maintaining content integrity
+  - AI re-analysis now works correctly with proper fallback mechanisms
+
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection
 - **Enhanced JSON parsing error handling** across all OpenAI integrations to prevent "Unterminated string in JSON" failures
 - **Improved AI prompt specificity** with detailed guidance for reliable selector detection and validation
 - **Comprehensive error recovery** for malformed JSON responses with cleaning and retry mechanisms
-- **Selector debugging improvements**:
-  - Now shows all 4 selector types (title, content, author, date) in debugging output
-  - Indicates "NOT PROVIDED by AI detection" when selectors are missing
-  - Enhanced failure analysis with pattern matching and variation testing
-- **JSON parsing robustness**:
-  - Implemented cleaning logic for common JSON issues (newlines, tabs, escaped quotes)
-  - Added retry mechanisms with cleaned responses
-  - Comprehensive error logging without system crashes
-  - Applied to all OpenAI services (News Radar, Threat Tracker, AI Detector)
-- **AI prompt enhancements**:
-  - Added specific selector validation criteria and priority lists
-  - Improved date/author detection patterns with ranking
-  - Enhanced guidance for syntactically correct CSS selectors
-  - Better structured response format requirements
-- **Impact**: 
-  - Eliminates "Unterminated string in JSON at position X" errors
-  - Provides complete visibility into selector detection process
-  - Improves AI selector accuracy through better prompts
-  - System continues operation even with malformed AI responses
 
 ### July 9, 2025 - Centralized Date Extraction Implementation Complete
 - **Implemented centralized date extraction service** based on Threat Tracker's robust functionality

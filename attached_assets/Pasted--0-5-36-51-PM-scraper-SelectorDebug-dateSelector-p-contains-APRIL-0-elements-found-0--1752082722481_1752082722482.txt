@@ -1,0 +1,29 @@
+[0] 5:36:51 PM [scraper] [SelectorDebug] dateSelector: "p:contains('APRIL')" → 0 elements found
+[0] 5:36:51 PM [scraper] [SelectorDebug] Analyzing failed selector: p:contains('APRIL')
+[0] 5:36:51 PM [scraper] [SelectorDebug] Working variation found: "p" → 8 elements
+[0] 5:36:51 PM [scraper] [SelectorDebug] === SELECTOR DEBUGGING END ===
+[0] 5:36:51 PM [scraper] [SimpleScraper] Title extracted: "AM Best Affirms Credit Ratings of ProAssurance Group Members and ProAssurance Corporation" (89 chars)
+[0] 5:36:51 PM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 5:36:51 PM [scraper] [ContentRecovery] Starting content recovery process
+[0] 5:36:51 PM [scraper] [ContentRecovery] Final fallback to body content (9413 chars)
+[0] 5:36:51 PM [scraper] [SimpleScraper] Content extracted: 9413 chars (confidence: 0.3)
+[0] 5:36:51 PM [scraper] [SimpleScraper] Author extracted: "CONTACTS:"
+[0] 5:36:51 PM [scraper] [AIReanalysis] Triggering due to low confidence: 0.3
+[0] 5:36:51 PM [scraper] [SimpleScraper] Triggering AI re-analysis due to insufficient extraction
+[0] 5:36:51 PM [scraper] [AIReanalysis] Starting fresh AI analysis for improved extraction
+[0] 5:36:51 PM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 5:36:51 PM [scraper] [AIStructureDetector] Performing direct content extraction for https://news.ambest.com/PressContent.aspx?altsrc=2&refnum=36195
+[0] 5:37:20 PM [scraper] [AIStructureDetector] Direct extraction response: {
+[0]   "title": "AM Best Affirms Credit Ratings of ProAssurance Group Members and ProAssurance Corporation",
+[0]   "content": "FOR IMMEDIATE RELEASE\nOLDWICK - JULY 09, 2025 11:40 AM (EDT)\nAM Best has affir...
+[0] 5:37:20 PM [openai-error] [AIStructureDetector] JSON parsing failed in direct extraction: Unterminated string in JSON at position 6230
+[0] 5:37:20 PM [openai-error] [AIStructureDetector] Error in direct content extraction: Failed to parse AI response as JSON: Unterminated string in JSON at position 6230
+[0] 5:37:20 PM [scraper-error] [AIReanalysis] AI re-analysis failed: Failed to parse AI response as JSON: Unterminated string in JSON at position 6230, using multi-attempt recovery
+[0] 5:37:20 PM [scraper] [MultiAttempt] Starting multi-attempt recovery process
+[0] 5:37:20 PM [scraper] [MultiAttempt] Attempt 1/3
+[0] 5:37:22 PM [scraper] [MultiAttempt] Attempt 2/3
+[0] 5:37:24 PM [scraper] [MultiAttempt] Attempt 3/3
+[0] 5:37:24 PM [scraper] [MultiAttempt] Successful recovery on attempt 3: 6476 chars
+[0] 5:37:24 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 5:37:24 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 5:37:24 PM [scraper] [SimpleScraper] Final extraction result (title=89 chars, content=6476 chars, method=multi-attempt-3, confidence=0.5)
