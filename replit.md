@@ -152,6 +152,11 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - jQuery selector errors eliminated through pre-sanitization
   - Date extraction works properly without field confusion
   - True app-agnostic, URL-agnostic unified system achieved
+- **JSON parsing fix**: 
+  - Enhanced JSON cleaning to escape unescaped quotes within string values (e.g., `"a-" (Excellent)`)
+  - Tracks string boundaries to only escape quotes inside values, not JSON structure
+  - Applied to both structure detection and direct content extraction
+  - Resolves "Unterminated string in JSON at position 1528" errors
 
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection

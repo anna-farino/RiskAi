@@ -40,6 +40,8 @@ TASK: Analyze this HTML from ${sourceUrl} and identify the best CSS selectors fo
 4. Publish date (if available)
 5. Overall article container (if applicable)
 
+IMPORTANT: When extracting content, escape ALL quotes within text values using backslash (\\") to ensure valid JSON
+
 CRITICAL CSS SELECTOR RULES:
 - ONLY use standard CSS selectors (NO jQuery selectors like :contains(), :has(), etc.)
 - NEVER use selectors like p:contains('APRIL') or div:contains('text') - these WILL FAIL
@@ -127,24 +129,61 @@ ${processedHtml}`;
       // newline..." and fix them
       let cleanedResponse = jsonPortion;
       
-      // First attempt: try to escape unescaped control characters
-      cleanedResponse = cleanedResponse
-        .replace(/([^\\])([\n\r\t])/g, (match, prefix, char) => {
-          // Check if we're inside a string value by counting quotes
-          const beforeMatch = cleanedResponse.substring(0, cleanedResponse.indexOf(match));
-          const quoteCount = (beforeMatch.match(/"/g) || []).length;
+      // First attempt: escape unescaped quotes and control characters
+      let inString = false;
+      let escapeNext = false;
+      let fixedResponse = '';
+      let lastChar = '';
+      
+      for (let i = 0; i < cleanedResponse.length; i++) {
+        const char = cleanedResponse[i];
+        
+        if (escapeNext) {
+          fixedResponse += char;
+          escapeNext = false;
+          lastChar = char;
+          continue;
+        }
+        
+        if (char === '\\') {
+          escapeNext = true;
+          fixedResponse += char;
+          lastChar = char;
+          continue;
+        }
+        
+        if (char === '"' && lastChar !== '\\') {
+          // Check if this quote is part of a JSON structure or inside a value
+          const beforeQuote = fixedResponse.slice(-10);
+          const afterQuote = cleanedResponse.slice(i + 1, i + 10);
           
-          // If odd number of quotes, we're inside a string
-          if (quoteCount % 2 === 1) {
-            const escapeMap: {[key: string]: string} = {
-              '\n': '\\n',
-              '\r': '\\r', 
-              '\t': '\\t'
-            };
-            return prefix + escapeMap[char];
+          // If we see patterns like ": " before or ", " after, it's likely a JSON structure quote
+          if ((beforeQuote.includes('": ') || beforeQuote.includes(': ')) ||
+              (afterQuote.includes(', "') || afterQuote.includes('}') || afterQuote.includes(']'))) {
+            inString = !inString;
+            fixedResponse += char;
+          } else if (inString) {
+            // This is a quote inside a string value, escape it
+            fixedResponse += '\\"';
+          } else {
+            fixedResponse += char;
           }
-          return match;
-        });
+        } else if (inString && (char === '\n' || char === '\r' || char === '\t')) {
+          // Escape control characters inside strings
+          const escapeMap: {[key: string]: string} = {
+            '\n': '\\n',
+            '\r': '\\r',
+            '\t': '\\t'
+          };
+          fixedResponse += escapeMap[char];
+        } else {
+          fixedResponse += char;
+        }
+        
+        lastChar = char;
+      }
+      
+      cleanedResponse = fixedResponse;
       
       try {
         result = JSON.parse(cleanedResponse);
@@ -333,24 +372,61 @@ ${processedHtml}`;
       let jsonPortion = response.substring(jsonStart, jsonEnd + 1);
       let cleanedResponse = jsonPortion;
       
-      // Attempt to escape unescaped control characters within string values
-      cleanedResponse = cleanedResponse
-        .replace(/([^\\])([\n\r\t])/g, (match, prefix, char) => {
-          // Check if we're inside a string value by counting quotes
-          const beforeMatch = cleanedResponse.substring(0, cleanedResponse.indexOf(match));
-          const quoteCount = (beforeMatch.match(/"/g) || []).length;
+      // Use the same enhanced cleaning logic as structure detection
+      let inString = false;
+      let escapeNext = false;
+      let fixedResponse = '';
+      let lastChar = '';
+      
+      for (let i = 0; i < cleanedResponse.length; i++) {
+        const char = cleanedResponse[i];
+        
+        if (escapeNext) {
+          fixedResponse += char;
+          escapeNext = false;
+          lastChar = char;
+          continue;
+        }
+        
+        if (char === '\\') {
+          escapeNext = true;
+          fixedResponse += char;
+          lastChar = char;
+          continue;
+        }
+        
+        if (char === '"' && lastChar !== '\\') {
+          // Check if this quote is part of a JSON structure or inside a value
+          const beforeQuote = fixedResponse.slice(-10);
+          const afterQuote = cleanedResponse.slice(i + 1, i + 10);
           
-          // If odd number of quotes, we're inside a string
-          if (quoteCount % 2 === 1) {
-            const escapeMap: {[key: string]: string} = {
-              '\n': '\\n',
-              '\r': '\\r', 
-              '\t': '\\t'
-            };
-            return prefix + escapeMap[char];
+          // If we see patterns like ": " before or ", " after, it's likely a JSON structure quote
+          if ((beforeQuote.includes('": ') || beforeQuote.includes(': ')) ||
+              (afterQuote.includes(', "') || afterQuote.includes('}') || afterQuote.includes(']'))) {
+            inString = !inString;
+            fixedResponse += char;
+          } else if (inString) {
+            // This is a quote inside a string value, escape it
+            fixedResponse += '\\"';
+          } else {
+            fixedResponse += char;
           }
-          return match;
-        });
+        } else if (inString && (char === '\n' || char === '\r' || char === '\t')) {
+          // Escape control characters inside strings
+          const escapeMap: {[key: string]: string} = {
+            '\n': '\\n',
+            '\r': '\\r',
+            '\t': '\\t'
+          };
+          fixedResponse += escapeMap[char];
+        } else {
+          fixedResponse += char;
+        }
+        
+        lastChar = char;
+      }
+      
+      cleanedResponse = fixedResponse;
       
       try {
         result = JSON.parse(cleanedResponse);
