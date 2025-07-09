@@ -27,16 +27,23 @@ export async function getStructureConfig(cache: RobustCache, url: string, html: 
     structure = await detectHtmlStructureWithAI(html, url);
   }
   
+  // Handle both property name formats (some AI responses use 'title' instead of 'titleSelector')
+  const titleSelector = structure.titleSelector || structure.title;
+  const contentSelector = structure.contentSelector || structure.content;
+  const authorSelector = structure.authorSelector || structure.author;
+  const dateSelector = structure.dateSelector || structure.date;
+  const confidence = structure.confidence || 0.8;
+  
   // Log what AI detected
-  log(`[SimpleScraper] AI detected selectors - title: ${structure.titleSelector}, content: ${structure.contentSelector}, author: ${structure.authorSelector}, confidence: ${structure.confidence}`, "scraper");
+  log(`[SimpleScraper] AI detected selectors - title: ${titleSelector}, content: ${contentSelector}, author: ${authorSelector}, confidence: ${confidence}`, "scraper");
   
   // Convert AI result to ScrapingConfig
   const config: ScrapingConfig = {
-    titleSelector: structure.titleSelector,
-    contentSelector: structure.contentSelector,
-    authorSelector: structure.authorSelector,
-    dateSelector: structure.dateSelector,
-    confidence: structure.confidence
+    titleSelector,
+    contentSelector,
+    authorSelector,
+    dateSelector,
+    confidence
   };
   
   // Cache the result using URL (cache class handles domain extraction)

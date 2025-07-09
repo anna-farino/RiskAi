@@ -19,9 +19,9 @@ export class ThreatTrackerStrategy implements AppScrapingStrategy {
           const { detectHtmlStructure } = await import('backend/apps/threat-tracker/services/openai');
           return detectHtmlStructure(html, url);
         },
-        extractPublishDate: async (html: string, url: string, selectors?: any) => {
-          const { extractDateFromHtml } = await import('backend/apps/threat-tracker/services/content-extraction');
-          return extractDateFromHtml(html, url, selectors);
+        extractPublishDate: async (html: string, selectors?: any) => {
+          const { extractPublishDate } = await import('backend/apps/threat-tracker/services/date-extractor');
+          return extractPublishDate(html, selectors);
         }
       },
       extractionOptions: {
