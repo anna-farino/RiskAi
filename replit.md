@@ -127,6 +127,31 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
+- **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection
+- **Enhanced JSON parsing error handling** across all OpenAI integrations to prevent "Unterminated string in JSON" failures
+- **Improved AI prompt specificity** with detailed guidance for reliable selector detection and validation
+- **Comprehensive error recovery** for malformed JSON responses with cleaning and retry mechanisms
+- **Selector debugging improvements**:
+  - Now shows all 4 selector types (title, content, author, date) in debugging output
+  - Indicates "NOT PROVIDED by AI detection" when selectors are missing
+  - Enhanced failure analysis with pattern matching and variation testing
+- **JSON parsing robustness**:
+  - Implemented cleaning logic for common JSON issues (newlines, tabs, escaped quotes)
+  - Added retry mechanisms with cleaned responses
+  - Comprehensive error logging without system crashes
+  - Applied to all OpenAI services (News Radar, Threat Tracker, AI Detector)
+- **AI prompt enhancements**:
+  - Added specific selector validation criteria and priority lists
+  - Improved date/author detection patterns with ranking
+  - Enhanced guidance for syntactically correct CSS selectors
+  - Better structured response format requirements
+- **Impact**: 
+  - Eliminates "Unterminated string in JSON at position X" errors
+  - Provides complete visibility into selector detection process
+  - Improves AI selector accuracy through better prompts
+  - System continues operation even with malformed AI responses
+
 ### July 9, 2025 - Centralized Date Extraction Implementation Complete
 - **Implemented centralized date extraction service** based on Threat Tracker's robust functionality
 - **Root rationale**: Date extraction is universal - publication dates don't vary by app context, making app-specific strategies unnecessary

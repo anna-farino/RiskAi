@@ -95,7 +95,32 @@ ${processedHtml}`;
     const response = completion.choices[0].message.content || "";
     log(`[AIStructureDetector] Raw AI response: ${response.substring(0, 500)}...`, "scraper");
     
-    const result = JSON.parse(response);
+    // Enhanced JSON parsing with error handling
+    let result;
+    try {
+      result = JSON.parse(response);
+    } catch (jsonError: any) {
+      log(`[AIStructureDetector] JSON parsing failed: ${jsonError.message}`, "openai-error");
+      log(`[AIStructureDetector] Attempting to clean and retry JSON parsing`, "scraper");
+      
+      // Clean common JSON issues
+      let cleanedResponse = response
+        .replace(/\n/g, ' ')                    // Remove newlines
+        .replace(/\t/g, ' ')                    // Remove tabs
+        .replace(/\\/g, '\\\\')                 // Escape backslashes
+        .replace(/"/g, '\\"')                   // Escape quotes
+        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
+        .replace(/^[^{]*{/, '{')                // Remove text before first {
+        .replace(/}[^}]*$/, '}');               // Remove text after last }
+      
+      try {
+        result = JSON.parse(cleanedResponse);
+        log(`[AIStructureDetector] Successfully parsed cleaned JSON`, "scraper");
+      } catch (retryError: any) {
+        log(`[AIStructureDetector] JSON cleanup failed: ${retryError.message}`, "openai-error");
+        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+      }
+    }
     
     log(`[AIStructureDetector] Parsed result - title: ${result.titleSelector}, content: ${result.contentSelector}, confidence: ${result.confidence}`, "scraper");
     
@@ -238,7 +263,32 @@ ${processedHtml}`;
     });
 
     const response = completion.choices[0].message.content || "";
-    const result = JSON.parse(response);
+    log(`[AIStructureDetector] Direct extraction response: ${response.substring(0, 200)}...`, "scraper");
+    
+    // Enhanced JSON parsing with error handling
+    let result;
+    try {
+      result = JSON.parse(response);
+    } catch (jsonError: any) {
+      log(`[AIStructureDetector] JSON parsing failed in direct extraction: ${jsonError.message}`, "openai-error");
+      
+      // Clean common JSON issues
+      let cleanedResponse = response
+        .replace(/\n/g, ' ')                    // Remove newlines
+        .replace(/\t/g, ' ')                    // Remove tabs
+        .replace(/\\/g, '\\\\')                 // Escape backslashes
+        .replace(/"/g, '\\"')                   // Escape quotes
+        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
+        .replace(/^[^{]*{/, '{')                // Remove text before first {
+        .replace(/}[^}]*$/, '}');               // Remove text after last }
+      
+      try {
+        result = JSON.parse(cleanedResponse);
+        log(`[AIStructureDetector] Successfully parsed cleaned JSON in direct extraction`, "scraper");
+      } catch (retryError: any) {
+        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+      }
+    }
     
     log(`[AIStructureDetector] Direct extraction completed with confidence ${result.confidence}`, "scraper");
     

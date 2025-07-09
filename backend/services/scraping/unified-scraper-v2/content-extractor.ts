@@ -56,9 +56,10 @@ export function extractContentWithSelectors(html: string, config: ScrapingConfig
 function debugSelectorUsage($: cheerio.CheerioAPI, config: ScrapingConfig): void {
   log(`[SelectorDebug] === SELECTOR DEBUGGING START ===`, "scraper");
   
-  // Debug each selector
+  // Debug each selector type, including missing ones
   ['titleSelector', 'contentSelector', 'authorSelector', 'dateSelector'].forEach(selectorType => {
     const selector = config[selectorType as keyof ScrapingConfig] as string;
+    
     if (selector && typeof selector === 'string') {
       try {
         const elements = $(selector);
@@ -78,6 +79,9 @@ function debugSelectorUsage($: cheerio.CheerioAPI, config: ScrapingConfig): void
       } catch (error) {
         log(`[SelectorDebug] Invalid selector "${selector}" for ${selectorType}: ${error.message}`, "scraper-error");
       }
+    } else {
+      // Log missing selectors
+      log(`[SelectorDebug] ${selectorType}: NOT PROVIDED by AI detection`, "scraper");
     }
   });
   

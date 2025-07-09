@@ -337,6 +337,23 @@ Date: Look for time, .date, .published, .article-date, [datetime], .timestamp, e
 6. For content, prefer selectors that get paragraphs/text content, not just containers
 7. Author and date are IMPORTANT - try hard to find them even if not obvious
 
+SELECTOR VALIDATION:
+- Ensure selectors are syntactically correct CSS
+- Avoid complex selectors that may break (limit to 2-3 levels deep)
+- Use simple, reliable selectors like .class-name or tag.class
+- Prefer exact class matches over descendant selectors when possible
+
+DATE DETECTION PRIORITY:
+1. <time> elements with datetime attributes
+2. Elements with classes: .date, .published, .publish-date, .article-date, .timestamp
+3. Elements with data attributes: [data-date], [data-published]
+4. Meta tags: meta[property="article:published_time"]
+
+AUTHOR DETECTION PRIORITY:
+1. Elements with classes: .author, .byline, .writer, .by-author
+2. Elements with rel="author" attribute
+3. Elements containing "By" followed by a name
+
 Return JSON in format: { 
   articleSelector: string, 
   titleSelector: string, 
@@ -345,7 +362,7 @@ Return JSON in format: {
   dateSelector?: string 
 }
 
-If you cannot find author or date selectors, still try to provide your best guess based on common patterns.`,
+IMPORTANT: If you cannot find author or date selectors, return null instead of guessing. Only return selectors you can validate exist in the HTML.`,
         },
         {
           role: "user",
@@ -360,7 +377,32 @@ If you cannot find author or date selectors, still try to provide your best gues
       throw new Error("No content received from OpenAI");
     }
 
-    return JSON.parse(responseText);
+    // Enhanced JSON parsing with error handling
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (jsonError: any) {
+      console.log(`[OpenAI] JSON parsing failed: ${jsonError.message}`);
+      
+      // Clean common JSON issues
+      let cleanedResponse = responseText
+        .replace(/\n/g, ' ')                    // Remove newlines
+        .replace(/\t/g, ' ')                    // Remove tabs
+        .replace(/\\/g, '\\\\')                 // Escape backslashes
+        .replace(/"/g, '\\"')                   // Escape quotes
+        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
+        .replace(/^[^{]*{/, '{')                // Remove text before first {
+        .replace(/}[^}]*$/, '}');               // Remove text after last }
+      
+      try {
+        result = JSON.parse(cleanedResponse);
+        console.log(`[OpenAI] Successfully parsed cleaned JSON`);
+      } catch (retryError: any) {
+        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+      }
+    }
+    
+    return result;
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";

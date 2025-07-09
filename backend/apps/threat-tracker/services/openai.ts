@@ -86,8 +86,32 @@ Return your answer in valid JSON format like this:
     const response = completion.choices[0].message.content || "";
     log(`[ThreatTracker] HTML structure detected for ${sourceUrl}`, "openai");
 
-    // With response_format: { type: "json_object" }, the response should already be valid JSON
-    return JSON.parse(response);
+    // Enhanced JSON parsing with error handling
+    let result;
+    try {
+      result = JSON.parse(response);
+    } catch (jsonError: any) {
+      log(`[ThreatTracker] JSON parsing failed: ${jsonError.message}`, "openai-error");
+      
+      // Clean common JSON issues
+      let cleanedResponse = response
+        .replace(/\n/g, ' ')                    // Remove newlines
+        .replace(/\t/g, ' ')                    // Remove tabs
+        .replace(/\\/g, '\\\\')                 // Escape backslashes
+        .replace(/"/g, '\\"')                   // Escape quotes
+        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
+        .replace(/^[^{]*{/, '{')                // Remove text before first {
+        .replace(/}[^}]*$/, '}');               // Remove text after last }
+      
+      try {
+        result = JSON.parse(cleanedResponse);
+        log(`[ThreatTracker] Successfully parsed cleaned JSON`, "openai");
+      } catch (retryError: any) {
+        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+      }
+    }
+    
+    return result;
   } catch (error: any) {
     log(
       `[ThreatTracker] Error detecting HTML structure: ${error.message}`,
