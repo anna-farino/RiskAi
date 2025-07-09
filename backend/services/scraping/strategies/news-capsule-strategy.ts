@@ -11,13 +11,14 @@ export class NewsCapsuleStrategy implements AppScrapingStrategy {
       appType: 'news-capsule',
       aiProviders: {
         identifyArticleLinks: async (html: string, url: string) => {
-          // Reuse News Radar's general article detection
-          const { detectArticleLinks } = await import('backend/apps/news-radar/services/openai');
+          // Use unified article detection for general news
+          const { detectArticleLinks } = await import('../ai/unified-link-detector');
           return detectArticleLinks(html);
         },
         detectHtmlStructure: async (html: string, url: string) => {
-          const { detectHtmlStructure } = await import('backend/apps/news-radar/services/openai');
-          return detectHtmlStructure(html);
+          // Use centralized AI detection instead of app-specific
+          const { detectHtmlStructureWithAI } = await import('../extractors/structure-detector/ai-detector');
+          return detectHtmlStructureWithAI(html, url);
         }
       },
       extractionOptions: {

@@ -11,8 +11,8 @@ export class NewsRadarStrategy implements AppScrapingStrategy {
       appType: 'news-radar',
       aiProviders: {
         identifyArticleLinks: async (html: string, url: string) => {
-          // Use neutral article detection for general news
-          const { detectArticleLinks } = await import('backend/apps/news-radar/services/openai');
+          // Use unified article detection for general news
+          const { detectArticleLinks } = await import('../ai/unified-link-detector');
           return detectArticleLinks(html);
         },
         detectHtmlStructure: async (html: string, url: string) => {

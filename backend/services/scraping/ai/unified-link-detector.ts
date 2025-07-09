@@ -266,3 +266,6 @@ export async function identifyArticleLinks(
     return [];
   }
 }
+
+// Export alias for backward compatibility
+export const detectArticleLinks = identifyArticleLinks;
