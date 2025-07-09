@@ -243,8 +243,8 @@ function preprocessHtmlForAI(html: string): string {
   // Remove comments
   processed = processed.replace(/<!--[\s\S]*?-->/g, '');
   
-  // Limit size to prevent token overflow
-  const MAX_LENGTH = 30000; // More conservative limit to ensure complete responses
+  // Limit size to prevent token overflow and ensure complete AI responses
+  const MAX_LENGTH = 15000; // Further reduced to prevent incomplete JSON responses
   if (processed.length > MAX_LENGTH) {
     log(`[AIStructureDetector] Truncating HTML from ${processed.length} to ${MAX_LENGTH} chars`, "scraper");
     processed = processed.substring(0, MAX_LENGTH) + "\n<!-- [truncated for AI analysis] -->";
@@ -315,15 +315,18 @@ CONTENT CLEANING:
 - Focus on the main article content only
 - Preserve paragraph structure but remove HTML tags
 - Extract clean, readable text
+- IMPORTANT: Limit content to 500 words maximum to ensure complete JSON response
 
 DATE FORMATTING:
 - Convert any found dates to ISO format (YYYY-MM-DD)
 - Return null if no clear publish date found
 
+IMPORTANT: Keep content under 500 words to ensure complete response.
+
 Return valid JSON:
 {
   "title": "Article title text",
-  "content": "Clean article content text",
+  "content": "Clean article content text (MAX 500 WORDS)",
   "author": "Author name or null",
   "date": "YYYY-MM-DD or null",
   "confidence": 0.8
@@ -434,19 +437,53 @@ ${processedHtml}`;
       } catch (retryError: any) {
         log(`[AIStructureDetector] JSON cleanup failed: ${retryError.message}`, "openai-error");
         
-        // Last resort: try to truncate at the error position
-        const errorMatch = retryError.message.match(/position (\d+)/);
-        if (errorMatch) {
-          const errorPos = parseInt(errorMatch[1]);
-          const truncated = cleanedResponse.substring(0, errorPos - 1) + '"}';
-          try {
-            result = JSON.parse(truncated);
-            log(`[AIStructureDetector] Successfully parsed truncated JSON`, "scraper");
-          } catch {
-            throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+        // Last resort: try to extract partial data from incomplete JSON
+        log(`[AIStructureDetector] Attempting to extract partial data from incomplete response`, "scraper");
+        
+        // Create a minimal valid result
+        result = {
+          title: '',
+          content: '',
+          author: null,
+          date: null,
+          confidence: 0.2
+        };
+        
+        try {
+          // Extract title if present
+          const titleMatch = cleanedResponse.match(/"title"\s*:\s*"([^"]*?)"/);
+          if (titleMatch) {
+            result.title = titleMatch[1];
+            log(`[AIStructureDetector] Extracted title: ${result.title.substring(0, 50)}...`, "scraper");
           }
-        } else {
-          throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
+          
+          // Extract whatever content we can find before the error
+          const contentMatch = cleanedResponse.match(/"content"\s*:\s*"([^"]*)/);
+          if (contentMatch) {
+            // Clean up the partial content
+            let partialContent = contentMatch[1];
+            // Remove incomplete escape sequences
+            partialContent = partialContent.replace(/\\+$/, '').replace(/\\[^"\\\/bfnrtu]$/, '');
+            result.content = partialContent;
+            log(`[AIStructureDetector] Extracted partial content: ${partialContent.length} chars`, "scraper");
+          }
+          
+          // Extract author if complete
+          const authorMatch = cleanedResponse.match(/"author"\s*:\s*"([^"]*?)"/);
+          if (authorMatch) {
+            result.author = authorMatch[1];
+          }
+          
+          // Extract date if complete
+          const dateMatch = cleanedResponse.match(/"date"\s*:\s*"([^"]*?)"/);
+          if (dateMatch) {
+            result.date = dateMatch[1];
+          }
+          
+          log(`[AIStructureDetector] Recovered partial data from incomplete JSON response`, "scraper");
+        } catch (extractError: any) {
+          log(`[AIStructureDetector] Failed to extract partial data: ${extractError.message}`, "openai-error");
+          // Keep the minimal result as fallback
         }
       }
     }

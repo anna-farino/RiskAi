@@ -157,6 +157,12 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Tracks string boundaries to only escape quotes inside values, not JSON structure
   - Applied to both structure detection and direct content extraction
   - Resolves "Unterminated string in JSON at position 1528" errors
+- **Incomplete JSON response handling**:
+  - Reduced HTML input size from 30K to 15K characters to prevent token overflow
+  - Added explicit content length limits (500 words) in AI prompts
+  - Implemented partial data extraction from incomplete JSON responses
+  - Recovers title, content, author, and date even when JSON is truncated
+  - Provides graceful fallback instead of complete failure
 
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection
