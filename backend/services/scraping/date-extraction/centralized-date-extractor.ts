@@ -171,10 +171,13 @@ async function tryExtractWithSelector($: cheerio.CheerioAPI, selector: string, s
       // Try text content
       const text = element.text().trim();
       if (text) {
+        log(`[CentralizedDateExtractor] Trying to parse date text: "${text}"`, "date-extractor");
         const date = parseDate(text);
         if (date) {
           log(`[CentralizedDateExtractor] Found date via ${strategy} selector "${selector}" (text): ${text}`, "date-extractor");
           return date;
+        } else {
+          log(`[CentralizedDateExtractor] Failed to parse date from text: "${text}"`, "date-extractor");
         }
       }
     }
@@ -367,11 +370,37 @@ function parseDate(dateString: string): Date | null {
     let cleanedForParsing = cleaned
       .replace(/^\w+,?\s+/, '') // Remove day of week
       .replace(/\s+at\s+.*$/, '') // Remove time portions that might confuse parsing
+      .replace(/\s*\([^)]*\)\s*$/g, '') // Remove timezone abbreviations in parentheses like "(EDT)"
       .replace(/[^\w\s\-\/\.\,:]/g, ''); // Remove special characters except common date separators
     
     date = new Date(cleanedForParsing);
     if (isValidDate(date)) {
       return date;
+    }
+    
+    // Strategy 5: Handle AM Best specific format "JULY 09, 2025 03:54 PM (EDT)"
+    const amBestMatch = cleaned.match(/^([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+    if (amBestMatch) {
+      const [, monthName, day, year, hour, minute, ampm] = amBestMatch;
+      const monthMap: { [key: string]: number } = {
+        'JANUARY': 0, 'FEBRUARY': 1, 'MARCH': 2, 'APRIL': 3, 'MAY': 4, 'JUNE': 5,
+        'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11
+      };
+      
+      const month = monthMap[monthName.toUpperCase()];
+      if (month !== undefined) {
+        let hour24 = parseInt(hour);
+        if (ampm.toUpperCase() === 'PM' && hour24 !== 12) {
+          hour24 += 12;
+        } else if (ampm.toUpperCase() === 'AM' && hour24 === 12) {
+          hour24 = 0;
+        }
+        
+        date = new Date(parseInt(year), month, parseInt(day), hour24, parseInt(minute));
+        if (isValidDate(date)) {
+          return date;
+        }
+      }
     }
     
   } catch (error) {

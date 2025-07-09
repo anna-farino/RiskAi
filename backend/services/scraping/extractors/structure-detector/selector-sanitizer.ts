@@ -7,15 +7,17 @@ import { log } from "backend/utils/log";
 export function sanitizeSelector(selector: string): string {
   if (!selector) return "";
 
-  // Check if the selector contains date-like patterns (months, parentheses with timezones, etc.)
+  // Check if the selector contains date-like patterns (months, timezones, etc.)
+  // BUT exclude valid CSS selectors with parentheses like :not() and :has()
+  const hasValidCSSParentheses = /:(?:not|has|nth-child|nth-of-type|first-child|last-child)\([^)]+\)/.test(selector);
+  
   if (
     /^(January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\(EDT\)|\(EST\)|\(PDT\)|\(PST\))/i.test(
       selector,
     ) ||
-    selector.includes("AM") ||
-    selector.includes("PM") ||
-    selector.includes("(") ||
-    selector.includes(")")
+    (selector.includes("AM") && !hasValidCSSParentheses) ||
+    (selector.includes("PM") && !hasValidCSSParentheses) ||
+    (/\(\s*(EDT|EST|PDT|PST|AM|PM)\s*\)/.test(selector) && !hasValidCSSParentheses)
   ) {
     // This is likely a date string, not a CSS selector
     log(`[StructureDetector] Rejected date-like selector: ${selector}`, "scraper");
