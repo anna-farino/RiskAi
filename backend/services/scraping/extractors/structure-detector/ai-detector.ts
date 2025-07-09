@@ -90,7 +90,7 @@ ${processedHtml}`;
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant that identifies HTML structure and returns precise CSS selectors for content extraction."
+          content: "You are a helpful assistant that identifies HTML structure and returns precise CSS selectors for content extraction. Always return complete, valid JSON."
         },
         {
           role: "user", 
@@ -98,6 +98,7 @@ ${processedHtml}`;
         }
       ],
       temperature: 0.2,
+      max_tokens: 2000, // Sufficient for selector detection response
       response_format: { type: "json_object" }
     });
 
@@ -243,8 +244,8 @@ function preprocessHtmlForAI(html: string): string {
   // Remove comments
   processed = processed.replace(/<!--[\s\S]*?-->/g, '');
   
-  // Limit size to prevent token overflow and ensure complete AI responses
-  const MAX_LENGTH = 15000; // Further reduced to prevent incomplete JSON responses
+  // Limit size to prevent token overflow while allowing substantial content
+  const MAX_LENGTH = 25000; // Balanced limit that works with increased max_tokens
   if (processed.length > MAX_LENGTH) {
     log(`[AIStructureDetector] Truncating HTML from ${processed.length} to ${MAX_LENGTH} chars`, "scraper");
     processed = processed.substring(0, MAX_LENGTH) + "\n<!-- [truncated for AI analysis] -->";
@@ -315,18 +316,17 @@ CONTENT CLEANING:
 - Focus on the main article content only
 - Preserve paragraph structure but remove HTML tags
 - Extract clean, readable text
-- IMPORTANT: Limit content to 500 words maximum to ensure complete JSON response
 
 DATE FORMATTING:
 - Convert any found dates to ISO format (YYYY-MM-DD)
 - Return null if no clear publish date found
 
-IMPORTANT: Keep content under 500 words to ensure complete response.
+CRITICAL: You MUST return a complete, valid JSON object. Ensure all strings are properly escaped and the JSON is properly closed with all necessary brackets.
 
-Return valid JSON:
+Return ONLY valid JSON (no text before or after):
 {
   "title": "Article title text",
-  "content": "Clean article content text (MAX 500 WORDS)",
+  "content": "Full article content - properly escaped",
   "author": "Author name or null",
   "date": "YYYY-MM-DD or null",
   "confidence": 0.8
@@ -340,7 +340,7 @@ ${processedHtml}`;
       messages: [
         {
           role: "system",
-          content: "You are an expert content extractor that parses HTML and returns clean, structured article data."
+          content: "You are an expert content extractor that parses HTML and returns clean, structured article data in valid JSON format. Always ensure your response is complete and properly formatted JSON."
         },
         {
           role: "user",
@@ -348,6 +348,7 @@ ${processedHtml}`;
         }
       ],
       temperature: 0.1,
+      max_tokens: 16000, // Increased to allow for longer content
       response_format: { type: "json_object" }
     });
 
