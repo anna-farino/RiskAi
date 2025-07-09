@@ -1,9 +1,5 @@
 import { storage } from "../queries/threat-tracker";
-import {
-  detectHtmlStructure,
-  analyzeContent,
-  identifyArticleLinks,
-} from "./openai";
+import { analyzeContent } from "./openai";
 import { scrapingService } from "./scraper";
 
 import { log } from "backend/utils/log";

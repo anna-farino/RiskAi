@@ -1,7 +1,7 @@
 import { scrapingService } from "./scraper";
 import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
-import { analyzeContent, detectHtmlStructure } from "./openai";
+import { analyzeContent } from "./openai";
 import type { ScrapingConfig as NewsRadarConfig } from "@shared/db/schema/news-tracker/types";
 import type { ScrapingConfig } from "backend/services/scraping/extractors/structure-detector";
 import { sendEmailJs } from "backend/utils/sendEmailJs";

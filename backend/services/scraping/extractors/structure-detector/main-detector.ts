@@ -1,10 +1,9 @@
 import { log } from "backend/utils/log";
-import { detectHtmlStructure as newsRadarDetection } from 'backend/apps/news-radar/services/openai';
-import { detectHtmlStructure as threatTrackerDetection } from 'backend/apps/threat-tracker/services/openai';
 import { ScrapingConfig, validateSelectors } from './selector-validator';
 import { sanitizeSelector } from './selector-sanitizer';
 import { generateFallbackSelectors } from './fallback-selectors';
 import { AppScrapingContext } from '../../strategies/app-strategy.interface';
+import { detectHtmlStructureWithAI } from './ai-detector';
 
 /**
  * Detect HTML structure using AI with app-specific context
@@ -22,14 +21,10 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
     if (appContext?.aiProviders?.detectHtmlStructure) {
       log(`[StructureDetector] Using app-specific detection for ${appContext.appType}`, "scraper");
       detectedStructure = await appContext.aiProviders.detectHtmlStructure(html, url);
-    } 
-    // Backward compatibility: use context-based routing
-    else if (context?.includes('threat') || context?.includes('security') || context?.includes('cybersecurity')) {
-      log(`[StructureDetector] Using Threat Tracker detection for security content (deprecated path)`, "scraper");
-      detectedStructure = await threatTrackerDetection(html, url);
     } else {
-      log(`[StructureDetector] Using News Radar detection for general content (deprecated path)`, "scraper");
-      detectedStructure = await newsRadarDetection(html);
+      // Use unified AI detection for all cases
+      log(`[StructureDetector] Using unified AI detection`, "scraper");
+      detectedStructure = await detectHtmlStructureWithAI(html, url);
     }
 
     // Sanitize all detected selectors

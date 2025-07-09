@@ -127,6 +127,24 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### January 10, 2025 - Unified Scraping System Hybrid Refactor Complete
+- **Implemented Option 3 (Hybrid Approach)** combining centralized extraction with app-specific analysis
+- **Eliminated duplicate extraction functions** between News Radar and Threat Tracker:
+  - Removed detectArticleLinks from News Radar (replaced with unified-link-detector.ts)
+  - Removed identifyArticleLinks from Threat Tracker (replaced with unified-link-detector.ts)
+  - Removed extractPublishDate from News Radar (uses centralized date extractor)
+- **Fixed circular dependencies** in structure detector:
+  - Removed imports from app-specific openai.ts files
+  - Now uses unified detectHtmlStructureWithAI from ai-detector.ts
+  - Maintains backward compatibility with AppScrapingContext
+- **Benefits achieved**:
+  - Apps now share all extraction logic (links, content, dates, structure detection)
+  - Apps retain their specific analysis functions (keyword detection, relevance scoring, summarization)
+  - No more code duplication for web scraping operations
+  - Clear separation: unified system handles "how to extract", apps handle "what to do with it"
+- **Architecture**: Unified scraping system uses Threat Tracker's robust extraction approach as foundation
+- **Backward compatibility**: All existing integrations continue working through strategy pattern
+
 ### January 10, 2025 - Implemented Threat Tracker Architecture for News Radar
 - **Resolved JSON truncation issues** by implementing Threat Tracker's two-step architectural approach across all apps
 - **Root cause identified**: News Radar was requesting full content extraction from AI, causing responses to hit model output limits
