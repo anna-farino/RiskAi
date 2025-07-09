@@ -1,6 +1,7 @@
 import { log } from "backend/utils/log";
 import { unifiedScraper as streamlinedScraper } from './unified-scraper-v2';
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from './types';
+import { AppScrapingContext } from './strategies/app-strategy.interface';
 
 export interface BatchOptions {
   concurrency?: number;
@@ -27,21 +28,21 @@ export class UnifiedScrapingService {
   /**
    * Streamlined source scraping - delegates to streamlined scraper
    */
-  async scrapeSourceUrl(url: string, options?: SourceScrapingOptions): Promise<string[]> {
-    return await streamlinedScraper.scrapeSourceUrl(url, options);
+  async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext): Promise<string[]> {
+    return await streamlinedScraper.scrapeSourceUrl(url, { ...options, context });
   }
 
   /**
    * Streamlined article scraping - delegates to streamlined scraper
    */
-  async scrapeArticleUrl(url: string, config?: ScrapingConfig): Promise<ArticleContent> {
-    return await streamlinedScraper.scrapeArticleUrl(url, config);
+  async scrapeArticleUrl(url: string, config?: ScrapingConfig, context?: AppScrapingContext): Promise<ArticleContent> {
+    return await streamlinedScraper.scrapeArticleUrl(url, config, context);
   }
 
   /**
    * Detect HTML structure - simplified fallback method
    */
-  async detectArticleStructure(url: string, html?: string, context?: string): Promise<ScrapingConfig> {
+  async detectArticleStructure(url: string, html?: string, contextStr?: string, context?: AppScrapingContext): Promise<ScrapingConfig> {
     try {
       return {
         titleSelector: 'h1, .title, .headline',

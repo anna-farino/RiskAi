@@ -4,23 +4,31 @@ import { detectHtmlStructure as threatTrackerDetection } from 'backend/apps/thre
 import { ScrapingConfig, validateSelectors } from './selector-validator';
 import { sanitizeSelector } from './selector-sanitizer';
 import { generateFallbackSelectors } from './fallback-selectors';
+import { AppScrapingContext } from '../../strategies/app-strategy.interface';
 
 /**
  * Detect HTML structure using AI with app-specific context
- * Unified interface for both News Radar and Threat Tracker detection
+ * Unified interface for app-neutral detection
+ * @param appContext - Optional app-specific context for neutral operation
  */
-export async function detectHtmlStructure(html: string, url: string, context?: string): Promise<ScrapingConfig> {
+export async function detectHtmlStructure(html: string, url: string, context?: string, appContext?: AppScrapingContext): Promise<ScrapingConfig> {
   try {
     log(`[StructureDetector] Detecting HTML structure for: ${url}`, "scraper");
 
-    // Determine which detection method to use based on context
+    // Determine which detection method to use
     let detectedStructure: any;
     
-    if (context?.includes('threat') || context?.includes('security') || context?.includes('cybersecurity')) {
-      log(`[StructureDetector] Using Threat Tracker detection for security content`, "scraper");
+    // Use app-specific detection if provided
+    if (appContext?.aiProviders?.detectHtmlStructure) {
+      log(`[StructureDetector] Using app-specific detection for ${appContext.appType}`, "scraper");
+      detectedStructure = await appContext.aiProviders.detectHtmlStructure(html, url);
+    } 
+    // Backward compatibility: use context-based routing
+    else if (context?.includes('threat') || context?.includes('security') || context?.includes('cybersecurity')) {
+      log(`[StructureDetector] Using Threat Tracker detection for security content (deprecated path)`, "scraper");
       detectedStructure = await threatTrackerDetection(html, url);
     } else {
-      log(`[StructureDetector] Using News Radar detection for general content`, "scraper");
+      log(`[StructureDetector] Using News Radar detection for general content (deprecated path)`, "scraper");
       detectedStructure = await newsRadarDetection(html);
     }
 

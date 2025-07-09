@@ -118,16 +118,7 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
                 document.body.appendChild(container);
                 totalContentLoaded += html.length;
                 
-                // Check if content contains cybersecurity-related terms
-                const htmlLower = html.toLowerCase();
-                const containsCyber = htmlLower.includes('cybersecurity') || 
-                                    htmlLower.includes('security') || 
-                                    htmlLower.includes('cyber') ||
-                                    htmlLower.includes('threat') ||
-                                    htmlLower.includes('malware') ||
-                                    htmlLower.includes('breach');
-                
-                console.log(`✅ Loaded ${html.length} chars from ${endpoint} (contextual: ${containsCyber})`);
+                console.log(`✅ Loaded ${html.length} chars from ${endpoint}`);
                 
                 // If main content endpoint loaded successfully with good content, we can stop
                 if (endpoint === '/media/items/' && html.length > 10000) {

@@ -23,6 +23,7 @@ export async function scrapeSourceUrl(url: string, options?: SourceScrapingOptio
       includePatterns: options?.includePatterns,
       excludePatterns: options?.excludePatterns,
       aiContext: options?.aiContext,
+      context: options?.context,  // Pass app context through
       maxLinks: options?.maxLinks || 50,
       minLinkTextLength: 15  // Reduced from 20 to capture more dynamic content links
     };

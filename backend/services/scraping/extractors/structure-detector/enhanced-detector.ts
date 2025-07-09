@@ -21,8 +21,8 @@ export async function detectHtmlStructureWithFallbacks(html: string, url: string
     // Try alternative detection method if confidence is low
     log(`[StructureDetector] Primary detection confidence low (${primaryStructure.confidence}), trying alternative`, "scraper");
     
-    const alternativeContext = context?.includes('threat') ? undefined : 'cybersecurity threat intelligence';
-    const alternativeStructure = await detectHtmlStructure(html, url, alternativeContext);
+    // Try detection without specific context for more general structure
+    const alternativeStructure = await detectHtmlStructure(html, url, undefined);
     
     // Use the structure with higher confidence
     if (alternativeStructure.confidence > primaryStructure.confidence) {

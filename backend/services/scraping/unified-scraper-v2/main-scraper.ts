@@ -13,6 +13,7 @@ import {
   performAIReanalysis 
 } from './ai-reanalysis';
 import { scrapeSourceUrl } from './source-scraper';
+import { AppScrapingContext } from '../strategies/app-strategy.interface';
 
 /**
  * Streamlined Unified Scraper V2
@@ -23,8 +24,9 @@ export class StreamlinedUnifiedScraper {
 
   /**
    * Streamlined article scraping - 3 steps total
+   * @param context - Optional app-specific context for neutral operation
    */
-  async scrapeArticleUrl(url: string, config?: ScrapingConfig): Promise<ArticleContent> {
+  async scrapeArticleUrl(url: string, config?: ScrapingConfig, context?: AppScrapingContext): Promise<ArticleContent> {
     try {
       log(`[SimpleScraper] Starting article scraping: ${url}`, "scraper");
 
@@ -62,7 +64,7 @@ export class StreamlinedUnifiedScraper {
           structureConfig = null;
         }
         
-        structureConfig = structureConfig || await getStructureConfig(this.cache, url, contentResult.html);
+        structureConfig = structureConfig || await getStructureConfig(this.cache, url, contentResult.html, context);
 
         // Step 3: Extract content with enhanced recovery
         let extracted = extractContentWithSelectors(contentResult.html, structureConfig);
@@ -73,13 +75,22 @@ export class StreamlinedUnifiedScraper {
           extracted = await performAIReanalysis(contentResult.html, url, extracted);
         }
 
-        // Extract publish date
+        // Extract publish date using context-provided function or fallback
         let publishDate: Date | null = null;
         try {
-          publishDate = await extractPublishDate(contentResult.html, {
-            date: structureConfig.dateSelector,
-            dateAlternatives: []
-          });
+          if (context?.aiProviders?.extractPublishDate) {
+            // Use app-specific date extraction
+            publishDate = await context.aiProviders.extractPublishDate(contentResult.html, {
+              date: structureConfig.dateSelector,
+              dateAlternatives: []
+            });
+          } else {
+            // Backward compatibility: use threat-tracker date extractor
+            publishDate = await extractPublishDate(contentResult.html, {
+              date: structureConfig.dateSelector,
+              dateAlternatives: []
+            });
+          }
         } catch (error) {
           log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
         }
@@ -105,9 +116,15 @@ export class StreamlinedUnifiedScraper {
 
   /**
    * Source URL scraping with advanced HTMX handling
+   * @param context - Optional app-specific context for neutral operation
    */
-  async scrapeSourceUrl(url: string, options?: SourceScrapingOptions): Promise<string[]> {
-    return await scrapeSourceUrl(url, options);
+  async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext): Promise<string[]> {
+    // Pass context through options for backward compatibility
+    const optionsWithContext = {
+      ...options,
+      context: context || options?.context
+    };
+    return await scrapeSourceUrl(url, optionsWithContext);
   }
 
   /**

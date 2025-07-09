@@ -2,6 +2,8 @@
  * Shared types and interfaces for the scraping system
  */
 
+import { AppScrapingContext } from './strategies/app-strategy.interface';
+
 export interface ScrapingConfig {
   titleSelector: string;
   contentSelector: string;
@@ -19,6 +21,8 @@ export interface LinkExtractionOptions {
   excludePatterns?: string[];
   aiContext?: string;
   appType?: 'news-radar' | 'threat-tracker' | 'news-capsule';
+  // New: App-specific context for neutral operation
+  context?: AppScrapingContext;
 }
 
 export interface LinkData {
@@ -44,4 +48,6 @@ export interface SourceScrapingOptions {
   excludePatterns?: string[];
   maxLinks?: number;
   appType?: 'news-radar' | 'threat-tracker' | 'news-capsule';
+  // New: App-specific context for neutral operation
+  context?: AppScrapingContext;
 }

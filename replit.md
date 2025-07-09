@@ -127,6 +127,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### January 9, 2025 - Implemented Strategy Pattern for App-Agnostic Scraping System
+- **Major refactoring**: Removed all hardcoded cybersecurity biases from shared scraping infrastructure
+- **Strategy pattern implementation**: Created AppScrapingContext interface and app-specific strategies
+- **Removed hardcoded keywords**: Eliminated security-specific keywords from puppeteer-link-handler.ts, htmx-handler.ts, and enhanced-detector.ts
+- **App strategies created**:
+  - **NewsRadarStrategy**: General news detection with neutral article patterns
+  - **ThreatTrackerStrategy**: Security-focused detection with cybersecurity patterns
+  - **NewsCapsuleStrategy**: Report-focused extraction with quality filters
+- **Strategy loader**: Created StrategyLoader for dynamic strategy instantiation
+- **App integration**: Updated News Radar and Threat Tracker scrapers to use their respective strategies
+- **Context propagation**: Added AppScrapingContext parameter throughout the scraping pipeline
+- **AI provider delegation**: Each app now uses its own OpenAI functions through strategy pattern
+- **Backward compatibility**: Maintained support for legacy aiContext parameter during transition
+- **Impact**: Shared scraping system is now truly app-agnostic and operates based on passed context
+
 ### July 8, 2025 - Fixed Critical HTMX Context Issue in Puppeteer Link Handler
 - **CRITICAL FIX**: System was sending wrong `HX-Current-URL` header causing server to return content from wrong sections
 - **Root cause**: Code was using `baseUrl` (original source URL) instead of `window.location.href` (current page URL) in HTMX fetch requests

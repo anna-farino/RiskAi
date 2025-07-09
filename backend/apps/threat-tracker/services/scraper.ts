@@ -3,9 +3,27 @@ import { analyzeContent } from './openai';
 import { extractPublishDate } from './date-extractor';
 import { normalizeUrl, titleSimilarity } from './url-utils';
 
-// Threat Tracker now uses unified scraping system directly
-// No legacy wrappers - apps call UnifiedScrapingService methods directly
-export const scrapingService = new UnifiedScrapingService();
+// Create Threat Tracker scraping service with context
+import { StrategyLoader } from 'backend/services/scraping/strategies/strategy-loader';
+
+class ThreatTrackerScrapingService extends UnifiedScrapingService {
+  private context = StrategyLoader.createContext('threat-tracker');
+
+  async scrapeSourceUrl(url: string, options?: any): Promise<string[]> {
+    return super.scrapeSourceUrl(url, options, this.context);
+  }
+
+  async scrapeArticleUrl(url: string, config?: any): Promise<any> {
+    return super.scrapeArticleUrl(url, config, this.context);
+  }
+
+  async detectArticleStructure(url: string, html?: string): Promise<any> {
+    return super.detectArticleStructure(url, html, 'cybersecurity threat intelligence', this.context);
+  }
+}
+
+// Threat Tracker uses enhanced scraping with its own context
+export const scrapingService = new ThreatTrackerScrapingService();
 
 // Keep Threat Tracker specific functions unchanged
 export { analyzeContent } from './openai';

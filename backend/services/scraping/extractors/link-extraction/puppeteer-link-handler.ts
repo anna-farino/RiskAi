@@ -439,7 +439,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                 // Check if this looks like an article title (has meaningful structure)
                 const wordCount = text.split(/\s+/).length;
                 const hasCapitalization = /[A-Z]/.test(text);
-                const hasArticleKeywords = /\b(how|why|what|when|where|new|latest|breaking|report|analysis|study|research|cybersecurity|ai|technology|data|security|breach|attack|threat|vulnerability|malware|ransomware|phishing)\b/i.test(text);
+                const hasArticleKeywords = /\b(how|why|what|when|where|new|latest|breaking|report|analysis|study|research)\b/i.test(text);
                 
                 if (wordCount >= 5 && hasCapitalization && hasArticleKeywords) {
                   // Create a searchable identifier that we can use to find the actual article
@@ -471,15 +471,13 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                   const isExternal = urlObj.hostname !== currentDomain;
                   const isArticlePattern = pathname.includes('/article/') || pathname.includes('/news/') ||
                                         pathname.includes('/blog/') || pathname.includes('/post/') ||
-                                        pathname.includes('/story/') || pathname.includes('/cybersecurity/') ||
-                                        pathname.includes('/security/') || pathname.includes('/tech/') ||
+                                        pathname.includes('/story/') || pathname.includes('/tech/') ||
                                         pathname.includes('/2024/') || pathname.includes('/2025/') ||
                                         pathname.split('/').length >= 3;
                   
                   const isNewsOrTechDomain = hostname.includes('news') || hostname.includes('blog') ||
-                                           hostname.includes('tech') || hostname.includes('cyber') ||
-                                           hostname.includes('silicon') || hostname.includes('wire') ||
-                                           hostname.includes('security') || hostname.includes('threat');
+                                           hostname.includes('tech') || hostname.includes('silicon') || 
+                                           hostname.includes('wire');
                   
                   if (isExternal || isArticlePattern || isNewsOrTechDomain) {
                     console.log(`Found article URL: ${articleUrl} ("${text.substring(0, 50)}...")`);
@@ -580,11 +578,11 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                                 // Link text is substantial (likely the main article)
                                 (text.length > 30 && text.length < 200) ||
                                 // Has article-like URL patterns
-                                /\/(article|news|blog|post|story|tech|cybersecurity|security)\//.test(urlObj.pathname) ||
+                                /\/(article|news|blog|post|story|tech)\//.test(urlObj.pathname) ||
                                 // Has date patterns in URL
                                 /\/20\d{2}\//.test(urlObj.pathname) ||
                                 // Is a news/tech domain
-                                /(news|tech|cyber|security|wire|silicon|bloomberg|reuters|guardian|forbes|medium)/.test(urlObj.hostname) ||
+                                /(news|tech|wire|silicon|bloomberg|reuters|guardian|forbes|medium)/.test(urlObj.hostname) ||
                                 // Parent element indicates it's the main content
                                 link.closest('.article-content, .content, .post-content, [class*="article"], [class*="content"]');
                               
