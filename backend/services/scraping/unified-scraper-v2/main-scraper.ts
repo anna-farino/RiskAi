@@ -1,6 +1,6 @@
 import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from '../types';
-import { extractPublishDate } from 'backend/apps/threat-tracker/services/date-extractor';
+import { extractPublishDate } from '../date-extraction/centralized-date-extractor';
 import { RobustCache } from './cache-system';
 import { getContent } from './method-selector';
 import { getStructureConfig, isValidConfig } from './structure-detector';
@@ -75,23 +75,13 @@ export class StreamlinedUnifiedScraper {
           extracted = await performAIReanalysis(contentResult.html, url, extracted);
         }
 
-        // Extract publish date using context-provided function or fallback
+        // Extract publish date using centralized date extractor
         let publishDate: Date | null = null;
         try {
-          if (context?.aiProviders?.extractPublishDate) {
-            // Use app-specific date extraction - pass proper parameters
-            publishDate = await context.aiProviders.extractPublishDate(
-              extracted.content || contentResult.html, 
-              extracted.title || '', 
-              contentResult.html
-            );
-          } else {
-            // Backward compatibility: use threat-tracker date extractor
-            publishDate = await extractPublishDate(contentResult.html, {
-              date: structureConfig.dateSelector,
-              dateAlternatives: []
-            });
-          }
+          publishDate = await extractPublishDate(contentResult.html, {
+            dateSelector: structureConfig.dateSelector,
+            dateAlternatives: []
+          });
         } catch (error) {
           log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
         }

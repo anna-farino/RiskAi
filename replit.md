@@ -127,6 +127,29 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 9, 2025 - Centralized Date Extraction Implementation Complete
+- **Implemented centralized date extraction service** based on Threat Tracker's robust functionality
+- **Root rationale**: Date extraction is universal - publication dates don't vary by app context, making app-specific strategies unnecessary
+- **Created centralized service**: `backend/services/scraping/date-extraction/centralized-date-extractor.ts`
+- **Comprehensive extraction strategies**:
+  - HTML structure selectors (primary and alternative)
+  - Meta tag extraction (`article:published_time`, `date`, `datePublished`, etc.)
+  - JSON-LD structured data parsing
+  - Comprehensive CSS selector fallbacks (82 selectors)
+  - Text content pattern matching with date validation
+- **Advanced date parsing**: Handles ISO 8601, US formats, European formats, relative dates, Unix timestamps
+- **Intelligent validation**: Filters out author names, validates date ranges (1990-2030), handles relative dates
+- **Updated all components**:
+  - **Main scraper**: Now uses centralized function with proper option parameters
+  - **App strategies**: Removed all date extraction functions from News Radar, Threat Tracker, and News Capsule
+  - **Strategy interface**: Removed `extractPublishDate` from `aiProviders` interface
+- **Benefits**:
+  - **Eliminated code duplication**: Removed 3 separate date extraction implementations
+  - **Consistent date handling**: All apps now use the same robust date extraction logic
+  - **Simplified maintenance**: Single codebase for date extraction improvements
+  - **Dynamic and app-agnostic**: Works for any URL or app context without hardcoded logic
+- **Preserved functionality**: All existing date extraction capabilities maintained while eliminating unnecessary complexity
+
 ### July 9, 2025 - Fixed CSS Selector Parsing Errors in Content Extractor
 - **Fixed critical CSS selector parsing error** causing "Did not expect successive traversals" crashes
 - **Root cause**: Selector variation generation was creating invalid CSS selectors (e.g., "div.content > p" → "div.content > > p")

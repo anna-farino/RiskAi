@@ -15,9 +15,6 @@ export interface AppScrapingContext {
     // HTML structure detection for content extraction
     detectHtmlStructure?: (html: string, url: string) => Promise<ScrapingConfig>;
     
-    // Date extraction with app-specific patterns
-    extractPublishDate?: (articleContent: string, articleTitle: string, htmlContent: string) => Promise<Date | null>;
-    
     // Content analysis (for future use)
     analyzeContent?: (content: string, ...args: any[]) => Promise<any>;
   };

@@ -18,10 +18,6 @@ export class NewsRadarStrategy implements AppScrapingStrategy {
         detectHtmlStructure: async (html: string, url: string) => {
           const { detectHtmlStructure } = await import('backend/apps/news-radar/services/openai');
           return detectHtmlStructure(html);
-        },
-        extractPublishDate: async (articleContent: string, articleTitle: string, htmlContent: string) => {
-          const { extractPublishDate } = await import('backend/apps/news-radar/services/openai');
-          return extractPublishDate(articleContent, articleTitle, htmlContent);
         }
       },
       extractionOptions: {
