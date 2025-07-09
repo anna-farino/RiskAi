@@ -7,6 +7,8 @@ import * as cheerio from 'cheerio';
  * Phase 4: Determine if AI re-analysis should be triggered
  */
 export function shouldTriggerAIReanalysis(extracted: Partial<ArticleContent>): boolean {
+  log(`[AIReanalysis] Checking if re-analysis needed - content: ${extracted.content?.length || 0} chars, confidence: ${extracted.confidence || 0}, title: ${extracted.title?.length || 0} chars`, "scraper");
+  
   // Trigger re-analysis if content is insufficient
   if (!extracted.content || extracted.content.length < 100) {
     log(`[AIReanalysis] Triggering due to insufficient content: ${extracted.content?.length || 0} chars`, "scraper");
@@ -22,6 +24,7 @@ export function shouldTriggerAIReanalysis(extracted: Partial<ArticleContent>): b
   // Trigger if content looks like navigation/metadata
   if (extracted.content && isLowQualityContent(extracted.content)) {
     log(`[AIReanalysis] Triggering due to low quality content detected`, "scraper");
+    log(`[AIReanalysis] Content preview: "${extracted.content.substring(0, 200)}..."`, "scraper");
     return true;
   }
   
@@ -31,6 +34,7 @@ export function shouldTriggerAIReanalysis(extracted: Partial<ArticleContent>): b
     return true;
   }
   
+  log(`[AIReanalysis] No re-analysis needed - content looks good`, "scraper");
   return false;
 }
 
@@ -57,13 +61,28 @@ export async function performAIReanalysis(html: string, url: string, previousExt
       const extractedContent = extractContentWithSelectors(html, newStructure);
       
       // If new extraction is better, use it
-      if (extractedContent.content && extractedContent.content.length > (previousExtraction.content?.length || 0)) {
-        log(`[AIReanalysis] New extraction yielded better results (${extractedContent.content.length} chars)`, "scraper");
+      const newContentLength = extractedContent.content?.length || 0;
+      const previousContentLength = previousExtraction.content?.length || 0;
+      const newConfidence = newStructure.confidence;
+      const previousConfidence = previousExtraction.confidence || 0;
+      
+      // Consider it better if:
+      // 1. New content is significantly longer (20% improvement)
+      // 2. New confidence is higher and content is reasonable (>500 chars)
+      // 3. Previous extraction had very low confidence (<0.5) and new is better
+      const isSignificantlyLonger = newContentLength > (previousContentLength * 1.2);
+      const isBetterConfidence = newConfidence > previousConfidence && newContentLength > 500;
+      const isRecoveringFromLowConfidence = previousConfidence < 0.5 && newConfidence > previousConfidence;
+      
+      if (isSignificantlyLonger || isBetterConfidence || isRecoveringFromLowConfidence) {
+        log(`[AIReanalysis] New extraction yielded better results (${newContentLength} chars, confidence: ${newConfidence})`, "scraper");
         return {
           ...extractedContent,
           extractionMethod: 'ai-reanalysis-selectors',
           confidence: newStructure.confidence
         };
+      } else {
+        log(`[AIReanalysis] New extraction not significantly better (${newContentLength} vs ${previousContentLength} chars, confidence: ${newConfidence} vs ${previousConfidence})`, "scraper");
       }
     }
     

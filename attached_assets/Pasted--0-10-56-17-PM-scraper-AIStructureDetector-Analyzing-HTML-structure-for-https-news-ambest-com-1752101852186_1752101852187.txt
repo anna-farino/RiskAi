@@ -1,0 +1,35 @@
+[0] 10:56:17 PM [scraper] [AIStructureDetector] Analyzing HTML structure for https://news.ambest.com/PressContent.aspx?altsrc=2&refnum=36197 (9311 chars)
+[0] 10:56:19 PM [scraper] [AIStructureDetector] Raw AI response: {
+[0]   "titleSelector": "h1",
+[0]   "contentSelector": "div.press-flex > div.press-grow-1 > p:not(.smallp) ~ p",
+[0]   "authorSelector": null,
+[0]   "dateSelector": "p.smallp",
+[0]   "articleSelector": "div.press-flex",
+[0]   "dateAlternatives": [],
+[0]   "confidence": 0.85
+[0] }...
+[0] 10:56:19 PM [scraper] [AIStructureDetector] Parsed result - title: h1, content: div.press-flex > div.press-grow-1 > p:not(.smallp) ~ p, confidence: 0.85
+[0] 10:56:19 PM [scraper] [AIStructureDetector] Final sanitized selectors - title: h1, content: div.press-flex > div.press-grow-1 > p:not(.smallp) ~ p
+[0] 10:56:19 PM [scraper] [AIReanalysis] Successfully re-detected selectors (confidence: 0.85)
+[0] 10:56:19 PM [scraper] [AIReanalysis] New selectors - title: "h1", content: "div.press-flex > div.press-grow-1 > p:not(.smallp) ~ p"
+[0] 10:56:19 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1", content: "div.press-flex > div.press-grow-1 > p:not(.smallp) ~ p"
+[0] 10:56:19 PM [scraper] [SelectorDebug] === SELECTOR DEBUGGING START ===
+[0] 10:56:19 PM [scraper] [SelectorDebug] titleSelector: "h1" → 1 elements found
+[0] 10:56:19 PM [scraper] [SelectorDebug] First element: <h1> classes="undefined" text="AM Best Assigns Credit Ratings to Ceres Life Insurance Company..."
+[0] 10:56:19 PM [scraper] [SelectorDebug] contentSelector: "div.press-flex > div.press-grow-1 > p:not(.smallp) ~ p" → 2 elements found
+[0] 10:56:19 PM [scraper] [SelectorDebug] First element: <p> classes="undefined" text="FOR IMMEDIATE RELEASE..."
+[0] 10:56:19 PM [scraper] [SelectorDebug] authorSelector: NOT PROVIDED by AI detection
+[0] 10:56:19 PM [scraper] [SelectorDebug] dateSelector: "p.smallp" → 1 elements found
+[0] 10:56:19 PM [scraper] [SelectorDebug] First element: <p> classes="smallp" text="JULY      09, 2025 03:54 PM (EDT)..."
+[0] 10:56:19 PM [scraper] [SelectorDebug] === SELECTOR DEBUGGING END ===
+[0] 10:56:19 PM [scraper] [SimpleScraper] Title extracted: "AM Best Assigns Credit Ratings to Ceres Life Insurance Company" (62 chars)
+[0] 10:56:19 PM [scraper] [SimpleScraper] Content extracted: 3461 chars (confidence: 0.9)
+[0] 10:56:19 PM [scraper] [AIReanalysis] Selector re-detection didn't improve results, using multi-attempt recovery
+[0] 10:56:19 PM [scraper] [MultiAttempt] Starting multi-attempt recovery process
+[0] 10:56:19 PM [scraper] [MultiAttempt] Attempt 1/3
+[0] 10:56:21 PM [scraper] [MultiAttempt] Attempt 2/3
+[0] 10:56:23 PM [scraper] [MultiAttempt] Attempt 3/3
+[0] 10:56:23 PM [scraper] [MultiAttempt] Successful recovery on attempt 3: 3702 chars
+[0] 10:56:23 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 10:56:23 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 10:56:23 PM [scraper] [SimpleScraper] Final extraction result (title=62 chars, content=3702 chars, method=multi-attempt-3, confidence=0.5)

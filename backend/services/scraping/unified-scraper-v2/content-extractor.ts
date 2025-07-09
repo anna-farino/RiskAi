@@ -406,14 +406,26 @@ function getFieldFallbacks(fieldType: string): string[] {
  * Phase 3: Check if content is low quality (navigation, ads, etc.)
  */
 export function isLowQualityContent(content: string): boolean {
-  const lowQualityPatterns = [
-    /^(menu|navigation|nav|sidebar|footer|header|advertisement|ad|cookie|privacy|terms)/i,
-    /^(home|about|contact|login|register|subscribe|newsletter)/i,
-    /^[\w\s]{1,20}$/,  // Too short
-    /^(.{1,10}\s*){1,5}$/,  // Repeated short phrases
+  if (!content || content.length < 50) {
+    return true; // Too short to be meaningful content
+  }
+  
+  const trimmedContent = content.trim();
+  
+  // Check for navigation/menu patterns only at the beginning
+  const navigationPatterns = [
+    /^(menu|navigation|nav|sidebar|footer|header|advertisement|ad|cookie|privacy|terms|home|about|contact|login|register|subscribe|newsletter)(\s|$)/i,
   ];
   
-  return lowQualityPatterns.some(pattern => pattern.test(content.trim()));
+  // Check for repeated very short phrases (like "more more more")
+  const repeatedShortPhrases = /^(.{1,5}\s*)\1{3,}$/;
+  
+  // Check for content that's mostly punctuation or special characters
+  const mostlyNonContent = /^[^a-zA-Z0-9]*$/;
+  
+  return navigationPatterns.some(pattern => pattern.test(trimmedContent)) ||
+         repeatedShortPhrases.test(trimmedContent) ||
+         mostlyNonContent.test(trimmedContent);
 }
 
 /**
