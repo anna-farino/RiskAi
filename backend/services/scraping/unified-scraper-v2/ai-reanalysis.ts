@@ -36,30 +36,40 @@ export function shouldTriggerAIReanalysis(extracted: Partial<ArticleContent>): b
 
 /**
  * Phase 4: Perform AI re-analysis when initial extraction fails
+ * Uses Threat Tracker's approach: re-detect selectors rather than extracting content directly
  */
 export async function performAIReanalysis(html: string, url: string, previousExtraction: Partial<ArticleContent>): Promise<Partial<ArticleContent>> {
   try {
-    log(`[AIReanalysis] Starting fresh AI analysis for improved extraction`, "scraper");
+    log(`[AIReanalysis] Starting selector re-detection for improved extraction`, "scraper");
     
-    // Import AI extraction functionality
-    const { extractContentWithAI } = await import('../ai/structure-detector');
+    // Import selector detection and extraction functionality
+    const { detectAIStructure } = await import('../ai/structure-detector');
+    const { extractContentWithSelectors } = await import('./content-extractor');
     
-    // Attempt direct AI content extraction
-    const aiResult = await extractContentWithAI(html, url);
+    // Re-detect selectors with enhanced prompt for better accuracy
+    const newStructure = await detectAIStructure(html, url);
     
-    if (aiResult.confidence > 0.5) {
-      log(`[AIReanalysis] Successful AI re-analysis (confidence: ${aiResult.confidence})`, "scraper");
-      return {
-        title: aiResult.title || previousExtraction.title,
-        content: aiResult.content || previousExtraction.content,
-        author: aiResult.author || previousExtraction.author,
-        extractionMethod: 'ai-reanalysis',
-        confidence: aiResult.confidence
-      };
-    } else {
-      log(`[AIReanalysis] AI re-analysis yielded low confidence, using multi-attempt recovery`, "scraper");
-      return await performMultiAttemptRecovery(html, previousExtraction);
+    if (newStructure.confidence > 0.3) {
+      log(`[AIReanalysis] Successfully re-detected selectors (confidence: ${newStructure.confidence})`, "scraper");
+      log(`[AIReanalysis] New selectors - title: "${newStructure.titleSelector}", content: "${newStructure.contentSelector}"`, "scraper");
+      
+      // Extract content using the newly detected selectors
+      const extractedContent = extractContentWithSelectors(html, newStructure);
+      
+      // If new extraction is better, use it
+      if (extractedContent.content && extractedContent.content.length > (previousExtraction.content?.length || 0)) {
+        log(`[AIReanalysis] New extraction yielded better results (${extractedContent.content.length} chars)`, "scraper");
+        return {
+          ...extractedContent,
+          extractionMethod: 'ai-reanalysis-selectors',
+          confidence: newStructure.confidence
+        };
+      }
     }
+    
+    // If re-detection didn't help, use multi-attempt recovery with existing selectors
+    log(`[AIReanalysis] Selector re-detection didn't improve results, using multi-attempt recovery`, "scraper");
+    return await performMultiAttemptRecovery(html, previousExtraction);
     
   } catch (error: any) {
     log(`[AIReanalysis] AI re-analysis failed: ${error.message}, using multi-attempt recovery`, "scraper-error");

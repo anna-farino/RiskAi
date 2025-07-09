@@ -189,22 +189,31 @@ export async function extractWithHybridAI(html: string, sourceUrl: string): Prom
     log(`[HybridExtractor] AI selector detection failed: ${error.message}`, "scraper");
   }
   
-  // Step 3: Direct AI content extraction as fallback
+  // Step 3: Enhanced selector detection with different prompt (no direct content extraction)
   try {
-    log(`[HybridExtractor] Falling back to direct AI extraction`, "scraper");
-    const aiResult = await extractContentWithAI(html, sourceUrl);
+    log(`[HybridExtractor] Attempting enhanced selector detection with alternate prompt`, "scraper");
     
-    return {
-      title: aiResult.title,
-      content: aiResult.content,
-      author: aiResult.author,
-      date: aiResult.date,
-      method: 'ai-direct',
-      confidence: aiResult.confidence
-    };
+    // Try again with a simpler, more focused prompt
+    const enhancedStructure = await detectHtmlStructureWithAI(html, sourceUrl);
+    const enhancedConfig = convertToScrapingConfig(enhancedStructure);
+    
+    // Add more aggressive fallback selectors
+    enhancedConfig.contentSelector = enhancedConfig.contentSelector || 'article, main, [role="main"], .content, .post-content, .entry-content, .article-content, .post, .entry';
+    enhancedConfig.titleSelector = enhancedConfig.titleSelector || 'h1, h2, .title, .headline, .post-title, .entry-title, .article-title';
+    
+    const enhancedResult = await extractWithSelectors(html, enhancedConfig);
+    
+    if (enhancedResult.content && enhancedResult.content.length > 100) {
+      return {
+        ...enhancedResult,
+        method: 'ai-selectors-enhanced',
+        selectors: enhancedConfig,
+        confidence: Math.max(0.4, enhancedResult.confidence || 0.4)
+      };
+    }
     
   } catch (error: any) {
-    log(`[HybridExtractor] Direct AI extraction failed: ${error.message}`, "scraper-error");
+    log(`[HybridExtractor] Enhanced selector detection failed: ${error.message}`, "scraper-error");
   }
   
   // Step 4: Final fallback to basic selectors

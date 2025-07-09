@@ -127,6 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### January 10, 2025 - Implemented Threat Tracker Architecture for News Radar
+- **Resolved JSON truncation issues** by implementing Threat Tracker's two-step architectural approach across all apps
+- **Root cause identified**: News Radar was requesting full content extraction from AI, causing responses to hit model output limits
+- **Architectural alignment**: Modified News Radar to use the same two-step process as Threat Tracker:
+  - **Step 1**: AI detects CSS selectors only (small response size)
+  - **Step 2**: Code extracts content using those selectors (no size limits)
+- **Key changes implemented**:
+  - Modified `performAIReanalysis` to re-detect selectors instead of extracting content directly
+  - Updated `hybrid-extractor` to use enhanced selector detection instead of direct AI extraction
+  - Removed all direct AI content extraction fallbacks that caused truncation
+- **Benefits**:
+  - Eliminates JSON truncation errors for long articles
+  - Consistent architecture across all apps
+  - More reliable content extraction without artificial limits
+  - Maintains full content extraction capability without max_tokens restrictions
+- **Technical implementation**:
+  - AI re-analysis now calls `detectAIStructure` instead of `extractContentWithAI`
+  - Fallback mechanisms use selector variations rather than direct content requests
+  - System maintains URL-agnostic and app-neutral design principles
+
 ### July 9, 2025 - True Unified AI Detection System Implemented
 - **Fixed critical system disparity**: News Radar and Threat Tracker were using completely different OpenAI functions despite "unified" claims
 - **Implemented true unification**: News Radar now uses centralized AI detection from `ai-detector.ts` instead of its own function
