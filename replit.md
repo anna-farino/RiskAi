@@ -219,6 +219,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Improved AI prompt specificity** with detailed guidance for reliable selector detection and validation
 - **Comprehensive error recovery** for malformed JSON responses with cleaning and retry mechanisms
 
+### January 10, 2025 - Fixed Selector Issues and Enhanced Content Extraction
+- **Discovery**: Cheerio DOES support CSS `:has()` pseudo-class - previous assumption was incorrect
+- **Root cause**: System was only extracting first paragraph (21 chars) instead of all matching paragraphs
+- **Real issue**: Selector generation was creating invalid selectors like `p:not()` when removing pseudo-classes
+- **Solutions implemented**:
+  - Fixed selector variation generation to clean up empty `:not()` patterns
+  - Enhanced content extraction logging to show element counts and content preview
+  - Improved content joining with double newlines between paragraphs
+  - Added try-catch blocks around selector operations for better error handling
+- **Enhanced debugging**: Shows exact number of elements found and content from each
+- **Impact**: 
+  - Multi-paragraph press releases now extract all content correctly
+  - AI-detected selectors with `:has()` work properly
+  - Better visibility into extraction process with detailed logging
+
 ### July 9, 2025 - Centralized Date Extraction Implementation Complete
 - **Implemented centralized date extraction service** based on Threat Tracker's robust functionality
 - **Root rationale**: Date extraction is universal - publication dates don't vary by app context, making app-specific strategies unnecessary

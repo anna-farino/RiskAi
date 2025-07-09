@@ -176,10 +176,12 @@ export function generateSelectorVariations(selector: string): string[] {
     variations.push(`[class$="${className}"]`);
   }
   
-  // Remove pseudo-selectors if present
+  // Remove pseudo-selectors if present, but handle empty :not() cases
   const withoutPseudo = selector.replace(/:[\w-]+(\([^)]*\))?/g, '');
-  if (withoutPseudo !== selector) {
-    variations.push(withoutPseudo);
+  // Clean up any resulting empty :not() or trailing :not patterns
+  const cleanedPseudo = withoutPseudo.replace(/:not\(\)/g, '').replace(/:not$/g, '');
+  if (cleanedPseudo !== selector && cleanedPseudo.trim() !== '') {
+    variations.push(cleanedPseudo);
   }
   
   // Descendant to direct child (only if not already using >)
@@ -202,7 +204,11 @@ function extractContentWithRecovery($: cheerio.CheerioAPI, config: ScrapingConfi
   // Phase 3: Pre-extraction validation
   let contentElements;
   try {
-    contentElements = $(config.contentSelector!);
+    // Handle selectors with :has() pseudo-class that Cheerio might not support
+    let workingSelector = config.contentSelector!;
+    
+    // Try the selector as-is first
+    contentElements = $(workingSelector);
   } catch (error) {
     log(`[ContentRecovery] Invalid content selector "${config.contentSelector}", initiating recovery: ${error.message}`, "scraper-error");
     return recoverContentExtraction($, config, html);
@@ -214,7 +220,19 @@ function extractContentWithRecovery($: cheerio.CheerioAPI, config: ScrapingConfi
   }
   
   // Extract content from found elements
-  const content = contentElements.map((_, el) => $(el).text()).get().join('\n').trim();
+  log(`[ContentRecovery] Found ${contentElements.length} content elements`, "scraper");
+  
+  // Log details of each element for debugging
+  contentElements.each((i, el) => {
+    const text = $(el).text().trim();
+    if (i < 3) { // Log first 3 elements
+      log(`[ContentRecovery] Element ${i}: "${text.substring(0, 50)}..." (${text.length} chars)`, "scraper");
+    }
+  });
+  
+  const content = contentElements.map((_, el) => $(el).text().trim()).get().filter(text => text.length > 0).join('\n\n');
+  
+  log(`[ContentRecovery] Total content extracted: ${content.length} chars from ${contentElements.length} elements`, "scraper");
   
   if (content.length < 100) {
     log(`[ContentRecovery] Insufficient content (${content.length} chars), initiating recovery`, "scraper");
@@ -240,13 +258,18 @@ function recoverContentExtraction($: cheerio.CheerioAPI, config: ScrapingConfig,
   const variations = generateSelectorVariations(config.contentSelector!);
   
   for (const variation of variations) {
-    const elements = $(variation);
-    if (elements.length > 0) {
-      const content = elements.map((_, el) => $(el).text()).get().join('\n').trim();
-      if (content.length >= 100 && !isLowQualityContent(content)) {
-        log(`[ContentRecovery] Successful recovery with variation: "${variation}" (${content.length} chars)`, "scraper");
-        return { content, confidence: 0.7 };
+    try {
+      const elements = $(variation);
+      if (elements.length > 0) {
+        const content = elements.map((_, el) => $(el).text()).get().join('\n').trim();
+        if (content.length >= 100 && !isLowQualityContent(content)) {
+          log(`[ContentRecovery] Successful recovery with variation: "${variation}" (${content.length} chars)`, "scraper");
+          return { content, confidence: 0.7 };
+        }
       }
+    } catch (error) {
+      log(`[ContentRecovery] Selector variation failed: "${variation}" - ${error.message}`, "scraper");
+      // Continue to next variation
     }
   }
   
