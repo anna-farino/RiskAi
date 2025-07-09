@@ -19,9 +19,9 @@ export class NewsCapsuleStrategy implements AppScrapingStrategy {
           const { detectHtmlStructure } = await import('backend/apps/news-radar/services/openai');
           return detectHtmlStructure(html);
         },
-        extractPublishDate: async (html: string, url: string, selectors?: any) => {
+        extractPublishDate: async (articleContent: string, articleTitle: string, htmlContent: string) => {
           const { extractPublishDate } = await import('backend/apps/news-radar/services/openai');
-          return extractPublishDate(html, '', html);
+          return extractPublishDate(articleContent, articleTitle, htmlContent);
         }
       },
       extractionOptions: {

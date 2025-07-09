@@ -320,8 +320,32 @@ export async function detectHtmlStructure(
       messages: [
         {
           role: "system",
-          content:
-            "Analyze the HTML structure and detect CSS selectors for article elements. Return JSON in format: { articleSelector: string, titleSelector: string, contentSelector: string, authorSelector?: string, dateSelector?: string }",
+          content: `Analyze the HTML structure and detect CSS selectors for article elements. Be thorough in finding all metadata fields.
+
+CRITICAL REQUIREMENTS:
+1. Look for ACTUAL article content, not navigation/sidebars
+2. Find the main article container that wraps all content
+3. Identify specific selectors for each field:
+
+Title: Look for h1, h2, .title, .headline, .article-title, etc.
+Content: Look for .content, .article-content, .post-content, article p, .article-body, etc.
+Author: Look for .author, .byline, .by, [rel="author"], .writer, .journalist, etc.
+Date: Look for time, .date, .published, .article-date, [datetime], .timestamp, etc.
+
+4. Return SPECIFIC selectors, not generic ones
+5. Test that selectors would actually match elements in the provided HTML
+6. For content, prefer selectors that get paragraphs/text content, not just containers
+7. Author and date are IMPORTANT - try hard to find them even if not obvious
+
+Return JSON in format: { 
+  articleSelector: string, 
+  titleSelector: string, 
+  contentSelector: string, 
+  authorSelector?: string, 
+  dateSelector?: string 
+}
+
+If you cannot find author or date selectors, still try to provide your best guess based on common patterns.`,
         },
         {
           role: "user",

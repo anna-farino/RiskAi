@@ -39,6 +39,12 @@ export function extractContentWithSelectors(html: string, config: ScrapingConfig
   if (config.authorSelector) {
     result.author = extractWithRecovery($, config.authorSelector, 'author');
     log(`[SimpleScraper] Author extracted: "${result.author}"`, "scraper");
+  } else {
+    // Try fallback author extraction when no selector provided
+    result.author = extractWithRecovery($, '', 'author');
+    if (result.author) {
+      log(`[SimpleScraper] Author extracted with fallback: "${result.author}"`, "scraper");
+    }
   }
 
   return result;
@@ -267,31 +273,33 @@ function recoverContentExtraction($: cheerio.CheerioAPI, config: ScrapingConfig,
  * Phase 2: Extract with recovery for title/author fields
  */
 function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType: string): string {
-  // Try primary selector
+  // Try primary selector if provided
   let result = '';
-  try {
-    result = $(selector).first().text().trim();
-    if (result) return result;
-  } catch (error) {
-    log(`[${fieldType}Recovery] Invalid primary selector "${selector}": ${error.message}`, "scraper-error");
-  }
-  
-  // Try variations
-  const variations = generateSelectorVariations(selector);
-  for (const variation of variations) {
+  if (selector) {
     try {
-      result = $(variation).first().text().trim();
-      if (result) {
-        log(`[${fieldType}Recovery] Found using variation: "${variation}"`, "scraper");
-        return result;
-      }
+      result = $(selector).first().text().trim();
+      if (result) return result;
     } catch (error) {
-      log(`[${fieldType}Recovery] Invalid variation "${variation}": ${error.message}`, "scraper");
-      // Continue to next variation
+      log(`[${fieldType}Recovery] Invalid primary selector "${selector}": ${error.message}`, "scraper-error");
+    }
+    
+    // Try variations of the provided selector
+    const variations = generateSelectorVariations(selector);
+    for (const variation of variations) {
+      try {
+        result = $(variation).first().text().trim();
+        if (result) {
+          log(`[${fieldType}Recovery] Found using variation: "${variation}"`, "scraper");
+          return result;
+        }
+      } catch (error) {
+        log(`[${fieldType}Recovery] Invalid variation "${variation}": ${error.message}`, "scraper");
+        // Continue to next variation
+      }
     }
   }
   
-  // Field-specific fallbacks
+  // Always try field-specific fallbacks
   const fallbacks = getFieldFallbacks(fieldType);
   for (const fallback of fallbacks) {
     try {
@@ -314,9 +322,9 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
  */
 function getFieldFallbacks(fieldType: string): string[] {
   const fallbacks = {
-    title: ['h1', 'h2', '.title', '.headline', '[role="heading"]'],
-    author: ['.author', '.byline', '[rel="author"]', '.writer'],
-    date: ['time', '[datetime]', '.date', '.published']
+    title: ['h1', 'h2', '.title', '.headline', '[role="heading"]', '.article-title', '.post-title'],
+    author: ['.author', '.byline', '[rel="author"]', '.writer', '.by', '.journalist', '.article-author', '.post-author', '.author-name'],
+    date: ['time', '[datetime]', '.date', '.published', '.article-date', '.post-date', '.timestamp', '.publish-date', '.creation-date']
   };
   
   return fallbacks[fieldType as keyof typeof fallbacks] || [];

@@ -79,11 +79,12 @@ export class StreamlinedUnifiedScraper {
         let publishDate: Date | null = null;
         try {
           if (context?.aiProviders?.extractPublishDate) {
-            // Use app-specific date extraction
-            publishDate = await context.aiProviders.extractPublishDate(contentResult.html, {
-              date: structureConfig.dateSelector,
-              dateAlternatives: []
-            });
+            // Use app-specific date extraction - pass proper parameters
+            publishDate = await context.aiProviders.extractPublishDate(
+              extracted.content || contentResult.html, 
+              extracted.title || '', 
+              contentResult.html
+            );
           } else {
             // Backward compatibility: use threat-tracker date extractor
             publishDate = await extractPublishDate(contentResult.html, {

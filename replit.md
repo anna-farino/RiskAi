@@ -137,11 +137,17 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Fixed function import mismatch** in News Radar and News Capsule strategies
   - Changed `detectArticleLinksWithAI` → `detectArticleLinks` to match actual function names
   - Fixed parameter mismatches in `detectHtmlStructure` and `extractPublishDate` calls
+- **Enhanced AI-driven metadata extraction**:
+  - **Improved AI prompt**: Added detailed guidance for detecting author and date selectors with specific patterns
+  - **Enhanced fallback selectors**: Expanded author/date fallback patterns (9 author patterns, 9 date patterns)
+  - **Fixed parameter mismatches**: Corrected function signatures across all strategies to match OpenAI function expectations
+  - **Automatic fallback extraction**: System now attempts metadata extraction even when AI doesn't detect selectors
 - **Impact**: 
   - **System stability**: Scraping now continues even with invalid AI-detected selectors
   - **App parity**: News Radar now works as reliably as Threat Tracker
   - **Error resilience**: Graceful fallback when CSS selectors fail to parse
   - **Complete decoupling**: All apps use their own OpenAI functions through strategy pattern
+  - **Improved metadata accuracy**: Better author and date detection through enhanced AI prompts and fallback mechanisms
 
 ### January 9, 2025 - Implemented Strategy Pattern for App-Agnostic Scraping System
 - **Major refactoring**: Removed all hardcoded cybersecurity biases from shared scraping infrastructure
