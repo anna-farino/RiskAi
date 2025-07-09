@@ -153,6 +153,7 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
       });
 
       // Handle HTMX content loading
+      const url = page.url();
       await handleHTMXContent(page, url);
 
       // Return clean HTML for link extraction by OpenAI
