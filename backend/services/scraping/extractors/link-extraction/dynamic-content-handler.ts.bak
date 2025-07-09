@@ -2,7 +2,7 @@ import type { Page } from 'puppeteer';
 import { log } from "backend/utils/log";
 import { LinkData, LinkExtractionOptions, extractLinksFromHTML } from './html-link-parser';
 import { normalizeUrls, filterLinksByPatterns } from './url-normalizer';
-import { handleAILinkIdentification } from './ai-link-handler';
+// AI link identification is now done inline to avoid circular dependencies
 import { extractLinksFromPage } from './puppeteer-link-handler';
 
 /**
@@ -138,7 +138,7 @@ export async function extractArticleLinksFromPage(
         links = await identifyArticleLinks(structuredHtml);
       } else {
         // Use News Radar function for other contexts
-        links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
+        links = await identifyArticleLinksWithAI(linkData, options.aiContext, options.context);
         // Ensure all URLs are absolute after AI processing
         links = normalizeUrls(links, baseUrl);
       }
@@ -227,7 +227,7 @@ export async function extractArticleLinks(
         links = await identifyArticleLinks(structuredHtml);
       } else {
         // Use News Radar function for other contexts
-        links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
+        links = await identifyArticleLinksWithAI(linkData, options.aiContext, options.context);
         // Ensure all URLs are absolute after AI processing
         links = normalizeUrls(links, baseUrl);
       }
