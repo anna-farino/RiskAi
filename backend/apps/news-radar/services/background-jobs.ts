@@ -47,9 +47,7 @@ export async function scrapeSource(
     // Step 2: Extract article links using unified scraping service
     log(`[Scraping] Using unified scraping service for link extraction`, "scraper");
     // Use scrapeSourceUrl which already includes the news-radar context
-    const articleLinks = await scrapingService.scrapeSourceUrl(source.url, {
-      maxLinks: 50
-    });
+    const articleLinks = await scrapingService.scrapeSourceUrl(source.url);
     log(
       `[Scraping] Found ${articleLinks.length} potential article links`,
       "scraper",
