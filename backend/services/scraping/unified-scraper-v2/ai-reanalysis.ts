@@ -43,11 +43,11 @@ export async function performAIReanalysis(html: string, url: string, previousExt
     log(`[AIReanalysis] Starting selector re-detection for improved extraction`, "scraper");
     
     // Import selector detection and extraction functionality
-    const { detectAIStructure } = await import('../ai/structure-detector');
+    const { detectHtmlStructureWithAI } = await import('../ai/structure-detector');
     const { extractContentWithSelectors } = await import('./content-extractor');
     
     // Re-detect selectors with enhanced prompt for better accuracy
-    const newStructure = await detectAIStructure(html, url);
+    const newStructure = await detectHtmlStructureWithAI(html, url);
     
     if (newStructure.confidence > 0.3) {
       log(`[AIReanalysis] Successfully re-detected selectors (confidence: ${newStructure.confidence})`, "scraper");
