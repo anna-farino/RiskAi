@@ -2,7 +2,7 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig } from '../structure-detector';
 import { ArticleContent } from './selector-utilities';
 import { cleanAndNormalizeContent, cleanHtmlForExtraction } from './content-cleaner';
-import { extractPublishDateEnhanced } from './date-extractor';
+import { extractPublishDate } from '../../date-extraction/centralized-date-extractor';
 import { extractWithPrimarySelectors } from './primary-extractor';
 import { extractWithFallbackSelectors } from './fallback-extractor';
 import { extractWithHybridAI } from '../../ai/hybrid-extractor';
@@ -24,7 +24,10 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
         if (aiResult.confidence > 0.5) {
           log(`[ContentExtractor] AI extraction successful (confidence: ${aiResult.confidence})`, "scraper");
           
-          const publishDate = await extractPublishDateEnhanced(html, config);
+          const publishDate = await extractPublishDate(html, {
+            dateSelector: config.dateSelector,
+            dateAlternatives: []
+          });
           
           return {
             title: cleanAndNormalizeContent(aiResult.title),
@@ -71,7 +74,10 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
 
     // Extract publish date
     try {
-      finalResult.publishDate = await extractPublishDateEnhanced(html, config);
+      finalResult.publishDate = await extractPublishDate(html, {
+        dateSelector: config.dateSelector,
+        dateAlternatives: []
+      });
     } catch (dateError) {
       log(`[ContentExtractor] Date extraction failed: ${dateError}`, "scraper-error");
     }

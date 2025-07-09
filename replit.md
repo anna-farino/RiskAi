@@ -143,6 +143,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **Main scraper**: Now uses centralized function with proper option parameters
   - **App strategies**: Removed all date extraction functions from News Radar, Threat Tracker, and News Capsule
   - **Strategy interface**: Removed `extractPublishDate` from `aiProviders` interface
+  - **Cleaned up redundant files**: Removed old componentized date extractor wrapper and updated imports
 - **Benefits**:
   - **Eliminated code duplication**: Removed 3 separate date extraction implementations
   - **Consistent date handling**: All apps now use the same robust date extraction logic
