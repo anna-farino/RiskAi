@@ -44,6 +44,7 @@ export function generateFallbackSelectors(
       ".post-author",
       ".writer",
       ".by-author",
+      ".author-name",
       '[rel="author"]',
       '[rel*="author"]',  // Matches rel="author external" etc.
       ".date a[href*='author']",  // Author links within date elements

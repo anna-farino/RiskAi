@@ -2,6 +2,7 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent } from '../types';
 import * as cheerio from 'cheerio';
 import { sanitizeSelector } from '../extractors/structure-detector/selector-sanitizer';
+import { generateFallbackSelectors } from '../extractors/structure-detector/fallback-selectors';
 
 
 
@@ -288,15 +289,7 @@ function recoverContentExtraction($: cheerio.CheerioAPI, config: ScrapingConfig,
   }
   
   // Step 3: Try article-related fallbacks
-  const fallbackSelectors = [
-    'article',
-    '.article-content',
-    '.post-content',
-    '.content',
-    'main',
-    '.main-content',
-    '[role="main"]'
-  ];
+  const fallbackSelectors = generateFallbackSelectors('content');
   
   for (const fallback of fallbackSelectors) {
     const elements = $(fallback);
@@ -416,35 +409,18 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
  * Phase 3: Get field-specific fallback selectors
  */
 function getFieldFallbacks(fieldType: string): string[] {
-  const fallbacks = {
-    title: ['h1', 'h2', '.title', '.headline', '[role="heading"]', '.article-title', '.post-title'],
-    author: [
-      '.author', 
-      '.byline', 
-      '[rel="author"]',
-      '[rel*="author"]',  // Matches rel="author external" etc.
-      '.writer', 
-      '.by', 
-      '.journalist', 
-      '.article-author', 
-      '.post-author', 
-      '.author-name',
-      '.date a[href*="author"]',  // Author links within date elements
-      '.date a[rel*="author"]',  // Author links with rel attribute in date
-      'p.date a',  // Any link within date paragraph
-      '.posted-by',
-      '.written-by',
-      '.article-meta a',
-      '.post-meta a',
-      'a[href*="/author/"]',  // Links to author pages
-      'a[href*="/writers/"]',  // Links to writer pages
-      '.attribution a',
-      '.credits a'
-    ],
-    date: ['time', '[datetime]', '.date', '.published', '.article-date', '.post-date', '.timestamp', '.publish-date', '.creation-date']
-  };
+  // Use centralized fallback selectors
+  if (fieldType === 'title') {
+    return generateFallbackSelectors('title');
+  } else if (fieldType === 'author') {
+    return generateFallbackSelectors('author');
+  } else if (fieldType === 'date') {
+    return generateFallbackSelectors('date');
+  } else if (fieldType === 'content') {
+    return generateFallbackSelectors('content');
+  }
   
-  return fallbacks[fieldType as keyof typeof fallbacks] || [];
+  return [];
 }
 
 /**

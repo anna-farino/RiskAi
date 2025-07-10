@@ -127,13 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### January 10, 2025 - Centralized Fallback Selectors Across All Files
+- **Replaced all hardcoded fallback selectors** with references to centralized `fallback-selectors.ts` file
+- **Single source of truth**: All fallback selectors now maintained in one location for consistency
+- **Files updated**:
+  - `puppeteer-scraper/content-extractor.ts` - replaced hardcoded selectors with `generateFallbackSelectors()`
+  - `unified-scraper-v2/content-extractor.ts` - replaced hardcoded selectors with centralized functions
+  - Added missing `.author-name` selector to centralized file
+- **Benefits**:
+  - **Consistency**: All components use identical fallback selectors
+  - **Maintainability**: Changes to fallback selectors only need to be made in one place
+  - **Completeness**: All files now have access to the comprehensive selector set
+- **Impact**: Future updates to fallback selectors will automatically apply across all extraction methods
+
 ### January 10, 2025 - Fixed Puppeteer Fallback Author/Date Extraction
 - **Fixed critical metadata extraction issue** when external validation errors force basic fallback method
 - **Root cause**: "__name is not defined" error from website validation scripts blocking JavaScript evaluation
 - **Issue**: When `safePageEvaluate` returns null due to validation errors, basic fallback only extracted title/content
 - **Solution**: Enhanced `extractContentWithFallback` to attempt author/date extraction using individual element queries
-- **Enhanced author extraction**: Uses validation-safe selectors: `.author`, `.byline`, `.article-author`, `[rel="author"]`, `.author-name`
-- **Enhanced date extraction**: Uses validation-safe selectors: `time`, `[datetime]`, `.article-date`, `.post-date`, `.published-date`, `.timestamp`, `.date`
+- **Enhanced author extraction**: Uses validation-safe selectors from centralized file
+- **Enhanced date extraction**: Uses validation-safe selectors from centralized file
 - **Impact**: Now extracts author/date metadata even when external validation blocks main extraction method
 - **Technical approach**: Individual element queries avoid triggering validation errors that block full page evaluation
 - **Verification**: System logs successful author/date extraction with specific selector used

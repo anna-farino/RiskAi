@@ -3,6 +3,7 @@ import { log } from "backend/utils/log";
 import { safePageEvaluate } from './error-handler';
 import { handleDynamicContent } from './dynamic-handler';
 import { handleHTMXContent } from './htmx-handler';
+import { generateFallbackSelectors } from '../../extractors/structure-detector/fallback-selectors';
 
 /**
  * Extract page content based on whether it's an article or source page
@@ -62,12 +63,12 @@ export async function extractPageContent(page: Page, isArticlePage: boolean, scr
             }
           }
 
-          // Fallback selectors
+          // Fallback selectors from centralized file
           const fallbackSelectors = {
-            content: ['article', '.article-content', '.article-body', 'main .content', '.post-content', '#article-content', '.story-content'],
-            title: ['h1', '.article-title', '.post-title'],
-            author: ['.author', '.byline', '.article-author'],
-            date: ['time', '[datetime]', '.article-date', '.post-date', '.published-date', '.timestamp']
+            content: ['article', '.article-content', '.article-body', 'main .content', '.post-content', '#article-content', '.story-content', '.entry-content', 'main', '.main-content', '#main-content', '.content p', '.text-content p', '.body-content p', '.press-body p', '.news-content p', '.release-content p'],
+            title: ['h1', '.article-title', '.post-title', '.headline', '.title', 'h1.title', 'h1.headline', '.entry-title'],
+            author: ['.author', '.byline', '.article-author', '.post-author', '.writer', '.by-author', '.author-name', '[rel="author"]', '[rel*="author"]', '.date a[href*="author"]', '.date a[rel*="author"]', 'p.date a', '.posted-by', '.written-by', '.article-meta a', '.post-meta a', 'a[href*="/author/"]', 'a[href*="/writers/"]', '.attribution a', '.credits a'],
+            date: ['time', '[datetime]', '.article-date', '.post-date', '.published-date', '.timestamp', '.date', '.publish-date', '.created-date']
           };
 
           let content = '';
@@ -188,7 +189,7 @@ export async function extractContentWithFallback(page: Page): Promise<string> {
     
     // Try to extract author using individual element queries (validation-safe)
     try {
-      const authorSelectors = ['.author', '.byline', '.article-author', '[rel="author"]', '.author-name'];
+      const authorSelectors = generateFallbackSelectors('author');
       for (const selector of authorSelectors) {
         try {
           const authorElement = await page.$(selector);
@@ -210,7 +211,7 @@ export async function extractContentWithFallback(page: Page): Promise<string> {
     
     // Try to extract date using individual element queries (validation-safe)
     try {
-      const dateSelectors = ['time', '[datetime]', '.article-date', '.post-date', '.published-date', '.timestamp', '.date'];
+      const dateSelectors = generateFallbackSelectors('date');
       for (const selector of dateSelectors) {
         try {
           const dateElement = await page.$(selector);
