@@ -17,7 +17,11 @@ const DATE_PATTERNS = [
   /\d{1,2}\/\d{1,2}\/\d{4}/,
   /\d{1,2}-\d{1,2}-\d{4}/,
 
-  // Written formats
+  // Written formats with time
+  /\b([A-Z]+)\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}\s+(AM|PM)(?:\s*\([^)]*\))?/i, // "JULY 09, 2025 03:54 PM (EDT)"
+  /\w{3,9}\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}/i, // "January 1, 2024 15:30"
+
+  // Written formats without time
   /\w{3,9}\s+\d{1,2},?\s+\d{4}/i, // "January 1, 2024" or "Jan 1 2024"
   /\d{1,2}\s+\w{3,9}\s+\d{4}/i,   // "1 January 2024"
 
@@ -320,24 +324,33 @@ function parseDate(dateString: string): Date | null {
     return null;
   }
 
+  // Log each parsing strategy attempt
+  log(`[CentralizedDateExtractor] Trying parsing strategies for: "${cleaned}"`, "date-extractor");
+
   try {
     // Strategy 1: Try direct Date parsing
+    log(`[CentralizedDateExtractor] Strategy 1 - Direct Date parsing: "${cleaned}"`, "date-extractor");
     let date = new Date(cleaned);
     if (isValidDate(date)) {
+      log(`[CentralizedDateExtractor] Strategy 1 SUCCESS: ${date.toISOString()}`, "date-extractor");
       return date;
     }
 
     // Strategy 2: Handle Unix timestamps
     if (/^\d{10}$/.test(cleaned)) {
+      log(`[CentralizedDateExtractor] Strategy 2 - Unix timestamp (10 digits): "${cleaned}"`, "date-extractor");
       date = new Date(parseInt(cleaned) * 1000);
       if (isValidDate(date)) {
+        log(`[CentralizedDateExtractor] Strategy 2 SUCCESS: ${date.toISOString()}`, "date-extractor");
         return date;
       }
     }
 
     if (/^\d{13}$/.test(cleaned)) {
+      log(`[CentralizedDateExtractor] Strategy 2 - Unix timestamp (13 digits): "${cleaned}"`, "date-extractor");
       date = new Date(parseInt(cleaned));
       if (isValidDate(date)) {
+        log(`[CentralizedDateExtractor] Strategy 2 SUCCESS: ${date.toISOString()}`, "date-extractor");
         return date;
       }
     }
@@ -345,6 +358,7 @@ function parseDate(dateString: string): Date | null {
     // Strategy 3: Handle relative dates
     const relativeMatch = cleaned.match(/(\d+)\s+(hour|day|week|month|year)s?\s+ago/i);
     if (relativeMatch) {
+      log(`[CentralizedDateExtractor] Strategy 3 - Relative date: "${cleaned}"`, "date-extractor");
       const amount = parseInt(relativeMatch[1]);
       const unit = relativeMatch[2].toLowerCase();
       const now = new Date();
@@ -368,29 +382,36 @@ function parseDate(dateString: string): Date | null {
       }
 
       if (isValidDate(now)) {
+        log(`[CentralizedDateExtractor] Strategy 3 SUCCESS: ${now.toISOString()}`, "date-extractor");
         return now;
       }
     }
 
     // Strategy 4: Clean up common date format issues
+    log(`[CentralizedDateExtractor] Strategy 4 - Cleanup and reparse: "${cleaned}"`, "date-extractor");
     let cleanedForParsing = cleaned
       .replace(/^\w+,?\s+/, '') // Remove day of week
       .replace(/\s+at\s+.*$/, '') // Remove time portions that might confuse parsing
       .replace(/\s*\([^)]*\)\s*$/g, '') // Remove timezone abbreviations in parentheses like "(EDT)"
       .replace(/[^\w\s\-\/\.\,:]/g, ''); // Remove special characters except common date separators
 
+    log(`[CentralizedDateExtractor] Strategy 4 - Cleaned to: "${cleanedForParsing}"`, "date-extractor");
     date = new Date(cleanedForParsing);
     if (isValidDate(date)) {
+      log(`[CentralizedDateExtractor] Strategy 4 SUCCESS: ${date.toISOString()}`, "date-extractor");
       return date;
     }
 
     // Strategy 5: Handle month name formats (works for many sites) "JULY 09, 2025 03:54 PM (EDT)"
-    const monthNameMatch = cleaned.match(/^([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+    // Make regex more flexible - don't require month to be at start, handle timezone abbreviations
+    const monthNameMatch = cleaned.match(/\b([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s+(AM|PM)(?:\s*\([^)]*\))?/i);
     if (monthNameMatch) {
       const [, monthName, day, year, hour, minute, ampm] = monthNameMatch;
       const monthMap: { [key: string]: number } = {
         'JANUARY': 0, 'FEBRUARY': 1, 'MARCH': 2, 'APRIL': 3, 'MAY': 4, 'JUNE': 5,
-        'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11
+        'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11,
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
       };
 
       const month = monthMap[monthName.toUpperCase()];
@@ -404,6 +425,28 @@ function parseDate(dateString: string): Date | null {
 
         date = new Date(parseInt(year), month, parseInt(day), hour24, parseInt(minute));
         if (isValidDate(date)) {
+          log(`[CentralizedDateExtractor] Successfully parsed month name format: "${monthNameMatch[0]}" -> ${date.toISOString()}`, "date-extractor");
+          return date;
+        }
+      }
+    }
+
+    // Strategy 6: Handle simpler month formats without time "JULY 09, 2025"
+    const simpleDateMatch = cleaned.match(/\b([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\b/i);
+    if (simpleDateMatch) {
+      const [, monthName, day, year] = simpleDateMatch;
+      const monthMap: { [key: string]: number } = {
+        'JANUARY': 0, 'FEBRUARY': 1, 'MARCH': 2, 'APRIL': 3, 'MAY': 4, 'JUNE': 5,
+        'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11,
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+      };
+
+      const month = monthMap[monthName.toUpperCase()];
+      if (month !== undefined) {
+        date = new Date(parseInt(year), month, parseInt(day));
+        if (isValidDate(date)) {
+          log(`[CentralizedDateExtractor] Successfully parsed simple month format: "${simpleDateMatch[0]}" -> ${date.toISOString()}`, "date-extractor");
           return date;
         }
       }
