@@ -124,12 +124,12 @@ export async function scrapeSource(
           "scraper",
         );
 
-        // First check title for keyword matches - using strict word boundary check
+        // First check title for keyword matches - using flexible word boundary check
         const titleKeywordMatches = activeKeywords.filter((keyword) => {
-          // Create a regex with word boundaries to ensure we match whole words only
-          // The regex ensures the keyword is surrounded by word boundaries
+          // Create a regex with word boundaries that handles plurals and variations
+          // Allow for common word endings (s, es, ed, ing, etc.)
           const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const keywordRegex = new RegExp(`\\b${escapedKeyword}\\b`, "i");
+          const keywordRegex = new RegExp(`\\b${escapedKeyword}s?\\b`, "i");
 
           // Log the keyword being checked (for debugging)
           log(`[Scraping] Checking keyword: "${keyword}" in title`, "scraper");

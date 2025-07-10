@@ -25,13 +25,13 @@ export async function analyzeContent(
           - publishDate: ISO date string of article publish date if found, otherwise null
 
           CRITICALLY IMPORTANT MATCHING RULES:
-          1. ONLY include keywords that appear EXACTLY as provided in the list - no variations, no related terms.
+          1. ONLY include keywords that appear as provided in the list, allowing for common variations like plurals (e.g., "Tariff" matches "Tariffs").
           2. Keywords must appear as complete words with clear word boundaries (spaces, punctuation, etc).
           3. Do NOT include partial matches (e.g., do not match "best" inside "AM Best" or vice versa).
-          4. Do NOT infer related terms or synonyms - ONLY exact matches from the provided list.
+          4. Do NOT infer related terms or synonyms - ONLY exact matches or common variations (plurals) from the provided list.
           5. Do NOT include company names unless they exactly match a keyword (e.g., "AM Best" is not a match unless "AM Best" is explicitly in the keyword list).
-          6. Be extraordinarily strict and conservative in matching - when in doubt, exclude the match.
-          7. The detectedKeywords array must ONLY contain strings that are 100% identical to the provided keywords (except for case).
+          6. Be strict and conservative in matching - when in doubt, exclude the match.
+          7. The detectedKeywords array must ONLY contain strings that are identical to the provided keywords (except for case and common plural variations).
           8. Multi-word keywords must match completely (all words in the same order).
           
           - For dates, return valid ISO date strings (YYYY-MM-DD) or null if no valid date found.
@@ -79,8 +79,9 @@ export async function analyzeContent(
         }
         
         // Second, verify that it actually appears in the content with word boundaries
+        // Use flexible matching to handle plurals and variations
         const keywordRegex = new RegExp(
-          `\\b${detectedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+          `\\b${detectedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\\b`,
           "i",
         );
         

@@ -42,13 +42,13 @@ CLIENT KEYWORDS: ${clientKeywordsText}
 HARDWARE/SOFTWARE KEYWORDS: ${hardwareKeywordsText}
 
 CRITICAL INSTRUCTIONS:
-1. ONLY return keywords that EXACTLY match items in the lists above
-2. DO NOT include synonyms, related terms, or variations NOT in the lists
-3. DO NOT include vendor/company names or products unless they EXACTLY match keywords in the lists
-4. If a category has no exact matches from its list, return an empty array
+1. ONLY return keywords that match items in the lists above, allowing for common variations like plurals (e.g., "Tariff" matches "Tariffs")
+2. DO NOT include synonyms, related terms, or variations NOT in the lists (except for common plurals)
+3. DO NOT include vendor/company names or products unless they match keywords in the lists
+4. If a category has no matches from its list, return an empty array
 5. The article is only relevant if it contains BOTH: 
-   - At least one exact match from the THREAT KEYWORDS list AND
-   - At least one exact match from any of the other three keyword lists
+   - At least one match from the THREAT KEYWORDS list AND
+   - At least one match from any of the other three keyword lists
 
 Return your analysis in valid JSON format with the following structure:
 {

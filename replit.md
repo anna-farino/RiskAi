@@ -127,6 +127,25 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Fixed Keyword Matching Bug for Plurals
+- **Fixed critical keyword matching bug** preventing detection of plural forms like "Tariffs" when keyword was "Tariff"
+- **Root cause**: System used strict word boundary matching (`\bTariff\b`) which required exact matches
+- **Issue manifestation**: "Tariff" keyword didn't match "Tariffs" in article titles, causing relevant articles to be missed
+- **Solution implemented**:
+  - **Enhanced regex patterns**: Changed from `\bTariff\b` to `\bTariffs?\b` to allow optional plural "s"
+  - **Updated News Radar**: Modified title keyword matching and OpenAI validation logic
+  - **Updated Threat Tracker**: Modified OpenAI prompt to allow common variations like plurals
+  - **Consistent matching**: Both initial detection and OpenAI validation now use flexible matching
+- **Technical changes**:
+  - `backend/apps/news-radar/services/background-jobs.ts`: Updated title keyword matching regex
+  - `backend/apps/news-radar/services/openai.ts`: Updated validation regex and prompt instructions
+  - `backend/apps/threat-tracker/services/openai.ts`: Updated prompt to allow plural variations
+- **Impact**: 
+  - **Resolves keyword detection failures** for plural forms of keywords
+  - **Maintains strict matching** for other variations to avoid false positives
+  - **Improves content relevance** by capturing articles with plural keyword forms
+  - **Applies to both News Radar and Threat Tracker** for consistent behavior
+
 ### July 10, 2025 - Simplified Selector Detection Process Complete
 - **COMPLETELY REWRITTEN**: Selector detection now follows simplified 5-step process
 - **ROOT PROBLEM SOLVED**: AI was returning text content like "By James Thaler" instead of CSS selectors
