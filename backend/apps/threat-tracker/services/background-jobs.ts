@@ -335,14 +335,16 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
         // Don't save anything to database - let the unified scraper handle caching internally
         // This prevents corrupted selectors from being stored
         
-        // Don't set htmlStructure to null - the new simplified 5-step process always returns valid config
+        // Clear htmlStructure so we don't pass corrupted config to processArticle
+        htmlStructure = null;
         
       } catch (error: any) {
         log(
           `[ThreatTracker] Error in structure detection: ${error.message}`,
           "scraper-error",
         );
-        // Don't set htmlStructure to null - let the unified scraper handle detection with fallbacks
+        // Set to null to let unified scraper handle detection
+        htmlStructure = null;
       }
     }
 
@@ -354,22 +356,23 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       console.error("No source.userId");
     }
 
-    // Process first article - htmlStructure will always be valid (never null) with new 5-step process
-    log(
-      `[ThreatTracker] Step 8-9: Processing first article with detected structure`,
-      "scraper",
-    );
-    const firstArticleResult = await processArticle(
-      firstArticleUrl,
-      source.id,
-      userId,
-      htmlStructure,
-      keywords,
-    );
+    if (htmlStructure) {
+      log(
+        `[ThreatTracker] Step 8-9: Processing first article with detected structure`,
+        "scraper",
+      );
+      const firstArticleResult = await processArticle(
+        firstArticleUrl,
+        source.id,
+        userId,
+        htmlStructure,
+        keywords,
+      );
 
-    if (firstArticleResult) {
-      results.push(firstArticleResult);
-      firstArticleProcessed = true;
+      if (firstArticleResult) {
+        results.push(firstArticleResult);
+        firstArticleProcessed = true;
+      }
     }
 
     // 8-9. Process all remaining articles using the established HTML structure
