@@ -127,6 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Simplified Selector Detection Process Complete
+- **COMPLETELY REWRITTEN**: Selector detection now follows simplified 5-step process
+- **ROOT PROBLEM SOLVED**: AI was returning text content like "By James Thaler" instead of CSS selectors
+- **NEW 5-STEP PROCESS**:
+  1. **Send HTML to OpenAI** to find HTML selectors
+  2. **Debug selectors** to ensure they are CSS selectors, not text content  
+  3. **If debugging passes**: Cache selectors and extract content
+  4. **If debugging fails**: Clear cache and retry AI analysis
+  5. **If second attempt fails**: Use fallback selectors
+- **ENHANCED AI PROMPTS**: Made extremely explicit about returning only CSS selectors
+- **DEBUGGING SYSTEM**: Added comprehensive validation to reject text content as selectors
+- **CACHE CLEARING**: System now clears corrupted cache when debugging fails
+- **CLEAR LOGGING**: Each step is clearly logged for debugging
+- **FALLBACK PROTECTION**: Guaranteed fallback selectors when AI fails twice
+- **Impact**: 
+  - **Eliminates "By James Thaler" selector errors** that were causing extraction failures
+  - **Ensures AI returns valid CSS selectors** instead of text content
+  - **Automatic recovery** through retry and fallback mechanisms
+  - **Much clearer debugging process** with explicit step-by-step logging
+
 ### July 10, 2025 - Eliminated Two Redundant Wrapper Layers
 - **REMOVED WRAPPER #1**: Deleted `source-scraper.ts` file (86 lines) that was just a thin wrapper around link extraction
 - **REMOVED WRAPPER #2**: Deleted `index.ts` file (114 lines) that was just a wrapper class around main scraper

@@ -151,33 +151,38 @@ async function detectHtmlStructureWithAI(html: string, sourceUrl: string): Promi
 
     const prompt = `You are a CSS selector expert. Analyze this HTML from ${sourceUrl} and identify CSS selectors that can extract article content.
 
-YOUR TASK: Find CSS selectors (not text content) that target specific HTML elements.
+🚨 CRITICAL: RETURN ONLY CSS SELECTORS - NEVER TEXT CONTENT! 🚨
+
+WHAT YOU MUST DO:
+1. Look at the HTML structure
+2. Find CSS selectors that target the HTML elements
+3. Return ONLY the CSS selectors (like ".author", "h1", ".date")
+4. NEVER return the actual text content from those elements
+
+EXAMPLES OF CORRECT RESPONSES:
+✅ "authorSelector": ".author-name"
+✅ "authorSelector": ".byline"  
+✅ "authorSelector": "[data-author]"
+✅ "dateSelector": ".publish-date"
+✅ "dateSelector": "time"
+✅ "titleSelector": "h1.headline"
+
+EXAMPLES OF WRONG RESPONSES (NEVER DO THIS):
+❌ "authorSelector": "By James Thaler"  ← THIS IS TEXT CONTENT, NOT A CSS SELECTOR!
+❌ "authorSelector": "By John Smith"    ← THIS IS TEXT CONTENT, NOT A CSS SELECTOR!
+❌ "dateSelector": "January 1, 2025"    ← THIS IS TEXT CONTENT, NOT A CSS SELECTOR!
+❌ "dateSelector": "Published: Mon 7 Apr 2025" ← THIS IS TEXT CONTENT, NOT A CSS SELECTOR!
 
 WHAT TO RETURN:
-- titleSelector: CSS selector that targets the main headline element
-- contentSelector: CSS selector that targets the article body/content area  
-- authorSelector: CSS selector that targets the author name element
-- dateSelector: CSS selector that targets the publish date element
-
-CRITICAL RULES:
-🚨 RETURN CSS SELECTORS ONLY - NOT TEXT CONTENT!
-🚨 Example: Return ".author-name" NOT "By John Smith"
-🚨 Example: Return ".publish-date" NOT "January 1, 2025"
-🚨 Example: Return "h1.headline" NOT "Article Title Here"
-
-VALID CSS SELECTORS:
-✅ "h1", ".title", "#headline", ".article-content"
-✅ ".author", ".byline", "[data-author]"
-✅ ".date", ".publish-date", "time", "[datetime]"
-
-INVALID RESPONSES:
-❌ Text content like "By John Smith", "January 1, 2025"
-❌ jQuery selectors like ":contains()", ":eq()"
+- titleSelector: CSS selector for the main headline HTML element
+- contentSelector: CSS selector for the article body HTML element
+- authorSelector: CSS selector for the author name HTML element  
+- dateSelector: CSS selector for the publish date HTML element
 
 Return valid JSON only:
 {
   "titleSelector": "h1.main-title",
-  "contentSelector": ".article-content",
+  "contentSelector": ".article-content", 
   "authorSelector": ".author-name",
   "dateSelector": ".publish-date",
   "confidence": 0.8
@@ -233,7 +238,58 @@ Return valid JSON only:
 }
 
 /**
- * Main structure detection with caching
+ * Debug selectors to ensure they are valid CSS selectors, not text content
+ */
+function debugSelectors(config: ScrapingConfig): { valid: boolean, errors: string[] } {
+  const errors: string[] = [];
+  
+  // Check if titleSelector looks like text content
+  if (config.titleSelector && isTextContent(config.titleSelector)) {
+    errors.push(`titleSelector "${config.titleSelector}" is text content, not a CSS selector`);
+  }
+  
+  // Check if contentSelector looks like text content  
+  if (config.contentSelector && isTextContent(config.contentSelector)) {
+    errors.push(`contentSelector "${config.contentSelector}" is text content, not a CSS selector`);
+  }
+  
+  // Check if authorSelector looks like text content
+  if (config.authorSelector && isTextContent(config.authorSelector)) {
+    errors.push(`authorSelector "${config.authorSelector}" is text content, not a CSS selector`);
+  }
+  
+  // Check if dateSelector looks like text content
+  if (config.dateSelector && isTextContent(config.dateSelector)) {
+    errors.push(`dateSelector "${config.dateSelector}" is text content, not a CSS selector`);
+  }
+  
+  const valid = errors.length === 0;
+  
+  if (!valid) {
+    log(`[SelectorDebug] DEBUGGING FAILED: ${errors.join(', ')}`, "scraper-error");
+  } else {
+    log(`[SelectorDebug] DEBUGGING PASSED: All selectors are valid CSS`, "scraper");
+  }
+  
+  return { valid, errors };
+}
+
+/**
+ * Get fallback configuration when AI detection fails
+ */
+function getFallbackConfig(): ScrapingConfig {
+  log(`[StructureDetector] Using fallback selectors`, "scraper");
+  return {
+    titleSelector: 'h1',
+    contentSelector: 'article',
+    authorSelector: '.author',
+    dateSelector: 'time',
+    confidence: 0.2
+  };
+}
+
+/**
+ * Main structure detection with simplified 5-step process
  * This is the single entry point for all HTML structure detection
  */
 export async function detectHtmlStructure(url: string, html: string, context?: AppScrapingContext): Promise<ScrapingConfig> {
@@ -252,57 +308,70 @@ export async function detectHtmlStructure(url: string, html: string, context?: A
     structureCache.delete(domain);
   }
 
-  // Run AI detection
-  log(`[StructureDetector] Running AI structure detection for ${domain}`, "scraper");
+  log(`[StructureDetector] ===== STARTING SIMPLIFIED 5-STEP SELECTOR DETECTION =====`, "scraper");
   
+  // STEP 1: Send HTML to OpenAI to find HTML selectors
+  log(`[StructureDetector] STEP 1: Sending HTML to OpenAI for selector detection`, "scraper");
+  let aiResult: AIStructureResult;
   try {
-    const aiResult = await detectHtmlStructureWithAI(html, url);
-    
-    // Convert to ScrapingConfig
-    const config: ScrapingConfig = {
-      titleSelector: aiResult.titleSelector,
-      contentSelector: aiResult.contentSelector,
-      authorSelector: aiResult.authorSelector,
-      dateSelector: aiResult.dateSelector,
-      confidence: aiResult.confidence
-    };
+    aiResult = await detectHtmlStructureWithAI(html, url);
+  } catch (error: any) {
+    log(`[StructureDetector] STEP 1 FAILED: ${error.message}`, "scraper-error");
+    return getFallbackConfig();
+  }
+  
+  // Convert to ScrapingConfig format
+  let config: ScrapingConfig = {
+    titleSelector: aiResult.titleSelector,
+    contentSelector: aiResult.contentSelector,
+    authorSelector: aiResult.authorSelector,
+    dateSelector: aiResult.dateSelector,
+    confidence: aiResult.confidence
+  };
 
-    // Validate before caching
-    if (!isValidConfig(config)) {
-      log(`[StructureDetector] AI returned invalid config with text content instead of selectors!`, "scraper-error");
-      
-      // Return basic fallback config
-      const fallbackConfig: ScrapingConfig = {
-        titleSelector: 'h1',
-        contentSelector: 'article',
-        authorSelector: '.author',
-        dateSelector: 'time',
-        confidence: 0.3
+  // STEP 2: Debug selectors to ensure they are CSS selectors, not text content
+  log(`[StructureDetector] STEP 2: Debugging selectors to validate they are CSS selectors`, "scraper");
+  let debugResult = debugSelectors(config);
+  
+  if (debugResult.valid) {
+    // STEP 3.1: Debugging passed - cache and use selectors
+    log(`[StructureDetector] STEP 3.1: Debugging passed, caching selectors and extracting content`, "scraper");
+    structureCache.set(domain, config);
+    return config;
+  } else {
+    // STEP 3.2: Debugging failed - clear cache and try AI again
+    log(`[StructureDetector] STEP 3.2: Debugging failed, clearing cache and retrying AI analysis`, "scraper");
+    clearStructureCache(url);
+    
+    // STEP 4: Try AI detection again
+    log(`[StructureDetector] STEP 4: Retrying AI detection after cache clear`, "scraper");
+    try {
+      aiResult = await detectHtmlStructureWithAI(html, url);
+      config = {
+        titleSelector: aiResult.titleSelector,
+        contentSelector: aiResult.contentSelector,
+        authorSelector: aiResult.authorSelector,
+        dateSelector: aiResult.dateSelector,
+        confidence: aiResult.confidence
       };
       
-      log(`[StructureDetector] Using fallback config instead of invalid AI response`, "scraper");
-      return fallbackConfig;
+      // Debug again
+      debugResult = debugSelectors(config);
+      
+      if (debugResult.valid) {
+        // STEP 5.1: Second debugging passed - cache and use selectors
+        log(`[StructureDetector] STEP 5.1: Second debugging passed, caching selectors and extracting content`, "scraper");
+        structureCache.set(domain, config);
+        return config;
+      } else {
+        // STEP 5.2: Second debugging failed - use fallback selectors
+        log(`[StructureDetector] STEP 5.2: Second debugging failed, using fallback selectors`, "scraper");
+        return getFallbackConfig();
+      }
+    } catch (error: any) {
+      log(`[StructureDetector] STEP 4 FAILED: ${error.message}, using fallback selectors`, "scraper-error");
+      return getFallbackConfig();
     }
-
-    // Cache the valid result
-    structureCache.set(domain, config);
-    log(`[StructureDetector] Cached valid structure for ${domain}`, "scraper");
-    
-    return config;
-    
-  } catch (error: any) {
-    log(`[StructureDetector] AI detection failed: ${error.message}`, "scraper-error");
-    
-    // Return basic fallback config
-    const fallbackConfig: ScrapingConfig = {
-      titleSelector: 'h1',
-      contentSelector: 'article',
-      authorSelector: '.author',
-      dateSelector: 'time',
-      confidence: 0.2
-    };
-    
-    return fallbackConfig;
   }
 }
 
