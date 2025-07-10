@@ -3,7 +3,7 @@ import { log } from "backend/utils/log";
 import { safePageEvaluate } from './error-handler';
 import { handleDynamicContent } from './dynamic-handler';
 import { handleHTMXContent } from './htmx-handler';
-import { generateFallbackSelectors } from '../../extractors/structure-detector/fallback-selectors';
+import { generateFallbackSelectors } from '../../extractors/content-extraction/fallback-selectors';
 
 /**
  * Extract page content based on whether it's an article or source page

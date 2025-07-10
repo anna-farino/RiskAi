@@ -25,7 +25,7 @@ function sanitizeSelector(selector: string | null): string | undefined {
   
   return cleaned.length > 0 ? cleaned : undefined;
 }
-import { generateFallbackSelectors } from '../extractors/structure-detector/fallback-selectors';
+import { generateFallbackSelectors } from '../extractors/content-extraction/fallback-selectors';
 
 
 

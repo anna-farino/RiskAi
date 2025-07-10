@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { generateFallbackSelectors } from '../structure-detector/fallback-selectors';
+import { generateFallbackSelectors } from './fallback-selectors';
 import { ArticleContent } from './selector-utilities';
 
 /**
