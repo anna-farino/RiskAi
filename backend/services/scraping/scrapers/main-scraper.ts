@@ -12,7 +12,7 @@ import {
   shouldTriggerAIReanalysis, 
   performAIReanalysis 
 } from '../extractors/content-extraction/ai-reanalysis';
-import { scrapeSourceUrl } from './source-scraper';
+import { extractArticleLinks, extractArticleLinksFromPage } from '../extractors/link-extraction/dynamic-content-handler';
 import { AppScrapingContext } from '../strategies/app-strategy.interface';
 
 /**
@@ -110,12 +110,68 @@ export class StreamlinedUnifiedScraper {
    * @param context - Optional app-specific context for neutral operation
    */
   async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext): Promise<string[]> {
-    // Pass context through options for backward compatibility
-    const optionsWithContext = {
-      ...options,
-      context: context || options?.context
-    };
-    return await scrapeSourceUrl(url, optionsWithContext);
+    try {
+      log(`[SimpleScraper] Starting source scraping: ${url}`, "scraper");
+
+      // Step 1: Get content (HTTP or Puppeteer)
+      const result = await getContent(url, false);
+
+      // Step 2: Check if we need advanced HTMX extraction
+      const { detectDynamicContentNeeds } = await import('../core/method-selector');
+      const needsAdvancedExtraction = result.method === 'puppeteer' || 
+        detectDynamicContentNeeds(result.html, url);
+
+      const extractionOptions = {
+        includePatterns: options?.includePatterns,
+        excludePatterns: options?.excludePatterns,
+        aiContext: options?.aiContext,
+        context: context || options?.context,
+        maxLinks: options?.maxLinks || 50,
+        minLinkTextLength: 15
+      };
+
+      // Step 3: Use advanced extraction for HTMX/dynamic sites
+      if (needsAdvancedExtraction) {
+        log(`[SimpleScraper] Dynamic content detected, using advanced HTMX extraction`, "scraper");
+        
+        // Import setup functions
+        const { setupSourcePage } = await import('../core/page-setup');
+        let page = null;
+        
+        try {
+          // Create and setup page for advanced extraction
+          page = await setupSourcePage();
+          
+          // Navigate to the page
+          log(`[SimpleScraper] Navigating to ${url} for advanced extraction`, "scraper");
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          
+          // Use the advanced HTMX extraction
+          const articleLinks = await extractArticleLinksFromPage(page, url, extractionOptions);
+          
+          log(`[SimpleScraper] Advanced HTMX extraction completed: ${articleLinks.length} links found`, "scraper");
+          return articleLinks;
+          
+        } finally {
+          if (page) {
+            try {
+              await page.close();
+            } catch (closeError) {
+              log(`[SimpleScraper] Error closing page: ${closeError}`, "scraper-error");
+            }
+          }
+        }
+      } else {
+        // Step 3: Extract links with standard method for static sites
+        const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
+        log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
+        return articleLinks;
+      }
+
+    } catch (error: any) {
+      log(`[SimpleScraper] Error in source scraping: ${error.message}`, "scraper-error");
+      throw error;
+    }
   }
 
   /**

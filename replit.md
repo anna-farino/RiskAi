@@ -127,6 +127,20 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Eliminated Redundant Source Scraper Layer
+- **REMOVED REDUNDANT WRAPPER**: Deleted `source-scraper.ts` file (86 lines) that was just a thin wrapper around link extraction
+- **DIRECT INTEGRATION**: Main scraper now calls link extraction functions directly instead of through unnecessary middleman
+- **ROOT CAUSE**: `source-scraper.ts` was doing no unique work - just calling functions from `link-extraction/` folder
+- **SIMPLIFIED ARCHITECTURE**: 
+  - **Before**: Main scraper → Source scraper → Link extraction functions
+  - **After**: Main scraper → Link extraction functions (direct)
+- **Benefits**:
+  - **Eliminates confusion**: No more wondering why we have both source-scraper.ts and link-extraction folder
+  - **Reduces redundancy**: Removed unnecessary abstraction layer
+  - **Cleaner imports**: Direct function calls instead of wrapper functions
+  - **Better performance**: One less function call in the chain
+- **File count reduction**: Scrapers folder reduced from 6 to 5 files
+
 ### July 10, 2025 - File Renaming for Clarity
 - **RENAMED KEY FILES** for much clearer naming:
   - `scrapers/unified-scraper.ts` → `scrapers/main-scraper.ts` (The orchestrator)
