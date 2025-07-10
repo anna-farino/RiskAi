@@ -25,7 +25,7 @@ export async function handleAILinkIdentification(
     
     // Use unified AI link detection with app context
     const appContext = options?.context?.appType || 
-                      (options?.aiContext?.includes('threat') ? 'ThreatTracker' : 'NewsRadar');
+                      (options?.aiContext?.includes('threat') ? 'threat-tracker' : 'news-radar');
     
     const aiDetectedLinks = await unifiedIdentifyArticleLinks(structuredHtml, { appType: appContext });
     

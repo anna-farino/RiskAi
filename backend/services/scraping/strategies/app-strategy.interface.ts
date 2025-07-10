@@ -9,14 +9,12 @@ export interface AppScrapingContext {
   
   // AI function references provided by each app
   aiProviders: {
-    // Link identification using app-specific OpenAI logic
-    identifyArticleLinks?: (html: string) => Promise<string[]>;
-    
     // Content analysis (for future use)
     analyzeContent?: (content: string, ...args: any[]) => Promise<any>;
     
+    // NOTE: Link identification (identifyArticleLinks) is now handled by unified system
     // NOTE: HTML structure detection (detectHtmlStructure) is now handled by unified system
-    // and should not be app-specific. Use unified detectHtmlStructureWithAI instead.
+    // All AI-based extraction is now unified and should not be app-specific.
   };
   
   // Optional app-specific URL patterns (no hardcoded keywords)

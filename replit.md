@@ -156,6 +156,28 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **Eliminates architectural inconsistencies**: No more competing detection systems
   - **Simplified maintenance**: Single codebase for all HTML structure detection
 
+### January 10, 2025 - Complete Removal of App-Specific Link Identification
+- **Extended unified architecture to link extraction** by removing all app-specific identifyArticleLinks functions
+- **Root cause**: System still had app-specific AI provider logic in link extraction despite unified HTML structure detection
+- **Complete solution implemented**:
+  - **Removed app-specific functions**: Deleted `identifyArticleLinks` references from all strategy files
+  - **Updated interface**: Removed `identifyArticleLinks` from `AppScrapingContext` interface
+  - **Replaced app-specific routing**: Modified `dynamic-content-handler.ts` to use only unified AI link identification
+  - **Simplified AI handler**: Updated `ai-link-handler.ts` to use proper app context strings
+- **Technical changes**:
+  - `backend/services/scraping/strategies/app-strategy.interface.ts` - Removed identifyArticleLinks from app-specific providers
+  - `backend/services/scraping/strategies/*-strategy.ts` - Removed all identifyArticleLinks references
+  - `backend/services/scraping/extractors/link-extraction/dynamic-content-handler.ts` - Replaced app-specific logic with unified system only
+  - `backend/services/scraping/extractors/link-extraction/ai-link-handler.ts` - Fixed app context handling
+- **Architecture enforcement**: System now **exclusively** uses unified AI detection for both HTML structure and link extraction
+- **Complete elimination**: **Zero app-specific AI routing** for any extraction functionality across the entire system
+- **Impact**: 
+  - **Pure unified scraping architecture**: Single codebase handles all extraction logic
+  - **Consistent link identification**: All apps use identical AI link detection logic
+  - **Eliminates competing systems**: No more app-specific vs unified extraction conflicts
+  - **Simplified maintenance**: Single AI detection system for all extraction operations
+  - **Clean architecture**: Apps only handle "what to do with extracted data" not "how to extract it"
+
 ### January 10, 2025 - Centralized Fallback Selectors Across All Files
 - **Replaced all hardcoded fallback selectors** with references to centralized `fallback-selectors.ts` file
 - **Single source of truth**: All fallback selectors now maintained in one location for consistency

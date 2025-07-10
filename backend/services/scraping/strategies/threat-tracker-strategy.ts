@@ -10,11 +10,7 @@ export class ThreatTrackerStrategy implements AppScrapingStrategy {
     return {
       appType: 'threat-tracker',
       aiProviders: {
-        identifyArticleLinks: async (html: string, url: string) => {
-          // Use cybersecurity-focused article detection
-          const { identifyArticleLinks } = await import('backend/apps/threat-tracker/services/openai');
-          return identifyArticleLinks(html);
-        },
+        // identifyArticleLinks removed - now handled by unified system only
         // detectHtmlStructure removed - now handled by unified system only
       },
       extractionOptions: {

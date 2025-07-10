@@ -10,11 +10,7 @@ export class NewsCapsuleStrategy implements AppScrapingStrategy {
     return {
       appType: 'news-capsule',
       aiProviders: {
-        identifyArticleLinks: async (html: string, url: string) => {
-          // Use unified article detection for general news
-          const { detectArticleLinks } = await import('../ai/unified-link-detector');
-          return detectArticleLinks(html);
-        },
+        // identifyArticleLinks removed - now handled by unified system only
         // detectHtmlStructure removed - now handled by unified system only
       },
       extractionOptions: {

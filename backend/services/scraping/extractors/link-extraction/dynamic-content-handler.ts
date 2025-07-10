@@ -102,46 +102,11 @@ export async function extractArticleLinksFromPage(
     
     log(`[LinkExtractor] After normalization: ${links.length} links with absolute URLs`, "scraper");
     
-    // Use AI to identify article links if context provided
-    if (options?.context?.aiProviders?.identifyArticleLinks) {
-      // Use app-specific AI function
-      const structuredHtml = linkData
-        .map(link => {
-          // Normalize the URL before sending to AI to ensure absolute URLs
-          const normalizedHref = link.href.startsWith('http') ? link.href : 
-            (link.href.startsWith('/') ? new URL(link.href, baseUrl).toString() : 
-            new URL('/' + link.href, baseUrl).toString());
-          return `<a href="${normalizedHref}">${link.text}</a>`;
-        })
-        .join('\n');
-      
-      links = await options.context.aiProviders.identifyArticleLinks(structuredHtml);
-    } 
-    // Backward compatibility with aiContext
-    else if (options?.aiContext) {
-      // For Threat Tracker, use the correct OpenAI function that preserves URLs
-      if (options.aiContext.includes('cybersecurity') || options.aiContext.includes('threat')) {
-        // Import the Threat Tracker function that has proper URL preservation
-        const { identifyArticleLinks } = await import('backend/apps/threat-tracker/services/openai.js');
-        
-        // Create structured HTML for Threat Tracker analysis with NORMALIZED URLs
-        const structuredHtml = linkData
-          .map(link => {
-            // Normalize the URL before sending to AI to ensure absolute URLs
-            const normalizedHref = link.href.startsWith('http') ? link.href : 
-              (link.href.startsWith('/') ? new URL(link.href, baseUrl).toString() : 
-              new URL('/' + link.href, baseUrl).toString());
-            return `<a href="${normalizedHref}">${link.text}</a>`;
-          })
-          .join('\n');
-        
-        links = await identifyArticleLinks(structuredHtml);
-      } else {
-        // Use News Radar function for other contexts
-        links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
-        // Ensure all URLs are absolute after AI processing
-        links = normalizeUrls(links, baseUrl);
-      }
+    // Use unified AI link identification
+    if (options?.context || options?.aiContext) {
+      links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
+      // Ensure all URLs are absolute after AI processing
+      links = normalizeUrls(links, baseUrl);
     }
     
     // Apply max links limit
@@ -191,46 +156,11 @@ export async function extractArticleLinks(
     
     log(`[LinkExtractor] After normalization: ${links.length} links with absolute URLs`, "scraper");
     
-    // Use AI to identify article links if context provided
-    if (options?.context?.aiProviders?.identifyArticleLinks) {
-      // Use app-specific AI function
-      const structuredHtml = linkData
-        .map(link => {
-          // Normalize the URL before sending to AI to ensure absolute URLs
-          const normalizedHref = link.href.startsWith('http') ? link.href : 
-            (link.href.startsWith('/') ? new URL(link.href, baseUrl).toString() : 
-            new URL('/' + link.href, baseUrl).toString());
-          return `<a href="${normalizedHref}">${link.text}</a>`;
-        })
-        .join('\n');
-      
-      links = await options.context.aiProviders.identifyArticleLinks(structuredHtml);
-    } 
-    // Backward compatibility with aiContext
-    else if (options?.aiContext) {
-      // For Threat Tracker, use the correct OpenAI function that preserves URLs
-      if (options.aiContext.includes('cybersecurity') || options.aiContext.includes('threat')) {
-        // Import the Threat Tracker function that has proper URL preservation
-        const { identifyArticleLinks } = await import('backend/apps/threat-tracker/services/openai.js');
-        
-        // Create structured HTML for Threat Tracker analysis with NORMALIZED URLs
-        const structuredHtml = linkData
-          .map(link => {
-            // Normalize the URL before sending to AI to ensure absolute URLs
-            const normalizedHref = link.href.startsWith('http') ? link.href : 
-              (link.href.startsWith('/') ? new URL(link.href, baseUrl).toString() : 
-              new URL('/' + link.href, baseUrl).toString());
-            return `<a href="${normalizedHref}">${link.text}</a>`;
-          })
-          .join('\n');
-        
-        links = await identifyArticleLinks(structuredHtml);
-      } else {
-        // Use News Radar function for other contexts
-        links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
-        // Ensure all URLs are absolute after AI processing
-        links = normalizeUrls(links, baseUrl);
-      }
+    // Use unified AI link identification
+    if (options?.context || options?.aiContext) {
+      links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
+      // Ensure all URLs are absolute after AI processing
+      links = normalizeUrls(links, baseUrl);
     }
     
     // Apply max links limit
