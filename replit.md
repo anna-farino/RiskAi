@@ -127,6 +127,17 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### January 10, 2025 - Fixed Puppeteer Fallback Author/Date Extraction
+- **Fixed critical metadata extraction issue** when external validation errors force basic fallback method
+- **Root cause**: "__name is not defined" error from website validation scripts blocking JavaScript evaluation
+- **Issue**: When `safePageEvaluate` returns null due to validation errors, basic fallback only extracted title/content
+- **Solution**: Enhanced `extractContentWithFallback` to attempt author/date extraction using individual element queries
+- **Enhanced author extraction**: Uses validation-safe selectors: `.author`, `.byline`, `.article-author`, `[rel="author"]`, `.author-name`
+- **Enhanced date extraction**: Uses validation-safe selectors: `time`, `[datetime]`, `.article-date`, `.post-date`, `.published-date`, `.timestamp`, `.date`
+- **Impact**: Now extracts author/date metadata even when external validation blocks main extraction method
+- **Technical approach**: Individual element queries avoid triggering validation errors that block full page evaluation
+- **Verification**: System logs successful author/date extraction with specific selector used
+
 ### January 10, 2025 - Unified Scraping System Hybrid Refactor Complete
 - **Implemented Option 3 (Hybrid Approach)** combining centralized extraction with app-specific analysis
 - **Eliminated duplicate extraction functions** between News Radar and Threat Tracker:

@@ -177,6 +177,8 @@ export async function extractContentWithFallback(page: Page): Promise<string> {
     
     const title = await page.title();
     let content = '';
+    let author = '';
+    let date = '';
     
     try {
       content = await page.$eval('body', el => el.textContent?.trim() || '') || '';
@@ -184,12 +186,62 @@ export async function extractContentWithFallback(page: Page): Promise<string> {
       content = 'Content extraction severely restricted by validation system';
     }
     
-    log(`[PuppeteerScraper] Basic fallback extraction: title=${title.length} chars, content=${content.length} chars`, "scraper");
+    // Try to extract author using individual element queries (validation-safe)
+    try {
+      const authorSelectors = ['.author', '.byline', '.article-author', '[rel="author"]', '.author-name'];
+      for (const selector of authorSelectors) {
+        try {
+          const authorElement = await page.$(selector);
+          if (authorElement) {
+            const authorText = await authorElement.evaluate(el => el.textContent?.trim());
+            if (authorText && authorText.length < 100) {
+              author = authorText.replace(/^by\s+/i, '').trim();
+              log(`[PuppeteerScraper] Found author using selector ${selector}: ${author}`, "scraper");
+              break;
+            }
+          }
+        } catch {
+          // Individual selector failed, try next
+        }
+      }
+    } catch {
+      log(`[PuppeteerScraper] Author extraction failed in fallback`, "scraper");
+    }
+    
+    // Try to extract date using individual element queries (validation-safe)
+    try {
+      const dateSelectors = ['time', '[datetime]', '.article-date', '.post-date', '.published-date', '.timestamp', '.date'];
+      for (const selector of dateSelectors) {
+        try {
+          const dateElement = await page.$(selector);
+          if (dateElement) {
+            // Try datetime attribute first
+            let dateText = await dateElement.evaluate(el => el.getAttribute('datetime'));
+            if (!dateText) {
+              dateText = await dateElement.evaluate(el => el.textContent?.trim());
+            }
+            if (dateText && dateText.length < 100) {
+              date = dateText;
+              log(`[PuppeteerScraper] Found date using selector ${selector}: ${date}`, "scraper");
+              break;
+            }
+          }
+        } catch {
+          // Individual selector failed, try next
+        }
+      }
+    } catch {
+      log(`[PuppeteerScraper] Date extraction failed in fallback`, "scraper");
+    }
+    
+    log(`[PuppeteerScraper] Basic fallback extraction: title=${title.length} chars, content=${content.length} chars, author=${author.length} chars, date=${date.length} chars`, "scraper");
     
     return `<html><body>
       <h1>${title}</h1>
+      ${author ? `<div class="author">${author}</div>` : ''}
+      ${date ? `<div class="date">${date}</div>` : ''}
       <div class="content">${content.substring(0, 5000)}</div>
-      <div class="extraction-note">Content extracted using basic validation-safe fallback method</div>
+      <div class="extraction-note">Content extracted using enhanced validation-safe fallback method</div>
     </body></html>`;
     
   } catch (error: any) {
