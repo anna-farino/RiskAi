@@ -149,7 +149,13 @@ The platform provides automated web scraping, AI-powered content analysis, and i
     - `authorSelector: ".byline"` ✓ (CSS selector)
     - `dateSelector: "time.publish-date"` ✓ (CSS selector)
   - All selectors passed validation (no text content detected)
-- **Impact**: AI now properly returns CSS selectors instead of text content, fixing the extraction pipeline
+- **Root cause identified**: System was using **app-specific AI detection functions** instead of unified detector
+- **Critical fix implemented**: Updated both News Radar and Threat Tracker AI detection functions to use simplified prompts
+- **Files updated**:
+  - `backend/apps/news-radar/services/openai.ts` - Fixed detectHtmlStructure function
+  - `backend/apps/threat-tracker/services/openai.ts` - Fixed detectHtmlStructure function
+  - Both now use same simplified prompt as unified AI detector
+- **Impact**: AI now properly returns CSS selectors instead of text content, fixing the extraction pipeline across all apps
 
 ### January 10, 2025 - Centralized Fallback Selectors Across All Files
 - **Replaced all hardcoded fallback selectors** with references to centralized `fallback-selectors.ts` file

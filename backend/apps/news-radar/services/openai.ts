@@ -154,53 +154,36 @@ export async function detectHtmlStructure(
       messages: [
         {
           role: "system",
-          content: `Analyze the HTML structure and detect CSS selectors for article elements. Be thorough in finding all metadata fields.
-
-CRITICAL REQUIREMENTS:
-1. Look for ACTUAL article content, not navigation/sidebars
-2. Find the main article container that wraps all content
-3. Identify specific selectors for each field:
-
-Title: Look for h1, h2, .title, .headline, .article-title, etc.
-Content: Look for .content, .article-content, .post-content, article p, .article-body, etc.
-Author: Look for .author, .byline, .by, [rel="author"], .writer, .journalist, etc.
-Date: Look for time, .date, .published, .article-date, [datetime], .timestamp, etc.
-
-4. Return SPECIFIC selectors, not generic ones
-5. Test that selectors would actually match elements in the provided HTML
-6. For content, prefer selectors that get paragraphs/text content, not just containers
-7. Author and date are IMPORTANT - try hard to find them even if not obvious
-
-SELECTOR VALIDATION:
-- Ensure selectors are syntactically correct CSS
-- Avoid complex selectors that may break (limit to 2-3 levels deep)
-- Use simple, reliable selectors like .class-name or tag.class
-- Prefer exact class matches over descendant selectors when possible
-
-DATE DETECTION PRIORITY:
-1. <time> elements with datetime attributes
-2. Elements with classes: .date, .published, .publish-date, .article-date, .timestamp
-3. Elements with data attributes: [data-date], [data-published]
-4. Meta tags: meta[property="article:published_time"]
-
-AUTHOR DETECTION PRIORITY:
-1. Elements with classes: .author, .byline, .writer, .by-author
-2. Elements with rel="author" attribute
-3. Elements containing "By" followed by a name
-
-Return JSON in format: { 
-  articleSelector: string, 
-  titleSelector: string, 
-  contentSelector: string, 
-  authorSelector?: string, 
-  dateSelector?: string 
-}
-
-IMPORTANT: If you cannot find author or date selectors, return null instead of guessing. Only return selectors you can validate exist in the HTML.`,
+          content: "You are a CSS selector expert. Your ONLY job is to analyze HTML and return CSS selectors that would SELECT specific elements. NEVER return the text content of elements. If you see <div class=\"author\">By John Doe</div>, return \"div.author\" or \".author\" as the selector, NOT \"By John Doe\". You must return CSS selectors, not text content.",
         },
         {
           role: "user",
-          content: processedHtml,
+          content: `Find CSS selectors for HTML elements. Do NOT return text content.
+
+HTML from webpage:
+${processedHtml}
+
+Find CSS selectors for these elements:
+1. Title element (h1, h2, .title, .headline)
+2. Content elements (article, .content, .article-body, main)
+3. Author element (.author, .byline, .writer, [rel="author"])
+4. Date element (time, .date, .published, .publish-date)
+
+Return ONLY CSS selectors as JSON, not text content:
+{
+  "titleSelector": "h1",
+  "contentSelector": ".content",
+  "authorSelector": ".byline",
+  "dateSelector": "time",
+  "articleSelector": "article"
+}
+
+Examples:
+- If you see <h1 class="headline">Title Text</h1> → return "h1.headline"
+- If you see <div class="author">By John</div> → return ".author"
+- If you see <time datetime="2024-01-01">Jan 1</time> → return "time"
+
+DO NOT return text like "Title Text" or "By John" - return selectors like "h1.headline" or ".author"`,
         },
       ],
       response_format: { type: "json_object" },

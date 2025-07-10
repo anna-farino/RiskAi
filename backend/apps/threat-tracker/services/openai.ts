@@ -40,43 +40,43 @@ export async function detectHtmlStructure(html: string, sourceUrl: string) {
         "... [content truncated to stay within token limits]";
     }
 
-    const prompt = `
-You are an expert web scraper. I need to extract article content from the following HTML of a webpage from ${sourceUrl}.
-Analyze this HTML and tell me the CSS selector I should use to get:
-1. The article's title
-2. The main content/body
-3. The author (if available)
-4. The publish date (if available)
+    const prompt = `Find CSS selectors for HTML elements. Do NOT return text content.
 
-For the publish date, look for:
-- <time> elements with datetime attributes
-- Elements with classes like "date", "published", "publish-date", "article-date", "timestamp"
-- Elements with data attributes like "data-date", "data-published", "data-timestamp"
-- Meta tags with property="article:published_time" or name="date"
-- JSON-LD structured data with datePublished
-- Elements containing text that looks like dates (but be careful not to confuse with author names)
+HTML from ${sourceUrl}:
+${processedHtml}
 
-Return your answer in valid JSON format like this:
+Find CSS selectors for these elements:
+1. Title element (h1, h2, .title, .headline)
+2. Content elements (article, .content, .article-body, main)
+3. Author element (.author, .byline, .writer, [rel="author"])
+4. Date element (time, .date, .published, .publish-date)
+
+Return ONLY CSS selectors as JSON, not text content:
 {
-  "title": "CSS selector for title",
-  "content": "CSS selector for main content",
-  "author": "CSS selector for author, or null if not found",
-  "date": "CSS selector for publish date, or null if not found",
+  "title": "h1",
+  "content": ".content",
+  "author": ".byline",
+  "date": "time",
   "dateAlternatives": ["alternative CSS selector 1", "alternative CSS selector 2"]
 }
-`;
+
+Examples:
+- If you see <h1 class="headline">Title Text</h1> → return "h1.headline"
+- If you see <div class="author">By John</div> → return ".author"
+- If you see <time datetime="2024-01-01">Jan 1</time> → return "time"
+
+DO NOT return text like "Title Text" or "By John" - return selectors like "h1.headline" or ".author"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content:
-            "You are a helpful assistant that identifies HTML structure.",
+          content: "You are a CSS selector expert. Your ONLY job is to analyze HTML and return CSS selectors that would SELECT specific elements. NEVER return the text content of elements. If you see <div class=\"author\">By John Doe</div>, return \"div.author\" or \".author\" as the selector, NOT \"By John Doe\". You must return CSS selectors, not text content.",
         },
         {
           role: "user",
-          content: prompt + "\n\nHTML:\n" + processedHtml,
+          content: prompt,
         },
       ],
       temperature: 0.2,
