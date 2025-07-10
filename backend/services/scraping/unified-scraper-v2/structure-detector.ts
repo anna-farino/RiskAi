@@ -19,13 +19,8 @@ export async function getStructureConfig(cache: RobustCache, url: string, html: 
   // No valid cache found, use AI to detect structure
   log(`[SimpleScraper] Running AI structure detection`, "scraper");
   
-  // Use app-specific detection if provided, otherwise use default
-  let structure;
-  if (context?.aiProviders?.detectHtmlStructure) {
-    structure = await context.aiProviders.detectHtmlStructure(html, url);
-  } else {
-    structure = await detectHtmlStructureWithAI(html, url);
-  }
+  // Always use unified AI detection for consistent behavior
+  const structure = await detectHtmlStructureWithAI(html, url);
   
   // Handle both property name formats (some AI responses use 'title' instead of 'titleSelector')
   const titleSelector = structure.titleSelector || structure.title;

@@ -127,35 +127,31 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### January 10, 2025 - Fixed AI Selector Detection Returning Text Content Instead of CSS Selectors
+### January 10, 2025 - Fixed AI Selector Detection and Enforced Unified Architecture
 - **Critical bug fix**: AI was returning text content (e.g., "By Adam Kovac") instead of CSS selectors
 - **Issue manifestation**: 
   - `authorSelector: "By Adam Kovac"` → REJECTED during sanitization
   - `dateSelector: "April 08, 2025"` → REJECTED during sanitization
-- **Root cause**: Despite detailed prompts, AI misunderstood task and returned actual text content instead of CSS selectors
+- **Root cause**: System was using **app-specific AI detection functions** instead of unified detector
+- **Architectural issue**: `main-detector.ts` was prioritizing app-specific functions over unified detection
 - **Solution implemented**:
-  - **Completely simplified AI prompt** - removed complex instructions and focused on core task
-  - **Direct approach**: "Find CSS selectors for HTML elements. Do NOT return text content."
-  - **Clear examples**: Show HTML elements and their corresponding CSS selectors
-  - **Added "json" keyword** to prompt to satisfy OpenAI API requirements
-- **Technical approach**:
-  - Minimal, focused prompt that emphasizes CSS selector identification
-  - Removed verbose instructions that confused the AI
-  - Added concrete examples showing selector vs text content distinction
-- **Verification completed**: 
-  - Created test script that calls OpenAI API directly
-  - Test shows AI now returns proper CSS selectors:
-    - `titleSelector: "h1.ArticlePageSimple-headline"` ✓ (CSS selector)
-    - `authorSelector: ".byline"` ✓ (CSS selector)
-    - `dateSelector: "time.publish-date"` ✓ (CSS selector)
-  - All selectors passed validation (no text content detected)
-- **Root cause identified**: System was using **app-specific AI detection functions** instead of unified detector
-- **Critical fix implemented**: Updated both News Radar and Threat Tracker AI detection functions to use simplified prompts
-- **Files updated**:
-  - `backend/apps/news-radar/services/openai.ts` - Fixed detectHtmlStructure function
-  - `backend/apps/threat-tracker/services/openai.ts` - Fixed detectHtmlStructure function
-  - Both now use same simplified prompt as unified AI detector
-- **Impact**: AI now properly returns CSS selectors instead of text content, fixing the extraction pipeline across all apps
+  - **Enforced unified architecture**: Modified `main-detector.ts` to always use unified AI detection
+  - **Removed app-specific routing**: Eliminated conditional logic that chose app-specific over unified detection
+  - **Fixed app-specific prompts**: Updated News Radar and Threat Tracker AI functions as fallback safety measure
+  - **Simplified prompts**: "Find CSS selectors for HTML elements. Do NOT return text content."
+- **Technical changes**:
+  - `backend/services/scraping/extractors/structure-detector/main-detector.ts` - Removed app-specific priority routing
+  - `backend/services/scraping/unified-scraper-v2/structure-detector.ts` - Enforced unified AI detection
+  - `backend/services/scraping/strategies/app-strategy.interface.ts` - Removed detectHtmlStructure from app-specific providers
+  - `backend/apps/news-radar/services/openai.ts` - Fixed detectHtmlStructure function (fallback only)
+  - `backend/apps/threat-tracker/services/openai.ts` - Fixed detectHtmlStructure function (fallback only)
+- **Architecture enforcement**: System now always uses unified AI detection for HTML structure detection
+- **Complete elimination**: Removed all app-specific AI routing for structure detection across the entire system
+- **Impact**: 
+  - Consistent behavior across all apps using unified detection
+  - AI properly returns CSS selectors instead of text content
+  - Eliminates architectural inconsistencies that caused the original issue
+  - True unified architecture now enforced system-wide
 
 ### January 10, 2025 - Centralized Fallback Selectors Across All Files
 - **Replaced all hardcoded fallback selectors** with references to centralized `fallback-selectors.ts` file

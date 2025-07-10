@@ -14,18 +14,12 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
   try {
     log(`[StructureDetector] Detecting HTML structure for: ${url}`, "scraper");
 
-    // Determine which detection method to use
+    // Always use unified AI detection for HTML structure detection
+    // This ensures consistent behavior across all apps
     let detectedStructure: any;
     
-    // Use app-specific detection if provided
-    if (appContext?.aiProviders?.detectHtmlStructure) {
-      log(`[StructureDetector] Using app-specific detection for ${appContext.appType}`, "scraper");
-      detectedStructure = await appContext.aiProviders.detectHtmlStructure(html, url);
-    } else {
-      // Use unified AI detection for all cases
-      log(`[StructureDetector] Using unified AI detection`, "scraper");
-      detectedStructure = await detectHtmlStructureWithAI(html, url);
-    }
+    log(`[StructureDetector] Using unified AI detection (app-agnostic)`, "scraper");
+    detectedStructure = await detectHtmlStructureWithAI(html, url);
 
     // Log raw AI response before sanitization
     log(`[StructureDetector] Raw AI response:`, "scraper");
