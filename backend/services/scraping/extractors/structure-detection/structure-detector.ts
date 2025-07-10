@@ -210,12 +210,26 @@ Return valid JSON only:
 
     log(`[StructureDetector] Raw AI response: ${response}`, "scraper");
 
+    // Clean markdown formatting before parsing JSON
+    let cleanedResponse = response;
+    
+    // Remove markdown code blocks if present
+    if (cleanedResponse.includes('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\s*/, '').replace(/```\s*$/, '');
+      log(`[StructureDetector] Cleaned markdown formatting from AI response`, "scraper");
+    }
+    
+    // Remove any remaining markdown formatting
+    cleanedResponse = cleanedResponse.replace(/^```[a-zA-Z]*\s*/, '').replace(/```\s*$/, '');
+    
     // Parse JSON with error handling
     let result;
     try {
-      result = JSON.parse(response);
+      result = JSON.parse(cleanedResponse);
+      log(`[StructureDetector] Successfully parsed JSON response`, "scraper");
     } catch (jsonError: any) {
       log(`[StructureDetector] JSON parsing failed: ${jsonError.message}`, "scraper-error");
+      log(`[StructureDetector] Cleaned response was: ${cleanedResponse}`, "scraper-error");
       throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
     }
 

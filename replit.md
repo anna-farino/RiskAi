@@ -144,6 +144,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **OLD DEBUGGING SYSTEM REMOVED**: Eliminated interfering legacy debugging functions from content-extractor.ts
 - **NULL STRUCTURE HANDLING FIX**: Fixed critical bug where null htmlStructure was being passed to scraping service
 - **NEWS RADAR ERROR RESOLVED**: Fixed the specific error occurring in News Radar (not Threat Tracker) where structure detection wasn't running properly
+- **JSON PARSING FIX**: Fixed critical parsing issue where AI returns JSON wrapped in markdown code blocks (```json...```)
 - **Impact**: 
   - **Eliminates "By James Thaler" selector errors** that were causing extraction failures
   - **Ensures AI returns valid CSS selectors** instead of text content
