@@ -15,10 +15,7 @@ export class ThreatTrackerStrategy implements AppScrapingStrategy {
           const { identifyArticleLinks } = await import('backend/apps/threat-tracker/services/openai');
           return identifyArticleLinks(html);
         },
-        detectHtmlStructure: async (html: string, url: string) => {
-          const { detectHtmlStructure } = await import('backend/apps/threat-tracker/services/openai');
-          return detectHtmlStructure(html, url);
-        }
+        // detectHtmlStructure removed - now handled by unified system only
       },
       extractionOptions: {
         maxLinks: 100, // More aggressive link extraction for threat intelligence

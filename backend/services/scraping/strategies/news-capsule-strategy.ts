@@ -15,11 +15,7 @@ export class NewsCapsuleStrategy implements AppScrapingStrategy {
           const { detectArticleLinks } = await import('../ai/unified-link-detector');
           return detectArticleLinks(html);
         },
-        detectHtmlStructure: async (html: string, url: string) => {
-          // Use centralized AI detection instead of app-specific
-          const { detectHtmlStructureWithAI } = await import('../extractors/structure-detector/ai-detector');
-          return detectHtmlStructureWithAI(html, url);
-        }
+        // detectHtmlStructure removed - now handled by unified system only
       },
       extractionOptions: {
         maxLinks: 30, // Focused extraction for report generation

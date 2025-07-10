@@ -2,15 +2,13 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig, validateSelectors } from './selector-validator';
 import { sanitizeSelector } from './selector-sanitizer';
 import { generateFallbackSelectors } from './fallback-selectors';
-import { AppScrapingContext } from '../../strategies/app-strategy.interface';
 import { detectHtmlStructureWithAI } from './ai-detector';
 
 /**
- * Detect HTML structure using AI with app-specific context
- * Unified interface for app-neutral detection
- * @param appContext - Optional app-specific context for neutral operation
+ * Detect HTML structure using unified AI detection
+ * This is the main entry point for all HTML structure detection
  */
-export async function detectHtmlStructure(html: string, url: string, context?: string, appContext?: AppScrapingContext): Promise<ScrapingConfig> {
+export async function detectHtmlStructure(html: string, url: string): Promise<ScrapingConfig> {
   try {
     log(`[StructureDetector] Detecting HTML structure for: ${url}`, "scraper");
 

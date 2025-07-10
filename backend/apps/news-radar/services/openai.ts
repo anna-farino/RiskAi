@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import type {
   AIAnalysisResult,
-  ScrapingConfig,
 } from "@shared/db/schema/news-tracker/types";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -114,115 +113,5 @@ export async function analyzeContent(
 
 
 
-export async function detectHtmlStructure(
-  html: string,
-): Promise<ScrapingConfig> {
-  try {
-    // Extract just the body content or a limited portion to reduce token count
-    let processedHtml = html;
-
-    // Try to extract just the body content using regex
-    const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(html);
-    if (bodyMatch && bodyMatch[1]) {
-      processedHtml = bodyMatch[1];
-      console.log("[OpenAI] Successfully extracted body content for analysis");
-    }
-
-    // Pre-process to find common date patterns
-    const dateSelectors = [
-      "time",
-      ".date",
-      ".article-date",
-      ".press-date",
-      "[data-timestamp]",
-      "[datetime]",
-    ].join(",");
-
-    // If the content is still too large, limit it further
-    const MAX_LENGTH = 75000; // conservative limit to stay under token limits
-    if (processedHtml.length > MAX_LENGTH) {
-      console.log(
-        `[OpenAI] Truncating HTML from ${processedHtml.length} to ${MAX_LENGTH} characters`,
-      );
-      processedHtml =
-        processedHtml.substring(0, MAX_LENGTH) +
-        "... [content truncated to stay within token limits]";
-    }
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a CSS selector expert. Your ONLY job is to analyze HTML and return CSS selectors that would SELECT specific elements. NEVER return the text content of elements. If you see <div class=\"author\">By John Doe</div>, return \"div.author\" or \".author\" as the selector, NOT \"By John Doe\". You must return CSS selectors, not text content.",
-        },
-        {
-          role: "user",
-          content: `Find CSS selectors for HTML elements. Do NOT return text content.
-
-HTML from webpage:
-${processedHtml}
-
-Find CSS selectors for these elements:
-1. Title element (h1, h2, .title, .headline)
-2. Content elements (article, .content, .article-body, main)
-3. Author element (.author, .byline, .writer, [rel="author"])
-4. Date element (time, .date, .published, .publish-date)
-
-Return ONLY CSS selectors as JSON, not text content:
-{
-  "titleSelector": "h1",
-  "contentSelector": ".content",
-  "authorSelector": ".byline",
-  "dateSelector": "time",
-  "articleSelector": "article"
-}
-
-Examples:
-- If you see <h1 class="headline">Title Text</h1> → return "h1.headline"
-- If you see <div class="author">By John</div> → return ".author"
-- If you see <time datetime="2024-01-01">Jan 1</time> → return "time"
-
-DO NOT return text like "Title Text" or "By John" - return selectors like "h1.headline" or ".author"`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    const responseText = response.choices[0].message.content;
-    if (!responseText) {
-      throw new Error("No content received from OpenAI");
-    }
-
-    // Enhanced JSON parsing with error handling
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (jsonError: any) {
-      console.log(`[OpenAI] JSON parsing failed: ${jsonError.message}`);
-      
-      // Clean common JSON issues
-      let cleanedResponse = responseText
-        .replace(/\n/g, ' ')                    // Remove newlines
-        .replace(/\t/g, ' ')                    // Remove tabs
-        .replace(/\\/g, '\\\\')                 // Escape backslashes
-        .replace(/"/g, '\\"')                   // Escape quotes
-        .replace(/\\"/g, '"')                   // Fix over-escaped quotes
-        .replace(/^[^{]*{/, '{')                // Remove text before first {
-        .replace(/}[^}]*$/, '}');               // Remove text after last }
-      
-      try {
-        result = JSON.parse(cleanedResponse);
-        console.log(`[OpenAI] Successfully parsed cleaned JSON`);
-      } catch (retryError: any) {
-        throw new Error(`Failed to parse AI response as JSON: ${jsonError.message}`);
-      }
-    }
-    
-    return result;
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
-    throw new Error(`Failed to detect HTML structure: ${errorMessage}`);
-  }
-}
+// detectHtmlStructure removed - now uses unified AI detection system
+// All HTML structure detection is handled by backend/services/scraping/extractors/structure-detector/
