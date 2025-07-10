@@ -37,56 +37,32 @@ export async function detectHtmlStructureWithAI(
       "scraper",
     );
 
-    const prompt = `You are a CSS selector expert. Your job is to analyze HTML structure and return CSS selectors that would SELECT the HTML elements containing specific content.
+    const prompt = `Find CSS selectors for HTML elements. Do NOT return text content.
 
-STEP-BY-STEP ANALYSIS:
-1. First, find the HTML element that contains the title text
-2. Then, determine what CSS selector would select that element
-3. Repeat this process for content, author, and date
+HTML from ${sourceUrl}:
+${processedHtml}
 
-CRITICAL UNDERSTANDING:
-- If you see HTML like: <span class="byline">By Adam Kovac</span>
-- The TEXT CONTENT is: "By Adam Kovac"
-- The CSS SELECTOR to find this element is: "span.byline" or ".byline"
-- You MUST return the CSS SELECTOR, NOT the text content!
+Find CSS selectors for these elements:
+1. Title element (h1, h2, .title, .headline)
+2. Content elements (article, .content, .article-body, main)
+3. Author element (.author, .byline, .writer, [rel="author"])
+4. Date element (time, .date, .published, .publish-date)
 
-ANALYSIS PROCESS for ${sourceUrl}:
-1. Look for the main title in an h1, h2, or element with title/headline classes
-2. Look for main content in article, div with content classes, or main elements
-3. Look for author in elements with classes like: author, byline, writer, by-author
-4. Look for date in time elements, or elements with date/published classes
-
-RETURN FORMAT - CSS SELECTORS ONLY:
+Return ONLY CSS selectors as JSON, not text content:
 {
-  "titleSelector": "CSS_SELECTOR_FOR_TITLE_ELEMENT",
-  "contentSelector": "CSS_SELECTOR_FOR_CONTENT_ELEMENTS", 
-  "authorSelector": "CSS_SELECTOR_FOR_AUTHOR_ELEMENT",
-  "dateSelector": "CSS_SELECTOR_FOR_DATE_ELEMENT",
-  "articleSelector": "CSS_SELECTOR_FOR_ARTICLE_CONTAINER",
-  "dateAlternatives": ["ALTERNATIVE_DATE_SELECTOR_1", "ALTERNATIVE_DATE_SELECTOR_2"],
+  "titleSelector": "h1",
+  "contentSelector": ".content",
+  "authorSelector": ".byline",
+  "dateSelector": "time",
   "confidence": 0.9
 }
 
-SELECTOR EXAMPLES:
-- "h1" - selects all h1 elements
-- ".author" - selects elements with class="author"
-- "span.byline" - selects span elements with class="byline"
-- "time[datetime]" - selects time elements with datetime attribute
-- ".article-content p" - selects p elements inside .article-content
-- "[rel*='author']" - selects elements with rel attribute containing "author"
+Examples:
+- If you see <h1 class="headline">Title Text</h1> → return "h1.headline"
+- If you see <div class="author">By John</div> → return ".author"
+- If you see <time datetime="2024-01-01">Jan 1</time> → return "time"
 
-VALIDATION RULES:
-✓ CORRECT: "h1.headline" (this is a CSS selector)
-✓ CORRECT: ".author-name" (this is a CSS selector)
-✓ CORRECT: "time[datetime]" (this is a CSS selector)
-❌ WRONG: "CSU gives 2025 hurricane season forecast" (this is text content)
-❌ WRONG: "By Adam Kovac" (this is text content)  
-❌ WRONG: "April 08, 2025" (this is text content)
-
-REMEMBER: You are finding the CSS path to elements, not extracting their content!
-
-HTML to analyze:
-${processedHtml}`;
+DO NOT return text like "Title Text" or "By John" - return selectors like "h1.headline" or ".author"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",

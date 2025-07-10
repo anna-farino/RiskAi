@@ -134,16 +134,22 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - `dateSelector: "April 08, 2025"` → REJECTED during sanitization
 - **Root cause**: Despite detailed prompts, AI misunderstood task and returned actual text content instead of CSS selectors
 - **Solution implemented**:
-  - **Completely rewrote AI prompt** with step-by-step analysis process
-  - **Added explicit HTML examples** showing difference between text content and CSS selectors
-  - **Enhanced system message** to emphasize CSS selector expertise only
-  - **Clear validation rules** with correct vs wrong examples
+  - **Completely simplified AI prompt** - removed complex instructions and focused on core task
+  - **Direct approach**: "Find CSS selectors for HTML elements. Do NOT return text content."
+  - **Clear examples**: Show HTML elements and their corresponding CSS selectors
+  - **Added "json" keyword** to prompt to satisfy OpenAI API requirements
 - **Technical approach**:
-  - Prompt now forces AI to think about HTML structure first, then identify selectors
-  - Added concrete example: `<span class="byline">By Adam Kovac</span>` → return `"span.byline"` not `"By Adam Kovac"`
-  - System message reinforces: "NEVER return text content of elements"
-- **Expected impact**: AI should now properly return CSS selectors like `.author`, `.byline`, `time[datetime]` instead of text content
-- **Verification**: Next scraping attempt should show proper selectors being detected instead of text content rejection
+  - Minimal, focused prompt that emphasizes CSS selector identification
+  - Removed verbose instructions that confused the AI
+  - Added concrete examples showing selector vs text content distinction
+- **Verification completed**: 
+  - Created test script that calls OpenAI API directly
+  - Test shows AI now returns proper CSS selectors:
+    - `titleSelector: "h1.ArticlePageSimple-headline"` ✓ (CSS selector)
+    - `authorSelector: ".byline"` ✓ (CSS selector)
+    - `dateSelector: "time.publish-date"` ✓ (CSS selector)
+  - All selectors passed validation (no text content detected)
+- **Impact**: AI now properly returns CSS selectors instead of text content, fixing the extraction pipeline
 
 ### January 10, 2025 - Centralized Fallback Selectors Across All Files
 - **Replaced all hardcoded fallback selectors** with references to centralized `fallback-selectors.ts` file
