@@ -165,6 +165,22 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Fallback mechanisms use selector variations rather than direct content requests
   - System maintains URL-agnostic and app-neutral design principles
 
+### July 10, 2025 - Fixed AI Returning Text Instead of CSS Selectors
+- **Critical issue discovered**: AI was returning text content (e.g., "By James Thaler") instead of CSS selectors
+- **Issue manifestation**: 
+  - authorSelector: "By James Thaler" → REJECTED during sanitization
+  - dateSelector: "Published: Mon 7 Apr 2025" → REJECTED during sanitization
+- **Root cause**: AI misunderstood prompt and returned actual text content instead of CSS selectors
+- **Fixes implemented**:
+  - **Enhanced AI prompt**: Added explicit instructions "You MUST return CSS SELECTORS, NOT the actual text content!"
+  - **Added clear examples**: Showed correct (`.author-name`) vs wrong ("By James Thaler") responses
+  - **Updated system message**: Changed to "You are a CSS selector expert" with explicit selector-only instructions
+  - **Added debugging logs**: Log raw AI response before sanitization to diagnose issues
+- **Technical changes**:
+  - `ai-detector.ts`: Enhanced prompt with CSS selector examples and warnings
+  - `main-detector.ts`: Added raw AI response logging before sanitization
+- **Impact**: AI should now properly return CSS selectors instead of text content
+
 ### July 10, 2025 - Enhanced AI Author Detection for Non-Standard Locations
 - **Issue discovered**: Author elements in non-standard locations (e.g., nested within date paragraphs) were not being detected
 - **Example case**: reinsurancene.ws places author inside date paragraph: `<p class="date">...Author: <a rel="author external">Name</a></p>`

@@ -27,6 +27,13 @@ export async function detectHtmlStructure(html: string, url: string, context?: s
       detectedStructure = await detectHtmlStructureWithAI(html, url);
     }
 
+    // Log raw AI response before sanitization
+    log(`[StructureDetector] Raw AI response:`, "scraper");
+    log(`[StructureDetector] - titleSelector: "${detectedStructure.titleSelector || detectedStructure.title}"`, "scraper");
+    log(`[StructureDetector] - contentSelector: "${detectedStructure.contentSelector || detectedStructure.content}"`, "scraper");
+    log(`[StructureDetector] - authorSelector: "${detectedStructure.authorSelector || detectedStructure.author}"`, "scraper");
+    log(`[StructureDetector] - dateSelector: "${detectedStructure.dateSelector || detectedStructure.date}"`, "scraper");
+
     // Sanitize all detected selectors
     const sanitizedStructure: ScrapingConfig = {
       titleSelector: sanitizeSelector(detectedStructure.titleSelector || detectedStructure.title) || 'h1',

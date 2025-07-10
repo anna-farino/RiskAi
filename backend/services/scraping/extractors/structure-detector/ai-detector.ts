@@ -40,6 +40,12 @@ TASK: Analyze this HTML from ${sourceUrl} and identify the best CSS selectors fo
 4. Publish date (if available)
 5. Overall article container (if applicable)
 
+CRITICAL: You MUST return CSS SELECTORS, NOT the actual text content!
+- CORRECT: "authorSelector": ".author-name" or "authorSelector": "p.date a[rel*='author']"
+- WRONG: "authorSelector": "By James Thaler" (this is text, not a selector!)
+- CORRECT: "dateSelector": "time[datetime]" or "dateSelector": ".publish-date"
+- WRONG: "dateSelector": "Published: Mon 7 Apr 2025" (this is text, not a selector!)
+
 IMPORTANT: When extracting content, escape ALL quotes within text values using backslash (\\") to ensure valid JSON
 
 CRITICAL CSS SELECTOR RULES:
@@ -88,6 +94,24 @@ Return valid JSON in this exact format:
   "confidence": 0.9
 }
 
+EXAMPLES OF CORRECT RESPONSES:
+{
+  "titleSelector": "h1.article-title",
+  "contentSelector": "div.article-body p",
+  "authorSelector": "span.author-name",
+  "dateSelector": "time[datetime]",
+  "articleSelector": "article.main-content",
+  "dateAlternatives": ["span.publish-date", "meta[property='article:published_time']"],
+  "confidence": 0.9
+}
+
+NEVER RETURN TEXT CONTENT AS SELECTORS:
+❌ WRONG: "authorSelector": "By James Thaler"
+✓ CORRECT: "authorSelector": "span.byline"
+
+❌ WRONG: "dateSelector": "Published: Mon 7 Apr 2025"  
+✓ CORRECT: "dateSelector": "span.date-published"
+
 Set confidence between 0.1-1.0 based on how clear and semantic the selectors are.
 
 HTML to analyze:
@@ -98,7 +122,7 @@ ${processedHtml}`;
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant that identifies HTML structure and returns precise CSS selectors for content extraction. Always return complete, valid JSON."
+          content: "You are a CSS selector expert. You MUST return CSS selectors that identify HTML elements, NOT the text content of those elements. For example, return '.author-name' NOT 'By John Doe'. Always return complete, valid JSON with CSS selectors only."
         },
         {
           role: "user", 
