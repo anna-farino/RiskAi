@@ -96,9 +96,6 @@ export function extractContentWithSelectors(html: string, config: ScrapingConfig
 
   log(`[SimpleScraper] Extracting content using selectors - title: "${config.titleSelector}", content: "${config.contentSelector}"`, "scraper");
 
-  // Phase 1: Detailed selector debugging
-  debugSelectorUsage($, config);
-
   // Extract title with recovery
   if (config.titleSelector) {
     const sanitizedSelector = sanitizeSelector(config.titleSelector);
@@ -138,94 +135,7 @@ export function extractContentWithSelectors(html: string, config: ScrapingConfig
   return result;
 }
 
-/**
- * Phase 1: Debug selector usage with comprehensive logging
- */
-function debugSelectorUsage($: cheerio.CheerioAPI, config: ScrapingConfig): void {
-  log(`[SelectorDebug] === SELECTOR DEBUGGING START ===`, "scraper");
-  
-  // Debug each selector type, including missing ones
-  ['titleSelector', 'contentSelector', 'authorSelector', 'dateSelector'].forEach(selectorType => {
-    const rawSelector = config[selectorType as keyof ScrapingConfig] as string;
-    
-    if (rawSelector && typeof rawSelector === 'string') {
-      // Sanitize selector before using it
-      const selector = sanitizeSelector(rawSelector);
-      
-      if (!selector) {
-        log(`[SelectorDebug] ${selectorType}: "${rawSelector}" → REJECTED during sanitization`, "scraper");
-        return;
-      }
-      
-      try {
-        const elements = $(selector);
-        log(`[SelectorDebug] ${selectorType}: "${selector}" → ${elements.length} elements found`, "scraper");
-        
-        if (elements.length > 0) {
-          // Log first element details
-          const firstEl = elements.first();
-          const tagName = firstEl.prop('tagName')?.toLowerCase();
-          const classes = firstEl.attr('class');
-          const textPreview = firstEl.text().trim().substring(0, 100);
-          log(`[SelectorDebug] First element: <${tagName}> classes="${classes}" text="${textPreview}..."`, "scraper");
-        } else {
-          // Debug why selector failed
-          debugSelectorFailure($, selector, selectorType);
-        }
-      } catch (error) {
-        log(`[SelectorDebug] Invalid selector "${selector}" for ${selectorType}: ${error.message}`, "scraper-error");
-      }
-    } else {
-      // Log missing selectors
-      log(`[SelectorDebug] ${selectorType}: NOT PROVIDED by AI detection`, "scraper");
-    }
-  });
-  
-  log(`[SelectorDebug] === SELECTOR DEBUGGING END ===`, "scraper");
-}
-
-/**
- * Phase 1: Debug why a selector failed to find elements
- */
-function debugSelectorFailure($: cheerio.CheerioAPI, selector: string, selectorType: string): void {
-  log(`[SelectorDebug] Analyzing failed selector: ${selector}`, "scraper");
-  
-  // Try variations of the selector
-  const variations = generateSelectorVariations(selector);
-  let foundWorking = false;
-  
-  for (const variation of variations) {
-    try {
-      const elements = $(variation);
-      if (elements.length > 0) {
-        log(`[SelectorDebug] Working variation found: "${variation}" → ${elements.length} elements`, "scraper");
-        foundWorking = true;
-        break;
-      }
-    } catch (error) {
-      log(`[SelectorDebug] Invalid selector variation "${variation}": ${error.message}`, "scraper");
-      // Continue to next variation
-    }
-  }
-  
-  if (!foundWorking) {
-    // Try class-based search
-    if (selector.includes('.')) {
-      const className = selector.replace(/^.*\.([^.\s>]+).*$/, '$1');
-      const classElements = $(`[class*="${className}"]`);
-      log(`[SelectorDebug] Class-based search for "${className}": ${classElements.length} elements`, "scraper");
-      
-      if (classElements.length > 0) {
-        classElements.each((i, el) => {
-          if (i < 3) { // Log first 3 matches
-            const $el = $(el);
-            log(`[SelectorDebug] Found element with class containing "${className}": <${$el.prop('tagName')?.toLowerCase()}> class="${$el.attr('class')}"`, "scraper");
-          }
-        });
-      }
-    }
-  }
-}
+// Old debugging functions removed - now using simplified 5-step process in structure-detector.ts
 
 /**
  * Phase 2: Generate selector variations for recovery

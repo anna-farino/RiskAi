@@ -141,11 +141,13 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **CACHE CLEARING**: System now clears corrupted cache when debugging fails
 - **CLEAR LOGGING**: Each step is clearly logged for debugging
 - **FALLBACK PROTECTION**: Guaranteed fallback selectors when AI fails twice
+- **OLD DEBUGGING SYSTEM REMOVED**: Eliminated interfering legacy debugging functions from content-extractor.ts
 - **Impact**: 
   - **Eliminates "By James Thaler" selector errors** that were causing extraction failures
   - **Ensures AI returns valid CSS selectors** instead of text content
   - **Automatic recovery** through retry and fallback mechanisms
   - **Much clearer debugging process** with explicit step-by-step logging
+  - **System is now focused on single simplified process** instead of competing debugging systems
 
 ### July 10, 2025 - Eliminated Two Redundant Wrapper Layers
 - **REMOVED WRAPPER #1**: Deleted `source-scraper.ts` file (86 lines) that was just a thin wrapper around link extraction
