@@ -37,32 +37,49 @@ export async function detectHtmlStructureWithAI(
       "scraper",
     );
 
-    const prompt = `Find CSS selectors for HTML elements. Do NOT return text content.
+    const prompt = `You are a CSS selector expert. Analyze this HTML from ${sourceUrl} and identify CSS selectors that can extract article content.
 
-HTML from ${sourceUrl}:
-${processedHtml}
+YOUR TASK: Find CSS selectors (not text content) that target specific HTML elements.
 
-Find CSS selectors for these elements:
-1. Title element (h1, h2, .title, .headline)
-2. Content elements (article, .content, .article-body, main)
-3. Author element (.author, .byline, .writer, [rel="author"])
-4. Date element (time, .date, .published, .publish-date)
+WHAT TO RETURN:
+- titleSelector: CSS selector that targets the main headline element
+- contentSelector: CSS selector that targets the article body/content area  
+- authorSelector: CSS selector that targets the author name element
+- dateSelector: CSS selector that targets the publish date element
+- articleSelector: CSS selector for article containers (listing pages)
 
-Return ONLY CSS selectors as JSON, not text content:
+CRITICAL RULES:
+🚨 RETURN CSS SELECTORS ONLY - NOT TEXT CONTENT!
+🚨 Example: Return ".author-name" NOT "By John Smith"
+🚨 Example: Return ".publish-date" NOT "January 1, 2025"
+🚨 Example: Return "h1.headline" NOT "Article Title Here"
+
+VALID CSS SELECTORS:
+✅ "h1", ".title", "#headline", ".article-content"
+✅ ".author", ".byline", "[data-author]"
+✅ ".date", ".publish-date", "time", "[datetime]"
+
+INVALID RESPONSES:
+❌ Text content like "By John Smith", "January 1, 2025"
+❌ jQuery selectors like ":contains()", ":eq()"
+❌ Complex pseudo-selectors that don't work in standard CSS
+
+HOW TO IDENTIFY SELECTORS:
+1. Look for HTML elements containing the target content
+2. Find their class names, IDs, or tag names
+3. Return the CSS selector that targets those elements
+4. NOT the text content inside those elements
+
+Return ONLY this JSON format:
 {
-  "titleSelector": "h1",
-  "contentSelector": ".content",
-  "authorSelector": ".byline",
-  "dateSelector": "time",
-  "confidence": 0.9
+  "titleSelector": "h1.headline",
+  "contentSelector": ".article-body", 
+  "authorSelector": ".author-name",
+  "dateSelector": ".publish-date",
+  "articleSelector": ".article-item",
+  "confidence": 0.8
 }
-
-Examples:
-- If you see <h1 class="headline">Title Text</h1> → return "h1.headline"
-- If you see <div class="author">By John</div> → return ".author"
-- If you see <time datetime="2024-01-01">Jan 1</time> → return "time"
-
-DO NOT return text like "Title Text" or "By John" - return selectors like "h1.headline" or ".author"`;
+`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -83,14 +100,20 @@ DO NOT return text like "Title Text" or "By John" - return selectors like "h1.he
 
     const response = completion.choices[0].message.content || "";
     log(
-      `[AIStructureDetector] Raw AI response: ${response.substring(0, 500)}...`,
+      `[AIStructureDetector] Structure detection response: ${response.substring(0, 200)}...`,
       "scraper",
     );
+
+    // Log the full response for debugging CSS selector issues
+    log(`[AIStructureDetector] Raw AI response before sanitization: ${response}`, "scraper");
 
     // Enhanced JSON parsing with error handling
     let result;
     try {
       result = JSON.parse(response);
+
+      // Log the parsed result to see what selectors AI is returning
+      log(`[AIStructureDetector] Parsed AI result - title: "${result.titleSelector}", content: "${result.contentSelector}", author: "${result.authorSelector}", date: "${result.dateSelector}"`, "scraper");
     } catch (jsonError: any) {
       log(
         `[AIStructureDetector] JSON parsing failed: ${jsonError.message}`,
