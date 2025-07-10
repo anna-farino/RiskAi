@@ -57,7 +57,10 @@ async function processArticle(
     }
 
     // Early content extraction to get title for additional duplicate checking
-    const articleContent = await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure);
+    // Only pass htmlStructure if it's not null - let unified scraper handle AI detection automatically
+    const articleContent = htmlStructure 
+      ? await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure)
+      : await scrapingService.scrapeArticleUrl(articleUrl);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
@@ -393,7 +396,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
         processedLinks[i],
         source.id,
         userId,
-        htmlStructure,
+        htmlStructure, // This can be null, and that's OK - unified scraper will handle AI detection
         keywords,
       );
 

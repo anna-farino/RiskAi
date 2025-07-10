@@ -142,10 +142,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **CLEAR LOGGING**: Each step is clearly logged for debugging
 - **FALLBACK PROTECTION**: Guaranteed fallback selectors when AI fails twice
 - **OLD DEBUGGING SYSTEM REMOVED**: Eliminated interfering legacy debugging functions from content-extractor.ts
+- **NULL STRUCTURE HANDLING FIX**: Fixed critical bug where null htmlStructure was being passed to scraping service
+- **NEWS RADAR ERROR RESOLVED**: Fixed the specific error occurring in News Radar (not Threat Tracker) where structure detection wasn't running properly
 - **Impact**: 
   - **Eliminates "By James Thaler" selector errors** that were causing extraction failures
   - **Ensures AI returns valid CSS selectors** instead of text content
   - **Automatic recovery** through retry and fallback mechanisms
+  - **Fixed "Cannot read properties of null (reading 'titleSelector')" error**
+  - **AI detection runs automatically** when no cached structure is available
   - **Much clearer debugging process** with explicit step-by-step logging
   - **System is now focused on single simplified process** instead of competing debugging systems
 

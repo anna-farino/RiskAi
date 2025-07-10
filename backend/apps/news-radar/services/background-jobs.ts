@@ -102,16 +102,23 @@ export async function scrapeSource(
         }
         
         // Use unified scraping service for article content extraction
-        const newsConfig = scrapingConfig as NewsRadarConfig;
-        const unifiedConfig: ScrapingConfig = {
-          titleSelector: newsConfig.titleSelector,
-          contentSelector: newsConfig.contentSelector,
-          authorSelector: newsConfig.authorSelector,
-          dateSelector: newsConfig.dateSelector,
-          articleSelector: newsConfig.articleSelector,
-          confidence: 0.8 // Default confidence for news radar
-        };
-        const article = await scrapingService.scrapeArticleUrl(link, unifiedConfig);
+        // Only create unified config if scrapingConfig exists - let AI detection handle it automatically otherwise
+        let article;
+        if (scrapingConfig) {
+          const newsConfig = scrapingConfig as NewsRadarConfig;
+          const unifiedConfig: ScrapingConfig = {
+            titleSelector: newsConfig.titleSelector,
+            contentSelector: newsConfig.contentSelector,
+            authorSelector: newsConfig.authorSelector,
+            dateSelector: newsConfig.dateSelector,
+            articleSelector: newsConfig.articleSelector,
+            confidence: 0.8 // Default confidence for news radar
+          };
+          article = await scrapingService.scrapeArticleUrl(link, unifiedConfig);
+        } else {
+          // No cached structure - let unified scraper handle AI detection automatically
+          article = await scrapingService.scrapeArticleUrl(link);
+        }
         log(
           `[Scraping] Article extracted successfully: "${article.title}"`,
           "scraper",
