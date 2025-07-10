@@ -127,6 +127,24 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### January 10, 2025 - Fixed AI Selector Detection Returning Text Content Instead of CSS Selectors
+- **Critical bug fix**: AI was returning text content (e.g., "By Adam Kovac") instead of CSS selectors
+- **Issue manifestation**: 
+  - `authorSelector: "By Adam Kovac"` → REJECTED during sanitization
+  - `dateSelector: "April 08, 2025"` → REJECTED during sanitization
+- **Root cause**: Despite detailed prompts, AI misunderstood task and returned actual text content instead of CSS selectors
+- **Solution implemented**:
+  - **Completely rewrote AI prompt** with step-by-step analysis process
+  - **Added explicit HTML examples** showing difference between text content and CSS selectors
+  - **Enhanced system message** to emphasize CSS selector expertise only
+  - **Clear validation rules** with correct vs wrong examples
+- **Technical approach**:
+  - Prompt now forces AI to think about HTML structure first, then identify selectors
+  - Added concrete example: `<span class="byline">By Adam Kovac</span>` → return `"span.byline"` not `"By Adam Kovac"`
+  - System message reinforces: "NEVER return text content of elements"
+- **Expected impact**: AI should now properly return CSS selectors like `.author`, `.byline`, `time[datetime]` instead of text content
+- **Verification**: Next scraping attempt should show proper selectors being detected instead of text content rejection
+
 ### January 10, 2025 - Centralized Fallback Selectors Across All Files
 - **Replaced all hardcoded fallback selectors** with references to centralized `fallback-selectors.ts` file
 - **Single source of truth**: All fallback selectors now maintained in one location for consistency

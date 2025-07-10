@@ -37,88 +37,53 @@ export async function detectHtmlStructureWithAI(
       "scraper",
     );
 
-    const prompt = `You are an expert web scraper analyzing HTML structure for content extraction.
+    const prompt = `You are a CSS selector expert. Your job is to analyze HTML structure and return CSS selectors that would SELECT the HTML elements containing specific content.
 
-TASK: Analyze this HTML from ${sourceUrl} and identify the best CSS selectors for:
-1. Article title (main headline)
-2. Article content/body (main text content)
-3. Author of article
-4. Publish date
-5. Overall article container (if applicable)
+STEP-BY-STEP ANALYSIS:
+1. First, find the HTML element that contains the title text
+2. Then, determine what CSS selector would select that element
+3. Repeat this process for content, author, and date
 
-CRITICAL: You MUST return CSS SELECTORS, NOT the actual text content!
-- CORRECT: "authorSelector": ".author-name" or "authorSelector": "p.date a[rel*='author']"
-- WRONG: "authorSelector": "By James Thaler" (this is text, not a selector!)
-- CORRECT: "dateSelector": "time[datetime]" or "dateSelector": ".publish-date"
-- WRONG: "dateSelector": "Published: Mon 7 Apr 2025" (this is text, not a selector!)
+CRITICAL UNDERSTANDING:
+- If you see HTML like: <span class="byline">By Adam Kovac</span>
+- The TEXT CONTENT is: "By Adam Kovac"
+- The CSS SELECTOR to find this element is: "span.byline" or ".byline"
+- You MUST return the CSS SELECTOR, NOT the text content!
 
-IMPORTANT: When extracting content, escape ALL quotes within text values using backslash (\\") to ensure valid JSON
+ANALYSIS PROCESS for ${sourceUrl}:
+1. Look for the main title in an h1, h2, or element with title/headline classes
+2. Look for main content in article, div with content classes, or main elements
+3. Look for author in elements with classes like: author, byline, writer, by-author
+4. Look for date in time elements, or elements with date/published classes
 
-CRITICAL CSS SELECTOR RULES:
-- ONLY use standard CSS selectors (NO jQuery selectors like :contains(), :has(), etc.)
-- NEVER use selectors like p:contains('APRIL') or div:contains('text') - these WILL FAIL
-- Choose selectors that target the main content, not navigation or sidebar elements
-- Prioritize semantic HTML elements (article, main, section) when available
-- Look for specific class names that indicate content (e.g., .article-content, .post-body)
-- For dates, prioritize <time> elements with datetime attributes
-- Avoid generic selectors like 'div' or 'span' unless they have specific classes
-- DO NOT return selectors with :contains(), :has(), :eq(), or other jQuery-specific pseudo-classes
-- AVOID complex sibling selectors like "p + p + p + p" - use simpler selectors that select all matching elements
-- For content, use selectors that match ALL paragraphs at once (e.g., "div.content p" not "div.content p + p + p")
-- Prefer parent > child selectors that select multiple elements over complex sibling chains
-
-DATE DETECTION PATTERNS (prioritize in this order):
-1. <time> elements with datetime attributes
-2. Elements with classes: date, published, publish-date, article-date, timestamp, byline-date
-3. Elements with data attributes: data-date, data-published, data-timestamp
-4. Meta tags: property="article:published_time" or name="date"
-5. JSON-LD structured data with datePublished
-6. Elements containing date-like text patterns
-
-AUTHOR DETECTION PATTERNS:
-1. Elements with classes: author, byline, writer, journalist, by-author, article-author, posted-by
-2. Elements with rel attribute containing "author" (e.g., rel="author", rel="author external")
-3. Elements containing "By" or "Author:" followed by a name (but NOT contact info or "CONTACTS:")
-4. Links (<a> tags) within date paragraphs that contain author names (e.g., <p class="date">...Author: <a>Name</a></p>)
-5. Any paragraph containing patterns like "Author:", "Written by:", "Posted by:" followed by a name
-6. Meta tags with author information (name="author", property="author", twitter:data1 when twitter:label1="Written by")
-7. JSON-LD structured data with author information
-8. IMPORTANT: Check inside date elements too - some sites nest author info within date paragraphs
-9. DO NOT select elements containing: "CONTACT", "CONTACTS:", "FOR MORE INFORMATION", "PRESS CONTACT"
-10. DO NOT select standalone date text (JANUARY, FEBRUARY, etc. or time patterns like "12:30 PM")
-11. For date elements containing authors, select the specific tag containing the author name, not the whole element
-12. Ensure the author is a person's name, not a department, contact section, or date/time
-
-Return valid JSON in this exact format:
+RETURN FORMAT - CSS SELECTORS ONLY:
 {
-  "titleSelector": "CSS selector for title",
-  "contentSelector": "CSS selector for main content", 
-  "authorSelector": "CSS selector for author or null",
-  "dateSelector": "CSS selector for publish date or null",
-  "articleSelector": "CSS selector for article container or null",
-  "dateAlternatives": ["alternative date selector 1", "alternative date selector 2"],
+  "titleSelector": "CSS_SELECTOR_FOR_TITLE_ELEMENT",
+  "contentSelector": "CSS_SELECTOR_FOR_CONTENT_ELEMENTS", 
+  "authorSelector": "CSS_SELECTOR_FOR_AUTHOR_ELEMENT",
+  "dateSelector": "CSS_SELECTOR_FOR_DATE_ELEMENT",
+  "articleSelector": "CSS_SELECTOR_FOR_ARTICLE_CONTAINER",
+  "dateAlternatives": ["ALTERNATIVE_DATE_SELECTOR_1", "ALTERNATIVE_DATE_SELECTOR_2"],
   "confidence": 0.9
 }
 
-EXAMPLES OF CORRECT RESPONSES:
-{
-  "titleSelector": "h1.article-title",
-  "contentSelector": "div.article-body p",
-  "authorSelector": "span.author-name",
-  "dateSelector": "time[datetime]",
-  "articleSelector": "article.main-content",
-  "dateAlternatives": ["span.publish-date", "meta[property='article:published_time']"],
-  "confidence": 0.9
-}
+SELECTOR EXAMPLES:
+- "h1" - selects all h1 elements
+- ".author" - selects elements with class="author"
+- "span.byline" - selects span elements with class="byline"
+- "time[datetime]" - selects time elements with datetime attribute
+- ".article-content p" - selects p elements inside .article-content
+- "[rel*='author']" - selects elements with rel attribute containing "author"
 
-NEVER RETURN TEXT CONTENT AS SELECTORS:
-❌ WRONG: "authorSelector": "By James Thaler"
-✓ CORRECT: "authorSelector": "span.byline"
+VALIDATION RULES:
+✓ CORRECT: "h1.headline" (this is a CSS selector)
+✓ CORRECT: ".author-name" (this is a CSS selector)
+✓ CORRECT: "time[datetime]" (this is a CSS selector)
+❌ WRONG: "CSU gives 2025 hurricane season forecast" (this is text content)
+❌ WRONG: "By Adam Kovac" (this is text content)  
+❌ WRONG: "April 08, 2025" (this is text content)
 
-❌ WRONG: "dateSelector": "Published: Mon 7 Apr 2025"  
-✓ CORRECT: "dateSelector": "span.date-published"
-
-Set confidence between 0.1-1.0 based on how clear and semantic the selectors are.
+REMEMBER: You are finding the CSS path to elements, not extracting their content!
 
 HTML to analyze:
 ${processedHtml}`;
@@ -129,7 +94,7 @@ ${processedHtml}`;
         {
           role: "system",
           content:
-            "You are an expert in CSS selectors. You MUST return CSS selectors that identify HTML elements, NOT the text content of those elements. For example, return '.author-name' NOT 'By John Doe'. Always return complete, valid JSON with CSS selectors only.",
+            "You are a CSS selector expert. Your ONLY job is to analyze HTML and return CSS selectors that would SELECT specific elements. NEVER return the text content of elements. If you see <div class=\"author\">By John Doe</div>, return \"div.author\" or \".author\" as the selector, NOT \"By John Doe\". You must return CSS selectors, not text content.",
         },
         {
           role: "user",
