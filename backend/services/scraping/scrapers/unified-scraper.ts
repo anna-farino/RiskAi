@@ -2,16 +2,16 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from '../types';
 import { extractPublishDate } from '../date-extraction/centralized-date-extractor';
 // Cache system now integrated into structure-detector.ts
-import { getContent } from './method-selector';
+import { getContent } from '../core/method-selector';
 import { detectHtmlStructure } from '../structure-detector';
 import { 
   extractContentWithSelectors, 
   extractFromPuppeteerHTML 
-} from './content-extractor';
+} from '../extractors/content-extraction/unified-content-extractor';
 import { 
   shouldTriggerAIReanalysis, 
   performAIReanalysis 
-} from './ai-reanalysis';
+} from '../extractors/content-extraction/ai-reanalysis';
 import { scrapeSourceUrl } from './source-scraper';
 import { AppScrapingContext } from '../strategies/app-strategy.interface';
 
@@ -122,7 +122,8 @@ export class StreamlinedUnifiedScraper {
    * Clear cache for a specific URL
    */
   clearCache(url: string): void {
-    this.cache.clear(url);
+    // Cache clearing is now handled by structure-detector.ts
+    // Import clearStructureCache if needed
   }
 }
 

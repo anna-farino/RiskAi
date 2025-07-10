@@ -127,6 +127,30 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Complete Folder Structure Reorganization
+- **Eliminated unified-scraper-v2 folder** and moved files to appropriate locations by their actual purpose
+- **File reorganization**:
+  - `unified-scraper-v2/main-scraper.ts` → `scrapers/unified-scraper.ts`
+  - `unified-scraper-v2/content-extractor.ts` → `extractors/content-extraction/unified-content-extractor.ts`
+  - `unified-scraper-v2/ai-reanalysis.ts` → `extractors/content-extraction/ai-reanalysis.ts`
+  - `unified-scraper-v2/method-selector.ts` → `core/method-selector.ts`
+  - `unified-scraper-v2/source-scraper.ts` → `scrapers/source-scraper.ts`
+- **Updated all imports** to reflect new file locations across the codebase
+- **Removed empty directories** and cleaned up the folder structure
+- **Benefits**:
+  - **Logical organization**: Files are now grouped by their actual purpose (core, scrapers, extractors, etc.)
+  - **Improved maintainability**: Clear folder structure makes it easier to find and modify files
+  - **Eliminated confusion**: No more generic "unified-scraper-v2" folder with mixed purposes
+  - **Better architecture**: Each folder has a specific role in the scraping system
+- **Final clean structure**: 
+  - `core/` - Core utilities and method selection
+  - `scrapers/` - Main scraping implementations
+  - `extractors/content-extraction/` - Content extraction logic
+  - `extractors/link-extraction/` - Link extraction logic
+  - `ai/` - AI-powered detection and analysis
+  - `strategies/` - App-specific strategies
+- **Impact**: Much cleaner and more intuitive folder organization with files grouped by their functionality
+
 ### July 10, 2025 - Structure Detector Simplification Complete
 - **Eliminated facade files and duplicated detector logic** across multiple files
 - **Root issue**: Had 4 different structure detector files doing overlapping work:
