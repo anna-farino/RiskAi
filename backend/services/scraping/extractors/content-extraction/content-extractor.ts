@@ -435,19 +435,3 @@ export function isLowQualityContent(content: string): boolean {
          mostlyNonContent.test(trimmedContent);
 }
 
-/**
- * Extract content from Puppeteer's structured HTML format
- * Puppeteer returns pre-extracted content wrapped in simple HTML structure
- */
-export function extractFromPuppeteerHTML(html: string): Partial<ArticleContent> {
-  const $ = cheerio.load(html);
-  
-  return {
-    title: $('h1').text().trim(),
-    content: $('.content').text().trim(),
-    author: $('.author').text().trim() || undefined,
-    publishDate: $('.date').text().trim() ? new Date($('.date').text().trim()) : undefined,
-    extractionMethod: 'puppeteer',
-    confidence: 0.9
-  };
-}

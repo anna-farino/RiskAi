@@ -127,6 +127,29 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Fixed Puppeteer Content Processing Pipeline Integration
+- **Fixed critical architectural issue** where Puppeteer scraper bypassed complete content processing pipeline
+- **Root cause**: Puppeteer was incorrectly treated as returning "pre-extracted content" instead of raw HTML
+- **Issue manifestation**: 
+  - Puppeteer scraping skipped AI structure detection, selector debugging, and date extraction
+  - No title/author/content processing like other scrapers
+  - Inconsistent behavior between HTTP and Puppeteer methods
+- **Complete solution implemented**:
+  - **Unified processing pipeline**: Both HTTP and Puppeteer content now use identical complete processing workflow
+  - **Removed incorrect pre-extraction assumption**: Eliminated `extractFromPuppeteerHTML` function that expected structured HTML
+  - **Same complete workflow**: Puppeteer content now gets AI structure detection, selector extraction, AI reanalysis, and date extraction
+  - **Consistent behavior**: All scraping methods now follow identical processing steps regardless of content source
+- **Technical changes**:
+  - `backend/services/scraping/scrapers/main-scraper.ts`: Unified HTTP and Puppeteer processing pipelines
+  - `backend/services/scraping/extractors/content-extraction/content-extractor.ts`: Removed unused `extractFromPuppeteerHTML` function
+  - **Processing steps now identical**: Structure detection → Content extraction → AI reanalysis → Date extraction
+- **Impact**: 
+  - **Eliminates processing inconsistencies** between HTTP and Puppeteer methods
+  - **Puppeteer now gets complete metadata extraction** including title, author, date, and content
+  - **Consistent selector debugging** and AI reanalysis for all scraping methods
+  - **Unified architecture**: Puppeteer is now correctly treated as just a different way to get HTML
+  - **Better content quality**: Puppeteer content gets same enhancement features as HTTP content
+
 ### July 10, 2025 - Fixed Keyword Matching Bug for Plurals
 - **Fixed critical keyword matching bug** preventing detection of plural forms like "Tariffs" when keyword was "Tariff"
 - **Root cause**: System used strict word boundary matching (`\bTariff\b`) which required exact matches
