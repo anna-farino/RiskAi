@@ -76,14 +76,17 @@ export class StreamlinedUnifiedScraper {
         }
 
         // Extract publish date using centralized date extractor
-        let publishDate: Date | null = null;
-        try {
-          publishDate = await extractPublishDate(contentResult.html, {
-            dateSelector: structureConfig.dateSelector,
-            dateAlternatives: []
-          });
-        } catch (error) {
-          log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
+        // Use date from AI reanalysis if available, otherwise extract using structure config
+        let publishDate: Date | null = extracted.publishDate || null;
+        if (!publishDate) {
+          try {
+            publishDate = await extractPublishDate(contentResult.html, {
+              dateSelector: structureConfig.dateSelector,
+              dateAlternatives: []
+            });
+          } catch (error) {
+            log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
+          }
         }
 
         const result: ArticleContent = {

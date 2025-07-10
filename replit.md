@@ -165,26 +165,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Fallback mechanisms use selector variations rather than direct content requests
   - System maintains URL-agnostic and app-neutral design principles
 
-### July 10, 2025 - Fixed Critical Date Parsing Issue Complete
-- **Root cause identified**: Date parsing regex was too strict, requiring dates to be at the beginning of strings
-- **Issue manifestation**: System found date text "JULY      09, 2025 03:54 PM (EDT)" correctly but failed to parse it
-- **Technical problem**: Original regex used `^` anchor requiring date at start, but actual text had prefixes like "OLDWICK - "
-- **Solution implemented**:
-  - Changed regex from strict `^([A-Z]+)` to flexible `\b([A-Z]+)` using word boundaries
-  - Added timezone support with `(?:\s*\([^)]*\))?` pattern for "(EDT)", "(EST)", etc.
-  - Enhanced month name support for both full and abbreviated forms
-  - Added comprehensive logging to track parsing strategies
-- **Enhanced date format support**:
-  - "JULY      09, 2025 03:54 PM (EDT)" - Full format with timezone
-  - "OLDWICK - JULY      09, 2025 03:54 PM (EDT)" - With location prefix
-  - "JANUARY 15, 2025 02:30 PM (EST)" - Different months and timezones
-  - "MARCH 1, 2025" - Simple date without time
-- **Impact**: 
-  - **Eliminates "No valid date found" errors** for press releases and news articles
-  - **Handles real-world date formats** with location prefixes and timezone abbreviations
-  - **Maintains validation** - dates still checked for reasonable bounds (1990-2030)
-  - **Comprehensive fallback** - multiple parsing strategies for different date formats
-- **Verification**: Test confirms successful parsing of all problematic date formats
+### July 10, 2025 - Fixed Critical Date Extraction in AI Reanalysis Complete
+- **Root cause identified**: AI reanalysis was re-detecting selectors but not extracting dates with them
+- **Issue manifestation**: AI correctly found `dateSelector: "p.smallp"` but date extraction returned null
+- **Technical problems**:
+  - AI reanalysis only extracted title/content/author, missing publishDate field
+  - Main scraper ignored publishDate from AI reanalysis and used original undefined dateSelector
+  - AI prompt generated overly complex sibling selectors like `p + p + p + p + p`
+- **Solutions implemented**:
+  - **AI reanalysis date extraction**: Added date extraction using re-detected dateSelector in `performAIReanalysis`
+  - **Main scraper fix**: Modified to use publishDate from AI reanalysis if available
+  - **AI prompt improvement**: Added rules to avoid complex sibling selectors and prefer simple parent > child patterns
+- **Key code changes**:
+  - `ai-reanalysis.ts`: Added centralized date extraction after content extraction with new selectors
+  - `main-scraper.ts`: Check for `extracted.publishDate` before attempting redundant extraction
+  - `ai-detector.ts`: Enhanced CSS selector rules to discourage complex sibling chains
+- **Impact**:
+  - **Successful date extraction** after AI reanalysis with re-detected selectors
+  - **Eliminates redundant date extraction** when AI reanalysis already found the date
+  - **Simpler content selectors** that extract all paragraphs at once instead of complex chains
+  - **Better overall extraction** for press releases and news articles
+- **Verification**: System now extracts dates like "JULY 09, 2025 11:40 AM (EDT)" using AI-detected selectors
 
 ### July 9, 2025 - True Unified AI Detection System Implemented
 - **Fixed critical system disparity**: News Radar and Threat Tracker were using completely different OpenAI functions despite "unified" claims
