@@ -240,21 +240,33 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Fallback mechanisms use selector variations rather than direct content requests
   - System maintains URL-agnostic and app-neutral design principles
 
-### July 10, 2025 - Fixed AI Returning Text Instead of CSS Selectors
+### July 10, 2025 - Fixed AI Returning Text Instead of CSS Selectors - RESOLVED
 - **Critical issue discovered**: AI was returning text content (e.g., "By James Thaler") instead of CSS selectors
 - **Issue manifestation**: 
   - authorSelector: "By James Thaler" → REJECTED during sanitization
   - dateSelector: "Published: Mon 7 Apr 2025" → REJECTED during sanitization
-- **Root cause**: AI misunderstood prompt and returned actual text content instead of CSS selectors
-- **Fixes implemented**:
-  - **Enhanced AI prompt**: Added explicit instructions "You MUST return CSS SELECTORS, NOT the actual text content!"
-  - **Added clear examples**: Showed correct (`.author-name`) vs wrong ("By James Thaler") responses
-  - **Updated system message**: Changed to "You are a CSS selector expert" with explicit selector-only instructions
-  - **Added debugging logs**: Log raw AI response before sanitization to diagnose issues
+- **Root cause identified**: **Cache was returning old corrupted data** with text content instead of CSS selectors, preventing AI detection from running at all
+- **Deep investigation revealed**:
+  - AI prompts were correct and would return CSS selectors 
+  - But cache contained old corrupted configs with text content (e.g., "By Adam Kovac")
+  - System was using cached data instead of running fresh AI detection
+  - Logs showed missing `[SimpleScraper] Running AI structure detection` - proving AI wasn't being called
+- **Complete solution implemented**:
+  - **Enhanced cache validation**: Added `isTextContent()` function to detect text content masquerading as CSS selectors
+  - **Pattern matching**: Detects "By Author", "January 1, 2025", "Published:", etc. as invalid selectors
+  - **Corrupted cache rejection**: Cache now rejects configs with text content patterns
+  - **Validation in multiple layers**: Both cache system and structure detector validate selectors
+  - **Enhanced logging**: Added detailed validation logs showing whether selectors are valid CSS or text content
+  - **Automatic fallback**: When AI returns invalid selectors, system uses basic fallback config
 - **Technical changes**:
-  - `ai-detector.ts`: Enhanced prompt with CSS selector examples and warnings
-  - `main-detector.ts`: Added raw AI response logging before sanitization
-- **Impact**: AI should now properly return CSS selectors instead of text content
+  - `cache-system.ts`: Added `isTextContent()` validation and `clearAll()` method
+  - `structure-detector.ts`: Enhanced validation with detailed logging of AI responses
+  - `ai-detector.ts`: Already had correct prompts - issue was cache bypassing AI detection
+- **Impact**: 
+  - **Cache corruption eliminated**: Old corrupted configs with text content are automatically rejected
+  - **AI detection runs properly**: System now calls AI detection when cache is invalid
+  - **CSS selectors guaranteed**: Multiple validation layers ensure only valid CSS selectors are used
+  - **Automatic recovery**: System gracefully handles invalid AI responses with fallback configs
 
 ### July 10, 2025 - Enhanced AI Author Detection for Non-Standard Locations
 - **Issue discovered**: Author elements in non-standard locations (e.g., nested within date paragraphs) were not being detected

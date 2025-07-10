@@ -20,20 +20,50 @@ export class RobustCache {
     const hasValidTitle = config.titleSelector && 
                          typeof config.titleSelector === 'string' && 
                          config.titleSelector !== 'undefined' && 
-                         config.titleSelector.trim().length > 0;
+                         config.titleSelector.trim().length > 0 &&
+                         !this.isTextContent(config.titleSelector);
                          
     const hasValidContent = config.contentSelector && 
                            typeof config.contentSelector === 'string' && 
                            config.contentSelector !== 'undefined' && 
-                           config.contentSelector.trim().length > 0;
+                           config.contentSelector.trim().length > 0 &&
+                           !this.isTextContent(config.contentSelector);
     
-    // Allow caching if we have basic selectors, even if some optional ones are missing
-    // Also allow caching if we have working date/author selectors for partial success
-    const hasWorkingSelectors = hasValidTitle || hasValidContent || 
-                               (config.dateSelector && typeof config.dateSelector === 'string' && config.dateSelector.trim().length > 0) ||
-                               (config.authorSelector && typeof config.authorSelector === 'string' && config.authorSelector.trim().length > 0);
+    // Check author and date selectors if they exist
+    const hasValidAuthor = !config.authorSelector || 
+                          (typeof config.authorSelector === 'string' && 
+                           config.authorSelector !== 'undefined' && 
+                           config.authorSelector.trim().length > 0 &&
+                           !this.isTextContent(config.authorSelector));
     
-    return hasValidTitle && hasValidContent; // Keep strict validation for now, but we'll enhance this
+    const hasValidDate = !config.dateSelector || 
+                        (typeof config.dateSelector === 'string' && 
+                         config.dateSelector !== 'undefined' && 
+                         config.dateSelector.trim().length > 0 &&
+                         !this.isTextContent(config.dateSelector));
+    
+    return hasValidTitle && hasValidContent && hasValidAuthor && hasValidDate;
+  }
+  
+  /**
+   * Check if a selector is actually text content instead of a CSS selector
+   */
+  private isTextContent(selector: string): boolean {
+    // Check for obvious text content patterns
+    const textPatterns = [
+      /^By\s+/i,                    // "By Author Name"
+      /^\d{1,2}\/\d{1,2}\/\d{4}/,   // Date patterns like "01/01/2025"
+      /^[A-Z][a-z]+ \d{1,2}, \d{4}/i, // "January 1, 2025"
+      /^Published:?\s+/i,           // "Published: Date"
+      /^Written by\s+/i,            // "Written by Author"
+      /^Author:?\s+/i,              // "Author: Name"
+      /^\d{4}-\d{2}-\d{2}/,         // ISO date format
+      /^[A-Z][a-z]+ \d{1,2}st|nd|rd|th, \d{4}/i, // "April 8th, 2025"
+      /\s+\d{1,2}:\d{2}/,           // Contains time like "12:34"
+      /^[A-Z][a-z]+ \d{1,2} \d{4}/i, // "April 08 2025"
+    ];
+    
+    return textPatterns.some(pattern => pattern.test(selector.trim()));
   }
   
   get(url: string): ScrapingConfig | null {
@@ -72,5 +102,11 @@ export class RobustCache {
     const domain = this.getDomain(url);
     this.cache.delete(domain);
     log(`[RobustCache] Cleared cache for ${domain}`, "scraper");
+  }
+  
+  clearAll(): void {
+    const size = this.cache.size;
+    this.cache.clear();
+    log(`[RobustCache] Cleared all cache entries (${size} domains)`, "scraper");
   }
 }
