@@ -7,7 +7,7 @@ import { detectHtmlStructure } from '../extractors/structure-detection/structure
 import { 
   extractContentWithSelectors, 
   extractFromPuppeteerHTML 
-} from '../extractors/content-extraction/unified-content-extractor';
+} from '../extractors/content-extraction/content-extractor';
 import { 
   shouldTriggerAIReanalysis, 
   performAIReanalysis 

@@ -1,6 +1,6 @@
 import { log } from "backend/utils/log";
 import { ArticleContent } from '../types';
-import { isLowQualityContent } from './unified-content-extractor';
+import { isLowQualityContent } from './content-extractor';
 import * as cheerio from 'cheerio';
 
 /**
@@ -48,7 +48,7 @@ export async function performAIReanalysis(html: string, url: string, previousExt
     
     // Import selector detection and extraction functionality
     const { detectHtmlStructureWithAI } = await import('../structure-detection/structure-detector');
-    const { extractContentWithSelectors } = await import('./unified-content-extractor');
+    const { extractContentWithSelectors } = await import('./content-extractor');
     
     // Re-detect selectors with enhanced prompt for better accuracy
     const newStructure = await detectHtmlStructureWithAI(html, url);

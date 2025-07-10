@@ -127,20 +127,31 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - File Renaming for Clarity
+- **RENAMED KEY FILES** for much clearer naming:
+  - `scrapers/unified-scraper.ts` → `scrapers/main-scraper.ts` (The orchestrator)
+  - `extractors/content-extraction/unified-content-extractor.ts` → `extractors/content-extraction/content-extractor.ts` (The worker)
+- **Updated all imports** across the codebase to reflect new names
+- **Benefits**:
+  - **Clear purpose**: `main-scraper.ts` clearly indicates it's the main workflow coordinator
+  - **Obvious function**: `content-extractor.ts` clearly shows it extracts content from HTML
+  - **Eliminates confusion**: No more wondering what "unified" means
+  - **Better developer experience**: Files are now self-documenting by name
+
 ### July 10, 2025 - Elimination of Redundant Content Extraction Files
 - **CRITICAL CLEANUP**: Removed 4 confusing, overlapping content extraction files
 - **Files eliminated**:
   - `main-extractor.ts` - Was orchestrating calls to other extractors (redundant)
-  - `primary-extractor.ts` - Basic selector extraction (merged into unified)
-  - `hybrid-extractor.ts` - AI-powered extraction with caching (merged into unified)
+  - `primary-extractor.ts` - Basic selector extraction (merged into content-extractor)
+  - `hybrid-extractor.ts` - AI-powered extraction with caching (merged into content-extractor)
   - `puppeteer-scraper/content-extractor.ts` - Puppeteer-specific extraction (simplified)
-- **Consolidated into**: Single `unified-content-extractor.ts` with all functionality
+- **Consolidated into**: Single `content-extractor.ts` with all functionality
 - **Benefits**:
   - **Eliminates confusion**: Only one content extraction file to maintain
   - **Reduces redundancy**: No more overlapping extraction logic
   - **Simpler architecture**: Clear single entry point for content extraction
   - **Better maintainability**: Changes only need to be made in one place
-- **Functionality preserved**: All extraction capabilities maintained in unified file
+- **Functionality preserved**: All extraction capabilities maintained in consolidated file
 - **Content extraction count**: Reduced from 12 files to 9 files (25% reduction)
 
 ### July 10, 2025 - Complete Folder Structure Reorganization

@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { unifiedScraper as streamlinedScraper } from './scrapers/unified-scraper';
+import { unifiedScraper as streamlinedScraper } from './scrapers/main-scraper';
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from './types';
 import { AppScrapingContext } from './strategies/app-strategy.interface';
 
