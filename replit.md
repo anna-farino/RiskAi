@@ -213,19 +213,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Fixed AI re-analysis error** where `detectAIStructure` function didn't exist - corrected to use `detectHtmlStructureWithAI`
 - **Impact**: Working selectors now preserved, better fallbacks for press sites, date extraction works correctly
 
-### July 9, 2025 - Fixed Date Extraction Domain Specificity Issue
-- **Removed domain-specific date parsing logic** that was tied to AM Best format instead of being generic
-- **Made date parsing domain-agnostic** by handling common "MONTH DAY, YEAR TIME AM/PM (TIMEZONE)" format universally
-- **Added comprehensive logging** to trace the entire date extraction and parsing flow
-- **Enhanced date extraction debugging** with detailed logs showing:
-  - Which selectors find elements and how many
-  - What text content is being extracted
-  - Which parsing strategies are being tried
-  - Success/failure reasons for each strategy
-- **Fixed date extractor flow** where selector detection was working but parsing was failing silently
-- **Improved whitespace and timezone handling** in date text cleanup process
-- **Impact**: System now properly extracts dates from press releases across all domains, not just AM Best-specific formats
-
 ### July 9, 2025 - Comprehensive Scraping System Reliability Fix Complete
 - **Fixed critical selector debugging issues** where author/date selectors weren't shown when missing from AI detection
 - **Enhanced JSON parsing error handling** across all OpenAI integrations to prevent "Unterminated string in JSON" failures

@@ -101,7 +101,6 @@ export async function extractPublishDate(
   
   // Strategy 1: Use provided date selector if available
   if (options?.dateSelector) {
-    log(`[CentralizedDateExtractor] Trying provided selector: "${options.dateSelector}"`, "date-extractor");
     const structureDate = await tryExtractWithSelector($, options.dateSelector, 'provided-selector');
     if (structureDate) return structureDate;
   }
@@ -142,7 +141,6 @@ export async function extractPublishDate(
 async function tryExtractWithSelector($: cheerio.CheerioAPI, selector: string, strategy: string): Promise<Date | null> {
   try {
     const elements = $(selector);
-    log(`[CentralizedDateExtractor] Selector "${selector}" found ${elements.length} elements`, "date-extractor");
     
     for (let i = 0; i < elements.length; i++) {
       const element = elements.eq(i);
@@ -181,8 +179,6 @@ async function tryExtractWithSelector($: cheerio.CheerioAPI, selector: string, s
         } else {
           log(`[CentralizedDateExtractor] Failed to parse date from text: "${text}"`, "date-extractor");
         }
-      } else {
-        log(`[CentralizedDateExtractor] Element ${i} has no text content`, "date-extractor");
       }
     }
   } catch (error: any) {
@@ -302,56 +298,45 @@ async function extractFromTextContent($: cheerio.CheerioAPI): Promise<Date | nul
  */
 function parseDate(dateString: string): Date | null {
   if (!dateString || typeof dateString !== 'string') {
-    log(`[CentralizedDateExtractor] parseDate: Invalid input - not a string`, "date-extractor");
     return null;
   }
   
   const cleaned = dateString.trim();
-  log(`[CentralizedDateExtractor] parseDate: Cleaned text: "${cleaned}"`, "date-extractor");
   
   // Skip obviously non-date strings
   if (cleaned.length < 4 || cleaned.length > 100) {
-    log(`[CentralizedDateExtractor] parseDate: Text too short/long (${cleaned.length} chars)`, "date-extractor");
     return null;
   }
   
   // Skip if it looks like an author name (contains common name patterns)
   if (/^(by|author|written by)/i.test(cleaned) || 
       /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(cleaned)) {
-    log(`[CentralizedDateExtractor] parseDate: Skipping - looks like author name`, "date-extractor");
     return null;
   }
   
   try {
     // Strategy 1: Try direct Date parsing
-    log(`[CentralizedDateExtractor] parseDate: Strategy 1 - Direct Date parsing`, "date-extractor");
     let date = new Date(cleaned);
     if (isValidDate(date)) {
-      log(`[CentralizedDateExtractor] parseDate: Strategy 1 SUCCESS - Direct parsing worked`, "date-extractor");
       return date;
     }
     
     // Strategy 2: Handle Unix timestamps
     if (/^\d{10}$/.test(cleaned)) {
-      log(`[CentralizedDateExtractor] parseDate: Strategy 2 - Unix timestamp (10 digits)`, "date-extractor");
       date = new Date(parseInt(cleaned) * 1000);
       if (isValidDate(date)) {
-        log(`[CentralizedDateExtractor] parseDate: Strategy 2 SUCCESS - Unix timestamp worked`, "date-extractor");
         return date;
       }
     }
     
     if (/^\d{13}$/.test(cleaned)) {
-      log(`[CentralizedDateExtractor] parseDate: Strategy 2 - Unix timestamp (13 digits)`, "date-extractor");
       date = new Date(parseInt(cleaned));
       if (isValidDate(date)) {
-        log(`[CentralizedDateExtractor] parseDate: Strategy 2 SUCCESS - Unix timestamp worked`, "date-extractor");
         return date;
       }
     }
     
     // Strategy 3: Handle relative dates
-    log(`[CentralizedDateExtractor] parseDate: Strategy 3 - Relative dates`, "date-extractor");
     const relativeMatch = cleaned.match(/(\d+)\s+(hour|day|week|month|year)s?\s+ago/i);
     if (relativeMatch) {
       const amount = parseInt(relativeMatch[1]);
@@ -377,36 +362,29 @@ function parseDate(dateString: string): Date | null {
       }
       
       if (isValidDate(now)) {
-        log(`[CentralizedDateExtractor] parseDate: Strategy 3 SUCCESS - Relative date worked`, "date-extractor");
         return now;
       }
     }
     
     // Strategy 4: Clean up common date format issues
-    log(`[CentralizedDateExtractor] parseDate: Strategy 4 - Clean format issues`, "date-extractor");
     let cleanedForParsing = cleaned
       .replace(/^\w+,?\s+/, '') // Remove day of week
       .replace(/\s+at\s+.*$/, '') // Remove time portions that might confuse parsing
       .replace(/\s*\([^)]*\)\s*$/g, '') // Remove timezone abbreviations in parentheses like "(EDT)"
       .replace(/[^\w\s\-\/\.\,:]/g, ''); // Remove special characters except common date separators
     
-    log(`[CentralizedDateExtractor] parseDate: Strategy 4 - Cleaned for parsing: "${cleanedForParsing}"`, "date-extractor");
     date = new Date(cleanedForParsing);
     if (isValidDate(date)) {
-      log(`[CentralizedDateExtractor] parseDate: Strategy 4 SUCCESS - Cleaned format worked`, "date-extractor");
       return date;
     }
     
-    // Strategy 5: Handle common format "MONTH DAY, YEAR TIME AM/PM (TIMEZONE)" - domain agnostic
-    log(`[CentralizedDateExtractor] parseDate: Strategy 5 - Month/time format`, "date-extractor");
-    const monthTimeMatch = cleaned.match(/^([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
-    if (monthTimeMatch) {
-      log(`[CentralizedDateExtractor] parseDate: Strategy 5 - Match found: ${JSON.stringify(monthTimeMatch)}`, "date-extractor");
-      const [, monthName, day, year, hour, minute, ampm] = monthTimeMatch;
+    // Strategy 5: Handle AM Best specific format "JULY 09, 2025 03:54 PM (EDT)"
+    const amBestMatch = cleaned.match(/^([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+    if (amBestMatch) {
+      const [, monthName, day, year, hour, minute, ampm] = amBestMatch;
       const monthMap: { [key: string]: number } = {
         'JANUARY': 0, 'FEBRUARY': 1, 'MARCH': 2, 'APRIL': 3, 'MAY': 4, 'JUNE': 5,
-        'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11,
-        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'JUN': 5, 'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+        'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11
       };
       
       const month = monthMap[monthName.toUpperCase()];
@@ -420,16 +398,13 @@ function parseDate(dateString: string): Date | null {
         
         date = new Date(parseInt(year), month, parseInt(day), hour24, parseInt(minute));
         if (isValidDate(date)) {
-          log(`[CentralizedDateExtractor] parseDate: Strategy 5 SUCCESS - Month/time format worked: "${cleaned}" → ${date.toISOString()}`, "date-extractor");
           return date;
         }
       }
-    } else {
-      log(`[CentralizedDateExtractor] parseDate: Strategy 5 - No match for month/time format`, "date-extractor");
     }
     
   } catch (error) {
-    log(`[CentralizedDateExtractor] parseDate: Error during parsing: ${error.message}`, "date-extractor");
+    // Date parsing failed
   }
   
   return null;
