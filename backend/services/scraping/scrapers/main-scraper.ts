@@ -1,17 +1,9 @@
 import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from '../types';
-import { extractPublishDate } from '../extractors/content-extraction/date-extractor';
-// Cache system now integrated into structure-detector.ts
 import { getContent } from '../core/method-selector';
-import { detectHtmlStructure } from '../extractors/structure-detection/structure-detector';
-import { 
-  extractContentWithSelectors, 
-  extractFromPuppeteerHTML 
-} from '../extractors/content-extraction/content-extractor';
-import { 
-  shouldTriggerAIReanalysis, 
-  performAIReanalysis 
-} from '../extractors/content-extraction/ai-reanalysis';
+import { detectSimpleSelectors } from '../extractors/structure-detection/simple-selector-detector';
+import { extractCompleteContent } from '../extractors/content-extraction/simple-content-extractor';
+import { extractFromPuppeteerHTML } from '../extractors/content-extraction/content-extractor';
 import { extractArticleLinks, extractArticleLinksFromPage } from '../extractors/link-extraction/dynamic-content-handler';
 import { AppScrapingContext } from '../strategies/app-strategy.interface';
 
@@ -52,50 +44,20 @@ export class StreamlinedUnifiedScraper {
         return result;
         
       } else {
-        // HTTP content needs AI structure detection and selector extraction
-        log(`[SimpleScraper] Using HTTP content with AI structure detection`, "scraper");
+        // HTTP content - use simplified 5-step selector detection
+        log(`[SimpleScraper] Using HTTP content with simplified selector detection`, "scraper");
         
-        // Step 2: Get structure config using unified detector
-        let structureConfig = config;
+        // Use provided config or run the 5-step selector detection process
+        let selectorConfig = config;
+        if (!selectorConfig) {
+          selectorConfig = await detectSimpleSelectors(url, contentResult.html);
+        }
         
-        // If no config provided, use AI detection
-        if (!structureConfig) {
-          structureConfig = await detectHtmlStructure(url, contentResult.html, context);
-        }
-
-        // Step 3: Extract content with enhanced recovery
-        let extracted = extractContentWithSelectors(contentResult.html, structureConfig);
+        // Extract content using validated selectors
+        const result = await extractCompleteContent(contentResult.html, selectorConfig);
         
-        // Phase 4: AI re-analysis trigger for failed extractions
-        if (shouldTriggerAIReanalysis(extracted)) {
-          log(`[SimpleScraper] Triggering AI re-analysis due to insufficient extraction`, "scraper");
-          extracted = await performAIReanalysis(contentResult.html, url, extracted);
-        }
-
-        // Extract publish date using centralized date extractor
-        // Use date from AI reanalysis if available, otherwise extract using structure config
-        let publishDate: Date | null = extracted.publishDate || null;
-        if (!publishDate) {
-          try {
-            publishDate = await extractPublishDate(contentResult.html, {
-              dateSelector: structureConfig.dateSelector,
-              dateAlternatives: []
-            });
-          } catch (error) {
-            log(`[SimpleScraper] Date extraction failed: ${error}`, "scraper");
-          }
-        }
-
-        const result: ArticleContent = {
-          title: extracted.title || '',
-          content: extracted.content || '',
-          author: extracted.author,
-          publishDate,
-          extractionMethod: extracted.extractionMethod || 'selectors',
-          confidence: extracted.confidence || 0.9
-        };
-
-        log(`[SimpleScraper] Final extraction result (title=${result.title.length} chars, content=${result.content.length} chars, method=${result.extractionMethod}, confidence=${result.confidence})`, "scraper");
+        log(`[SimpleScraper] Simplified extraction complete - title: ${result.title.length} chars, content: ${result.content.length} chars, confidence: ${result.confidence}`, "scraper");
+        
         return result;
       }
 

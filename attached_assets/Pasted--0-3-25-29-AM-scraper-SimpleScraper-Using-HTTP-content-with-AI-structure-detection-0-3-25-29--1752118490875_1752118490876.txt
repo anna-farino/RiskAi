@@ -1,0 +1,28 @@
+[0] 3:25:29 AM [scraper] [SimpleScraper] Using HTTP content with AI structure detection
+[0] 3:25:29 AM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1", content: "div.content"
+[0] 3:25:29 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING START ===
+[0] 3:25:29 AM [scraper] [SelectorDebug] titleSelector: "h1" → 1 elements found
+[0] 3:25:29 AM [scraper] [SelectorDebug] First element: <h1> classes="wbmg-deskLg:text-[48px] wbmg-deskLg:leading-[54px] font-[knowledge-medium] wbmg-desk:text-[40px] wbmg-desk:leading-[48px] wbmg-tabl:text-[40px] wbmg-tabl:leading-[48px] wbmg-mob:text-[40px] wbmg-mob:leading-[48px] text-wbmg-basic-text" text="California Wildfires..."
+[0] 3:25:29 AM [scraper] [SelectorDebug] contentSelector: "div.content" → 0 elements found
+[0] 3:25:29 AM [scraper] [SelectorDebug] Analyzing failed selector: div.content
+[0] 3:25:29 AM [scraper] [SelectorDebug] Class-based search for "content": 11 elements
+[0] 3:25:29 AM [scraper] [SelectorDebug] Found element with class containing "content": <div> class="flex items-center relative whitespace-nowrap h-full after:content-['*'] after:h-[3px] after:absolute after:bottom-0 after:w-full after:bg-wbmg-neutral-bg-base after:wbmg-mob:bg-wbmg-neutral-fg-strongest"
+[0] 3:25:29 AM [scraper] [SelectorDebug] Found element with class containing "content": <div> class="after:hover:bg-wbmg-neutral-bg-strongest after:opacity-[20%] after:content-[""] after:hover:opacity-1 after:pointer-events-none after:absolute after:transition-all after:duration-[0.15s] after:ease-[ease] after:inset-0 relative h-[inherit]"
+[0] 3:25:29 AM [scraper] [SelectorDebug] Found element with class containing "content": <div> class="after:hover:bg-wbmg-neutral-bg-strongest after:opacity-[20%] after:content-[""] after:hover:opacity-1 after:pointer-events-none after:absolute after:transition-all after:duration-[0.15s] after:ease-[ease] after:inset-0 relative h-[inherit]"
+[0] 3:25:29 AM [scraper] [SelectorDebug] authorSelector: "By James Thaler" → 0 elements found
+[0] 3:25:29 AM [scraper] [SelectorDebug] Analyzing failed selector: By James Thaler
+[0] 3:25:29 AM [scraper-error] [SelectorDebug] Invalid selector "Published: Mon 7 Apr 2025" for dateSelector: Unknown pseudo-class : mon
+[0] 3:25:29 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING END ===
+[0] 3:25:29 AM [scraper] [SimpleScraper] Title extracted: "California Wildfires" (20 chars)
+[0] 3:25:29 AM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 3:25:29 AM [scraper] [ContentRecovery] Starting content recovery process
+[0] 3:25:29 AM [scraper] [ContentRecovery] Successful recovery with fallback: "article" (665 chars)
+[0] 3:25:29 AM [scraper] [SimpleScraper] Content extracted: 665 chars (confidence: 0.5)
+[0] 3:25:29 AM [scraper] [SimpleScraper] Author extracted: ""
+[0] 3:25:29 AM [scraper] [AIReanalysis] Checking if re-analysis needed - content: 665 chars, confidence: 0.5, title: 20 chars
+[0] 3:25:29 AM [scraper] [AIReanalysis] No re-analysis needed - content looks good
+[0] 3:25:29 AM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 3:25:29 AM [date-extractor-error] [CentralizedDateExtractor] Error with selector "Published: Mon 7 Apr 2025": Unknown pseudo-class : mon
+[0] 3:25:29 AM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 3:25:29 AM [scraper] [SimpleScraper] Final extraction result (title=20 chars, content=665 chars, method=selectors, confidence=0.5)
+[0] 3:25:29 AM [scraper] [Scraping] Article extracted successfully: "California Wildfires"
