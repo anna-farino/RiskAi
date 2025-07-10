@@ -1,0 +1,41 @@
+[0] 1:16:14 AM [scraper] [HTTPScraper] Starting HTTP scraping for: https://www.bizjournals.com/cincinnati/news/2025/07/09/office-vacancy-record-high-absorption.html
+[0] 1:16:14 AM [scraper] [HTTPScraper] Attempt 1/5
+[0] 1:16:14 AM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 1:16:14 AM [scraper] [HTTPScraper] Retrieved 826 characters of HTML
+[0] 1:16:14 AM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 1:16:14 AM [scraper] [ProtectionBypass] Imperva Incapsula protection detected
+[0] 1:16:14 AM [scraper] [HTTPScraper] Successfully retrieved content (826 chars)
+[0] 1:16:14 AM [scraper] [SimpleScraper] HTTP insufficient (success: true, length: 826), using Puppeteer fallback
+[0] 1:16:14 AM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://www.bizjournals.com/cincinnati/news/2025/07/09/office-vacancy-record-high-absorption.html
+[0] 1:16:14 AM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 1:16:14 AM [scraper] [BrowserManager][createPage] Created new page
+[0] 1:16:14 AM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 1:16:14 AM [scraper] [PageSetup][setupPage] Set user agent
+[0] 1:16:14 AM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 1:16:14 AM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 1:16:14 AM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 1:16:14 AM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 1:16:14 AM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 1:16:19 AM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] 1:16:21 AM [scraper] [PuppeteerScraper] Bot protection detected, attempting bypass
+[0] 1:16:21 AM [scraper] [ProtectionBypass] Attempting to bypass generic protection
+[0] 1:16:21 AM [scraper] [ProtectionBypass] Generic protection detected - performing standard bypass
+[0] 1:16:21 AM [scraper] [ProtectionBypass] Performing human-like actions for bot evasion
+[0] 1:16:25 AM [scraper] [ProtectionBypass] Human-like actions completed
+[0] 1:16:25 AM [scraper] [PuppeteerScraper] Protection bypass successful
+[0] 1:16:28 AM [scraper] [PuppeteerScraper] Extracting article content
+[0] 1:16:28 AM [scraper] [PuppeteerScraper] Handling dynamic content loading
+[0] 1:16:28 AM [scraper] [PuppeteerScraper] Scrolled to 25% of page
+[0] 1:16:29 AM [scraper] [PuppeteerScraper] Scrolled to 50% of page
+[0] 1:16:31 AM [scraper] [PuppeteerScraper] Scrolled to 75% of page
+[0] 1:16:32 AM [scraper] [PuppeteerScraper] Scrolled to 100% of page
+[0] 1:16:35 AM [scraper] [PuppeteerScraper] External validation warning filtered: __name is not defined
+[0] 1:16:35 AM [scraper] [PuppeteerScraper] Content extraction blocked by validation, using fallback method
+[0] 1:16:35 AM [scraper] [PuppeteerScraper] Using basic fallback content extraction method
+[0] 1:16:35 AM [scraper] [PuppeteerScraper] Basic fallback extraction: title=80 chars, content=66107 chars
+[0] 1:16:35 AM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 1:16:35 AM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 1:16:35 AM [scraper] [SimpleScraper] Puppeteer successful (5264 chars)
+[0] 1:16:35 AM [scraper] [SimpleScraper] Using Puppeteer pre-extracted content
+[0] 1:16:35 AM [scraper] [SimpleScraper] Extracted article (title=80 chars, content=5000 chars)
+[0] 1:16:35 AM [scraper] [Scraping] Article extracted successfully: "Moody's: US office vacancy hits record 20.6% in Q2 - Cincinnati Business Courier"
