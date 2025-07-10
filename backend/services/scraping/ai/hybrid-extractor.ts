@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { detectHtmlStructureWithAI, extractContentWithAI, AIStructureResult } from './structure-detector';
+import { detectHtmlStructureWithAI, AIStructureResult } from '../structure-detector';
 import { ScrapingConfig } from '../types';
 import * as cheerio from 'cheerio';
 

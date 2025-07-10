@@ -1,5 +1,5 @@
 import { log } from "backend/utils/log";
-import { ScrapingConfig } from '../structure-detector';
+import { ScrapingConfig } from '../../types';
 import { ArticleContent } from './selector-utilities';
 import { cleanAndNormalizeContent, cleanHtmlForExtraction } from './content-cleaner';
 import { extractPublishDate } from '../../date-extraction/centralized-date-extractor';

@@ -1,9 +1,9 @@
 import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from '../types';
 import { extractPublishDate } from '../date-extraction/centralized-date-extractor';
-import { RobustCache } from './cache-system';
+// Cache system now integrated into structure-detector.ts
 import { getContent } from './method-selector';
-import { getStructureConfig, isValidConfig } from './structure-detector';
+import { detectHtmlStructure } from '../structure-detector';
 import { 
   extractContentWithSelectors, 
   extractFromPuppeteerHTML 
@@ -20,7 +20,7 @@ import { AppScrapingContext } from '../strategies/app-strategy.interface';
  * Single-pass sequential workflow eliminating redundant operations
  */
 export class StreamlinedUnifiedScraper {
-  private cache = new RobustCache();
+  // Cache is now handled in structure-detector.ts
 
   /**
    * Streamlined article scraping - 3 steps total
@@ -55,16 +55,13 @@ export class StreamlinedUnifiedScraper {
         // HTTP content needs AI structure detection and selector extraction
         log(`[SimpleScraper] Using HTTP content with AI structure detection`, "scraper");
         
-        // Step 2: Get structure config (validate config first, then cache or AI)
+        // Step 2: Get structure config using unified detector
         let structureConfig = config;
         
-        // Validate the passed config to ensure it doesn't contain corrupted selectors
-        if (config && (!isValidConfig(config))) {
-          log(`[SimpleScraper] Invalid config passed, using AI detection instead`, "scraper");
-          structureConfig = null;
+        // If no config provided, use AI detection
+        if (!structureConfig) {
+          structureConfig = await detectHtmlStructure(url, contentResult.html, context);
         }
-        
-        structureConfig = structureConfig || await getStructureConfig(this.cache, url, contentResult.html, context);
 
         // Step 3: Extract content with enhanced recovery
         let extracted = extractContentWithSelectors(contentResult.html, structureConfig);

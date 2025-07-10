@@ -127,6 +127,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Structure Detector Simplification Complete
+- **Eliminated facade files and duplicated detector logic** across multiple files
+- **Root issue**: Had 4 different structure detector files doing overlapping work:
+  - `ai-detector.ts` - The actual AI detection logic
+  - `main-detector.ts` - Wrapper with validation and fallback logic  
+  - `ai/structure-detector.ts` - Just a re-export facade (removed)
+  - `unified-scraper-v2/structure-detector.ts` - Another wrapper with caching (removed)
+- **Complete consolidation**: Created single `structure-detector.ts` file with all functionality:
+  - AI detection with OpenAI integration
+  - Caching system with domain-based storage
+  - Selector validation and sanitization
+  - Text content detection to prevent corrupted selectors
+  - Fallback configuration for failed AI detection
+- **Benefits**:
+  - **Single source of truth**: Only one file handles all structure detection
+  - **Eliminated redundancy**: Removed 3 duplicate files with overlapping logic
+  - **Simplified imports**: All components now import from one location
+  - **Integrated caching**: Cache logic built into the main detector
+  - **Better maintainability**: Changes only need to be made in one place
+- **Impact**: System architecture is now clean and focused with no duplicate detector logic
+
 ### January 10, 2025 - Complete Removal of App-Specific Element Selector Identification
 - **Critical bug fix**: AI was returning text content (e.g., "By Adam Kovac") instead of CSS selectors
 - **Issue manifestation**: 

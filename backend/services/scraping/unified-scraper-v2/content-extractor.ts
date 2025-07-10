@@ -1,7 +1,30 @@
 import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent } from '../types';
 import * as cheerio from 'cheerio';
-import { sanitizeSelector } from '../extractors/structure-detector/selector-sanitizer';
+/**
+ * Sanitize CSS selector by removing invalid patterns
+ */
+function sanitizeSelector(selector: string | null): string | undefined {
+  if (!selector || selector === "null" || selector === "undefined") {
+    return undefined;
+  }
+
+  let cleaned = selector.trim();
+  
+  // Remove jQuery pseudo-selectors that don't work in standard CSS
+  cleaned = cleaned.replace(/:contains\([^)]*\)/g, '');
+  cleaned = cleaned.replace(/:eq\(\d+\)/g, '');
+  cleaned = cleaned.replace(/:first\b/g, ':first-child');
+  cleaned = cleaned.replace(/:last\b/g, ':last-child');
+  
+  // Clean up empty selectors or malformed ones
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  // Remove empty :not() patterns
+  cleaned = cleaned.replace(/:not\(\s*\)/g, '');
+  
+  return cleaned.length > 0 ? cleaned : undefined;
+}
 import { generateFallbackSelectors } from '../extractors/structure-detector/fallback-selectors';
 
 
