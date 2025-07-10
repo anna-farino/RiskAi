@@ -127,19 +127,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 10, 2025 - Eliminated Redundant Source Scraper Layer
-- **REMOVED REDUNDANT WRAPPER**: Deleted `source-scraper.ts` file (86 lines) that was just a thin wrapper around link extraction
-- **DIRECT INTEGRATION**: Main scraper now calls link extraction functions directly instead of through unnecessary middleman
-- **ROOT CAUSE**: `source-scraper.ts` was doing no unique work - just calling functions from `link-extraction/` folder
+### July 10, 2025 - Eliminated Two Redundant Wrapper Layers
+- **REMOVED WRAPPER #1**: Deleted `source-scraper.ts` file (86 lines) that was just a thin wrapper around link extraction
+- **REMOVED WRAPPER #2**: Deleted `index.ts` file (114 lines) that was just a wrapper class around main scraper
+- **DIRECT INTEGRATION**: Apps now call main scraper functions directly instead of through unnecessary middlemen
+- **ROOT CAUSE**: Both files were doing no unique work - just calling functions from other files
 - **SIMPLIFIED ARCHITECTURE**: 
-  - **Before**: Main scraper → Source scraper → Link extraction functions
-  - **After**: Main scraper → Link extraction functions (direct)
+  - **Before**: Apps → Index wrapper → Source scraper → Link extraction functions
+  - **After**: Apps → Main scraper → Link extraction functions (direct)
 - **Benefits**:
-  - **Eliminates confusion**: No more wondering why we have both source-scraper.ts and link-extraction folder
-  - **Reduces redundancy**: Removed unnecessary abstraction layer
+  - **Eliminates confusion**: No more wondering why we have both wrappers and actual implementation
+  - **Reduces redundancy**: Removed two unnecessary abstraction layers
   - **Cleaner imports**: Direct function calls instead of wrapper functions
-  - **Better performance**: One less function call in the chain
-- **File count reduction**: Scrapers folder reduced from 6 to 5 files
+  - **Better performance**: Two fewer function calls in the chain
+  - **Cleaner codebase**: 200 lines of wrapper code eliminated
+- **File count reduction**: Total files reduced from 34 to 32 files
 
 ### July 10, 2025 - File Renaming for Clarity
 - **RENAMED KEY FILES** for much clearer naming:

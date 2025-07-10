@@ -4,9 +4,9 @@ import { capsuleArticles } from "../../../shared/db/schema/news-capsule";
 import { openai } from "../../services/openai";
 import { FullRequest } from "../../middleware";
 import { log } from "../../utils/log";
-import { UnifiedScrapingService } from "backend/services/scraping";
+import { unifiedScraper } from 'backend/services/scraping/scrapers/main-scraper';
 
-const scrapingService = new UnifiedScrapingService();
+// Use the unified scraper directly
 
 /**
  * Generate executive summary using OpenAI
@@ -76,7 +76,7 @@ export async function processUrl(req: Request, res: Response) {
 
     // 1. Extract content using unified scraping service
     log(`[NewsCapsule] Using unified scraping service for content extraction`, "scraper");
-    const content = await scrapingService.scrapeArticleUrl(url);
+    const content = await unifiedScraper.scrapeArticleUrl(url);
     
     if (!content || !content.content || content.content.length < 50) {
       log(`[NewsCapsule] Insufficient content extracted from URL`, "scraper-error");

@@ -1,21 +1,23 @@
-import { UnifiedScrapingService } from 'backend/services/scraping';
+import { unifiedScraper } from 'backend/services/scraping/scrapers/main-scraper';
 import { analyzeContent } from './openai';
 import { StrategyLoader } from 'backend/services/scraping/strategies/strategy-loader';
 
 // Create News Radar scraping service with context
-class NewsRadarScrapingService extends UnifiedScrapingService {
+class NewsRadarScrapingService {
   private context = StrategyLoader.createContext('news-radar');
 
   async scrapeSourceUrl(url: string, options?: any): Promise<string[]> {
-    return super.scrapeSourceUrl(url, options, this.context);
+    return await unifiedScraper.scrapeSourceUrl(url, { ...options, context: this.context });
   }
 
   async scrapeArticleUrl(url: string, config?: any): Promise<any> {
-    return super.scrapeArticleUrl(url, config, this.context);
+    return await unifiedScraper.scrapeArticleUrl(url, config, this.context);
   }
 
   async detectArticleStructure(url: string, html?: string): Promise<any> {
-    return super.detectArticleStructure(url, html, 'general news', this.context);
+    // Use the main scraper's structure detection directly
+    const { detectHtmlStructure } = await import('backend/services/scraping/extractors/structure-detection/structure-detector');
+    return await detectHtmlStructure(url, html, this.context);
   }
 }
 

@@ -1,4 +1,4 @@
-import { UnifiedScrapingService } from 'backend/services/scraping';
+import { unifiedScraper } from 'backend/services/scraping/scrapers/main-scraper';
 import { analyzeContent } from './openai';
 import { extractPublishDate } from './date-extractor';
 import { normalizeUrl, titleSimilarity } from './url-utils';
@@ -6,19 +6,21 @@ import { normalizeUrl, titleSimilarity } from './url-utils';
 // Create Threat Tracker scraping service with context
 import { StrategyLoader } from 'backend/services/scraping/strategies/strategy-loader';
 
-class ThreatTrackerScrapingService extends UnifiedScrapingService {
+class ThreatTrackerScrapingService {
   private context = StrategyLoader.createContext('threat-tracker');
 
   async scrapeSourceUrl(url: string, options?: any): Promise<string[]> {
-    return super.scrapeSourceUrl(url, options, this.context);
+    return await unifiedScraper.scrapeSourceUrl(url, { ...options, context: this.context });
   }
 
   async scrapeArticleUrl(url: string, config?: any): Promise<any> {
-    return super.scrapeArticleUrl(url, config, this.context);
+    return await unifiedScraper.scrapeArticleUrl(url, config, this.context);
   }
 
   async detectArticleStructure(url: string, html?: string): Promise<any> {
-    return super.detectArticleStructure(url, html, 'cybersecurity threat intelligence', this.context);
+    // Use the main scraper's structure detection directly
+    const { detectHtmlStructure } = await import('backend/services/scraping/extractors/structure-detection/structure-detector');
+    return await detectHtmlStructure(url, html, this.context);
   }
 }
 
