@@ -60,6 +60,21 @@ export async function performAIReanalysis(html: string, url: string, previousExt
       // Extract content using the newly detected selectors
       const extractedContent = extractContentWithSelectors(html, newStructure);
       
+      // Extract date using the re-detected dateSelector
+      let publishDate: Date | null = null;
+      if (newStructure.dateSelector) {
+        try {
+          const { extractPublishDate } = await import('../date-extraction/centralized-date-extractor');
+          publishDate = await extractPublishDate(html, {
+            dateSelector: newStructure.dateSelector,
+            dateAlternatives: []
+          });
+          log(`[AIReanalysis] Date extraction ${publishDate ? 'successful' : 'failed'} with selector: "${newStructure.dateSelector}"`, "scraper");
+        } catch (error) {
+          log(`[AIReanalysis] Date extraction error: ${error}`, "scraper-error");
+        }
+      }
+      
       // If new extraction is better, use it
       const newContentLength = extractedContent.content?.length || 0;
       const previousContentLength = previousExtraction.content?.length || 0;
@@ -78,6 +93,7 @@ export async function performAIReanalysis(html: string, url: string, previousExt
         log(`[AIReanalysis] New extraction yielded better results (${newContentLength} chars, confidence: ${newConfidence})`, "scraper");
         return {
           ...extractedContent,
+          publishDate,
           extractionMethod: 'ai-reanalysis-selectors',
           confidence: newStructure.confidence
         };

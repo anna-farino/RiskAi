@@ -51,6 +51,9 @@ CRITICAL CSS SELECTOR RULES:
 - For dates, prioritize <time> elements with datetime attributes
 - Avoid generic selectors like 'div' or 'span' unless they have specific classes
 - DO NOT return selectors with :contains(), :has(), :eq(), or other jQuery-specific pseudo-classes
+- AVOID complex sibling selectors like "p + p + p + p" - use simpler selectors that select all matching elements
+- For content, use selectors that match ALL paragraphs at once (e.g., "div.content p" not "div.content p + p + p")
+- Prefer parent > child selectors that select multiple elements over complex sibling chains
 
 DATE DETECTION PATTERNS (prioritize in this order):
 1. <time> elements with datetime attributes

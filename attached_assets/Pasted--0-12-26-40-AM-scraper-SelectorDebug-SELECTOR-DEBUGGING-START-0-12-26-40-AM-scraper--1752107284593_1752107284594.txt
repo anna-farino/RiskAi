@@ -1,0 +1,61 @@
+[0] 12:26:40 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING START ===
+[0] 12:26:40 AM [scraper] [SelectorDebug] titleSelector: "h1" → 1 elements found
+[0] 12:26:40 AM [scraper] [SelectorDebug] First element: <h1> classes="undefined" text="AM Best Affirms Credit Ratings of ProAssurance Group Members and ProAssurance Corporation..."
+[0] 12:26:40 AM [scraper] [SelectorDebug] contentSelector: "div.content" → 0 elements found
+[0] 12:26:40 AM [scraper] [SelectorDebug] Analyzing failed selector: div.content
+[0] 12:26:40 AM [scraper] [SelectorDebug] Class-based search for "content": 0 elements
+[0] 12:26:40 AM [scraper] [StructureDetector] Sanitized selector from "p:contains('CONTACTS')" to "p"
+[0] 12:26:40 AM [scraper] [SelectorDebug] authorSelector: "p" → 8 elements found
+[0] 12:26:40 AM [scraper] [SelectorDebug] First element: <p> classes="smallp" text="JULY      09, 2025 11:40 AM (EDT)..."
+[0] 12:26:40 AM [scraper] [StructureDetector] Sanitized selector from "p:contains('APRIL')" to "p"
+[0] 12:26:40 AM [scraper] [SelectorDebug] dateSelector: "p" → 8 elements found
+[0] 12:26:40 AM [scraper] [SelectorDebug] First element: <p> classes="smallp" text="JULY      09, 2025 11:40 AM (EDT)..."
+[0] 12:26:40 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING END ===
+[0] 12:26:40 AM [scraper] [SimpleScraper] Title extracted: "AM Best Affirms Credit Ratings of ProAssurance Group Members and ProAssurance Corporation" (89 chars)
+[0] 12:26:40 AM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 12:26:40 AM [scraper] [ContentRecovery] Starting content recovery process
+[0] 12:26:40 AM [scraper] [ContentRecovery] Final fallback to body content (9413 chars)
+[0] 12:26:40 AM [scraper] [SimpleScraper] Content extracted: 9413 chars (confidence: 0.3)
+[0] 12:26:40 AM [scraper] [StructureDetector] Sanitized selector from "p:contains('CONTACTS')" to "p"
+[0] 12:26:40 AM [scraper] [authorRecovery] Rejected date-like text as author: "JULY      09, 2025 11:40 AM (EDT)"
+[0] 12:26:40 AM [scraper] [authorRecovery] Rejected date-like text as author: "JULY      09, 2025 11:40 AM (EDT)"
+[0] 12:26:40 AM [scraper] [SimpleScraper] Author extracted: ""
+[0] 12:26:40 AM [scraper] [AIReanalysis] Checking if re-analysis needed - content: 9413 chars, confidence: 0.3, title: 89 chars
+[0] 12:26:40 AM [scraper] [AIReanalysis] Triggering due to low confidence: 0.3
+[0] 12:26:40 AM [scraper] [SimpleScraper] Triggering AI re-analysis due to insufficient extraction
+[0] 12:26:40 AM [scraper] [AIReanalysis] Starting selector re-detection for improved extraction
+[0] 12:26:40 AM [scraper] [AIStructureDetector] Extracted body content for analysis
+[0] 12:26:40 AM [scraper] [AIStructureDetector] Analyzing HTML structure for https://news.ambest.com/PressContent.aspx?altsrc=2&refnum=36195 (15635 chars)
+[0] 12:26:44 AM [scraper] [AIStructureDetector] Raw AI response: {
+[0]   "titleSelector": "h1",
+[0]   "contentSelector": "div.press-flex > div > p:not(.smallp) + p, div.press-flex > div > p:not(.smallp) + p + p, div.press-flex > div > p:not(.smallp) + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p + p, div.press-flex > div > ul",
+[0]   "authorSelector": null,
+[0]   "dateSelector": "p.smallp",
+[0]   "articleSelector": "div.press-flex",
+[0]   "dateAlternatives": [],
+[0]   "confidence": 0.85
+[0] }...
+[0] 12:26:44 AM [scraper] [AIStructureDetector] Parsed result - title: h1, content: div.press-flex > div > p:not(.smallp) + p, div.press-flex > div > p:not(.smallp) + p + p, div.press-flex > div > p:not(.smallp) + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p + p, div.press-flex > div > ul, confidence: 0.85
+[0] 12:26:44 AM [scraper] [AIStructureDetector] Final sanitized selectors - title: h1, content: div.press-flex > div > p:not(.smallp) + p, div.press-flex > div > p:not(.smallp) + p + p, div.press-flex > div > p:not(.smallp) + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p + p, div.press-flex > div > ul
+[0] 12:26:44 AM [scraper] [AIReanalysis] Successfully re-detected selectors (confidence: 0.85)
+[0] 12:26:44 AM [scraper] [AIReanalysis] New selectors - title: "h1", content: "div.press-flex > div > p:not(.smallp) + p, div.press-flex > div > p:not(.smallp) + p + p, div.press-flex > div > p:not(.smallp) + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p + p, div.press-flex > div > ul"
+[0] 12:26:44 AM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1", content: "div.press-flex > div > p:not(.smallp) + p, div.press-flex > div > p:not(.smallp) + p + p, div.press-flex > div > p:not(.smallp) + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p + p, div.press-flex > div > ul"
+[0] 12:26:44 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING START ===
+[0] 12:26:44 AM [scraper] [SelectorDebug] titleSelector: "h1" → 1 elements found
+[0] 12:26:44 AM [scraper] [SelectorDebug] First element: <h1> classes="undefined" text="AM Best Affirms Credit Ratings of ProAssurance Group Members and ProAssurance Corporation..."
+[0] 12:26:44 AM [scraper] [SelectorDebug] contentSelector: "div.press-flex > div > p:not(.smallp) + p, div.press-flex > div > p:not(.smallp) + p + p, div.press-flex > div > p:not(.smallp) + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p, div.press-flex > div > p:not(.smallp) + p + p + p + p + p, div.press-flex > div > ul" → 4 elements found
+[0] 12:26:44 AM [scraper] [SelectorDebug] First element: <p> classes="undefined" text="OLDWICK - JULY      09, 2025 11:40 AM (EDT)AM Best has affirmed the Financial Strength Rating (FSR) ..."
+[0] 12:26:44 AM [scraper] [SelectorDebug] authorSelector: NOT PROVIDED by AI detection
+[0] 12:26:44 AM [scraper] [SelectorDebug] dateSelector: "p.smallp" → 1 elements found
+[0] 12:26:44 AM [scraper] [SelectorDebug] First element: <p> classes="smallp" text="JULY      09, 2025 11:40 AM (EDT)..."
+[0] 12:26:44 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING END ===
+[0] 12:26:44 AM [scraper] [SimpleScraper] Title extracted: "AM Best Affirms Credit Ratings of ProAssurance Group Members and ProAssurance Corporation" (89 chars)
+[0] 12:26:44 AM [scraper] [ContentRecovery] Found 4 content elements
+[0] 12:26:44 AM [scraper] [ContentRecovery] Element 0: "OLDWICK - JULY      09, 2025 11:40 AM (EDT)AM Best..." (4965 chars)
+[0] 12:26:44 AM [scraper] [ContentRecovery] Element 1: "ProAssurance Indemnity Company, Inc.    ProAssuran..." (532 chars)
+[0] 12:26:44 AM [scraper] [ContentRecovery] Element 2: "This press release relates to Credit Ratings that ..." (693 chars)
+[0] 12:26:44 AM [scraper] [ContentRecovery] Total content extracted: 6493 chars from 4 elements
+[0] 12:26:44 AM [scraper] [SimpleScraper] Content extracted: 6493 chars (confidence: 0.9)
+[0] 12:26:44 AM [scraper] [AIReanalysis] New extraction yielded better results (6493 chars, confidence: 0.85)
+[0] 12:26:44 AM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 12:26:44 AM [date-extractor] [CentralizedDateExtractor] No valid date found in article
