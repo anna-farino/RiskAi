@@ -6,7 +6,7 @@ import { ScrapingResult } from '../http-scraper';
 import { isExternalValidationError } from './error-handler';
 import { handleHTMXContent } from './htmx-handler';
 import { handleDynamicContent } from './dynamic-handler';
-import { extractPageContent } from './content-extractor';
+// Content extraction now handled inline
 
 export interface PuppeteerScrapingOptions {
   isArticlePage?: boolean;
@@ -102,7 +102,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     }
 
     // Extract content based on page type
-    const html = await extractPageContent(page, options?.isArticlePage || false, options?.scrapingConfig);
+    const html = await page.content();
 
     log(`[PuppeteerScraper] Content extraction completed successfully`, "scraper");
 

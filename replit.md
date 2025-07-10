@@ -127,6 +127,22 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 10, 2025 - Elimination of Redundant Content Extraction Files
+- **CRITICAL CLEANUP**: Removed 4 confusing, overlapping content extraction files
+- **Files eliminated**:
+  - `main-extractor.ts` - Was orchestrating calls to other extractors (redundant)
+  - `primary-extractor.ts` - Basic selector extraction (merged into unified)
+  - `hybrid-extractor.ts` - AI-powered extraction with caching (merged into unified)
+  - `puppeteer-scraper/content-extractor.ts` - Puppeteer-specific extraction (simplified)
+- **Consolidated into**: Single `unified-content-extractor.ts` with all functionality
+- **Benefits**:
+  - **Eliminates confusion**: Only one content extraction file to maintain
+  - **Reduces redundancy**: No more overlapping extraction logic
+  - **Simpler architecture**: Clear single entry point for content extraction
+  - **Better maintainability**: Changes only need to be made in one place
+- **Functionality preserved**: All extraction capabilities maintained in unified file
+- **Content extraction count**: Reduced from 12 files to 9 files (25% reduction)
+
 ### July 10, 2025 - Complete Folder Structure Reorganization
 - **Eliminated unified-scraper-v2 folder** and moved files to appropriate locations by their actual purpose
 - **Comprehensive reorganization**:

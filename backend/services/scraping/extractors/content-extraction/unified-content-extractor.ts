@@ -1,6 +1,10 @@
 import { log } from "backend/utils/log";
-import { ScrapingConfig, ArticleContent } from '../types';
+import { ScrapingConfig, ArticleContent } from '../../types';
 import * as cheerio from 'cheerio';
+import { generateFallbackSelectors } from './fallback-selectors';
+import { cleanAndNormalizeContent } from './content-cleaner';
+import { extractPublishDate } from './date-extractor';
+
 /**
  * Sanitize CSS selector by removing invalid patterns
  */
@@ -25,7 +29,56 @@ function sanitizeSelector(selector: string | null): string | undefined {
   
   return cleaned.length > 0 ? cleaned : undefined;
 }
-import { generateFallbackSelectors } from '../extractors/content-extraction/fallback-selectors';
+
+/**
+ * Main content extraction function - replaces all the redundant extractors
+ * This is the ONLY content extraction function needed
+ */
+export async function extractArticleContent(html: string, config: ScrapingConfig, sourceUrl?: string): Promise<ArticleContent> {
+  try {
+    log(`[ContentExtractor] Starting unified content extraction`, "scraper");
+
+    // Use selector-based extraction
+    const extracted = extractContentWithSelectors(html, config);
+    
+    // Extract publish date
+    let publishDate: Date | null = null;
+    try {
+      publishDate = await extractPublishDate(html, {
+        dateSelector: config.dateSelector,
+        dateAlternatives: []
+      });
+    } catch (dateError) {
+      log(`[ContentExtractor] Date extraction failed: ${dateError}`, "scraper");
+    }
+
+    // Clean and normalize the extracted content
+    const result: ArticleContent = {
+      title: cleanAndNormalizeContent(extracted.title || ""),
+      content: cleanAndNormalizeContent(extracted.content || ""),
+      author: extracted.author,
+      publishDate,
+      extractionMethod: extracted.extractionMethod || "selectors",
+      confidence: extracted.confidence || 0.9
+    };
+
+    log(`[ContentExtractor] Extraction completed - Method: ${result.extractionMethod}, Confidence: ${result.confidence}`, "scraper");
+    return result;
+
+  } catch (error: any) {
+    log(`[ContentExtractor] Error during content extraction: ${error.message}`, "scraper-error");
+    
+    // Return minimal fallback result
+    return {
+      title: "Extraction Failed",
+      content: "Content extraction failed due to technical error",
+      author: undefined,
+      publishDate: null,
+      extractionMethod: "error_fallback",
+      confidence: 0
+    };
+  }
+}
 
 
 
