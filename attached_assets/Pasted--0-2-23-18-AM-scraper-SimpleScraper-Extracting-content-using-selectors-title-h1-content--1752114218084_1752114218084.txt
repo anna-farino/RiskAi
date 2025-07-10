@@ -1,0 +1,30 @@
+[0] 2:23:18 AM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1", content: ".content"
+[0] 2:23:18 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING START ===
+[0] 2:23:18 AM [scraper] [SelectorDebug] titleSelector: "h1" → 1 elements found
+[0] 2:23:18 AM [scraper] [SelectorDebug] First element: <h1> classes="ArticlePageSimple-headline" text="CSU gives 2025 hurricane season forecast a slight downgrade..."
+[0] 2:23:18 AM [scraper] [SelectorDebug] contentSelector: ".content" → 1 elements found
+[0] 2:23:18 AM [scraper] [SelectorDebug] First element: <div> classes="content" text="Subscribers, log in here:
+[0]       
+[0]         
+[0]         
+[0]         
+[0]       
+[0]     
+[0]     
+[0]       Fuel a smarter st..."
+[0] 2:23:18 AM [scraper] [StructureDetector] Rejected text-like selector: By Adam Kovac
+[0] 2:23:18 AM [scraper] [SelectorDebug] authorSelector: "By Adam Kovac" → REJECTED during sanitization
+[0] 2:23:18 AM [scraper] [StructureDetector] Rejected date-like selector: April 08, 2025
+[0] 2:23:18 AM [scraper] [SelectorDebug] dateSelector: "April 08, 2025" → REJECTED during sanitization
+[0] 2:23:18 AM [scraper] [SelectorDebug] === SELECTOR DEBUGGING END ===
+[0] 2:23:18 AM [scraper] [SimpleScraper] Title extracted: "CSU gives 2025 hurricane season forecast a slight downgrade" (59 chars)
+[0] 2:23:18 AM [scraper] [ContentRecovery] Found 1 content elements
+[0] 2:23:18 AM [scraper] [ContentRecovery] Element 0: "Subscribers, log in here:
+[0]       
+[0]         
+[0]         ..." (487 chars)
+[0] 2:23:18 AM [scraper] [ContentRecovery] Total content extracted: 487 chars from 1 elements
+[0] 2:23:18 AM [scraper] [SimpleScraper] Content extracted: 487 chars (confidence: 0.9)
+[0] 2:23:18 AM [scraper] [StructureDetector] Rejected text-like selector: By Adam Kovac
+[0] 2:23:18 AM [scraper] [AIReanalysis] Checking if re-analysis needed - content: 487 chars, confidence: 0.9, title: 59 chars
+[0] 2:23:18 AM [scraper] [AIReanalysis] No re-analysis needed - content looks good
