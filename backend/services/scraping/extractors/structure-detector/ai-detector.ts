@@ -64,13 +64,18 @@ DATE DETECTION PATTERNS (prioritize in this order):
 6. Elements containing date-like text patterns
 
 AUTHOR DETECTION PATTERNS:
-1. Elements with classes: author, byline, writer, journalist, by-author, article-author
-2. Elements with rel="author" attribute  
-3. Elements containing "By" followed by a name (but NOT contact info or "CONTACTS:")
-4. Meta tags with author information
-5. DO NOT select elements containing: "CONTACT", "CONTACTS:", "FOR MORE INFORMATION", "PRESS CONTACT"
-6. DO NOT select elements that contain dates (JANUARY, FEBRUARY, etc. or time patterns like "12:30 PM")
-7. Ensure the author is a person's name, not a department, contact section, or date/time
+1. Elements with classes: author, byline, writer, journalist, by-author, article-author, posted-by
+2. Elements with rel attribute containing "author" (e.g., rel="author", rel="author external")
+3. Elements containing "By" or "Author:" followed by a name (but NOT contact info or "CONTACTS:")
+4. Links (<a> tags) within date paragraphs that contain author names (e.g., <p class="date">...Author: <a>Name</a></p>)
+5. Any paragraph containing patterns like "Author:", "Written by:", "Posted by:" followed by a name
+6. Meta tags with author information (name="author", property="author", twitter:data1 when twitter:label1="Written by")
+7. JSON-LD structured data with author information
+8. IMPORTANT: Check inside date elements too - some sites nest author info within date paragraphs
+9. DO NOT select elements containing: "CONTACT", "CONTACTS:", "FOR MORE INFORMATION", "PRESS CONTACT"
+10. DO NOT select standalone date text (JANUARY, FEBRUARY, etc. or time patterns like "12:30 PM")
+11. For date paragraphs containing authors, select the specific <a> or <span> containing the author name, not the whole paragraph
+12. Ensure the author is a person's name, not a department, contact section, or date/time
 
 Return valid JSON in this exact format:
 {

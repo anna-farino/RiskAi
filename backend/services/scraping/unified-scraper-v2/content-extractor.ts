@@ -418,7 +418,29 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
 function getFieldFallbacks(fieldType: string): string[] {
   const fallbacks = {
     title: ['h1', 'h2', '.title', '.headline', '[role="heading"]', '.article-title', '.post-title'],
-    author: ['.author', '.byline', '[rel="author"]', '.writer', '.by', '.journalist', '.article-author', '.post-author', '.author-name'],
+    author: [
+      '.author', 
+      '.byline', 
+      '[rel="author"]',
+      '[rel*="author"]',  // Matches rel="author external" etc.
+      '.writer', 
+      '.by', 
+      '.journalist', 
+      '.article-author', 
+      '.post-author', 
+      '.author-name',
+      '.date a[href*="author"]',  // Author links within date elements
+      '.date a[rel*="author"]',  // Author links with rel attribute in date
+      'p.date a',  // Any link within date paragraph
+      '.posted-by',
+      '.written-by',
+      '.article-meta a',
+      '.post-meta a',
+      'a[href*="/author/"]',  // Links to author pages
+      'a[href*="/writers/"]',  // Links to writer pages
+      '.attribution a',
+      '.credits a'
+    ],
     date: ['time', '[datetime]', '.date', '.published', '.article-date', '.post-date', '.timestamp', '.publish-date', '.creation-date']
   };
   

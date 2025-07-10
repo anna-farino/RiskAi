@@ -165,6 +165,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Fallback mechanisms use selector variations rather than direct content requests
   - System maintains URL-agnostic and app-neutral design principles
 
+### July 10, 2025 - Enhanced AI Author Detection for Non-Standard Locations
+- **Issue discovered**: Author elements in non-standard locations (e.g., nested within date paragraphs) were not being detected
+- **Example case**: reinsurancene.ws places author inside date paragraph: `<p class="date">...Author: <a rel="author external">Name</a></p>`
+- **Root causes**:
+  - AI prompts didn't look for authors within date elements
+  - System expected separate author and date elements
+  - Non-standard rel attributes like `rel="author external"` weren't matched
+- **Enhancements implemented**:
+  - **AI detection prompts**: Added 12 comprehensive patterns including authors within date paragraphs, non-standard rel attributes, and text patterns like "Author:", "Written by:"
+  - **Fallback selectors**: Expanded from 7 to 19 patterns including `.date a`, `p.date a`, `[rel*="author"]` for partial attribute matches
+  - **Recovery logic**: Enhanced to check multiple locations including meta tags, links within dates, and attribution patterns
+- **Technical improvements**:
+  - `ai-detector.ts`: Enhanced AUTHOR DETECTION PATTERNS with specific guidance for nested authors
+  - `fallback-selectors.ts`: Added patterns for authors in date elements and non-standard locations  
+  - `content-extractor.ts`: Updated fallback arrays to match new comprehensive patterns
+- **Impact**:
+  - **Captures authors in unusual locations** like within date paragraphs or with non-standard attributes
+  - **Better coverage** for news sites with unique HTML structures
+  - **More robust extraction** through enhanced AI understanding and expanded fallback patterns
+- **Verification**: System can now detect "Luke Gallin" from reinsurancene.ws despite being nested in date paragraph
+
 ### July 10, 2025 - Fixed Critical Date Extraction in AI Reanalysis Complete
 - **Root cause identified**: AI reanalysis was re-detecting selectors but not extracting dates with them
 - **Issue manifestation**: AI correctly found `dateSelector: "p.smallp"` but date extraction returned null
