@@ -47,7 +47,7 @@ export async function performAIReanalysis(html: string, url: string, previousExt
     log(`[AIReanalysis] Starting selector re-detection for improved extraction`, "scraper");
     
     // Import selector detection and extraction functionality
-    const { detectHtmlStructureWithAI } = await import('../../structure-detector');
+    const { detectHtmlStructureWithAI } = await import('../structure-detection/structure-detector');
     const { extractContentWithSelectors } = await import('./unified-content-extractor');
     
     // Re-detect selectors with enhanced prompt for better accuracy
@@ -64,7 +64,7 @@ export async function performAIReanalysis(html: string, url: string, previousExt
       let publishDate: Date | null = null;
       if (newStructure.dateSelector) {
         try {
-          const { extractPublishDate } = await import('../date-extraction/centralized-date-extractor');
+          const { extractPublishDate } = await import('./date-extractor');
           publishDate = await extractPublishDate(html, {
             dateSelector: newStructure.dateSelector,
             dateAlternatives: []

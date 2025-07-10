@@ -1,9 +1,9 @@
 import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent, SourceScrapingOptions } from '../types';
-import { extractPublishDate } from '../date-extraction/centralized-date-extractor';
+import { extractPublishDate } from '../extractors/content-extraction/date-extractor';
 // Cache system now integrated into structure-detector.ts
 import { getContent } from '../core/method-selector';
-import { detectHtmlStructure } from '../structure-detector';
+import { detectHtmlStructure } from '../extractors/structure-detection/structure-detector';
 import { 
   extractContentWithSelectors, 
   extractFromPuppeteerHTML 

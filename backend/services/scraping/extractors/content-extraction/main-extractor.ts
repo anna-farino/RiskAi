@@ -2,10 +2,10 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig } from '../../types';
 import { ArticleContent } from './selector-utilities';
 import { cleanAndNormalizeContent, cleanHtmlForExtraction } from './content-cleaner';
-import { extractPublishDate } from '../../date-extraction/centralized-date-extractor';
+import { extractPublishDate } from './date-extractor';
 import { extractWithPrimarySelectors } from './primary-extractor';
 import { extractWithFallbackSelectors } from './fallback-extractor';
-import { extractWithHybridAI } from '../../ai/hybrid-extractor';
+import { extractWithHybridAI } from './hybrid-extractor';
 
 /**
  * Streamlined content extraction - simplified 2-step approach

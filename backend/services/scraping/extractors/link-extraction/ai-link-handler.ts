@@ -1,7 +1,7 @@
 import { log } from "backend/utils/log";
 import { LinkData } from './html-link-parser';
 import { AppScrapingContext } from '../../strategies/app-strategy.interface';
-import { identifyArticleLinks as unifiedIdentifyArticleLinks } from '../../ai/unified-link-detector';
+import { identifyArticleLinks as unifiedIdentifyArticleLinks } from './unified-link-detector';
 
 /**
  * Use AI to identify article links - now uses unified link detector
