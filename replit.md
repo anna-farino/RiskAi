@@ -127,6 +127,28 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 11, 2025 - Fixed Critical Date Parsing Failures for Common Date Formats
+- **Fixed two critical date parsing failures** that were preventing proper date extraction from common news article formats
+- **Issue 1: Ordinal suffixes not supported** - "July 11th, 2025" failed because regex patterns only matched digits, not ordinal suffixes
+- **Issue 2: Multi-date text parsing failed** - "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC" failed because cleanup removed too much content
+- **Complete solution implemented**:
+  - **Added ordinal suffix support**: Updated all date regex patterns to handle 1st, 2nd, 3rd, 4th, 11th, etc.
+  - **Enhanced DATE_PATTERNS**: Added ordinal suffix patterns for consistent detection across all extraction methods
+  - **New Strategy 4**: Specifically handles multi-date text with prefixes like "Published:", "Last Updated:", "Created:", etc.
+  - **Improved regex specificity**: Enhanced pattern matching to extract individual dates from compound date strings
+  - **Updated Strategy 7**: Simple month format parsing now handles ordinal suffixes like "July 11th, 2025"
+- **Technical changes**:
+  - `backend/services/scraping/extractors/content-extraction/date-extractor.ts`: Enhanced regex patterns throughout
+  - **Pattern updates**: `\d{1,2}` → `\d{1,2}(?:st|nd|rd|th)?` for ordinal suffix support
+  - **New extraction strategy**: Regex `/(?:Published|Last Updated|Created|Modified|Posted):\s*([\d\-T:\.Z\s]+?)(?:\.|$|\s+Last|\s+by|\s+\()/gi`
+  - **Comprehensive coverage**: All date pattern arrays updated for consistent ordinal suffix handling
+- **Impact**: 
+  - **Resolves common date parsing failures** for news articles using ordinal numbers in dates
+  - **Handles complex date text** with multiple dates and prefixes from news sites
+  - **Consistent date extraction** across all extraction strategies (selectors, patterns, text content)
+  - **Improved article processing** for sites using common date formats like "July 11th, 2025"
+  - **Better extraction success rate** for news sites with compound date information
+
 ### July 10, 2025 - Fixed Puppeteer Content Processing Pipeline Integration
 - **Fixed critical architectural issue** where Puppeteer scraper bypassed complete content processing pipeline
 - **Root cause**: Puppeteer was incorrectly treated as returning "pre-extracted content" instead of raw HTML

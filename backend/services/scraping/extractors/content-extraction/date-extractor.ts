@@ -18,12 +18,12 @@ const DATE_PATTERNS = [
   /\d{1,2}-\d{1,2}-\d{4}/,
 
   // Written formats with time
-  /\b([A-Z]+)\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}\s+(AM|PM)(?:\s*\([^)]*\))?/i, // "JULY 09, 2025 03:54 PM (EDT)"
-  /\w{3,9}\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}/i, // "January 1, 2024 15:30"
+  /\b([A-Z]+)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\s+\d{1,2}:\d{2}\s+(AM|PM)(?:\s*\([^)]*\))?/i, // "JULY 09, 2025 03:54 PM (EDT)" or "July 11th, 2025 03:54 PM"
+  /\w{3,9}\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\s+\d{1,2}:\d{2}/i, // "January 1, 2024 15:30" or "January 1st, 2024 15:30"
 
   // Written formats without time
-  /\w{3,9}\s+\d{1,2},?\s+\d{4}/i, // "January 1, 2024" or "Jan 1 2024"
-  /\d{1,2}\s+\w{3,9}\s+\d{4}/i,   // "1 January 2024"
+  /\w{3,9}\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/i, // "January 1, 2024" or "Jan 1 2024" or "July 11th, 2025"
+  /\d{1,2}(?:st|nd|rd|th)?\s+\w{3,9}\s+\d{4}/i,   // "1 January 2024" or "11th July 2025"
 
   // European formats
   /\d{1,2}\.\d{1,2}\.\d{4}/,
@@ -387,22 +387,38 @@ function parseDate(dateString: string): Date | null {
       }
     }
 
-    // Strategy 4: Clean up common date format issues
-    log(`[CentralizedDateExtractor] Strategy 4 - Cleanup and reparse: "${cleaned}"`, "date-extractor");
+    // Strategy 4: Extract individual dates from multi-date text with prefixes
+    log(`[CentralizedDateExtractor] Strategy 4 - Extract from multi-date text: "${cleaned}"`, "date-extractor");
+    // Handle patterns like "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC"
+    const dateWithPrefixMatches = cleaned.match(/(?:Published|Last Updated|Created|Modified|Posted):\s*([\d\-T:\.Z\s]+?)(?:\.|$|\s+Last|\s+by|\s+\()/gi);
+    if (dateWithPrefixMatches) {
+      for (const match of dateWithPrefixMatches) {
+        const dateOnly = match.replace(/^(?:Published|Last Updated|Created|Modified|Posted):\s*/i, '').replace(/\.$/, '').trim();
+        log(`[CentralizedDateExtractor] Strategy 4 - Found prefixed date: "${dateOnly}"`, "date-extractor");
+        date = new Date(dateOnly);
+        if (isValidDate(date)) {
+          log(`[CentralizedDateExtractor] Strategy 4 SUCCESS: ${date.toISOString()}`, "date-extractor");
+          return date;
+        }
+      }
+    }
+
+    // Strategy 5: Clean up common date format issues
+    log(`[CentralizedDateExtractor] Strategy 5 - Cleanup and reparse: "${cleaned}"`, "date-extractor");
     let cleanedForParsing = cleaned
       .replace(/^\w+,?\s+/, '') // Remove day of week
       .replace(/\s+at\s+.*$/, '') // Remove time portions that might confuse parsing
       .replace(/\s*\([^)]*\)\s*$/g, '') // Remove timezone abbreviations in parentheses like "(EDT)"
       .replace(/[^\w\s\-\/\.\,:]/g, ''); // Remove special characters except common date separators
 
-    log(`[CentralizedDateExtractor] Strategy 4 - Cleaned to: "${cleanedForParsing}"`, "date-extractor");
+    log(`[CentralizedDateExtractor] Strategy 5 - Cleaned to: "${cleanedForParsing}"`, "date-extractor");
     date = new Date(cleanedForParsing);
     if (isValidDate(date)) {
-      log(`[CentralizedDateExtractor] Strategy 4 SUCCESS: ${date.toISOString()}`, "date-extractor");
+      log(`[CentralizedDateExtractor] Strategy 5 SUCCESS: ${date.toISOString()}`, "date-extractor");
       return date;
     }
 
-    // Strategy 5: Handle month name formats (works for many sites) "JULY 09, 2025 03:54 PM (EDT)"
+    // Strategy 6: Handle month name formats (works for many sites) "JULY 09, 2025 03:54 PM (EDT)"
     // Make regex more flexible - don't require month to be at start, handle timezone abbreviations
     const monthNameMatch = cleaned.match(/\b([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s+(AM|PM)(?:\s*\([^)]*\))?/i);
     if (monthNameMatch) {
@@ -431,8 +447,8 @@ function parseDate(dateString: string): Date | null {
       }
     }
 
-    // Strategy 6: Handle simpler month formats without time "JULY 09, 2025"
-    const simpleDateMatch = cleaned.match(/\b([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})\b/i);
+    // Strategy 7: Handle simpler month formats without time "JULY 09, 2025" or "July 11th, 2025"
+    const simpleDateMatch = cleaned.match(/\b([A-Z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i);
     if (simpleDateMatch) {
       const [, monthName, day, year] = simpleDateMatch;
       const monthMap: { [key: string]: number } = {
