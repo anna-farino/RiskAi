@@ -127,6 +127,36 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 11, 2025 - Comprehensive Redirect Resolution System Implementation Complete
+- **Implemented dynamic redirect detection and resolution system** for handling redirect-based sources like Google News
+- **Root problem solved**: System can now handle any redirect without hardcoded URL patterns or domain-specific logic
+- **Complete implementation**:
+  - **RedirectResolver utility**: HTTP and Puppeteer-based redirect resolution with chain tracking
+  - **HTTP scraper integration**: Automatic redirect resolution before content extraction
+  - **Puppeteer scraper integration**: Final URL capture after navigation with redirect tracking
+  - **Method selector enhancement**: Redirect information logging and final URL usage for dynamic content detection
+  - **Main scraper propagation**: Final URL usage throughout content extraction pipeline
+  - **Source scraping support**: Redirect resolution for both article and source URL scraping
+- **Key features**:
+  - **Dynamic redirect detection**: Analyzes HTTP response codes and headers (3xx redirects)
+  - **Chain tracking**: Complete redirect chain from original URL to final destination
+  - **Comprehensive logging**: Detailed redirect information for debugging and monitoring
+  - **Error handling**: Graceful fallback and timeout protection
+  - **URL-agnostic design**: Works with any redirect source without hardcoded patterns
+- **Technical implementation**:
+  - `redirect-resolver.ts`: Core redirect detection utility with HTTP and Puppeteer methods
+  - `http-scraper.ts`: Enhanced to resolve redirects before content extraction
+  - `puppeteer-scraper/main-scraper.ts`: Updated to capture final URLs after navigation
+  - `method-selector.ts`: Enhanced to use redirect information for logging and decision-making
+  - `main-scraper.ts`: Updated to propagate final URLs throughout extraction pipeline
+- **Verification**: Comprehensive testing confirms redirect detection, chain tracking, and final URL usage
+- **Impact**: 
+  - **Handles Google News and other redirect sources** without hardcoded URL patterns
+  - **Maintains backward compatibility** with existing scraping workflows
+  - **Improves content extraction accuracy** by using final URLs for all operations
+  - **Provides comprehensive redirect debugging** through detailed logging
+  - **Dynamic and scalable solution** that works with any redirect mechanism
+
 ### July 11, 2025 - Fixed News Capsule Database Constraint Violation
 - **Fixed critical "Send to News Capsule" button error** where database insertion failed due to null threat_name column
 - **Root cause**: News Capsule AI was only generating generic summary fields instead of required cybersecurity threat fields

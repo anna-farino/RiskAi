@@ -1,5 +1,6 @@
 import { log } from "backend/utils/log";
 import { detectBotProtection, ProtectionInfo } from '../core/protection-bypass';
+import { RedirectResolver, RedirectInfo } from '../core/redirect-resolver';
 
 export interface HTTPScrapingOptions {
   maxRetries?: number;
@@ -17,6 +18,7 @@ export interface ScrapingResult {
   protectionDetected?: ProtectionInfo;
   statusCode?: number;
   finalUrl?: string;
+  redirectInfo?: RedirectInfo;
 }
 
 // Cookie jar for session persistence
@@ -117,8 +119,29 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
   
   let lastError: Error | null = null;
   let protectionInfo: ProtectionInfo | undefined;
+  let redirectInfo: RedirectInfo | undefined;
 
   log(`[HTTPScraper] Starting HTTP scraping for: ${url}`, "scraper");
+
+  // Step 1: Resolve redirects if enabled (default: true)
+  let targetUrl = url;
+  if (options?.followRedirects !== false) {
+    try {
+      redirectInfo = await RedirectResolver.resolveRedirectsHTTP(url, {
+        maxRedirects: 5,
+        timeout: Math.min(timeout, 15000), // Use shorter timeout for redirect resolution
+        followMetaRefresh: true
+      });
+      
+      if (redirectInfo.hasRedirects) {
+        targetUrl = redirectInfo.finalUrl;
+        log(`[HTTPScraper] Redirect resolved: ${url} → ${targetUrl}`, "scraper");
+      }
+    } catch (error: any) {
+      log(`[HTTPScraper] Redirect resolution failed, using original URL: ${error.message}`, "scraper");
+      // Continue with original URL if redirect resolution fails
+    }
+  }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -136,7 +159,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
       
       // Add referrer for retries
       if (attempt > 1) {
-        headers['Referer'] = new URL(url).origin;
+        headers['Referer'] = new URL(targetUrl).origin;
       }
       
       // Add cookies if available
@@ -147,11 +170,11 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
-        // Make the HTTP request
-        const response = await fetch(url, {
+        // Make the HTTP request using the resolved target URL
+        const response = await fetch(targetUrl, {
           headers,
           signal: controller.signal,
-          redirect: options?.followRedirects !== false ? 'follow' : 'manual'
+          redirect: 'follow' // Always follow redirects at fetch level since we pre-resolved
         });
 
         clearTimeout(timeoutId);
@@ -181,7 +204,8 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 details: 'DataDome 401 authentication required'
               },
               statusCode: response.status,
-              finalUrl: response.url
+              finalUrl: response.url,
+              redirectInfo
             };
           }
           
@@ -200,7 +224,8 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 details: '403 Forbidden - likely bot protection'
               },
               statusCode: response.status,
-              finalUrl: response.url
+              finalUrl: response.url,
+              redirectInfo
             };
           }
 
@@ -233,7 +258,8 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
           responseTime: Date.now() - startTime,
           protectionDetected: protectionInfo,
           statusCode: response.status,
-          finalUrl: response.url
+          finalUrl: response.url,
+          redirectInfo
         };
 
       } catch (fetchError: any) {
@@ -273,6 +299,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
     responseTime: Date.now() - startTime,
     protectionDetected: protectionInfo,
     statusCode: 0,
+    redirectInfo,
     finalUrl: url
   };
 }
