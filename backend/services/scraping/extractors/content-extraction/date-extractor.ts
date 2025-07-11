@@ -306,7 +306,7 @@ function parseDate(dateString: string): Date | null {
   }
 
   // Normalize whitespace first (domain-agnostic approach)
-  const cleaned = dateString.trim().replace(/\s+/g, ' ');
+  let cleaned = dateString.trim().replace(/\s+/g, ' ');
 
   // Debug log for date parsing attempts
   log(`[CentralizedDateExtractor] Attempting to parse date: "${cleaned}"`, "date-extractor");
