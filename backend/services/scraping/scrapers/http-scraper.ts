@@ -111,7 +111,7 @@ function calculateRetryDelay(attempt: number, baseDelay: number = 1000): number 
  */
 export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions): Promise<ScrapingResult> {
   const startTime = Date.now();
-  const maxRetries = options?.maxRetries || 5;
+  const maxRetries = options?.maxRetries || 2;
   const timeout = options?.timeout || 30000;
   const baseRetryDelay = options?.retryDelay || 1000;
   

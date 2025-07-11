@@ -1,0 +1,61 @@
+[0] 4:48:15 PM [scraper] [PuppeteerScraper] Starting Puppeteer scraping for: https://isc.sans.edu/forums/diary/SSH%20Tunneling%20in%20Action%3A%20direct-tcp%20requests%20%5BGuest%20Diary%5D/32094/
+[0] 4:48:15 PM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 4:48:15 PM [scraper] [BrowserManager][createPage] Created new page
+[0] 4:48:15 PM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 4:48:15 PM [scraper] [PageSetup][setupPage] Set user agent
+[0] 4:48:15 PM [scraper] [PageSetup][configureHeaders] Set 12 headers
+[0] 4:48:15 PM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 4:48:15 PM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 4:48:15 PM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 4:48:15 PM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 4:48:16 PM [scraper] [PuppeteerScraper] Navigation completed. Status: 200
+[0] 4:48:18 PM [scraper] [PuppeteerScraper] Content extraction completed successfully
+[0] 4:48:18 PM [scraper] [PuppeteerScraper] Page closed successfully
+[0] 4:48:18 PM [scraper] [SimpleScraper] Puppeteer successful (41359 chars)
+[0] 4:48:18 PM [scraper] [SimpleScraper] Processing puppeteer content with complete extraction pipeline
+[0] 4:48:18 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "undefined", content: "undefined"
+[0] 4:48:18 PM [scraper] [AIReanalysis] Checking if re-analysis needed - content: 0 chars, confidence: 0.9, title: 0 chars
+[0] 4:48:18 PM [scraper] [AIReanalysis] Triggering due to insufficient content: 0 chars
+[0] 4:48:18 PM [scraper] [SimpleScraper] Triggering AI re-analysis due to insufficient extraction
+[0] 4:48:18 PM [scraper] [AIReanalysis] Starting selector re-detection for improved extraction
+[0] 4:48:18 PM [scraper] [StructureDetector] Analyzing HTML structure for https://isc.sans.edu/forums/diary/SSH%20Tunneling%20in%20Action%3A%20direct-tcp%20requests%20%5BGuest%20Diary%5D/32094/ (36646 chars)
+[0] [3537b] GET /scrape/status
+[0] 4:48:20 PM [scraper] [StructureDetector] Raw AI response: ```json
+[0] {
+[0]   "titleSelector": "article h1",
+[0]   "contentSelector": ".diarybody",
+[0]   "authorSelector": ".diaryheader a",
+[0]   "dateSelector": ".diaryheader",
+[0]   "confidence": 0.9
+[0] }
+[0] ```
+[0] 4:48:20 PM [scraper] [StructureDetector] Cleaned markdown formatting from AI response
+[0] 4:48:20 PM [scraper] [StructureDetector] Successfully parsed JSON response
+[0] 4:48:20 PM [scraper] [StructureDetector] Sanitized selectors - title: article h1, content: .diarybody
+[0] 4:48:20 PM [scraper] [AIReanalysis] Successfully re-detected selectors (confidence: 0.9)
+[0] 4:48:20 PM [scraper] [AIReanalysis] New selectors - title: "article h1", content: ".diarybody"
+[0] 4:48:20 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "article h1", content: ".diarybody"
+[0] 4:48:20 PM [scraper] [SimpleScraper] Title extracted: "SSH Tunneling in Action: direct-tcp requests [Guest Diary]" (58 chars)
+[0] 4:48:20 PM [scraper] [ContentRecovery] Found 1 content elements
+[0] 4:48:20 PM [scraper] [ContentRecovery] Element 0: "[This is a Guest Diary by Sihui Neo, an ISC intern..." (5996 chars)
+[0] 4:48:20 PM [scraper] [ContentRecovery] Total content extracted: 5996 chars from 1 elements
+[0] 4:48:20 PM [scraper] [SimpleScraper] Content extracted: 5996 chars (confidence: 0.9)
+[0] 4:48:20 PM [scraper] [SimpleScraper] Author extracted: "Guy Bruneau"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Trying to parse date text: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC
+[0] by Guy Bruneau (Version: 1)"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Attempting to parse date: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC by Guy Bruneau (Version: 1)"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Trying parsing strategies for: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC by Guy Bruneau (Version: 1)"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Strategy 1 - Direct Date parsing: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC by Guy Bruneau (Version: 1)"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Strategy 4 - Cleanup and reparse: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC by Guy Bruneau (Version: 1)"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Strategy 4 - Cleaned to: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC by Guy Bruneau"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Failed to parse date from text: "Published: 2025-07-09. Last Updated: 2025-07-10 21:22:00 UTC
+[0] by Guy Bruneau (Version: 1)"
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 4:48:20 PM [scraper] [AIReanalysis] Date extraction failed with selector: ".diaryheader"
+[0] 4:48:20 PM [scraper] [AIReanalysis] New extraction yielded better results (5996 chars, confidence: 0.9)
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 4:48:20 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 4:48:20 PM [scraper] [SimpleScraper] Final extraction result (title=58 chars, content=5996 chars, method=puppeteer_ai-reanalysis-selectors, confidence=0.9)
+[0] 4:48:24 PM [scraper] [ThreatTracker] Article meets criteria with 1 threats and 1 other keywords
+[0] 4:48:24 PM [scraper] [ThreatTracker] No publish date extracted from article
