@@ -1,0 +1,128 @@
+[0] 8:02:30 PM [scraper] [ThreatTracker] Step 5-6: Processing first article to detect structure
+[0] 8:02:30 PM [scraper] [SimpleScraper] Starting article scraping: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:30 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:30 PM [scraper] [RedirectResolver] Starting HTTP redirect resolution for: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:30 PM [scraper] [HTTPScraper] Attempt 1/2
+[0] 8:02:30 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:02:30 PM [scraper] [HTTPScraper] Updated cookie jar with new cookies
+[0] 8:02:30 PM [scraper] [HTTPScraper] Retrieved 1031343 characters of HTML
+[0] 8:02:30 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:02:31 PM [scraper] [ProtectionBypass] No bot protection detected
+[0] 8:02:31 PM [scraper] [HTTPScraper] Successfully retrieved content (1031343 chars)
+[0] 8:02:31 PM [scraper] [SimpleScraper] HTTP successful (1031343 chars)
+[0] 8:02:31 PM [scraper] [SimpleScraper] Processing http content with complete extraction pipeline
+[0] 8:02:31 PM [scraper] [StructureDetector] ===== STARTING SIMPLIFIED 5-STEP SELECTOR DETECTION =====
+[0] 8:02:31 PM [scraper] [StructureDetector] STEP 1: Sending HTML to OpenAI for selector detection
+[0] 8:02:31 PM [scraper] [StructureDetector] Analyzing HTML structure for https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen (10611 chars)
+[0] 8:02:34 PM [scraper] [StructureDetector] Raw AI response: ```json
+[0] {
+[0]   "titleSelector": "h1.main-title",
+[0]   "contentSelector": ".article-content",
+[0]   "authorSelector": ".author-name",
+[0]   "dateSelector": ".publish-date",
+[0]   "confidence": 0.8
+[0] }
+[0] ```
+[0] 8:02:34 PM [scraper] [StructureDetector] Cleaned markdown formatting from AI response
+[0] 8:02:34 PM [scraper] [StructureDetector] Successfully parsed JSON response
+[0] 8:02:34 PM [scraper] [StructureDetector] Sanitized selectors - title: h1.main-title, content: .article-content
+[0] 8:02:34 PM [scraper] [StructureDetector] STEP 2: Debugging selectors to validate they are CSS selectors
+[0] 8:02:34 PM [scraper] [SelectorDebug] DEBUGGING PASSED: All selectors are valid CSS
+[0] 8:02:34 PM [scraper] [StructureDetector] STEP 3.1: Debugging passed, caching selectors and extracting content
+[0] 8:02:34 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1.main-title", content: ".article-content"
+[0] 8:02:34 PM [scraper] [SimpleScraper] Title extracted: "" (0 chars)
+[0] 8:02:34 PM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 8:02:34 PM [scraper] [ContentRecovery] Starting content recovery process
+[0] 8:02:34 PM [scraper] [ContentRecovery] Final fallback to body content (8527 chars)
+[0] 8:02:34 PM [scraper] [SimpleScraper] Content extracted: 8527 chars (confidence: 0.3)
+[0] 8:02:34 PM [scraper] [SimpleScraper] Author extracted: ""
+[0] 8:02:34 PM [scraper] [AIReanalysis] Checking if re-analysis needed - content: 8527 chars, confidence: 0.3, title: 0 chars
+[0] 8:02:34 PM [scraper] [AIReanalysis] Triggering due to low confidence: 0.3
+[0] 8:02:34 PM [scraper] [SimpleScraper] Triggering AI re-analysis due to insufficient extraction
+[0] 8:02:34 PM [scraper] [AIReanalysis] Starting selector re-detection for improved extraction
+[0] 8:02:34 PM [scraper] [StructureDetector] Analyzing HTML structure for https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen (10611 chars)
+[0] 8:02:36 PM [scraper] [StructureDetector] Raw AI response: ```json
+[0] {
+[0]   "titleSelector": "h1.main-title",
+[0]   "contentSelector": ".article-content",
+[0]   "authorSelector": ".author-name",
+[0]   "dateSelector": ".publish-date",
+[0]   "confidence": 0.8
+[0] }
+[0] ```
+[0] 8:02:36 PM [scraper] [StructureDetector] Cleaned markdown formatting from AI response
+[0] 8:02:36 PM [scraper] [StructureDetector] Successfully parsed JSON response
+[0] 8:02:36 PM [scraper] [StructureDetector] Sanitized selectors - title: h1.main-title, content: .article-content
+[0] 8:02:36 PM [scraper] [AIReanalysis] Successfully re-detected selectors (confidence: 0.8)
+[0] 8:02:36 PM [scraper] [AIReanalysis] New selectors - title: "h1.main-title", content: ".article-content"
+[0] 8:02:36 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1.main-title", content: ".article-content"
+[0] 8:02:36 PM [scraper] [SimpleScraper] Title extracted: "" (0 chars)
+[0] 8:02:36 PM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 8:02:36 PM [scraper] [ContentRecovery] Starting content recovery process
+[0] 8:02:36 PM [scraper] [ContentRecovery] Final fallback to body content (8527 chars)
+[0] 8:02:36 PM [scraper] [SimpleScraper] Content extracted: 8527 chars (confidence: 0.3)
+[0] 8:02:36 PM [scraper] [SimpleScraper] Author extracted: ""
+[0] 8:02:36 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 8:02:36 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 8:02:36 PM [scraper] [AIReanalysis] Date extraction failed with selector: ".publish-date"
+[0] 8:02:36 PM [scraper] [AIReanalysis] New extraction yielded better results (8527 chars, confidence: 0.8)
+[0] 8:02:36 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 8:02:36 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 8:02:36 PM [scraper] [SimpleScraper] Final extraction result (title=0 chars, content=8527 chars, method=http_ai-reanalysis-selectors, confidence=0.8)
+[0] 8:02:36 PM [scraper] [ThreatTracker] Step 7: Structure detection handled by unified scraper
+[0] 8:02:36 PM [scraper] [ThreatTracker] Processing all remaining articles
+[0] 8:02:36 PM [scraper] [ThreatTracker] Processing article: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:36 PM [scraper] [SimpleScraper] Starting article scraping: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:36 PM [scraper] [HTTPScraper] Starting HTTP scraping for: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:36 PM [scraper] [RedirectResolver] Starting HTTP redirect resolution for: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen
+[0] 8:02:37 PM [scraper] [HTTPScraper] Attempt 1/2
+[0] 8:02:37 PM [scraper] [HTTPScraper] Response received: 200 OK
+[0] 8:02:37 PM [scraper] [HTTPScraper] Updated cookie jar with new cookies
+[0] 8:02:37 PM [scraper] [HTTPScraper] Retrieved 1031353 characters of HTML
+[0] 8:02:37 PM [scraper] [ProtectionBypass] Analyzing response for bot protection
+[0] 8:02:37 PM [scraper] [ProtectionBypass] No bot protection detected
+[0] 8:02:37 PM [scraper] [HTTPScraper] Successfully retrieved content (1031353 chars)
+[0] 8:02:37 PM [scraper] [SimpleScraper] HTTP successful (1031353 chars)
+[0] 8:02:37 PM [scraper] [SimpleScraper] Processing http content with complete extraction pipeline
+[0] 8:02:37 PM [scraper] [StructureDetector] Using cached structure for news.google.com
+[0] 8:02:37 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1.main-title", content: ".article-content"
+[0] 8:02:37 PM [scraper] [SimpleScraper] Title extracted: "" (0 chars)
+[0] 8:02:37 PM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 8:02:37 PM [scraper] [ContentRecovery] Starting content recovery process
+[0] 8:02:37 PM [scraper] [ContentRecovery] Final fallback to body content (8527 chars)
+[0] 8:02:37 PM [scraper] [SimpleScraper] Content extracted: 8527 chars (confidence: 0.3)
+[0] 8:02:37 PM [scraper] [SimpleScraper] Author extracted: ""
+[0] 8:02:37 PM [scraper] [AIReanalysis] Checking if re-analysis needed - content: 8527 chars, confidence: 0.3, title: 0 chars
+[0] 8:02:37 PM [scraper] [AIReanalysis] Triggering due to low confidence: 0.3
+[0] 8:02:37 PM [scraper] [SimpleScraper] Triggering AI re-analysis due to insufficient extraction
+[0] 8:02:37 PM [scraper] [AIReanalysis] Starting selector re-detection for improved extraction
+[0] 8:02:37 PM [scraper] [StructureDetector] Analyzing HTML structure for https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen (10611 chars)
+[0] 8:02:39 PM [scraper] [StructureDetector] Raw AI response: ```json
+[0] {
+[0]   "titleSelector": "h1.main-title",
+[0]   "contentSelector": ".article-content",
+[0]   "authorSelector": ".author-name",
+[0]   "dateSelector": ".publish-date",
+[0]   "confidence": 0.8
+[0] }
+[0] ```
+[0] 8:02:39 PM [scraper] [StructureDetector] Cleaned markdown formatting from AI response
+[0] 8:02:39 PM [scraper] [StructureDetector] Successfully parsed JSON response
+[0] 8:02:39 PM [scraper] [StructureDetector] Sanitized selectors - title: h1.main-title, content: .article-content
+[0] 8:02:39 PM [scraper] [AIReanalysis] Successfully re-detected selectors (confidence: 0.8)
+[0] 8:02:39 PM [scraper] [AIReanalysis] New selectors - title: "h1.main-title", content: ".article-content"
+[0] 8:02:39 PM [scraper] [SimpleScraper] Extracting content using selectors - title: "h1.main-title", content: ".article-content"
+[0] 8:02:39 PM [scraper] [SimpleScraper] Title extracted: "" (0 chars)
+[0] 8:02:39 PM [scraper] [ContentRecovery] No elements found with primary selector, initiating recovery
+[0] 8:02:39 PM [scraper] [ContentRecovery] Starting content recovery process
+[0] 8:02:39 PM [scraper] [ContentRecovery] Final fallback to body content (8527 chars)
+[0] 8:02:39 PM [scraper] [SimpleScraper] Content extracted: 8527 chars (confidence: 0.3)
+[0] 8:02:39 PM [scraper] [SimpleScraper] Author extracted: ""
+[0] 8:02:39 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 8:02:39 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 8:02:39 PM [scraper] [AIReanalysis] Date extraction failed with selector: ".publish-date"
+[0] 8:02:39 PM [scraper] [AIReanalysis] New extraction yielded better results (8527 chars, confidence: 0.8)
+[0] 8:02:39 PM [date-extractor] [CentralizedDateExtractor] Starting comprehensive date extraction
+[0] 8:02:39 PM [date-extractor] [CentralizedDateExtractor] No valid date found in article
+[0] 8:02:39 PM [scraper] [SimpleScraper] Final extraction result (title=0 chars, content=8527 chars, method=http_ai-reanalysis-selectors, confidence=0.8)
+[0] 8:02:40 PM [scraper] [ThreatTracker] Article doesn't contain valid keywords from our lists, skipping: https://news.google.com/read/CBMi0gFBVV95cUxNaGhXRXN1VkRiWU5lV3FYc0NuWmMzelBJb0g0OF9RQ2dqOEFaRkdVSnNFTV9TemFYMF9yR0g1eWZXZVlvRUM3S2o3RDdoVENoX2NQNk0wT081Xy0zckxoMTc1Zk02WWhDd0RZeVhLQjhWSkhhR2NGcjNrZ3FUcVd0S19VMmpLUmRIT1FaVTBfNWNBRTFyLXhRR3Z5SGZVUElnWU1uc2M0dWtfbG16TVg0ZGE2eGdoSndMNFh0akZsYWN1aDk5NWNyOG9FdEp2QXZNTlE?hl=en-US&gl=US&ceid=US%3Aen

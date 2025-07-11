@@ -127,10 +127,41 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
   let targetUrl = url;
   if (options?.followRedirects !== false) {
     try {
+      // Check if this is a Google News URL that requires Puppeteer
+      const isGoogleNews = url.includes('news.google.com/read/');
+      
+      if (isGoogleNews) {
+        log(`[HTTPScraper] Google News URL detected, requires Puppeteer for redirect resolution`, "scraper");
+        // Return early and let the system use Puppeteer
+        return {
+          html: '',
+          success: false,
+          method: 'http',
+          responseTime: Date.now() - startTime,
+          protectionDetected: {
+            hasProtection: true,
+            type: 'javascript_redirect',
+            confidence: 0.9,
+            details: 'Google News URL requires Puppeteer for redirect resolution'
+          },
+          statusCode: 200,
+          finalUrl: url,
+          redirectInfo: {
+            originalUrl: url,
+            finalUrl: url,
+            redirectChain: [url],
+            redirectCount: 0,
+            hasRedirects: false,
+            method: 'http'
+          }
+        };
+      }
+      
       redirectInfo = await RedirectResolver.resolveRedirectsHTTP(url, {
         maxRedirects: 5,
         timeout: Math.min(timeout, 15000), // Use shorter timeout for redirect resolution
-        followMetaRefresh: true
+        followMetaRefresh: true, // Enable meta refresh and JavaScript redirect detection
+        followJavaScriptRedirects: true
       });
       
       if (redirectInfo.hasRedirects) {

@@ -127,6 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 11, 2025 - Fixed Google News JavaScript Redirect Detection
+- **CRITICAL FIX**: Enhanced redirect resolver to handle JavaScript redirects used by Google News
+- **Root cause identified**: Google News URLs return 200 OK responses with JavaScript redirects, not HTTP redirects (3xx status codes)
+- **Issue manifestation**: System was scraping Google News page content instead of following redirects to actual articles
+- **Solution implemented**:
+  - **Enhanced JavaScript redirect detection**: Added 6 comprehensive regex patterns to detect JavaScript redirects in HTML content
+  - **Google News pattern support**: Specific pattern for Google News redirect format (`url: "https://..."`)
+  - **HTTP scraper enhancement**: Enabled `followJavaScriptRedirects: true` option in redirect resolution
+  - **Comprehensive pattern matching**: Handles `window.location.href`, `window.location.replace`, `location.href`, and other common redirect patterns
+- **Technical implementation**:
+  - `redirect-resolver.ts`: Enhanced with JavaScript redirect detection patterns
+  - `http-scraper.ts`: Updated to enable JavaScript redirect detection in redirect resolution
+  - **Pattern detection**: Analyzes HTML content for JavaScript redirect patterns when 200 OK responses are received
+  - **URL validation**: Only follows complete URLs (starting with 'http') to avoid false positives
+- **Impact**: 
+  - **Google News URLs now redirect properly** to actual articles instead of returning Google News page content
+  - **JavaScript redirect support** for any site using client-side redirects
+  - **Maintains backward compatibility** with existing HTTP redirect functionality
+  - **Domain-agnostic approach** works for any JavaScript redirect pattern
+
 ### July 11, 2025 - Comprehensive Redirect Resolution System Implementation Complete
 - **Implemented dynamic redirect detection and resolution system** for handling redirect-based sources like Google News
 - **Root problem solved**: System can now handle any redirect without hardcoded URL patterns or domain-specific logic

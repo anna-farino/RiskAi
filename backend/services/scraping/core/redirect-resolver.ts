@@ -115,9 +115,11 @@ export class RedirectResolver {
           continue;
         }
 
-        // Check for meta refresh redirects if enabled
+        // Check for meta refresh redirects and JavaScript redirects if enabled
         if (options?.followMetaRefresh && response.ok) {
           const html = await response.text();
+          
+          // Check for meta refresh redirects
           const metaRefreshMatch = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'](\d+);\s*url=([^"']+)["']/i);
           
           if (metaRefreshMatch) {
@@ -130,6 +132,35 @@ export class RedirectResolver {
               redirectCount++;
               log(`[RedirectResolver] Meta refresh redirect detected: ${redirectUrl}`, "scraper");
               continue;
+            }
+          }
+          
+          // Check for JavaScript redirects (common patterns)
+          const jsRedirectPatterns = [
+            /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+            /window\.location\.replace\s*\(\s*["']([^"']+)["']\s*\)/i,
+            /window\.location\s*=\s*["']([^"']+)["']/i,
+            /location\.href\s*=\s*["']([^"']+)["']/i,
+            /document\.location\s*=\s*["']([^"']+)["']/i,
+            /url\s*:\s*["']([^"']+)["']/i // For Google News style redirects
+          ];
+          
+          for (const pattern of jsRedirectPatterns) {
+            const jsMatch = html.match(pattern);
+            if (jsMatch) {
+              const redirectUrl = jsMatch[1];
+              // Skip if it's not a complete URL (relative redirects might not be actual redirects)
+              if (redirectUrl.startsWith('http')) {
+                const nextUrl = new URL(redirectUrl, currentUrl).href;
+                
+                if (!redirectChain.includes(nextUrl)) {
+                  redirectChain.push(nextUrl);
+                  currentUrl = nextUrl;
+                  redirectCount++;
+                  log(`[RedirectResolver] JavaScript redirect detected: ${redirectUrl}`, "scraper");
+                  continue;
+                }
+              }
             }
           }
         }
