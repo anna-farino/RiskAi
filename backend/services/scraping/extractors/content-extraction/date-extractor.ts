@@ -311,6 +311,45 @@ function parseDate(dateString: string): Date | null {
   // Debug log for date parsing attempts
   log(`[CentralizedDateExtractor] Attempting to parse date: "${cleaned}"`, "date-extractor");
 
+  // Pre-processing: Extract date patterns from long text before length validation
+  let originalCleaned = cleaned;
+  if (cleaned.length > 100) {
+    log(`[CentralizedDateExtractor] Long text detected (${cleaned.length} chars), attempting date pattern extraction`, "date-extractor");
+    
+    // Define comprehensive date extraction patterns
+    const dateExtractionPatterns = [
+      // Full weekday + month name + ordinal + year (e.g., "Friday, July 11th, 2025")
+      /\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b/i,
+      // Month name + ordinal + year (e.g., "July 11th, 2025")
+      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b/i,
+      // Short month + ordinal + year (e.g., "Jul 11th, 2025")
+      /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b/i,
+      // ISO date format (e.g., "2025-07-11")
+      /\b\d{4}-\d{2}-\d{2}\b/,
+      // US date format (e.g., "07/11/2025", "7/11/2025")
+      /\b\d{1,2}\/\d{1,2}\/\d{4}\b/,
+      // European date format (e.g., "11/07/2025", "11.07.2025")
+      /\b\d{1,2}[\.\/]\d{1,2}[\.\/]\d{4}\b/,
+      // Month-day-year with hyphens (e.g., "07-11-2025")
+      /\b\d{1,2}-\d{1,2}-\d{4}\b/,
+      // Full date with time (e.g., "July 11, 2025 3:45 PM")
+      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM)?\b/i,
+      // Date with weekday prefix (e.g., "Friday July 11, 2025")
+      /\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b/i,
+    ];
+    
+    // Try each pattern to extract a date
+    for (const pattern of dateExtractionPatterns) {
+      const match = originalCleaned.match(pattern);
+      if (match) {
+        const extractedDate = match[0];
+        log(`[CentralizedDateExtractor] Extracted date pattern: "${extractedDate}" from long text`, "date-extractor");
+        cleaned = extractedDate.trim();
+        break;
+      }
+    }
+  }
+
   // Skip obviously non-date strings
   if (cleaned.length < 4 || cleaned.length > 100) {
     log(`[CentralizedDateExtractor] Skipping date - invalid length: ${cleaned.length}`, "date-extractor");

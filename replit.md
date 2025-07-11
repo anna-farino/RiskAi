@@ -127,6 +127,28 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 11, 2025 - Enhanced Date Extraction for Long Text Strings with Pre-Processing
+- **Added pre-processing logic** to extract date patterns from long text strings before length validation
+- **Solves critical issue** where text like "SANS Stormcast Friday, July 11th, 2025: SSH Tunnel; FortiWeb SQL Injection; Ruckus Unpatched Vuln; Missing Motherboard Patches;" (127 characters) was rejected due to 100-character limit
+- **Comprehensive regex patterns** for date extraction including:
+  - Full weekday + month name + ordinal + year (e.g., "Friday, July 11th, 2025")
+  - Month name + ordinal + year (e.g., "July 11th, 2025")
+  - Short month + ordinal + year (e.g., "Jul 11th, 2025")
+  - ISO date format (e.g., "2025-07-11")
+  - US/European date formats with various separators
+  - Dates with time components
+- **Smart extraction workflow**:
+  - For text >100 chars: Extract date patterns first using regex
+  - For text ≤100 chars: Use existing processing (no change)
+  - Pass extracted date pattern to existing parsing strategies
+- **Technical implementation**: Added 9 comprehensive regex patterns that handle various date formats with ordinal suffixes
+- **Performance**: Fast and efficient with no API costs - uses regex pre-processing before existing parsing logic
+- **Impact**: 
+  - **Resolves long text rejection issue** for news articles with verbose titles containing dates
+  - **Maintains existing functionality** for normal-length date strings
+  - **Handles complex scenarios** like news headlines with embedded publication dates
+  - **Domain-agnostic approach** works for any website with long text containing date patterns
+
 ### July 11, 2025 - Fixed Critical Date Parsing Failures for Common Date Formats
 - **Fixed two critical date parsing failures** that were preventing proper date extraction from common news article formats
 - **Issue 1: Ordinal suffixes not supported** - "July 11th, 2025" failed because regex patterns only matched digits, not ordinal suffixes
