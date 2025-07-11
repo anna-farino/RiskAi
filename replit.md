@@ -127,6 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 11, 2025 - Fixed News Capsule Database Constraint Violation
+- **Fixed critical "Send to News Capsule" button error** where database insertion failed due to null threat_name column
+- **Root cause**: News Capsule AI was only generating generic summary fields instead of required cybersecurity threat fields
+- **Database schema mismatch**: `capsule_articles` table requires threat-specific fields (threatName, impacts, microsoftConnection, sourcePublication) but AI was only returning general summary fields
+- **Complete solution implemented**:
+  - **Enhanced AI prompt**: Updated to cybersecurity threat analysis with specific field requirements
+  - **Added required field generation**: AI now generates threatName, impacts, attackVector, microsoftConnection, vulnerabilityId, targetOS
+  - **Fixed data mapping**: Explicit field mapping to ensure all database constraints are satisfied
+  - **Threat-focused analysis**: AI now provides proper threat intelligence instead of generic summaries
+- **Technical changes**:
+  - `backend/apps/news-capsule/process-url.ts`: Updated `generateExecutiveSummary` function with cybersecurity-focused AI prompt
+  - **AI system message**: Changed from generic analyst to "expert cybersecurity analyst creating executive-level threat summaries"
+  - **Field mapping**: Explicit mapping of all required database fields to prevent null constraint violations
+  - **Fallback values**: Added default values for all required fields to ensure database compatibility
+- **Impact**: 
+  - **Resolves "Send to News Capsule" button failure** that was causing database constraint violations
+  - **Proper threat intelligence extraction** with cybersecurity-specific analysis
+  - **Complete database compatibility** with all required fields properly populated
+  - **Enhanced threat analysis** providing actionable security intelligence instead of generic summaries
+
 ### July 11, 2025 - Enhanced Date Extraction for Long Text Strings with Pre-Processing
 - **Added pre-processing logic** to extract date patterns from long text strings before length validation
 - **Solves critical issue** where text like "SANS Stormcast Friday, July 11th, 2025: SSH Tunnel; FortiWeb SQL Injection; Ruckus Unpatched Vuln; Missing Motherboard Patches;" (127 characters) was rejected due to 100-character limit

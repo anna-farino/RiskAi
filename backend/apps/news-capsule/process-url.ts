@@ -19,24 +19,27 @@ async function generateExecutiveSummary(content: any): Promise<any> {
       messages: [
         {
           role: "system",
-          content: "You are an expert analyst creating executive-level summaries. Focus on key insights, implications, and actionable information."
+          content: "You are an expert cybersecurity analyst creating executive-level threat summaries. Focus on security implications, threat assessment, and actionable intelligence."
         },
         {
           role: "user",
-          content: `Create an executive summary for this article:
+          content: `Analyze this cybersecurity article and extract threat intelligence:
           
 Title: ${content.title}
 Content: ${content.content}
 Publication: ${content.publication || 'Unknown'}
 Author: ${content.author || 'Unknown'}
 
-Please provide:
-1. A concise executive summary (2-3 sentences)
-2. Key points (3-5 bullet points)
-3. Business implications
-4. Recommended actions
+Please provide a comprehensive threat analysis with:
+1. Threat Name - A clear, concise name for the primary threat/vulnerability (e.g., "CVE-2024-1234 Remote Code Execution", "Ransomware Campaign", "Supply Chain Attack")
+2. Executive Summary - 2-3 sentences highlighting the key threat
+3. Impact Assessment - What damage this threat could cause to organizations
+4. Attack Vector - How the threat operates or spreads
+5. Microsoft Connection - Any connection to Microsoft products/services (if none, state "No direct Microsoft connection identified")
+6. Vulnerability ID - CVE number if mentioned, otherwise "Unspecified"
+7. Target OS - Primary operating system affected (default: "Microsoft / Windows")
 
-Format as JSON with fields: summary, keyPoints, implications, recommendations`
+Format as JSON with fields: threatName, summary, impacts, attackVector, microsoftConnection, vulnerabilityId, targetOS`
         }
       ],
       response_format: { type: "json_object" }
@@ -46,14 +49,14 @@ Format as JSON with fields: summary, keyPoints, implications, recommendations`
     
     return {
       title: content.title,
-      content: content.content,
-      publication: content.publication,
-      author: content.author,
-      publishDate: content.publishDate,
+      threatName: result.threatName || 'Unspecified Security Threat',
+      vulnerabilityId: result.vulnerabilityId || 'Unspecified',
       summary: result.summary || '',
-      keyPoints: result.keyPoints || [],
-      implications: result.implications || '',
-      recommendations: result.recommendations || ''
+      impacts: result.impacts || 'Impact assessment not available',
+      attackVector: result.attackVector || 'Unknown attack vector',
+      microsoftConnection: result.microsoftConnection || 'No direct Microsoft connection identified',
+      sourcePublication: content.publication || new URL(content.originalUrl || '').hostname || 'Unknown',
+      targetOS: result.targetOS || 'Microsoft / Windows'
     };
   } catch (error: any) {
     log(`[NewsCapsule] Error generating summary: ${error.message}`, "scraper-error");
@@ -98,15 +101,22 @@ export async function processUrl(req: Request, res: Response) {
       publishDate: content.publishDate
     });
 
-    // 3. Save to database (UNCHANGED)
+    // 3. Save to database with proper field mapping
     const userId = (req as FullRequest).user.id;
     log(`[NewsCapsule] Saving article to database for user: ${userId}`, "scraper");
     
     const articleData = {
-      ...summary,
+      title: summary.title,
+      threatName: summary.threatName,
+      vulnerabilityId: summary.vulnerabilityId,
+      summary: summary.summary,
+      impacts: summary.impacts,
+      attackVector: summary.attackVector,
+      microsoftConnection: summary.microsoftConnection,
+      sourcePublication: summary.sourcePublication,
       originalUrl: url,
+      targetOS: summary.targetOS,
       userId,
-      createdAt: new Date(),
       markedForReporting: true,
       markedForDeletion: false,
     };
