@@ -127,28 +127,31 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 12, 2025 - Implemented Redirect Resolution Before OpenAI Analysis - CRITICAL ARCHITECTURAL FIX
-- **CRITICAL ENHANCEMENT**: Added redirect resolution BEFORE OpenAI analysis to solve fundamental URL analysis issue
+### July 12, 2025 - Implemented URL-Agnostic Dynamic Redirect Resolution - CRITICAL ARCHITECTURAL FIX
+- **CRITICAL ENHANCEMENT**: Added URL-agnostic redirect resolution BEFORE OpenAI analysis to solve fundamental URL analysis issue
 - **Root problem solved**: OpenAI was receiving redirect URLs (like Google News URLs) and couldn't properly analyze them to identify articles vs navigation links
 - **Architectural requirement**: OpenAI needs to see final resolved URLs, not redirect URLs, to properly perform article link identification
+- **URL-agnostic solution**: Uses dynamic pattern detection instead of hardcoded domains for true scalability
 - **Complete implementation**:
   - **Enhanced AI link handler**: Added redirect resolution step before OpenAI analysis in `handleAILinkIdentification`
-  - **Smart redirect detection**: Identifies likely redirect URLs (Google News, bit.ly, t.co, tinyurl.com, etc.)
-  - **HTTP redirect resolution**: Uses fast HTTP method to resolve common redirects like URL shorteners
+  - **Dynamic redirect detection**: Uses URL patterns (`/read/`, `bit.ly/`, `redirect`, `url=`, etc.) instead of hardcoded domains
+  - **HTTP-first resolution**: Attempts fast HTTP method first for any detected redirect pattern
+  - **CAPTCHA detection**: Dynamically detects error pages (`sorry/index`, `captcha`, `blocked`, etc.)
+  - **Puppeteer fallback**: Automatically triggers Puppeteer when HTTP resolution fails or leads to CAPTCHA
   - **OpenAI receives resolved URLs**: System now sends final destinations to OpenAI for proper analysis
   - **Comprehensive logging**: Detailed tracking of redirect resolution process and statistics
 - **Technical implementation**:
-  - `ai-link-handler.ts`: Enhanced with redirect resolution logic before OpenAI analysis
-  - **4-step process**: 1) Normalize URLs → 2) Resolve redirects → 3) Convert to structured HTML → 4) OpenAI analysis
+  - `ai-link-handler.ts`: Enhanced with URL-agnostic redirect resolution logic before OpenAI analysis
+  - **4-step process**: 1) Normalize URLs → 2) Dynamic redirect detection → 3) HTTP then Puppeteer resolution → 4) OpenAI analysis
   - **Parallel processing**: Resolves multiple redirects simultaneously for efficiency
-  - **Graceful fallback**: Uses original URLs if redirect resolution fails
-- **Verification**: Test confirmed bit.ly URLs properly resolved before OpenAI analysis
+  - **Graceful fallback**: Uses original URLs if all resolution methods fail
+- **Verification**: Test confirmed dynamic detection works for any redirect pattern without hardcoded domains
 - **Impact**: 
   - **Eliminates OpenAI analysis failures** caused by redirect URLs that couldn't be properly categorized
   - **Improves article identification accuracy** by giving OpenAI the final URL destinations
   - **Maintains system performance** through smart redirect detection and parallel processing
-  - **Google News URLs handled correctly** - detected as redirects but handled by Puppeteer later in pipeline
-  - **Universal solution** works for any redirect type (URL shorteners, redirects, etc.)
+  - **Universal solution** works for any redirect type (URL shorteners, redirects, etc.) without domain-specific logic
+  - **Dynamic CAPTCHA handling** automatically detects and handles blocked requests for any site
 
 ### July 11, 2025 - Fixed Google News JavaScript Redirect Detection
 - **CRITICAL FIX**: Enhanced redirect resolver to handle JavaScript redirects used by Google News

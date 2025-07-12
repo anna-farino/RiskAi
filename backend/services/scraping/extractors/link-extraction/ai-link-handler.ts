@@ -38,20 +38,23 @@ export async function handleAILinkIdentification(
     const resolvedLinks = await Promise.all(
       normalizedLinks.map(async (link) => {
         try {
-          // Check if this URL might be a redirect (Google News, URL shorteners, etc.)
-          const isLikelyRedirect = link.href.includes('news.google.com/read/') ||
+          // Check if this URL might be a redirect using dynamic patterns
+          const isLikelyRedirect = link.href.includes('/read/') ||
                                   link.href.includes('bit.ly/') ||
                                   link.href.includes('t.co/') ||
                                   link.href.includes('tinyurl.com/') ||
                                   link.href.includes('short.link/') ||
                                   link.href.includes('is.gd/') ||
                                   link.href.includes('go.') ||
-                                  link.href.includes('redirect');
+                                  link.href.includes('redirect') ||
+                                  link.href.includes('url=') ||
+                                  link.href.includes('link=') ||
+                                  link.href.includes('redir');
           
           if (isLikelyRedirect) {
-            log(`[LinkExtractor] Resolving redirect for: ${link.href.substring(0, 60)}...`, "scraper");
+            log(`[LinkExtractor] Attempting HTTP redirect resolution for: ${link.href.substring(0, 60)}...`, "scraper");
             
-            // Use HTTP redirect resolution first (faster)
+            // Try HTTP redirect resolution first (faster)
             const redirectInfo = await RedirectResolver.resolveRedirectsHTTP(link.href, {
               maxRedirects: 5,
               timeout: 10000,
@@ -59,14 +62,73 @@ export async function handleAILinkIdentification(
               followMetaRefresh: true
             });
             
+            // Check if HTTP resolution was successful
             if (redirectInfo.hasRedirects && redirectInfo.finalUrl !== link.href) {
-              log(`[LinkExtractor] Redirect resolved: ${link.href.substring(0, 40)}... → ${redirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
-              return {
-                href: redirectInfo.finalUrl,
-                text: link.text,
-                originalHref: link.href,
-                wasRedirect: true
-              };
+              // Check if we got redirected to a CAPTCHA or error page (dynamic detection)
+              const finalUrlLower = redirectInfo.finalUrl.toLowerCase();
+              const isCaptchaOrError = finalUrlLower.includes('sorry/index') || 
+                                     finalUrlLower.includes('captcha') ||
+                                     finalUrlLower.includes('blocked') ||
+                                     finalUrlLower.includes('verify') ||
+                                     finalUrlLower.includes('challenge') ||
+                                     finalUrlLower.includes('access-denied') ||
+                                     finalUrlLower.includes('error') ||
+                                     finalUrlLower.includes('forbidden');
+              
+              if (isCaptchaOrError) {
+                log(`[LinkExtractor] HTTP redirect led to CAPTCHA/error page, trying Puppeteer fallback`, "scraper");
+                // Fall through to Puppeteer fallback below
+              } else {
+                log(`[LinkExtractor] HTTP redirect resolved: ${link.href.substring(0, 40)}... → ${redirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
+                return {
+                  href: redirectInfo.finalUrl,
+                  text: link.text,
+                  originalHref: link.href,
+                  wasRedirect: true
+                };
+              }
+            } else {
+              log(`[LinkExtractor] HTTP redirect resolution failed or no redirects found, trying Puppeteer fallback`, "scraper");
+              // Fall through to Puppeteer fallback below
+            }
+            
+            // Puppeteer fallback for any URL that failed HTTP resolution
+            log(`[LinkExtractor] Attempting Puppeteer redirect resolution for: ${link.href.substring(0, 60)}...`, "scraper");
+            try {
+              // Import puppeteer dynamically to avoid circular dependencies
+              const puppeteer = await import('puppeteer');
+              const browser = await puppeteer.default.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
+              });
+              const page = await browser.newPage();
+              
+              // Set a realistic user agent
+              await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+              
+              // Use Puppeteer to resolve the redirect
+              const puppeteerRedirectInfo = await RedirectResolver.resolveRedirectsPuppeteer(page, link.href, {
+                maxRedirects: 5,
+                timeout: 15000,
+                followJavaScriptRedirects: true
+              });
+              
+              await browser.close();
+              
+              if (puppeteerRedirectInfo.hasRedirects && puppeteerRedirectInfo.finalUrl !== link.href) {
+                log(`[LinkExtractor] Puppeteer redirect resolved: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
+                return {
+                  href: puppeteerRedirectInfo.finalUrl,
+                  text: link.text,
+                  originalHref: link.href,
+                  wasRedirect: true
+                };
+              } else {
+                log(`[LinkExtractor] Puppeteer found no redirects, using original URL`, "scraper");
+              }
+              
+            } catch (puppeteerError: any) {
+              log(`[LinkExtractor] Puppeteer redirect resolution failed: ${puppeteerError.message}`, "scraper");
             }
           }
           
