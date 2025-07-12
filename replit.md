@@ -127,6 +127,29 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 12, 2025 - Implemented Redirect Resolution Before OpenAI Analysis - CRITICAL ARCHITECTURAL FIX
+- **CRITICAL ENHANCEMENT**: Added redirect resolution BEFORE OpenAI analysis to solve fundamental URL analysis issue
+- **Root problem solved**: OpenAI was receiving redirect URLs (like Google News URLs) and couldn't properly analyze them to identify articles vs navigation links
+- **Architectural requirement**: OpenAI needs to see final resolved URLs, not redirect URLs, to properly perform article link identification
+- **Complete implementation**:
+  - **Enhanced AI link handler**: Added redirect resolution step before OpenAI analysis in `handleAILinkIdentification`
+  - **Smart redirect detection**: Identifies likely redirect URLs (Google News, bit.ly, t.co, tinyurl.com, etc.)
+  - **HTTP redirect resolution**: Uses fast HTTP method to resolve common redirects like URL shorteners
+  - **OpenAI receives resolved URLs**: System now sends final destinations to OpenAI for proper analysis
+  - **Comprehensive logging**: Detailed tracking of redirect resolution process and statistics
+- **Technical implementation**:
+  - `ai-link-handler.ts`: Enhanced with redirect resolution logic before OpenAI analysis
+  - **4-step process**: 1) Normalize URLs → 2) Resolve redirects → 3) Convert to structured HTML → 4) OpenAI analysis
+  - **Parallel processing**: Resolves multiple redirects simultaneously for efficiency
+  - **Graceful fallback**: Uses original URLs if redirect resolution fails
+- **Verification**: Test confirmed bit.ly URLs properly resolved before OpenAI analysis
+- **Impact**: 
+  - **Eliminates OpenAI analysis failures** caused by redirect URLs that couldn't be properly categorized
+  - **Improves article identification accuracy** by giving OpenAI the final URL destinations
+  - **Maintains system performance** through smart redirect detection and parallel processing
+  - **Google News URLs handled correctly** - detected as redirects but handled by Puppeteer later in pipeline
+  - **Universal solution** works for any redirect type (URL shorteners, redirects, etc.)
+
 ### July 11, 2025 - Fixed Google News JavaScript Redirect Detection
 - **CRITICAL FIX**: Enhanced redirect resolver to handle JavaScript redirects used by Google News
 - **Root cause identified**: Google News URLs return 200 OK responses with JavaScript redirects, not HTTP redirects (3xx status codes)

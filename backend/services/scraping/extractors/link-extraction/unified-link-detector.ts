@@ -61,6 +61,10 @@ export async function identifyArticleLinks(
           url.includes("/article/") ||
           url.includes("/blog/") ||
           url.includes("/news/") ||
+          url.includes("/post/") ||
+          url.includes("/story/") ||
+          url.includes("/update/") ||
+          url.includes("/read/") ||
           url.match(/\/(posts?|stories?|updates?)\//) ||
           url.match(/\d{4}\/\d{2}\//) || // Date pattern like /2023/05/
           url.match(/\/(cve|security|vulnerability|threat)-/) ||
@@ -170,7 +174,7 @@ export async function identifyArticleLinks(
           role: "system",
           content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
             1. Article-style titles (descriptive)
-            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, /read/, dates, years, CVE numbers)
             3. Proper article context (not navigation/category pages)
 
             CRITICAL: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
