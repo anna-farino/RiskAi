@@ -127,6 +127,35 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 13, 2025 - Implemented Two-Stage Redirect Detection System - NEXT GENERATION REDIRECT RESOLUTION
+- **BREAKTHROUGH**: Replaced URL pattern-based detection with dynamic response analysis for truly intelligent redirect detection
+- **Root problem solved**: Previous system used URL patterns like `/read/` which could falsely flag legitimate articles with similar URL structures
+- **Two-stage approach**: 
+  - **Stage 1**: Fast HTTP analysis of response characteristics (size, JavaScript ratio, redirect patterns, HTML structure)
+  - **Stage 2**: Puppeteer confirmation only for likely redirect candidates (confidence > 0.6)
+- **Dynamic detection criteria**:
+  - Response size analysis (< 2KB indicates likely redirect page)
+  - JavaScript redirect patterns in HTML content
+  - High JavaScript-to-content ratio (> 70%)
+  - Minimal HTML structure for expected articles
+  - Meta refresh redirect detection
+- **Performance optimized**: 
+  - HTTP-first approach for speed
+  - Puppeteer only used for confirmation when Stage 1 indicates likely redirect
+  - Confidence-based decision making prevents unnecessary processing
+- **Technical implementation**:
+  - `two-stage-redirect-detector.ts`: Core detection logic with confidence scoring
+  - `ai-link-handler.ts`: Integrated two-stage detection replacing pattern-based logic
+  - **4-step process**: 1) Normalize URLs → 2) Two-stage detection → 3) Redirect resolution → 4) OpenAI analysis
+- **Backward compatibility**: All existing functionality maintained, normal URLs processed efficiently
+- **Testing verified**: System correctly identifies redirects vs normal articles without false positives from URL patterns
+- **Impact**: 
+  - **Eliminates false positives** from legitimate sites using `/read/` in normal URL structure
+  - **Intelligent detection** based on actual page behavior rather than URL patterns
+  - **Maintains performance** through staged approach and confidence thresholds
+  - **Universal solution** works for any redirect type without hardcoded patterns
+  - **Future-proof** design adapts to new redirect mechanisms automatically
+
 ### July 12, 2025 - Implemented URL-Agnostic Dynamic Redirect Resolution - CRITICAL ARCHITECTURAL FIX
 - **CRITICAL ENHANCEMENT**: Added URL-agnostic redirect resolution BEFORE OpenAI analysis to solve fundamental URL analysis issue
 - **Root problem solved**: OpenAI was receiving redirect URLs (like Google News URLs) and couldn't properly analyze them to identify articles vs navigation links

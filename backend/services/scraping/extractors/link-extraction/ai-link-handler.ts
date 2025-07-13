@@ -3,6 +3,7 @@ import { LinkData } from './html-link-parser';
 import { AppScrapingContext } from '../../strategies/app-strategy.interface';
 import { identifyArticleLinks as unifiedIdentifyArticleLinks } from './unified-link-detector';
 import { RedirectResolver } from '../../core/redirect-resolver';
+import { TwoStageRedirectDetector } from '../../core/two-stage-redirect-detector';
 
 /**
  * Use AI to identify article links - now uses unified link detector
@@ -38,23 +39,13 @@ export async function handleAILinkIdentification(
     const resolvedLinks = await Promise.all(
       normalizedLinks.map(async (link) => {
         try {
-          // Check if this URL might be a redirect using dynamic patterns
-          const isLikelyRedirect = link.href.includes('/read/') ||
-                                  link.href.includes('bit.ly/') ||
-                                  link.href.includes('t.co/') ||
-                                  link.href.includes('tinyurl.com/') ||
-                                  link.href.includes('short.link/') ||
-                                  link.href.includes('is.gd/') ||
-                                  link.href.includes('go.') ||
-                                  link.href.includes('redirect') ||
-                                  link.href.includes('url=') ||
-                                  link.href.includes('link=') ||
-                                  link.href.includes('redir');
+          // Use two-stage redirect detection instead of pattern-based detection
+          const redirectResult = await TwoStageRedirectDetector.detectRedirect(link.href);
           
-          if (isLikelyRedirect) {
-            log(`[LinkExtractor] Attempting HTTP redirect resolution for: ${link.href.substring(0, 60)}...`, "scraper");
+          if (redirectResult.isRedirect) {
+            log(`[LinkExtractor] Two-stage detector confirmed redirect: ${link.href.substring(0, 40)}...`, "scraper");
             
-            // Try HTTP redirect resolution first (faster)
+            // Use the existing redirect resolution logic for confirmed redirects
             const redirectInfo = await RedirectResolver.resolveRedirectsHTTP(link.href, {
               maxRedirects: 5,
               timeout: 10000,
@@ -130,6 +121,8 @@ export async function handleAILinkIdentification(
             } catch (puppeteerError: any) {
               log(`[LinkExtractor] Puppeteer redirect resolution failed: ${puppeteerError.message}`, "scraper");
             }
+          } else {
+            log(`[LinkExtractor] Two-stage detector determined no redirect needed for: ${link.href.substring(0, 40)}...`, "scraper");
           }
           
           // No redirect needed or resolution failed
