@@ -127,6 +127,25 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 14, 2025 - Implemented Sequential Redirect Processing for Resource Optimization
+- **RESOURCE OPTIMIZATION**: Modified redirect resolution to process URLs sequentially instead of simultaneously
+- **Root cause**: Multiple simultaneous Puppeteer instances were causing resource usage issues
+- **Solution implemented**:
+  - **Sequential processing**: URLs are now processed one at a time using a for loop instead of Promise.all()
+  - **Immediate browser closure**: Each Puppeteer browser instance is closed before opening the next one
+  - **Memory efficiency**: Prevents multiple browser instances from running simultaneously
+  - **Better error handling**: Isolated processing prevents one URL failure from affecting others
+- **Technical changes**:
+  - `ai-link-handler.ts`: Replaced Promise.all() with sequential for loop processing
+  - **Browser lifecycle management**: Each browser instance is opened, used, and closed immediately
+  - **Resource-conscious design**: Only one browser instance active at any time during redirect resolution
+- **Benefits**:
+  - **Reduced memory usage**: Only one browser instance runs at a time
+  - **Improved system stability**: Prevents resource contention issues
+  - **Better error recovery**: Isolated processing prevents cascade failures
+  - **Maintains performance**: Sequential processing with minimal overhead
+- **Impact**: System now handles redirect resolution with minimal resource usage while maintaining all functionality
+
 ### July 13, 2025 - Implemented Dynamic URL-Agnostic Redirect Detection System - TRULY DYNAMIC SOLUTION
 - **BREAKTHROUGH**: Developed truly dynamic, URL-agnostic redirect detection that analyzes page behavior rather than hardcoded patterns
 - **Root problem solved**: Previous systems relied on hardcoded URL patterns which contradicted the core requirement of being domain-agnostic
