@@ -192,73 +192,218 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         attempts++;
         log(`[ProtectionBypass] Challenge solving attempt ${attempts}/${maxAttempts}`, "scraper");
 
-        // Perform different actions on each attempt
+        // Perform different actions on each attempt with DataDome-specific techniques
         if (attempts === 1) {
-          // First attempt: basic interactions
+          // First attempt: Wait for DataDome script to load and execute
+          log(`[ProtectionBypass] Waiting for DataDome script initialization...`, "scraper");
           await page.evaluate(() => {
+            // Wait for DataDome script to fully load
+            const script = document.querySelector('script[src*="captcha-delivery.com"]');
+            if (script) {
+              script.addEventListener('load', () => {
+                console.log('DataDome script loaded');
+              });
+            }
+            
+            // Basic human interactions
             window.scrollTo(0, 100);
             document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            
+            // Trigger focus events that DataDome monitors
+            document.dispatchEvent(new Event('focus'));
+            document.dispatchEvent(new Event('blur'));
           });
+          
+          // Wait longer for script processing
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          
         } else if (attempts === 2) {
-          // Second attempt: more complex interactions
+          // Second attempt: More sophisticated DataDome interaction
+          log(`[ProtectionBypass] Performing DataDome-specific challenge interactions...`, "scraper");
           await performEnhancedHumanActions(page);
-        } else {
-          // Third attempt: aggressive actions
+          
+          // DataDome-specific actions
           await page.evaluate(() => {
-            // Trigger multiple events that DataDome tracks
-            const events = ['mousedown', 'mouseup', 'click', 'mousemove', 'keydown', 'keyup'];
+            // Simulate user interaction patterns that DataDome looks for
+            const viewport = {
+              width: window.innerWidth,
+              height: window.innerHeight
+            };
+            
+            // Mouse movement simulation
+            for (let i = 0; i < 5; i++) {
+              const x = Math.random() * viewport.width;
+              const y = Math.random() * viewport.height;
+              document.dispatchEvent(new MouseEvent('mousemove', {
+                clientX: x,
+                clientY: y,
+                bubbles: true
+              }));
+            }
+            
+            // Keyboard events
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
+            document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Tab' }));
+            
+            // Touch events for mobile simulation
+            if (navigator.userAgent.includes('Mobile')) {
+              document.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }));
+              document.dispatchEvent(new TouchEvent('touchend', { bubbles: true }));
+            }
+          });
+          
+        } else {
+          // Third attempt: Aggressive DataDome bypass techniques
+          log(`[ProtectionBypass] Performing aggressive DataDome bypass techniques...`, "scraper");
+          await page.evaluate(() => {
+            // Trigger all events that DataDome tracks
+            const events = ['mousedown', 'mouseup', 'click', 'mousemove', 'keydown', 'keyup', 'focus', 'blur'];
             events.forEach(eventType => {
               document.dispatchEvent(new Event(eventType, { bubbles: true }));
             });
+            
+            // Simulate form interactions (DataDome often checks for these)
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+              const inputs = form.querySelectorAll('input, textarea');
+              inputs.forEach(input => {
+                input.dispatchEvent(new Event('focus'));
+                input.dispatchEvent(new Event('blur'));
+              });
+            });
+            
+            // Simulate scrolling behavior
+            for (let i = 0; i < 10; i++) {
+              window.scrollTo(0, i * 100);
+              document.dispatchEvent(new Event('scroll'));
+            }
+            
+            // Wait for any DataDome processing
+            if (typeof window.datadome !== 'undefined') {
+              console.log('DataDome object detected, waiting for processing...');
+            }
           });
+          
+          // Longer wait for complex processing
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
 
         // Wait between attempts
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
 
-        // Check if challenge is completed
+        // Check if challenge is completed with more sophisticated detection
         const challengeStatus = await page.evaluate(() => {
           const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
           const hasDataDomeMessage = document.body?.textContent?.includes("Please enable JS and disable any ad blocker") || false;
           const hasBlockingContent = document.body?.textContent?.includes("blocked") || false;
           const hasLoadingContent = document.body?.textContent?.includes("loading") || false;
           
-          // Check if we can access actual page content
-          const hasRealContent = document.body?.textContent?.length > 5000;
+          // More sophisticated content detection
+          const bodyText = document.body?.textContent || '';
+          const hasRealContent = bodyText.length > 5000;
+          
+          // Check for MarketWatch specific content indicators
+          const hasMarketWatchContent = bodyText.includes('MarketWatch') || 
+                                      bodyText.includes('Dow Jones') || 
+                                      bodyText.includes('stock') || 
+                                      bodyText.includes('market') ||
+                                      document.querySelector('nav') !== null ||
+                                      document.querySelector('.article') !== null ||
+                                      document.querySelector('[data-module]') !== null;
+          
+          // Check if we're getting actual website structure
+          const hasWebsiteStructure = document.querySelectorAll('nav, header, footer, article, .content').length > 0;
+          
+          // Check for navigation elements that wouldn't be on challenge page
+          const hasNavigation = document.querySelectorAll('a[href]').length > 10;
           
           return {
             stillHasChallenge: hasDataDomeScript || hasDataDomeMessage || hasBlockingContent || hasLoadingContent,
             hasRealContent,
-            pageLength: document.body?.textContent?.length || 0
+            hasMarketWatchContent,
+            hasWebsiteStructure,
+            hasNavigation,
+            pageLength: bodyText.length,
+            elementCount: document.querySelectorAll('*').length,
+            linkCount: document.querySelectorAll('a[href]').length,
+            currentUrl: window.location.href
           };
         });
 
-        if (!challengeStatus.stillHasChallenge && challengeStatus.hasRealContent) {
+        // Enhanced challenge completion detection
+        const challengeActuallyCompleted = !challengeStatus.stillHasChallenge && 
+                                         (challengeStatus.hasRealContent || 
+                                          challengeStatus.hasMarketWatchContent || 
+                                          challengeStatus.hasWebsiteStructure ||
+                                          challengeStatus.hasNavigation);
+        
+        if (challengeActuallyCompleted) {
           challengeCompleted = true;
-          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms (${challengeStatus.pageLength} chars)`, "scraper");
+          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, MW content: ${challengeStatus.hasMarketWatchContent})`, "scraper");
         } else if (!challengeStatus.stillHasChallenge) {
-          // Challenge elements gone but no content - wait a bit more
-          log(`[ProtectionBypass] Challenge elements gone but content loading (${challengeStatus.pageLength} chars)`, "scraper");
+          // Challenge elements gone but no real content - wait a bit more
+          log(`[ProtectionBypass] Challenge elements gone but content loading (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links)`, "scraper");
           await new Promise((resolve) => setTimeout(resolve, 5000));
+        } else {
+          // Still has challenge - log current status
+          log(`[ProtectionBypass] Challenge still active (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, URL: ${challengeStatus.currentUrl})`, "scraper");
         }
       }
 
       if (!challengeCompleted) {
         log(`[ProtectionBypass] DataDome challenge did not complete within ${maxWaitTime}ms after ${attempts} attempts`, "scraper");
         
-        // Last resort: try to wait for any content to load
+        // Last resort: try alternative bypass techniques
+        log(`[ProtectionBypass] Attempting alternative bypass techniques...`, "scraper");
+        
+        // Try reloading the page with different headers
+        await page.reload({ waitUntil: 'networkidle2' });
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        
+        // Try interacting with any visible elements
+        await page.evaluate(() => {
+          // Click on any visible buttons or links
+          const clickableElements = document.querySelectorAll('button, a, input[type="submit"], [onclick]');
+          clickableElements.forEach((el, index) => {
+            if (index < 3) { // Only try first 3 elements
+              const rect = el.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                try {
+                  (el as HTMLElement).click();
+                } catch (e) {
+                  // Ignore click errors
+                }
+              }
+            }
+          });
+        });
+        
         await new Promise((resolve) => setTimeout(resolve, 5000));
         
+        // Final content check
         const finalCheck = await page.evaluate(() => {
-          return document.body?.textContent?.length > 1000;
+          const bodyText = document.body?.textContent || '';
+          const hasNavigation = document.querySelectorAll('a[href]').length > 5;
+          const hasWebsiteStructure = document.querySelectorAll('nav, header, footer').length > 0;
+          const hasMarketWatchContent = bodyText.includes('MarketWatch') || bodyText.includes('market');
+          
+          return {
+            hasContent: bodyText.length > 1000,
+            hasNavigation,
+            hasWebsiteStructure,
+            hasMarketWatchContent,
+            contentLength: bodyText.length,
+            linkCount: document.querySelectorAll('a[href]').length
+          };
         });
 
-        if (finalCheck) {
-          log(`[ProtectionBypass] Found some content after final wait, proceeding`, "scraper");
+        if (finalCheck.hasContent && (finalCheck.hasNavigation || finalCheck.hasWebsiteStructure || finalCheck.hasMarketWatchContent)) {
+          log(`[ProtectionBypass] Found some website content after alternative bypass (${finalCheck.contentLength} chars, ${finalCheck.linkCount} links), proceeding`, "scraper");
           return true;
         }
         
+        log(`[ProtectionBypass] All bypass attempts failed, returning false`, "scraper");
         return false;
       }
 

@@ -128,20 +128,24 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 ## Recent Changes
 
 ### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
-- **Fixed DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
-- **Implemented active challenge solving** with multiple attempts and human-like interactions during DataDome challenges
-- **Enhanced challenge detection** with better completion indicators and content verification
+- **Fixed critical DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
+- **Root cause analysis**: MarketWatch returning 401 → TLS fingerprinting fails → Puppeteer detects DataDome → Challenge solving fails → System stuck on challenge page (1378 chars) instead of actual content
+- **Implemented sophisticated challenge solving** with DataDome-specific techniques:
+  - **Script initialization handling**: Wait for DataDome script loading and execution
+  - **DataDome-specific interactions**: Mouse movements, keyboard events, form interactions, scrolling patterns
+  - **Enhanced challenge detection**: Check for MarketWatch content, website structure, navigation elements, not just challenge element removal
+  - **Alternative bypass techniques**: Page reloading, element interaction, multiple verification methods
 - **Challenge solving improvements**:
   - Increased timeout from 20 to 30 seconds with active solving attempts
-  - Multiple solving strategies: basic interactions → enhanced human actions → aggressive event triggering
-  - Better completion detection checking for real content (>5000 chars) not just challenge element removal
-  - Fallback content detection as last resort before giving up
+  - Three-tier solving strategy: DataDome script initialization → sophisticated interactions → aggressive event triggering
+  - Better completion detection checking for real content (>5000 chars) AND website structure
+  - Alternative bypass techniques when standard challenge solving fails
 - **Performance optimization**: Fixed inefficient HTMX processing after successful content extraction
-- **Smart resource management**: Only do HTMX extraction when content is minimal (<50KB), skip when substantial content already exists
 - **Technical implementation**: 
-  - Modified `protection-bypass.ts` to actively solve DataDome challenges instead of passive waiting
-  - Enhanced `main-scraper.ts` to check content quality before triggering additional extraction methods
-- **Expected improvement**: Better success rate on DataDome-protected sites like MarketWatch through active challenge solving
+  - Modified `protection-bypass.ts` with DataDome-specific challenge solving instead of generic actions
+  - Enhanced completion detection with MarketWatch-specific content indicators
+  - Added fallback mechanisms for when challenges can't be solved
+- **Expected improvement**: Better success rate on DataDome-protected sites through targeted challenge solving and fallback mechanisms
 
 ### July 14, 2025 - Enhanced DataDome Anti-Bot Protection Bypass System
 - **Implemented advanced DataDome bypass capabilities** to overcome modern bot detection on protected sites like MarketWatch
