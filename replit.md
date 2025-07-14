@@ -135,6 +135,8 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - System tries Puppeteer fallback → Also hits CAPTCHA → Infinite retry loop
   - Wasted resources and prevented system from processing other URLs
 - **Comprehensive solution implemented**:
+  - **Early CAPTCHA detection**: Skip redirect resolution entirely for known problematic patterns (news.google.com/read/, /articles/, /rss/)
+  - **Performance optimization**: Eliminates wasteful HTTP requests for URLs that always hit CAPTCHA
   - **Enhanced CAPTCHA detection**: Added dynamic detection for 'sorry/index', 'captcha', 'blocked', 'verify', 'challenge', 'access-denied', 'error', 'forbidden' patterns
   - **HTTP redirect CAPTCHA handling**: When HTTP redirect leads to CAPTCHA, return original URL instead of trying Puppeteer fallback
   - **Puppeteer CAPTCHA handling**: When Puppeteer also hits CAPTCHA, return original URL instead of continuing

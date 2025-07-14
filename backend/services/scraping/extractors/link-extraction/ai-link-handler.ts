@@ -44,7 +44,22 @@ export async function handleAILinkIdentification(
           await new Promise(resolve => setTimeout(resolve, 100 * index));
         }
         try {
-          // Use two-stage redirect detection instead of pattern-based detection
+          // Early CAPTCHA detection - skip redirect resolution for known problematic patterns
+          const isKnownCaptchaUrl = link.href.includes('news.google.com/read/') || 
+                                   link.href.includes('news.google.com/articles/') ||
+                                   link.href.includes('news.google.com/rss/');
+          
+          if (isKnownCaptchaUrl) {
+            log(`[LinkExtractor] Skipping redirect resolution for known CAPTCHA-protected URL: ${link.href.substring(0, 40)}...`, "scraper");
+            return {
+              href: link.href,
+              text: link.text,
+              originalHref: link.originalHref,
+              skipReason: 'known_captcha_url'
+            };
+          }
+          
+          // Use two-stage redirect detection for other URLs
           const redirectResult = await TwoStageRedirectDetector.detectRedirect(link.href);
           
           if (redirectResult.isRedirect) {

@@ -84,11 +84,11 @@ async function testCaptchaFix() {
     
     console.log('\n=== BEHAVIOR VERIFICATION ===');
     
-    // Google News should be unchanged (CAPTCHA skipped)
+    // Google News should be unchanged (CAPTCHA skipped early)
     if (googleNewsResult === testLinks[0].href) {
-      console.log('✅ Google News URL correctly skipped due to CAPTCHA');
+      console.log('✅ Google News URL correctly skipped due to early CAPTCHA detection');
     } else {
-      console.log('❌ Google News URL was processed despite CAPTCHA');
+      console.log('❌ Google News URL was processed despite early CAPTCHA detection');
     }
     
     // Bit.ly should be redirected (if it's a valid shortener)
