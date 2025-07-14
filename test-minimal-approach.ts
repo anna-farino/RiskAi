@@ -1,115 +1,117 @@
-/**
- * Test minimal approach for URL-agnostic redirect detection
- */
-
-import { TwoStageRedirectDetector } from './backend/services/scraping/core/two-stage-redirect-detector';
+import puppeteer, { Browser, Page } from 'puppeteer';
 
 async function testMinimalApproach() {
-  console.log('🔍 Testing Dynamic URL-Agnostic Redirect Detection\n');
+  const url = 'https://www.bleepingcomputer.com/news/security/fbi-badbox-20-android-malware-infects-millions-of-consumer-devices/';
   
-  const testCases = [
-    {
-      name: 'Google News URL (likely redirect)',
-      url: 'https://news.google.com/read/CBMidkFVX3lxTFBqaWtJT1JIRFB0VkF',
-      expectedRedirect: true,
-      reason: 'Should detect as redirect based on content analysis'
-    },
-    {
-      name: 'Google News stories URL (likely redirect)',
-      url: 'https://news.google.com/stories/CAAqNggKIjBDQklTSGpvSmMzUnZj',
-      expectedRedirect: true,
-      reason: 'Should detect as redirect based on content analysis'
-    },
-    {
-      name: 'URL with encoded parameters (likely redirect)',
-      url: 'https://example.com/redirect?url=https%3A%2F%2Freal-site.com%2Farticle',
-      expectedRedirect: true,
-      reason: 'URL encoding suggests redirect'
-    },
-    {
-      name: 'Normal news article (not redirect)',
-      url: 'https://www.reuters.com/business/article-title-here',
-      expectedRedirect: false,
-      reason: 'Should be recognized as normal article'
-    },
-    {
-      name: 'Normal site with /read/ in path (not redirect)',
-      url: 'https://example.com/read/normal-article-content',
-      expectedRedirect: false,
-      reason: 'Should not be flagged despite /read/ in path'
-    },
-    {
-      name: 'Short URL (potentially redirect)',
-      url: 'https://bit.ly/3abc123',
-      expectedRedirect: true,
-      reason: 'Short URL services are typically redirects'
-    }
-  ];
+  console.log('Testing minimal browser approach...');
+  console.log(`URL: ${url}`);
   
-  console.log('🎯 Testing Dynamic Detection Algorithm:\n');
+  let browser: Browser | null = null;
+  let page: Page | null = null;
   
-  let correctDetections = 0;
-  const results = [];
-  
-  for (const testCase of testCases) {
-    console.log(`Testing: ${testCase.name}`);
-    console.log(`URL: ${testCase.url}`);
+  try {
+    // Launch with minimal configuration
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ],
+      timeout: 30000
+    });
+    
+    page = await browser.newPage();
+    
+    // Set a more realistic user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    // Try different wait strategies
+    console.log('Attempting navigation with domcontentloaded...');
+    const startTime = Date.now();
     
     try {
-      const startTime = Date.now();
-      const result = await TwoStageRedirectDetector.detectRedirect(testCase.url);
-      const endTime = Date.now();
-      
-      const status = result.isRedirect ? '🔄 REDIRECT' : '📄 NORMAL';
-      const expected = testCase.expectedRedirect ? '🔄 REDIRECT' : '📄 NORMAL';
-      const isCorrect = result.isRedirect === testCase.expectedRedirect;
-      const match = isCorrect ? '✅ CORRECT' : '❌ MISMATCH';
-      
-      if (isCorrect) correctDetections++;
-      
-      results.push({
-        name: testCase.name,
-        url: testCase.url,
-        detected: result.isRedirect,
-        expected: testCase.expectedRedirect,
-        correct: isCorrect,
-        confidence: result.confidence,
-        time: endTime - startTime,
-        reasons: result.reasons
+      const response = await page.goto(url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 20000 
       });
       
-      console.log(`Result: ${status} (confidence: ${result.confidence.toFixed(2)})`);
-      console.log(`Expected: ${expected} ${match}`);
-      console.log(`Time: ${endTime - startTime}ms`);
-      console.log(`Reasons: ${result.reasons.join(', ')}`);
-      console.log('');
+      const loadTime = Date.now() - startTime;
+      console.log(`Navigation completed with domcontentloaded in ${loadTime}ms`);
+      console.log(`Status: ${response ? response.status() : 'unknown'}`);
       
-    } catch (error) {
-      console.error(`❌ Error testing ${testCase.name}: ${error}\n`);
+      // Wait a bit for content to load
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Check content
+      const content = await page.evaluate(() => {
+        return {
+          title: document.title,
+          bodyLength: document.body ? document.body.textContent?.length || 0 : 0,
+          hasCloudflare: document.body ? document.body.innerHTML.includes('cloudflare') : false,
+          hasContent: document.body ? document.body.textContent?.includes('FBI') : false
+        };
+      });
+      
+      console.log('Content check:', content);
+      
+      if (content.bodyLength > 500 && content.hasContent) {
+        console.log('SUCCESS: Article content loaded successfully');
+        return true;
+      }
+      
+    } catch (error: any) {
+      console.log(`domcontentloaded failed: ${error.message}`);
+    }
+    
+    // Try with load event
+    console.log('Attempting navigation with load event...');
+    try {
+      const response = await page.goto(url, { 
+        waitUntil: 'load', 
+        timeout: 15000 
+      });
+      
+      console.log(`Load event navigation status: ${response ? response.status() : 'unknown'}`);
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const content = await page.evaluate(() => {
+        return {
+          title: document.title,
+          bodyLength: document.body ? document.body.textContent?.length || 0 : 0,
+          hasContent: document.body ? document.body.textContent?.includes('FBI') : false
+        };
+      });
+      
+      console.log('Load event content:', content);
+      
+      if (content.bodyLength > 500 && content.hasContent) {
+        console.log('SUCCESS: Article content loaded with load event');
+        return true;
+      }
+      
+    } catch (error: any) {
+      console.log(`Load event failed: ${error.message}`);
+    }
+    
+    console.log('Both navigation strategies failed');
+    return false;
+    
+  } catch (error: any) {
+    console.error('Error during minimal test:', error.message);
+    return false;
+  } finally {
+    if (page) {
+      await page.close();
+    }
+    if (browser) {
+      await browser.close();
     }
   }
-  
-  console.log(`📊 Detection Accuracy: ${correctDetections}/${testCases.length} (${(correctDetections/testCases.length*100).toFixed(1)}%)\n`);
-  
-  console.log('🔍 Key Dynamic Detection Features:');
-  console.log('✅ No hardcoded URL patterns');
-  console.log('✅ Content-based analysis');
-  console.log('✅ JavaScript redirect detection');
-  console.log('✅ HTTP error response analysis');
-  console.log('✅ HTML structure analysis');
-  console.log('✅ Meta refresh detection');
-  console.log('✅ Cross-domain redirect detection');
-  console.log('✅ URL encoding pattern analysis');
-  console.log('✅ Response size analysis');
-  console.log('✅ Redirect-specific text detection');
-  
-  // Show detailed results
-  console.log('\n📋 Detailed Results:');
-  results.forEach(result => {
-    console.log(`${result.name}: ${result.correct ? '✅' : '❌'} (${result.confidence.toFixed(2)} confidence, ${result.time}ms)`);
-  });
-  
-  return results;
 }
 
-testMinimalApproach().catch(console.error);
+testMinimalApproach().then(success => {
+  console.log(`Test result: ${success ? 'SUCCESS' : 'FAILED'}`);
+}).catch(console.error);

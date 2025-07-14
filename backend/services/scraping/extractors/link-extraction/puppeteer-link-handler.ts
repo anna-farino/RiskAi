@@ -473,7 +473,6 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
                                         pathname.includes('/blog/') || pathname.includes('/post/') ||
                                         pathname.includes('/story/') || pathname.includes('/tech/') ||
                                         pathname.includes('/2024/') || pathname.includes('/2025/') ||
-                                        pathname.includes('/2026/') || pathname.includes('/2027/') ||
                                         pathname.split('/').length >= 3;
                   
                   const isNewsOrTechDomain = hostname.includes('news') || hostname.includes('blog') ||
