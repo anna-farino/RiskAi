@@ -1623,7 +1623,10 @@ export default function Sources() {
                 </TableHeader>
                 <TableBody>
                   {sources.data &&
-                    sources.data.map((source) => (
+                    sources.data
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((source) => (
                       <TableRow
                         key={source.id}
                         className={cn(

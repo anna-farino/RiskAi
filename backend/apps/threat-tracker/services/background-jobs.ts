@@ -1,11 +1,7 @@
 import { storage } from "../queries/threat-tracker";
-import {
-  detectHtmlStructure,
-  analyzeContent,
-  identifyArticleLinks,
-} from "./openai";
-import { extractArticleLinks, scrapeUrl } from "./scraper";
-import { extractArticleContentWithAI } from "./content-extractor";
+import { analyzeContent } from "./openai";
+import { scrapingService } from "./scraper";
+
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl, titleSimilarity } from "./url-utils";
@@ -40,15 +36,15 @@ async function processArticle(
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
-    // Normalize the URL to handle variations (trailing slashes, query params)
-    const normalizedUrl = normalizeUrl(articleUrl);
+
     
-    // Check if we already have this article FOR THIS USER - use direct URL lookup for efficiency
-    const existingArticle = await storage.getArticleByUrl(normalizedUrl, userId);
+    // Check if we already have this article FOR THIS USER - use original URL for lookup
+    // We'll handle URL variations through title similarity instead of URL normalization
+    const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
 
     if (existingArticle) {
       log(
-        `[ThreatTracker] Article already exists for this user: ${normalizedUrl}`,
+        `[ThreatTracker] Article already exists for this user: ${articleUrl}`,
         "scraper",
       );
       return null;
@@ -61,7 +57,10 @@ async function processArticle(
     }
 
     // Early content extraction to get title for additional duplicate checking
-    const articleHtml = await scrapeUrl(articleUrl, true, htmlStructure);
+    // Only pass htmlStructure if it's not null - let unified scraper handle AI detection automatically
+    const articleContent = htmlStructure 
+      ? await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure)
+      : await scrapingService.scrapeArticleUrl(articleUrl);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
@@ -69,10 +68,12 @@ async function processArticle(
       return null;
     }
     
-    const articleData = await extractArticleContentWithAI(
-      articleHtml,
-      articleUrl,
-    );
+    const articleData = {
+      title: articleContent.title,
+      content: articleContent.content,
+      author: articleContent.author,
+      publishDate: articleContent.publishDate
+    };
 
     // Additional duplicate check by title similarity to catch same articles with different URLs
     if (articleData.title) {
@@ -200,17 +201,14 @@ async function processArticle(
     // Use the cleaned author field (OpenAI extractor ensures proper field separation)
     let actualAuthor = articleData.author;
 
-    // Store the normalized URL to prevent future duplicates
-    const urlToStore = normalizeUrl(articleUrl);
-
     log(`Storing the article. Author: ${articleData.author}, title: ${articleData.title}, userId: ${userId}, sourceId: ${sourceId}`);
 
-    // Store the article in the database using normalized URL for consistency
+    // Store the article in the database using original URL to preserve exact links
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-      url: normalizedUrl, // Use normalized URL for consistency
+      url: articleUrl, // Use original URL to preserve exact structure
       author: articleData.author,
       publishDate: publishDate,
       summary: analysis.summary,
@@ -293,38 +291,22 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       hardware: hardwareTerms,
     };
 
-    // 1. Load source URL via puppeteer and scrape HTML
+    // 1. Extract article links using unified scraping service
     log(
-      `[ThreatTracker] Step 1-3: Scraping source URL: ${source.url}`,
+      `[ThreatTracker] Using unified scraping service for link extraction`,
       "scraper",
     );
-    const html = await scrapeUrl(source.url);
-
-    // 2. Get or detect HTML structure (scraping config)
-    log(`[ThreatTracker] Determining HTML structure for articles`, "scraper");
-    let htmlStructure;
-    if (source.scrapingConfig) {
-      log(`[ThreatTracker] Using stored HTML structure for source`, "scraper");
-      htmlStructure = source.scrapingConfig;
-    } else {
-      log(
-        `[ThreatTracker] No HTML structure found, detecting new structure`,
-        "scraper",
-      );
-      // Will be detected for each individual article as needed
-      htmlStructure = null;
-    }
-
-    // 3. Use OpenAI to identify article links
-    log(
-      `[ThreatTracker] Step 4: Identifying article links with OpenAI`,
-      "scraper",
-    );
-    const processedLinks = await extractArticleLinks(html, source.url);
+    // Use scrapeSourceUrl which already includes the threat-tracker context
+    const processedLinks = await scrapingService.scrapeSourceUrl(source.url);
     log(
       `[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`,
       "scraper",
     );
+    
+
+
+    // Use source's existing scraping config (unified service handles structure detection internally)
+    let htmlStructure = source.scrapingConfig;
 
     if (processedLinks.length === 0) {
       log(
@@ -344,36 +326,28 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
       try {
-        // Scrape the first article to get its HTML
-        const firstArticleHtml = await scrapeUrl(firstArticleUrl, true);
-
-        // Use OpenAI to detect the HTML structure from this article
-        htmlStructure = await detectHtmlStructure(
-          firstArticleHtml,
-          firstArticleUrl,
-        );
+        // Let the unified scraper handle structure detection automatically
+        // It will use AI detection and cache the results properly
+        const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl);
 
         log(
-          `[ThreatTracker] Step 7: Detected HTML structure for articles`,
+          `[ThreatTracker] Step 7: Structure detection handled by unified scraper`,
           "scraper",
         );
 
-        // Save the detected structure for future use
-        await storage.updateSource(source.id, {
-          scrapingConfig: htmlStructure,
-        });
+        // Don't save anything to database - let the unified scraper handle caching internally
+        // This prevents corrupted selectors from being stored
+        
+        // Clear htmlStructure so we don't pass corrupted config to processArticle
+        htmlStructure = null;
+        
       } catch (error: any) {
         log(
-          `[ThreatTracker] Error detecting HTML structure from first article: ${error.message}`,
+          `[ThreatTracker] Error in structure detection: ${error.message}`,
           "scraper-error",
         );
-        // Continue with a basic structure instead of failing
-        htmlStructure = {
-          title: "h1",
-          content: "article",
-          author: ".author",
-          date: "time",
-        };
+        // Set to null to let unified scraper handle detection
+        htmlStructure = null;
       }
     }
 
@@ -422,7 +396,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
         processedLinks[i],
         source.id,
         userId,
-        htmlStructure,
+        htmlStructure, // This can be null, and that's OK - unified scraper will handle AI detection
         keywords,
       );
 
