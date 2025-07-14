@@ -127,6 +127,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 14, 2025 - Implemented Sequential URL Processing to Prevent Resource Exhaustion - CRITICAL STABILITY FIX
+- **CRITICAL FIX**: Replaced parallel URL processing with sequential processing to prevent system resource exhaustion
+- **Root problem solved**: System was launching multiple Puppeteer instances simultaneously when processing Google News URLs, causing `pthread_create: Resource temporarily unavailable` errors
+- **Sequential processing implementation**:
+  - **One-at-a-time processing**: URLs processed sequentially instead of in parallel using `Promise.all()`
+  - **Resource management**: Only one Puppeteer browser instance runs at any given time
+  - **Progress tracking**: Shows "Processing URL X/Y" for visibility during processing
+  - **Proper cleanup**: Each browser instance is closed before moving to next URL
+  - **Small delays**: 100ms delay between URLs to prevent system overload
+- **Technical implementation**:
+  - `ai-link-handler.ts`: Replaced `Promise.all()` with sequential `for` loop processing
+  - **One browser at a time**: Eliminates simultaneous browser launches that overwhelm system resources
+  - **Error isolation**: Each URL processed independently, preventing cascading failures
+  - **Memory efficiency**: System resources used efficiently without overwhelming environment
+- **Impact**: 
+  - **Eliminates resource exhaustion crashes** that occurred when processing multiple Google News URLs
+  - **Stable system performance** regardless of number of URLs to process
+  - **Better error handling** with isolated URL processing
+  - **Maintains speed** through two-stage detection that skips Puppeteer for most redirects
+  - **Production reliability** - system can handle any workload without crashing
+
 ### July 13, 2025 - Implemented Two-Stage Redirect Detection System - NEXT GENERATION REDIRECT RESOLUTION
 - **BREAKTHROUGH**: Replaced URL pattern-based detection with dynamic response analysis for truly intelligent redirect detection
 - **Root problem solved**: Previous system used URL patterns like `/read/` which could falsely flag legitimate articles with similar URL structures
