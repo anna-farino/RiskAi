@@ -532,8 +532,11 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Default ordering by publish date (most recent first), then by scrape date for tie-breaking
-      const orderedQuery = query.orderBy(desc(threatArticles.publishDate), desc(threatArticles.scrapeDate));
+      // Default ordering: use publish date if available, otherwise use scrape date, then scrape date for tie-breaking
+      const orderedQuery = query.orderBy(
+        desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
+        desc(threatArticles.scrapeDate)
+      );
 
       // Add limit if specified
       const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
