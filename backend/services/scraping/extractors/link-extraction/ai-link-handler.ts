@@ -36,30 +36,10 @@ export async function handleAILinkIdentification(
     // Step 2: Resolve redirects BEFORE OpenAI analysis
     log(`[LinkExtractor] Resolving redirects for ${normalizedLinks.length} URLs before OpenAI analysis`, "scraper");
     
-    // Add rate limiting to prevent triggering CAPTCHA
     const resolvedLinks = await Promise.all(
-      normalizedLinks.map(async (link, index) => {
-        // Add delay between requests to avoid triggering CAPTCHA
-        if (index > 0) {
-          await new Promise(resolve => setTimeout(resolve, 100 * index));
-        }
+      normalizedLinks.map(async (link) => {
         try {
-          // Early CAPTCHA detection - skip redirect resolution for known problematic patterns
-          const isKnownCaptchaUrl = link.href.includes('news.google.com/read/') || 
-                                   link.href.includes('news.google.com/articles/') ||
-                                   link.href.includes('news.google.com/rss/');
-          
-          if (isKnownCaptchaUrl) {
-            log(`[LinkExtractor] Skipping redirect resolution for known CAPTCHA-protected URL: ${link.href.substring(0, 40)}...`, "scraper");
-            return {
-              href: link.href,
-              text: link.text,
-              originalHref: link.originalHref,
-              skipReason: 'known_captcha_url'
-            };
-          }
-          
-          // Use two-stage redirect detection for other URLs
+          // Use two-stage redirect detection instead of pattern-based detection
           const redirectResult = await TwoStageRedirectDetector.detectRedirect(link.href);
           
           if (redirectResult.isRedirect) {
@@ -87,14 +67,8 @@ export async function handleAILinkIdentification(
                                      finalUrlLower.includes('forbidden');
               
               if (isCaptchaOrError) {
-                log(`[LinkExtractor] HTTP redirect led to CAPTCHA/error page, skipping redirect resolution`, "scraper");
-                log(`[LinkExtractor] CAPTCHA detected for: ${link.href.substring(0, 40)}... → ${redirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
-                // Skip redirect resolution when CAPTCHA is detected - return original URL
-                return {
-                  href: link.href,
-                  text: link.text,
-                  originalHref: link.originalHref
-                };
+                log(`[LinkExtractor] HTTP redirect led to CAPTCHA/error page, trying Puppeteer fallback`, "scraper");
+                // Fall through to Puppeteer fallback below
               } else {
                 log(`[LinkExtractor] HTTP redirect resolved: ${link.href.substring(0, 40)}... → ${redirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
                 return {
@@ -106,10 +80,10 @@ export async function handleAILinkIdentification(
               }
             } else {
               log(`[LinkExtractor] HTTP redirect resolution failed or no redirects found, trying Puppeteer fallback`, "scraper");
-              // Fall through to Puppeteer fallback for legitimate redirects
+              // Fall through to Puppeteer fallback below
             }
             
-            // Puppeteer fallback for legitimate redirects that failed HTTP resolution
+            // Puppeteer fallback for any URL that failed HTTP resolution
             log(`[LinkExtractor] Attempting Puppeteer redirect resolution for: ${link.href.substring(0, 60)}...`, "scraper");
             try {
               // Import puppeteer dynamically to avoid circular dependencies
@@ -133,35 +107,13 @@ export async function handleAILinkIdentification(
               await browser.close();
               
               if (puppeteerRedirectInfo.hasRedirects && puppeteerRedirectInfo.finalUrl !== link.href) {
-                // Check if Puppeteer also hit a CAPTCHA/error page
-                const finalUrlLower = puppeteerRedirectInfo.finalUrl.toLowerCase();
-                const isCaptchaOrError = finalUrlLower.includes('sorry/index') || 
-                                       finalUrlLower.includes('captcha') ||
-                                       finalUrlLower.includes('blocked') ||
-                                       finalUrlLower.includes('verify') ||
-                                       finalUrlLower.includes('challenge') ||
-                                       finalUrlLower.includes('access-denied') ||
-                                       finalUrlLower.includes('error') ||
-                                       finalUrlLower.includes('forbidden');
-                
-                if (isCaptchaOrError) {
-                  log(`[LinkExtractor] Puppeteer also hit CAPTCHA/error page, using original URL`, "scraper");
-                  log(`[LinkExtractor] CAPTCHA detected via Puppeteer: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
-                  // Use original URL when CAPTCHA is detected
-                  return {
-                    href: link.href,
-                    text: link.text,
-                    originalHref: link.originalHref
-                  };
-                } else {
-                  log(`[LinkExtractor] Puppeteer redirect resolved: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
-                  return {
-                    href: puppeteerRedirectInfo.finalUrl,
-                    text: link.text,
-                    originalHref: link.href,
-                    wasRedirect: true
-                  };
-                }
+                log(`[LinkExtractor] Puppeteer redirect resolved: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
+                return {
+                  href: puppeteerRedirectInfo.finalUrl,
+                  text: link.text,
+                  originalHref: link.href,
+                  wasRedirect: true
+                };
               } else {
                 log(`[LinkExtractor] Puppeteer found no redirects, using original URL`, "scraper");
               }

@@ -27,8 +27,8 @@ export class TwoStageRedirectDetector {
   private static readonly HIGH_JS_RATIO_THRESHOLD = 0.7; // 70% JavaScript content
 
   /**
-   * Stage 1: Dynamic Content Analysis
-   * Analyze page behavior and content characteristics to detect redirects without URL patterns
+   * Stage 1: Fast URL Pattern + HTTP Analysis
+   * Combine URL pattern analysis with response characteristics for better detection
    */
   static async analyzeResponseCharacteristics(url: string, timeout: number = 10000): Promise<RedirectAnalysis> {
     try {
@@ -37,150 +37,106 @@ export class TwoStageRedirectDetector {
       const reasons: string[] = [];
       let confidence = 0;
       
-      // Attempt HTTP request to analyze response characteristics
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        },
-        signal: AbortSignal.timeout(timeout)
-      });
+      // Check 1: URL Pattern Analysis (Primary - Most Reliable)
+      const urlPatterns = [
+        { pattern: /news\.google\.com\/read\//, weight: 0.9, name: 'Google News read URL' },
+        { pattern: /news\.google\.com\/articles\//, weight: 0.9, name: 'Google News articles URL' },
+        { pattern: /news\.google\.com\/stories\//, weight: 0.8, name: 'Google News stories URL' },
+        { pattern: /bit\.ly\//, weight: 0.8, name: 'Bit.ly shortener' },
+        { pattern: /t\.co\//, weight: 0.8, name: 'Twitter shortener' },
+        { pattern: /tinyurl\.com\//, weight: 0.8, name: 'TinyURL shortener' },
+        { pattern: /short\.link\//, weight: 0.8, name: 'Short.link shortener' },
+        { pattern: /is\.gd\//, weight: 0.8, name: 'Is.gd shortener' },
+        { pattern: /\/redirect/, weight: 0.7, name: 'Redirect in path' },
+        { pattern: /[?&]url=/, weight: 0.7, name: 'URL parameter redirect' },
+        { pattern: /[?&]link=/, weight: 0.6, name: 'Link parameter redirect' },
+        { pattern: /[?&]redir/, weight: 0.6, name: 'Redirect parameter' }
+      ];
 
-      // Check 1: HTTP Redirect Status Codes
-      if (response.status >= 300 && response.status < 400) {
-        reasons.push(`HTTP redirect status: ${response.status}`);
-        confidence += 0.9; // Very high confidence for HTTP redirects
-      }
-
-      // Check 2: Redirect-indicating headers
-      const locationHeader = response.headers.get('location');
-      if (locationHeader) {
-        reasons.push('Location header present');
-        confidence += 0.8;
-      }
-
-      // For non-redirect status codes, analyze content
-      if (response.ok) {
-        const html = await response.text();
-        const responseSize = html.length;
-
-        // Check 3: Response size analysis
-        if (responseSize < this.SMALL_RESPONSE_THRESHOLD) {
-          reasons.push(`Small response size (${responseSize} bytes)`);
-          confidence += 0.4;
+      let foundUrlPattern = false;
+      for (const { pattern, weight, name } of urlPatterns) {
+        if (pattern.test(url)) {
+          reasons.push(`URL pattern: ${name}`);
+          confidence += weight;
+          foundUrlPattern = true;
+          break; // Only count the first (most specific) pattern
         }
+      }
 
-        // Check 4: JavaScript redirect patterns (most important for client-side redirects)
-        const jsRedirectPatterns = [
-          /window\.location\.href\s*=\s*["']([^"']+)["']/i,
-          /window\.location\.replace\s*\(\s*["']([^"']+)["']\s*\)/i,
-          /window\.location\s*=\s*["']([^"']+)["']/i,
-          /location\.href\s*=\s*["']([^"']+)["']/i,
-          /document\.location\s*=\s*["']([^"']+)["']/i,
-          /location\.replace\s*\(\s*["']([^"']+)["']\s*\)/i,
-          /url\s*:\s*["']https?:\/\/[^"']+["']/i, // JSON redirect patterns
-          /window\.open\s*\(\s*["']([^"']+)["']\s*,\s*["']_self["']/i
-        ];
+      // If URL pattern suggests redirect, that's usually enough
+      if (foundUrlPattern && confidence >= this.REDIRECT_CONFIDENCE_THRESHOLD) {
+        const isLikelyRedirect = true;
+        log(`[TwoStageDetector] Stage 1 analysis: LIKELY REDIRECT (confidence: ${confidence.toFixed(2)})`, "scraper");
+        log(`[TwoStageDetector] Stage 1 reasons: ${reasons.join(', ')}`, "scraper");
+        return {
+          isLikelyRedirect,
+          confidence,
+          reasons
+        };
+      }
 
-        let hasJsRedirect = false;
-        let redirectUrl = '';
-        for (const pattern of jsRedirectPatterns) {
-          const match = html.match(pattern);
-          if (match) {
-            hasJsRedirect = true;
-            redirectUrl = match[1] || match[0];
-            break;
+      // Check 2: HTTP Response Analysis (Secondary - For edge cases)
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          },
+          signal: AbortSignal.timeout(timeout)
+        });
+
+        // For known redirect patterns, even HTTP errors suggest redirect behavior
+        if (!response.ok && foundUrlPattern) {
+          reasons.push(`HTTP error ${response.status} + URL pattern suggests redirect`);
+          confidence += 0.4; // Boost confidence for combination
+        } else if (response.ok) {
+          const html = await response.text();
+          const responseSize = html.length;
+
+          // Check for small response size (common in redirects)
+          if (responseSize < this.SMALL_RESPONSE_THRESHOLD) {
+            reasons.push(`Small response size (${responseSize} bytes)`);
+            confidence += 0.3;
           }
-        }
 
-        if (hasJsRedirect) {
-          reasons.push('JavaScript redirect patterns detected');
-          confidence += 0.7;
-          
-          // Additional confidence if redirect URL is to different domain
-          if (redirectUrl && redirectUrl.startsWith('http')) {
-            const currentDomain = new URL(url).hostname;
-            const redirectDomain = new URL(redirectUrl).hostname;
-            if (currentDomain !== redirectDomain) {
-              reasons.push('Cross-domain redirect detected');
-              confidence += 0.2;
+          // Check for JavaScript redirect patterns
+          const jsRedirectPatterns = [
+            /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+            /window\.location\.replace\s*\(\s*["']([^"']+)["']\s*\)/i,
+            /window\.location\s*=\s*["']([^"']+)["']/i,
+            /location\.href\s*=\s*["']([^"']+)["']/i,
+            /document\.location\s*=\s*["']([^"']+)["']/i,
+            /url\s*:\s*["']https?:\/\/[^"']+["']/i, // Google News style with full URL
+            /location\.replace\s*\(\s*["']([^"']+)["']\s*\)/i
+          ];
+
+          let hasJsRedirect = false;
+          for (const pattern of jsRedirectPatterns) {
+            if (pattern.test(html)) {
+              hasJsRedirect = true;
+              break;
             }
           }
+
+          if (hasJsRedirect) {
+            reasons.push('JavaScript redirect patterns detected');
+            confidence += 0.4;
+          }
+
+          // Check for meta refresh redirects
+          const metaRefreshMatch = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'](\d+);\s*url=([^"']+)["']/i);
+          if (metaRefreshMatch) {
+            reasons.push('Meta refresh redirect detected');
+            confidence += 0.5;
+          }
         }
-
-        // Check 5: Meta refresh redirects
-        const metaRefreshMatch = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'](\d+);\s*url=([^"']+)["']/i);
-        if (metaRefreshMatch) {
-          reasons.push('Meta refresh redirect detected');
-          confidence += 0.8;
-        }
-
-        // Check 6: JavaScript content ratio (high JS usually indicates redirect page)
-        const scriptMatches = html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || [];
-        const scriptContent = scriptMatches.join('');
-        const javascriptRatio = scriptContent.length / html.length;
-
-        if (javascriptRatio > this.HIGH_JS_RATIO_THRESHOLD) {
-          reasons.push(`High JavaScript ratio (${(javascriptRatio * 100).toFixed(1)}%)`);
+      } catch (httpError) {
+        // If HTTP fails but we have URL patterns, still consider it a redirect
+        if (foundUrlPattern) {
+          reasons.push(`HTTP analysis failed but URL pattern suggests redirect`);
           confidence += 0.3;
-        }
-
-        // Check 7: Minimal HTML structure analysis
-        const hasMinimalContent = this.hasMinimalHtmlStructure(html);
-        if (hasMinimalContent && responseSize < 5000) {
-          reasons.push('Minimal HTML structure suggests redirect page');
-          confidence += 0.3;
-        }
-
-        // Check 8: Redirect-specific HTML patterns
-        const redirectHtmlPatterns = [
-          /redirecting/i,
-          /please wait/i,
-          /loading/i,
-          /you will be redirected/i,
-          /automatic redirect/i,
-          /click here if you are not redirected/i
-        ];
-
-        let hasRedirectText = false;
-        for (const pattern of redirectHtmlPatterns) {
-          if (pattern.test(html)) {
-            hasRedirectText = true;
-            break;
-          }
-        }
-
-        if (hasRedirectText) {
-          reasons.push('Redirect-indicating text content detected');
-          confidence += 0.2;
-        }
-
-        // Check 9: Noscript fallback links (common in redirect pages)
-        const noscriptMatch = html.match(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi);
-        if (noscriptMatch && noscriptMatch.some(ns => ns.includes('href='))) {
-          reasons.push('Noscript fallback link detected');
-          confidence += 0.2;
-        }
-
-      } else {
-        // HTTP error responses can indicate redirect behavior for certain cases
-        // Many redirect services actively block automated requests
-        if (response.status === 429 || response.status === 403 || response.status === 400) {
-          reasons.push(`HTTP error ${response.status} may indicate redirect protection`);
-          confidence += 0.5;
-          
-          // Additional analysis for likely redirect URLs based on request characteristics
-          // Short URLs that immediately return errors are often redirects
-          if (url.length < 100) {
-            reasons.push('Short URL with HTTP error suggests redirect service');
-            confidence += 0.2;
-          }
-          
-          // URLs with encoded parameters are often redirects
-          if (url.includes('%') || url.includes('?q=') || url.includes('&url=')) {
-            reasons.push('URL encoding/parameters suggest redirect');
-            confidence += 0.2;
-          }
+        } else {
+          reasons.push(`HTTP analysis failed: ${httpError}`);
         }
       }
 
@@ -205,32 +161,6 @@ export class TwoStageRedirectDetector {
         reasons: [`Analysis failed: ${error}`]
       };
     }
-  }
-
-  /**
-   * Helper method to detect minimal HTML structure typical of redirect pages
-   */
-  private static hasMinimalHtmlStructure(html: string): boolean {
-    // Count meaningful content indicators
-    const contentIndicators = [
-      /<article[^>]*>/i,
-      /<main[^>]*>/i,
-      /<section[^>]*>/i,
-      /<div[^>]*class=["'][^"']*content[^"']*["']/i,
-      /<div[^>]*class=["'][^"']*article[^"']*["']/i,
-      /<p[^>]*>/i
-    ];
-
-    let contentCount = 0;
-    for (const indicator of contentIndicators) {
-      const matches = html.match(indicator);
-      if (matches) {
-        contentCount += matches.length;
-      }
-    }
-
-    // If less than 3 meaningful content elements, likely a redirect page
-    return contentCount < 3;
   }
 
   /**
@@ -321,7 +251,7 @@ export class TwoStageRedirectDetector {
     }
 
     // For high-confidence Stage 1 results, use them directly
-    if (analysis.confidence >= 0.6) {
+    if (analysis.confidence >= 0.8) {
       log(`[TwoStageDetector] High confidence Stage 1 result, skipping Stage 2 confirmation`, "scraper");
       return {
         isRedirect: true,
