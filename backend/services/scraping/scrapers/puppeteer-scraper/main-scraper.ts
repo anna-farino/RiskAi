@@ -140,17 +140,51 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       }
     }
 
-    // Handle dynamic content loading if requested
-    if (options?.handleHTMX) {
-      await handleHTMXContent(page, url);
-    }
-
-    if (options?.scrollToLoad) {
-      await handleDynamicContent(page);
-    }
-
-    // Extract content based on page type
+    // Extract content first to check if we already have good content
     const html = await page.content();
+    const contentLength = html.length;
+    
+    log(`[PuppeteerScraper] Initial content extracted (${contentLength} chars)`, "scraper");
+
+    // Only do dynamic content loading if we have minimal content
+    const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
+    
+    if (hasMinimalContent) {
+      log(`[PuppeteerScraper] Minimal content detected (${contentLength} chars), attempting dynamic loading`, "scraper");
+      
+      // Handle dynamic content loading if requested
+      if (options?.handleHTMX) {
+        log(`[PuppeteerScraper] Dynamic content detected, using advanced HTMX extraction`, "scraper");
+        await handleHTMXContent(page, url);
+      }
+
+      if (options?.scrollToLoad) {
+        await handleDynamicContent(page);
+      }
+      
+      // Re-extract content after dynamic loading
+      const dynamicHtml = await page.content();
+      const dynamicContentLength = dynamicHtml.length;
+      
+      log(`[PuppeteerScraper] Dynamic content loading completed (${dynamicContentLength} chars)`, "scraper");
+      
+      // Use the dynamic content if it's significantly better
+      if (dynamicContentLength > contentLength * 1.5) {
+        log(`[PuppeteerScraper] Dynamic content provided significant improvement, using dynamic version`, "scraper");
+        return {
+          html: dynamicHtml,
+          success: true,
+          method: 'puppeteer',
+          responseTime: Date.now() - startTime,
+          statusCode,
+          finalUrl: page.url()
+        };
+      } else {
+        log(`[PuppeteerScraper] Dynamic content did not provide significant improvement, using original`, "scraper");
+      }
+    } else {
+      log(`[PuppeteerScraper] Substantial content already extracted (${contentLength} chars), skipping dynamic loading`, "scraper");
+    }
 
     log(`[PuppeteerScraper] Content extraction completed successfully`, "scraper");
 
