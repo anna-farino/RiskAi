@@ -127,6 +127,15 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 12, 2025 - Fixed Dynamic Content Detection False Positives
+- **Fixed unnecessary Puppeteer usage** for sites with successful HTTP scraping (e.g., MarketWatch with 605,208 chars)
+- **Root cause**: Dynamic content detection was too aggressive, triggering on SPA frameworks alone
+- **Solution**: Modified detection logic to require evidence of missing content, not just modern frameworks
+- **Enhanced decision logic**: SPA frameworks now only trigger Puppeteer when combined with few links or content loading indicators
+- **Performance improvement**: Eliminates 20+ second Puppeteer operations when HTTP scraping is sufficient
+- **Maintains functionality**: HTMX sites and sites with actual missing content still use Puppeteer correctly
+- **Test verification**: All 4 test scenarios pass - conservative detection while preserving functionality
+
 ### July 11, 2025 - Fixed Google News JavaScript Redirect Detection
 - **CRITICAL FIX**: Enhanced redirect resolver to handle JavaScript redirects used by Google News
 - **Root cause identified**: Google News URLs return 200 OK responses with JavaScript redirects, not HTTP redirects (3xx status codes)

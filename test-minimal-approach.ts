@@ -1,117 +1,111 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
+import { detectDynamicContentNeeds } from './backend/services/scraping/core/method-selector';
 
 async function testMinimalApproach() {
-  const url = 'https://www.bleepingcomputer.com/news/security/fbi-badbox-20-android-malware-infects-millions-of-consumer-devices/';
+  console.log('🧪 Testing Dynamic Content Detection Logic Fix\n');
   
-  console.log('Testing minimal browser approach...');
-  console.log(`URL: ${url}`);
+  // Test cases that should NOT trigger Puppeteer (after fix)
+  const testCases = [
+    {
+      name: 'SPA Framework with Good Content',
+      html: `
+        <html>
+          <head><title>Test Site</title></head>
+          <body>
+            <div id="react-root"></div>
+            <div class="content">
+              <a href="/article1">Article 1</a>
+              <a href="/article2">Article 2</a>
+              <a href="/article3">Article 3</a>
+              <a href="/article4">Article 4</a>
+              <a href="/article5">Article 5</a>
+              <a href="/article6">Article 6</a>
+            </div>
+          </body>
+        </html>
+      `,
+      shouldTriggerPuppeteer: false,
+      reason: 'SPA framework but adequate links (6 > 5 threshold)'
+    },
+    {
+      name: 'SPA Framework with Few Links',
+      html: `
+        <html>
+          <head><title>Test Site</title></head>
+          <body>
+            <div id="react-root"></div>
+            <div class="content">
+              <a href="/article1">Article 1</a>
+              <a href="/article2">Article 2</a>
+            </div>
+          </body>
+        </html>
+      `,
+      shouldTriggerPuppeteer: true,
+      reason: 'SPA framework AND few links (2 < 5 threshold)'
+    },
+    {
+      name: 'HTMX Site',
+      html: `
+        <html>
+          <head><title>Test Site</title></head>
+          <body>
+            <div hx-get="/load-more" hx-trigger="click">Load More</div>
+          </body>
+        </html>
+      `,
+      shouldTriggerPuppeteer: true,
+      reason: 'Strong HTMX evidence (hx-get attribute)'
+    },
+    {
+      name: 'Regular Site with Dynamic Loading',
+      html: `
+        <html>
+          <head><title>Test Site</title></head>
+          <body>
+            <div class="load-more">Load More</div>
+            <div class="content">
+              <a href="/article1">Article 1</a>
+              <a href="/article2">Article 2</a>
+              <a href="/article3">Article 3</a>
+              <a href="/article4">Article 4</a>
+              <a href="/article5">Article 5</a>
+              <a href="/article6">Article 6</a>
+            </div>
+          </body>
+        </html>
+      `,
+      shouldTriggerPuppeteer: false,
+      reason: 'Dynamic loading but adequate links and no content loading indicators'
+    }
+  ];
   
-  let browser: Browser | null = null;
-  let page: Page | null = null;
+  console.log('Testing dynamic content detection with different scenarios:\n');
   
-  try {
-    // Launch with minimal configuration
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ],
-      timeout: 30000
-    });
+  for (const testCase of testCases) {
+    const result = detectDynamicContentNeeds(testCase.html, 'https://example.com');
+    const status = result === testCase.shouldTriggerPuppeteer ? '✅' : '❌';
     
-    page = await browser.newPage();
-    
-    // Set a more realistic user agent
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    
-    // Try different wait strategies
-    console.log('Attempting navigation with domcontentloaded...');
-    const startTime = Date.now();
-    
-    try {
-      const response = await page.goto(url, { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 20000 
-      });
-      
-      const loadTime = Date.now() - startTime;
-      console.log(`Navigation completed with domcontentloaded in ${loadTime}ms`);
-      console.log(`Status: ${response ? response.status() : 'unknown'}`);
-      
-      // Wait a bit for content to load
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      // Check content
-      const content = await page.evaluate(() => {
-        return {
-          title: document.title,
-          bodyLength: document.body ? document.body.textContent?.length || 0 : 0,
-          hasCloudflare: document.body ? document.body.innerHTML.includes('cloudflare') : false,
-          hasContent: document.body ? document.body.textContent?.includes('FBI') : false
-        };
-      });
-      
-      console.log('Content check:', content);
-      
-      if (content.bodyLength > 500 && content.hasContent) {
-        console.log('SUCCESS: Article content loaded successfully');
-        return true;
-      }
-      
-    } catch (error: any) {
-      console.log(`domcontentloaded failed: ${error.message}`);
-    }
-    
-    // Try with load event
-    console.log('Attempting navigation with load event...');
-    try {
-      const response = await page.goto(url, { 
-        waitUntil: 'load', 
-        timeout: 15000 
-      });
-      
-      console.log(`Load event navigation status: ${response ? response.status() : 'unknown'}`);
-      
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const content = await page.evaluate(() => {
-        return {
-          title: document.title,
-          bodyLength: document.body ? document.body.textContent?.length || 0 : 0,
-          hasContent: document.body ? document.body.textContent?.includes('FBI') : false
-        };
-      });
-      
-      console.log('Load event content:', content);
-      
-      if (content.bodyLength > 500 && content.hasContent) {
-        console.log('SUCCESS: Article content loaded with load event');
-        return true;
-      }
-      
-    } catch (error: any) {
-      console.log(`Load event failed: ${error.message}`);
-    }
-    
-    console.log('Both navigation strategies failed');
-    return false;
-    
-  } catch (error: any) {
-    console.error('Error during minimal test:', error.message);
-    return false;
-  } finally {
-    if (page) {
-      await page.close();
-    }
-    if (browser) {
-      await browser.close();
-    }
+    console.log(`${status} ${testCase.name}`);
+    console.log(`   Expected: ${testCase.shouldTriggerPuppeteer ? 'Puppeteer' : 'HTTP'}`);
+    console.log(`   Actual: ${result ? 'Puppeteer' : 'HTTP'}`);
+    console.log(`   Reason: ${testCase.reason}`);
+    console.log();
+  }
+  
+  console.log('🎯 Test Summary:');
+  const results = testCases.map(testCase => ({
+    name: testCase.name,
+    passed: detectDynamicContentNeeds(testCase.html, 'https://example.com') === testCase.shouldTriggerPuppeteer
+  }));
+  
+  const passedCount = results.filter(r => r.passed).length;
+  console.log(`Passed: ${passedCount}/${testCases.length}`);
+  
+  if (passedCount === testCases.length) {
+    console.log('✅ All tests passed! Dynamic content detection is now more conservative.');
+  } else {
+    console.log('❌ Some tests failed. The logic may need further adjustment.');
   }
 }
 
-testMinimalApproach().then(success => {
-  console.log(`Test result: ${success ? 'SUCCESS' : 'FAILED'}`);
-}).catch(console.error);
+testMinimalApproach().catch(console.error);

@@ -130,10 +130,11 @@ export function detectDynamicContentNeeds(html: string, url: string): boolean {
                           htmlLower.includes('nuxt');
   
   // Decision logic: Require stronger evidence to switch to Puppeteer
-  const needsDynamic = hasStrongHTMX || // Strong HTMX evidence
-                      hasSPAFrameworks || // SPA framework detected
-                      hasVeryFewLinks || // Very minimal links
-                      hasEmptyContentContainers || // Empty containers with loading
+  // Only switch if there's clear evidence of missing content, not just modern frameworks
+  const needsDynamic = hasStrongHTMX || // Strong HTMX evidence (requires dynamic loading)
+                      hasVeryFewLinks || // Very minimal links (incomplete content)
+                      hasEmptyContentContainers || // Empty containers with loading (content not loaded)
+                      (hasSPAFrameworks && (hasVeryFewLinks || hasContentLoading)) || // SPA + evidence of missing content
                       (hasDynamicLoading && hasContentLoading); // Multiple weak signals
   
   if (needsDynamic) {
