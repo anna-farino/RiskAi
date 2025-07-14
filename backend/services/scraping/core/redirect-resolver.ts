@@ -1,5 +1,4 @@
 import { log } from "backend/utils/log";
-import { GoogleNewsHandler } from './google-news-handler';
 
 export interface RedirectInfo {
   originalUrl: string;
