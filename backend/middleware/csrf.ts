@@ -12,7 +12,7 @@ type CsrfCookieOptions = {
   httpOnly: boolean
 }
 
-let domain = ''
+let domain: string | undefined = ''
 
 switch(process.env.NODE_ENV) {
   case 'production':

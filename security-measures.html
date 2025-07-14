@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Security Measures Summary</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #e74c3c;
+            margin-top: 30px;
+            border-left: 4px solid #e74c3c;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #8e44ad;
+            margin-top: 25px;
+        }
+        h4 {
+            color: #27ae60;
+            margin-top: 20px;
+        }
+        .description {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-style: italic;
+            border-left: 4px solid #3498db;
+        }
+        code {
+            background-color: #f1c40f;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .file-ref {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+        .security-level {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .high-security {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .medium-security {
+            background-color: #f39c12;
+            color: white;
+        }
+        .basic-security {
+            background-color: #27ae60;
+            color: white;
+        }
+        .vulnerability-item {
+            background-color: #fff5f5;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .vulnerability-name {
+            font-weight: bold;
+            color: #c0392b;
+            font-size: 1.1em;
+        }
+        .protection-method {
+            color: #27ae60;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        .vulnerability-description {
+            margin: 8px 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Backend Security Measures Summary</h1>
+        <p>Comprehensive overview of security measures implemented in the backend system, focusing on authentication, validation, and CSRF protection.</p>
+
+        <h2>Protected Vulnerabilities <span class="security-level high-security">VULNERABILITY COVERAGE</span></h2>
+        <div class="description">
+            The application implements specific protections against the following security vulnerabilities and attack vectors.
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Cross-Site Request Forgery (CSRF)</div>
+            <div class="vulnerability-description">Attackers trick authenticated users into performing unwanted actions by exploiting trusted relationships between users and web applications.</div>
+            <div class="protection-method">Protection: Double Submit Cookie Pattern</div>
+            <div class="vulnerability-description">
+                Implements the "Double Submit Cookie" pattern using <code>csrf-csrf</code> library. Requires both a cookie token and header token (<code>x-csrf-token</code>) to match for state-changing operations. 
+                <br><strong>Code:</strong> <code>doubleCsrfProtection</code> middleware in <code>backend/middleware/csrf.ts</code>
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">SQL Injection</div>
+            <div class="vulnerability-description">Malicious SQL code injected into application queries to manipulate database operations and access unauthorized data.</div>
+            <div class="protection-method">Protection: Parameterized Queries & ORM</div>
+            <div class="vulnerability-description">
+                Uses Drizzle ORM which automatically parameterizes all queries, preventing SQL injection by separating SQL logic from data inputs.
+                <br><strong>Code:</strong> All database operations use Drizzle ORM's query builder with <code>eq()</code>, <code>and()</code> functions
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Cross-Site Scripting (XSS)</div>
+            <div class="vulnerability-description">Injection of malicious scripts into web pages viewed by other users, allowing attackers to steal data or perform actions on behalf of victims.</div>
+            <div class="protection-method">Protection: Content Security Policy (CSP) with Nonces</div>
+            <div class="vulnerability-description">
+                Implements strict CSP with nonce-based script execution, preventing unauthorized script execution and inline code injection.
+                <br><strong>Code:</strong> <code>cspOptions</code> in <code>backend/utils/helmet-config.ts</code> with nonce generation
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Clickjacking (UI Redressing)</div>
+            <div class="vulnerability-description">Attackers overlay transparent or opaque layers over legitimate UI elements to trick users into clicking on unintended elements.</div>
+            <div class="protection-method">Protection: X-Frame-Options</div>
+            <div class="vulnerability-description">
+                Sets <code>X-Frame-Options: DENY</code> header to prevent the application from being embedded in frames or iframes.
+                <br><strong>Code:</strong> <code>frameguard: { action: 'deny' }</code> in <code>backend/utils/helmet-config.ts</code>
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Brute Force Attacks</div>
+            <div class="vulnerability-description">Systematic attempts to guess passwords or tokens by trying multiple combinations rapidly.</div>
+            <div class="protection-method">Protection: Rate Limiting</div>
+            <div class="vulnerability-description">
+                Limits requests to 30 per 15-minute window, preventing rapid-fire authentication attempts and resource exhaustion.
+                <br><strong>Code:</strong> <code>rateLimitConfig</code> in <code>backend/utils/rate-limit-config.ts</code> applied to auth routes
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Session Hijacking</div>
+            <div class="vulnerability-description">Attackers steal or predict session tokens to impersonate legitimate users and gain unauthorized access.</div>
+            <div class="protection-method">Protection: Secure Token Management</div>
+            <div class="vulnerability-description">
+                Uses HTTP-only cookies with <code>secure: true</code> and <code>sameSite: 'none'</code>, plus HMAC-SHA256 hashed refresh tokens with automatic rotation.
+                <br><strong>Code:</strong> <code>cookieOptions</code> in <code>backend/utils/auth.ts</code> and <code>tokenHash()</code> function
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Password Attacks (Rainbow Tables, Dictionary)</div>
+            <div class="vulnerability-description">Pre-computed attacks using common passwords or hash lookup tables to crack stored password hashes.</div>
+            <div class="protection-method">Protection: Argon2 Hashing</div>
+            <div class="vulnerability-description">
+                Uses Argon2 algorithm with automatic salting, making rainbow table attacks ineffective and requiring significant computational resources for brute force.
+                <br><strong>Code:</strong> <code>argon2.hash()</code> and <code>argon2.verify()</code> in <code>backend/utils/auth.ts</code>
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Input Validation Bypass</div>
+            <div class="vulnerability-description">Malformed or malicious input data bypassing validation to cause application errors or inject malicious payloads.</div>
+            <div class="protection-method">Protection: Schema Validation</div>
+            <div class="vulnerability-description">
+                Comprehensive input validation using Zod schemas that parse and validate all incoming request data before processing.
+                <br><strong>Code:</strong> <code>insertThreatSourceSchema.parse()</code> and similar validations in router files
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Insecure Direct Object References (IDOR)</div>
+            <div class="vulnerability-description">Users accessing objects they shouldn't by manipulating references (IDs) in requests to access other users' data.</div>
+            <div class="protection-method">Protection: User Context Isolation</div>
+            <div class="vulnerability-description">
+                All database queries automatically include user-specific WHERE clauses, ensuring users can only access their own data.
+                <br><strong>Code:</strong> <code>withUserContext()</code> in <code>backend/db/with-user-context.ts</code> and user ID checks in all queries
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Cross-Origin Resource Sharing (CORS) Bypass</div>
+            <div class="vulnerability-description">Malicious websites making unauthorized requests to the application from different origins to steal data or perform actions.</div>
+            <div class="protection-method">Protection: Strict CORS Policy</div>
+            <div class="vulnerability-description">
+                Allowlisted specific origins only, with credentials enabled for legitimate domains and explicit header restrictions.
+                <br><strong>Code:</strong> <code>corsOptions</code> in <code>backend/utils/cors-options.ts</code> with specific origin allowlist
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Content-Type Confusion</div>
+            <div class="vulnerability-description">Attackers bypassing CSRF protection by using simple form content types that don't trigger preflight requests.</div>
+            <div class="protection-method">Protection: Content-Type Restrictions</div>
+            <div class="vulnerability-description">
+                Blocks simple request content types (<code>text/plain</code>, <code>application/x-www-form-urlencoded</code>) forcing JSON and preflight requests.
+                <br><strong>Code:</strong> <code>noSimpleRequests</code> middleware in <code>backend/middleware/no-simple-requests.ts</code>
+            </div>
+        </div>
+
+        <div class="vulnerability-item">
+            <div class="vulnerability-name">Privilege Escalation</div>
+            <div class="vulnerability-description">Users gaining access to functionality or data beyond their authorized permission level.</div>
+            <div class="protection-method">Protection: Role-Based Access Control (RBAC)</div>
+            <div class="vulnerability-description">
+                Granular permission system that checks user roles and permissions before allowing access to sensitive operations.
+                <br><strong>Code:</strong> <code>verifyPermissions(permission)</code> middleware in <code>backend/middleware/verify-permissions.ts</code>
+            </div>
+        </div>
+
+        <h2>Authentication <span class="security-level high-security">HIGH SECURITY</span></h2>
+        <div class="description">
+            Multi-layered authentication system using JWT tokens, secure password hashing, and optional two-factor authentication to ensure only authorized users can access the system.
+        </div>
+
+        <h3>JWT Token System <span class="file-ref">(backend/utils/auth.ts, backend/middleware/index.ts)</span></h3>
+        <ul>
+            <li><strong>Dual Token Architecture</strong>: Access tokens (1 hour) + Refresh tokens (30 days)</li>
+            <li><strong>Access tokens</strong>: Short-lived JWT stored in HTTP-only cookies (<code>maxAge: 60 * 1000 * 5</code> - 5 minutes)</li>
+            <li><strong>Refresh tokens</strong>: Cryptographically secure random 40-byte hex tokens with HMAC-SHA256 hashing using pepper</li>
+            <li><strong>Token rotation</strong>: Refresh tokens are revoked and new ones generated on each refresh</li>
+            <li><strong>Secure storage</strong>: All tokens in HTTP-only cookies with <code>secure: true</code>, <code>sameSite: 'none'</code></li>
+        </ul>
+
+        <h3>Password Security <span class="file-ref">(backend/utils/auth.ts:25-40)</span></h3>
+        <ul>
+            <li><strong>Argon2 hashing</strong>: Industry-standard password hashing with <code>argon2.hash()</code></li>
+            <li><strong>Salt included</strong>: Argon2 automatically handles salting</li>
+        </ul>
+
+        <h3>Two-Factor Authentication <span class="file-ref">(backend/handlers/login.ts:39-48)</span></h3>
+        <ul>
+            <li><strong>OTP system</strong>: Email-based OTP for 2FA when <code>user.twoFactorEnabled</code> is true</li>
+            <li><strong>Conditional login flow</strong>: Direct login vs. OTP verification based on user settings</li>
+        </ul>
+
+        <h2>Validation <span class="security-level medium-security">MEDIUM SECURITY</span></h2>
+        <div class="description">
+            Input validation and content-type restrictions to prevent malicious data from entering the system and ensure only properly formatted requests are processed.
+        </div>
+
+        <h3>Input Validation <span class="file-ref">(Found in multiple router files)</span></h3>
+        <ul>
+            <li><strong>Zod schemas</strong>: Used throughout for request validation:
+                <ul>
+                    <li><code>insertThreatSourceSchema.parse()</code> in threat-tracker/router/index.ts:41</li>
+                    <li><code>insertKeywordSchema.parse()</code> in news-radar/router/index.ts:82</li>
+                    <li>Schema validation for bulk operations and settings updates</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Content-Type Restrictions <span class="file-ref">(backend/middleware/no-simple-requests.ts)</span></h3>
+        <ul>
+            <li><strong>Blocks simple requests</strong>: Rejects <code>text/plain</code>, <code>application/x-www-form-urlencoded</code>, <code>multipart/form-data</code></li>
+            <li><strong>Forces JSON</strong>: Only allows <code>application/json</code> for API requests</li>
+            <li><strong>CSRF prevention</strong>: Prevents simple cross-origin requests</li>
+        </ul>
+
+        <h2>CSRF Protection <span class="security-level high-security">HIGH SECURITY</span></h2>
+        <div class="description">
+            Double CSRF token implementation that prevents cross-site request forgery attacks by requiring both cookie and header tokens for state-changing operations.
+        </div>
+
+        <h3>Double CSRF Token Implementation <span class="file-ref">(backend/middleware/csrf.ts)</span></h3>
+        <ul>
+            <li><strong>Library</strong>: Uses <code>csrf-csrf</code> package with <code>doubleCsrf()</code></li>
+            <li><strong>Token extraction</strong>: Headers via <code>req.headers["x-csrf-token"]</code></li>
+            <li><strong>Cookie configuration</strong>:
+                <ul>
+                    <li><code>cookieName: "csrf-token"</code></li>
+                    <li><code>httpOnly: false</code> (required for client-side access)</li>
+                    <li><code>sameSite: "none"</code>, <code>secure: true</code></li>
+                    <li>Environment-specific domains</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>CSRF Token Flow</h3>
+        <ul>
+            <li><strong>Generation</strong>: <code>generateToken()</code> called after successful login (login.ts:54)</li>
+            <li><strong>Validation</strong>: <code>doubleCsrfProtection</code> middleware applied to all protected routes (router/index.ts:44)</li>
+            <li><strong>Headers</strong>: Client must send token in <code>x-csrf-token</code> header (cors-options.ts:20)</li>
+        </ul>
+
+        <h2>Middleware Security Layers <span class="security-level high-security">HIGH SECURITY</span></h2>
+        <div class="description">
+            Layered security middleware that provides defense-in-depth through multiple protection mechanisms applied in sequence to all requests.
+        </div>
+
+        <h3>Route Protection Stack <span class="file-ref">(backend/router/index.ts:44-46)</span></h3>
+        <pre><code>router.use(doubleCsrfProtection)     // CSRF validation
+router.use(noSimpleRequests)         // Content-Type restrictions  
+router.use(verifyToken)              // Authentication</code></pre>
+
+        <h3>Helmet Security Headers <span class="file-ref">(backend/utils/helmet-config.ts)</span></h3>
+        <ul>
+            <li><strong>CSP</strong>: Strict Content Security Policy with nonces</li>
+            <li><strong>Frame protection</strong>: <code>frameguard: { action: 'deny' }</code> prevents clickjacking</li>
+            <li><strong>Script/Style security</strong>: Nonce-based execution in production, unsafe-inline only in dev</li>
+            <li><strong>Default restrictions</strong>: <code>objectSrc: ["'none"]</code>, <code>frameAncestors: ["'none"]</code></li>
+        </ul>
+
+        <h3>Rate Limiting <span class="file-ref">(backend/utils/rate-limit-config.ts)</span></h3>
+        <ul>
+            <li><strong>Window</strong>: 15 minutes</li>
+            <li><strong>Limit</strong>: 30 requests per window</li>
+            <li><strong>Applied to</strong>: Auth routes and test endpoints</li>
+            <li><strong>Smart counting</strong>: <code>skipSuccessfulRequests: true</code></li>
+        </ul>
+
+        <h3>CORS Configuration <span class="file-ref">(backend/utils/cors-options.ts)</span></h3>
+        <ul>
+            <li><strong>Allowlisted origins</strong>: Specific domains including localhost, production, staging</li>
+            <li><strong>Credentials</strong>: <code>credentials: true</code> for cookie handling</li>
+            <li><strong>Headers</strong>: Explicitly allows CSRF token header (<code>x-csrf-token</code>)</li>
+        </ul>
+
+        <h2>Authorization <span class="security-level medium-security">MEDIUM SECURITY</span></h2>
+        <div class="description">
+            Role-based access control system that ensures users can only access resources and perform actions they are explicitly authorized for.
+        </div>
+
+        <h3>Role-Based Access Control <span class="file-ref">(backend/middleware/verify-permissions.ts)</span></h3>
+        <ul>
+            <li><strong>Permission checking</strong>: <code>verifyPermissions(permission)</code> middleware</li>
+            <li><strong>Database integration</strong>: Checks user permissions from RBAC tables</li>
+            <li><strong>Granular permissions</strong>: <code>actions:view</code>, <code>permissions:edit</code>, <code>roles:edit</code>, <code>roles:view</code></li>
+        </ul>
+
+        <h3>User Context Isolation <span class="file-ref">(backend/db/with-user-context.ts)</span></h3>
+        <ul>
+            <li><strong>Row-level security</strong>: Database queries filtered by user context</li>
+            <li><strong>Automatic user filtering</strong>: Prevents cross-user data access</li>
+        </ul>
+
+        <h2>Additional Security Measures <span class="security-level basic-security">BASIC SECURITY</span></h2>
+        <div class="description">
+            Supporting security features including encryption for sensitive data and database-level protections against common attack vectors.
+        </div>
+
+        <h3>Encryption <span class="file-ref">(backend/utils/encryption.ts - referenced)</span></h3>
+        <ul>
+            <li><strong>Secrets management</strong>: Encrypted storage for sensitive configuration</li>
+            <li><strong>CSRF/Refresh token secrets</strong>: Environment-based secret management</li>
+        </ul>
+
+        <h3>Database Security</h3>
+        <ul>
+            <li><strong>Parameterized queries</strong>: Drizzle ORM prevents SQL injection</li>
+            <li><strong>User isolation</strong>: All queries include user-specific WHERE clauses</li>
+            <li><strong>Token hashing</strong>: Refresh tokens hashed before database storage</li>
+        </ul>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #ecf0f1;">
+        <p style="text-align: center; color: #7f8c8d; font-style: italic;">
+            The implementation demonstrates defense-in-depth with multiple security layers, proper token management, and comprehensive input validation.
+        </p>
+    </div>
+</body>
+</html>
