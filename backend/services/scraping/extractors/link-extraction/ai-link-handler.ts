@@ -90,13 +90,69 @@ export async function handleAILinkIdentification(
                 };
               }
             } else {
-              log(`[LinkExtractor] HTTP redirect resolution failed or no redirects found, using original URL`, "scraper");
-              // Return original URL instead of trying Puppeteer for failed HTTP redirects
-              return {
-                href: link.href,
-                text: link.text,
-                originalHref: link.originalHref
-              };
+              log(`[LinkExtractor] HTTP redirect resolution failed or no redirects found, trying Puppeteer fallback`, "scraper");
+              // Fall through to Puppeteer fallback for legitimate redirects
+            }
+            
+            // Puppeteer fallback for legitimate redirects that failed HTTP resolution
+            log(`[LinkExtractor] Attempting Puppeteer redirect resolution for: ${link.href.substring(0, 60)}...`, "scraper");
+            try {
+              // Import puppeteer dynamically to avoid circular dependencies
+              const puppeteer = await import('puppeteer');
+              const browser = await puppeteer.default.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
+              });
+              const page = await browser.newPage();
+              
+              // Set a realistic user agent
+              await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+              
+              // Use Puppeteer to resolve the redirect
+              const puppeteerRedirectInfo = await RedirectResolver.resolveRedirectsPuppeteer(page, link.href, {
+                maxRedirects: 5,
+                timeout: 15000,
+                followJavaScriptRedirects: true
+              });
+              
+              await browser.close();
+              
+              if (puppeteerRedirectInfo.hasRedirects && puppeteerRedirectInfo.finalUrl !== link.href) {
+                // Check if Puppeteer also hit a CAPTCHA/error page
+                const finalUrlLower = puppeteerRedirectInfo.finalUrl.toLowerCase();
+                const isCaptchaOrError = finalUrlLower.includes('sorry/index') || 
+                                       finalUrlLower.includes('captcha') ||
+                                       finalUrlLower.includes('blocked') ||
+                                       finalUrlLower.includes('verify') ||
+                                       finalUrlLower.includes('challenge') ||
+                                       finalUrlLower.includes('access-denied') ||
+                                       finalUrlLower.includes('error') ||
+                                       finalUrlLower.includes('forbidden');
+                
+                if (isCaptchaOrError) {
+                  log(`[LinkExtractor] Puppeteer also hit CAPTCHA/error page, using original URL`, "scraper");
+                  log(`[LinkExtractor] CAPTCHA detected via Puppeteer: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
+                  // Use original URL when CAPTCHA is detected
+                  return {
+                    href: link.href,
+                    text: link.text,
+                    originalHref: link.originalHref
+                  };
+                } else {
+                  log(`[LinkExtractor] Puppeteer redirect resolved: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
+                  return {
+                    href: puppeteerRedirectInfo.finalUrl,
+                    text: link.text,
+                    originalHref: link.href,
+                    wasRedirect: true
+                  };
+                }
+              } else {
+                log(`[LinkExtractor] Puppeteer found no redirects, using original URL`, "scraper");
+              }
+              
+            } catch (puppeteerError: any) {
+              log(`[LinkExtractor] Puppeteer redirect resolution failed: ${puppeteerError.message}`, "scraper");
             }
           } else {
             log(`[LinkExtractor] Two-stage detector determined no redirect needed for: ${link.href.substring(0, 40)}...`, "scraper");

@@ -138,8 +138,9 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **Enhanced CAPTCHA detection**: Added dynamic detection for 'sorry/index', 'captcha', 'blocked', 'verify', 'challenge', 'access-denied', 'error', 'forbidden' patterns
   - **HTTP redirect CAPTCHA handling**: When HTTP redirect leads to CAPTCHA, return original URL instead of trying Puppeteer fallback
   - **Puppeteer CAPTCHA handling**: When Puppeteer also hits CAPTCHA, return original URL instead of continuing
+  - **Balanced approach**: Puppeteer fallback still available for legitimate redirects that fail HTTP resolution
   - **Rate limiting**: Added 100ms staggered delays between redirect resolution attempts to prevent triggering CAPTCHA
-  - **Code cleanup**: Removed unreachable Puppeteer fallback code that was causing infinite loops
+  - **Smart fallback logic**: System distinguishes between CAPTCHA-blocked redirects and legitimate redirects that need Puppeteer
   - **Enhanced logging**: Added detailed logging to show CAPTCHA detection and skipping behavior
 - **Technical implementation**:
   - `ai-link-handler.ts`: Enhanced with comprehensive CAPTCHA detection and graceful handling
