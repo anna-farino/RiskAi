@@ -163,33 +163,102 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
     });
 
     if (isDataDomeChallenge) {
-      log(`[ProtectionBypass] DataDome challenge detected, waiting for completion...`, "scraper");
+      log(`[ProtectionBypass] DataDome challenge detected, actively solving...`, "scraper");
 
-      // Wait for the challenge to complete
+      // Perform enhanced human-like actions during challenge
+      log(`[ProtectionBypass] Performing human-like actions during DataDome challenge`, "scraper");
+      await performEnhancedHumanActions(page);
+
+      // Additional challenge-specific actions
+      await page.evaluate(() => {
+        // Trigger focus events that DataDome monitors
+        document.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('mousemove'));
+        document.dispatchEvent(new Event('keydown'));
+      });
+
+      // Wait for challenge processing
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Active challenge solving with multiple attempts
       let challengeCompleted = false;
-      const maxWaitTime = 20000; // 20 seconds max wait
-      const checkInterval = 1000; // Check every second
+      const maxWaitTime = 30000; // Increased to 30 seconds
+      const checkInterval = 2000; // Check every 2 seconds 
       let waitTime = 0;
+      let attempts = 0;
+      const maxAttempts = 3;
 
-      while (!challengeCompleted && waitTime < maxWaitTime) {
+      while (!challengeCompleted && waitTime < maxWaitTime && attempts < maxAttempts) {
+        attempts++;
+        log(`[ProtectionBypass] Challenge solving attempt ${attempts}/${maxAttempts}`, "scraper");
+
+        // Perform different actions on each attempt
+        if (attempts === 1) {
+          // First attempt: basic interactions
+          await page.evaluate(() => {
+            window.scrollTo(0, 100);
+            document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          });
+        } else if (attempts === 2) {
+          // Second attempt: more complex interactions
+          await performEnhancedHumanActions(page);
+        } else {
+          // Third attempt: aggressive actions
+          await page.evaluate(() => {
+            // Trigger multiple events that DataDome tracks
+            const events = ['mousedown', 'mouseup', 'click', 'mousemove', 'keydown', 'keyup'];
+            events.forEach(eventType => {
+              document.dispatchEvent(new Event(eventType, { bubbles: true }));
+            });
+          });
+        }
+
+        // Wait between attempts
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
 
-        // Check if we're still on challenge page
-        const stillOnChallenge = await page.evaluate(() => {
+        // Check if challenge is completed
+        const challengeStatus = await page.evaluate(() => {
           const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
           const hasDataDomeMessage = document.body?.textContent?.includes("Please enable JS and disable any ad blocker") || false;
-          return hasDataDomeScript || hasDataDomeMessage;
+          const hasBlockingContent = document.body?.textContent?.includes("blocked") || false;
+          const hasLoadingContent = document.body?.textContent?.includes("loading") || false;
+          
+          // Check if we can access actual page content
+          const hasRealContent = document.body?.textContent?.length > 5000;
+          
+          return {
+            stillHasChallenge: hasDataDomeScript || hasDataDomeMessage || hasBlockingContent || hasLoadingContent,
+            hasRealContent,
+            pageLength: document.body?.textContent?.length || 0
+          };
         });
 
-        if (!stillOnChallenge) {
+        if (!challengeStatus.stillHasChallenge && challengeStatus.hasRealContent) {
           challengeCompleted = true;
-          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms`, "scraper");
+          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms (${challengeStatus.pageLength} chars)`, "scraper");
+        } else if (!challengeStatus.stillHasChallenge) {
+          // Challenge elements gone but no content - wait a bit more
+          log(`[ProtectionBypass] Challenge elements gone but content loading (${challengeStatus.pageLength} chars)`, "scraper");
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
 
       if (!challengeCompleted) {
-        log(`[ProtectionBypass] DataDome challenge did not complete within ${maxWaitTime}ms`, "scraper");
+        log(`[ProtectionBypass] DataDome challenge did not complete within ${maxWaitTime}ms after ${attempts} attempts`, "scraper");
+        
+        // Last resort: try to wait for any content to load
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        
+        const finalCheck = await page.evaluate(() => {
+          return document.body?.textContent?.length > 1000;
+        });
+
+        if (finalCheck) {
+          log(`[ProtectionBypass] Found some content after final wait, proceeding`, "scraper");
+          return true;
+        }
+        
         return false;
       }
 

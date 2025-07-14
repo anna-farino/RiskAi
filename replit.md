@@ -127,17 +127,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 14, 2025 - Fixed Inefficient HTMX Processing After Successful Content Extraction
-- **Fixed critical performance issue** where system performed unnecessary HTMX extraction after successful content extraction (789k+ characters)
-- **Enhanced decision logic** to check content quality before triggering additional extraction methods
-- **Efficiency improvements**:
-  - Extract content first and check size (789,510 chars in example case)
-  - Only do HTMX extraction if content is minimal (< 50KB)
-  - Skip dynamic loading when substantial content already exists
-  - Compare results when dynamic loading is used and pick the better version
-- **Performance impact**: Eliminates wasteful 20+ second HTMX operations when initial extraction already succeeds
-- **Smart logging**: Now logs "Substantial content already extracted (789510 chars), skipping dynamic loading" instead of unnecessary processing
-- **Technical implementation**: Modified `main-scraper.ts` to prioritize efficiency - only use advanced extraction when needed
+### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
+- **Fixed DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
+- **Implemented active challenge solving** with multiple attempts and human-like interactions during DataDome challenges
+- **Enhanced challenge detection** with better completion indicators and content verification
+- **Challenge solving improvements**:
+  - Increased timeout from 20 to 30 seconds with active solving attempts
+  - Multiple solving strategies: basic interactions → enhanced human actions → aggressive event triggering
+  - Better completion detection checking for real content (>5000 chars) not just challenge element removal
+  - Fallback content detection as last resort before giving up
+- **Performance optimization**: Fixed inefficient HTMX processing after successful content extraction
+- **Smart resource management**: Only do HTMX extraction when content is minimal (<50KB), skip when substantial content already exists
+- **Technical implementation**: 
+  - Modified `protection-bypass.ts` to actively solve DataDome challenges instead of passive waiting
+  - Enhanced `main-scraper.ts` to check content quality before triggering additional extraction methods
+- **Expected improvement**: Better success rate on DataDome-protected sites like MarketWatch through active challenge solving
 
 ### July 14, 2025 - Enhanced DataDome Anti-Bot Protection Bypass System
 - **Implemented advanced DataDome bypass capabilities** to overcome modern bot detection on protected sites like MarketWatch
