@@ -1,12 +1,13 @@
 import { log } from "backend/utils/log";
-import { detectBotProtection, ProtectionInfo } from '../core/protection-bypass';
+import { detectBotProtection, ProtectionInfo, performTLSRequest, getRandomBrowserProfile, EnhancedScrapingOptions } from '../core/protection-bypass';
 
-export interface HTTPScrapingOptions {
+export interface HTTPScrapingOptions extends EnhancedScrapingOptions {
   maxRetries?: number;
   timeout?: number;
   customHeaders?: Record<string, string>;
   followRedirects?: boolean;
   retryDelay?: number;
+  enableTLSFingerprinting?: boolean;
 }
 
 export interface ScrapingResult {
@@ -168,7 +169,34 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
             response.headers.get("x-datadome") || 
             response.headers.get("x-dd-b")
           )) {
-            log(`[HTTPScraper] DataDome 401 detected, requires Puppeteer`, "scraper");
+            log(`[HTTPScraper] DataDome 401 detected, attempting TLS fingerprinting`, "scraper");
+            
+            // Try TLS fingerprinting first if enabled
+            if (options?.enableTLSFingerprinting !== false) {
+              log(`[HTTPScraper] Attempting TLS fingerprinted request`, "scraper");
+              const tlsHtml = await performTLSRequest(url, options);
+              
+              if (tlsHtml && tlsHtml.length > 100) {
+                log(`[HTTPScraper] TLS fingerprinting successful (${tlsHtml.length} chars)`, "scraper");
+                return {
+                  html: tlsHtml,
+                  success: true,
+                  method: 'http',
+                  responseTime: Date.now() - startTime,
+                  protectionDetected: {
+                    hasProtection: true,
+                    type: 'datadome',
+                    confidence: 0.95,
+                    details: 'DataDome bypassed with TLS fingerprinting'
+                  },
+                  statusCode: 200,
+                  finalUrl: url
+                };
+              }
+              
+              log(`[HTTPScraper] TLS fingerprinting failed, requires Puppeteer`, "scraper");
+            }
+            
             return {
               html: '',
               success: false,
@@ -223,6 +251,32 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
 
         // Only check for actual bot protection that blocks content
         protectionInfo = detectBotProtection(html, response);
+        
+        // If DataDome is detected in content, try TLS fingerprinting
+        if (protectionInfo.hasProtection && protectionInfo.type === 'datadome' && options?.enableTLSFingerprinting !== false) {
+          log(`[HTTPScraper] DataDome detected in content, attempting TLS fingerprinting`, "scraper");
+          const tlsHtml = await performTLSRequest(url, options);
+          
+          if (tlsHtml && tlsHtml.length > 100) {
+            log(`[HTTPScraper] TLS fingerprinting successful (${tlsHtml.length} chars)`, "scraper");
+            return {
+              html: tlsHtml,
+              success: true,
+              method: 'http',
+              responseTime: Date.now() - startTime,
+              protectionDetected: {
+                hasProtection: true,
+                type: 'datadome',
+                confidence: 0.95,
+                details: 'DataDome bypassed with TLS fingerprinting'
+              },
+              statusCode: 200,
+              finalUrl: url
+            };
+          }
+          
+          log(`[HTTPScraper] TLS fingerprinting failed, keeping original content`, "scraper");
+        }
         
         // Success case - let extraction logic determine if content is usable
         log(`[HTTPScraper] Successfully retrieved content (${html.length} chars)`, "scraper");

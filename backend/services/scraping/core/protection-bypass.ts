@@ -1,12 +1,42 @@
 import type { Page } from 'puppeteer';
 import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
+import initCycleTLS from 'cycletls';
+import UserAgent from 'user-agents';
+import { createCursor } from 'ghost-cursor';
+
+// Initialize CycleTLS instance
+let cycleTLSInstance: any = null;
+
+async function getCycleTLSInstance() {
+  if (!cycleTLSInstance) {
+    cycleTLSInstance = await initCycleTLS();
+  }
+  return cycleTLSInstance;
+}
 
 export interface ProtectionInfo {
   hasProtection: boolean;
   type: 'datadome' | 'cloudflare' | 'incapsula' | 'captcha' | 'rate_limit' | 'cookie_check' | 'generic' | 'none';
   confidence: number;
   details: string;
+}
+
+export interface BrowserProfile {
+  userAgent: string;
+  viewport: { width: number; height: number };
+  ja3: string;
+  headers: Record<string, string>;
+  deviceType: 'desktop' | 'mobile' | 'tablet';
+}
+
+export interface EnhancedScrapingOptions {
+  useProxy?: boolean;
+  proxyUrl?: string;
+  behaviorDelay?: { min: number; max: number };
+  browserProfile?: BrowserProfile;
+  sessionCookies?: string[];
+  tlsFingerprint?: boolean;
 }
 
 /**
@@ -357,6 +387,271 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
     }
   } catch (error: any) {
     log(`[ProtectionBypass] Error bypassing ${protectionInfo.type} protection: ${error.message}`, "scraper-error");
+    return false;
+  }
+}
+
+/**
+ * Create browser profiles for fingerprint rotation
+ * Enhanced for DataDome bypass with realistic TLS fingerprints
+ */
+export function createBrowserProfiles(): BrowserProfile[] {
+  const profiles: BrowserProfile[] = [];
+  
+  // Chrome Desktop Profile
+  profiles.push({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    viewport: { width: 1920, height: 1080 },
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Cache-Control': 'max-age=0'
+    },
+    deviceType: 'desktop'
+  });
+
+  // Firefox Desktop Profile
+  profiles.push({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    viewport: { width: 1366, height: 768 },
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21,29-23-24,0',
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none'
+    },
+    deviceType: 'desktop'
+  });
+
+  // Chrome Mobile Profile
+  profiles.push({
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
+    viewport: { width: 375, height: 812 },
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1'
+    },
+    deviceType: 'mobile'
+  });
+
+  return profiles;
+}
+
+/**
+ * Get random browser profile for fingerprint rotation
+ */
+export function getRandomBrowserProfile(): BrowserProfile {
+  const profiles = createBrowserProfiles();
+  const randomIndex = Math.floor(Math.random() * profiles.length);
+  return profiles[randomIndex];
+}
+
+/**
+ * Enhanced TLS fingerprinting with CycleTLS for DataDome bypass
+ */
+export async function performTLSRequest(url: string, options: EnhancedScrapingOptions = {}): Promise<string> {
+  try {
+    log(`[ProtectionBypass] Performing TLS fingerprinted request to: ${url}`, "scraper");
+    
+    const cycleTLS = await getCycleTLSInstance();
+    const profile = options.browserProfile || getRandomBrowserProfile();
+    
+    const requestOptions = {
+      ja3: profile.ja3,
+      userAgent: profile.userAgent,
+      headers: profile.headers,
+      proxy: options.proxyUrl,
+      timeout: 30000
+    };
+
+    const response = await cycleTLS(url, requestOptions, 'get');
+    
+    if (response.status === 200) {
+      log(`[ProtectionBypass] TLS request successful (${response.body.length} chars)`, "scraper");
+      return response.body;
+    } else {
+      log(`[ProtectionBypass] TLS request failed with status: ${response.status}`, "scraper");
+      return '';
+    }
+  } catch (error: any) {
+    log(`[ProtectionBypass] TLS request error: ${error.message}`, "scraper-error");
+    return '';
+  }
+}
+
+/**
+ * Enhanced behavioral delays with randomization
+ */
+export async function performBehavioralDelay(options: EnhancedScrapingOptions = {}): Promise<void> {
+  const defaultDelay = { min: 1000, max: 3000 };
+  const delay = options.behaviorDelay || defaultDelay;
+  
+  const randomDelay = Math.floor(Math.random() * (delay.max - delay.min + 1)) + delay.min;
+  
+  log(`[ProtectionBypass] Behavioral delay: ${randomDelay}ms`, "scraper");
+  await new Promise(resolve => setTimeout(resolve, randomDelay));
+}
+
+/**
+ * Enhanced human-like actions with ghost cursor
+ */
+export async function performEnhancedHumanActions(page: Page): Promise<void> {
+  try {
+    log(`[ProtectionBypass] Performing enhanced human-like actions`, "scraper");
+    
+    const cursor = createCursor(page);
+    
+    // Random mouse movements
+    const viewport = page.viewport();
+    const maxX = viewport?.width || 1920;
+    const maxY = viewport?.height || 1080;
+    
+    for (let i = 0; i < 3; i++) {
+      const x = Math.floor(Math.random() * maxX);
+      const y = Math.floor(Math.random() * maxY);
+      await cursor.move(x, y);
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
+    }
+    
+    // Random scroll actions
+    await page.evaluate(() => {
+      window.scrollTo(0, Math.floor(Math.random() * 500));
+    });
+    
+    await performBehavioralDelay({ behaviorDelay: { min: 1000, max: 2000 } });
+    
+    // Additional mouse click simulation
+    await cursor.click(Math.floor(maxX / 2), Math.floor(maxY / 2));
+    
+    log(`[ProtectionBypass] Enhanced human-like actions completed`, "scraper");
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error in enhanced human actions: ${error.message}`, "scraper-error");
+  }
+}
+
+/**
+ * Apply enhanced browser fingerprinting countermeasures
+ */
+export async function applyEnhancedFingerprinting(page: Page, profile: BrowserProfile): Promise<void> {
+  try {
+    log(`[ProtectionBypass] Applying enhanced fingerprinting for ${profile.deviceType}`, "scraper");
+    
+    // Set viewport to match profile
+    await page.setViewport(profile.viewport);
+    
+    // Set user agent
+    await page.setUserAgent(profile.userAgent);
+    
+    // Set headers
+    await page.setExtraHTTPHeaders(profile.headers);
+    
+    // JavaScript environment patching
+    await page.evaluateOnNewDocument(() => {
+      // Override webdriver detection
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+      
+      // Override automation detection
+      window.chrome = {
+        runtime: {},
+        loadTimes: function() {},
+        csi: function() {},
+        app: {}
+      };
+      
+      // Override WebGL fingerprinting
+      const getParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) return 'Intel Inc.';
+        if (parameter === 37446) return 'Intel(R) Iris(TM) Graphics 6100';
+        return getParameter.call(this, parameter);
+      };
+      
+      // Override canvas fingerprinting
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+        if (type === '2d') {
+          const context = getContext.call(this, type, ...args);
+          const originalGetImageData = context.getImageData;
+          context.getImageData = function(x, y, width, height) {
+            const imageData = originalGetImageData.call(this, x, y, width, height);
+            // Add slight noise to canvas data
+            for (let i = 0; i < imageData.data.length; i += 4) {
+              imageData.data[i] += Math.floor(Math.random() * 3) - 1;
+            }
+            return imageData;
+          };
+          return context;
+        }
+        return getContext.call(this, type, ...args);
+      };
+      
+      // Override plugin detection
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [
+          {
+            0: {
+              type: "application/x-google-chrome-pdf",
+              suffixes: "pdf",
+              description: "Portable Document Format"
+            },
+            description: "Portable Document Format",
+            filename: "internal-pdf-viewer",
+            length: 1,
+            name: "Chrome PDF Plugin"
+          }
+        ]
+      });
+    });
+    
+    log(`[ProtectionBypass] Enhanced fingerprinting applied successfully`, "scraper");
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error applying enhanced fingerprinting: ${error.message}`, "scraper-error");
+  }
+}
+
+/**
+ * Improved DataDome challenge detection
+ */
+export async function detectDataDomeChallenge(page: Page): Promise<boolean> {
+  try {
+    return await page.evaluate(() => {
+      // More comprehensive DataDome detection
+      const indicators = [
+        document.querySelector('script[src*="captcha-delivery.com"]'),
+        document.querySelector('script[src*="geo.captcha-delivery.com"]'),
+        document.querySelector('script[src*="ct.captcha-delivery.com"]'),
+        document.body?.textContent?.includes("Please enable JS and disable any ad blocker"),
+        document.body?.textContent?.includes("DataDome"),
+        document.documentElement?.innerHTML?.includes("datadome"),
+        document.querySelector('div[data-captcha-type="datadome"]'),
+        document.querySelector('iframe[src*="datadome"]'),
+        window.location.href.includes('datadome'),
+        document.querySelector('meta[name="datadome"]')
+      ];
+      
+      return indicators.some(indicator => indicator);
+    });
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error detecting DataDome challenge: ${error.message}`, "scraper-error");
     return false;
   }
 }
