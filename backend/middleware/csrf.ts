@@ -13,7 +13,6 @@ type CsrfCookieOptions = {
 }
 
 let domain = ''
-const isDevelopment = process.env.NODE_ENV !== 'production';
 
 switch(process.env.NODE_ENV) {
   case 'production':
@@ -28,16 +27,12 @@ switch(process.env.NODE_ENV) {
   case 'replit':
     domain = ""
     break
-  default:
-    // Handle undefined NODE_ENV (development mode)
-    domain = "localhost"
-    break
 }
 
 export const csrfCookieOptions: CsrfCookieOptions = {
   domain,
-  sameSite: isDevelopment ? "lax" : "none",     
-  secure: !isDevelopment,         
+  sameSite: "none",     
+  secure: true,         
   path: "/",
   httpOnly: false,
 }
@@ -49,7 +44,7 @@ export const {
   invalidCsrfTokenError
 } = doubleCsrf({
   getSecret: () => process.env.CSRF_SECRET!, 
-  ignoredMethods: isDevelopment ? ["GET", "POST", "PUT", "DELETE", "PATCH"] : [],
+  ignoredMethods: [],
   cookieName: "csrf-token",
   cookieOptions: csrfCookieOptions,
   getTokenFromRequest: (req) => {

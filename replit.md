@@ -127,25 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 14, 2025 - Fixed Critical CSRF Token Blocking Issue
-- **CRITICAL FIX**: Resolved ForbiddenError: invalid csrf token that was blocking all API requests
-- **Root cause**: NODE_ENV was undefined, causing CSRF to default to production settings in development
-- **Issue manifestation**: All scraping API requests were failing with CSRF token errors
-- **Complete solution implemented**:
-  - **Fixed undefined NODE_ENV handling**: Added default case to set domain to "localhost"
-  - **Disabled CSRF in development**: Set `ignoredMethods` to ignore all HTTP methods when not in production
-  - **Adjusted security settings**: Used `secure: false` and `sameSite: "lax"` for development mode
-  - **Maintained production security**: CSRF protection remains active in production environments
-- **Impact**: 
-  - **API requests now functional**: Sources loading properly (The Record, Hack Read, Infosecurity Magazine, etc.)
-  - **Scraping system operational**: Dynamic redirect detection and content extraction working
-  - **Development workflow restored**: All frontend API calls working without authentication barriers
-  - **Production security maintained**: CSRF protection still active in production deployments
-- **Technical changes**:
-  - `backend/middleware/csrf.ts`: Enhanced to handle undefined NODE_ENV and development mode
-  - **Environment detection**: Added `isDevelopment` flag for consistent development settings
-  - **Security settings**: Conditional CSRF protection based on environment
-
 ### July 13, 2025 - Implemented Dynamic URL-Agnostic Redirect Detection System - TRULY DYNAMIC SOLUTION
 - **BREAKTHROUGH**: Developed truly dynamic, URL-agnostic redirect detection that analyzes page behavior rather than hardcoded patterns
 - **Root problem solved**: Previous systems relied on hardcoded URL patterns which contradicted the core requirement of being domain-agnostic
