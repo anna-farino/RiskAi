@@ -36,8 +36,13 @@ export async function handleAILinkIdentification(
     // Step 2: Resolve redirects BEFORE OpenAI analysis
     log(`[LinkExtractor] Resolving redirects for ${normalizedLinks.length} URLs before OpenAI analysis`, "scraper");
     
+    // Add rate limiting to prevent triggering CAPTCHA
     const resolvedLinks = await Promise.all(
-      normalizedLinks.map(async (link) => {
+      normalizedLinks.map(async (link, index) => {
+        // Add delay between requests to avoid triggering CAPTCHA
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100 * index));
+        }
         try {
           // Use two-stage redirect detection instead of pattern-based detection
           const redirectResult = await TwoStageRedirectDetector.detectRedirect(link.href);
@@ -67,8 +72,14 @@ export async function handleAILinkIdentification(
                                      finalUrlLower.includes('forbidden');
               
               if (isCaptchaOrError) {
-                log(`[LinkExtractor] HTTP redirect led to CAPTCHA/error page, trying Puppeteer fallback`, "scraper");
-                // Fall through to Puppeteer fallback below
+                log(`[LinkExtractor] HTTP redirect led to CAPTCHA/error page, skipping redirect resolution`, "scraper");
+                log(`[LinkExtractor] CAPTCHA detected for: ${link.href.substring(0, 40)}... → ${redirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
+                // Skip redirect resolution when CAPTCHA is detected - return original URL
+                return {
+                  href: link.href,
+                  text: link.text,
+                  originalHref: link.originalHref
+                };
               } else {
                 log(`[LinkExtractor] HTTP redirect resolved: ${link.href.substring(0, 40)}... → ${redirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
                 return {
@@ -79,47 +90,13 @@ export async function handleAILinkIdentification(
                 };
               }
             } else {
-              log(`[LinkExtractor] HTTP redirect resolution failed or no redirects found, trying Puppeteer fallback`, "scraper");
-              // Fall through to Puppeteer fallback below
-            }
-            
-            // Puppeteer fallback for any URL that failed HTTP resolution
-            log(`[LinkExtractor] Attempting Puppeteer redirect resolution for: ${link.href.substring(0, 60)}...`, "scraper");
-            try {
-              // Import puppeteer dynamically to avoid circular dependencies
-              const puppeteer = await import('puppeteer');
-              const browser = await puppeteer.default.launch({
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
-              });
-              const page = await browser.newPage();
-              
-              // Set a realistic user agent
-              await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-              
-              // Use Puppeteer to resolve the redirect
-              const puppeteerRedirectInfo = await RedirectResolver.resolveRedirectsPuppeteer(page, link.href, {
-                maxRedirects: 5,
-                timeout: 15000,
-                followJavaScriptRedirects: true
-              });
-              
-              await browser.close();
-              
-              if (puppeteerRedirectInfo.hasRedirects && puppeteerRedirectInfo.finalUrl !== link.href) {
-                log(`[LinkExtractor] Puppeteer redirect resolved: ${link.href.substring(0, 40)}... → ${puppeteerRedirectInfo.finalUrl.substring(0, 40)}...`, "scraper");
-                return {
-                  href: puppeteerRedirectInfo.finalUrl,
-                  text: link.text,
-                  originalHref: link.href,
-                  wasRedirect: true
-                };
-              } else {
-                log(`[LinkExtractor] Puppeteer found no redirects, using original URL`, "scraper");
-              }
-              
-            } catch (puppeteerError: any) {
-              log(`[LinkExtractor] Puppeteer redirect resolution failed: ${puppeteerError.message}`, "scraper");
+              log(`[LinkExtractor] HTTP redirect resolution failed or no redirects found, using original URL`, "scraper");
+              // Return original URL instead of trying Puppeteer for failed HTTP redirects
+              return {
+                href: link.href,
+                text: link.text,
+                originalHref: link.originalHref
+              };
             }
           } else {
             log(`[LinkExtractor] Two-stage detector determined no redirect needed for: ${link.href.substring(0, 40)}...`, "scraper");

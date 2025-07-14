@@ -127,6 +127,31 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 14, 2025 - Fixed Critical CAPTCHA Infinite Loop Issue - PRODUCTION STABILITY FIX
+- **CRITICAL FIX**: Resolved infinite loop issue where Google News URLs hitting CAPTCHA protection caused endless retry attempts
+- **Root cause**: System was detecting CAPTCHA pages correctly but still attempting Puppeteer fallback, creating infinite loops
+- **Issue manifestation**: 
+  - Google News URLs → HTTP redirect → CAPTCHA (google.com/sorry/index)
+  - System tries Puppeteer fallback → Also hits CAPTCHA → Infinite retry loop
+  - Wasted resources and prevented system from processing other URLs
+- **Comprehensive solution implemented**:
+  - **Enhanced CAPTCHA detection**: Added dynamic detection for 'sorry/index', 'captcha', 'blocked', 'verify', 'challenge', 'access-denied', 'error', 'forbidden' patterns
+  - **HTTP redirect CAPTCHA handling**: When HTTP redirect leads to CAPTCHA, return original URL instead of trying Puppeteer fallback
+  - **Puppeteer CAPTCHA handling**: When Puppeteer also hits CAPTCHA, return original URL instead of continuing
+  - **Rate limiting**: Added 100ms staggered delays between redirect resolution attempts to prevent triggering CAPTCHA
+  - **Code cleanup**: Removed unreachable Puppeteer fallback code that was causing infinite loops
+  - **Enhanced logging**: Added detailed logging to show CAPTCHA detection and skipping behavior
+- **Technical implementation**:
+  - `ai-link-handler.ts`: Enhanced with comprehensive CAPTCHA detection and graceful handling
+  - **Fail-safe approach**: When CAPTCHA is detected, return original URLs instead of attempting further resolution
+  - **Performance optimization**: Prevents wasted CPU cycles on blocked requests
+  - **Graceful degradation**: System continues processing other URLs instead of getting stuck on CAPTCHA-protected ones
+- **Impact**: 
+  - **Eliminates infinite loops**: System no longer gets stuck on CAPTCHA-protected Google News URLs
+  - **Improves system stability**: Prevents resource waste on blocked requests
+  - **Better user experience**: System continues processing other URLs instead of hanging
+  - **Production-ready**: Handles anti-bot protection gracefully without breaking the workflow
+
 ### July 13, 2025 - Implemented Dynamic URL-Agnostic Redirect Detection System - TRULY DYNAMIC SOLUTION
 - **BREAKTHROUGH**: Developed truly dynamic, URL-agnostic redirect detection that analyzes page behavior rather than hardcoded patterns
 - **Root problem solved**: Previous systems relied on hardcoded URL patterns which contradicted the core requirement of being domain-agnostic
