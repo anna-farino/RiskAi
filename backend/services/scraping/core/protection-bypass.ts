@@ -516,33 +516,70 @@ export async function performEnhancedHumanActions(page: Page): Promise<void> {
   try {
     log(`[ProtectionBypass] Performing enhanced human-like actions`, "scraper");
     
-    const cursor = createCursor(page);
-    
-    // Random mouse movements
+    // Get viewport dimensions
     const viewport = page.viewport();
     const maxX = viewport?.width || 1920;
     const maxY = viewport?.height || 1080;
     
-    for (let i = 0; i < 3; i++) {
-      const x = Math.floor(Math.random() * maxX);
-      const y = Math.floor(Math.random() * maxY);
-      await cursor.move(x, y);
-      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
+    // Try to use ghost-cursor with proper error handling
+    try {
+      const cursor = createCursor(page);
+      
+      // Random mouse movements
+      for (let i = 0; i < 3; i++) {
+        const x = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1); // Stay within 10-90% of viewport
+        const y = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
+        
+        await cursor.move(x, y);
+        await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
+      }
+      
+      // Safe click in the middle area
+      const safeX = Math.floor(maxX / 2);
+      const safeY = Math.floor(maxY / 2);
+      await cursor.click(safeX, safeY);
+      
+    } catch (cursorError: any) {
+      log(`[ProtectionBypass] Ghost cursor error: ${cursorError.message}, falling back to native mouse simulation`, "scraper");
+      
+      // Fallback to native Puppeteer mouse simulation
+      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
+      
+      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
+      
+      // Safe click
+      await page.mouse.click(Math.floor(maxX / 2), Math.floor(maxY / 2));
     }
     
     // Random scroll actions
     await page.evaluate(() => {
-      window.scrollTo(0, Math.floor(Math.random() * 500));
+      const scrollAmount = Math.floor(Math.random() * 500);
+      window.scrollTo(0, scrollAmount);
     });
     
     await performBehavioralDelay({ behaviorDelay: { min: 1000, max: 2000 } });
     
-    // Additional mouse click simulation
-    await cursor.click(Math.floor(maxX / 2), Math.floor(maxY / 2));
+    // Additional human-like actions
+    await page.evaluate(() => {
+      // Simulate some keyboard activity
+      const event = new KeyboardEvent('keydown', { key: 'Tab' });
+      document.dispatchEvent(event);
+    });
     
     log(`[ProtectionBypass] Enhanced human-like actions completed`, "scraper");
   } catch (error: any) {
     log(`[ProtectionBypass] Error in enhanced human actions: ${error.message}`, "scraper-error");
+    
+    // Minimal fallback - just scroll
+    try {
+      await page.evaluate(() => {
+        window.scrollTo(0, Math.floor(Math.random() * 300));
+      });
+    } catch (fallbackError: any) {
+      log(`[ProtectionBypass] Fallback action also failed: ${fallbackError.message}`, "scraper-error");
+    }
   }
 }
 
