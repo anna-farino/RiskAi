@@ -1,20 +1,14 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP } from '../scrapers/http-scraper';
 import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper';
-import { RedirectInfo } from './redirect-resolver';
 
 /**
- * Smart method selection with redirect resolution
+ * Smart method selection
  * HTTP first, but switch to Puppeteer for dynamic content sites
  */
-export async function getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer', redirectInfo?: RedirectInfo }> {
-  // Try HTTP first (redirect resolution is handled within scrapeWithHTTP)
+export async function getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
+  // Try HTTP first
   const httpResult = await scrapeWithHTTP(url, { timeout: 30000 });
-  
-  // Log redirect information if available
-  if (httpResult.redirectInfo?.hasRedirects) {
-    log(`[SimpleScraper] HTTP redirect detected: ${httpResult.redirectInfo.redirectChain.join(' → ')}`, "scraper");
-  }
   
   // If HTTP succeeds, check if content looks dynamic/incomplete
   if (httpResult.success && httpResult.html.length > 1000) {
@@ -22,10 +16,10 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
     
     // For source pages (not articles), check if we need dynamic content loading
     if (!isArticle) {
-      const needsDynamicLoading = detectDynamicContentNeeds(httpResult.html, httpResult.finalUrl || url);
+      const needsDynamicLoading = detectDynamicContentNeeds(httpResult.html, url);
       if (needsDynamicLoading) {
         log(`[SimpleScraper] Dynamic content detected, switching to Puppeteer for better link extraction`, "scraper");
-        const puppeteerResult = await scrapeWithPuppeteer(httpResult.finalUrl || url, {
+        const puppeteerResult = await scrapeWithPuppeteer(url, {
           timeout: 60000,
           isArticlePage: false,
           handleHTMX: true,
@@ -35,10 +29,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
         
         if (puppeteerResult.success) {
           log(`[SimpleScraper] Puppeteer dynamic content successful (${puppeteerResult.html.length} chars)`, "scraper");
-          if (puppeteerResult.redirectInfo?.hasRedirects) {
-            log(`[SimpleScraper] Puppeteer redirect detected: ${puppeteerResult.redirectInfo.redirectChain.join(' → ')}`, "scraper");
-          }
-          return { html: puppeteerResult.html, method: 'puppeteer', redirectInfo: puppeteerResult.redirectInfo };
+          return { html: puppeteerResult.html, method: 'puppeteer' };
         }
       }
     }
@@ -46,12 +37,12 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
     if (httpResult.protectionDetected?.hasProtection) {
       log(`[SimpleScraper] Protection detected but HTTP content sufficient, proceeding with HTTP`, "scraper");
     }
-    return { html: httpResult.html, method: 'http', redirectInfo: httpResult.redirectInfo };
+    return { html: httpResult.html, method: 'http' };
   }
   
   // Only use Puppeteer if HTTP truly failed or returned insufficient content
   log(`[SimpleScraper] HTTP insufficient (success: ${httpResult.success}, length: ${httpResult.html.length}), using Puppeteer fallback`, "scraper");
-  const puppeteerResult = await scrapeWithPuppeteer(httpResult.finalUrl || url, {
+  const puppeteerResult = await scrapeWithPuppeteer(url, {
     timeout: 60000,
     isArticlePage: isArticle,
     handleHTMX: !isArticle,
@@ -64,10 +55,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
   }
   
   log(`[SimpleScraper] Puppeteer successful (${puppeteerResult.html.length} chars)`, "scraper");
-  if (puppeteerResult.redirectInfo?.hasRedirects) {
-    log(`[SimpleScraper] Puppeteer redirect detected: ${puppeteerResult.redirectInfo.redirectChain.join(' → ')}`, "scraper");
-  }
-  return { html: puppeteerResult.html, method: 'puppeteer', redirectInfo: puppeteerResult.redirectInfo };
+  return { html: puppeteerResult.html, method: 'puppeteer' };
 }
 
 /**
@@ -130,11 +118,10 @@ export function detectDynamicContentNeeds(html: string, url: string): boolean {
                           htmlLower.includes('nuxt');
   
   // Decision logic: Require stronger evidence to switch to Puppeteer
-  // Only switch if there's clear evidence of missing content, not just modern frameworks
-  const needsDynamic = hasStrongHTMX || // Strong HTMX evidence (requires dynamic loading)
-                      hasVeryFewLinks || // Very minimal links (incomplete content)
-                      hasEmptyContentContainers || // Empty containers with loading (content not loaded)
-                      (hasSPAFrameworks && (hasVeryFewLinks || hasContentLoading)) || // SPA + evidence of missing content
+  const needsDynamic = hasStrongHTMX || // Strong HTMX evidence
+                      hasSPAFrameworks || // SPA framework detected
+                      hasVeryFewLinks || // Very minimal links
+                      hasEmptyContentContainers || // Empty containers with loading
                       (hasDynamicLoading && hasContentLoading); // Multiple weak signals
   
   if (needsDynamic) {

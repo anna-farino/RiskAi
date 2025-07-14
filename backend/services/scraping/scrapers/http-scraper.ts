@@ -1,6 +1,5 @@
 import { log } from "backend/utils/log";
 import { detectBotProtection, ProtectionInfo } from '../core/protection-bypass';
-import { RedirectResolver, RedirectInfo } from '../core/redirect-resolver';
 
 export interface HTTPScrapingOptions {
   maxRetries?: number;
@@ -18,7 +17,6 @@ export interface ScrapingResult {
   protectionDetected?: ProtectionInfo;
   statusCode?: number;
   finalUrl?: string;
-  redirectInfo?: RedirectInfo;
 }
 
 // Cookie jar for session persistence
@@ -119,60 +117,8 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
   
   let lastError: Error | null = null;
   let protectionInfo: ProtectionInfo | undefined;
-  let redirectInfo: RedirectInfo | undefined;
 
   log(`[HTTPScraper] Starting HTTP scraping for: ${url}`, "scraper");
-
-  // Step 1: Resolve redirects if enabled (default: true)
-  let targetUrl = url;
-  if (options?.followRedirects !== false) {
-    try {
-      // Check if this is a Google News URL that requires Puppeteer
-      const isGoogleNews = url.includes('news.google.com/read/');
-      
-      if (isGoogleNews) {
-        log(`[HTTPScraper] Google News URL detected, requires Puppeteer for redirect resolution`, "scraper");
-        // Return early and let the system use Puppeteer
-        return {
-          html: '',
-          success: false,
-          method: 'http',
-          responseTime: Date.now() - startTime,
-          protectionDetected: {
-            hasProtection: true,
-            type: 'javascript_redirect',
-            confidence: 0.9,
-            details: 'Google News URL requires Puppeteer for redirect resolution'
-          },
-          statusCode: 200,
-          finalUrl: url,
-          redirectInfo: {
-            originalUrl: url,
-            finalUrl: url,
-            redirectChain: [url],
-            redirectCount: 0,
-            hasRedirects: false,
-            method: 'http'
-          }
-        };
-      }
-      
-      redirectInfo = await RedirectResolver.resolveRedirectsHTTP(url, {
-        maxRedirects: 5,
-        timeout: Math.min(timeout, 15000), // Use shorter timeout for redirect resolution
-        followMetaRefresh: true, // Enable meta refresh and JavaScript redirect detection
-        followJavaScriptRedirects: true
-      });
-      
-      if (redirectInfo.hasRedirects) {
-        targetUrl = redirectInfo.finalUrl;
-        log(`[HTTPScraper] Redirect resolved: ${url} → ${targetUrl}`, "scraper");
-      }
-    } catch (error: any) {
-      log(`[HTTPScraper] Redirect resolution failed, using original URL: ${error.message}`, "scraper");
-      // Continue with original URL if redirect resolution fails
-    }
-  }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -190,7 +136,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
       
       // Add referrer for retries
       if (attempt > 1) {
-        headers['Referer'] = new URL(targetUrl).origin;
+        headers['Referer'] = new URL(url).origin;
       }
       
       // Add cookies if available
@@ -201,11 +147,11 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
-        // Make the HTTP request using the resolved target URL
-        const response = await fetch(targetUrl, {
+        // Make the HTTP request
+        const response = await fetch(url, {
           headers,
           signal: controller.signal,
-          redirect: 'follow' // Always follow redirects at fetch level since we pre-resolved
+          redirect: options?.followRedirects !== false ? 'follow' : 'manual'
         });
 
         clearTimeout(timeoutId);
@@ -235,8 +181,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 details: 'DataDome 401 authentication required'
               },
               statusCode: response.status,
-              finalUrl: response.url,
-              redirectInfo
+              finalUrl: response.url
             };
           }
           
@@ -255,8 +200,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 details: '403 Forbidden - likely bot protection'
               },
               statusCode: response.status,
-              finalUrl: response.url,
-              redirectInfo
+              finalUrl: response.url
             };
           }
 
@@ -289,8 +233,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
           responseTime: Date.now() - startTime,
           protectionDetected: protectionInfo,
           statusCode: response.status,
-          finalUrl: response.url,
-          redirectInfo
+          finalUrl: response.url
         };
 
       } catch (fetchError: any) {
@@ -330,7 +273,6 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
     responseTime: Date.now() - startTime,
     protectionDetected: protectionInfo,
     statusCode: 0,
-    redirectInfo,
     finalUrl: url
   };
 }

@@ -6,7 +6,6 @@ import { ScrapingResult } from '../http-scraper';
 import { isExternalValidationError } from './error-handler';
 import { handleHTMXContent } from './htmx-handler';
 import { handleDynamicContent } from './dynamic-handler';
-import { RedirectResolver, RedirectInfo } from '../../core/redirect-resolver';
 // Content extraction now handled inline
 
 export interface PuppeteerScrapingOptions {
@@ -27,7 +26,6 @@ export interface PuppeteerScrapingOptions {
 export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapingOptions): Promise<ScrapingResult> {
   const startTime = Date.now();
   let page: Page | null = null;
-  let redirectInfo: RedirectInfo | undefined;
 
   try {
     log(`[PuppeteerScraper] Starting Puppeteer scraping for: ${url}`, "scraper");
@@ -47,21 +45,9 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     log(`[PuppeteerScraper] Page setup completed, navigating to URL`, "scraper");
 
-    // Navigate to the page and capture redirect information
+    // Navigate to the page
     const response = await page.goto(url, { waitUntil: "networkidle2" });
     const statusCode = response ? response.status() : 0;
-    
-    // Resolve redirect chain using Puppeteer method
-    redirectInfo = await RedirectResolver.resolveRedirectsPuppeteer(page, url, {
-      maxRedirects: 5,
-      timeout: options?.timeout || 45000,
-      followJavaScriptRedirects: true,
-      followMetaRefresh: true
-    });
-
-    if (redirectInfo.hasRedirects) {
-      log(`[PuppeteerScraper] Redirect chain resolved: ${redirectInfo.redirectChain.join(' → ')}`, "scraper");
-    }
     
     log(`[PuppeteerScraper] Navigation completed. Status: ${statusCode}`, "scraper");
 
@@ -126,8 +112,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       method: 'puppeteer',
       responseTime: Date.now() - startTime,
       statusCode,
-      finalUrl: page.url(),
-      redirectInfo
+      finalUrl: page.url()
     };
 
   } catch (error: any) {
@@ -141,8 +126,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         method: 'puppeteer',
         responseTime: Date.now() - startTime,
         statusCode: 200,
-        finalUrl: url,
-        redirectInfo
+        finalUrl: url
       };
     }
     
@@ -154,8 +138,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       method: 'puppeteer',
       responseTime: Date.now() - startTime,
       statusCode: 0,
-      finalUrl: url,
-      redirectInfo
+      finalUrl: url
     };
   } finally {
     if (page) {

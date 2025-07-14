@@ -1,44 +1,30 @@
-import { scrapeWithHTTP } from './backend/services/scraping/scrapers/http-scraper';
-import { detectDynamicContentNeeds } from './backend/services/scraping/core/method-selector';
+import { scrapeUrl } from './backend/apps/news-radar/services/scraper';
 
 async function testMarketWatchScraping() {
-  console.log('🧪 Testing MarketWatch Dynamic Content Detection Fix\n');
-  
-  const url = 'https://www.marketwatch.com/';
+  console.log('Testing MarketWatch scraping with DataDome protection...');
   
   try {
-    // Test HTTP scraping
-    console.log('=== Testing HTTP Scraping ===');
-    const httpResult = await scrapeWithHTTP(url, { timeout: 15000 });
+    const url = 'https://www.marketwatch.com/';
+    console.log(`Attempting to scrape: ${url}`);
     
-    console.log('HTTP Result:', {
-      success: httpResult.success,
-      contentLength: httpResult.html.length,
-      statusCode: httpResult.statusCode
-    });
+    const html = await scrapeUrl(url, true); // isSourceUrl = true
     
-    if (httpResult.success && httpResult.html.length > 500000) {
-      console.log('✅ HTTP scraping successful with substantial content');
-      
-      // Test dynamic content detection
-      console.log('\n=== Testing Dynamic Content Detection ===');
-      const needsDynamic = detectDynamicContentNeeds(httpResult.html, url);
-      
-      console.log(`Dynamic content needed: ${needsDynamic}`);
-      
-      if (!needsDynamic) {
-        console.log('✅ Fixed! Dynamic content detection correctly identified this as NOT needing Puppeteer');
-        console.log('💡 MarketWatch should now use HTTP scraping instead of switching to Puppeteer');
-      } else {
-        console.log('❌ Still switching to Puppeteer - need to investigate further');
-      }
+    console.log(`Success! HTML length: ${html.length}`);
+    console.log('First 500 characters:');
+    console.log(html.substring(0, 500));
+    
+    // Check if we got actual content or still challenge page
+    if (html.includes('captcha-delivery.com') || html.includes('Please enable JS and disable any ad blocker')) {
+      console.log('❌ Still getting DataDome challenge page');
+    } else if (html.includes('MarketWatch') || html.includes('marketwatch')) {
+      console.log('✅ Successfully bypassed DataDome protection');
     } else {
-      console.log('❌ HTTP scraping failed or returned insufficient content');
+      console.log('⚠️ Unexpected content received');
     }
     
-  } catch (error) {
-    console.error('❌ Test failed:', error);
+  } catch (error: any) {
+    console.error('❌ Error testing MarketWatch scraping:', error.message);
   }
 }
 
-testMarketWatchScraping().catch(console.error);
+testMarketWatchScraping();

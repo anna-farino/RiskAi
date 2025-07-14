@@ -29,36 +29,28 @@ export class StreamlinedUnifiedScraper {
     try {
       log(`[SimpleScraper] Starting article scraping: ${url}`, "scraper");
 
-      // Step 1: Get content (HTTP or Puppeteer) with redirect resolution
+      // Step 1: Get content (HTTP or Puppeteer)
       const contentResult = await getContent(url, true);
-
-      // Use the final URL for all subsequent operations if redirect occurred
-      const finalUrl = contentResult.redirectInfo?.finalUrl || url;
-      
-      // Log redirect information if available
-      if (contentResult.redirectInfo?.hasRedirects) {
-        log(`[SimpleScraper] Article redirect resolved: ${contentResult.redirectInfo.redirectChain.join(' → ')}`, "scraper");
-      }
 
       // Both HTTP and Puppeteer content need the same complete processing pipeline
       // Puppeteer is just a different way to get the HTML - the processing should be identical
       log(`[SimpleScraper] Processing ${contentResult.method} content with complete extraction pipeline`, "scraper");
       
-      // Step 2: Get structure config using unified detector (use final URL for domain-based caching)
+      // Step 2: Get structure config using unified detector
       let structureConfig = config;
       
-      // If no config provided, use AI detection with final URL
+      // If no config provided, use AI detection
       if (!structureConfig) {
-        structureConfig = await detectHtmlStructure(finalUrl, contentResult.html, context);
+        structureConfig = await detectHtmlStructure(url, contentResult.html, context);
       }
 
       // Step 3: Extract content with enhanced recovery
       let extracted = extractContentWithSelectors(contentResult.html, structureConfig);
       
-      // Phase 4: AI re-analysis trigger for failed extractions (use final URL)
+      // Phase 4: AI re-analysis trigger for failed extractions
       if (shouldTriggerAIReanalysis(extracted)) {
         log(`[SimpleScraper] Triggering AI re-analysis due to insufficient extraction`, "scraper");
-        extracted = await performAIReanalysis(contentResult.html, finalUrl, extracted);
+        extracted = await performAIReanalysis(contentResult.html, url, extracted);
       }
 
       // Extract publish date using centralized date extractor
@@ -101,21 +93,13 @@ export class StreamlinedUnifiedScraper {
     try {
       log(`[SimpleScraper] Starting source scraping: ${url}`, "scraper");
 
-      // Step 1: Get content (HTTP or Puppeteer) with redirect resolution
+      // Step 1: Get content (HTTP or Puppeteer)
       const result = await getContent(url, false);
 
-      // Use the final URL for all subsequent operations if redirect occurred
-      const finalUrl = result.redirectInfo?.finalUrl || url;
-      
-      // Log redirect information if available
-      if (result.redirectInfo?.hasRedirects) {
-        log(`[SimpleScraper] Source redirect resolved: ${result.redirectInfo.redirectChain.join(' → ')}`, "scraper");
-      }
-
-      // Step 2: Check if we need advanced HTMX extraction (use final URL)
+      // Step 2: Check if we need advanced HTMX extraction
       const { detectDynamicContentNeeds } = await import('../core/method-selector');
       const needsAdvancedExtraction = result.method === 'puppeteer' || 
-        detectDynamicContentNeeds(result.html, finalUrl);
+        detectDynamicContentNeeds(result.html, url);
 
       const extractionOptions = {
         includePatterns: options?.includePatterns,
@@ -138,12 +122,12 @@ export class StreamlinedUnifiedScraper {
           // Create and setup page for advanced extraction
           page = await setupSourcePage();
           
-          // Navigate to the page (use final URL if redirect occurred)
-          log(`[SimpleScraper] Navigating to ${finalUrl} for advanced extraction`, "scraper");
-          await page.goto(finalUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          // Navigate to the page
+          log(`[SimpleScraper] Navigating to ${url} for advanced extraction`, "scraper");
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
           
           // Use the advanced HTMX extraction
-          const articleLinks = await extractArticleLinksFromPage(page, finalUrl, extractionOptions);
+          const articleLinks = await extractArticleLinksFromPage(page, url, extractionOptions);
           
           log(`[SimpleScraper] Advanced HTMX extraction completed: ${articleLinks.length} links found`, "scraper");
           return articleLinks;
@@ -158,8 +142,8 @@ export class StreamlinedUnifiedScraper {
           }
         }
       } else {
-        // Step 3: Extract links with standard method for static sites (use final URL)
-        const articleLinks = await extractArticleLinks(result.html, finalUrl, extractionOptions);
+        // Step 3: Extract links with standard method for static sites
+        const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
         log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
         return articleLinks;
       }
