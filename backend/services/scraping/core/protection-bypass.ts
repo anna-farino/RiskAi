@@ -320,14 +320,15 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           const bodyText = document.body?.textContent || '';
           const hasRealContent = bodyText.length > 5000;
           
-          // Check for MarketWatch specific content indicators
-          const hasMarketWatchContent = bodyText.includes('MarketWatch') || 
-                                      bodyText.includes('Dow Jones') || 
-                                      bodyText.includes('stock') || 
-                                      bodyText.includes('market') ||
-                                      document.querySelector('nav') !== null ||
-                                      document.querySelector('.article') !== null ||
-                                      document.querySelector('[data-module]') !== null;
+          // Check for generic website content indicators (domain-agnostic)
+          const hasWebsiteContent = document.querySelector('nav') !== null ||
+                                   document.querySelector('header') !== null ||
+                                   document.querySelector('footer') !== null ||
+                                   document.querySelector('.article') !== null ||
+                                   document.querySelector('article') !== null ||
+                                   document.querySelector('[data-module]') !== null ||
+                                   document.querySelector('.content') !== null ||
+                                   document.querySelector('main') !== null;
           
           // Check if we're getting actual website structure
           const hasWebsiteStructure = document.querySelectorAll('nav, header, footer, article, .content').length > 0;
@@ -338,7 +339,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           return {
             stillHasChallenge: hasDataDomeScript || hasDataDomeMessage || hasBlockingContent || hasLoadingContent,
             hasRealContent,
-            hasMarketWatchContent,
+            hasWebsiteContent,
             hasWebsiteStructure,
             hasNavigation,
             pageLength: bodyText.length,
@@ -348,10 +349,10 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           };
         });
 
-        // Enhanced challenge completion detection
+        // Enhanced challenge completion detection (URL-agnostic)
         // Prioritize substantial content over script presence - if we have real content, bypass is successful
         const hasSubstantialContent = challengeStatus.pageLength > 100000 && challengeStatus.linkCount > 50;
-        const hasWebsiteIndicators = challengeStatus.hasMarketWatchContent || challengeStatus.hasWebsiteStructure || challengeStatus.hasNavigation;
+        const hasWebsiteIndicators = challengeStatus.hasWebsiteContent || challengeStatus.hasWebsiteStructure || challengeStatus.hasNavigation;
         
         const challengeActuallyCompleted = hasSubstantialContent || // Strong content evidence
                                          (!challengeStatus.stillHasChallenge && hasWebsiteIndicators); // Traditional logic as fallback
@@ -359,7 +360,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         if (challengeActuallyCompleted) {
           challengeCompleted = true;
           const reason = hasSubstantialContent ? "substantial content" : "challenge cleared";
-          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms via ${reason} (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, MW content: ${challengeStatus.hasMarketWatchContent})`, "scraper");
+          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms via ${reason} (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, website content: ${challengeStatus.hasWebsiteContent})`, "scraper");
         } else if (!challengeStatus.stillHasChallenge) {
           // Challenge elements gone but no real content - wait a bit more
           log(`[ProtectionBypass] Challenge elements gone but content loading (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links)`, "scraper");
@@ -400,24 +401,27 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         
         await new Promise((resolve) => setTimeout(resolve, 5000));
         
-        // Final content check
+        // Final content check (URL-agnostic)
         const finalCheck = await page.evaluate(() => {
           const bodyText = document.body?.textContent || '';
           const hasNavigation = document.querySelectorAll('a[href]').length > 5;
-          const hasWebsiteStructure = document.querySelectorAll('nav, header, footer').length > 0;
-          const hasMarketWatchContent = bodyText.includes('MarketWatch') || bodyText.includes('market');
+          const hasWebsiteStructure = document.querySelectorAll('nav, header, footer, main, article').length > 0;
+          const hasGenericWebsiteContent = document.querySelector('.content') !== null ||
+                                         document.querySelector('[data-module]') !== null ||
+                                         document.querySelector('.article') !== null ||
+                                         document.querySelector('article') !== null;
           
           return {
             hasContent: bodyText.length > 1000,
             hasNavigation,
             hasWebsiteStructure,
-            hasMarketWatchContent,
+            hasGenericWebsiteContent,
             contentLength: bodyText.length,
             linkCount: document.querySelectorAll('a[href]').length
           };
         });
 
-        if (finalCheck.hasContent && (finalCheck.hasNavigation || finalCheck.hasWebsiteStructure || finalCheck.hasMarketWatchContent)) {
+        if (finalCheck.hasContent && (finalCheck.hasNavigation || finalCheck.hasWebsiteStructure || finalCheck.hasGenericWebsiteContent)) {
           log(`[ProtectionBypass] Found some website content after alternative bypass (${finalCheck.contentLength} chars, ${finalCheck.linkCount} links), proceeding`, "scraper");
           return true;
         }
