@@ -320,14 +320,10 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           const bodyText = document.body?.textContent || '';
           const hasRealContent = bodyText.length > 5000;
           
-          // Check for MarketWatch specific content indicators
-          const hasMarketWatchContent = bodyText.includes('MarketWatch') || 
-                                      bodyText.includes('Dow Jones') || 
-                                      bodyText.includes('stock') || 
-                                      bodyText.includes('market') ||
-                                      document.querySelector('nav') !== null ||
-                                      document.querySelector('.article') !== null ||
-                                      document.querySelector('[data-module]') !== null;
+          // Check for general website content indicators
+          const hasWebsiteContent = document.querySelector('nav') !== null ||
+                                   document.querySelector('.article') !== null ||
+                                   document.querySelector('[data-module]') !== null;
           
           // Check if we're getting actual website structure
           const hasWebsiteStructure = document.querySelectorAll('nav, header, footer, article, .content').length > 0;
@@ -338,7 +334,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           return {
             stillHasChallenge: hasDataDomeScript || hasDataDomeMessage || hasBlockingContent || hasLoadingContent,
             hasRealContent,
-            hasMarketWatchContent,
+            hasWebsiteContent,
             hasWebsiteStructure,
             hasNavigation,
             pageLength: bodyText.length,
@@ -351,7 +347,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         // Enhanced challenge completion detection
         // Prioritize substantial content over script presence - if we have real content, bypass is successful
         const hasSubstantialContent = challengeStatus.pageLength > 100000 && challengeStatus.linkCount > 50;
-        const hasWebsiteIndicators = challengeStatus.hasMarketWatchContent || challengeStatus.hasWebsiteStructure || challengeStatus.hasNavigation;
+        const hasWebsiteIndicators = challengeStatus.hasWebsiteContent || challengeStatus.hasWebsiteStructure || challengeStatus.hasNavigation;
         
         const challengeActuallyCompleted = hasSubstantialContent || // Strong content evidence
                                          (!challengeStatus.stillHasChallenge && hasWebsiteIndicators); // Traditional logic as fallback
@@ -359,7 +355,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         if (challengeActuallyCompleted) {
           challengeCompleted = true;
           const reason = hasSubstantialContent ? "substantial content" : "challenge cleared";
-          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms via ${reason} (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, MW content: ${challengeStatus.hasMarketWatchContent})`, "scraper");
+          log(`[ProtectionBypass] DataDome challenge completed after ${waitTime}ms via ${reason} (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, website content: ${challengeStatus.hasWebsiteContent})`, "scraper");
         } else if (!challengeStatus.stillHasChallenge) {
           // Challenge elements gone but no real content - wait a bit more
           log(`[ProtectionBypass] Challenge elements gone but content loading (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links)`, "scraper");
