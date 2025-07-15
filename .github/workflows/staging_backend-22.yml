@@ -31,9 +31,6 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}
       
-      - name: Login to Azure Container Registry
-        run: az acr login --name ${{ env.REGISTRY_NAME }}
-      
       - name: Build Docker image
         run: |
           docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
@@ -41,6 +38,7 @@ jobs:
       
       - name: Push Docker image
         run: |
+          docker login ${{ env.REGISTRY_NAME }}.azurecr.io --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
       
