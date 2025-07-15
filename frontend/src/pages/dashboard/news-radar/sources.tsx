@@ -125,6 +125,7 @@ export default function Sources() {
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] =
     useState<JobInterval | null>(null);
   const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(true);
+  const [isHowToUseCollapsed, setIsHowToUseCollapsed] = useState(true);
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1048,6 +1049,9 @@ export default function Sources() {
     },
   });
 
+The code has been modified to include collapsible "How to use" section similar to Threat Tracker's Default Keywords dropdown.
+``````text
+
   const onSubmit = form.handleSubmit((data) => {
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
@@ -1590,6 +1594,50 @@ export default function Sources() {
           "flex flex-col",
         )}
       >
+        {/* How to Use Section - Collapsible */}
+        <Collapsible
+          open={!isHowToUseCollapsed}
+          onOpenChange={(open) => setIsHowToUseCollapsed(!open)}
+        >
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-2 -ml-2 w-full justify-start">
+              {isHowToUseCollapsed ? (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <HelpCircle className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-medium text-muted-foreground">
+                How to Use
+              </h3>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="pl-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="space-y-3 text-sm text-blue-800">
+                <div>
+                  <h4 className="font-medium mb-1">Adding Sources:</h4>
+                  <p>Click "Add Source" to include new news feeds. Enter the URL and configure scraping settings to match the website's structure.</p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-1">Auto-Scraping:</h4>
+                  <p>Enable auto-scraping to automatically collect new articles. Configure the interval to balance freshness with resource usage.</p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-1">Scraping Configuration:</h4>
+                  <p>Use CSS selectors to tell the scraper where to find article titles, dates, authors, and content on each source.</p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-1">Source Status:</h4>
+                  <p>Active sources are included in news monitoring. Inactive sources are preserved but not scraped.</p>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
           <div className="flex items-center justify-between">
             <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
@@ -1762,7 +1810,7 @@ export default function Sources() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleEditSource(source)}
-                              className="h-fit w-fit rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-2"
+                              className="h-fit w-fit rounded-full text-slate-400 hover:text-[#BF000FF] hover:bg-[#BF00FF]/10 p-2"
                               title="Edit source"
                             >
                               <Edit className="h-4 w-4" />
