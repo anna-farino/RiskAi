@@ -48,6 +48,7 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --name ${{ env.CONTAINER_NAME }} \
             --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --os-type Linux \
             --cpu 2 \
             --memory 4 \
             --registry-login-server ${{ env.REGISTRY_NAME }}.azurecr.io \
