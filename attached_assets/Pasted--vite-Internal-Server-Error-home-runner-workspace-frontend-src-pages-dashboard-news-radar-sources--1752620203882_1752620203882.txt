@@ -1,0 +1,64 @@
+[vite] Internal Server Error
+/home/runner/workspace/frontend/src/pages/dashboard/news-radar/sources.tsx: Missing semicolon. (1052:3)
+
+  1050 |   });
+  1051 |
+> 1052 | The code has been modified to include collapsible "How to use" section similar to Threat Tracker's Default Keywords dropdown.
+       |    ^
+  1053 | ``````text
+  1054 |
+  1055 |   const onSubmit = form.handleSubmit((data) => {
+    at constructor (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:19082)
+    at TypeScriptParserMixin.raise (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:178064)
+    at TypeScriptParserMixin.semicolon (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:184433)
+    at TypeScriptParserMixin.parseExpressionStatement (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:356621)
+    at TypeScriptParserMixin.parseExpressionStatement (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:255365)
+    at TypeScriptParserMixin.parseStatementContent (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:346442)
+    at TypeScriptParserMixin.parseStatementContent (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:252927)
+    at TypeScriptParserMixin.parseStatementLike (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:343103)
+    at TypeScriptParserMixin.parseStatementListItem (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:342648)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:357680)
+    at TypeScriptParserMixin.parseBlockBody (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:357337)
+    at TypeScriptParserMixin.parseBlock (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:356910)
+    at TypeScriptParserMixin.parseFunctionBody (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:328299)
+    at TypeScriptParserMixin.parseFunctionBodyAndFinish (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:327804)
+    at TypeScriptParserMixin.parseFunctionBodyAndFinish (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:245269)
+    at /home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:361264
+    at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:335444)
+    at TypeScriptParserMixin.parseFunction (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:361219)
+    at TypeScriptParserMixin.parseExportDefaultExpression (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:375207)
+    at TypeScriptParserMixin.parseExportDefaultExpression (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:251905)
+    at TypeScriptParserMixin.parseExport (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:373056)
+    at TypeScriptParserMixin.parseExport (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:251521)
+    at TypeScriptParserMixin.parseStatementContent (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:345900)
+    at TypeScriptParserMixin.parseStatementContent (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:252927)
+    at TypeScriptParserMixin.parseStatementLike (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:343103)
+    at TypeScriptParserMixin.parseModuleItem (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:342582)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:357657)
+    at TypeScriptParserMixin.parseBlockBody (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:357337)
+    at TypeScriptParserMixin.parseProgram (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:339720)
+    at TypeScriptParserMixin.parseTopLevel (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:339383)
+    at TypeScriptParserMixin.parse (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:390221)
+    at TypeScriptParserMixin.parse (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:270328)
+    at parse (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:390969)
+    at parser (/home/runner/workspace/node_modules/@babel/core/lib/parser/index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (/home/runner/workspace/node_modules/@babel/core/lib/transformation/normalize-file.js:64:37)
+    at normalizeFile.next (<anonymous>)
+    at run (/home/runner/workspace/node_modules/@babel/core/lib/transformation/index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (/home/runner/workspace/node_modules/@babel/core/lib/transform.js:22:33)
+    at transform.next (<anonymous>)
+    at step (/home/runner/workspace/node_modules/gensync/index.js:261:32)
+    at…
+[vite] Internal Server Error
+/home/runner/workspace/frontend/src/pages/dashboard/threat-tracker/sources.tsx: Unexpected token, expected "}" (931:144)
+
+  929 |             <div className="flex gap-2">
+  930 |               <Button
+> 931 |                 variant={(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY]: "default" : "outline"}
+      |                                                                                                                                                 ^
+  932 |                 size="sm"
+  933 |                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.HOURLY)}
+  934 |                 disabled={!(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
+    at constructor (/home/runner/workspace/node_modules/@babel/parser/lib/index.js:1:19082)
