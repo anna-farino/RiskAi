@@ -833,33 +833,53 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
     const cycleTLS = await getCycleTLSInstance();
     const profile = options.browserProfile || getRandomBrowserProfile();
     
-    // Enhanced TLS 1.3 request options with CycleTLS-compatible configuration
+    // Enhanced TLS 1.3 request options with modern cipher suites
     const requestOptions = {
       ja3: profile.ja3,
       userAgent: profile.userAgent,
       headers: profile.headers,
       proxy: options.proxyUrl,
       timeout: 30000,
-      // Core TLS options compatible with CycleTLS
-      ...(profile.tlsVersion === '1.3' && {
-        // Only include TLS 1.3 options if the profile supports it
-        cipherSuites: profile.cipherSuites?.slice(0, 4) || [ // Limit to essential cipher suites
-          'TLS_AES_128_GCM_SHA256',
-          'TLS_AES_256_GCM_SHA384',
-          'TLS_CHACHA20_POLY1305_SHA256'
-        ],
-        keyShareGroups: profile.keyShareGroups?.slice(0, 3) || [ // Limit to most common groups
-          'x25519',
-          'secp256r1',
-          'secp384r1'
-        ],
-        signatureAlgorithms: profile.signatureAlgorithms?.slice(0, 4) || [ // Limit to essential algorithms
-          'rsa_pss_rsae_sha256',
-          'ecdsa_secp256r1_sha256',
-          'rsa_pss_rsae_sha384',
-          'ecdsa_secp384r1_sha384'
-        ]
-      })
+      // TLS 1.3 specific options
+      tlsVersion: '1.3',
+      cipherSuites: profile.cipherSuites || [
+        'TLS_AES_128_GCM_SHA256',
+        'TLS_AES_256_GCM_SHA384',
+        'TLS_CHACHA20_POLY1305_SHA256',
+        'TLS_AES_128_CCM_SHA256',
+        'TLS_AES_128_CCM_8_SHA256'
+      ],
+      keyShareGroups: profile.keyShareGroups || [
+        'x25519',
+        'secp256r1',
+        'secp384r1',
+        'secp521r1',
+        'x448'
+      ],
+      signatureAlgorithms: profile.signatureAlgorithms || [
+        'rsa_pss_rsae_sha256',
+        'rsa_pss_rsae_sha384',
+        'rsa_pss_rsae_sha512',
+        'ecdsa_secp256r1_sha256',
+        'ecdsa_secp384r1_sha384',
+        'ecdsa_secp521r1_sha512',
+        'rsa_pkcs1_sha256',
+        'rsa_pkcs1_sha384',
+        'rsa_pkcs1_sha512'
+      ],
+      // Advanced TLS 1.3 features
+      pskKeyExchangeModes: ['psk_dhe_ke'],
+      supportedVersions: ['1.3', '1.2'], // Fallback support
+      maxFragmentLength: 4096,
+      recordSizeLimit: 16384,
+      // Enhanced security features
+      alpnProtocols: ['h2', 'http/1.1'],
+      compressionMethods: ['null'],
+      sessionTicketSupport: true,
+      ocspStapling: true,
+      sniExtension: true,
+      serverCertificateType: 'x509',
+      clientCertificateType: 'x509'
     };
 
     const response = await cycleTLS(url, requestOptions, 'get');
@@ -871,20 +891,12 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
       log(`[ProtectionBypass] TLS 1.3 request failed with status: ${response.status}`, "scraper");
       
       // Fallback to TLS 1.2 if TLS 1.3 fails
-      if (profile.tlsVersion === '1.3') {
+      if (requestOptions.tlsVersion === '1.3') {
         log(`[ProtectionBypass] Attempting TLS 1.2 fallback...`, "scraper");
+        requestOptions.tlsVersion = '1.2';
+        requestOptions.supportedVersions = ['1.2', '1.1'];
         
-        // Create simplified TLS 1.2 request options
-        const fallbackOptions = {
-          ja3: profile.ja3,
-          userAgent: profile.userAgent,
-          headers: profile.headers,
-          proxy: options.proxyUrl,
-          timeout: 30000
-          // Remove TLS 1.3 specific options for compatibility
-        };
-        
-        const fallbackResponse = await cycleTLS(url, fallbackOptions, 'get');
+        const fallbackResponse = await cycleTLS(url, requestOptions, 'get');
         if (fallbackResponse.status === 200) {
           log(`[ProtectionBypass] TLS 1.2 fallback successful (${fallbackResponse.body.length} chars)`, "scraper");
           return fallbackResponse.body;
@@ -949,45 +961,36 @@ export async function performEnhancedHumanActions(page: Page): Promise<void> {
     const maxX = viewport?.width || 1920;
     const maxY = viewport?.height || 1080;
     
-    // Use native Puppeteer mouse simulation for maximum reliability
-    // Ghost cursor has compatibility issues with current Puppeteer versions
+    // Try to use ghost-cursor with proper error handling
     try {
-      log(`[ProtectionBypass] Using native mouse simulation for maximum reliability`, "scraper");
+      const cursor = createCursor(page);
       
-      // Random mouse movements with more human-like patterns
+      // Random mouse movements
       for (let i = 0; i < 3; i++) {
         const x = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1); // Stay within 10-90% of viewport
         const y = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
         
-        // Move in a more natural way with intermediate steps
-        const currentPos = { x: Math.floor(maxX / 2), y: Math.floor(maxY / 2) };
-        const steps = 5;
-        
-        for (let step = 0; step < steps; step++) {
-          const intermediateX = currentPos.x + (x - currentPos.x) * (step / steps);
-          const intermediateY = currentPos.y + (y - currentPos.y) * (step / steps);
-          
-          await page.mouse.move(intermediateX, intermediateY);
-          await performBehavioralDelay({ behaviorDelay: { min: 50, max: 150 } });
-        }
-        
+        await cursor.move(x, y);
         await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
       }
       
-      // Safe click in the middle area with hover delay
+      // Safe click in the middle area
       const safeX = Math.floor(maxX / 2);
       const safeY = Math.floor(maxY / 2);
-      await page.mouse.move(safeX, safeY);
-      await performBehavioralDelay({ behaviorDelay: { min: 200, max: 500 } });
-      await page.mouse.click(safeX, safeY);
+      await cursor.click(safeX, safeY);
       
-    } catch (mouseError: any) {
-      log(`[ProtectionBypass] Native mouse simulation error: ${mouseError.message}, using minimal interaction`, "scraper");
+    } catch (cursorError: any) {
+      log(`[ProtectionBypass] Ghost cursor error: ${cursorError.message}, falling back to native mouse simulation`, "scraper");
       
-      // Minimal fallback - just basic scrolling
-      await page.evaluate(() => {
-        window.scrollTo(0, Math.floor(Math.random() * 200));
-      });
+      // Fallback to native Puppeteer mouse simulation
+      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
+      
+      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
+      
+      // Safe click
+      await page.mouse.click(Math.floor(maxX / 2), Math.floor(maxY / 2));
     }
     
     // Random scroll actions
