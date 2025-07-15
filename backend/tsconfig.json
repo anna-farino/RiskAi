@@ -8,7 +8,8 @@
     "baseUrl": ".",             
     "paths": {
       "@backend/*": ["../backend/*"],
-      "@shared/*": ["../shared/*"]
+      "@shared/*": ["../shared/*"],
+      "backend/*": ["./*"]
     },
     "moduleResolution": "node"
   },

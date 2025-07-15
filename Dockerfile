@@ -1,43 +1,64 @@
-# Use Node.js 18 slim image for smaller size
 FROM node:18-slim
 
-# Install system dependencies required for Puppeteer and Chrome
-RUN apt-get update \
-    && apt-get install -y wget gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
-    && rm -rf /var/lib/apt/lists/*
+# Install required system dependencies for Puppeteer/Chromium
+RUN apt-get update && apt-get install -y \
+  wget \
+  ca-certificates \
+  fonts-liberation \
+  libappindicator3-1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libatk1.0-0 \
+  libcups2 \
+  libdbus-1-3 \
+  libgdk-pixbuf2.0-0 \
+  libnspr4 \
+  libnss3 \
+  libx11-xcb1 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  xdg-utils \
+  libgbm1 \
+  libxss1 \
+  fonts-ipafont-gothic \
+  fonts-wqy-zenhei \
+  fonts-thai-tlwg \
+  fonts-kacst \
+  fonts-freefont-ttf \
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy backend package files
+COPY backend/package*.json ./backend/
 
-# Install ALL dependencies first (including dev dependencies for migration)
-RUN npm ci
+# Copy shared package files
+COPY shared/package*.json ./shared/
 
-# Copy application code
-COPY . .
+# Install dependencies
+RUN cd backend && npm install --legacy-peer-deps
 
-# Install drizzle-kit for migrations (needed at runtime)
-RUN npm install drizzle-kit --save
+# Copy app code
+COPY backend/ ./backend/
+COPY shared/ ./shared/
 
-# Remove other dev dependencies but keep drizzle-kit
+# Set working directory to backend for build
+WORKDIR /app/backend
+
+# Build app
+RUN npm run build
+
+# Remove dev dependencies
 RUN npm prune --production
 
-# Create startup script that runs migrations at runtime, then starts the app
-RUN echo '#!/bin/sh\nnpx drizzle-kit migrate --config=drizzle.config.ts\nnode index.js' > /app/start.sh && chmod +x /app/start.sh
-
-# Create a non-root user for security
+# Use non-root user
 RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser
-RUN chown -R nodeuser:nodeuser /app
 USER nodeuser
 
-# Expose the port the app runs on
 EXPOSE 3000
 
-# Start the application
-CMD ["/app/start.sh"]
+# Run DB migrations and start the app
+CMD ["sh", "-c", "npx drizzle-kit migrate --config=drizzle.config.ts && node dist/index.js"]
