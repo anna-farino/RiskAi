@@ -154,12 +154,11 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Smart resource management**: Substantial content (>50KB) from HTTP scraping now takes priority over dynamic content detection
 - **Technical implementation**: 
   - Modified `protection-bypass.ts` with DataDome-specific challenge solving instead of generic actions
-  - Enhanced completion detection with URL-agnostic website content indicators
+  - Enhanced completion detection with MarketWatch-specific content indicators
   - Added fallback mechanisms for when challenges can't be solved
   - Updated `method-selector.ts` to prioritize substantial HTTP content over framework detection
   - **Fixed challenge completion logic**: Prioritizes substantial content over script presence detection
   - **Added early exit mechanism**: Prevents repetitive attempts when content is already successfully extracted
-  - **Made detection URL-agnostic**: Replaced MarketWatch-specific hardcoded checks with generic website structure detection
 - **Expected improvement**: Better success rate on DataDome-protected sites through targeted challenge solving and elimination of wasteful repetitive processing
 
 ### July 14, 2025 - Enhanced DataDome Anti-Bot Protection Bypass System
