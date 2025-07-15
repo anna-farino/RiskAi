@@ -72,6 +72,7 @@ import { serverUrl } from "@/utils/server-url";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { cn } from "@/lib/utils";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
 
 // Define the JobInterval enum matching the server-side enum
