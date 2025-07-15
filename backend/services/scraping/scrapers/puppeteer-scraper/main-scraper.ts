@@ -1,4 +1,4 @@
-import type { Page } from 'puppeteer';
+import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import { setupArticlePage, setupSourcePage } from '../../core/page-setup';
 import { 
