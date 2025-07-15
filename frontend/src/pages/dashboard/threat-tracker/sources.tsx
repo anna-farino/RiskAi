@@ -928,7 +928,7 @@ export default function Sources() {
 
             <div className="flex gap-2">
               <Button
-                variant={(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY]: "default" : "outline"}
+                variant={(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) === JobInterval.HOURLY ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleChangeAutoScrapeInterval(JobInterval.HOURLY)}
                 disabled={!(localAutoScrapeEnabled !== null ? localAutoScrapeEnabled : autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}

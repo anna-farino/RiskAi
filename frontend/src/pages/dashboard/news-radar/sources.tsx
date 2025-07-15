@@ -1049,9 +1049,6 @@ export default function Sources() {
     },
   });
 
-The code has been modified to include collapsible "How to use" section similar to Threat Tracker's Default Keywords dropdown.
-``````text
-
   const onSubmit = form.handleSubmit((data) => {
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
