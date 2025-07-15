@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY_NAME: 'mycontainer1' 
+  REGISTRY_NAME: 'mycontainer1'
   IMAGE_NAME: 'backend-22'
-  RESOURCE_GROUP: 'backend-test-group-2' 
+  RESOURCE_GROUP: 'backend-test-group-2'
   CONTAINER_NAME: 'backend-22-container'
-  DNS_LABEL: 'backend-22-unique' 
+  DNS_LABEL: 'backend-22-staging-unique'
 
 jobs:
   deploy:
@@ -44,15 +44,6 @@ jobs:
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
       
-      - name: Get ACR credentials
-        id: acr-creds
-        run: |
-          ACR_USERNAME=$(az acr credential show --name ${{ env.REGISTRY_NAME }} --query username --output tsv)
-          ACR_PASSWORD=$(az acr credential show --name ${{ env.REGISTRY_NAME }} --query passwords[0].value --output tsv)
-          echo "::add-mask::$ACR_PASSWORD"
-          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
-          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
-      
       - name: Deploy to Azure Container Instance
         run: |
           az container create \
@@ -62,13 +53,12 @@ jobs:
             --cpu 2 \
             --memory 4 \
             --registry-login-server ${{ env.REGISTRY_NAME }}.azurecr.io \
-            --registry-username ${{ steps.acr-creds.outputs.username }} \
-            --registry-password ${{ steps.acr-creds.outputs.password }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
             --dns-name-label ${{ env.DNS_LABEL }} \
             --ports 3000 \
             --environment-variables DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             --restart-policy Always
-
 
 
 
