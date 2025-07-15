@@ -1,6 +1,7 @@
+# Use Node.js 18 slim image for smaller size
 FROM node:18-slim
 
-# Install necessary dependencies for Puppeteer
+# Install system dependencies required for Puppeteer and Chrome
 RUN apt-get update \
     && apt-get install -y wget gnupg \
     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
@@ -21,26 +22,22 @@ RUN npm ci
 # Copy application code
 COPY . .
 
-# Run Drizzle migrations during build
-RUN npx drizzle-kit migrate --config=drizzle.config.ts
+# Install drizzle-kit for migrations (needed at runtime)
+RUN npm install drizzle-kit --save
 
-# Remove dev dependencies to keep image size small
+# Remove other dev dependencies but keep drizzle-kit
 RUN npm prune --production
 
+# Create startup script that runs migrations at runtime, then starts the app
+RUN echo '#!/bin/sh\nnpx drizzle-kit migrate --config=drizzle.config.ts\nnode index.js' > /app/start.sh && chmod +x /app/start.sh
+
 # Create a non-root user for security
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser \
-    && chown -R pptruser:pptruser /app
+RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser
+RUN chown -R nodeuser:nodeuser /app
+USER nodeuser
 
-# Switch to non-root user
-USER pptruser
-
-# Expose port
+# Expose the port the app runs on
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "server.js"]
-
-# Start the application
-CMD ["node", "server.js"]
+CMD ["/app/start.sh"]
