@@ -70,12 +70,12 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  Loader2,
-  Plus,
-  Trash2,
-  AlertCircle,
-  PencilLine,
+import { 
+  Loader2, 
+  Plus, 
+  Trash2, 
+  AlertCircle, 
+  PencilLine, 
   ExternalLink,
   RefreshCw,
   Clock,
@@ -88,7 +88,6 @@ import {
   ChevronDown,
   Shield,
   Play,
-  HelpCircle,
 } from "lucide-react";
 
 // Enum for auto-scrape intervals (matching backend numeric format)
@@ -102,7 +101,7 @@ export enum JobInterval {
 // Convert enum to human-readable labels
 const intervalLabels: Record<JobInterval, string> = {
   [JobInterval.HOURLY]: "hourly",
-  [JobInterval.DAILY]: "daily",
+  [JobInterval.DAILY]: "daily", 
   [JobInterval.WEEKLY]: "weekly",
   [JobInterval.DISABLED]: "disabled"
 };
@@ -143,7 +142,6 @@ export default function Sources() {
   } | null>(null);
   const [isDefaultSourcesCollapsed, setIsDefaultSourcesCollapsed] = useState(false);
   const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(true);
-  const [isHowToUseCollapsed, setIsHowToUseCollapsed] = useState(true);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -382,7 +380,7 @@ export default function Sources() {
   // Delete source mutation
   const deleteSource = useMutation({
     mutationFn: async ({ id, deleteArticles = false }: { id: string; deleteArticles?: boolean }) => {
-      const url = deleteArticles
+      const url = deleteArticles 
         ? `${serverUrl}/api/threat-tracker/sources/${id}?deleteArticles=true`
         : `${serverUrl}/api/threat-tracker/sources/${id}`;
       return apiRequest("DELETE", url);
@@ -448,7 +446,7 @@ export default function Sources() {
       const specialErrorParts = [
         "timed out"
       ]
-      for (let i = 0; i < specialErrorParts.length; i++) {
+      for (let i=0; i<specialErrorParts.length; i++) {
         if (error.message.includes(specialErrorParts[i])) {
           specialTitle = "This source is unsupported!";
           specialDescription = "The source you updated is currently unsupported and results may be limited. Check back soon as we roll out improvements for this feature!"
@@ -571,8 +569,8 @@ export default function Sources() {
     },
     onMutate: async ({ enabled, interval }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`]
+      await queryClient.cancelQueries({ 
+        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`] 
       });
 
       // Snapshot the previous values for potential rollback
@@ -592,10 +590,10 @@ export default function Sources() {
       setLocalAutoScrapeEnabled(enabled);
       setLocalAutoScrapeInterval(interval);
 
-      return {
-        previousSettings,
-        previousLocalEnabled,
-        previousLocalInterval
+      return { 
+        previousSettings, 
+        previousLocalEnabled, 
+        previousLocalInterval 
       };
     },
     onError: (err, variables, context) => {
@@ -606,7 +604,7 @@ export default function Sources() {
           context.previousSettings
         );
       }
-
+      
       // Rollback local state
       if (context?.previousLocalEnabled !== undefined) {
         setLocalAutoScrapeEnabled(context.previousLocalEnabled);
@@ -635,7 +633,7 @@ export default function Sources() {
 
       toast({
         title: "Auto-update settings changed",
-        description: data.enabled
+        description: data.enabled 
           ? `Auto-update has been enabled with ${intervalLabels[data.interval as JobInterval] || 'daily'} frequency.`
           : "Auto-update has been disabled.",
       });
@@ -781,9 +779,9 @@ export default function Sources() {
   function handleConfirmedDelete(deleteArticles: boolean) {
     if (deleteConfirmation) {
       if (deleteArticles) {
-        deleteSource.mutate({
-          id: deleteConfirmation.source.id,
-          deleteArticles: true
+        deleteSource.mutate({ 
+          id: deleteConfirmation.source.id, 
+          deleteArticles: true 
         });
       }
       setDeleteConfirmation(null);
@@ -799,14 +797,14 @@ export default function Sources() {
       const now = new Date();
       const currentYear = now.getFullYear();
       const dateYear = d.getFullYear();
-
+      
       // Format time without seconds (HH:MM AM/PM)
       const timeString = d.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
       });
-
+      
       // Format date based on year
       let dateString;
       if (dateYear === currentYear) {
@@ -816,7 +814,7 @@ export default function Sources() {
         // Different year: show M/D/YYYY format
         dateString = `${d.getMonth() + 1}/${d.getDate()}/${dateYear}`;
       }
-
+      
       return `${dateString}, ${timeString}`;
     } catch {
       return "Unknown";
@@ -1018,52 +1016,6 @@ export default function Sources() {
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col overflow-x-scroll">
-          {/* How to Use Section - Collapsible */}
-        <div className="mb-6">
-          <Collapsible
-            open={!isHowToUseCollapsed}
-            onOpenChange={(open) => setIsHowToUseCollapsed(!open)}
-          >
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-2 -ml-2 w-full justify-start">
-                {isHowToUseCollapsed ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                <HelpCircle className="h-4 w-4 text-blue-600" />
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  How to Use
-                </h3>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="pl-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="space-y-3 text-sm text-blue-800">
-                  <div>
-                    <h4 className="font-medium mb-1">Adding Sources:</h4>
-                    <p>Click "Add Source" to include new threat intelligence feeds. Enter the URL and configure scraping settings to match the website's structure.</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1">Auto-Scraping:</h4>
-                    <p>Enable auto-scraping to automatically collect new threat data. Configure the interval to balance freshness with resource usage.</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1">Scraping Configuration:</h4>
-                    <p>Use CSS selectors to tell the scraper where to find article titles, dates, authors, and content on each source.</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1">Source Status:</h4>
-                    <p>Active sources are included in threat monitoring. Inactive sources are preserved but not scraped.</p>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
           {renderSourcesTable()}
         </CardContent>
       </Card>
@@ -1160,14 +1112,14 @@ export default function Sources() {
               </div>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
+                <Button 
+                  type="button" 
+                  variant="outline" 
                   onClick={() => setSourceDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button
+                <Button 
                   type="submit"
                   disabled={createSource.isPending || updateSource.isPending}
                 >
@@ -1294,8 +1246,8 @@ export default function Sources() {
                   {defaultSources
                     .sort((a,b)=> a.name.localeCompare(b.name))
                     .map((source) => (
-                    <div
-                      key={source.id}
+                    <div 
+                      key={source.id} 
                       className={`flex flex-col sm:flex-row gap-y-4 sm:items-center items-start justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? 'opacity-50' : ''}`}>
                       <div className="flex w-full items-center gap-3 min-w-0 flex-1">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? 'bg-green-500' : 'bg-gray-400'}`} />
@@ -1329,7 +1281,7 @@ export default function Sources() {
                         </Button>
                         <Switch
                           checked={source.active}
-                          onCheckedChange={(checked) =>
+                          onCheckedChange={(checked) => 
                             toggleSourceActive.mutate({
                               id: source.id,
                               active: checked,
@@ -1388,21 +1340,21 @@ export default function Sources() {
             </TableHeader>}
             <TableBody className="flex flex-col w-[800px] min-[1148px]:w-full">
               {userSources.filter(s=>true).map((source) => (
-                <TableRow
-                  key={source.id}
+                <TableRow 
+                  key={source.id} 
                   className={`flex flex-grow w-full transition-opacity ${!source.active ? 'opacity-50' : ''}`
                 }>
                   <TableCell className="font-medium w-[25%] min-w-[120px] truncate pr-2">{source.name}</TableCell>
                   <TableCell className="pr-2 w-[35%] min-w-[180px]">
-                    <a
-                      href={source.url}
-                      target="_blank"
+                    <a 
+                      href={source.url} 
+                      target="_blank" 
                       rel="noopener noreferrer"
                       className="flex w-fit items-center text-primary hover:underline truncate"
                     >
                       <span className="truncate w-full">
-                        {source.url.length > 30
-                          ? source.url.substring(0, 30) + '...'
+                        {source.url.length > 30 
+                          ? source.url.substring(0, 30) + '...' 
                           : source.url}
                       </span>
                       <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
@@ -1439,8 +1391,8 @@ export default function Sources() {
                         size="sm"
                         onClick={() => scrapeSingleSource.mutate(source.id)}
                         disabled={
-                          !source.active ||
-                          scrapingSourceId === source.id ||
+                          !source.active || 
+                          scrapingSourceId === source.id || 
                           scrapeJobRunning
                         }
                         className={`h-7 px-2 text-xs ${!source.active ? 'hover:bg-transparent' : ''}`}
