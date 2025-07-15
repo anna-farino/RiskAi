@@ -194,7 +194,13 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 };
               }
               
-              log(`[HTTPScraper] TLS fingerprinting failed, requires Puppeteer`, "scraper");
+              log(`[HTTPScraper] TLS fingerprinting returned DataDome challenge, falling back to Puppeteer`, "scraper");
+              
+              // TLS fingerprinting still got challenge page, we need Puppeteer to solve it
+              const challengeProtection = detectBotProtection(tlsHtml);
+              if (challengeProtection.hasProtection && challengeProtection.type === 'datadome') {
+                log(`[HTTPScraper] DataDome challenge confirmed in TLS response, requires JavaScript execution`, "scraper");
+              }
             }
             
             return {
@@ -206,10 +212,11 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
                 hasProtection: true,
                 type: 'datadome',
                 confidence: 0.95,
-                details: 'DataDome 401 authentication required'
+                details: 'DataDome 401 - requires JavaScript execution via Puppeteer'
               },
               statusCode: response.status,
-              finalUrl: response.url
+              finalUrl: response.url,
+              requiresPuppeteer: true // Signal that Puppeteer is needed
             };
           }
           

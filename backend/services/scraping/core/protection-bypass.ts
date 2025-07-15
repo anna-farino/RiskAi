@@ -155,11 +155,18 @@ export function detectBotProtection(html: string, response?: Response): Protecti
 
 /**
  * Handle DataDome protection challenges
- * Enhanced version from News Radar with improved timing and detection
+ * Enhanced version with cookie handling and session management
  */
 export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
   try {
     log(`[ProtectionBypass] Checking for DataDome protection...`, "scraper");
+
+    // Get current cookies before checking
+    const initialCookies = await page.cookies();
+    const hasDataDomeCookie = initialCookies.some(cookie => 
+      cookie.name.includes('datadome') || cookie.name.includes('dd')
+    );
+    log(`[ProtectionBypass] Initial DataDome cookies present: ${hasDataDomeCookie}`, "scraper");
 
     // Check if we're on a DataDome challenge page
     const isDataDomeChallenge = await page.evaluate(() => {
@@ -167,27 +174,81 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       const hasDataDomeMessage = document.body?.textContent?.includes("Please enable JS and disable any ad blocker") || false;
       const hasDataDomeContent = document.documentElement?.innerHTML?.includes("datadome") || false;
       const hasGeodelivery = document.documentElement?.innerHTML?.includes("geo.captcha-delivery.com") || false;
+      const has401Error = document.title?.toLowerCase()?.includes('401') || false;
 
-      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent || hasGeodelivery;
+      return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent || hasGeodelivery || has401Error;
     });
 
     if (isDataDomeChallenge) {
       log(`[ProtectionBypass] DataDome challenge detected, actively solving...`, "scraper");
+      
+      // Wait for DataDome script to initialize
+      await page.waitForTimeout(2000);
 
-      // Perform enhanced human-like actions during challenge
-      log(`[ProtectionBypass] Performing human-like actions during DataDome challenge`, "scraper");
-      await performEnhancedHumanActions(page);
-
-      // Additional challenge-specific actions
-      await page.evaluate(() => {
-        // Trigger focus events that DataDome monitors
-        document.dispatchEvent(new Event('focus'));
-        document.dispatchEvent(new Event('mousemove'));
-        document.dispatchEvent(new Event('keydown'));
+      // Execute DataDome challenge solver immediately
+      log(`[ProtectionBypass] Executing DataDome challenge solver...`, "scraper");
+      
+      // Inject DataDome solver script
+      const solverResult = await page.evaluate(() => {
+        // Create a promise to track DataDome initialization
+        return new Promise((resolve) => {
+          let checkCount = 0;
+          const maxChecks = 20;
+          
+          const checkDataDome = () => {
+            checkCount++;
+            
+            // Check if DataDome has initialized
+            const ddScript = document.querySelector('script[data-cfasync="false"]');
+            const ddVarMatch = ddScript?.textContent?.match(/var dd=({[^}]+})/);
+            
+            if (ddVarMatch && ddVarMatch[1]) {
+              try {
+                // Extract DataDome configuration
+                const ddConfig = JSON.parse(ddVarMatch[1].replace(/'/g, '"'));
+                console.log('DataDome config found:', ddConfig);
+                
+                // DataDome expects certain behaviors
+                // 1. Mouse movement
+                for (let i = 0; i < 10; i++) {
+                  const evt = new MouseEvent('mousemove', {
+                    clientX: Math.random() * window.innerWidth,
+                    clientY: Math.random() * window.innerHeight,
+                    bubbles: true
+                  });
+                  document.dispatchEvent(evt);
+                }
+                
+                // 2. Window focus
+                window.focus();
+                document.hasFocus = () => true;
+                
+                // 3. User interaction timing
+                window._datadome_started = Date.now() - Math.floor(Math.random() * 3000 + 2000);
+                
+                resolve({ success: true, config: ddConfig });
+              } catch (e) {
+                console.error('DataDome parse error:', e);
+                resolve({ success: false, error: e.message });
+              }
+            } else if (checkCount >= maxChecks) {
+              resolve({ success: false, error: 'DataDome config not found' });
+            } else {
+              setTimeout(checkDataDome, 100);
+            }
+          };
+          
+          checkDataDome();
+        });
       });
-
+      
+      log(`[ProtectionBypass] DataDome solver result: ${JSON.stringify(solverResult)}`, "scraper");
+      
+      // Perform enhanced human-like actions
+      await performEnhancedHumanActions(page);
+      
       // Wait for challenge processing
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await page.waitForTimeout(3000);
 
       // Active challenge solving with multiple attempts
       let challengeCompleted = false;
@@ -763,7 +824,7 @@ export function getRandomBrowserProfile(): BrowserProfile {
 
 /**
  * Enhanced TLS 1.3 fingerprinting with CycleTLS for DataDome bypass
- * Uses JA3 fingerprints to encode TLS configuration for proper CycleTLS compatibility
+ * Implements cookie management and session handling
  */
 export async function performTLSRequest(url: string, options: EnhancedScrapingOptions = {}): Promise<string> {
   try {
@@ -772,54 +833,123 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
     const cycleTLS = await getCycleTLSInstance();
     const profile = options.browserProfile || getRandomBrowserProfile();
     
-    // CycleTLS only accepts these specific options - all TLS config is encoded in the JA3 string
-    const requestOptions = {
+    // Initial request to get cookies and session
+    const initialOptions = {
       ja3: profile.ja3,
       userAgent: profile.userAgent,
-      headers: profile.headers,
+      headers: {
+        ...profile.headers,
+        'Cookie': options.sessionCookies?.join('; ') || ''
+      },
       proxy: options.proxyUrl,
       timeout: 30000,
-      // Optional: disable redirect following if needed
       disableRedirect: false,
-      // Note: CycleTLS does NOT support individual TLS parameters like tlsVersion, cipherSuites, etc.
-      // All TLS configuration is encoded in the JA3 fingerprint string
+      // Enable cookie jar for session management
+      followRedirect: true,
+      cookieJar: true
     };
 
-    log(`[ProtectionBypass] Sending CycleTLS request with JA3: ${requestOptions.ja3.substring(0, 50)}...`, "scraper");
-    const response = await cycleTLS(url, requestOptions, 'get');
+    log(`[ProtectionBypass] Sending initial CycleTLS request with JA3: ${initialOptions.ja3.substring(0, 50)}...`, "scraper");
+    const initialResponse = await cycleTLS(url, initialOptions, 'get');
     
-    log(`[ProtectionBypass] CycleTLS response received: status=${response.status}, bodyLength=${response.body ? response.body.length : 0}`, "scraper");
+    log(`[ProtectionBypass] Initial response: status=${initialResponse.status}, cookies=${initialResponse.headers?.['set-cookie']?.length || 0}`, "scraper");
     
-    if (response.status === 200) {
-      log(`[ProtectionBypass] TLS request successful (${response.body.length} chars)`, "scraper");
-      return response.body;
-    } else {
-      log(`[ProtectionBypass] TLS request failed with status: ${response.status}, body: ${response.body ? response.body.substring(0, 200) : 'empty'}`, "scraper");
+    // Check if we got DataDome challenge
+    if (initialResponse.status === 401 || initialResponse.status === 403 || 
+        (initialResponse.body && initialResponse.body.includes('captcha-delivery.com'))) {
       
-      // Try with a different browser profile as fallback
-      log(`[ProtectionBypass] Attempting fallback with different browser profile...`, "scraper");
-      const profiles = createBrowserProfiles();
-      const fallbackProfile = profiles.find(p => p.userAgent !== profile.userAgent) || profiles[0];
+      log(`[ProtectionBypass] DataDome challenge detected, attempting cookie-based bypass...`, "scraper");
       
-      const fallbackOptions = {
-        ja3: fallbackProfile.ja3,
-        userAgent: fallbackProfile.userAgent,
-        headers: fallbackProfile.headers,
-        proxy: options.proxyUrl,
-        timeout: 30000,
-        disableRedirect: false
-      };
-      
-      const fallbackResponse = await cycleTLS(url, fallbackOptions, 'get');
-      if (fallbackResponse.status === 200) {
-        log(`[ProtectionBypass] Fallback profile successful (${fallbackResponse.body.length} chars)`, "scraper");
-        return fallbackResponse.body;
+      // Extract DataDome configuration from response
+      const ddConfigMatch = initialResponse.body?.match(/var dd=({[^}]+})/);
+      if (ddConfigMatch) {
+        try {
+          const ddConfig = JSON.parse(ddConfigMatch[1].replace(/'/g, '"'));
+          log(`[ProtectionBypass] DataDome config extracted: ${JSON.stringify(ddConfig)}`, "scraper");
+          
+          // Build challenge solver URL
+          const challengeUrl = `https://${ddConfig.host}/c.js`;
+          
+          // Request challenge solver with proper headers
+          const challengeOptions = {
+            ja3: profile.ja3,
+            userAgent: profile.userAgent,
+            headers: {
+              ...profile.headers,
+              'Referer': url,
+              'Cookie': ddConfig.cookie || ''
+            },
+            proxy: options.proxyUrl,
+            timeout: 30000,
+            cookieJar: true
+          };
+          
+          const challengeResponse = await cycleTLS(challengeUrl, challengeOptions, 'get');
+          log(`[ProtectionBypass] Challenge solver response: ${challengeResponse.status}`, "scraper");
+          
+          // Extract cookies from challenge response
+          const cookies = challengeResponse.headers?.['set-cookie'] || [];
+          const dataDomeCookie = cookies.find((c: string) => c.includes('datadome'));
+          
+          if (dataDomeCookie) {
+            log(`[ProtectionBypass] DataDome cookie obtained, retrying original request...`, "scraper");
+            
+            // Retry original request with DataDome cookie
+            const retryOptions = {
+              ...initialOptions,
+              headers: {
+                ...initialOptions.headers,
+                'Cookie': dataDomeCookie.split(';')[0]
+              }
+            };
+            
+            const retryResponse = await cycleTLS(url, retryOptions, 'get');
+            
+            if (retryResponse.status === 200) {
+              log(`[ProtectionBypass] Bypass successful with DataDome cookie (${retryResponse.body.length} chars)`, "scraper");
+              return retryResponse.body;
+            }
+          }
+        } catch (e: any) {
+          log(`[ProtectionBypass] Error parsing DataDome config: ${e.message}`, "scraper-error");
+        }
       }
       
-      // Return the fallback body even on error to see what happened
-      log(`[ProtectionBypass] Fallback also failed with status: ${fallbackResponse.status}, returning body anyway`, "scraper");
-      return fallbackResponse.body || '';
+      // If cookie bypass failed, try different profiles
+      log(`[ProtectionBypass] Cookie bypass failed, trying profile rotation...`, "scraper");
+      const profiles = createBrowserProfiles();
+      
+      for (const fallbackProfile of profiles) {
+        if (fallbackProfile.userAgent === profile.userAgent) continue;
+        
+        const fallbackOptions = {
+          ja3: fallbackProfile.ja3,
+          userAgent: fallbackProfile.userAgent,
+          headers: fallbackProfile.headers,
+          proxy: options.proxyUrl,
+          timeout: 30000,
+          disableRedirect: false,
+          cookieJar: true
+        };
+        
+        const fallbackResponse = await cycleTLS(url, fallbackOptions, 'get');
+        if (fallbackResponse.status === 200) {
+          log(`[ProtectionBypass] Profile rotation successful with ${fallbackProfile.deviceType} profile (${fallbackResponse.body.length} chars)`, "scraper");
+          return fallbackResponse.body;
+        }
+      }
+      
+      // Return challenge page for analysis
+      return initialResponse.body || '';
     }
+    
+    if (initialResponse.status === 200) {
+      log(`[ProtectionBypass] TLS request successful (${initialResponse.body.length} chars)`, "scraper");
+      return initialResponse.body;
+    }
+    
+    log(`[ProtectionBypass] TLS request failed with status: ${initialResponse.status}`, "scraper");
+    return initialResponse.body || '';
   } catch (error: any) {
     log(`[ProtectionBypass] TLS request error: ${error.message}`, "scraper-error");
     
