@@ -141,11 +141,18 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Better completion detection checking for real content (>5000 chars) AND website structure
   - Alternative bypass techniques when standard challenge solving fails
 - **Performance optimization**: Fixed inefficient HTMX processing after successful content extraction
+- **Fixed inefficient Puppeteer switching**: System was switching to Puppeteer for sites with substantial HTTP content (598K+ chars) just because they had SPA frameworks
+- **Enhanced dynamic content detection**: More conservative logic that only switches to Puppeteer when:
+  - Content is minimal (<50KB) AND has dynamic indicators, OR
+  - Strong HTMX indicators are present, OR
+  - Very few links despite substantial content
+- **Smart resource management**: Substantial content (>50KB) from HTTP scraping now takes priority over dynamic content detection
 - **Technical implementation**: 
   - Modified `protection-bypass.ts` with DataDome-specific challenge solving instead of generic actions
   - Enhanced completion detection with MarketWatch-specific content indicators
   - Added fallback mechanisms for when challenges can't be solved
-- **Expected improvement**: Better success rate on DataDome-protected sites through targeted challenge solving and fallback mechanisms
+  - Updated `method-selector.ts` to prioritize substantial HTTP content over framework detection
+- **Expected improvement**: Better success rate on DataDome-protected sites through targeted challenge solving and more efficient resource usage
 
 ### July 14, 2025 - Enhanced DataDome Anti-Bot Protection Bypass System
 - **Implemented advanced DataDome bypass capabilities** to overcome modern bot detection on protected sites like MarketWatch
