@@ -24,6 +24,7 @@ import {
   Edit,
   ChevronDown,
   ChevronRight,
+  ListChecks,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -1191,7 +1192,7 @@ export default function Sources() {
       </Dialog>
 
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center mb-8 sm:justify-between gap-2 sm:gap-3 lg:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
           <div className="flex flex-col gap-0.5 sm:gap-1 lg:gap-2">
             <h1 className="text-4xl sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">
               News Sources
@@ -1203,25 +1204,22 @@ export default function Sources() {
         </div>
 
         {/* Instructions Section */}
-        <div className="mb-6">
+        <div className="mb-0">
           <Collapsible
             open={!isInstructionsCollapsed}
             onOpenChange={(open) => setIsInstructionsCollapsed(!open)}
           >
             <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
+              <button className="flex items-center gap-2 mb-0 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
                 {isInstructionsCollapsed ? (
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 ) : (
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
-                <Globe className="h-4 w-4 text-blue-600" />
+                <ListChecks className="h-4 w-4 text-blue-600" />
                 <h3 className="text-sm font-medium text-muted-foreground">
                   How to Use News Radar Sources
                 </h3>
-                <Badge variant="outline" className="text-xs px-2 py-0">
-                  4
-                </Badge>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4">
@@ -1252,7 +1250,7 @@ export default function Sources() {
                       3. Manual Collection
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      Use "Update All Sources Now" for immediate article
+                      Use "Scan All Sources Now" for immediate article
                       collection or update individual sources as needed.
                     </p>
                   </div>
@@ -1261,8 +1259,8 @@ export default function Sources() {
                       4. Filter by Keywords
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      Visit the Keywords page to manage terms that help filter and
-                      categorize collected news articles.
+                      Visit the Keywords page to manage terms that help filter
+                      and categorize collected news articles.
                     </p>
                   </div>
                 </div>
@@ -1470,8 +1468,8 @@ export default function Sources() {
                 <Play className="mr-2 h-4 w-4" />
               )}
               {autoScrapeStatus?.data?.running
-                ? "Stop Update"
-                : "Update All Sources Now"}
+                ? "Stop Scan"
+                : "Scan All Sources Now"}
             </Button>
           </CardFooter>
         </Card>
@@ -1651,181 +1649,181 @@ export default function Sources() {
                       .slice()
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((source) => (
-                      <TableRow
-                        key={source.id}
-                        className={cn(
-                          "border-slate-700/50 hover:bg-slate-800/70 transition-opacity duration-200",
-                        )}
-                      >
-                        <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
-                          <div className="flex items-center gap-1 overflow-hidden min-w-0">
-                            <div className="h-3 w-3 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"></div>
-                            <span className="truncate text-xs sm:text-sm min-w-0">
-                              {source.name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-[25%] sm:w-[35%] p-2 sm:p-4">
-                          <div className="flex items-center gap-1 overflow-hidden min-w-0">
-                            <Link2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
-                            <a
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-slate-300 hover:text-primary transition-colors truncate text-xs sm:text-sm min-w-0"
-                            >
-                              {source.url.replace(/^https?:\/\/(www\.)?/, "")}
-                            </a>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center w-[25%] sm:w-[15%] p-2 sm:p-4">
-                          <div className="flex justify-center items-center min-w-0">
-                            <Switch
-                              id={`auto-scrape-${source.id}`}
-                              checked={source.includeInAutoScrape || false}
-                              onCheckedChange={(checked) =>
-                                toggleAutoScrape.mutate({
-                                  id: source.id,
-                                  include: checked,
-                                })
-                              }
-                              disabled={toggleAutoScrape.isPending}
-                              className="scale-75 sm:scale-100 flex-shrink-0"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right w-[25%] sm:w-[25%] p-1 sm:p-4 align-top">
-                          {/* Mobile & Tablet Layout - Stacked vertically */}
-                          <div className="flex flex-col gap-1 items-end lg:hidden min-w-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditSource(source)}
-                              className="h-6 w-6 rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-1 flex-shrink-0"
-                              title="Edit source"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => scrapeSource.mutate(source.id)}
-                              disabled={scrapeSource.isPending}
-                              className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
-                              title="Update source"
-                            >
-                              {scrapeSource.isPending &&
-                              sourcesBeingScraped.includes(source.id) ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RotateCw className="h-3 w-3" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => stopScraping.mutate(source.id)}
-                              disabled={
-                                stopScraping.isPending &&
-                                scrapesBeingStopped.includes(source.id)
-                              }
-                              className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
-                              title="Stop scraping"
-                            >
-                              {stopScraping.isPending &&
-                              scrapesBeingStopped.includes(source.id) ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <X className="h-3 w-3" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSourceToDelete(source.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                              disabled={deleteSource.isPending}
-                              className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
-                              title="Delete source"
-                            >
-                              {false && deleteSource.isPending ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </div>
+                        <TableRow
+                          key={source.id}
+                          className={cn(
+                            "border-slate-700/50 hover:bg-slate-800/70 transition-opacity duration-200",
+                          )}
+                        >
+                          <TableCell className="font-medium text-white w-[25%] sm:w-[25%] p-2 sm:p-4">
+                            <div className="flex items-center gap-1 overflow-hidden min-w-0">
+                              <div className="h-3 w-3 sm:h-5 sm:w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"></div>
+                              <span className="truncate text-xs sm:text-sm min-w-0">
+                                {source.name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="w-[25%] sm:w-[35%] p-2 sm:p-4">
+                            <div className="flex items-center gap-1 overflow-hidden min-w-0">
+                              <Link2 className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-500 flex-shrink-0" />
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-300 hover:text-primary transition-colors truncate text-xs sm:text-sm min-w-0"
+                              >
+                                {source.url.replace(/^https?:\/\/(www\.)?/, "")}
+                              </a>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center w-[25%] sm:w-[15%] p-2 sm:p-4">
+                            <div className="flex justify-center items-center min-w-0">
+                              <Switch
+                                id={`auto-scrape-${source.id}`}
+                                checked={source.includeInAutoScrape || false}
+                                onCheckedChange={(checked) =>
+                                  toggleAutoScrape.mutate({
+                                    id: source.id,
+                                    include: checked,
+                                  })
+                                }
+                                disabled={toggleAutoScrape.isPending}
+                                className="scale-75 sm:scale-100 flex-shrink-0"
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right w-[25%] sm:w-[25%] p-1 sm:p-4 align-top">
+                            {/* Mobile & Tablet Layout - Stacked vertically */}
+                            <div className="flex flex-col gap-1 items-end lg:hidden min-w-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditSource(source)}
+                                className="h-6 w-6 rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-1 flex-shrink-0"
+                                title="Edit source"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => scrapeSource.mutate(source.id)}
+                                disabled={scrapeSource.isPending}
+                                className="h-6 w-6 rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-1 flex-shrink-0"
+                                title="Update source"
+                              >
+                                {scrapeSource.isPending &&
+                                sourcesBeingScraped.includes(source.id) ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RotateCw className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => stopScraping.mutate(source.id)}
+                                disabled={
+                                  stopScraping.isPending &&
+                                  scrapesBeingStopped.includes(source.id)
+                                }
+                                className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
+                                title="Stop scraping"
+                              >
+                                {stopScraping.isPending &&
+                                scrapesBeingStopped.includes(source.id) ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSourceToDelete(source.id);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                disabled={deleteSource.isPending}
+                                className="h-6 w-6 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-1 flex-shrink-0"
+                                title="Delete source"
+                              >
+                                {false && deleteSource.isPending ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
 
-                          {/* Large Desktop Layout - Horizontal */}
-                          <div className="hidden lg:flex flex-row justify-end items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditSource(source)}
-                              className="h-fit w-fit rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-2"
-                              title="Edit source"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => scrapeSource.mutate(source.id)}
-                              disabled={
-                                scrapeSource.isPending &&
-                                sourcesBeingScraped.includes(source.id)
-                              }
-                              className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
-                              title="Update source"
-                            >
-                              {scrapeSource.isPending &&
-                              sourcesBeingScraped.includes(source.id) ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <RotateCw className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => stopScraping.mutate(source.id)}
-                              disabled={
-                                stopScraping.isPending &&
-                                scrapesBeingStopped.includes(source.id)
-                              }
-                              className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
-                              title="Stop scraping"
-                            >
-                              {stopScraping.isPending &&
-                              scrapesBeingStopped.includes(source.id) ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <X className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSourceToDelete(source.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                              disabled={deleteSource.isPending}
-                              className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
-                              title="Delete source"
-                            >
-                              {deleteSource.variables == source.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            {/* Large Desktop Layout - Horizontal */}
+                            <div className="hidden lg:flex flex-row justify-end items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditSource(source)}
+                                className="h-fit w-fit rounded-full text-slate-400 hover:text-[#BF00FF] hover:bg-[#BF00FF]/10 p-2"
+                                title="Edit source"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => scrapeSource.mutate(source.id)}
+                                disabled={
+                                  scrapeSource.isPending &&
+                                  sourcesBeingScraped.includes(source.id)
+                                }
+                                className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
+                                title="Update source"
+                              >
+                                {scrapeSource.isPending &&
+                                sourcesBeingScraped.includes(source.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RotateCw className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => stopScraping.mutate(source.id)}
+                                disabled={
+                                  stopScraping.isPending &&
+                                  scrapesBeingStopped.includes(source.id)
+                                }
+                                className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                                title="Stop scraping"
+                              >
+                                {stopScraping.isPending &&
+                                scrapesBeingStopped.includes(source.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <X className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSourceToDelete(source.id);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                disabled={deleteSource.isPending}
+                                className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
+                                title="Delete source"
+                              >
+                                {deleteSource.variables == source.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
             </div>
