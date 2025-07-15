@@ -140,6 +140,11 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Three-tier solving strategy: DataDome script initialization → sophisticated interactions → aggressive event triggering
   - Better completion detection checking for real content (>5000 chars) AND website structure
   - Alternative bypass techniques when standard challenge solving fails
+- **Fixed major inefficiency in challenge completion detection**:
+  - **Root issue**: System detected 151,700 chars + 210 links but still thought challenge was active due to DataDome script presence
+  - **Repetitive waste**: 3 attempts × 2 minutes = 6 minutes of unnecessary challenge solving for already-bypassed content
+  - **Smart content prioritization**: Now recognizes substantial content (>100K chars + >50 links) as successful bypass regardless of script presence
+  - **Early exit mechanism**: Quick content check before each attempt to avoid wasteful processing
 - **Performance optimization**: Fixed inefficient HTMX processing after successful content extraction
 - **Fixed inefficient Puppeteer switching**: System was switching to Puppeteer for sites with substantial HTTP content (598K+ chars) just because they had SPA frameworks
 - **Enhanced dynamic content detection**: More conservative logic that only switches to Puppeteer when:
@@ -152,7 +157,9 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Enhanced completion detection with MarketWatch-specific content indicators
   - Added fallback mechanisms for when challenges can't be solved
   - Updated `method-selector.ts` to prioritize substantial HTTP content over framework detection
-- **Expected improvement**: Better success rate on DataDome-protected sites through targeted challenge solving and more efficient resource usage
+  - **Fixed challenge completion logic**: Prioritizes substantial content over script presence detection
+  - **Added early exit mechanism**: Prevents repetitive attempts when content is already successfully extracted
+- **Expected improvement**: Better success rate on DataDome-protected sites through targeted challenge solving and elimination of wasteful repetitive processing
 
 ### July 14, 2025 - Enhanced DataDome Anti-Bot Protection Bypass System
 - **Implemented advanced DataDome bypass capabilities** to overcome modern bot detection on protected sites like MarketWatch
