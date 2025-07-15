@@ -177,6 +177,33 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Enhanced bypass system**: Combined with existing challenge solving logic, TLS fingerprinting, and behavioral simulation
 - **Expected improvement**: Significantly higher success rate on DataDome-protected sites through state-of-the-art anti-detection technology
 
+### July 15, 2025 - Pre-emptive DataDome Challenge Detection and Solving
+- **Implemented intelligent challenge detection** that identifies DataDome challenge pages before attempting link extraction
+- **Root issue**: System was landing on DataDome challenge pages (9 elements, only `ct.captcha-delivery.com` script) instead of actual website content
+- **Smart detection criteria**:
+  - **DataDome script presence**: Detects `captcha-delivery.com`, `datadome.co`, or `datadomejs.com` scripts
+  - **Minimal content threshold**: Pages with <20 elements likely indicate challenge pages
+  - **Combined detection**: Both conditions must be met to trigger pre-emptive bypass
+- **Pre-emptive bypass workflow**:
+  - **Immediate detection**: Triggers as soon as minimal content + DataDome script is detected
+  - **Automatic bypass**: Calls existing `bypassProtection` function before attempting link extraction
+  - **Content re-evaluation**: Re-checks page content after bypass to confirm success
+  - **Seamless continuation**: Proceeds with normal link extraction if bypass succeeds
+- **Enhanced debugging**:
+  - **Challenge detection logs**: Clear indication when DataDome challenge is detected
+  - **Bypass success/failure logs**: Tracks whether bypass was successful
+  - **Post-bypass content analysis**: Shows element count and script presence after bypass
+- **Technical implementation**:
+  - **Enhanced page evaluation**: Added DataDome challenge detection in `puppeteer-link-handler.ts`
+  - **Bypass integration**: Direct integration with existing `protection-bypass.ts` system
+  - **Content updating**: Updates debug information after successful bypass
+- **Benefits**:
+  - **Eliminates stuck-on-challenge scenarios**: No more link extraction from minimal challenge pages
+  - **Automatic recovery**: System automatically attempts bypass when challenges are detected
+  - **Improved efficiency**: Faster recovery from DataDome challenges through early detection
+  - **Better logging**: Clear visibility into challenge detection and bypass attempts
+- **Expected improvement**: Eliminates scenarios where system gets stuck on DataDome challenge pages with minimal content
+
 ### July 14, 2025 - Enhanced DataDome Anti-Bot Protection Bypass System
 - **Implemented advanced DataDome bypass capabilities** to overcome modern bot detection on protected sites like MarketWatch
 - **Added TLS fingerprinting support** using CycleTLS for enhanced request authenticity
