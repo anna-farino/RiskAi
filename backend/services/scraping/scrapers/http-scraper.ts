@@ -102,8 +102,8 @@ function delay(ms: number): Promise<void> {
 /**
  * Calculate retry delay with exponential backoff
  */
-function calculateRetryDelay(attempt: number, baseDelay: number = 1000): number {
-  return Math.min(baseDelay * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
+function calculateRetryDelay(attempt: number, baseDelay: number = 500): number {
+  return Math.min(baseDelay * Math.pow(2, attempt - 1), 3000); // Max 3 seconds
 }
 
 /**
@@ -113,8 +113,8 @@ function calculateRetryDelay(attempt: number, baseDelay: number = 1000): number 
 export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions): Promise<ScrapingResult> {
   const startTime = Date.now();
   const maxRetries = options?.maxRetries || 2;
-  const timeout = options?.timeout || 30000;
-  const baseRetryDelay = options?.retryDelay || 1000;
+  const timeout = options?.timeout || 15000; // Reduced from 30s to 15s
+  const baseRetryDelay = options?.retryDelay || 500; // Reduced from 1s to 500ms
   
   let lastError: Error | null = null;
   let protectionInfo: ProtectionInfo | undefined;
@@ -345,7 +345,7 @@ export async function scrapeWithHTTP(url: string, options?: HTTPScrapingOptions)
 export async function quickHTTPCheck(url: string): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
     const response = await fetch(url, {
       method: 'HEAD',
