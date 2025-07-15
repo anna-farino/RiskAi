@@ -28,6 +28,10 @@ export interface BrowserProfile {
   ja3: string;
   headers: Record<string, string>;
   deviceType: 'desktop' | 'mobile' | 'tablet';
+  tlsVersion?: '1.2' | '1.3';
+  cipherSuites?: string[];
+  keyShareGroups?: string[];
+  signatureAlgorithms?: string[];
 }
 
 export interface EnhancedScrapingOptions {
@@ -622,62 +626,188 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
 
 /**
  * Create browser profiles for fingerprint rotation
- * Enhanced for DataDome bypass with realistic TLS fingerprints
+ * Enhanced for DataDome bypass with TLS 1.3 fingerprints and modern cipher suites
  */
 export function createBrowserProfiles(): BrowserProfile[] {
   const profiles: BrowserProfile[] = [];
   
-  // Chrome Desktop Profile
+  // Chrome Desktop Profile - TLS 1.3 Enhanced
   profiles.push({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
     viewport: { width: 1920, height: 1080 },
-    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    // TLS 1.3 JA3 fingerprint with modern cipher suites and key exchange groups
+    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-51-43-13-45-28-21-41-42-43-44,29-23-24-25-256-257,0',
     headers: {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1',
       'Sec-Fetch-Dest': 'document',
       'Sec-Fetch-Mode': 'navigate',
       'Sec-Fetch-Site': 'none',
       'Sec-Fetch-User': '?1',
+      'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
       'Cache-Control': 'max-age=0'
     },
-    deviceType: 'desktop'
+    deviceType: 'desktop',
+    tlsVersion: '1.3',
+    cipherSuites: [
+      'TLS_AES_128_GCM_SHA256',
+      'TLS_AES_256_GCM_SHA384',
+      'TLS_CHACHA20_POLY1305_SHA256',
+      'TLS_AES_128_CCM_SHA256'
+    ],
+    keyShareGroups: ['x25519', 'secp256r1', 'secp384r1'],
+    signatureAlgorithms: [
+      'rsa_pss_rsae_sha256',
+      'rsa_pss_rsae_sha384',
+      'ecdsa_secp256r1_sha256',
+      'ecdsa_secp384r1_sha384'
+    ]
   });
 
-  // Firefox Desktop Profile
+  // Firefox Desktop Profile - TLS 1.3 Enhanced
   profiles.push({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
     viewport: { width: 1366, height: 768 },
-    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21,29-23-24,0',
+    // TLS 1.3 JA3 fingerprint for Firefox with correct cipher suite order
+    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21-41-42,29-23-24-25-256-257,0',
     headers: {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1'
+    },
+    deviceType: 'desktop',
+    tlsVersion: '1.3',
+    cipherSuites: [
+      'TLS_AES_128_GCM_SHA256',
+      'TLS_CHACHA20_POLY1305_SHA256',
+      'TLS_AES_256_GCM_SHA384',
+      'TLS_AES_128_CCM_SHA256'
+    ],
+    keyShareGroups: ['x25519', 'secp256r1', 'secp384r1', 'secp521r1'],
+    signatureAlgorithms: [
+      'ecdsa_secp256r1_sha256',
+      'ecdsa_secp384r1_sha384',
+      'ecdsa_secp521r1_sha512',
+      'rsa_pss_rsae_sha256',
+      'rsa_pss_rsae_sha384'
+    ]
+  });
+
+  // Chrome Mobile Profile - TLS 1.3 Enhanced
+  profiles.push({
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+    viewport: { width: 375, height: 812 },
+    // TLS 1.3 JA3 fingerprint for mobile Safari with iOS-specific cipher preferences
+    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-51-43-13-45-28-21-41-42-43,29-23-24-25-256-257,0',
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1',
       'Sec-Fetch-Dest': 'document',
       'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none'
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1'
     },
-    deviceType: 'desktop'
+    deviceType: 'mobile',
+    tlsVersion: '1.3',
+    cipherSuites: [
+      'TLS_AES_128_GCM_SHA256',
+      'TLS_AES_256_GCM_SHA384',
+      'TLS_CHACHA20_POLY1305_SHA256'
+    ],
+    keyShareGroups: ['x25519', 'secp256r1'],
+    signatureAlgorithms: [
+      'ecdsa_secp256r1_sha256',
+      'rsa_pss_rsae_sha256',
+      'rsa_pss_rsae_sha384'
+    ]
   });
 
-  // Chrome Mobile Profile
+  // Edge Desktop Profile - TLS 1.3 Enhanced
   profiles.push({
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
-    viewport: { width: 375, height: 812 },
-    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
+    viewport: { width: 1536, height: 864 },
+    // TLS 1.3 JA3 fingerprint for Edge with Microsoft-specific preferences
+    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-51-43-13-45-28-21-41-42-43-44,29-23-24-25-256-257,0',
     headers: {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
       'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1'
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Sec-Ch-Ua': '"Not A(Brand";v="99", "Microsoft Edge";v="121", "Chromium";v="121"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Cache-Control': 'max-age=0'
     },
-    deviceType: 'mobile'
+    deviceType: 'desktop',
+    tlsVersion: '1.3',
+    cipherSuites: [
+      'TLS_AES_128_GCM_SHA256',
+      'TLS_AES_256_GCM_SHA384',
+      'TLS_CHACHA20_POLY1305_SHA256',
+      'TLS_AES_128_CCM_SHA256'
+    ],
+    keyShareGroups: ['x25519', 'secp256r1', 'secp384r1'],
+    signatureAlgorithms: [
+      'rsa_pss_rsae_sha256',
+      'rsa_pss_rsae_sha384',
+      'ecdsa_secp256r1_sha256',
+      'ecdsa_secp384r1_sha384'
+    ]
+  });
+
+  // Android Chrome Mobile Profile - TLS 1.3 Enhanced
+  profiles.push({
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36',
+    viewport: { width: 412, height: 915 },
+    // TLS 1.3 JA3 fingerprint for Android Chrome with mobile-specific cipher preferences
+    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-51-43-13-45-28-21-41-42-43,29-23-24-25-256-257,0',
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+      'Sec-Ch-Ua-Mobile': '?1',
+      'Sec-Ch-Ua-Platform': '"Android"',
+      'Cache-Control': 'max-age=0'
+    },
+    deviceType: 'mobile',
+    tlsVersion: '1.3',
+    cipherSuites: [
+      'TLS_AES_128_GCM_SHA256',
+      'TLS_AES_256_GCM_SHA384',
+      'TLS_CHACHA20_POLY1305_SHA256'
+    ],
+    keyShareGroups: ['x25519', 'secp256r1', 'secp384r1'],
+    signatureAlgorithms: [
+      'ecdsa_secp256r1_sha256',
+      'ecdsa_secp384r1_sha384',
+      'rsa_pss_rsae_sha256'
+    ]
   });
 
   return profiles;
@@ -693,34 +823,115 @@ export function getRandomBrowserProfile(): BrowserProfile {
 }
 
 /**
- * Enhanced TLS fingerprinting with CycleTLS for DataDome bypass
+ * Enhanced TLS 1.3 fingerprinting with CycleTLS for DataDome bypass
+ * Supports advanced TLS 1.3 features including key share groups and signature algorithms
  */
 export async function performTLSRequest(url: string, options: EnhancedScrapingOptions = {}): Promise<string> {
   try {
-    log(`[ProtectionBypass] Performing TLS fingerprinted request to: ${url}`, "scraper");
+    log(`[ProtectionBypass] Performing TLS 1.3 fingerprinted request to: ${url}`, "scraper");
     
     const cycleTLS = await getCycleTLSInstance();
     const profile = options.browserProfile || getRandomBrowserProfile();
     
+    // Enhanced TLS 1.3 request options with modern cipher suites
     const requestOptions = {
       ja3: profile.ja3,
       userAgent: profile.userAgent,
       headers: profile.headers,
       proxy: options.proxyUrl,
-      timeout: 30000
+      timeout: 30000,
+      // TLS 1.3 specific options
+      tlsVersion: '1.3',
+      cipherSuites: profile.cipherSuites || [
+        'TLS_AES_128_GCM_SHA256',
+        'TLS_AES_256_GCM_SHA384',
+        'TLS_CHACHA20_POLY1305_SHA256',
+        'TLS_AES_128_CCM_SHA256',
+        'TLS_AES_128_CCM_8_SHA256'
+      ],
+      keyShareGroups: profile.keyShareGroups || [
+        'x25519',
+        'secp256r1',
+        'secp384r1',
+        'secp521r1',
+        'x448'
+      ],
+      signatureAlgorithms: profile.signatureAlgorithms || [
+        'rsa_pss_rsae_sha256',
+        'rsa_pss_rsae_sha384',
+        'rsa_pss_rsae_sha512',
+        'ecdsa_secp256r1_sha256',
+        'ecdsa_secp384r1_sha384',
+        'ecdsa_secp521r1_sha512',
+        'rsa_pkcs1_sha256',
+        'rsa_pkcs1_sha384',
+        'rsa_pkcs1_sha512'
+      ],
+      // Advanced TLS 1.3 features
+      pskKeyExchangeModes: ['psk_dhe_ke'],
+      supportedVersions: ['1.3', '1.2'], // Fallback support
+      maxFragmentLength: 4096,
+      recordSizeLimit: 16384,
+      // Enhanced security features
+      alpnProtocols: ['h2', 'http/1.1'],
+      compressionMethods: ['null'],
+      sessionTicketSupport: true,
+      ocspStapling: true,
+      sniExtension: true,
+      serverCertificateType: 'x509',
+      clientCertificateType: 'x509'
     };
 
     const response = await cycleTLS(url, requestOptions, 'get');
     
     if (response.status === 200) {
-      log(`[ProtectionBypass] TLS request successful (${response.body.length} chars)`, "scraper");
+      log(`[ProtectionBypass] TLS 1.3 request successful (${response.body.length} chars)`, "scraper");
       return response.body;
     } else {
-      log(`[ProtectionBypass] TLS request failed with status: ${response.status}`, "scraper");
+      log(`[ProtectionBypass] TLS 1.3 request failed with status: ${response.status}`, "scraper");
+      
+      // Fallback to TLS 1.2 if TLS 1.3 fails
+      if (requestOptions.tlsVersion === '1.3') {
+        log(`[ProtectionBypass] Attempting TLS 1.2 fallback...`, "scraper");
+        requestOptions.tlsVersion = '1.2';
+        requestOptions.supportedVersions = ['1.2', '1.1'];
+        
+        const fallbackResponse = await cycleTLS(url, requestOptions, 'get');
+        if (fallbackResponse.status === 200) {
+          log(`[ProtectionBypass] TLS 1.2 fallback successful (${fallbackResponse.body.length} chars)`, "scraper");
+          return fallbackResponse.body;
+        }
+      }
+      
       return '';
     }
   } catch (error: any) {
     log(`[ProtectionBypass] TLS request error: ${error.message}`, "scraper-error");
+    
+    // Attempt simplified TLS 1.2 request as last resort
+    try {
+      log(`[ProtectionBypass] Attempting simplified TLS 1.2 fallback...`, "scraper");
+      const cycleTLS = await getCycleTLSInstance();
+      const profile = options.browserProfile || getRandomBrowserProfile();
+      
+      const simplifiedOptions = {
+        ja3: profile.ja3,
+        userAgent: profile.userAgent,
+        headers: profile.headers,
+        proxy: options.proxyUrl,
+        timeout: 30000,
+        tlsVersion: '1.2'
+      };
+      
+      const response = await cycleTLS(url, simplifiedOptions, 'get');
+      if (response.status === 200) {
+        log(`[ProtectionBypass] Simplified TLS 1.2 fallback successful (${response.body.length} chars)`, "scraper");
+        return response.body;
+      }
+    } catch (fallbackError: any) {
+      log(`[ProtectionBypass] All TLS methods failed: ${fallbackError.message}`, "scraper-error");
+    }
+    
     return '';
   }
 }
