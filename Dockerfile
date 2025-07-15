@@ -15,14 +15,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies first (including dev dependencies for migration)
+RUN npm ci
 
 # Copy application code
 COPY . .
 
 # Run Drizzle migrations during build
 RUN npx drizzle-kit migrate --config=drizzle.config.ts
+
+# Remove dev dependencies to keep image size small
+RUN npm prune --production
 
 # Create a non-root user for security
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
@@ -35,6 +38,9 @@ USER pptruser
 
 # Expose port
 EXPOSE 3000
+
+# Start the application
+CMD ["node", "server.js"]
 
 # Start the application
 CMD ["node", "server.js"]
