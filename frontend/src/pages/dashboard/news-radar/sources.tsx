@@ -22,6 +22,8 @@ import {
   Play,
   Trash2,
   Edit,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -29,6 +31,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -117,6 +124,7 @@ export default function Sources() {
     useState<boolean | null>(null);
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] =
     useState<JobInterval | null>(null);
+  const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(true);
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1195,56 +1203,70 @@ export default function Sources() {
 
         {/* Instructions Card */}
         <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Globe className="h-5 w-5 text-blue-600" />
-              How to Use News Radar Sources
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    1. Configure Auto-Updates
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Enable automatic news collection with hourly, daily, or
-                    weekly intervals for continuous monitoring.
-                  </p>
+          <Collapsible
+            open={!isInstructionsCollapsed}
+            onOpenChange={(open) => setIsInstructionsCollapsed(!open)}
+          >
+            <CollapsibleTrigger asChild>
+              <CardHeader className="pb-4 cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  How to Use News Radar Sources
+                  {isInstructionsCollapsed ? (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+                  )}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">
+                        1. Configure Auto-Updates
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Enable automatic news collection with hourly, daily, or
+                        weekly intervals for continuous monitoring.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">
+                        2. Manage News Sources
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Default news sources are provided. Add custom RSS feeds or
+                        news sites, and toggle inclusion in auto-updates.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">
+                        3. Manual Collection
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Use "Update All Sources Now" for immediate article
+                        collection or update individual sources as needed.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">
+                        4. Filter by Keywords
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Visit the Keywords page to manage terms that help filter and
+                        categorize collected news articles.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    2. Manage News Sources
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Default news sources are provided. Add custom RSS feeds or
-                    news sites, and toggle inclusion in auto-updates.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    3. Manual Collection
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Use "Update All Sources Now" for immediate article
-                    collection or update individual sources as needed.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    4. Filter by Keywords
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Visit the Keywords page to manage terms that help filter and
-                    categorize collected news articles.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
 
         {/* Auto-scrape configuration card */}
