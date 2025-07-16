@@ -1470,8 +1470,8 @@ export default function Sources() {
               </div>
 
               {/* Second row: Last Scanned and Actions */}
-              <div className="flex flex-col gap-2 w-full max-w-full">
-                <div className="text-xs text-muted-foreground truncate w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full max-w-full">
+                <div className="text-xs text-muted-foreground truncate">
                   <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                 </div>
                 <div className="flex gap-2 flex-wrap">
