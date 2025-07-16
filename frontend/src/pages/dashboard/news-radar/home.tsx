@@ -1036,44 +1036,6 @@ export default function NewsHome() {
               
               {/* Pagination controls below articles */}
               <PaginationControls />
-              
-              {/* Delete All Articles Button - Bottom of page */}
-              {totalArticles > 0 && (
-                <div className="flex justify-center mt-8 pt-6 border-t border-slate-700/50">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="flex items-center gap-1.5"
-                        disabled={deleteAllArticles.isPending}
-                      >
-                        {deleteAllArticles.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                        Delete All Articles ({totalArticles})
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action will permanently delete all {totalArticles} articles.
-                          This cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteAllArticles.mutate()}>
-                          Delete All Articles
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
             </div>
           )}
       </div>

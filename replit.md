@@ -127,6 +127,12 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 16, 2025 - Fixed Duplicate Delete All Articles Button Issue
+- **Fixed duplicate button display**: Removed duplicate "Delete All Articles" button from News Radar home page
+- **Root cause**: Two identical buttons were rendering - one in pagination controls and one at bottom of page
+- **Solution**: Removed the standalone bottom button, keeping only the one in pagination controls for better UX
+- **User benefit**: Clean interface with single delete button that appears only when articles exist
+
 ### July 16, 2025 - Successfully Removed Active Toggle from Threat Tracker Sources Interface
 - **Simplified source management**: Removed redundant active toggle, keeping only the auto-update toggle for source control
 - **Database schema update**: Removed active field from threatSources table definition in shared schema

@@ -1659,7 +1659,7 @@ export default function Sources() {
                     </div>
 
                     {/* Second row: Enable/Disable, Scan buttons, and Last Scanned */}
-                    <div className="flex items-center justify-between gap-2 w-full max-w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full max-w-full">
                       {/* Left side: Enable/Disable and Scan buttons */}
                       <div className="flex gap-2 flex-wrap">
                         <Button
