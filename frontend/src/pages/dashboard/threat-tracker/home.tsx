@@ -724,49 +724,39 @@ export default function ThreatHome() {
       </div>
 
       <div className="flex flex-col w-full gap-4">
+        {/* Top row - Counter and Scan Button */}
         <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-slate-300">
-                <FileText className="h-4 w-4 text-slate-400" />
-                <span className="text-sm font-medium">
-                  {localArticles.length} Potential Threats
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-slate-300">
+              <FileText className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-medium">
+                {localArticles.length} Potential Threats
+              </span>
+            </div>
+            {newArticlesCount > 0 && !sortNewToTop && (
+              <button
+                onClick={handleSurfaceNewArticles}
+                className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                title={`Click to surface ${newArticlesCount} new articles to top`}
+              >
+                <Star className="h-3 w-3 text-[#BF00FF]" />
+                <span className="text-xs font-medium text-[#BF00FF]">
+                  {newArticlesCount} New
                 </span>
-              </div>
-              {newArticlesCount > 0 && !sortNewToTop && (
-                <button
-                  onClick={handleSurfaceNewArticles}
-                  className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
-                  title={`Click to surface ${newArticlesCount} new articles to top`}
-                >
-                  <Star className="h-3 w-3 text-[#BF00FF]" />
-                  <span className="text-xs font-medium text-[#BF00FF]">
-                    {newArticlesCount} New
-                  </span>
-                </button>
-              )}
-              {sortNewToTop && (
-                <button
-                  onClick={() => setSortNewToTop(false)}
-                  className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
-                  title="Click to return to chronological order"
-                >
-                  <Check className="h-3 w-3 text-[#00FFFF]" />
-                  <span className="text-xs font-medium text-[#00FFFF]">
-                    Sorted
-                  </span>
-                </button>
-              )}
-            </div>
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search articles..."
-                className="pl-9 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+              </button>
+            )}
+            {sortNewToTop && (
+              <button
+                onClick={() => setSortNewToTop(false)}
+                className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
+                title="Click to return to chronological order"
+              >
+                <Check className="h-3 w-3 text-[#00FFFF]" />
+                <span className="text-xs font-medium text-[#00FFFF]">
+                  Sorted
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="flex flex-row gap-2 flex-shrink-0">
@@ -798,11 +788,26 @@ export default function ThreatHome() {
                 ? "Stop Scan"
                 : "Scan For New Threats"}
             </Button>
+          </div>
+        </div>
 
+        {/* Second row - Search and Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search articles..."
+              className="pl-9 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-1.5"
+              className="flex items-center gap-1.5 flex-shrink-0"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
             >
               <Filter className="h-4 w-4" />

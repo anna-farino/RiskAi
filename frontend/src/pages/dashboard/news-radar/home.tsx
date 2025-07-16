@@ -797,7 +797,7 @@ export default function NewsHome() {
 
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
         <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
-          {/* Header section - responsive layout for mobile */}
+          {/* Top row - Counter and Scan Button */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 md:gap-8">
             <div className="flex items-center gap-2">
               <h2 className="text-lg sm:text-xl font-semibold text-white">
@@ -808,7 +808,7 @@ export default function NewsHome() {
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
-              {/* Scan for New Threats Button */}
+              {/* Scan for News Button */}
               <Button
                 onClick={() => {
                   if (autoScrapeStatus?.data?.running) {
@@ -836,47 +836,51 @@ export default function NewsHome() {
                   ? "Stop Scan"
                   : "Scan for News"}
               </Button>
+            </div>
+          </div>
 
-              <div className="relative">
-                <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Search articles..."
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  className="h-9 w-[160px] md:w-[200px] lg:w-[250px] pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-white/10"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <X className="h-3 w-3 text-slate-400" />
-                  </Button>
-                )}
-              </div>
-              
-              <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "border-slate-600 hover:bg-white/10 text-white",
-                      (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
-                      "bg-primary/20 border-primary/50 text-primary"
-                    )}
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                    {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
-                      <Badge variant="secondary" className="ml-2 bg-primary/30 text-primary text-xs">
-                        {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
-                      </Badge>
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
+          {/* Second row - Search and Filters */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 md:gap-8">
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search articles..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="h-9 pl-9 bg-white/5 border-slate-700/50 text-white placeholder:text-slate-400"
+              />
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-white/10"
+                  onClick={() => setSearchTerm("")}
+                >
+                  <X className="h-3 w-3 text-slate-400" />
+                </Button>
+              )}
+            </div>
+            
+            <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "border-slate-600 hover:bg-white/10 text-white flex-shrink-0",
+                    (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
+                    "bg-primary/20 border-primary/50 text-primary"
+                  )}
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                  {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
+                    <Badge variant="secondary" className="ml-2 bg-primary/30 text-primary text-xs">
+                      {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
                 <AlertDialogContent className="bg-background border-slate-700/50 text-white">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-white">Filter Articles</AlertDialogTitle>
@@ -963,8 +967,6 @@ export default function NewsHome() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            
-              </div>
             </div>
           </div>
 
