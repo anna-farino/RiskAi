@@ -502,8 +502,8 @@ export default function NewsHome() {
     },
     onSuccess: () => {
       toast({
-        title: "Scan for new threats started",
-        description: "All eligible sources are being scanned for new threats",
+        title: "News scan started",
+        description: "All eligible sources are being scanned for news",
       });
       // Force update job status
       queryClient.invalidateQueries({
@@ -830,11 +830,11 @@ export default function NewsHome() {
                 ) : autoScrapeStatus?.data?.running ? (
                   <X className="mr-2 h-4 w-4" />
                 ) : (
-                  <Shield className="mr-2 h-4 w-4" />
+                  <Newspaper className="mr-2 h-4 w-4" />
                 )}
                 {autoScrapeStatus?.data?.running
                   ? "Stop Scan"
-                  : "Scan For New Threats"}
+                  : "Scan for News"}
               </Button>
 
               <div className="relative">
