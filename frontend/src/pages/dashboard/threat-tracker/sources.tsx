@@ -1354,21 +1354,28 @@ export default function Sources() {
                             <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <Switch
-                              checked={source.includeInAutoScrape}
-                              onCheckedChange={(checked) => {
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
                                 updateSource.mutate({
                                   id: source.id,
                                   values: { 
                                     name: source.name, 
                                     url: source.url, 
-                                    includeInAutoScrape: checked 
+                                    includeInAutoScrape: !source.includeInAutoScrape 
                                   }
                                 });
                               }}
                               disabled={updateSource.isPending}
-                              className="h-5 w-9"
-                            />
+                              className={`h-7 px-3 text-xs ${
+                                source.includeInAutoScrape 
+                                  ? 'bg-pink-600 text-white hover:bg-pink-700 border-pink-600' 
+                                  : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
+                              }`}
+                            >
+                              {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -1475,6 +1482,29 @@ export default function Sources() {
                   <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      updateSource.mutate({
+                        id: source.id,
+                        values: { 
+                          name: source.name, 
+                          url: source.url, 
+                          includeInAutoScrape: !source.includeInAutoScrape 
+                        }
+                      });
+                    }}
+                    disabled={updateSource.isPending}
+                    className={`h-7 px-3 text-xs ${
+                      source.includeInAutoScrape 
+                        ? 'bg-pink-600 text-white hover:bg-pink-700 border-pink-600' 
+                        : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
+                    }`}
+                  >
+                    {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
+                  </Button>
+
                   <Button
                     variant="outline"
                     size="sm"
