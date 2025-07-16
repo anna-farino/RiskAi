@@ -607,8 +607,8 @@ export default function NewsHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 sm:py-6 md:py-8">
-        <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 mb-8 sm:mb-12 md:mb-16 sm:py-6 md:py-8">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-4">
           <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             News Radar
           </h1>

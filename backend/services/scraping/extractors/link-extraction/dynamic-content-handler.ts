@@ -1,4 +1,4 @@
-import type { Page } from 'rebrowser-puppeteer';
+import type { Page } from 'puppeteer';
 import { log } from "backend/utils/log";
 import { LinkData, LinkExtractionOptions, extractLinksFromHTML } from './html-link-parser';
 import { normalizeUrls, filterLinksByPatterns } from './url-normalizer';
