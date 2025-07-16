@@ -1054,7 +1054,7 @@ export default function Sources() {
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Update is currently running...
+                Scan is currently running...
               </span>
             ) : null}
           </div>
@@ -1326,7 +1326,7 @@ export default function Sources() {
                     .map((source) => (
                       <div
                         key={source.id}
-                        className="flex flex-col gap-3 py-2 px-3 bg-background rounded border w-full max-w-full"
+                        className="flex flex-col gap-3 py-2 px-3 bg-background rounded-lg border w-full max-w-full"
                       >
                         <div className="flex items-center gap-3 min-w-0 w-full overflow-hidden">
                           <div
@@ -1344,8 +1344,20 @@ export default function Sources() {
                                 Default
                               </Badge>
                             </div>
-                            <div className="text-xs text-muted-foreground truncate mt-0.5 w-full">
-                              {source.url}
+                            <div className="text-xs truncate mt-0.5 w-full">
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
+                              >
+                                <span className="truncate block max-w-full">
+                                  {source.url.length > 35
+                                    ? source.url.substring(0, 35) + "..."
+                                    : source.url}
+                                </span>
+                                <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                              </a>
                             </div>
                           </div>
                         </div>
@@ -1455,7 +1467,7 @@ export default function Sources() {
                       href={source.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center text-primary hover:underline text-xs min-w-0 max-w-full"
+                      className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
                     >
                       <span className="truncate block max-w-full">
                         {source.url.length > 35

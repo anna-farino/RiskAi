@@ -964,7 +964,7 @@ export default function NewsHome() {
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
               {/* Adjust number of skeleton items based on screen size */}
               {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
                 <div

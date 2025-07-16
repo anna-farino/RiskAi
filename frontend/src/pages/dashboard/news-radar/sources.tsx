@@ -1440,11 +1440,9 @@ export default function Sources() {
               {autoScrapeStatus?.data?.running ? (
                 <span className="flex items-center text-primary">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Manual update allows you to immediately check for new articles
+                  Scan is currently running...
                 </span>
-              ) : (
-                "Check for new articles"
-              )}
+              ) : null}
             </div>
           </CardFooter>
         </Card>
@@ -1661,7 +1659,7 @@ export default function Sources() {
                     </div>
 
                     {/* Second row: Enable/Disable, Scan buttons, and Last Scanned */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full max-w-full">
+                    <div className="flex items-center justify-between gap-2 w-full max-w-full">
                       {/* Left side: Enable/Disable and Scan buttons */}
                       <div className="flex gap-2 flex-wrap">
                         <Button
@@ -1691,7 +1689,7 @@ export default function Sources() {
                           disabled={
                             scrapeSource.isPending && sourcesBeingScraped.includes(source.id)
                           }
-                          className="h-7 px-2 text-xs flex-shrink-0"
+                          className="h-7 px-3 text-xs"
                         >
                           {scrapeSource.isPending && sourcesBeingScraped.includes(source.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
