@@ -29,6 +29,19 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
+# Install Google Chrome
+RUN apt-get update \
+  && apt-get install -y gnupg \
+  && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+  && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update \
+  && apt-get install -y google-chrome-stable \
+  && rm -rf /var/lib/apt/lists/*
+
+# Set Puppeteer environment variables
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 # Set working directory
 WORKDIR /app
 
@@ -55,7 +68,13 @@ RUN npm run build
 RUN npm prune --production
 
 # Use non-root user
-RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser
+RUN groupadd -r nodeuser && useradd -r -g nodeuser -m nodeuser
+
+# Create directories for Chrome user data
+RUN mkdir -p /home/nodeuser/.local/share/applications \
+  && mkdir -p /home/nodeuser/.config/google-chrome \
+  && chown -R nodeuser:nodeuser /home/nodeuser
+
 USER nodeuser
 
 EXPOSE 3000
