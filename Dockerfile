@@ -53,7 +53,6 @@ COPY shared/package*.json ./shared/
 
 # Install dependencies
 RUN cd backend && npm install --legacy-peer-deps
-RUN npm install drizzle-kit dotenv
 
 # Copy app code
 COPY backend/ ./backend/
@@ -81,5 +80,5 @@ USER nodeuser
 
 EXPOSE 3000
 
-# Run DB migrations and start the app
-CMD ["sh", "-c", "cd /app && npx drizzle-kit migrate --config=drizzle.config.ts && cd /app/backend && node dist/index.js"]
+# Run DB migrations and start the app  
+CMD ["sh", "-c", "cd /app && npx drizzle-kit migrate && cd /app/backend && node dist/index.js"]
