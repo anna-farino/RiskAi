@@ -1049,7 +1049,7 @@ export default function Sources() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-center">
           <div className="text-sm text-muted-foreground">
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
@@ -1060,37 +1060,6 @@ export default function Sources() {
               <span>Check for new threats</span>
             )}
           </div>
-          <Button
-            onClick={() => {
-              if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
-                stopScrapeJob.mutate();
-              } else {
-                scrapeAllSources.mutate();
-              }
-            }}
-            disabled={
-              (scrapeAllSources.isPending && !stopScrapeJob.isPending) ||
-              (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
-              localSources.length === 0
-            }
-            size="sm"
-            className={
-              scrapeJobRunning || checkScrapeStatus?.data?.running
-                ? "bg-red-600 hover:bg-red-600/80 text-white"
-                : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-            }
-          >
-            {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
-              <X className="mr-2 h-4 w-4" />
-            ) : (
-              <PlayCircle className="mr-2 h-4 w-4" />
-            )}
-            {scrapeJobRunning || checkScrapeStatus?.data?.running
-              ? "Stop Scan"
-              : "Scan All Sources Now"}
-          </Button>
         </CardFooter>
       </Card>
 
@@ -1104,18 +1073,51 @@ export default function Sources() {
               be enabled/disabled.
             </CardDescription>
           </div>
-          <Button
-            onClick={handleNewSource}
-            disabled={createSource.isPending}
-            className="ml-5 mr-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-          >
-            {createSource.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" />
-            )}
-            Add Source
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
+                  stopScrapeJob.mutate();
+                } else {
+                  scrapeAllSources.mutate();
+                }
+              }}
+              disabled={
+                (scrapeAllSources.isPending && !stopScrapeJob.isPending) ||
+                (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
+                localSources.length === 0
+              }
+              size="sm"
+              className={
+                scrapeJobRunning || checkScrapeStatus?.data?.running
+                  ? "bg-red-600 hover:bg-red-600/80 text-white"
+                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <PlayCircle className="mr-2 h-4 w-4" />
+              )}
+              {scrapeJobRunning || checkScrapeStatus?.data?.running
+                ? "Stop Scan"
+                : "Scan All Sources Now"}
+            </Button>
+            <Button
+              onClick={handleNewSource}
+              disabled={createSource.isPending}
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+            >
+              {createSource.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
+              Add Source
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col overflow-x-scroll">
           {renderSourcesTable()}
@@ -1304,7 +1306,7 @@ export default function Sources() {
               onOpenChange={(open) => setIsDefaultSourcesCollapsed(!open)}
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
+                <button className="flex items-center gap-2 mb-2 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
                   {isDefaultSourcesCollapsed ? (
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   ) : (
@@ -1365,7 +1367,7 @@ export default function Sources() {
                                 });
                               }}
                               disabled={updateSource.isPending}
-                              className={`h-7 px-3 text-xs ${
+                              className={`h-6 px-3 text-xs ${
                                 source.includeInAutoScrape 
                                   ? 'text-white hover:opacity-80 border-[#BF00FF]' 
                                   : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
@@ -1382,7 +1384,7 @@ export default function Sources() {
                                 scrapeSingleSource.isPending &&
                                 scrapingSourceId === source.id
                               }
-                              className="h-7 px-2 text-xs"
+                              className="h-6 px-2 text-xs"
                             >
                               {scrapeSingleSource.isPending &&
                               scrapingSourceId === source.id ? (
@@ -1439,7 +1441,7 @@ export default function Sources() {
           .map((source) => (
             <div
               key={source.id}
-              className="flex flex-col gap-3 p-3 bg-background rounded-lg border w-full max-w-full"
+              className="flex flex-col gap-0 p-3 bg-background rounded-lg border w-full max-w-full"
             >
               {/* First row: Name, URL, and Edit/Delete buttons */}
               <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
