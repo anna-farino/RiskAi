@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Container Apps Deployment Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #2c3e50;
+            margin-top: 25px;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #e74c3c;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            line-height: 1.4;
+        }
+        .step {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+            margin: 15px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #17a2b8;
+            margin: 15px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        .toc {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        .flow-diagram {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .flow-step {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .arrow {
+            font-size: 20px;
+            color: #3498db;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Azure Container Apps Deployment Guide</h1>
+        
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><a href="#environment-variables">1. Environment Variables Management</a></li>
+                <li><a href="#dockerfile-explanation">2. Dockerfile Step-by-Step Explanation</a></li>
+                <li><a href="#github-actions-explanation">3. GitHub Actions Workflow Explanation</a></li>
+                <li><a href="#architecture-overview">4. Architecture Overview</a></li>
+                <li><a href="#azure-cli-commands">5. Essential Azure CLI Commands</a></li>
+                <li><a href="#deployment-flow">6. What Happens When You Push Code</a></li>
+            </ul>
+        </div>
+
+        <h2 id="environment-variables">1. 🔧 Environment Variables Management</h2>
+        
+        <p>Environment variables are crucial for configuring your application without hardcoding sensitive information. Here are all the ways to manage them in Azure Container Apps:</p>
+
+        <h3>1.1 Azure Portal (Web Interface) - Recommended for Beginners</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Navigate to <a href="https://portal.azure.com">Azure Portal</a> → Container Apps
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Select your container app (<code>backend-22-app</code>)
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> In the left menu, click <strong>Revision management</strong>
+        </div>
+        <div class="step">
+            <strong>Step 4:</strong> Click on the active revision (the one with traffic)
+        </div>
+        <div class="step">
+            <strong>Step 5:</strong> In the <strong>Container</strong> section, scroll down to <strong>Environment variables</strong>
+        </div>
+        <div class="step">
+            <strong>Step 6:</strong> Add/Edit/Remove variables as needed
+        </div>
+
+        <h3>1.2 Azure CLI (Command Line) - Best for Automation</h3>
+        <pre><code># View all environment variables
+az containerapp show --name backend-22-app --resource-group backend-test-group-2 \
+  --query "properties.template.containers[0].env" --output table
+
+# Set multiple environment variables
+az containerapp update --name backend-22-app --resource-group backend-test-group-2 \
+  --set-env-vars "NODE_ENV=production" "DATABASE_URL=your-db-url" "API_KEY=your-key"
+
+# Remove environment variables
+az containerapp update --name backend-22-app --resource-group backend-test-group-2 \
+  --remove-env-vars "OLD_VAR_NAME"</code></pre>
+
+        <h3>1.3 Current Production Environment Variables</h3>
+        <table>
+            <tr>
+                <th>Variable Name</th>
+                <th>Purpose</th>
+                <th>Security Level</th>
+            </tr>
+            <tr>
+                <td><code>NODE_ENV</code></td>
+                <td>Sets application environment (production/development)</td>
+                <td>Public</td>
+            </tr>
+            <tr>
+                <td><code>DATABASE_URL</code></td>
+                <td>PostgreSQL database connection string</td>
+                <td>Secret</td>
+            </tr>
+            <tr>
+                <td><code>JWT_SECRET</code></td>
+                <td>Secret key for JWT token signing</td>
+                <td>Secret</td>
+            </tr>
+            <tr>
+                <td><code>REFRESH_PEPPER</code></td>
+                <td>Additional security for refresh tokens</td>
+                <td>Secret</td>
+            </tr>
+            <tr>
+                <td><code>CSRF_SECRET</code></td>
+                <td>Cross-Site Request Forgery protection</td>
+                <td>Secret</td>
+            </tr>
+            <tr>
+                <td><code>OPENAI_API_KEY</code></td>
+                <td>OpenAI API access for content analysis</td>
+                <td>Secret</td>
+            </tr>
+            <tr>
+                <td><code>ENCRYPTION_KEY</code></td>
+                <td>Data encryption/decryption key</td>
+                <td>Secret</td>
+            </tr>
+            <tr>
+                <td><code>PORT</code></td>
+                <td>Application port (must match container port)</td>
+                <td>Public</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <strong>⚠️ Security Note:</strong> Never commit secrets to Git. Always use environment variables or Azure Key Vault for sensitive data.
+        </div>
+
+        <h2 id="dockerfile-explanation">2. 🐳 Dockerfile Step-by-Step Explanation</h2>
+
+        <p>Our Dockerfile creates a production-ready container for a Node.js application with Puppeteer scraping capabilities. Let's break it down:</p>
+
+        <h3>2.1 Base Image Selection</h3>
+        <pre><code>FROM node:18-slim</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Uses Node.js 18 slim image as the base
+            <br><strong>Why slim:</strong> Smaller image size, faster builds, fewer security vulnerabilities
+            <br><strong>Why Node 18:</strong> LTS version with good stability and performance
+        </div>
+
+        <h3>2.2 System Dependencies for Puppeteer</h3>
+        <pre><code>RUN apt-get update && apt-get install -y \
+  wget \
+  ca-certificates \
+  fonts-liberation \
+  libappindicator3-1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libatk1.0-0 \
+  libcups2 \
+  libdbus-1-3 \
+  libgdk-pixbuf2.0-0 \
+  libnspr4 \
+  libnss3 \
+  libx11-xcb1 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  xdg-utils \
+  libgbm1 \
+  libxss1 \
+  fonts-ipafont-gothic \
+  fonts-wqy-zenhei \
+  fonts-thai-tlwg \
+  fonts-kacst \
+  fonts-freefont-ttf \
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Installs system libraries required for Puppeteer/Chrome
+            <br><strong>Key libraries:</strong> Graphics rendering, font support, audio libraries
+            <br><strong>--no-install-recommends:</strong> Keeps image size smaller by avoiding suggested packages
+            <br><strong>rm -rf /var/lib/apt/lists/*:</strong> Cleans up package cache to reduce image size
+        </div>
+
+        <h3>2.3 Google Chrome Installation</h3>
+        <pre><code>RUN apt-get update \
+  && apt-get install -y gnupg \
+  && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+  && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update \
+  && apt-get install -y google-chrome-stable \
+  && rm -rf /var/lib/apt/lists/*</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Installs Google Chrome from official repository
+            <br><strong>Why Chrome:</strong> More stable than Chromium for production scraping
+            <br><strong>GPG key:</strong> Verifies package authenticity
+            <br><strong>Repository:</strong> Adds Google's official Chrome repository
+        </div>
+
+        <h3>2.4 Puppeteer Configuration</h3>
+        <pre><code>ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Configures Puppeteer to use system Chrome
+            <br><strong>PUPPETEER_EXECUTABLE_PATH:</strong> Points to installed Chrome
+            <br><strong>PUPPETEER_SKIP_CHROMIUM_DOWNLOAD:</strong> Prevents downloading duplicate browser
+        </div>
+
+        <h3>2.5 Application Setup</h3>
+        <pre><code>WORKDIR /app
+
+# Copy package files
+COPY backend/package*.json ./backend/
+COPY shared/package*.json ./shared/
+
+# Install dependencies
+RUN cd backend && npm install --legacy-peer-deps
+
+# Copy application code
+COPY backend/ ./backend/
+COPY shared/ ./shared/
+COPY drizzle.config.ts ./</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Sets up the application structure
+            <br><strong>Package files first:</strong> Enables Docker layer caching for faster builds
+            <br><strong>--legacy-peer-deps:</strong> Handles npm dependency conflicts
+            <br><strong>Directory structure:</strong> Maintains monorepo structure with backend/shared
+        </div>
+
+        <h3>2.6 Application Build</h3>
+        <pre><code>WORKDIR /app/backend
+RUN npm run build
+RUN npm prune --production</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Builds the application and optimizes dependencies
+            <br><strong>npm run build:</strong> Compiles TypeScript and bundles with esbuild
+            <br><strong>npm prune --production:</strong> Removes development dependencies to reduce image size
+        </div>
+
+        <h3>2.7 Security and User Setup</h3>
+        <pre><code>RUN groupadd -r nodeuser && useradd -r -g nodeuser -m nodeuser
+
+RUN mkdir -p /home/nodeuser/.local/share/applications \
+  && mkdir -p /home/nodeuser/.config/google-chrome \
+  && chown -R nodeuser:nodeuser /home/nodeuser
+
+USER nodeuser</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Creates non-root user for security
+            <br><strong>Security principle:</strong> Never run containers as root
+            <br><strong>Chrome directories:</strong> Creates necessary directories for Chrome user data
+            <br><strong>Permissions:</strong> Sets proper ownership for user directories
+        </div>
+
+        <h3>2.8 Container Startup</h3>
+        <pre><code>EXPOSE 3000
+CMD ["sh", "-c", "cd /app/backend && node dist/index.js"]</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Configures container startup
+            <br><strong>EXPOSE 3000:</strong> Documents that the app uses port 3000
+            <br><strong>CMD:</strong> Starts the Node.js application
+            <br><strong>dist/index.js:</strong> Runs the compiled/bundled application
+        </div>
+
+        <h2 id="github-actions-explanation">3. ⚙️ GitHub Actions Workflow Explanation</h2>
+
+        <p>The GitHub Actions workflow automates the build and deployment process. Let's examine each section:</p>
+
+        <h3>3.1 Workflow Triggers</h3>
+        <pre><code>on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Defines when the workflow runs
+            <br><strong>push to staging:</strong> Automatic deployment when code is pushed to staging branch
+            <br><strong>workflow_dispatch:</strong> Allows manual triggering from GitHub UI
+        </div>
+
+        <h3>3.2 Environment Variables</h3>
+        <pre><code>env:
+  REGISTRY_NAME: 'mycontainer1'
+  IMAGE_NAME: 'backend-22'
+  RESOURCE_GROUP: 'backend-test-group-2'
+  CONTAINER_NAME: 'backend-22-container'
+  DNS_LABEL: 'backend-22-staging-unique'</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Sets workflow-level variables
+            <br><strong>REGISTRY_NAME:</strong> Azure Container Registry name
+            <br><strong>IMAGE_NAME:</strong> Docker image name
+            <br><strong>RESOURCE_GROUP:</strong> Azure resource group
+            <br><strong>Note:</strong> This workflow deploys to Container Instance (legacy), not Container Apps
+        </div>
+
+        <h3>3.3 Azure Authentication</h3>
+        <pre><code>- name: Login to Azure
+  uses: azure/login@v2
+  with:
+    client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F12CA1AA54C34611AB5747A144391442 }}
+    tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
+    subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Authenticates with Azure using service principal
+            <br><strong>Service Principal:</strong> Automated authentication for CI/CD
+            <br><strong>Secrets:</strong> Stored securely in GitHub repository settings
+            <br><strong>Permissions:</strong> Has specific permissions for container operations
+        </div>
+
+        <h3>3.4 Docker Image Build</h3>
+        <pre><code>- name: Build Docker image
+  run: |
+    docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+    docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest .</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Builds Docker images with two tags
+            <br><strong>SHA tag:</strong> Specific commit identifier for traceability
+            <br><strong>Latest tag:</strong> Always points to most recent build
+            <br><strong>Registry format:</strong> {registry}.azurecr.io/{image}:{tag}
+        </div>
+
+        <h3>3.5 Image Push to Registry</h3>
+        <pre><code>- name: Push Docker image
+  run: |
+    docker login ${{ env.REGISTRY_NAME }}.azurecr.io --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
+    docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+    docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Pushes built images to Azure Container Registry
+            <br><strong>Docker login:</strong> Authenticates with container registry
+            <br><strong>Push both tags:</strong> Ensures both SHA and latest tags are available
+            <br><strong>Registry credentials:</strong> Stored as GitHub secrets
+        </div>
+
+        <h3>3.6 Container Deployment</h3>
+        <pre><code>- name: Deploy to Azure Container Instance
+  run: |
+    az container create \
+      --resource-group ${{ env.RESOURCE_GROUP }} \
+      --name ${{ env.CONTAINER_NAME }} \
+      --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+      --os-type Linux \
+      --cpu 2 \
+      --memory 4 \
+      --registry-login-server ${{ env.REGISTRY_NAME }}.azurecr.io \
+      --registry-username ${{ secrets.ACR_USERNAME }} \
+      --registry-password ${{ secrets.ACR_PASSWORD }} \
+      --dns-name-label ${{ env.DNS_LABEL }} \
+      --ports 3000 \
+      --environment-variables DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+      --restart-policy Always</code></pre>
+        <div class="step">
+            <strong>What it does:</strong> Creates/updates Azure Container Instance
+            <br><strong>Resource allocation:</strong> 2 CPU cores, 4GB memory
+            <br><strong>Network:</strong> Exposes port 3000 with public DNS
+            <br><strong>Environment:</strong> Injects database URL from secrets
+            <br><strong>Restart policy:</strong> Always restarts on failure
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This workflow deploys to Container Instance, but we're currently using Container Apps. The workflow needs to be updated for Container Apps deployment.
+        </div>
+
+        <h2 id="architecture-overview">4. 🏗️ Architecture Overview</h2>
+
+        <h3>4.1 Container Registry → Container Apps Flow</h3>
+        <div class="flow-diagram">
+            <div class="flow-step">Source Code</div>
+            <span class="arrow">→</span>
+            <div class="flow-step">Docker Build</div>
+            <span class="arrow">→</span>
+            <div class="flow-step">Container Registry</div>
+            <span class="arrow">→</span>
+            <div class="flow-step">Container Apps</div>
+            <span class="arrow">→</span>
+            <div class="flow-step">Revisions</div>
+        </div>
+
+        <h3>4.2 Component Relationships</h3>
+
+        <h4>🗄️ Azure Container Registry (ACR)</h4>
+        <div class="info">
+            <strong>Purpose:</strong> Stores Docker images<br>
+            <strong>Name:</strong> mycontainer1.azurecr.io<br>
+            <strong>Function:</strong> Private registry for your application images<br>
+            <strong>Benefits:</strong> Integrated with Azure, secure, supports geo-replication
+        </div>
+
+        <h4>🐳 Docker Image</h4>
+        <div class="info">
+            <strong>Purpose:</strong> Immutable application package<br>
+            <strong>Contains:</strong> Application code, runtime, dependencies, system tools<br>
+            <strong>Tags:</strong> latest, commit SHA, version numbers<br>
+            <strong>Size:</strong> ~1.2GB (includes Node.js, Chrome, system libraries)
+        </div>
+
+        <h4>🚀 Azure Container Apps</h4>
+        <div class="info">
+            <strong>Purpose:</strong> Serverless container hosting platform<br>
+            <strong>Features:</strong> Auto-scaling, traffic splitting, built-in ingress<br>
+            <strong>Benefits:</strong> Pay-per-use, managed infrastructure, integrated monitoring<br>
+            <strong>Our app:</strong> backend-22-app in backend-test-group-2
+        </div>
+
+        <h4>📝 Revisions</h4>
+        <div class="info">
+            <strong>Purpose:</strong> Immutable snapshots of your app configuration<br>
+            <strong>Created when:</strong> Image changes, environment variables change, resource allocation changes<br>
+            <strong>Traffic management:</strong> Can split traffic between revisions<br>
+            <strong>Naming:</strong> backend-22-app--0000011 (auto-generated)
+        </div>
+
+        <h3>4.3 How Container Apps Work</h3>
+
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Function</th>
+                <th>Relationship</th>
+            </tr>
+            <tr>
+                <td><strong>Environment</strong></td>
+                <td>Shared infrastructure boundary</td>
+                <td>Contains multiple container apps</td>
+            </tr>
+            <tr>
+                <td><strong>Container App</strong></td>
+                <td>Application definition</td>
+                <td>Can have multiple revisions</td>
+            </tr>
+            <tr>
+                <td><strong>Revision</strong></td>
+                <td>Immutable app version</td>
+                <td>Points to specific container image</td>
+            </tr>
+            <tr>
+                <td><strong>Replica</strong></td>
+                <td>Running instance</td>
+                <td>Multiple replicas per revision for scaling</td>
+            </tr>
+        </table>
+
+        <h3>4.4 Scaling and Traffic Management</h3>
+        <div class="step">
+            <strong>Auto-scaling:</strong> Container Apps automatically scales based on HTTP requests, CPU usage, memory usage, or custom metrics
+        </div>
+        <div class="step">
+            <strong>Scale-to-zero:</strong> When no traffic, scales down to 0 instances (saves costs)
+        </div>
+        <div class="step">
+            <strong>Traffic splitting:</strong> Can route percentage of traffic to different revisions (blue-green deployments)
+        </div>
+        <div class="step">
+            <strong>Health checks:</strong> Automatically monitors application health and restarts unhealthy instances
+        </div>
+
+        <h2 id="azure-cli-commands">5. 🔧 Essential Azure CLI Commands</h2>
+
+        <h3>5.1 Container App Management</h3>
+        <pre><code># List all container apps
+az containerapp list --resource-group backend-test-group-2 --output table
+
+# Show container app details
+az containerapp show --name backend-22-app --resource-group backend-test-group-2
+
+# Update container app with new image
+az containerapp update --name backend-22-app --resource-group backend-test-group-2 \
+  --image mycontainer1.azurecr.io/backend-22:latest
+
+# Scale container app
+az containerapp update --name backend-22-app --resource-group backend-test-group-2 \
+  --min-replicas 0 --max-replicas 10</code></pre>
+
+        <h3>5.2 Revision Management</h3>
+        <pre><code># List revisions
+az containerapp revision list --name backend-22-app --resource-group backend-test-group-2 --output table
+
+# Show revision details
+az containerapp revision show --name backend-22-app --resource-group backend-test-group-2 \
+  --revision backend-22-app--0000011
+
+# Restart revision
+az containerapp revision restart --name backend-22-app --resource-group backend-test-group-2 \
+  --revision backend-22-app--0000011
+
+# Set traffic distribution
+az containerapp revision set-traffic --name backend-22-app --resource-group backend-test-group-2 \
+  --revision-weight backend-22-app--0000011=100</code></pre>
+
+        <h3>5.3 Environment Variables</h3>
+        <pre><code># View all environment variables
+az containerapp show --name backend-22-app --resource-group backend-test-group-2 \
+  --query "properties.template.containers[0].env" --output table
+
+# Set environment variables
+az containerapp update --name backend-22-app --resource-group backend-test-group-2 \
+  --set-env-vars "NODE_ENV=production" "API_KEY=your-key"
+
+# Remove environment variables
+az containerapp update --name backend-22-app --resource-group backend-test-group-2 \
+  --remove-env-vars "OLD_VAR"</code></pre>
+
+        <h3>5.4 Monitoring and Debugging</h3>
+        <pre><code># View application logs
+az containerapp logs show --name backend-22-app --resource-group backend-test-group-2 \
+  --follow --tail 50
+
+# Check container app status
+az containerapp show --name backend-22-app --resource-group backend-test-group-2 \
+  --query "properties.runningStatus"
+
+# List outbound IP addresses
+az containerapp show --name backend-22-app --resource-group backend-test-group-2 \
+  --query "properties.outboundIpAddresses"</code></pre>
+
+        <h3>5.5 Container Registry Operations</h3>
+        <pre><code># Login to container registry
+az acr login --name mycontainer1
+
+# List images in registry
+az acr repository list --name mycontainer1 --output table
+
+# List tags for specific image
+az acr repository show-tags --name mycontainer1 --repository backend-22 --output table
+
+# Delete old images
+az acr repository delete --name mycontainer1 --repository backend-22 --tag old-tag</code></pre>
+
+        <h2 id="deployment-flow">6. 🔄 What Happens When You Push Code</h2>
+
+        <h3>6.1 Current Deployment Process</h3>
+        <div class="warning">
+            <strong>Note:</strong> Your current GitHub Actions workflow deploys to Container Instance, but you're using Container Apps. The process below describes the ideal Container Apps deployment flow.
+        </div>
+
+        <h3>6.2 Step-by-Step Deployment Flow</h3>
+
+        <div class="step">
+            <strong>Step 1: Code Push</strong>
+            <br>You push code to the <code>staging</code> branch
+        </div>
+
+        <div class="step">
+            <strong>Step 2: GitHub Actions Trigger</strong>
+            <br>GitHub detects the push and triggers the workflow
+        </div>
+
+        <div class="step">
+            <strong>Step 3: Environment Setup</strong>
+            <br>GitHub Actions runner starts with Ubuntu environment
+        </div>
+
+        <div class="step">
+            <strong>Step 4: Code Checkout</strong>
+            <br>Runner downloads your repository code
+        </div>
+
+        <div class="step">
+            <strong>Step 5: Azure Authentication</strong>
+            <br>Authenticates with Azure using service principal credentials
+        </div>
+
+        <div class="step">
+            <strong>Step 6: Docker Build</strong>
+            <br>Builds Docker image using your Dockerfile
+            <br>• Installs system dependencies
+            <br>• Installs Node.js dependencies
+            <br>• Builds application (TypeScript → JavaScript)
+            <br>• Creates optimized image
+        </div>
+
+        <div class="step">
+            <strong>Step 7: Image Tagging</strong>
+            <br>Tags image with:
+            <br>• <code>latest</code> tag
+            <br>• Git commit SHA tag (e.g., <code>abc123def</code>)
+        </div>
+
+        <div class="step">
+            <strong>Step 8: Registry Push</strong>
+            <br>Pushes image to Azure Container Registry
+            <br>• Authenticates with ACR
+            <br>• Uploads image layers
+            <br>• Updates image tags
+        </div>
+
+        <div class="step">
+            <strong>Step 9: Container App Update</strong>
+            <br>Updates Container App with new image
+            <br>• Creates new revision
+            <br>• Performs health checks
+            <br>• Switches traffic to new revision
+        </div>
+
+        <div class="step">
+            <strong>Step 10: Deployment Verification</strong>
+            <br>Verifies deployment success
+            <br>• Checks container startup
+            <br>• Validates health endpoints
+            <br>• Confirms traffic routing
+        </div>
+
+        <h3>6.3 What Happens During Each Stage</h3>
+
+        <h4>🔨 Build Stage</h4>
+        <div class="info">
+            <strong>Duration:</strong> 2-5 minutes<br>
+            <strong>Resources:</strong> GitHub Actions runner (2-core CPU, 7GB RAM)<br>
+            <strong>Output:</strong> Docker image (~1.2GB)<br>
+            <strong>Key files:</strong> Dockerfile, package.json, source code
+        </div>
+
+        <h4>📦 Registry Stage</h4>
+        <div class="info">
+            <strong>Duration:</strong> 1-3 minutes<br>
+            <strong>Process:</strong> Layer-by-layer upload with compression<br>
+            <strong>Storage:</strong> Azure Container Registry<br>
+            <strong>Benefits:</strong> Layer caching, faster subsequent pushes
+        </div>
+
+        <h4>🚀 Deployment Stage</h4>
+        <div class="info">
+            <strong>Duration:</strong> 1-2 minutes<br>
+            <strong>Process:</strong> Blue-green deployment with health checks<br>
+            <strong>Safety:</strong> Automatic rollback on failure<br>
+            <strong>Zero-downtime:</strong> Traffic switches only after health checks pass
+        </div>
+
+        <h3>6.4 Monitoring Your Deployment</h3>
+
+        <div class="step">
+            <strong>GitHub Actions Tab:</strong> Monitor build progress and logs
+        </div>
+
+        <div class="step">
+            <strong>Azure Portal:</strong> Check container app status and revisions
+        </div>
+
+        <div class="step">
+            <strong>Application Logs:</strong> Monitor startup and runtime logs
+        </div>
+
+        <div class="step">
+            <strong>Health Endpoint:</strong> Test your application endpoints
+        </div>
+
+        <h3>6.5 Troubleshooting Common Issues</h3>
+
+        <table>
+            <tr>
+                <th>Issue</th>
+                <th>Cause</th>
+                <th>Solution</th>
+            </tr>
+            <tr>
+                <td>Build failure</td>
+                <td>Missing dependencies, syntax errors</td>
+                <td>Check GitHub Actions logs, fix code issues</td>
+            </tr>
+            <tr>
+                <td>Push to registry fails</td>
+                <td>Authentication, network issues</td>
+                <td>Verify ACR credentials, check network connectivity</td>
+            </tr>
+            <tr>
+                <td>Container fails to start</td>
+                <td>Missing environment variables, port issues</td>
+                <td>Check container logs, verify env vars</td>
+            </tr>
+            <tr>
+                <td>Health check fails</td>
+                <td>Application not responding, wrong port</td>
+                <td>Verify PORT environment variable, check app startup</td>
+            </tr>
+        </table>
+
+        <h3>6.6 Best Practices</h3>
+
+        <div class="success">
+            <strong>✅ Do:</strong>
+            <ul>
+                <li>Use specific image tags for production</li>
+                <li>Set up proper health checks</li>
+                <li>Monitor application logs</li>
+                <li>Use environment variables for configuration</li>
+                <li>Implement proper error handling</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>❌ Don't:</strong>
+            <ul>
+                <li>Commit secrets to Git</li>
+                <li>Use 'latest' tag in production</li>
+                <li>Skip health checks</li>
+                <li>Ignore deployment logs</li>
+                <li>Deploy directly to production</li>
+            </ul>
+        </div>
+
+        <h2>🎯 Summary</h2>
+
+        <p>This guide covered the complete Azure Container Apps deployment process:</p>
+        <ul>
+            <li><strong>Environment Variables:</strong> How to manage configuration securely</li>
+            <li><strong>Dockerfile:</strong> How your application is packaged</li>
+            <li><strong>GitHub Actions:</strong> How deployment automation works</li>
+            <li><strong>Architecture:</strong> How Container Apps, Registry, and Revisions work together</li>
+            <li><strong>CLI Commands:</strong> Essential tools for management</li>
+            <li><strong>Deployment Flow:</strong> What happens when you push code</li>
+        </ul>
+
+        <div class="success">
+            <strong>🚀 Your application is now running at:</strong><br>
+            <a href="https://backend-22-app.calmmeadow-19510f87.switzerlandnorth.azurecontainerapps.io">https://backend-22-app.calmmeadow-19510f87.switzerlandnorth.azurecontainerapps.io</a>
+        </div>
+
+        <hr>
+        <p><em>Last updated: July 16, 2025</em></p>
+    </div>
+</body>
+</html>
