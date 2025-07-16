@@ -148,7 +148,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Replaced toggle switches with enabled/disabled buttons**: Changed from toggle switches to buttons that display "Enabled" (RisqAi brand color #BF00FF) or "Disabled" (grey) text based on auto-update status
 - **Swapped button and status positions**: Action buttons now appear on the left side with "Last Scanned" status on the right for better visual hierarchy
 - **Stacked edit/delete buttons**: Edit and delete buttons are now positioned in the first row alongside the source name and URL, stacked vertically in the right column for improved layout organization and visual alignment
-- **Moved "Scan All Sources" button**: Relocated the "Scan All Sources Now" button from the auto-update configuration card to the sources listing container header for better contextual placement
+- **Moved "Scan All Sources" button**: Relocated the "Scan All Sources Now" button from the auto-update configuration card footer to the sources listing container header for better contextual placement
 - **Extended card-based layout to News Radar**: Updated News Radar sources list to use the same card-based layout as Threat Tracker with stacked edit/delete buttons, status indicators, and responsive design while maintaining alternating background colors
 
 ### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
