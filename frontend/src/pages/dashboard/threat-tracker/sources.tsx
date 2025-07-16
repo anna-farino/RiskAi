@@ -1477,8 +1477,9 @@ export default function Sources() {
                 </div>
               </div>
 
-              {/* Second row: Last Scanned and Actions */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full max-w-full">
+              {/* Second row: Actions layout */}
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 w-full max-w-full">
+                {/* Left side: Enable/Disable and Scan buttons */}
                 <div className="flex gap-2 flex-wrap">
                   <Button
                     variant="outline"
@@ -1521,65 +1522,70 @@ export default function Sources() {
                     )}
                     <span className="ml-1">Scan Now</span>
                   </Button>
+                </div>
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditSource(source)}
-                    className="h-7 w-7 p-0 flex-shrink-0"
-                  >
-                    <PencilLine className="h-3 w-3" />
-                    <span className="sr-only">Edit</span>
-                  </Button>
-
-                  {source.isDefault ? (
+                {/* Right side: Edit/Delete buttons stacked above Last Scanned */}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      disabled
-                      className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed flex-shrink-0"
-                      title="Cannot delete default sources"
+                      onClick={() => handleEditSource(source)}
+                      className="h-7 w-7 p-0 flex-shrink-0"
                     >
-                      <Trash2 className="h-3 w-3" />
-                      <span className="sr-only">Delete (disabled)</span>
+                      <PencilLine className="h-3 w-3" />
+                      <span className="sr-only">Edit</span>
                     </Button>
-                  ) : (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Are you sure?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete the source "
-                            {source.name}". This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteSource(source)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+
+                    {source.isDefault ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled
+                        className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed flex-shrink-0"
+                        title="Cannot delete default sources"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span className="sr-only">Delete (disabled)</span>
+                      </Button>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
                           >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                            <Trash2 className="h-3 w-3" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Are you sure?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the source "
+                              {source.name}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteSource(source)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                  </div>
                 </div>
               </div>
             </div>
