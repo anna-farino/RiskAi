@@ -142,6 +142,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **User benefit**: Cleaner, more intuitive interface with single toggle for source management without confusing dual toggle system
 - **Enhanced default source management**: Added auto-update toggles to default sources for granular control over which sources are included in automatic scans
 - **Improved mobile UI**: Redesigned user sources layout with card-based design, moving last scanned time and actions to second row for better mobile experience
+- **Fixed mobile overflow**: Added proper width constraints and overflow handling to prevent layout breaking on mobile devices
 
 ### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
 - **Enhanced user accessibility**: Added scan all sources functionality directly to News Radar and Threat Tracker home pages

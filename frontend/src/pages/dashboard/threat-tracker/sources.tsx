@@ -1320,40 +1320,40 @@ export default function Sources() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="bg-muted/30 rounded-lg space-y-2">
+                <div className="bg-muted/30 rounded-lg space-y-2 w-full max-w-full overflow-hidden">
                   {defaultSources
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((source) => (
                       <div
                         key={source.id}
-                        className="flex flex-col sm:flex-row gap-y-4 sm:items-center items-start justify-between py-2 px-3 bg-background rounded border"
+                        className="flex flex-col gap-3 py-2 px-3 bg-background rounded border w-full max-w-full"
                       >
-                        <div className="flex w-full items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-center gap-3 min-w-0 w-full overflow-hidden">
                           <div
                             className={`w-2 h-2 rounded-full flex-shrink-0 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                           />
-                          <div className="flex flex-col w-full min-w-0 flex-1">
-                            <div className="flex w-full sm:w-fit justify-between items-center gap-2">
-                              <span className="font-medium text-sm truncate">
+                          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="font-medium text-sm truncate flex-1">
                                 {source.name}
                               </span>
                               <Badge
                                 variant="secondary"
-                                className="text-xs px-1.5 py-0.5"
+                                className="text-xs px-1.5 py-0.5 flex-shrink-0"
                               >
                                 Default
                               </Badge>
                             </div>
-                            <div className="text-xs text-muted-foreground truncate mt-0.5">
+                            <div className="text-xs text-muted-foreground truncate mt-0.5 w-full">
                               {source.url}
                             </div>
                           </div>
                         </div>
-                        <div className="flex w-full sm:w-fit justify-between items-center gap-2 ">
-                          <div className="text-xs text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+                          <div className="text-xs text-muted-foreground truncate">
                             {formatLastScraped(source.lastScraped)}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <Switch
                               checked={source.includeInAutoScrape}
                               onCheckedChange={(checked) => {
@@ -1390,7 +1390,6 @@ export default function Sources() {
                               </span>
                             </Button>
                           </div>
-
                         </div>
                       </div>
                     ))}
@@ -1426,56 +1425,56 @@ export default function Sources() {
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
     return (
-      <div className="w-full space-y-3">
+      <div className="w-full max-w-full overflow-hidden space-y-3">
         {userSources
           .filter((s) => true)
           .map((source) => (
             <div
               key={source.id}
-              className="flex flex-col gap-3 p-4 bg-background rounded-lg border"
+              className="flex flex-col gap-3 p-3 bg-background rounded-lg border w-full max-w-full"
             >
               {/* First row: Name and URL */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
+                <div className="flex items-center gap-3 min-w-0 w-full">
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                   />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <div className="font-medium text-sm truncate">
+                  <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                    <div className="font-medium text-sm truncate w-full">
                       {source.name}
                     </div>
                     <a
                       href={source.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex w-fit items-center text-primary hover:underline truncate text-xs"
+                      className="flex items-center text-primary hover:underline text-xs min-w-0 max-w-full"
                     >
-                      <span className="truncate">
-                        {source.url.length > 50
-                          ? source.url.substring(0, 50) + "..."
+                      <span className="truncate block max-w-full">
+                        {source.url.length > 35
+                          ? source.url.substring(0, 35) + "..."
                           : source.url}
                       </span>
                       <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
                     </a>
                   </div>
+                  {source.includeInAutoScrape && (
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 flex-shrink-0"
+                    >
+                      <RotateCw className="h-2 w-2" />
+                      Auto
+                    </Badge>
+                  )}
                 </div>
-                {source.includeInAutoScrape && (
-                  <Badge
-                    variant="outline"
-                    className="flex items-center gap-1 text-xs px-2 py-0.5 w-fit"
-                  >
-                    <RotateCw className="h-2 w-2" />
-                    Auto
-                  </Badge>
-                )}
               </div>
 
               {/* Second row: Last Scanned and Actions */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="text-xs text-muted-foreground">
+              <div className="flex flex-col gap-2 w-full max-w-full">
+                <div className="text-xs text-muted-foreground truncate w-full">
                   <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -1484,7 +1483,7 @@ export default function Sources() {
                       scrapingSourceId === source.id ||
                       scrapeJobRunning
                     }
-                    className="h-7 px-2 text-xs"
+                    className="h-7 px-2 text-xs flex-shrink-0"
                   >
                     {scrapingSourceId === source.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -1498,7 +1497,7 @@ export default function Sources() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEditSource(source)}
-                    className="h-7 w-7 p-0"
+                    className="h-7 w-7 p-0 flex-shrink-0"
                   >
                     <PencilLine className="h-3 w-3" />
                     <span className="sr-only">Edit</span>
@@ -1509,7 +1508,7 @@ export default function Sources() {
                       variant="ghost"
                       size="sm"
                       disabled
-                      className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed"
+                      className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed flex-shrink-0"
                       title="Cannot delete default sources"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -1521,7 +1520,7 @@ export default function Sources() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                          className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
                         >
                           <Trash2 className="h-3 w-3" />
                           <span className="sr-only">Delete</span>
