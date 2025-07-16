@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx index.ts",
-    "build": "esbuild index.ts --platform=node --bundle --format=cjs --outdir=dist --external:argon2 --external:puppeteer-extra --external:puppeteer-extra-plugin-stealth",
+    "build": "esbuild index.ts --platform=node --bundle --format=cjs --outdir=dist --external:argon2 --external:puppeteer-extra --external:puppeteer-extra-plugin-stealth --external:drizzle-orm --external:drizzle-orm/pg-core --external:drizzle-zod --external:drizzle-kit --external:zod --tsconfig=tsconfig.json --resolve-extensions=.ts,.js",
     "start": "node dist/index.js"
   },
   "dependencies": {

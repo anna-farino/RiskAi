@@ -127,6 +127,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+
 ### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
 - **Fixed critical DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
 - **Root cause analysis**: MarketWatch returning 401 → TLS fingerprinting fails → Puppeteer detects DataDome → Challenge solving fails → System stuck on challenge page (1378 chars) instead of actual content
@@ -275,6 +276,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - DataDome meta tags and iframe detection
 - **Expected success rate improvement**: From 5-15% (basic) to 60-80% (enhanced implementation)
 - **Domain-agnostic approach**: Works with any DataDome-protected site, not just MarketWatch
+
 
 ### July 11, 2025 - Fixed News Capsule Database Constraint Violation
 - **Fixed critical "Send to News Capsule" button error** where database insertion failed due to null threat_name column

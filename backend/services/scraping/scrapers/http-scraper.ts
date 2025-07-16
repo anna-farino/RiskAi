@@ -33,6 +33,7 @@ let cookieJar: string[] = [];
  * Generate comprehensive HTTP headers for stealth requests
  * Consolidates header generation from News Radar
  */
+
 export function generateHeaders(
   customHeaders?: Record<string, string>,
 ): Record<string, string> {
@@ -438,6 +439,7 @@ export async function quickHTTPCheck(url: string): Promise<boolean> {
     });
 
     clearTimeout(timeoutId);
+
 
     return response.ok;
   } catch (error) {

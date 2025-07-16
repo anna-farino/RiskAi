@@ -84,6 +84,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
       const isMinimalContent = totalElements < 20; // Very few elements suggests challenge page
       const hasDataDomeChallenge = hasDataDomeScript && isMinimalContent;
       
+
       return {
         scriptLoaded,
         htmxInWindow,
@@ -144,6 +145,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         log(`[LinkExtractor] DataDome bypass failed, continuing with limited content...`, "scraper");
       }
     }
+
 
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];

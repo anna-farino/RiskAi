@@ -9,7 +9,7 @@ import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper'
 export async function getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
   // Try HTTP first
   const httpResult = await scrapeWithHTTP(url, { timeout: 12000 }); // Reduced to 12s
-  
+
   // If HTTP succeeds, check if content looks dynamic/incomplete
   if (httpResult.success && httpResult.html.length > 1000) {
     log(`[SimpleScraper] HTTP successful (${httpResult.html.length} chars)`, "scraper");
@@ -22,6 +22,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
       
       if (needsDynamicLoading && !hasSubstantialContent) {
         log(`[SimpleScraper] Dynamic content detected with minimal content (${httpResult.html.length} chars), switching to Puppeteer`, "scraper");
+
         const puppeteerResult = await scrapeWithPuppeteer(url, {
           timeout: 60000,
           isArticlePage: false,
@@ -34,6 +35,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
           log(`[SimpleScraper] Puppeteer dynamic content successful (${puppeteerResult.html.length} chars)`, "scraper");
           return { html: puppeteerResult.html, method: 'puppeteer' };
         }
+
       } else if (needsDynamicLoading && hasSubstantialContent) {
         log(`[SimpleScraper] Dynamic content detected but substantial content already extracted (${httpResult.html.length} chars), staying with HTTP`, "scraper");
       }
@@ -66,6 +68,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
 /**
  * Detect if a page needs dynamic content loading (HTMX, JavaScript, etc.)
  * Enhanced to reduce false positives while maintaining HTMX functionality
+
  * More conservative when substantial content already exists
  */
 export function detectDynamicContentNeeds(html: string, url: string): boolean {
@@ -117,6 +120,7 @@ export function detectDynamicContentNeeds(html: string, url: string): boolean {
     htmlLower.includes('skeleton')
   );
   
+
   // SPA frameworks (moderate confidence - many sites have frameworks but work with HTTP)
   const hasSPAFrameworks = htmlLower.includes('react-root') || 
                           htmlLower.includes('ng-app') || 
@@ -124,6 +128,7 @@ export function detectDynamicContentNeeds(html: string, url: string): boolean {
                           htmlLower.includes('__next') ||
                           htmlLower.includes('nuxt');
   
+
   // Enhanced decision logic: More conservative when substantial content exists
   const hasSubstantialContent = htmlLength > 50000; // 50KB threshold
   
