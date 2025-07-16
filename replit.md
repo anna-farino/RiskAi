@@ -145,7 +145,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Fixed mobile overflow**: Added proper width constraints and overflow handling to prevent layout breaking on mobile devices
 - **Enhanced responsive design**: Last scanned time and actions now align on same line on desktop with proper right-alignment
 - **Consistent labeling**: Added "Last Scanned:" labels to default sources timestamps for consistency with user sources
-- **Replaced toggle switches with enabled/disabled buttons**: Changed from toggle switches to buttons that display "Enabled" (pink) or "Disabled" (grey) text based on auto-update status
+- **Replaced toggle switches with enabled/disabled buttons**: Changed from toggle switches to buttons that display "Enabled" (RisqAi brand color #BF00FF) or "Disabled" (grey) text based on auto-update status
 
 ### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
 - **Enhanced user accessibility**: Added scan all sources functionality directly to News Radar and Threat Tracker home pages

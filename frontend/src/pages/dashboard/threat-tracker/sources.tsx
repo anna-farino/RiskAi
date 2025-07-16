@@ -1370,9 +1370,10 @@ export default function Sources() {
                               disabled={updateSource.isPending}
                               className={`h-7 px-3 text-xs ${
                                 source.includeInAutoScrape 
-                                  ? 'bg-pink-600 text-white hover:bg-pink-700 border-pink-600' 
+                                  ? 'text-white hover:opacity-80 border-[#BF00FF]' 
                                   : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
                               }`}
+                              style={source.includeInAutoScrape ? { backgroundColor: '#BF00FF' } : {}}
                             >
                               {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
                             </Button>
@@ -1498,9 +1499,10 @@ export default function Sources() {
                     disabled={updateSource.isPending}
                     className={`h-7 px-3 text-xs ${
                       source.includeInAutoScrape 
-                        ? 'bg-pink-600 text-white hover:bg-pink-700 border-pink-600' 
+                        ? 'text-white hover:opacity-80 border-[#BF00FF]' 
                         : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
                     }`}
+                    style={source.includeInAutoScrape ? { backgroundColor: '#BF00FF' } : {}}
                   >
                     {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
                   </Button>
