@@ -16,4 +16,5 @@ backend/.env.local
 backend_security_report.md
 .cache/
 attached_assets/
+test/
 
