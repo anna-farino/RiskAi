@@ -7,11 +7,12 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY_NAME: 'mycontainer1' 
+  REGISTRY_NAME: 'mycontainer1'
   IMAGE_NAME: 'backend-22'
-  RESOURCE_GROUP: 'backend-test-group-2' 
+  RESOURCE_GROUP: 'backend-test-group-2'
   CONTAINER_NAME: 'backend-22-container'
-  DNS_LABEL: 'backend-22-unique' 
+  DNS_LABEL: 'backend-22-staging-unique'
+
 
 jobs:
   deploy:
@@ -31,9 +32,6 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}
       
-      - name: Login to Azure Container Registry
-        run: az acr login --name ${{ env.REGISTRY_NAME }}
-      
       - name: Build Docker image
         run: |
           docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
@@ -41,17 +39,9 @@ jobs:
       
       - name: Push Docker image
         run: |
+          docker login ${{ env.REGISTRY_NAME }}.azurecr.io --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-      
-      - name: Get ACR credentials
-        id: acr-creds
-        run: |
-          ACR_USERNAME=$(az acr credential show --name ${{ env.REGISTRY_NAME }} --query username --output tsv)
-          ACR_PASSWORD=$(az acr credential show --name ${{ env.REGISTRY_NAME }} --query passwords[0].value --output tsv)
-          echo "::add-mask::$ACR_PASSWORD"
-          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
-          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
       
       - name: Deploy to Azure Container Instance
         run: |
@@ -59,57 +49,13 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --name ${{ env.CONTAINER_NAME }} \
             --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --os-type Linux \
             --cpu 2 \
             --memory 4 \
             --registry-login-server ${{ env.REGISTRY_NAME }}.azurecr.io \
-            --registry-username ${{ steps.acr-creds.outputs.username }} \
-            --registry-password ${{ steps.acr-creds.outputs.password }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
             --dns-name-label ${{ env.DNS_LABEL }} \
             --ports 3000 \
             --environment-variables DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             --restart-policy Always
-
-
-
-
-
-#name: Build and deploy Node.js backend to Azure Web App - backend-22
-#
-#on:
-#  push:
-#    branches:
-#      - staging
-#  workflow_dispatch:
-#
-#jobs:
-#  deploy:
-#    runs-on: ubuntu-latest
-#    permissions:
-#      id-token: write
-#      contents: read
-#
-#    steps:
-#      - name: Checkout repo
-#        uses: actions/checkout@v4
-#
-#      - name: Login to Azure
-#        uses: azure/login@v2
-#        with:
-#          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F12CA1AA54C34611AB5747A144391442 }}
-#          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
-#          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}
-#
-#      - name: Install dependencies
-#        run: npm install
-#        
-#      - name: Run Drizzle migrations
-#        run: npx drizzle-kit migrate --config=drizzle.config.ts
-#        env:
-#          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-#          
-#      - name: Deploy to Azure Web App
-#        uses: azure/webapps-deploy@v3
-#        with:
-#          app-name: 'backend-22'
-#          slot-name: 'Production'
-#          package: '.'

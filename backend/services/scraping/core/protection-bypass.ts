@@ -433,6 +433,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         } else {
           // Still has challenge - log current status
           log(`[ProtectionBypass] Challenge still active (${challengeStatus.pageLength} chars, ${challengeStatus.linkCount} links, URL: ${challengeStatus.currentUrl})`, "scraper");
+
         }
       }
 

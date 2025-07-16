@@ -715,8 +715,6 @@ export default function Sources() {
     },
   });
 
-
-
   // Handle form submission
   function onSubmit(values: SourceFormValues) {
     if (editingSource) {
@@ -1057,7 +1055,6 @@ export default function Sources() {
                 Scan is currently running...
               </span>
             ) : null}
-          </div>
         </CardFooter>
       </Card>
 
@@ -1071,6 +1068,7 @@ export default function Sources() {
               be enabled/disabled.
             </CardDescription>
           </div>
+          
           <div className="flex gap-2">
             <Button
               onClick={() => {
@@ -1340,6 +1338,7 @@ export default function Sources() {
                               <Badge
                                 variant="secondary"
                                 className="text-xs px-1.5 py-0.5 flex-shrink-0"
+
                               >
                                 Default
                               </Badge>
@@ -1510,8 +1509,8 @@ export default function Sources() {
                           className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
                           title="Cannot delete default sources"
                         >
-                          <Trash2 className="h-3 w-3" />
-                          <span className="sr-only">Delete (disabled)</span>
+                          <PencilLine className="h-3 w-3" />
+                          <span className="sr-only">Edit</span>
                         </Button>
                       ) : (
                         <AlertDialog>

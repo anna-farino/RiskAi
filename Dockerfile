@@ -1,40 +1,64 @@
 FROM node:18-slim
 
-# Install necessary dependencies for Puppeteer
-RUN apt-get update \
-    && apt-get install -y wget gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
-    && rm -rf /var/lib/apt/lists/*
+# Install required system dependencies for Puppeteer/Chromium
+RUN apt-get update && apt-get install -y \
+  wget \
+  ca-certificates \
+  fonts-liberation \
+  libappindicator3-1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libatk1.0-0 \
+  libcups2 \
+  libdbus-1-3 \
+  libgdk-pixbuf2.0-0 \
+  libnspr4 \
+  libnss3 \
+  libx11-xcb1 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  xdg-utils \
+  libgbm1 \
+  libxss1 \
+  fonts-ipafont-gothic \
+  fonts-wqy-zenhei \
+  fonts-thai-tlwg \
+  fonts-kacst \
+  fonts-freefont-ttf \
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy backend package files
+COPY backend/package*.json ./backend/
+
+# Copy shared package files
+COPY shared/package*.json ./shared/
 
 # Install dependencies
-RUN npm ci --only=production
+RUN cd backend && npm install --legacy-peer-deps
 
-# Copy application code
-COPY . .
+# Copy app code
+COPY backend/ ./backend/
+COPY shared/ ./shared/
 
-# Run Drizzle migrations during build
-RUN npx drizzle-kit migrate --config=drizzle.config.ts
+# Set working directory to backend for build
+WORKDIR /app/backend
 
-# Create a non-root user for security
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser \
-    && chown -R pptruser:pptruser /app
+# Build app
+RUN npm run build
 
-# Switch to non-root user
-USER pptruser
+# Remove dev dependencies
+RUN npm prune --production
 
-# Expose port
+# Use non-root user
+RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser
+USER nodeuser
+
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "server.js"]
+# Run DB migrations and start the app
+CMD ["sh", "-c", "npx drizzle-kit migrate --config=drizzle.config.ts && node dist/index.js"]

@@ -9,7 +9,7 @@ import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper'
 export async function getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
   // Try HTTP first
   const httpResult = await scrapeWithHTTP(url, { timeout: 12000 }); // Reduced to 12s
-  
+
   // If HTTP succeeds, check if content looks dynamic/incomplete
   if (httpResult.success && httpResult.html.length > 1000) {
     log(`[SimpleScraper] HTTP successful (${httpResult.html.length} chars)`, "scraper");
@@ -22,6 +22,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
       
       if (needsDynamicLoading && !hasSubstantialContent) {
         log(`[SimpleScraper] Dynamic content detected with minimal content (${httpResult.html.length} chars), switching to Puppeteer`, "scraper");
+
         const puppeteerResult = await scrapeWithPuppeteer(url, {
           timeout: 60000,
           isArticlePage: false,
@@ -34,6 +35,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
           log(`[SimpleScraper] Puppeteer dynamic content successful (${puppeteerResult.html.length} chars)`, "scraper");
           return { html: puppeteerResult.html, method: 'puppeteer' };
         }
+
       } else if (needsDynamicLoading && hasSubstantialContent) {
         log(`[SimpleScraper] Dynamic content detected but substantial content already extracted (${httpResult.html.length} chars), staying with HTTP`, "scraper");
       }
