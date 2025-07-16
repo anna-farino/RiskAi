@@ -1056,9 +1056,7 @@ export default function Sources() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Update is currently running...
               </span>
-            ) : (
-              <span>Check for new threats</span>
-            )}
+            ) : null}
           </div>
         </CardFooter>
       </Card>
@@ -1087,7 +1085,7 @@ export default function Sources() {
                 (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
                 localSources.length === 0
               }
-              size="sm"
+              
               className={
                 scrapeJobRunning || checkScrapeStatus?.data?.running
                   ? "bg-red-600 hover:bg-red-600/80 text-white"
@@ -1111,11 +1109,11 @@ export default function Sources() {
               className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
             >
               {createSource.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="h-4 w-4" />
               )}
-              Add Source
+              
             </Button>
           </div>
         </CardHeader>
