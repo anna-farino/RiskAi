@@ -1351,7 +1351,7 @@ export default function Sources() {
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
                           <div className="text-xs text-muted-foreground truncate">
-                            {formatLastScraped(source.lastScraped)}
+                            <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <Switch
