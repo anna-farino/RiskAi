@@ -711,7 +711,7 @@ export default function ThreatHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 md:gap-10 mb-6">
+      <div className="flex flex-col gap-6 md:gap-10 mb-2">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             Threat Tracker

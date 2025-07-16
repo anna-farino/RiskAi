@@ -1546,42 +1546,6 @@ export default function Sources() {
             </div>
           </form>
         </div>
-
-        <div className="lg:col-span-2 xl:col-span-1 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6 flex flex-col justify-between">
-          <div>
-            <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white mb-2 sm:mb-3">
-              Quick Tips
-            </h2>
-            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-              <li className="flex gap-1 sm:gap-2 text-slate-300">
-                <Check className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                <span>
-                  Add reliable news sources with well-structured content for
-                  best results.
-                </span>
-              </li>
-              <li className="flex gap-1 sm:gap-2 text-slate-300">
-                <Check className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                <span>
-                  Configure auto-update settings to automatically collect new
-                  content on a schedule.
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-700/50">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4 text-primary" />
-              </div>
-              <div className="text-xs sm:text-sm text-white">
-                <span className="font-medium">{sources.data?.length || 0}</span>{" "}
-                sources available
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div

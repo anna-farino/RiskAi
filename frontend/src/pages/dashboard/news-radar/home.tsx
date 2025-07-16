@@ -783,12 +783,12 @@ export default function NewsHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 sm:gap-8 md:gap-12 sm:py-6 md:py-8">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
+      <div className="flex flex-col gap-6 md:gap-10 mb-2">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
             News Radar
           </h1>
-          <p className="text-base sm:text-lg text-slate-300 max-w-3xl">
+          <p className="text-muted-foreground max-w-3xl">
             Advanced aggregation and AI-driven content analysis for efficient
             news collection and processing.
           </p>
