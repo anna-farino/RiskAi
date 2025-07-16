@@ -127,6 +127,20 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 16, 2025 - Successfully Removed Active Toggle from Threat Tracker Sources Interface
+- **Simplified source management**: Removed redundant active toggle, keeping only the auto-update toggle for source control
+- **Database schema update**: Removed active field from threatSources table definition in shared schema
+- **Backend query fixes**: Updated all database queries to explicitly select only valid columns, avoiding deprecated active field
+- **Frontend interface cleanup**: Removed all active toggle references from source management UI components
+- **Type consistency**: Fixed React Router error by ensuring database queries match TypeScript type definitions
+- **Status indicator update**: Changed source status display to use includeInAutoScrape instead of active field
+- **Technical implementation**:
+  - Modified `shared/db/schema/threat-tracker/index.ts` to remove active field from threatSources table
+  - Updated `backend/apps/threat-tracker/queries/threat-tracker.ts` with explicit column selection for all source queries
+  - Removed toggleSourceActive mutation and all active field references from sources.tsx
+  - Changed status indicators to use includeInAutoScrape for green/gray dot display
+- **User benefit**: Cleaner, more intuitive interface with single toggle for source management without confusing dual toggle system
+
 ### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
 - **Enhanced user accessibility**: Added scan all sources functionality directly to News Radar and Threat Tracker home pages
 - **Consistent UI implementation**: "Scan For New Threats" buttons integrated into both applications with matching design

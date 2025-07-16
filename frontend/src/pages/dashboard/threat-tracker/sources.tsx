@@ -118,7 +118,6 @@ type AutoScrapeSettings = {
 const sourceFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   url: z.string().url("Must be a valid URL"),
-  active: z.boolean().default(true),
   includeInAutoScrape: z.boolean().default(true),
 });
 
@@ -150,7 +149,6 @@ export default function Sources() {
     defaultValues: {
       name: "",
       url: "",
-      active: true,
       includeInAutoScrape: true,
     },
   });
@@ -294,7 +292,6 @@ export default function Sources() {
         id: `temp-${Date.now()}`,
         name: newSource.name,
         url: newSource.url,
-        active: newSource.active,
         includeInAutoScrape: newSource.includeInAutoScrape,
         lastScraped: null,
         userId: "current-user",
@@ -718,71 +715,7 @@ export default function Sources() {
     },
   });
 
-  // Quick toggle source active status mutation (for immediate feedback)
-  const toggleSourceActive = useMutation({
-    mutationFn: async ({
-      id,
-      active,
-      source,
-    }: {
-      id: string;
-      active: boolean;
-      source: ThreatSource;
-    }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/sources/${id}`,
-        {
-          name: source.name,
-          url: source.url,
-          active,
-          includeInAutoScrape: source.includeInAutoScrape,
-        },
-      );
-    },
-    onMutate: async ({ id, active }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
-      });
 
-      // Snapshot previous value
-      const previousSources = [...localSources];
-
-      // Optimistically update source active status
-      setLocalSources((prev) =>
-        prev.map((source) =>
-          source.id === id ? { ...source, active } : source,
-        ),
-      );
-
-      return { previousSources, toggledId: id };
-    },
-    onSuccess: (data, variables) => {
-      // Update with actual server response
-      if (data) {
-        setLocalSources((prev) =>
-          prev.map((source) => (source.id === variables.id ? data : source)),
-        );
-      }
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
-      });
-    },
-    onError: (error, _, context) => {
-      // Rollback optimistic update
-      if (context?.previousSources) {
-        setLocalSources(context.previousSources);
-      }
-
-      console.error("Error toggling source:", error);
-      toast({
-        title: "Error updating source",
-        description: "Failed to update source status. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Handle form submission
   function onSubmit(values: SourceFormValues) {
@@ -799,7 +732,6 @@ export default function Sources() {
     form.reset({
       name: source.name,
       url: source.url,
-      active: source.active,
       includeInAutoScrape: source.includeInAutoScrape,
     });
     setSourceDialogOpen(true);
@@ -811,7 +743,6 @@ export default function Sources() {
     form.reset({
       name: "",
       url: "",
-      active: true,
       includeInAutoScrape: true,
     });
     setSourceDialogOpen(true);
@@ -1238,49 +1169,26 @@ export default function Sources() {
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Active</FormLabel>
-                        <FormDescription>
-                          Inactive sources won't be updated
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="includeInAutoScrape"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Auto-Update</FormLabel>
-                        <FormDescription>
-                          Include in automatic update
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="includeInAutoScrape"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Auto-Update</FormLabel>
+                      <FormDescription>
+                        Include in automatic update
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
                 <Button
@@ -1376,24 +1284,12 @@ export default function Sources() {
       );
     }
 
-    // Separate default and user sources, then sort by active status (active first)
+    // Separate default and user sources
     const defaultSources = localSources
-      .filter((source) => source.isDefault)
-      .sort((a, b) => {
-        // Active sources first, then inactive
-        if (a.active && !b.active) return -1;
-        if (!a.active && b.active) return 1;
-        return 0;
-      });
+      .filter((source) => source.isDefault);
 
     const userSources = localSources
-      .filter((source) => !source.isDefault)
-      .sort((a, b) => {
-        // Active sources first, then inactive
-        if (a.active && !b.active) return -1;
-        if (!a.active && b.active) return 1;
-        return 0;
-      });
+      .filter((source) => !source.isDefault);
 
     console.log(localSources);
     console.log(defaultSources);
@@ -1430,11 +1326,11 @@ export default function Sources() {
                     .map((source) => (
                       <div
                         key={source.id}
-                        className={`flex flex-col sm:flex-row gap-y-4 sm:items-center items-start justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? "opacity-50" : ""}`}
+                        className="flex flex-col sm:flex-row gap-y-4 sm:items-center items-start justify-between py-2 px-3 bg-background rounded border"
                       >
                         <div className="flex w-full items-center gap-3 min-w-0 flex-1">
                           <div
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? "bg-green-500" : "bg-gray-400"}`}
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                           />
                           <div className="flex flex-col w-full min-w-0 flex-1">
                             <div className="flex w-full sm:w-fit justify-between items-center gap-2">
@@ -1465,7 +1361,7 @@ export default function Sources() {
                               scrapeSingleSource.isPending &&
                               scrapingSourceId === source.id
                             }
-                            className={`h-7 px-2 text-xs ${!source.active ? "hover:bg-transparent" : ""}`}
+                            className="h-7 px-2 text-xs"
                           >
                             {scrapeSingleSource.isPending &&
                             scrapingSourceId === source.id ? (
@@ -1477,17 +1373,7 @@ export default function Sources() {
                               Scan Now
                             </span>
                           </Button>
-                          <Switch
-                            checked={source.active}
-                            onCheckedChange={(checked) =>
-                              toggleSourceActive.mutate({
-                                id: source.id,
-                                active: checked,
-                                source,
-                              })
-                            }
-                            disabled={toggleSourceActive.isPending}
-                          />
+
                         </div>
                       </div>
                     ))}
@@ -1529,12 +1415,9 @@ export default function Sources() {
             {
               <TableHeader className="flex flex-col w-[800px] min-[1148px]:w-full">
                 <TableRow className="flex flex-row w-[800px] min-[1148px]:w-full">
-                  <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
-                  <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
-                  <TableHead className="w-[15%] min-w-[100px]">
-                    Status
-                  </TableHead>
-                  <TableHead className="w-[15%] min-w-[100px]">
+                  <TableHead className="w-[30%] min-w-[140px]">Name</TableHead>
+                  <TableHead className="w-[40%] min-w-[200px]">URL</TableHead>
+                  <TableHead className="w-[20%] min-w-[120px]">
                     Last Scanned
                   </TableHead>
                   <TableHead className="w-[10%] min-w-[80px] text-right">
@@ -1549,12 +1432,12 @@ export default function Sources() {
                 .map((source) => (
                   <TableRow
                     key={source.id}
-                    className={`flex flex-grow w-full transition-opacity ${!source.active ? "opacity-50" : ""}`}
+                    className="flex flex-grow w-full"
                   >
-                    <TableCell className="font-medium w-[25%] min-w-[120px] truncate pr-2">
+                    <TableCell className="font-medium w-[30%] min-w-[140px] truncate pr-2">
                       {source.name}
                     </TableCell>
-                    <TableCell className="pr-2 w-[35%] min-w-[180px]">
+                    <TableCell className="pr-2 w-[40%] min-w-[200px]">
                       <a
                         href={source.url}
                         target="_blank"
@@ -1569,26 +1452,12 @@ export default function Sources() {
                         <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
                       </a>
                     </TableCell>
-                    <TableCell className="pr-2 w-[15%] min-w-[100px]">
+                    <TableCell className="pr-2 w-[20%] min-w-[120px]">
                       <div className="flex flex-col gap-1">
-                        {source.active ? (
-                          <Badge
-                            variant="default"
-                            className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit"
-                          >
-                            <Check className="h-2 w-2" />
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit"
-                          >
-                            <X className="h-2 w-2" />
-                            Inactive
-                          </Badge>
-                        )}
-                        {source.includeInAutoScrape && source.active && (
+                        <div className="text-xs text-muted-foreground">
+                          {formatLastScraped(source.lastScraped)}
+                        </div>
+                        {source.includeInAutoScrape && (
                           <Badge
                             variant="outline"
                             className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit"
@@ -1599,9 +1468,6 @@ export default function Sources() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs truncate pr-2 w-[15%] min-w-[100px]">
-                      {formatLastScraped(source.lastScraped)}
-                    </TableCell>
                     <TableCell className="text-right pr-0 w-[10%] min-w-[80px]">
                       <div className="flex justify-end gap-1 flex-wrap">
                         <Button
@@ -1609,11 +1475,10 @@ export default function Sources() {
                           size="sm"
                           onClick={() => scrapeSingleSource.mutate(source.id)}
                           disabled={
-                            !source.active ||
                             scrapingSourceId === source.id ||
                             scrapeJobRunning
                           }
-                          className={`h-7 px-2 text-xs ${!source.active ? "hover:bg-transparent" : ""}`}
+                          className="h-7 px-2 text-xs"
                         >
                           {scrapingSourceId === source.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
