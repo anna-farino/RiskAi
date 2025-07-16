@@ -1426,149 +1426,133 @@ export default function Sources() {
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
     return (
-      <div className="w-full">
-        <div className="w-full">
-          <Table className="table-fixed w-full">
-            {
-              <TableHeader className="flex flex-col w-[800px] min-[1148px]:w-full">
-                <TableRow className="flex flex-row w-[800px] min-[1148px]:w-full">
-                  <TableHead className="w-[30%] min-w-[140px]">Name</TableHead>
-                  <TableHead className="w-[40%] min-w-[200px]">URL</TableHead>
-                  <TableHead className="w-[20%] min-w-[120px]">
-                    Last Scanned
-                  </TableHead>
-                  <TableHead className="w-[10%] min-w-[80px] text-right">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-            }
-            <TableBody className="flex flex-col w-[800px] min-[1148px]:w-full">
-              {userSources
-                .filter((s) => true)
-                .map((source) => (
-                  <TableRow
-                    key={source.id}
-                    className="flex flex-grow w-full"
-                  >
-                    <TableCell className="font-medium w-[30%] min-w-[140px] truncate pr-2">
+      <div className="w-full space-y-3">
+        {userSources
+          .filter((s) => true)
+          .map((source) => (
+            <div
+              key={source.id}
+              className="flex flex-col gap-3 p-4 bg-background rounded-lg border"
+            >
+              {/* First row: Name and URL */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
+                  />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">
                       {source.name}
-                    </TableCell>
-                    <TableCell className="pr-2 w-[40%] min-w-[200px]">
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex w-fit items-center text-primary hover:underline truncate"
-                      >
-                        <span className="truncate w-full">
-                          {source.url.length > 30
-                            ? source.url.substring(0, 30) + "..."
-                            : source.url}
-                        </span>
-                        <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
-                      </a>
-                    </TableCell>
-                    <TableCell className="pr-2 w-[20%] min-w-[120px]">
-                      <div className="flex flex-col gap-1">
-                        <div className="text-xs text-muted-foreground">
-                          {formatLastScraped(source.lastScraped)}
-                        </div>
-                        {source.includeInAutoScrape && (
-                          <Badge
-                            variant="outline"
-                            className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit"
-                          >
-                            <RotateCw className="h-2 w-2" />
-                            Auto
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right pr-0 w-[10%] min-w-[80px]">
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => scrapeSingleSource.mutate(source.id)}
-                          disabled={
-                            scrapingSourceId === source.id ||
-                            scrapeJobRunning
-                          }
-                          className="h-7 px-2 text-xs"
-                        >
-                          {scrapingSourceId === source.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-3 w-3" />
-                          )}
-                          <span className="hidden sm:inline ml-1">
-                            Scan Now
-                          </span>
-                        </Button>
+                    </div>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-fit items-center text-primary hover:underline truncate text-xs"
+                    >
+                      <span className="truncate">
+                        {source.url.length > 50
+                          ? source.url.substring(0, 50) + "..."
+                          : source.url}
+                      </span>
+                      <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                    </a>
+                  </div>
+                </div>
+                {source.includeInAutoScrape && (
+                  <Badge
+                    variant="outline"
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 w-fit"
+                  >
+                    <RotateCw className="h-2 w-2" />
+                    Auto
+                  </Badge>
+                )}
+              </div>
 
+              {/* Second row: Last Scanned and Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => scrapeSingleSource.mutate(source.id)}
+                    disabled={
+                      scrapingSourceId === source.id ||
+                      scrapeJobRunning
+                    }
+                    className="h-7 px-2 text-xs"
+                  >
+                    {scrapingSourceId === source.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                    <span className="ml-1">Scan Now</span>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditSource(source)}
+                    className="h-7 w-7 p-0"
+                  >
+                    <PencilLine className="h-3 w-3" />
+                    <span className="sr-only">Edit</span>
+                  </Button>
+
+                  {source.isDefault ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled
+                      className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed"
+                      title="Cannot delete default sources"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span className="sr-only">Delete (disabled)</span>
+                    </Button>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditSource(source)}
-                          className="h-7 w-7 p-0"
+                          className="text-destructive hover:text-destructive h-7 w-7 p-0"
                         >
-                          <PencilLine className="h-3 w-3" />
-                          <span className="sr-only">Edit</span>
+                          <Trash2 className="h-3 w-3" />
+                          <span className="sr-only">Delete</span>
                         </Button>
-
-                        {source.isDefault ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled
-                            className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed"
-                            title="Cannot delete default sources"
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Are you sure?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete the source "
+                            {source.name}". This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteSource(source)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            <Trash2 className="h-3 w-3" />
-                            <span className="sr-only">Delete (disabled)</span>
-                          </Button>
-                        ) : (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive h-7 w-7 p-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Are you sure?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete the source "
-                                  {source.name}". This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteSource(source)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </div>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
       </div>
     );
   }
