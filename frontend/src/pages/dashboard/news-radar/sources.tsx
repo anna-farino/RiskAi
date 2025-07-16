@@ -1530,42 +1530,44 @@ export default function Sources() {
         )}
       >
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
               Source List
             </h2>
-            <div className="flex items-center gap-3">
-              <div className="text-xs sm:text-sm text-slate-400">
-                {sources.data?.length || 0} sources configured
-              </div>
-              <Button
-                onClick={() => {
-                  if (autoScrapeStatus?.data?.running) {
-                    stopGlobalScrape.mutate();
-                  } else {
-                    runGlobalScrape.mutate();
-                  }
-                }}
-                disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
-                size="sm"
-                className={
-                  autoScrapeStatus?.data?.running
-                    ? "bg-red-600 hover:bg-red-600/80 text-white"
-                    : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-                }
-              >
-                {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : autoScrapeStatus?.data?.running ? (
-                  <X className="mr-2 h-4 w-4" />
-                ) : (
-                  <Play className="mr-2 h-4 w-4" />
-                )}
-                {autoScrapeStatus?.data?.running
-                  ? "Stop Scan"
-                  : "Scan All Sources Now"}
-              </Button>
+            <div className="text-xs sm:text-sm text-slate-400">
+              {sources.data?.length || 0} sources configured
             </div>
+          </div>
+          
+          {/* Scan All Sources Button */}
+          <div className="flex justify-center">
+            <Button
+              onClick={() => {
+                if (autoScrapeStatus?.data?.running) {
+                  stopGlobalScrape.mutate();
+                } else {
+                  runGlobalScrape.mutate();
+                }
+              }}
+              disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
+              size="sm"
+              className={
+                autoScrapeStatus?.data?.running
+                  ? "bg-red-600 hover:bg-red-600/80 text-white"
+                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : autoScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              {autoScrapeStatus?.data?.running
+                ? "Stop Scan"
+                : "Scan All Sources Now"}
+            </Button>
           </div>
         </div>
 
