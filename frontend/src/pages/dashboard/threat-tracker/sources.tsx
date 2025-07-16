@@ -1353,26 +1353,43 @@ export default function Sources() {
                           <div className="text-xs text-muted-foreground">
                             {formatLastScraped(source.lastScraped)}
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => scrapeSingleSource.mutate(source.id)}
-                            disabled={
-                              scrapeSingleSource.isPending &&
-                              scrapingSourceId === source.id
-                            }
-                            className="h-7 px-2 text-xs"
-                          >
-                            {scrapeSingleSource.isPending &&
-                            scrapingSourceId === source.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3" />
-                            )}
-                            <span className="hidden sm:inline ml-1">
-                              Scan Now
-                            </span>
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={source.includeInAutoScrape}
+                              onCheckedChange={(checked) => {
+                                updateSource.mutate({
+                                  id: source.id,
+                                  values: { 
+                                    name: source.name, 
+                                    url: source.url, 
+                                    includeInAutoScrape: checked 
+                                  }
+                                });
+                              }}
+                              disabled={updateSource.isPending}
+                              className="h-5 w-9"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => scrapeSingleSource.mutate(source.id)}
+                              disabled={
+                                scrapeSingleSource.isPending &&
+                                scrapingSourceId === source.id
+                              }
+                              className="h-7 px-2 text-xs"
+                            >
+                              {scrapeSingleSource.isPending &&
+                              scrapingSourceId === source.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                              <span className="hidden sm:inline ml-1">
+                                Scan Now
+                              </span>
+                            </Button>
+                          </div>
 
                         </div>
                       </div>

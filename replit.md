@@ -140,6 +140,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Removed toggleSourceActive mutation and all active field references from sources.tsx
   - Changed status indicators to use includeInAutoScrape for green/gray dot display
 - **User benefit**: Cleaner, more intuitive interface with single toggle for source management without confusing dual toggle system
+- **Enhanced default source management**: Added auto-update toggles to default sources for granular control over which sources are included in automatic scans
 
 ### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
 - **Enhanced user accessibility**: Added scan all sources functionality directly to News Radar and Threat Tracker home pages
