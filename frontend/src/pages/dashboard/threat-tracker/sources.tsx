@@ -1350,9 +1350,6 @@ export default function Sources() {
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
-                          <div className="text-xs text-muted-foreground truncate">
-                            <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
-                          </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <Button
                               variant="outline"
@@ -1397,6 +1394,9 @@ export default function Sources() {
                                 Scan Now
                               </span>
                             </Button>
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                           </div>
                         </div>
                       </div>
@@ -1479,9 +1479,6 @@ export default function Sources() {
 
               {/* Second row: Last Scanned and Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full max-w-full">
-                <div className="text-xs text-muted-foreground truncate">
-                  <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
-                </div>
                 <div className="flex gap-2 flex-wrap">
                   <Button
                     variant="outline"
@@ -1580,6 +1577,9 @@ export default function Sources() {
                       </AlertDialogContent>
                     </AlertDialog>
                   )}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                 </div>
               </div>
             </div>
