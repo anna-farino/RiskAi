@@ -18,6 +18,8 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Play,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,39 @@ export default function NewsHome() {
   const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
   // Track selected article from dashboard
   const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
+  
+  // Global scan status for scan all sources functionality
+  const autoScrapeStatus = useQuery({
+    queryKey: ["/api/news-tracker/jobs/status"],
+    queryFn: async () => {
+      try {
+        const response = await fetch(
+          `${serverUrl}/api/news-tracker/jobs/status`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: csfrHeaderObject(),
+          },
+        );
+        if (!response.ok) {
+          console.warn(
+            "Job status API returned non-ok response:",
+            response.status,
+          );
+          return { running: false };
+        }
+        const data = await response.json();
+        return data || { running: false };
+      } catch (error) {
+        console.error("Error fetching job status:", error);
+        return { running: false };
+      }
+    },
+    refetchInterval: 5000, // Poll every 5 seconds
+    initialData: { running: false },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -427,6 +462,146 @@ export default function NewsHome() {
     },
   });
 
+  // Run global scrape job manually
+  const runGlobalScrape = useMutation({
+    mutationFn: async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
+
+        const response = await fetch(
+          `${serverUrl}/api/news-tracker/jobs/scrape`,
+          {
+            method: "POST",
+            headers: csfrHeaderObject(),
+            credentials: "include",
+            signal: controller.signal,
+          },
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to start global update: ${response.statusText}`,
+          );
+        }
+
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          // If parsing fails, just return success
+          return { success: true };
+        }
+      } catch (error) {
+        console.error("Run global update error:", error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Scan for new threats started",
+        description: "All eligible sources are being scanned for new threats",
+      });
+      // Force update job status
+      queryClient.invalidateQueries({
+        queryKey: ["/api/news-tracker/jobs/status"],
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Error starting scan",
+        description: "Failed to start scanning. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Stop global scrape job
+  const stopGlobalScrape = useMutation({
+    mutationFn: async () => {
+      try {
+        console.log("Attempting to stop global update...");
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(
+          `${serverUrl}/api/news-tracker/jobs/stop`,
+          {
+            method: "POST",
+            headers: {
+              ...csfrHeaderObject(),
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            signal: controller.signal,
+          },
+        );
+
+        clearTimeout(timeoutId);
+
+        console.log("Stop request response status:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          return {
+            success: false,
+            message: `Failed to stop global update: ${response.statusText}`,
+          };
+        }
+
+        // Try to parse JSON but handle empty responses
+        try {
+          const data = await response.json();
+          console.log("Stop job succeeded with data:", data);
+          return data || { success: true, message: "Global update stopped" };
+        } catch (e) {
+          console.log("Empty response, returning success object");
+          return { success: true, message: "Global update stopped" };
+        }
+      } catch (error) {
+        console.error("Stop global update error:", error);
+        return {
+          success: false,
+          message:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        };
+      }
+    },
+    onSuccess: (data) => {
+      console.log("Stop global update succeeded:", data);
+      if (data?.success !== false) {
+        toast({
+          title: "Scan stopped",
+          description: "All scanning operations have been stopped",
+        });
+      } else {
+        toast({
+          title: "Error stopping scan",
+          description:
+            data.message || "Failed to stop scanning. Please try again.",
+          variant: "destructive",
+        });
+      }
+      // Force update job status
+      queryClient.invalidateQueries({
+        queryKey: ["/api/news-tracker/jobs/status"],
+      });
+    },
+    onError: (err) => {
+      console.error("Stop global update mutation error handler:", err);
+      toast({
+        title: "Error stopping scan",
+        description: "Failed to stop scanning. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Function to check if an article is new
   const isArticleNew = (article: Article): boolean => {
     if (!lastVisitTimestamp || !article.publishDate) return false;
@@ -633,6 +808,35 @@ export default function NewsHome() {
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 justify-end">
+              {/* Scan for New Threats Button */}
+              <Button
+                onClick={() => {
+                  if (autoScrapeStatus?.data?.running) {
+                    stopGlobalScrape.mutate();
+                  } else {
+                    runGlobalScrape.mutate();
+                  }
+                }}
+                disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
+                size="sm"
+                className={
+                  autoScrapeStatus?.data?.running
+                    ? "bg-red-600 hover:bg-red-600/80 text-white"
+                    : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                }
+              >
+                {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : autoScrapeStatus?.data?.running ? (
+                  <X className="mr-2 h-4 w-4" />
+                ) : (
+                  <Shield className="mr-2 h-4 w-4" />
+                )}
+                {autoScrapeStatus?.data?.running
+                  ? "Stop Scan"
+                  : "Scan For New Threats"}
+              </Button>
+
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                 <Input

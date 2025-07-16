@@ -127,6 +127,19 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
+- **Enhanced user accessibility**: Added scan all sources functionality directly to News Radar and Threat Tracker home pages
+- **Consistent UI implementation**: "Scan For New Threats" buttons integrated into both applications with matching design
+- **Complete functionality**: Added scan status monitoring, start/stop mutations, and proper error handling
+- **Visual design**: Purple background with cyan hover effects matching existing RisqAi theme
+- **Loading states**: Spinner animations during scan operations, red background when active with "Stop Scan" text
+- **Code implementation**:
+  - Added `checkScrapeStatus`/`autoScrapeStatus` queries with 5-second polling intervals
+  - Implemented `scrapeAllSources`/`runGlobalScrape` and `stopScrapeJob`/`stopGlobalScrape` mutations
+  - Integrated scan buttons into home page headers with proper state management
+  - Used Shield icon for scan button, X icon for stop, and Loader2 for loading states
+- **User benefit**: Users can now initiate scans without navigating to sources pages, improving workflow efficiency
+
 ### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
 - **Fixed critical DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
 - **Root cause analysis**: MarketWatch returning 401 → TLS fingerprinting fails → Puppeteer detects DataDome → Challenge solving fails → System stuck on challenge page (1378 chars) instead of actual content

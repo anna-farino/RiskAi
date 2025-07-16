@@ -22,6 +22,8 @@ import {
   Check,
   FileText,
   Star,
+  Play,
+  PlayCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +74,42 @@ export default function ThreatHome() {
   const articlesPerPage = 20;
   // Track selected article from dashboard
   const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
+
+  // Check scrape job status for scan all sources functionality
+  const checkScrapeStatus = useQuery<{ running: boolean }>({
+    queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+    queryFn: async () => {
+      try {
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/scrape/status`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...csfrHeaderObject(),
+            },
+          },
+        );
+        if (!response.ok) {
+          console.warn(
+            "Scrape status API returned non-ok response:",
+            response.status,
+          );
+          return { running: false };
+        }
+
+        const data = await response.json();
+        return data || { running: false };
+      } catch (error) {
+        console.error("Error fetching scrape status:", error);
+        return { running: false };
+      }
+    },
+    refetchInterval: 5000, // Poll every 5 seconds
+    initialData: { running: false },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -408,6 +446,104 @@ export default function ThreatHome() {
     }
   };
 
+  // Scrape all sources mutation
+  const scrapeAllSources = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Scan for new threats started",
+        description:
+          "The system is now scanning all active sources for threats.",
+      });
+      // Start polling for status updates
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+      });
+    },
+    onError: (error) => {
+      console.error("Error starting scan:", error);
+      toast({
+        title: "Error starting scan",
+        description:
+          "There was an error starting the scan. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Stop scrape job mutation
+  const stopScrapeJob = useMutation({
+    mutationFn: async () => {
+      try {
+        console.log("Attempting to stop global scan...");
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/scrape/stop`,
+          {
+            method: "POST",
+            headers: {
+              ...csfrHeaderObject(),
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            signal: controller.signal,
+          },
+        );
+
+        clearTimeout(timeoutId);
+
+        console.log("Stop request response status:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Stop request failed with:", errorText);
+          throw new Error(`Failed to stop scan: ${response.statusText}`);
+        }
+
+        try {
+          const data = await response.json();
+          console.log("Stop job succeeded with data:", data);
+          return data || { success: true, message: "Scan stopped" };
+        } catch (e) {
+          console.log("No JSON response, assuming success");
+          return { success: true, message: "Scan stopped" };
+        }
+      } catch (error) {
+        console.error("Stop scan error:", error);
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error(
+            "Stop request timed out. The scan may still be stopping.",
+          );
+        }
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      console.log("Stop global scan succeeded:", data);
+      toast({
+        title: "Scan stopped",
+        description: "The scan has been stopped successfully.",
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+      });
+    },
+    onError: (error) => {
+      console.error("Error stopping scan:", error);
+      toast({
+        title: "Error stopping scan",
+        description:
+          "There was an error stopping the scan. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
     setSelectedKeywordIds((prev) =>
@@ -634,6 +770,35 @@ export default function ThreatHome() {
           </div>
 
           <div className="flex flex-row gap-2 flex-shrink-0">
+            {/* Scan for New Threats Button */}
+            <Button
+              onClick={() => {
+                if (checkScrapeStatus?.data?.running) {
+                  stopScrapeJob.mutate();
+                } else {
+                  scrapeAllSources.mutate();
+                }
+              }}
+              disabled={scrapeAllSources.isPending || stopScrapeJob.isPending}
+              size="sm"
+              className={
+                checkScrapeStatus?.data?.running
+                  ? "bg-red-600 hover:bg-red-600/80 text-white"
+                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : checkScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <Shield className="mr-2 h-4 w-4" />
+              )}
+              {checkScrapeStatus?.data?.running
+                ? "Stop Scan"
+                : "Scan For New Threats"}
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
