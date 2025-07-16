@@ -1055,6 +1055,7 @@ export default function Sources() {
                 Scan is currently running...
               </span>
             ) : null}
+          </div>
         </CardFooter>
       </Card>
 
