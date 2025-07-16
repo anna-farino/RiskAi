@@ -1,10 +1,10 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import type { Browser, Page } from 'puppeteer';
+import type { Browser, Page } from 'rebrowser-puppeteer';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import { log } from "backend/utils/log";
-import vanillaPuppeteer from 'puppeteer';
+import vanillaPuppeteer from 'rebrowser-puppeteer';
 
 // Add stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());

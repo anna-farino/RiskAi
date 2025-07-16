@@ -1,4 +1,4 @@
-import type { Page } from 'puppeteer';
+import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import { safePageEvaluate } from './error-handler';
 

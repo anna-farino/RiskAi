@@ -1,4 +1,4 @@
-import type { Page } from 'puppeteer';
+import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import { LinkData, LinkExtractionOptions } from './html-link-parser';
 
@@ -74,21 +74,76 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
         attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).slice(0, 5)
       }));
       
+      // Enhanced DataDome challenge detection
+      const hasDataDomeScript = allScripts.some(script => 
+        script.includes('captcha-delivery.com') || 
+        script.includes('datadome.co') ||
+        script.includes('datadomejs.com')
+      );
+      const totalElements = document.querySelectorAll('*').length;
+      const isMinimalContent = totalElements < 20; // Very few elements suggests challenge page
+      const hasDataDomeChallenge = hasDataDomeScript && isMinimalContent;
+      
       return {
         scriptLoaded,
         htmxInWindow,
         hasHxAttributes,
         hxGetElements,
+        hasDataDomeChallenge,
         debug: {
           totalElements: document.querySelectorAll('*').length,
           scripts: allScripts,
-          sampleElements: sampleElements.slice(0, 10)
+          sampleElements: sampleElements.slice(0, 10),
+          hasDataDomeScript,
+          isMinimalContent
         }
       };
     });
 
     log(`[LinkExtractor] HTMX Detection Results: scriptLoaded=${hasHtmx.scriptLoaded}, htmxInWindow=${hasHtmx.htmxInWindow}, hasHxAttributes=${hasHtmx.hasHxAttributes}, hxGetElements=${hasHtmx.hxGetElements.length}`, "scraper");
     log(`[LinkExtractor] Page Debug Info: totalElements=${hasHtmx.debug.totalElements}, scripts=[${hasHtmx.debug.scripts.join(', ')}]`, "scraper-debug");
+
+    // Pre-emptive DataDome challenge detection and solving
+    if (hasHtmx.hasDataDomeChallenge) {
+      log(`[LinkExtractor] DataDome challenge detected (${hasHtmx.debug.totalElements} elements, DataDome script: ${hasHtmx.debug.hasDataDomeScript}), attempting bypass...`, "scraper");
+      
+      // Import and use the DataDome bypass function
+      const { bypassProtection } = await import('../../core/protection-bypass');
+      const bypassSuccessful = await bypassProtection(page, baseUrl);
+      
+      if (bypassSuccessful) {
+        log(`[LinkExtractor] DataDome bypass successful, re-evaluating page content...`, "scraper");
+        
+        // Re-evaluate page after bypass
+        const updatedPageInfo = await page.evaluate(() => {
+          const totalElements = document.querySelectorAll('*').length;
+          const allScripts = Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline').slice(0, 10);
+          const hasDataDomeScript = allScripts.some(script => 
+            script.includes('captcha-delivery.com') || 
+            script.includes('datadome.co') ||
+            script.includes('datadomejs.com')
+          );
+          
+          return {
+            totalElements,
+            scripts: allScripts,
+            hasDataDomeScript,
+            isMinimalContent: totalElements < 20
+          };
+        });
+        
+        log(`[LinkExtractor] Post-bypass page content: ${updatedPageInfo.totalElements} elements, DataDome script: ${updatedPageInfo.hasDataDomeScript}`, "scraper");
+        
+        // Update hasHtmx debug info for consistency
+        hasHtmx.debug.totalElements = updatedPageInfo.totalElements;
+        hasHtmx.debug.scripts = updatedPageInfo.scripts;
+        hasHtmx.debug.hasDataDomeScript = updatedPageInfo.hasDataDomeScript;
+        hasHtmx.debug.isMinimalContent = updatedPageInfo.isMinimalContent;
+        
+      } else {
+        log(`[LinkExtractor] DataDome bypass failed, continuing with limited content...`, "scraper");
+      }
+    }
 
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];
