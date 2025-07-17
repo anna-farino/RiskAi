@@ -119,6 +119,7 @@ export function detectDynamicContentNeeds(html: string, url: string): boolean {
     htmlLower.includes('skeleton')
   );
   
+
   // SPA frameworks (moderate confidence - many sites have frameworks but work with HTTP)
   const hasSPAFrameworks = htmlLower.includes('react-root') || 
                           htmlLower.includes('ng-app') || 
@@ -126,6 +127,7 @@ export function detectDynamicContentNeeds(html: string, url: string): boolean {
                           htmlLower.includes('__next') ||
                           htmlLower.includes('nuxt');
   
+
   // Enhanced decision logic: More conservative when substantial content exists
   const hasSubstantialContent = htmlLength > 50000; // 50KB threshold
   

@@ -715,6 +715,72 @@ export default function Sources() {
     },
   });
 
+  // Quick toggle source active status mutation (for immediate feedback)
+  const toggleSourceActive = useMutation({
+    mutationFn: async ({
+      id,
+      active,
+      source,
+    }: {
+      id: string;
+      active: boolean;
+      source: ThreatSource;
+    }) => {
+      return apiRequest(
+        "PUT",
+        `${serverUrl}/api/threat-tracker/sources/${id}`,
+        {
+          name: source.name,
+          url: source.url,
+          active,
+          includeInAutoScrape: source.includeInAutoScrape,
+        },
+      );
+    },
+    onMutate: async ({ id, active }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Snapshot previous value
+      const previousSources = [...localSources];
+
+      // Optimistically update source active status
+      setLocalSources((prev) =>
+        prev.map((source) =>
+          source.id === id ? { ...source, active } : source,
+        ),
+      );
+
+      return { previousSources, toggledId: id };
+    },
+    onSuccess: (data, variables) => {
+      // Update with actual server response
+      if (data) {
+        setLocalSources((prev) =>
+          prev.map((source) => (source.id === variables.id ? data : source)),
+        );
+      }
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+    },
+    onError: (error, _, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        setLocalSources(context.previousSources);
+      }
+
+      console.error("Error toggling source:", error);
+      toast({
+        title: "Error updating source",
+        description: "Failed to update source status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle form submission
   function onSubmit(values: SourceFormValues) {
     if (editingSource) {
@@ -1054,8 +1120,42 @@ export default function Sources() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Scan is currently running...
               </span>
-            ) : null}
+
+            ) : (
+              <span>Check for new threats</span>
+            )}
           </div>
+          <Button
+            onClick={() => {
+              if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
+                stopScrapeJob.mutate();
+              } else {
+                scrapeAllSources.mutate();
+              }
+            }}
+            disabled={
+              (scrapeAllSources.isPending && !stopScrapeJob.isPending) ||
+              (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
+              localSources.length === 0
+            }
+            size="sm"
+            className={
+              scrapeJobRunning || checkScrapeStatus?.data?.running
+                ? "bg-red-600 hover:bg-red-600/80 text-white"
+                : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+            }
+          >
+            {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
+              <X className="mr-2 h-4 w-4" />
+            ) : (
+              <PlayCircle className="mr-2 h-4 w-4" />
+            )}
+            {scrapeJobRunning || checkScrapeStatus?.data?.running
+              ? "Stop Scan"
+              : "Scan All Sources Now"}
+          </Button>
         </CardFooter>
       </Card>
 
@@ -1285,10 +1385,23 @@ export default function Sources() {
 
     // Separate default and user sources
     const defaultSources = localSources
-      .filter((source) => source.isDefault);
+      .filter((source) => source.isDefault)
+      .sort((a, b) => {
+        // Active sources first, then inactive
+        if (a.active && !b.active) return -1;
+        if (!a.active && b.active) return 1;
+        return 0;
+      });
 
     const userSources = localSources
-      .filter((source) => !source.isDefault);
+      .filter((source) => !source.isDefault)
+      .sort((a, b) => {
+        // Active sources first, then inactive
+        if (a.active && !b.active) return -1;
+        if (!a.active && b.active) return 1;
+        return 0;
+      });
+
 
     console.log(localSources);
     console.log(defaultSources);
@@ -1325,6 +1438,7 @@ export default function Sources() {
                     .map((source) => (
                       <div
                         key={source.id}
+
                         className="flex flex-col gap-3 py-2 px-3 bg-background rounded-lg border w-full max-w-full"
                       >
                         <div className="flex items-center gap-3 min-w-0 w-full overflow-hidden">
@@ -1334,11 +1448,13 @@ export default function Sources() {
                           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                             <div className="flex items-center gap-2 w-full">
                               <span className="font-medium text-sm truncate flex-1">
+
                                 {source.name}
                               </span>
                               <Badge
                                 variant="secondary"
                                 className="text-xs px-1.5 py-0.5 flex-shrink-0"
+
 
                               >
                                 Default
@@ -1410,6 +1526,7 @@ export default function Sources() {
                           <div className="text-xs text-muted-foreground truncate">
                             <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
                           </div>
+
                         </div>
                       </div>
                     ))}
@@ -1445,6 +1562,7 @@ export default function Sources() {
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
     return (
+
       <div className="w-full max-w-full overflow-hidden space-y-3">
         {userSources
           .filter((s) => true)
@@ -1502,17 +1620,20 @@ export default function Sources() {
                         <span className="sr-only">Edit</span>
                       </Button>
 
-                      {source.isDefault ? (
+
                         <Button
                           variant="ghost"
                           size="sm"
+
                           disabled
                           className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
                           title="Cannot delete default sources"
+
                         >
                           <PencilLine className="h-3 w-3" />
                           <span className="sr-only">Edit</span>
                         </Button>
+
                       ) : (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

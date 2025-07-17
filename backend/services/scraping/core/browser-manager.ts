@@ -14,17 +14,36 @@ puppeteer.use(StealthPlugin());
  * Combines logic from all three apps for maximum compatibility
  */
 function findChromePath(): string {
+  // First check for system Chrome (Google Chrome)
+  const systemChromePaths = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable'
+  ];
+  
+  for (const path of systemChromePaths) {
+    if (fs.existsSync(path)) {
+      log(`[BrowserManager][findChromePath] Using system Chrome: ${path}`, "scraper");
+      return path;
+    }
+  }
+  
   try {
-    // First try using which chromium
-    const chromePath = execSync('which chromium').toString().trim();
+    // Then try using which google-chrome
+    const chromePath = execSync('which google-chrome').toString().trim();
     return chromePath;
   } catch(e) {
-    // Then try to find Chrome using which command
     try {
-      const chromePath = execSync('which chrome').toString().trim();
+      // Try chromium
+      const chromePath = execSync('which chromium').toString().trim();
       return chromePath;
-    } catch (e) {
-      log("[BrowserManager][findChromePath] Using default path", "scraper");
+    } catch(e) {
+      // Then try to find Chrome using which command
+      try {
+        const chromePath = execSync('which chrome').toString().trim();
+        return chromePath;
+      } catch (e) {
+        log("[BrowserManager][findChromePath] Using default path", "scraper");
+      }
     }
   }
   
@@ -78,7 +97,17 @@ const BROWSER_ARGS = [
   '--no-default-browser-check',
   '--ignore-certificate-errors',
   '--allow-running-insecure-content',
-  '--disable-web-security'
+  '--disable-web-security',
+  // Crashpad disabling arguments
+  '--disable-crashpad',
+  '--disable-crash-reporter',
+  '--disable-breakpad',
+  '--single-process',
+  '--user-data-dir=/tmp/chrome-user-data',
+  '--disk-cache-dir=/tmp/chrome-cache',
+  '--force-crash-handler-disable',
+  '--crash-handler-disabled',
+  '--disable-crash-handler'
 ];
 
 const CHROME_PATH = findChromePath();

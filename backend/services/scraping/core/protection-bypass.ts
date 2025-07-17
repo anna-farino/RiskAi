@@ -22,12 +22,14 @@ async function getCycleTLSInstance() {
   }
 }
 
+
 export interface ProtectionInfo {
   hasProtection: boolean;
   type: 'datadome' | 'cloudflare' | 'incapsula' | 'captcha' | 'rate_limit' | 'cookie_check' | 'generic' | 'none';
   confidence: number;
   details: string;
 }
+
 
 export interface BrowserProfile {
   userAgent: string;

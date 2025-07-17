@@ -1444,6 +1444,33 @@ export default function Sources() {
                 </span>
               ) : null}
             </div>
+            <Button
+              onClick={() => {
+                if (autoScrapeStatus?.data?.running) {
+                  stopGlobalScrape.mutate();
+                } else {
+                  runGlobalScrape.mutate();
+                }
+              }}
+              disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
+              size="sm"
+              className={
+                autoScrapeStatus?.data?.running
+                  ? "bg-red-600 hover:bg-red-600/80 text-white"
+                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : autoScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              {autoScrapeStatus?.data?.running
+                ? "Stop Scan"
+                : "Scan All Sources Now"}
+            </Button>
           </CardFooter>
         </Card>
       </div>

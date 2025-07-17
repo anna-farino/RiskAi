@@ -170,6 +170,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Used Shield icon for scan button, X icon for stop, and Loader2 for loading states
 - **User benefit**: Users can now initiate scans without navigating to sources pages, improving workflow efficiency
 
+
 ### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
 - **Fixed critical DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
 - **Root cause analysis**: MarketWatch returning 401 → TLS fingerprinting fails → Puppeteer detects DataDome → Challenge solving fails → System stuck on challenge page (1378 chars) instead of actual content
@@ -319,6 +320,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Expected success rate improvement**: From 5-15% (basic) to 60-80% (enhanced implementation)
 - **Domain-agnostic approach**: Works with any DataDome-protected site, not just MarketWatch
 
+
 ### July 11, 2025 - Fixed News Capsule Database Constraint Violation
 - **Fixed critical "Send to News Capsule" button error** where database insertion failed due to null threat_name column
 - **Root cause**: News Capsule AI was only generating generic summary fields instead of required cybersecurity threat fields
@@ -417,7 +419,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **Consistent matching**: Both initial detection and OpenAI validation now use flexible matching
 - **Technical changes**:
   - `backend/apps/news-radar/services/background-jobs.ts`: Updated title keyword matching regex
-  - `backend/apps/news-radar/services/openai.ts`: Updated validation regex and prompt instructions
   - `backend/apps/threat-tracker/services/openai.ts`: Updated prompt to allow plural variations
 - **Impact**: 
   - **Resolves keyword detection failures** for plural forms of keywords

@@ -144,6 +144,7 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
       }
     }
 
+
     // Use existing link data if provided, but force fresh extraction for HTMX sites
     let articleLinkData: LinkData[];
     

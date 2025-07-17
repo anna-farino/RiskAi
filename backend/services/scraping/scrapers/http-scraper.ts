@@ -440,6 +440,7 @@ export async function quickHTTPCheck(url: string): Promise<boolean> {
 
     clearTimeout(timeoutId);
 
+
     return response.ok;
   } catch (error) {
     log(`[HTTPScraper] Quick check failed for ${url}: ${error}`, "scraper");
