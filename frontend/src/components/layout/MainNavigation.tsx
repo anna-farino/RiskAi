@@ -137,6 +137,15 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         >
           News Radar
         </NavItem>
+
+        <NavItem 
+          href="/dashboard/news/keywords" 
+          icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />} 
+          active={isActive('/dashboard/news/keywords')}
+          isChild={true}
+        >
+          Keywords
+        </NavItem>
         
         {/* News Radar children */}
         <NavItem 
@@ -145,16 +154,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           active={isActive('/dashboard/news/sources')}
           isChild={true}
         >
-          News Sources
-        </NavItem>
-        
-        <NavItem 
-          href="/dashboard/news/keywords" 
-          icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />} 
-          active={isActive('/dashboard/news/keywords')}
-          isChild={true}
-        >
-          Keywords
+          Sources
         </NavItem>
         
         {/* Threat Tracker parent */}
@@ -165,6 +165,15 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         >
           Threat Tracker
         </NavItem>
+
+        <NavItem 
+          href="/dashboard/threat/keywords" 
+          icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />} 
+          active={isActive('/dashboard/threat/keywords')}
+          isChild={true}
+        >
+          Keywords
+        </NavItem>
         
         {/* Threat Tracker children */}
         <NavItem 
@@ -174,15 +183,6 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           isChild={true}
         >
           Sources
-        </NavItem>
-        
-        <NavItem 
-          href="/dashboard/threat/keywords" 
-          icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />} 
-          active={isActive('/dashboard/threat/keywords')}
-          isChild={true}
-        >
-          Keywords
         </NavItem>
       </div>
 
@@ -294,15 +294,6 @@ export const MobileNavigation = () => {
                 
                 {/* News Radar children */}
                 <NavItem 
-                  href="/dashboard/news/sources" 
-                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
-                  active={location.pathname.includes('/dashboard/news/sources')}
-                  isChild={true}
-                >
-                  News Sources
-                </NavItem>
-                
-                <NavItem 
                   href="/dashboard/news/keywords" 
                   icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />}
                   active={location.pathname.includes('/dashboard/news/keywords')}
@@ -310,7 +301,16 @@ export const MobileNavigation = () => {
                 >
                   Keywords
                 </NavItem>
-                
+              
+                <NavItem 
+                  href="/dashboard/news/sources" 
+                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
+                  active={location.pathname.includes('/dashboard/news/sources')}
+                  isChild={true}
+                >
+                  News Sources
+                </NavItem>
+              
                 {/* Threat Tracker parent */}
                 <NavItem 
                   href="/dashboard/threat/home" 
@@ -322,15 +322,6 @@ export const MobileNavigation = () => {
                 
                 {/* Threat Tracker children */}
                 <NavItem 
-                  href="/dashboard/threat/sources" 
-                  icon={<Search size={16} className="text-[#00FFFF]/60" />}
-                  active={location.pathname.includes('/dashboard/threat/sources')}
-                  isChild={true}
-                >
-                  Sources
-                </NavItem>
-                
-                <NavItem 
                   href="/dashboard/threat/keywords" 
                   icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />}
                   active={location.pathname.includes('/dashboard/threat/keywords')}
@@ -338,7 +329,16 @@ export const MobileNavigation = () => {
                 >
                   Keywords
                 </NavItem>
-
+              
+                <NavItem 
+                  href="/dashboard/threat/sources" 
+                  icon={<Search size={16} className="text-[#00FFFF]/60" />}
+                  active={location.pathname.includes('/dashboard/threat/sources')}
+                  isChild={true}
+                >
+                  Sources
+                </NavItem>
+              
                 {/* News Capsule parent */}
                 <NavItem 
                   href="/dashboard/news-capsule/home" 

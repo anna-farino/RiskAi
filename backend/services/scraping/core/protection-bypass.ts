@@ -22,14 +22,12 @@ async function getCycleTLSInstance() {
   }
 }
 
-
 export interface ProtectionInfo {
   hasProtection: boolean;
   type: 'datadome' | 'cloudflare' | 'incapsula' | 'captcha' | 'rate_limit' | 'cookie_check' | 'generic' | 'none';
   confidence: number;
   details: string;
 }
-
 
 export interface BrowserProfile {
   userAgent: string;
@@ -157,14 +155,11 @@ export function detectBotProtection(html: string, response?: Response): Protecti
 
 /**
  * Handle DataDome protection challenges
-
  * Enhanced version with cookie handling and session management
-
  */
 export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
   try {
     log(`[ProtectionBypass] Checking for DataDome protection...`, "scraper");
-
 
     // Get current cookies before checking
     const initialCookies = await page.cookies();
@@ -172,7 +167,6 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       cookie.name.includes('datadome') || cookie.name.includes('dd')
     );
     log(`[ProtectionBypass] Initial DataDome cookies present: ${hasDataDomeCookie}`, "scraper");
-
 
     // Check if we're on a DataDome challenge page
     const isDataDomeChallenge = await page.evaluate(() => {

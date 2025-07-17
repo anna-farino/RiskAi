@@ -127,6 +127,48 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 16, 2025 - Fixed Duplicate Delete All Articles Button Issue
+- **Fixed duplicate button display**: Removed duplicate "Delete All Articles" button from News Radar home page
+- **Root cause**: Two identical buttons were rendering - one in pagination controls and one at bottom of page
+- **Solution**: Removed the standalone bottom button, keeping only the one in pagination controls for better UX
+- **User benefit**: Clean interface with single delete button that appears only when articles exist
+
+### July 16, 2025 - Successfully Removed Active Toggle from Threat Tracker Sources Interface
+- **Simplified source management**: Removed redundant active toggle, keeping only the auto-update toggle for source control
+- **Database schema update**: Removed active field from threatSources table definition in shared schema
+- **Backend query fixes**: Updated all database queries to explicitly select only valid columns, avoiding deprecated active field
+- **Frontend interface cleanup**: Removed all active toggle references from source management UI components
+- **Type consistency**: Fixed React Router error by ensuring database queries match TypeScript type definitions
+- **Status indicator update**: Changed source status display to use includeInAutoScrape instead of active field
+- **Technical implementation**:
+  - Modified `shared/db/schema/threat-tracker/index.ts` to remove active field from threatSources table
+  - Updated `backend/apps/threat-tracker/queries/threat-tracker.ts` with explicit column selection for all source queries
+  - Removed toggleSourceActive mutation and all active field references from sources.tsx
+  - Changed status indicators to use includeInAutoScrape for green/gray dot display
+- **User benefit**: Cleaner, more intuitive interface with single toggle for source management without confusing dual toggle system
+- **Enhanced default source management**: Added auto-update toggles to default sources for granular control over which sources are included in automatic scans
+- **Improved mobile UI**: Redesigned user sources layout with card-based design, moving last scanned time and actions to second row for better mobile experience
+- **Fixed mobile overflow**: Added proper width constraints and overflow handling to prevent layout breaking on mobile devices
+- **Enhanced responsive design**: Last scanned time and actions now align on same line on desktop with proper right-alignment
+- **Consistent labeling**: Added "Last Scanned:" labels to default sources timestamps for consistency with user sources
+- **Replaced toggle switches with enabled/disabled buttons**: Changed from toggle switches to buttons that display "Enabled" (RisqAi brand color #BF00FF) or "Disabled" (grey) text based on auto-update status
+- **Swapped button and status positions**: Action buttons now appear on the left side with "Last Scanned" status on the right for better visual hierarchy
+- **Stacked edit/delete buttons**: Edit and delete buttons are now positioned in the first row alongside the source name and URL, stacked vertically in the right column for improved layout organization and visual alignment
+- **Moved "Scan All Sources" button**: Relocated the "Scan All Sources Now" button from the auto-update configuration card footer to the sources listing container header for better contextual placement
+- **Extended card-based layout to News Radar**: Updated News Radar sources list to use the same card-based layout as Threat Tracker with stacked edit/delete buttons, status indicators, and responsive design while maintaining alternating background colors
+
+### July 16, 2025 - Added "Scan For New Threats" Buttons to Home Pages
+- **Enhanced user accessibility**: Added scan all sources functionality directly to News Radar and Threat Tracker home pages
+- **Consistent UI implementation**: "Scan For New Threats" buttons integrated into both applications with matching design
+- **Complete functionality**: Added scan status monitoring, start/stop mutations, and proper error handling
+- **Visual design**: Purple background with cyan hover effects matching existing RisqAi theme
+- **Loading states**: Spinner animations during scan operations, red background when active with "Stop Scan" text
+- **Code implementation**:
+  - Added `checkScrapeStatus`/`autoScrapeStatus` queries with 5-second polling intervals
+  - Implemented `scrapeAllSources`/`runGlobalScrape` and `stopScrapeJob`/`stopGlobalScrape` mutations
+  - Integrated scan buttons into home page headers with proper state management
+  - Used Shield icon for scan button, X icon for stop, and Loader2 for loading states
+- **User benefit**: Users can now initiate scans without navigating to sources pages, improving workflow efficiency
 
 ### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
 - **Fixed critical DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
@@ -276,7 +318,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - DataDome meta tags and iframe detection
 - **Expected success rate improvement**: From 5-15% (basic) to 60-80% (enhanced implementation)
 - **Domain-agnostic approach**: Works with any DataDome-protected site, not just MarketWatch
-
 
 ### July 11, 2025 - Fixed News Capsule Database Constraint Violation
 - **Fixed critical "Send to News Capsule" button error** where database insertion failed due to null threat_name column
