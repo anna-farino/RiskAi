@@ -1435,7 +1435,7 @@ export default function Sources() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex justify-between">
             <div className="text-sm text-slate-400">
               {autoScrapeStatus?.data?.running ? (
                 <span className="flex items-center text-primary">
