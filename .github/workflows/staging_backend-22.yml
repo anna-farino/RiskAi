@@ -1,4 +1,4 @@
-name: Build and deploy Node.js backend to Azure Container Instance - backend-22
+name: Build and deploy Node.js backend to Azure Container Apps - backend-22
 
 on:
   push:
@@ -10,8 +10,8 @@ env:
   REGISTRY_NAME: 'mycontainer1'
   IMAGE_NAME: 'backend-22'
   RESOURCE_GROUP: 'backend-test-group-2'
-  CONTAINER_NAME: 'backend-22-container'
-  DNS_LABEL: 'backend-22-staging-unique'
+  CONTAINER_APP_NAME: 'backend-22-app'
+  CONTAINER_APP_ENVIRONMENT: 'backend-22-env'
 
 
 jobs:
@@ -43,19 +43,9 @@ jobs:
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
       
-      - name: Deploy to Azure Container Instance
+      - name: Deploy to Azure Container Apps
         run: |
-          az container create \
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --name ${{ env.CONTAINER_NAME }} \
-            --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --os-type Linux \
-            --cpu 2 \
-            --memory 4 \
-            --registry-login-server ${{ env.REGISTRY_NAME }}.azurecr.io \
-            --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }} \
-            --dns-name-label ${{ env.DNS_LABEL }} \
-            --ports 3000 \
-            --environment-variables DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-            --restart-policy Always
+            --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
