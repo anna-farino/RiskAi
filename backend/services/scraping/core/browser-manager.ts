@@ -12,9 +12,10 @@ puppeteer.use(StealthPlugin());
 /**
  * Find Chrome executable path for Puppeteer
  * Combines logic from all three apps for maximum compatibility
+ * Now includes Render-specific paths for cross-platform support
  */
 function findChromePath(): string {
-  // First check for system Chrome (Google Chrome)
+  // First check for system Chrome (Google Chrome) - Azure Container Apps
   const systemChromePaths = [
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable'
@@ -23,6 +24,21 @@ function findChromePath(): string {
   for (const path of systemChromePaths) {
     if (fs.existsSync(path)) {
       log(`[BrowserManager][findChromePath] Using system Chrome: ${path}`, "scraper");
+      return path;
+    }
+  }
+  
+  // Check for Render's Puppeteer cache paths
+  const renderPuppeteerPaths = [
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.49/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-130.0.6723.91/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-129.0.6668.89/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-128.0.6613.84/chrome-linux64/chrome'
+  ];
+
+  for (const path of renderPuppeteerPaths) {
+    if (fs.existsSync(path)) {
+      log(`[BrowserManager][findChromePath] Using Render's Puppeteer Chrome: ${path}`, "scraper");
       return path;
     }
   }
