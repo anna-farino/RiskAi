@@ -205,8 +205,8 @@ export class BrowserManager {
         headless: true,
         args: BROWSER_ARGS,
         executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 60000, // Unified timeout from both apps
-        protocolTimeout: 180000, // Prevents "Runtime.callFunctionOn timed out"
+        timeout: 120000, // Increased for slower environments like Render
+        protocolTimeout: 300000, // Increased for resource-constrained environments
         handleSIGINT: false, // Prevent premature shutdown
         handleSIGTERM: false,
         handleSIGHUP: false
