@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY_NAME: 'mycontainer1'
-  IMAGE_NAME: 'backend-22'
-  RESOURCE_GROUP: 'backend-test-group-2'
-  CONTAINER_APP_NAME: 'backend-22-app'
-  CONTAINER_APP_ENVIRONMENT: 'backend-22-env'
+  REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+  CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
+  CONTAINER_APP_ENVIRONMENT: ${{ secrets.CONTAINER_APP_ENVIRONMENT }}
 
 
 jobs:
