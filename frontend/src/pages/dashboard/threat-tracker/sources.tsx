@@ -1113,7 +1113,7 @@ export default function Sources() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex justify-between">
           <div className="text-sm text-muted-foreground">
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
@@ -1438,7 +1438,6 @@ export default function Sources() {
                     .map((source) => (
                       <div
                         key={source.id}
-
                         className="flex flex-col gap-3 py-2 px-3 bg-background rounded-lg border w-full max-w-full"
                       >
                         <div className="flex items-center gap-3 min-w-0 w-full overflow-hidden">
@@ -1454,8 +1453,6 @@ export default function Sources() {
                               <Badge
                                 variant="secondary"
                                 className="text-xs px-1.5 py-0.5 flex-shrink-0"
-
-
                               >
                                 Default
                               </Badge>
@@ -1571,7 +1568,7 @@ export default function Sources() {
               key={source.id}
               className="flex flex-col gap-0 p-3 bg-background rounded-lg border w-full max-w-full"
             >
-              {/* First row: Name, URL, and Edit/Delete buttons */}
+{/* First row: Name, URL, and Edit/Delete buttons */}
               <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
                 <div className="flex items-start gap-3 min-w-0 w-full">
                   <div
@@ -1620,20 +1617,17 @@ export default function Sources() {
                         <span className="sr-only">Edit</span>
                       </Button>
 
-
+                      {source.isDefault ? (
                         <Button
                           variant="ghost"
                           size="sm"
-
                           disabled
                           className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
                           title="Cannot delete default sources"
-
                         >
                           <PencilLine className="h-3 w-3" />
                           <span className="sr-only">Edit</span>
                         </Button>
-
                       ) : (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -1667,7 +1661,7 @@ export default function Sources() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      )
+                      )}
                     </div>
                   </div>
                 </div>
