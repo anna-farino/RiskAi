@@ -1667,7 +1667,7 @@ export default function Sources() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      )}
+                      )
                     </div>
                   </div>
                 </div>
