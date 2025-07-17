@@ -83,8 +83,6 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
       const totalElements = document.querySelectorAll('*').length;
       const isMinimalContent = totalElements < 20; // Very few elements suggests challenge page
       const hasDataDomeChallenge = hasDataDomeScript && isMinimalContent;
-      
-
       return {
         scriptLoaded,
         htmxInWindow,

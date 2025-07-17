@@ -68,7 +68,6 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
 /**
  * Detect if a page needs dynamic content loading (HTMX, JavaScript, etc.)
  * Enhanced to reduce false positives while maintaining HTMX functionality
-
  * More conservative when substantial content already exists
  */
 export function detectDynamicContentNeeds(html: string, url: string): boolean {

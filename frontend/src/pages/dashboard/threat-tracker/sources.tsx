@@ -118,7 +118,6 @@ type AutoScrapeSettings = {
 const sourceFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   url: z.string().url("Must be a valid URL"),
-  active: z.boolean().default(true),
   includeInAutoScrape: z.boolean().default(true),
 });
 
@@ -150,7 +149,6 @@ export default function Sources() {
     defaultValues: {
       name: "",
       url: "",
-      active: true,
       includeInAutoScrape: true,
     },
   });
@@ -294,7 +292,6 @@ export default function Sources() {
         id: `temp-${Date.now()}`,
         name: newSource.name,
         url: newSource.url,
-        active: newSource.active,
         includeInAutoScrape: newSource.includeInAutoScrape,
         lastScraped: null,
         userId: "current-user",
@@ -799,7 +796,6 @@ export default function Sources() {
     form.reset({
       name: source.name,
       url: source.url,
-      active: source.active,
       includeInAutoScrape: source.includeInAutoScrape,
     });
     setSourceDialogOpen(true);
@@ -811,7 +807,6 @@ export default function Sources() {
     form.reset({
       name: "",
       url: "",
-      active: true,
       includeInAutoScrape: true,
     });
     setSourceDialogOpen(true);
@@ -1118,13 +1113,14 @@ export default function Sources() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-center">
           <div className="text-sm text-muted-foreground">
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Update is currently running...
+                Scan is currently running...
               </span>
+
             ) : (
               <span>Check for new threats</span>
             )}
@@ -1173,18 +1169,52 @@ export default function Sources() {
               be enabled/disabled.
             </CardDescription>
           </div>
-          <Button
-            onClick={handleNewSource}
-            disabled={createSource.isPending}
-            className="ml-5 mr-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-          >
-            {createSource.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" />
-            )}
-            Add Source
-          </Button>
+          
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
+                  stopScrapeJob.mutate();
+                } else {
+                  scrapeAllSources.mutate();
+                }
+              }}
+              disabled={
+                (scrapeAllSources.isPending && !stopScrapeJob.isPending) ||
+                (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
+                localSources.length === 0
+              }
+              
+              className={
+                scrapeJobRunning || checkScrapeStatus?.data?.running
+                  ? "bg-red-600 hover:bg-red-600/80 text-white"
+                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              }
+            >
+              {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
+                <X className="mr-2 h-4 w-4" />
+              ) : (
+                <PlayCircle className="mr-2 h-4 w-4" />
+              )}
+              {scrapeJobRunning || checkScrapeStatus?.data?.running
+                ? "Stop Scan"
+                : "Scan All Sources Now"}
+            </Button>
+            <Button
+              onClick={handleNewSource}
+              disabled={createSource.isPending}
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+            >
+              {createSource.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col overflow-x-scroll">
           {renderSourcesTable()}
@@ -1238,49 +1268,26 @@ export default function Sources() {
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Active</FormLabel>
-                        <FormDescription>
-                          Inactive sources won't be updated
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="includeInAutoScrape"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Auto-Update</FormLabel>
-                        <FormDescription>
-                          Include in automatic update
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="includeInAutoScrape"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Auto-Update</FormLabel>
+                      <FormDescription>
+                        Include in automatic update
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
                 <Button
@@ -1376,7 +1383,7 @@ export default function Sources() {
       );
     }
 
-    // Separate default and user sources, then sort by active status (active first)
+    // Separate default and user sources
     const defaultSources = localSources
       .filter((source) => source.isDefault)
       .sort((a, b) => {
@@ -1395,6 +1402,7 @@ export default function Sources() {
         return 0;
       });
 
+
     console.log(localSources);
     console.log(defaultSources);
 
@@ -1408,7 +1416,7 @@ export default function Sources() {
               onOpenChange={(open) => setIsDefaultSourcesCollapsed(!open)}
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
+                <button className="flex items-center gap-2 mb-2 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
                   {isDefaultSourcesCollapsed ? (
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   ) : (
@@ -1424,70 +1432,101 @@ export default function Sources() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="bg-muted/30 rounded-lg space-y-2">
+                <div className="bg-muted/30 rounded-lg space-y-2 w-full max-w-full overflow-hidden">
                   {defaultSources
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((source) => (
                       <div
                         key={source.id}
-                        className={`flex flex-col sm:flex-row gap-y-4 sm:items-center items-start justify-between py-2 px-3 bg-background rounded border transition-opacity ${!source.active ? "opacity-50" : ""}`}
+
+                        className="flex flex-col gap-3 py-2 px-3 bg-background rounded-lg border w-full max-w-full"
                       >
-                        <div className="flex w-full items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-center gap-3 min-w-0 w-full overflow-hidden">
                           <div
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${source.active ? "bg-green-500" : "bg-gray-400"}`}
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                           />
-                          <div className="flex flex-col w-full min-w-0 flex-1">
-                            <div className="flex w-full sm:w-fit justify-between items-center gap-2">
-                              <span className="font-medium text-sm truncate">
+                          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="font-medium text-sm truncate flex-1">
+
                                 {source.name}
                               </span>
                               <Badge
                                 variant="secondary"
-                                className="text-xs px-1.5 py-0.5"
+                                className="text-xs px-1.5 py-0.5 flex-shrink-0"
+
+
                               >
                                 Default
                               </Badge>
                             </div>
-                            <div className="text-xs text-muted-foreground truncate mt-0.5">
-                              {source.url}
+                            <div className="text-xs truncate mt-0.5 w-full">
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
+                              >
+                                <span className="truncate block max-w-full">
+                                  {source.url.length > 35
+                                    ? source.url.substring(0, 35) + "..."
+                                    : source.url}
+                                </span>
+                                <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                              </a>
                             </div>
                           </div>
                         </div>
-                        <div className="flex w-full sm:w-fit justify-between items-center gap-2 ">
-                          <div className="text-xs text-muted-foreground">
-                            {formatLastScraped(source.lastScraped)}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                updateSource.mutate({
+                                  id: source.id,
+                                  values: { 
+                                    name: source.name, 
+                                    url: source.url, 
+                                    includeInAutoScrape: !source.includeInAutoScrape 
+                                  }
+                                });
+                              }}
+                              disabled={updateSource.isPending}
+                              className={`h-6 px-3 text-xs ${
+                                source.includeInAutoScrape 
+                                  ? 'text-white hover:opacity-80 border-[#BF00FF]' 
+                                  : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
+                              }`}
+                              style={source.includeInAutoScrape ? { backgroundColor: '#BF00FF' } : {}}
+                            >
+                              {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => scrapeSingleSource.mutate(source.id)}
+                              disabled={
+                                scrapeSingleSource.isPending &&
+                                scrapingSourceId === source.id
+                              }
+                              className="h-6 px-2 text-xs"
+                            >
+                              {scrapeSingleSource.isPending &&
+                              scrapingSourceId === source.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                              <span className="hidden sm:inline ml-1">
+                                Scan Now
+                              </span>
+                            </Button>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => scrapeSingleSource.mutate(source.id)}
-                            disabled={
-                              scrapeSingleSource.isPending &&
-                              scrapingSourceId === source.id
-                            }
-                            className={`h-7 px-2 text-xs ${!source.active ? "hover:bg-transparent" : ""}`}
-                          >
-                            {scrapeSingleSource.isPending &&
-                            scrapingSourceId === source.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3" />
-                            )}
-                            <span className="hidden sm:inline ml-1">
-                              Scan Now
-                            </span>
-                          </Button>
-                          <Switch
-                            checked={source.active}
-                            onCheckedChange={(checked) =>
-                              toggleSourceActive.mutate({
-                                id: source.id,
-                                active: checked,
-                                source,
-                              })
-                            }
-                            disabled={toggleSourceActive.isPending}
-                          />
+                          <div className="text-xs text-muted-foreground truncate">
+                            <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                          </div>
+
                         </div>
                       </div>
                     ))}
@@ -1523,170 +1562,171 @@ export default function Sources() {
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
     return (
-      <div className="w-full">
-        <div className="w-full">
-          <Table className="table-fixed w-full">
-            {
-              <TableHeader className="flex flex-col w-[800px] min-[1148px]:w-full">
-                <TableRow className="flex flex-row w-[800px] min-[1148px]:w-full">
-                  <TableHead className="w-[25%] min-w-[120px]">Name</TableHead>
-                  <TableHead className="w-[35%] min-w-[180px]">URL</TableHead>
-                  <TableHead className="w-[15%] min-w-[100px]">
-                    Status
-                  </TableHead>
-                  <TableHead className="w-[15%] min-w-[100px]">
-                    Last Scanned
-                  </TableHead>
-                  <TableHead className="w-[10%] min-w-[80px] text-right">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-            }
-            <TableBody className="flex flex-col w-[800px] min-[1148px]:w-full">
-              {userSources
-                .filter((s) => true)
-                .map((source) => (
-                  <TableRow
-                    key={source.id}
-                    className={`flex flex-grow w-full transition-opacity ${!source.active ? "opacity-50" : ""}`}
-                  >
-                    <TableCell className="font-medium w-[25%] min-w-[120px] truncate pr-2">
+
+      <div className="w-full max-w-full overflow-hidden space-y-3">
+        {userSources
+          .filter((s) => true)
+          .map((source) => (
+            <div
+              key={source.id}
+              className="flex flex-col gap-0 p-3 bg-background rounded-lg border w-full max-w-full"
+            >
+              {/* First row: Name, URL, and Edit/Delete buttons */}
+              <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
+                <div className="flex items-start gap-3 min-w-0 w-full">
+                  <div
+                    className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
+                  />
+                  <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                    <div className="font-medium text-sm truncate w-full">
                       {source.name}
-                    </TableCell>
-                    <TableCell className="pr-2 w-[35%] min-w-[180px]">
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex w-fit items-center text-primary hover:underline truncate"
+                    </div>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
+                    >
+                      <span className="truncate block max-w-full">
+                        {source.url.length > 35
+                          ? source.url.substring(0, 35) + "..."
+                          : source.url}
+                      </span>
+                      <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                    </a>
+                  </div>
+                  
+                  {/* Right side: Auto badge and Edit/Delete buttons stacked */}
+                  <div className="flex items-start gap-2 flex-shrink-0">
+                    {source.includeInAutoScrape && (
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5"
                       >
-                        <span className="truncate w-full">
-                          {source.url.length > 30
-                            ? source.url.substring(0, 30) + "..."
-                            : source.url}
-                        </span>
-                        <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
-                      </a>
-                    </TableCell>
-                    <TableCell className="pr-2 w-[15%] min-w-[100px]">
-                      <div className="flex flex-col gap-1">
-                        {source.active ? (
-                          <Badge
-                            variant="default"
-                            className="flex items-center gap-1 bg-green-500 text-xs px-1 py-0.5 w-fit"
-                          >
-                            <Check className="h-2 w-2" />
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="flex items-center gap-1 text-muted-foreground text-xs px-1 py-0.5 w-fit"
-                          >
-                            <X className="h-2 w-2" />
-                            Inactive
-                          </Badge>
-                        )}
-                        {source.includeInAutoScrape && source.active && (
-                          <Badge
-                            variant="outline"
-                            className="flex items-center gap-1 text-xs px-1 py-0.5 w-fit"
-                          >
-                            <RotateCw className="h-2 w-2" />
-                            Auto
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs truncate pr-2 w-[15%] min-w-[100px]">
-                      {formatLastScraped(source.lastScraped)}
-                    </TableCell>
-                    <TableCell className="text-right pr-0 w-[10%] min-w-[80px]">
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => scrapeSingleSource.mutate(source.id)}
-                          disabled={
-                            !source.active ||
-                            scrapingSourceId === source.id ||
-                            scrapeJobRunning
-                          }
-                          className={`h-7 px-2 text-xs ${!source.active ? "hover:bg-transparent" : ""}`}
-                        >
-                          {scrapingSourceId === source.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-3 w-3" />
-                          )}
-                          <span className="hidden sm:inline ml-1">
-                            Scan Now
-                          </span>
-                        </Button>
+                        <RotateCw className="h-2 w-2" />
+                        Auto
+                      </Badge>
+                    )}
+                    
+                    {/* Edit/Delete buttons stacked vertically */}
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSource(source)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <PencilLine className="h-3 w-3" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+
 
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditSource(source)}
-                          className="h-7 w-7 p-0"
+
+                          disabled
+                          className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
+                          title="Cannot delete default sources"
+
                         >
                           <PencilLine className="h-3 w-3" />
                           <span className="sr-only">Edit</span>
                         </Button>
 
-                        {source.isDefault ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled
-                            className="text-muted-foreground h-7 w-7 p-0 cursor-not-allowed"
-                            title="Cannot delete default sources"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            <span className="sr-only">Delete (disabled)</span>
-                          </Button>
-                        ) : (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Are you sure?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the source "
+                                {source.name}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSource(source)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                <Trash2 className="h-3 w-3" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Are you sure?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete the source "
-                                  {source.name}". This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteSource(source)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </div>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Second row: Enable/Disable, Scan buttons, and Last Scanned */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full max-w-full">
+                {/* Left side: Enable/Disable and Scan buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      updateSource.mutate({
+                        id: source.id,
+                        values: { 
+                          name: source.name, 
+                          url: source.url, 
+                          includeInAutoScrape: !source.includeInAutoScrape 
+                        }
+                      });
+                    }}
+                    disabled={updateSource.isPending}
+                    className={`h-7 px-3 text-xs ${
+                      source.includeInAutoScrape 
+                        ? 'text-white hover:opacity-80 border-[#BF00FF]' 
+                        : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
+                    }`}
+                    style={source.includeInAutoScrape ? { backgroundColor: '#BF00FF' } : {}}
+                  >
+                    {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => scrapeSingleSource.mutate(source.id)}
+                    disabled={
+                      scrapingSourceId === source.id ||
+                      scrapeJobRunning
+                    }
+                    className="h-7 px-2 text-xs flex-shrink-0"
+                  >
+                    {scrapingSourceId === source.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                    <span className="ml-1">Scan Now</span>
+                  </Button>
+                </div>
+
+                {/* Right side: Last Scanned */}
+                <div className="text-xs text-muted-foreground truncate">
+                  <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                </div>
+              </div>
+            </div>
+          ))}
       </div>
     );
   }

@@ -8,7 +8,6 @@ export const threatSources = pgTable("threat_sources", {
   id: uuid("id").defaultRandom().primaryKey(),
   url: text("url").notNull(),
   name: text("name").notNull(),
-  active: boolean("active").notNull().default(true),
   includeInAutoScrape: boolean("includeinautoscrape").notNull().default(true),
   scrapingConfig: jsonb("scraping_config"),
   lastScraped: timestamp("last_scraped"),
