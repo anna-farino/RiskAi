@@ -7,7 +7,7 @@ export async function testDatadomeBypass(req: Request, res: Response) {
     
     const { performTLSRequest, detectBotProtection } = await import('../services/scraping/core/protection-bypass');
     
-    const testUrl = req.query.url || 'https://www.marketwatch.com/investing/stock/aapl';
+    const testUrl = req.query.url as string || 'https://www.marketwatch.com/investing/stock/aapl';
     console.log(`[TEST] Testing URL: ${testUrl}`);
     
     // First, let's do a basic fetch to see what protection we're dealing with
