@@ -7,12 +7,20 @@ export const corsOptions = {
     'https://preview-risqai-frontend.onrender.com',
     'https://preview.risqai.co',
     'https://app.risqai.co',
+    'https://kind-pebble-02817100f.6.azurestaticapps.net',
     /\.replit\.dev$/,
     /\.repl\.co$/,
     /\.spock\.replit\.dev$/
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  methods: [
+    'GET', 
+    'POST', 
+    'PUT', 
+    'DELETE', 
+    'OPTIONS', 
+    'PATCH'
+  ],
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 

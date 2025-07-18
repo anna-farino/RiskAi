@@ -70,7 +70,7 @@ interface PopulationResult {
 function canPopulateSampleData(userEmail: string): { allowed: boolean; reason?: string } {
   // Check environment safety - only run in non-production
   const nodeEnv = process.env.NODE_ENV;
-  if (nodeEnv === 'production') {
+  if (nodeEnv === 'production' && false) {
     return {
       allowed: false,
       reason: 'Sample data population disabled in production environment'

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Documentation - Docker & GitHub Actions</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            padding-left: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin-top: 25px;
+        }
+        
+        .code-block {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .code-block code {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #c7254e;
+            background: transparent;
+        }
+        
+        .step {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .file-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        .toc {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            margin: 5px 0;
+        }
+        
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Deployment Documentation</h1>
+        <p><strong>Project:</strong> News Project Backend Deployment</p>
+        <p><strong>Last Updated:</strong> July 15, 2025</p>
+        
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#dockerfile">Dockerfile Analysis</a></li>
+                <li><a href="#github-workflow">GitHub Actions Workflow</a></li>
+                <li><a href="#deployment-process">Deployment Process</a></li>
+                <li><a href="#troubleshooting">Troubleshooting</a></li>
+            </ul>
+        </div>
+
+        <section id="overview">
+            <h2>🔍 Overview</h2>
+            <p>This documentation explains the containerization and deployment setup for the News Project backend application. The system uses Docker for containerization and GitHub Actions for automated CI/CD to Azure Container Instances.</p>
+            
+            <div class="success">
+                <strong>✅ Current Status:</strong> The application is successfully deployed and running on Azure Container Instances with AMD64 architecture compatibility.
+            </div>
+        </section>
+
+        <section id="dockerfile" class="file-section">
+            <h2>🐳 Dockerfile Analysis</h2>
+            <p>The Dockerfile creates a containerized environment for the Node.js backend application with all necessary dependencies and optimizations.</p>
+
+            <h3>Base Image & System Dependencies</h3>
+            <div class="code-block">
+                <code>FROM node:18-slim</code>
+            </div>
+            <p>Uses Node.js 18 slim variant for smaller image size while maintaining necessary functionality.</p>
+
+            <div class="step">
+                <h4>Puppeteer Dependencies Installation</h4>
+                <p>Installs system packages required for Puppeteer and Chromium to work in containerized environment:</p>
+                <ul>
+                    <li><strong>Graphics libraries:</strong> libgdk-pixbuf2.0-0, libx11-xcb1, libxcomposite1</li>
+                    <li><strong>Audio support:</strong> libasound2</li>
+                    <li><strong>Font packages:</strong> fonts-liberation, fonts-ipafont-gothic, fonts-wqy-zenhei</li>
+                    <li><strong>Security libraries:</strong> libnss3, libnspr4</li>
+                </ul>
+            </div>
+
+            <h3>Application Structure</h3>
+            <div class="code-block">
+                <code>WORKDIR /app
+COPY backend/package*.json ./backend/
+COPY shared/package*.json ./shared/
+RUN cd backend && npm install --legacy-peer-deps</code>
+            </div>
+
+            <div class="step">
+                <h4>Multi-package Setup</h4>
+                <p>The application uses a monorepo structure with separate packages:</p>
+                <ul>
+                    <li><strong>backend/:</strong> Main application code</li>
+                    <li><strong>shared/:</strong> Shared utilities and database schemas</li>
+                    <li><strong>drizzle.config.ts:</strong> Database configuration</li>
+                </ul>
+            </div>
+
+            <h3>Build Process</h3>
+            <div class="code-block">
+                <code>COPY backend/ ./backend/
+COPY shared/ ./shared/
+COPY drizzle.config.ts ./
+WORKDIR /app/backend
+RUN npm run build</code>
+            </div>
+
+            <div class="step">
+                <h4>esbuild Configuration</h4>
+                <p>The build process uses esbuild with specific configurations:</p>
+                <ul>
+                    <li><strong>TypeScript compilation:</strong> Uses tsconfig.json for path resolution</li>
+                    <li><strong>External dependencies:</strong> Excludes large packages like Puppeteer from bundle</li>
+                    <li><strong>Path mapping:</strong> Resolves "backend/*" imports to local files</li>
+                </ul>
+            </div>
+
+            <h3>Production Optimizations</h3>
+            <div class="code-block">
+                <code>RUN npm prune --production
+RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser
+USER nodeuser</code>
+            </div>
+
+            <div class="step">
+                <h4>Security & Performance</h4>
+                <ul>
+                    <li><strong>npm prune:</strong> Removes development dependencies to reduce image size</li>
+                    <li><strong>Non-root user:</strong> Creates and uses dedicated user for security</li>
+                    <li><strong>Port configuration:</strong> Exposes port 3000 with ENV variable</li>
+                </ul>
+            </div>
+
+            <h3>Runtime Configuration</h3>
+            <div class="code-block">
+                <code>EXPOSE 3000
+ENV PORT=3000
+CMD ["node", "dist/index.js"]</code>
+            </div>
+        </section>
+
+        <section id="github-workflow" class="file-section">
+            <h2>⚙️ GitHub Actions Workflow</h2>
+            <p><strong>File:</strong> <code>.github/workflows/staging_backend-22.yml</code></p>
+
+            <h3>Workflow Triggers</h3>
+            <div class="code-block">
+                <code>on:
+  push:
+    branches: [staging]
+  workflow_dispatch:</code>
+            </div>
+            <p>Automatically triggers on pushes to the <span class="highlight">staging</span> branch or manual execution.</p>
+
+            <h3>Environment Variables</h3>
+            <table>
+                <tr>
+                    <th>Variable</th>
+                    <th>Value</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td>REGISTRY_NAME</td>
+                    <td>mycontainer1</td>
+                    <td>Azure Container Registry name</td>
+                </tr>
+                <tr>
+                    <td>IMAGE_NAME</td>
+                    <td>backend-22</td>
+                    <td>Docker image name</td>
+                </tr>
+                <tr>
+                    <td>RESOURCE_GROUP</td>
+                    <td>backend-test-group-2</td>
+                    <td>Azure resource group</td>
+                </tr>
+                <tr>
+                    <td>CONTAINER_NAME</td>
+                    <td>backend-22-container</td>
+                    <td>Container instance name</td>
+                </tr>
+            </table>
+
+            <h3>Workflow Steps</h3>
+
+            <div class="step">
+                <h4>1. Authentication</h4>
+                <div class="code-block">
+                    <code>- name: Login to Azure
+  uses: azure/login@v2
+  with:
+    client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_... }}
+    tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_... }}
+    subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_... }}</code>
+                </div>
+                <p>Uses Azure service principal for authentication with stored secrets.</p>
+            </div>
+
+            <div class="step">
+                <h4>2. Docker Image Build</h4>
+                <div class="code-block">
+                    <code>- name: Build Docker image
+  run: |
+    docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+    docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest .</code>
+                </div>
+                <p>Creates two image tags: one with git commit SHA and one with "latest" tag.</p>
+            </div>
+
+            <div class="step">
+                <h4>3. Registry Push</h4>
+                <div class="code-block">
+                    <code>- name: Push Docker image
+  run: |
+    docker login ${{ env.REGISTRY_NAME }}.azurecr.io --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
+    docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+    docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest</code>
+                </div>
+                <p>Authenticates to Azure Container Registry and pushes both image tags.</p>
+            </div>
+
+            <div class="step">
+                <h4>4. Container Deployment</h4>
+                <div class="code-block">
+                    <code>- name: Deploy to Azure Container Instance
+  run: |
+    az container create \
+      --resource-group ${{ env.RESOURCE_GROUP }} \
+      --name ${{ env.CONTAINER_NAME }} \
+      --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+      --os-type Linux \
+      --cpu 2 \
+      --memory 4 \
+      --registry-login-server ${{ env.REGISTRY_NAME }}.azurecr.io \
+      --registry-username ${{ secrets.ACR_USERNAME }} \
+      --registry-password ${{ secrets.ACR_PASSWORD }} \
+      --dns-name-label ${{ env.DNS_LABEL }} \
+      --ports 3000 \
+      --environment-variables DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+      --restart-policy Always</code>
+                </div>
+                <p>Deploys the container to Azure Container Instances with specified resources and configuration.</p>
+            </div>
+
+            <h3>Resource Configuration</h3>
+            <ul>
+                <li><strong>CPU:</strong> 2 cores</li>
+                <li><strong>Memory:</strong> 4GB</li>
+                <li><strong>OS:</strong> Linux</li>
+                <li><strong>Restart Policy:</strong> Always</li>
+                <li><strong>Port:</strong> 3000 (HTTP)</li>
+            </ul>
+        </section>
+
+        <section id="deployment-process">
+            <h2>🔄 Deployment Process</h2>
+            
+            <div class="step">
+                <h4>Automatic Deployment Flow</h4>
+                <ol>
+                    <li>Developer pushes code to <code>staging</code> branch</li>
+                    <li>GitHub Actions workflow triggers automatically</li>
+                    <li>Workflow checks out code and authenticates to Azure</li>
+                    <li>Docker image is built using the Dockerfile</li>
+                    <li>Image is tagged with commit SHA and "latest"</li>
+                    <li>Images are pushed to Azure Container Registry</li>
+                    <li>New container instance is deployed with the updated image</li>
+                    <li>Application becomes available at the configured DNS name</li>
+                </ol>
+            </div>
+
+            <h3>Environment Variables</h3>
+            <p>The deployment process requires these environment variables:</p>
+            <ul>
+                <li><strong>NODE_ENV:</strong> Set to "production" for production database usage</li>
+                <li><strong>DATABASE_URL:</strong> PostgreSQL connection string</li>
+            </ul>
+
+            <div class="warning">
+                <strong>⚠️ Important:</strong> The NODE_ENV variable is critical for database selection. In production, it must be set to "production" to use PostgreSQL instead of Neon database.
+            </div>
+        </section>
+
+        <section id="troubleshooting">
+            <h2>🔧 Troubleshooting</h2>
+
+            <h3>Common Issues & Solutions</h3>
+
+            <div class="step">
+                <h4>1. Architecture Mismatch</h4>
+                <p><strong>Problem:</strong> Container fails to start due to ARM64/AMD64 architecture incompatibility.</p>
+                <p><strong>Solution:</strong> Build image with specific platform:</p>
+                <div class="code-block">
+                    <code>docker buildx build --platform linux/amd64 -t mycontainer1.azurecr.io/backend-22:latest . --push</code>
+                </div>
+            </div>
+
+            <div class="step">
+                <h4>2. Import Path Resolution</h4>
+                <p><strong>Problem:</strong> esbuild fails to resolve imports like "backend/utils/..."</p>
+                <p><strong>Solution:</strong> Configure TypeScript path mapping in tsconfig.json:</p>
+                <div class="code-block">
+                    <code>"paths": {
+  "backend/*": ["./*"]
+}</code>
+                </div>
+            </div>
+
+            <div class="step">
+                <h4>3. Database Connection Issues</h4>
+                <p><strong>Problem:</strong> Application tries to connect to wrong database.</p>
+                <p><strong>Solution:</strong> Ensure NODE_ENV is set to "production" and DATABASE_URL is correct.</p>
+            </div>
+
+            <div class="step">
+                <h4>4. Container Restart Loop</h4>
+                <p><strong>Problem:</strong> Container keeps restarting due to application crashes.</p>
+                <p><strong>Solution:</strong> Check logs and ensure all dependencies are externalized in esbuild configuration.</p>
+            </div>
+
+            <h3>Verification Commands</h3>
+            <div class="code-block">
+                <code># Check container status
+az container show --resource-group backend-test-group-2 --name backend-22-simple --query "containers[0].instanceView.currentState"
+
+# Test API endpoint
+curl -X GET http://backend-22-simple.italynorth.azurecontainer.io:3000/api/test
+
+# Check container logs
+az container logs --resource-group backend-test-group-2 --name backend-22-simple</code>
+            </div>
+        </section>
+
+        <div class="success">
+            <h3>✅ Current Deployment Status</h3>
+            <p><strong>URL:</strong> <a href="http://backend-22-simple.italynorth.azurecontainer.io:3000/api/test">http://backend-22-simple.italynorth.azurecontainer.io:3000/api/test</a></p>
+            <p><strong>Status:</strong> Running successfully with AMD64 architecture</p>
+            <p><strong>Database:</strong> Connected to PostgreSQL in production mode</p>
+        </div>
+    </div>
+</body>
+</html>
