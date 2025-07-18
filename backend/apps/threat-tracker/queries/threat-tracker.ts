@@ -97,7 +97,16 @@ export const storage: IStorage = {
       console.log("[🔎 SOURCES] userId", userId);
 
       const query = db
-        .select()
+        .select({
+          id: threatSources.id,
+          url: threatSources.url,
+          name: threatSources.name,
+          includeInAutoScrape: threatSources.includeInAutoScrape,
+          scrapingConfig: threatSources.scrapingConfig,
+          lastScraped: threatSources.lastScraped,
+          userId: threatSources.userId,
+          isDefault: threatSources.isDefault,
+        })
         .from(threatSources)
         .where(eq(threatSources.userId, userId));
 
@@ -113,7 +122,16 @@ export const storage: IStorage = {
       console.log("[🔎 DEFAULT SOURCES] userId", userId);
 
       const query = db
-        .select()
+        .select({
+          id: threatSources.id,
+          url: threatSources.url,
+          name: threatSources.name,
+          includeInAutoScrape: threatSources.includeInAutoScrape,
+          scrapingConfig: threatSources.scrapingConfig,
+          lastScraped: threatSources.lastScraped,
+          userId: threatSources.userId,
+          isDefault: threatSources.isDefault,
+        })
         .from(threatSources)
         .where(eq(threatSources.isDefault, true));
 
@@ -127,7 +145,16 @@ export const storage: IStorage = {
   getSource: async (id: string) => {
     try {
       const results = await db
-        .select()
+        .select({
+          id: threatSources.id,
+          url: threatSources.url,
+          name: threatSources.name,
+          includeInAutoScrape: threatSources.includeInAutoScrape,
+          scrapingConfig: threatSources.scrapingConfig,
+          lastScraped: threatSources.lastScraped,
+          userId: threatSources.userId,
+          isDefault: threatSources.isDefault,
+        })
         .from(threatSources)
         .where(eq(threatSources.id, id))
         .execute();
@@ -142,14 +169,21 @@ export const storage: IStorage = {
     try {
       // Get default sources (available to all users when they scrape)
       const defaultSources = await db
-
-        .select()
+        .select({
+          id: threatSources.id,
+          url: threatSources.url,
+          name: threatSources.name,
+          includeInAutoScrape: threatSources.includeInAutoScrape,
+          scrapingConfig: threatSources.scrapingConfig,
+          lastScraped: threatSources.lastScraped,
+          userId: threatSources.userId,
+          isDefault: threatSources.isDefault,
+        })
         .from(threatSources)
         .where(
           and(
             eq(threatSources.isDefault, true),
             isNull(threatSources.userId),
-            eq(threatSources.active, true),
             eq(threatSources.includeInAutoScrape, true),
           ),
         )
@@ -158,12 +192,20 @@ export const storage: IStorage = {
       let userSources: ThreatSource[] = [];
       if (userId) {
         userSources = await db
-          .select()
+          .select({
+            id: threatSources.id,
+            url: threatSources.url,
+            name: threatSources.name,
+            includeInAutoScrape: threatSources.includeInAutoScrape,
+            scrapingConfig: threatSources.scrapingConfig,
+            lastScraped: threatSources.lastScraped,
+            userId: threatSources.userId,
+            isDefault: threatSources.isDefault,
+          })
           .from(threatSources)
           .where(
             and(
               eq(threatSources.userId, userId),
-              eq(threatSources.active, true),
               eq(threatSources.includeInAutoScrape, true),
             ),
           )
@@ -181,7 +223,6 @@ export const storage: IStorage = {
   createSource: async (source: {
     url: string;
     name: string;
-    active?: boolean;
     includeInAutoScrape?: boolean;
     scrapingConfig?: any;
     lastScraped?: Date;
@@ -222,7 +263,16 @@ export const storage: IStorage = {
     try {
       // First check if this is a default source
       const source = await db
-        .select()
+        .select({
+          id: threatSources.id,
+          url: threatSources.url,
+          name: threatSources.name,
+          includeInAutoScrape: threatSources.includeInAutoScrape,
+          scrapingConfig: threatSources.scrapingConfig,
+          lastScraped: threatSources.lastScraped,
+          userId: threatSources.userId,
+          isDefault: threatSources.isDefault,
+        })
         .from(threatSources)
         .where(eq(threatSources.id, id))
         .execute();
@@ -532,8 +582,11 @@ export const storage: IStorage = {
         (query as any) = query.where(and(...conditions));
       }
 
-      // Default ordering by publish date (most recent first), then by scrape date for tie-breaking
-      const orderedQuery = query.orderBy(desc(threatArticles.publishDate), desc(threatArticles.scrapeDate));
+      // Default ordering: use publish date if available, otherwise use scrape date, then scrape date for tie-breaking
+      const orderedQuery = query.orderBy(
+        desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
+        desc(threatArticles.scrapeDate)
+      );
 
       // Add limit if specified
       const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;

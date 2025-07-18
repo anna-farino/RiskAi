@@ -11,7 +11,6 @@ import { newsRouter } from '../apps/news-radar/router';
 import { rateLimit } from 'express-rate-limit'
 import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
-import { testArticles } from 'backend/handlers/tests/aaa-test-articles'; // to test RLS
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
 //import { auth, requiresAuth } from 'express-openid-connect';
@@ -27,6 +26,7 @@ const config = {
   issuerBaseURL: 'https://dev-t5wd7j8putzpb6ev.us.auth0.com',
   secret: 'LONG_RANDOM_STRING'
 };
+import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
@@ -41,12 +41,17 @@ router.get('/auth0test',
 //router.get('/test', limiter, handleTest)
 //router.get('/test-articles', testArticles)
 
+router.get('/test-datadome-bypass', testDatadomeBypass)
+
+// TESTING RLS MIDDLEWARE
+//router.use(withDbContext)
+
 // AUTH
 router.use('/auth', limiter, authRouter)
 
 // PROTECTIONS
 router.use(auth0CheckJwt)
-router.use(doubleCsrfProtection)
+//router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 //router.use(verifyToken)
 //router.use(auth0)
@@ -67,7 +72,11 @@ router.delete('/secrets', deleteSecrets)
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
 // Sample Data Population API endpoints
-router.get('/sample-data/status', verifyToken, doubleCsrfProtection, noSimpleRequests, handleCheckSampleDataStatus)
-router.post('/sample-data/populate', verifyToken, doubleCsrfProtection, noSimpleRequests, handlePopulateSampleData)
+router.get('/sample-data/status', verifyToken, 
+  //doubleCsrfProtection, 
+  noSimpleRequests, handleCheckSampleDataStatus)
+router.post('/sample-data/populate', verifyToken, 
+  //doubleCsrfProtection, 
+noSimpleRequests, handlePopulateSampleData)
 
 export default router;

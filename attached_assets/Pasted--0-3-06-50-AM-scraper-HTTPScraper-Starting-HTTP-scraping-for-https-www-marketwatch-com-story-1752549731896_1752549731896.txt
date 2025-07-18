@@ -1,0 +1,56 @@
+[0] 3:06:50 AM [scraper] [HTTPScraper] Starting HTTP scraping for: https://www.marketwatch.com/story/robinhood-misses-out-on-the-s-p-500-yet-again-with-trade-desk-to-soon-join-the-index-68cc60ec?mod=home_ln
+[0] 3:06:50 AM [scraper] [HTTPScraper] Attempt 1/2
+[0] 3:06:50 AM [scraper] [HTTPScraper] Response received: 401 HTTP Forbidden
+[0] 3:06:50 AM [scraper] [HTTPScraper] Updated cookie jar with new cookies
+[0] 3:06:50 AM [scraper] [HTTPScraper] DataDome 401 detected, attempting TLS fingerprinting
+[0] 3:06:50 AM [scraper] [HTTPScraper] Attempting TLS fingerprinted request
+[0] 3:06:50 AM [scraper] [ProtectionBypass] Performing TLS 1.3 fingerprinted request to: https://www.marketwatch.com/story/robinhood-misses-out-on-the-s-p-500-yet-again-with-trade-desk-to-soon-join-the-index-68cc60ec?mod=home_ln
+[0] 3:06:50 AM [scraper] [ProtectionBypass] TLS 1.3 request failed with status: 0
+[0] 3:06:50 AM [scraper] [ProtectionBypass] Attempting TLS 1.2 fallback...
+[0] 3:06:50 AM [scraper] [HTTPScraper] TLS fingerprinting failed, requires Puppeteer
+[0] 3:06:50 AM [scraper] [SimpleScraper] HTTP insufficient (success: false, length: 0), using Puppeteer fallback
+[0] 3:06:50 AM [scraper] [PuppeteerScraper] Starting enhanced Puppeteer scraping for: https://www.marketwatch.com/story/robinhood-misses-out-on-the-s-p-500-yet-again-with-trade-desk-to-soon-join-the-index-68cc60ec?mod=home_ln
+[0] 3:06:50 AM [scraper] [PuppeteerScraper] Using desktop browser profile
+[0] 3:06:50 AM [scraper] [PageSetup][setupPage] Setting up new page
+[0] 3:06:51 AM [scraper] [BrowserManager][getBrowser] Browser launched successfully
+[0] 3:06:51 AM [scraper] [BrowserManager][createPage] Created new page
+[0] 3:06:51 AM [scraper] [PageSetup][setupPage] Set viewport: 1920x1080
+[0] 3:06:51 AM [scraper] [PageSetup][setupPage] Set user agent
+[0] 3:06:51 AM [scraper] [PageSetup][configureHeaders] Set 13 headers
+[0] 3:06:51 AM [scraper] [PageSetup][setTimeouts] Set navigation: 60000ms, default: 60000ms
+[0] 3:06:51 AM [scraper] [PageSetup][applyStealthMode] Applied stealth configurations
+[0] 3:06:51 AM [scraper] [PageSetup][setupPage] Page setup completed
+[0] 3:06:51 AM [scraper] [ProtectionBypass] Applying enhanced fingerprinting for desktop
+[0] 3:06:51 AM [scraper] [ProtectionBypass] Enhanced fingerprinting applied successfully
+[0] 3:06:51 AM [scraper] [PuppeteerScraper] Page setup completed, navigating to URL
+[0] 3:06:51 AM [scraper] [ProtectionBypass] Behavioral delay: 2156ms
+[0] [46c05] GET /scrape/status
+[0] 3:06:56 AM [scraper] [PuppeteerScraper] Navigation completed. Status: 401
+[0] 3:06:56 AM [scraper] [PuppeteerScraper] Warning: Response status is not OK: 401
+[0] 3:06:56 AM [scraper] [ProtectionBypass] Behavioral delay: 2795ms
+[0] 3:06:58 AM [scraper] [PuppeteerScraper] DataDome challenge detected, attempting enhanced bypass
+[0] 3:06:58 AM [scraper] [ProtectionBypass] Attempting to bypass datadome protection
+[0] 3:06:58 AM [scraper] [ProtectionBypass] Checking for DataDome protection...
+[0] 3:06:58 AM [scraper] [ProtectionBypass] DataDome challenge detected, actively solving...
+[0] 3:06:58 AM [scraper] [ProtectionBypass] Performing human-like actions during DataDome challenge
+[0] 3:06:58 AM [scraper] [ProtectionBypass] Performing enhanced human-like actions
+[0] 3:06:58 AM [scraper] [ProtectionBypass] Ghost cursor error: element.remoteObject is not a function, falling back to native mouse simulation
+[0] 3:06:58 AM [scraper] [ProtectionBypass] Behavioral delay: 667ms
+[0] 3:06:59 AM [scraper] [ProtectionBypass] Behavioral delay: 867ms
+[0] 3:07:00 AM [scraper] [ProtectionBypass] Behavioral delay: 1087ms
+[0] 3:07:01 AM [scraper] [ProtectionBypass] Enhanced human-like actions completed
+[0] [903fa] GET /scrape/status
+[0] 3:07:04 AM [scraper] [ProtectionBypass] Challenge solving attempt 1/3
+[0] 3:07:04 AM [scraper] [ProtectionBypass] Waiting for DataDome script initialization...
+[0] [e7b5b] GET /scrape/status
+[0] 3:07:08 AM [scheduler] [ThreatTracker] Running scheduler health check
+[0] 3:07:09 AM [scraper] [ProtectionBypass] Challenge still active (372 chars, 0 links, URL: https://www.marketwatch.com/story/robinhood-misses-out-on-the-s-p-500-yet-again-with-trade-desk-to-soon-join-the-index-68cc60ec?mod=home_ln)
+[0] 3:07:09 AM [scraper] [ProtectionBypass] Challenge solving attempt 2/3
+[0] 3:07:09 AM [scraper] [ProtectionBypass] Performing DataDome-specific challenge interactions...
+[0] 3:07:09 AM [scraper] [ProtectionBypass] Performing enhanced human-like actions
+[0] 3:07:09 AM [scraper] [ProtectionBypass] Ghost cursor error: element.remoteObject is not a function, falling back to native mouse simulation
+[0] 3:07:09 AM [scraper] [ProtectionBypass] Behavioral delay: 721ms
+[0] 3:07:10 AM [scraper] [ProtectionBypass] Behavioral delay: 580ms
+[0] 3:07:10 AM [scraper] [ProtectionBypass] Behavioral delay: 1296ms
+[0] 3:07:12 AM [scraper] [ProtectionBypass] Enhanced human-like actions completed
+[0] 3:07:14 AM [scraper] [ProtectionBypass] Challenge still active (372 chars...

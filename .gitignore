@@ -15,4 +15,6 @@ backend/.env.local
 .opencode/*
 backend_security_report.md
 .cache/
+attached_assets/
+test/
 
