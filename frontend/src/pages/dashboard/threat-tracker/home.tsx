@@ -44,9 +44,11 @@ import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
+import { useFetch } from "@/hooks/use-fetch";
 
 export default function ThreatHome() {
   const { toast } = useToast();
+  const fetchWithTokens = useFetch();
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -80,15 +82,8 @@ export default function ThreatHome() {
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/status`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/scrape/status`
         );
         if (!response.ok) {
           console.warn(
@@ -116,15 +111,8 @@ export default function ThreatHome() {
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/keywords`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/keywords`
         );
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
@@ -175,17 +163,11 @@ export default function ThreatHome() {
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
 
-        console.log("Fetching articles with URL:", url);
+        console.log("Fetching articles with URL:", serverUrl + url);
 
-        const response = await fetch(url, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
-        });
+        const response = await fetchWithTokens(url);
 
         if (!response.ok) throw new Error("Failed to fetch articles");
         const data = await response.json();
@@ -414,17 +396,15 @@ export default function ThreatHome() {
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
-      const response = await fetch(
-        `${serverUrl}/api/news-capsule/process-url`,
+      const response = await fetchWithTokens(
+        `/api/news-capsule/process-url`,
         {
           method: "POST",
-          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject(),
           },
           body: JSON.stringify({ url }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -482,17 +462,12 @@ export default function ThreatHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/stop`,
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/scrape/stop`,
           {
             method: "POST",
-            headers: {
-              ...csfrHeaderObject(),
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
             signal: controller.signal,
-          },
+          }
         );
 
         clearTimeout(timeoutId);

@@ -12,7 +12,7 @@ export default function Auth0ProviderWithNavigate({ children }: Props) {
   const redirectUri = (import.meta as any).env.VITE_AUTH0_CALLBACK_URL;
 
   const onRedirectCallback = (appState: AppState | undefined) => {
-    navigate('')
+    navigate('dashboard')
     //navigate(appState?.returnTo || window.location.origin);
   };
 
@@ -27,6 +27,7 @@ export default function Auth0ProviderWithNavigate({ children }: Props) {
       authorizationParams={{
         redirect_uri: redirectUri,
       }}
+      cacheLocation="localstorage"
       onRedirectCallback={onRedirectCallback}
     >
       {children}

@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
+import { useFetch } from "@/hooks/use-fetch";
 import { ThreatSource } from "@shared/db/schema/threat-tracker";
 import {
   Table,
@@ -125,6 +126,7 @@ type SourceFormValues = z.infer<typeof sourceFormSchema>;
 
 export default function Sources() {
   const { toast } = useToast();
+  const fetchWithTokens = useFetch();
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<ThreatSource | null>(null);
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
@@ -158,15 +160,8 @@ export default function Sources() {
     queryKey: [`${serverUrl}/api/threat-tracker/sources`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/sources`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/sources`
         );
         if (!response.ok) throw new Error("Failed to fetch sources");
 
@@ -191,15 +186,8 @@ export default function Sources() {
     queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/settings/auto-scrape`
         );
         if (!response.ok)
           throw new Error("Failed to fetch auto-update settings");
@@ -234,15 +222,8 @@ export default function Sources() {
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/status`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/scrape/status`
         );
         if (!response.ok) {
           console.warn(
@@ -546,17 +527,12 @@ export default function Sources() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/stop`,
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/scrape/stop`,
           {
             method: "POST",
-            headers: {
-              ...csfrHeaderObject(),
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
             signal: controller.signal,
-          },
+          }
         );
 
         clearTimeout(timeoutId);

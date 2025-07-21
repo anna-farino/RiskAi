@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
+import { useFetch } from "@/hooks/use-fetch";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { ThreatKeyword } from "@shared/db/schema/threat-tracker";
@@ -103,6 +104,7 @@ const bulkKeywordFormSchema = z.object({
 type BulkKeywordFormValues = z.infer<typeof bulkKeywordFormSchema>;
 
 export default function Keywords() {
+  const fetchWithTokens = useFetch();
   const { toast } = useToast();
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [bulkKeywordDialogOpen, setBulkKeywordDialogOpen] = useState(false);
@@ -145,14 +147,10 @@ export default function Keywords() {
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/keywords`,
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/keywords`,
           {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
           },
         );
         if (!response.ok) throw new Error("Failed to fetch keywords");
@@ -475,10 +473,8 @@ export default function Keywords() {
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords/${id}`, {
-          method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
+        const response = await fetchWithTokens(`/api/threat-tracker/keywords/${id}`, {
+          method: "DELETE"
         });
         
         if (!response.ok) {

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
+import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import type { Article, Keyword } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
@@ -41,6 +42,7 @@ import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 
 export default function NewsHome() {
+  const fetchWithTokens = useFetch();
   const { toast } = useToast();
   
   // Filter state
@@ -70,12 +72,10 @@ export default function NewsHome() {
     queryKey: ["/api/news-tracker/jobs/status"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/status`,
+        const response = await fetchWithTokens(
+          `/api/news-tracker/jobs/status`,
           {
             method: "GET",
-            credentials: "include",
-            headers: csfrHeaderObject(),
           },
         );
         if (!response.ok) {
@@ -103,12 +103,8 @@ export default function NewsHome() {
     queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
+        const response = await fetchWithTokens(`/api/news-tracker/keywords`, {
           method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
         });
         if (!response.ok) throw new Error('Failed to fetch keywords');
         const data = await response.json();
@@ -163,12 +159,8 @@ export default function NewsHome() {
           ...dateRange
         });
         
-        const response = await fetch(url, {
+        const response = await fetchWithTokens(url.replace(serverUrl, ''), {
           method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
         });
         
         if (!response.ok) throw new Error('Failed to fetch articles');
@@ -321,10 +313,8 @@ export default function NewsHome() {
     mutationFn: async (id: string) => {
       try {
         // Use fetch directly to handle empty responses properly
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles/${id}`, {
-          method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
+        const response = await fetchWithTokens(`/api/news-tracker/articles/${id}`, {
+          method: "DELETE"
         });
         
         if (!response.ok) {
@@ -398,10 +388,8 @@ export default function NewsHome() {
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
-          method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
+        const response = await fetchWithTokens(`/api/news-tracker/articles`, {
+          method: "DELETE"
         });
         
         if (!response.ok) {
@@ -470,12 +458,10 @@ export default function NewsHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
 
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/scrape`,
+        const response = await fetchWithTokens(
+          `/api/news-tracker/jobs/scrape`,
           {
             method: "POST",
-            headers: csfrHeaderObject(),
-            credentials: "include",
             signal: controller.signal,
           },
         );
@@ -529,15 +515,13 @@ export default function NewsHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/stop`,
+        const response = await fetchWithTokens(
+          `/api/news-tracker/jobs/stop`,
           {
             method: "POST",
             headers: {
-              ...csfrHeaderObject(),
               "Content-Type": "application/json",
             },
-            credentials: "include",
             signal: controller.signal,
           },
         );
@@ -614,12 +598,10 @@ export default function NewsHome() {
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
-      const response = await fetch(`${serverUrl}/api/news-capsule/process-url`, {
+      const response = await fetchWithTokens(`/api/news-capsule/process-url`, {
         method: "POST",
-        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
-          ...csfrHeaderObject(),
         },
         body: JSON.stringify({ url }),
       });

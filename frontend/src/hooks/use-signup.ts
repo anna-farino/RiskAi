@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
+import { useFetch } from "@/hooks/use-fetch";
 
 type SignupData = {
   email: string;
@@ -9,6 +10,7 @@ type SignupData = {
 }
 
 export function useSignup() {
+  const fetchWithTokens = useFetch();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -17,7 +19,7 @@ export function useSignup() {
       try {
         console.log('Sending signup request:', { email: data.email }); // Log request (excluding password)
 
-        const response = await fetch(serverUrl + '/api/auth/signup', {
+        const response = await fetchWithTokens('/api/auth/signup', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -26,7 +28,6 @@ export function useSignup() {
             ...data,
             name: data.email.split('@')[0], // Use email username as name temporarily
           }),
-          credentials: 'include',
         });
 
         const responseData = await response.json();

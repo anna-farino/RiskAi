@@ -13,28 +13,22 @@ import { rateLimitConfig } from 'backend/utils/rate-limit-config';
 import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'backend/handlers/secrets';
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
-//import { auth, requiresAuth } from 'express-openid-connect';
 import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
-import sendGrid from 'backend/utils/sendGrid';
 import { auth0CheckJwt } from 'backend/middleware/auth0';
-
-const config = {
-  authRequired: false,
-  auth0Logout: true,
-  baseURL: 'http://localhost:3000',
-  clientID: 'e0fDdUxBsIoxw2KHFeXPWkOoHY1B9Arz',
-  issuerBaseURL: 'https://dev-t5wd7j8putzpb6ev.us.auth0.com',
-  secret: 'LONG_RANDOM_STRING'
-};
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
+import { auth0middleware } from 'backend/middleware/auth0middleware';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 //router.use(auth(config));
 router.get('/auth0test', 
   auth0CheckJwt, 
+  auth0middleware,
   (req, res) => {
-  res.json({ loggedIn: true })
+  res.json({ 
+      loggedIn: true,
+      sub: req.auth
+  })
 })
 
 // HELLO WORLD route
@@ -54,7 +48,7 @@ router.use(auth0CheckJwt)
 //router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 //router.use(verifyToken)
-//router.use(auth0)
+router.use(auth0middleware)
 
 // PROTECTED ROUTES
 router.use('/users', usersRouter)
@@ -72,10 +66,13 @@ router.delete('/secrets', deleteSecrets)
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
 // Sample Data Population API endpoints
-router.get('/sample-data/status', verifyToken, 
+router.get('/sample-data/status', 
+  //verifyToken, 
   //doubleCsrfProtection, 
   noSimpleRequests, handleCheckSampleDataStatus)
-router.post('/sample-data/populate', verifyToken, 
+
+router.post('/sample-data/populate', 
+  //verifyToken, 
   //doubleCsrfProtection, 
 noSimpleRequests, handlePopulateSampleData)
 
