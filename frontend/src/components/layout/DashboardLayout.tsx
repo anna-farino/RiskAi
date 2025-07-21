@@ -1,9 +1,23 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { RisqHeader } from './RisqHeader';
 import { MainNavigation } from './MainNavigation';
+import { useAuth0 } from '@auth0/auth0-react';
 
 export default function DashboardLayout() {
+  const { isAuthenticated, isLoading } = useAuth0()
+  const navigate = useNavigate()
+
+  useEffect(()=>{
+    if (!isLoading && !isAuthenticated) {
+      navigate('/auth/login')
+    }
+  },[isLoading, isAuthenticated, navigate])
+
+
+  if (isLoading || !isAuthenticated) return null
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black to-gray-900">
       <RisqHeader />

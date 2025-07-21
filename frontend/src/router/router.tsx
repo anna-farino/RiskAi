@@ -35,10 +35,10 @@ export const router = createBrowserRouter([
         hydrateFallbackElement: <LoadingScreen />,
         children: dashboardChildren 
       },
+      {
+        path: '*',
+        element: <Redirect/>
+      },
     ]
   },
-  //{
-  //  path: '*',
-  //  element: <Redirect/>
-  //},
 ])
