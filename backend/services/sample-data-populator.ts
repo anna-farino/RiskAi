@@ -24,28 +24,7 @@ const SAMPLE_DATA = {
     ]
   },
   threatTracker: {
-    vendors: [
-      "Access Point Technology Consulting, LLC", "Accurate Background", "Automatic Data Processing Group",
-      "alangray", "Altair Integrated Services", "Amazon Web Services", "astound", "atlassian",
-      "bitraser", "Bitsight Technologies", "BlackLine", "Bond-Pro, Inc.", "Chard Snyder",
-      "Cigna", "Cisco", "claraanalytics", "Clearwater Analytics", "Cloudflare",
-      "collectone", "contezza", "contractsafe", "Corporation Service Group of Companies",
-      "darka", "Darktrace", "Datadog", "delinea", "Deloitte U.S.", "Delta Dental of Ohio",
-      "Distinguished Programs Group", "DocuSign", "Duck Creek Technologies", "Dynatrace LLC",
-      "Enghouse Systems", "EQuest LLC", "Flashpoint", "Focused Consulting", "GENPACT",
-      "CARET", "Nitro Software, Inc.", "Green Leaf Consulting Group", "GUIDEWIRE",
-      "harmon.ie", "Arbitration Forums, Inc.", "hyperexponential", "intellectdesign",
-      "Jamf", "jetfiletech", "John Hancock", "Karen Clark & Company", "KEYSYS",
-      "Latitude Subrogation Service", "RELX Ltd.", "Lincoln Financial Group", "Lifesize",
-      "Lucid Software Inc.", "lumivero", "mandiant", "Microsoft", "Mitchell International, Inc.",
-      "Northern Trust Careers", "Ntirety", "Omegablack, Inc.", "omegaconsulting", "One Inc",
-      "Palo Alto Networks, Inc.", "Peakon", "CARET Legal", "profisee", "proofinsurance",
-      "Proofpoint Corporation", "Qualys", "Quick Silver Systems, Inc.", "Qumodity",
-      "rhymetec", "RSM US LLP", "SendGrid", "Sovos Compliance", "thequakerproject",
-      "tinubu", "tkcllcconsulting", "Topbloc, LLC", "Trace3, Inc.", "TriTech Services Inc.",
-      "Vision Service Plan Inc", "Ward Group", "Willis Towers Watson", "Workday",
-      "Workiva Inc.", "Zscaler"
-    ],
+    vendors: [],
     hardware: [
       "Windows", "Mackbook", "Surfacebook", "iPhone", "Galaxy", "Dell Latitude",
       "Active Directory (AD)", "Azure", "AWS", "Entra"
