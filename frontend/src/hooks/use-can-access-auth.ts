@@ -13,9 +13,8 @@ export function useCanAccessAuth() {
     queryKey: ['redirect-dashboard'],
     queryFn: async () => {
       try {
-        const response = await fetchWithTokens('/api/auth/check', {
-          method: 'GET'
-        });
+        const response = await fetchWithTokens('/api/auth/check')
+        debugger
         if (!response.ok) {
           setResult(true)
         } 

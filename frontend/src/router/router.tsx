@@ -14,11 +14,12 @@ export const router = createBrowserRouter([
     path: '/',
     element:
       <Auth0ProviderWithNavigate>
+        <Redirect/>
         <Outlet/>
       </Auth0ProviderWithNavigate>,
     children: [
       {
-        path: 'login',
+        path: '/login',
         element:
             <LoginPageForAuth0/>,
         index: true

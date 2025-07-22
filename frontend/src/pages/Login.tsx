@@ -1,17 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import AuthLayout from "@/components/layout/AuthLayout"
-import { Link } from "react-router-dom"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { Loader2 } from "lucide-react"
-import { useState } from "react"
-import PasswordEye from "@/components/password-eye"
-import useLogin from "@/hooks/use-login"
 import { useAuth0 } from "@auth0/auth0-react"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +8,7 @@ import { cn } from "@/lib/utils"
 export default function Login() {
   const { 
     loginWithRedirect, 
+    logout
   } = useAuth0()
 
   async function handleLogin() {
@@ -32,6 +22,10 @@ export default function Login() {
     });
   };
 
+  async function handleLogout() {
+    logout({ logoutParams: { returnTo: '' }})
+  }
+
   return (
     <AuthLayout>
       <Card className="bg-black/70 backdrop-blur-sm border border-[#BF00FF]/20 shadow-lg w-full mx-auto overflow-hidden">
@@ -41,7 +35,7 @@ export default function Login() {
             Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 sm:px-6">
+        <CardContent className="flex flex-col gap-4 px-4 sm:px-6">
           <Button 
             className={cn(
               "w-full text-white hover:text-white font-light",
@@ -52,6 +46,16 @@ export default function Login() {
             onClick={handleLogin}
           >
             Login/Signup
+          </Button>
+          <Button 
+            className={cn(
+              "w-full text-white hover:text-white font-light",
+              "transition-all duration-300 bg-gradient-to-r",
+              "h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none"
+            )} 
+            onClick={handleLogout}
+          >
+            Logout
           </Button>
         </CardContent>
       </Card>

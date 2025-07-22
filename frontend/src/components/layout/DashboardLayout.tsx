@@ -5,11 +5,20 @@ import { MainNavigation } from './MainNavigation';
 import { useAuth0 } from '@auth0/auth0-react';
 
 export default function DashboardLayout() {
-  const { isAuthenticated, isLoading } = useAuth0()
+  const { 
+    isAuthenticated, 
+    isLoading, 
+    user,
+    logout
+  } = useAuth0()
   const navigate = useNavigate()
 
   useEffect(()=>{
     if (!isLoading && !isAuthenticated) {
+      navigate('/auth/login')
+    }
+    if (!isLoading && !user?.email_verified) {
+      logout({ logoutParams: { returnTo: '' }})
       navigate('/auth/login')
     }
   },[isLoading, isAuthenticated, navigate])

@@ -22,8 +22,12 @@ export async function auth0middleware(req: Request, res: Response, next: NextFun
 
   //console.log("Users with email: ", email, user)
 
-  if (user.length === 0 || !user[0].verified) {
-    // console.log("❌ [AUTH-MIDDLEWARE] User not found")
+  if (
+    user.length === 0 || 
+    !user[0].verified ||
+    !email_verified
+  ) {
+    console.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
     res.status(401).end();
     return;
   }

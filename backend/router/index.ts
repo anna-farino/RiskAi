@@ -14,7 +14,7 @@ import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'bac
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
 import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
-import { auth0CheckJwt } from 'backend/middleware/auth0';
+import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 import { auth0middleware } from 'backend/middleware/auth0middleware';
 
@@ -45,6 +45,7 @@ router.use('/auth', limiter, authRouter)
 
 // PROTECTIONS
 router.use(auth0CheckJwt)
+router.use(jwtErrorHandler)
 //router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
 //router.use(verifyToken)
