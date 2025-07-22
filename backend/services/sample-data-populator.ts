@@ -17,11 +17,12 @@ const SAMPLE_DATA = {
       { name: "Yahoo Finance", url: "https://finance.yahoo.com/news/" }
     ],
     keywords: [
-      "AIG", "Core Specialty", "Enstar", "Lancer Insurance", "American Surety",
-      "Starstone Specialty", "Starstone National", "Starstone", "Swiss Re",
-      "American Life", "AMBAC", "Vanguard", "OpenAI", "President", "Market",
-      "Dow", "NASDAQ", "S&P500", "Tariff", "Tesla", "Trump", "Musk"
-    ]
+      "access", "attack", "botnets", "CNC", "code", "control", 
+      "credential", "CVE", "cyberattacks", "cybersecurity", "data", 
+      "denial", "detection", "HIPAA", "infrastructure", "intrusion", 
+      "Mitre ATT&CK", "PII", "protection", "remote", "secops", 
+      "security", "server", "system", "testing"
+    ],
   },
   threatTracker: {
     vendors: [],
