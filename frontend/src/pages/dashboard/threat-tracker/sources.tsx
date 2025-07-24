@@ -758,13 +758,16 @@ export default function Sources() {
         variant: "destructive",
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setBulkAddInProgress(false);
       setBulkAddDialogOpen(false);
       setBulkUrlsInput("");
       
-      // Refresh sources data
-      queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+      // Aggressive cache refresh to ensure UI updates
+      await queryClient.invalidateQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
+      
+      // Force refetch to guarantee UI refresh
+      await queryClient.refetchQueries({ queryKey: [`${serverUrl}/api/threat-tracker/sources`] });
       
       const { summary, results } = data;
       

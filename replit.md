@@ -127,7 +127,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 24, 2025 - Consolidated Bulk Source Management UX
+### July 24, 2025 - Enhanced Bulk Source Operations with Smart Title Parsing and UI Refresh Fixes
 - **Improved source management UX**: Moved "Bulk Add Sources" button from header toolbar into source management forms for better consolidation
 - **Threat Tracker implementation**: Added bulk add button to "Add New Source" dialog footer alongside Cancel and Add Source buttons
 - **News Radar implementation**: Added bulk add button to "Add News Source" form alongside the single Add Source button
@@ -135,11 +135,25 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Responsive design**: Both buttons maintain proper mobile/desktop responsive behavior with stacked layout on mobile
 - **Consistent UX pattern**: Source management actions now consolidated in a single location per application
 - **Better visual hierarchy**: Primary action (Add Source) remains prominently placed with secondary action (Bulk Add) as outline button
+- **Smart Title Parsing Implementation (Option 1)**:
+  - Enhanced `cleanTitle` function with intelligent separator detection
+  - Parses main titles by splitting on common separators: `" - "`, `" | "`, `": "`, `" – "`, `" — "`, `" • "`, `" :: "`, `" / "`
+  - Examples: `"WIRED - The Latest in Technology..."` → `"WIRED"`, `"CNET: Product reviews..."` → `"CNET"`
+  - Includes safeguards to avoid breaking legitimate short titles
+  - Added debug logging to track title transformations
+  - Falls back to original title if no suitable separator found
+- **Fixed UI Refresh Issue After Bulk Operations**:
+  - Enhanced cache invalidation in both News Radar and Threat Tracker bulk add mutations
+  - Added aggressive cache refresh with both `invalidateQueries` and `refetchQueries` to guarantee UI updates
+  - Made cache invalidation async to ensure proper completion before showing success messages
+  - Consistent implementation across both applications for reliable source list refresh
 - **Technical implementation**:
   - Modified `DialogFooter` in Threat Tracker with flex layout to accommodate three buttons
   - Updated News Radar form button area to use flex column/row layout for mobile responsiveness
   - Maintained proper button styling and brand colors (#BF00FF purple with cyan hover effects)
-- **User benefit**: All source management actions now accessible from single interface location, reducing cognitive load and improving workflow efficiency
+  - Enhanced `backend/services/scraping/extractors/title-extraction/bulk-title-extractor.ts` with `parseMainTitle` function
+  - Fixed cache invalidation in `frontend/src/pages/dashboard/news-radar/sources.tsx` and `frontend/src/pages/dashboard/threat-tracker/sources.tsx`
+- **User benefit**: All source management actions now accessible from single interface location with reliable UI refresh and cleaner, shorter titles extracted from websites
 
 ### July 16, 2025 - Fixed Duplicate Delete All Articles Button Issue
 - **Fixed duplicate button display**: Removed duplicate "Delete All Articles" button from News Radar home page
