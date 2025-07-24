@@ -129,6 +129,12 @@ export default function Sources() {
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] =
     useState<JobInterval | null>(null);
   const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(true);
+  
+  // Bulk operations state
+  const [bulkAddDialogOpen, setBulkAddDialogOpen] = useState(false);
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
+  const [bulkUrlsInput, setBulkUrlsInput] = useState("");
+  const [bulkAddInProgress, setBulkAddInProgress] = useState(false);
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1052,6 +1058,184 @@ export default function Sources() {
     },
   });
 
+  // Bulk add sources mutation
+  const bulkAddSources = useMutation({
+    mutationFn: async ({ urls, options }: { urls: string; options?: { concurrency?: number; timeout?: number } }) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/bulk-add`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          body: JSON.stringify({ urls, options }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to bulk add sources: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Bulk add sources error:", error);
+        throw error;
+      }
+    },
+    onMutate: () => {
+      setBulkAddInProgress(true);
+    },
+    onError: (error: any) => {
+      setBulkAddInProgress(false);
+      toast({
+        title: "Bulk add failed",
+        description: error.message || "Failed to add sources in bulk. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      setBulkAddInProgress(false);
+      setBulkAddDialogOpen(false);
+      setBulkUrlsInput("");
+      
+      // Refresh sources data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      const { summary, results } = data;
+      
+      // Show detailed results
+      if (summary.successful > 0) {
+        toast({
+          title: `Successfully added ${summary.successful} sources`,
+          description: summary.failed > 0 || summary.duplicates > 0 
+            ? `${summary.failed} failed, ${summary.duplicates} duplicates skipped`
+            : undefined,
+        });
+      }
+      
+      if (summary.failed > 0) {
+        console.log("Failed sources:", results.failed);
+      }
+    },
+  });
+
+  // Bulk delete sources mutation
+  const bulkDeleteSources = useMutation({
+    mutationFn: async (sourceIds: string[]) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/bulk-delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          body: JSON.stringify({ sourceIds }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to bulk delete sources: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Bulk delete sources error:", error);
+        throw error;
+      }
+    },
+    onMutate: async (sourceIds: string[]) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot previous data
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Optimistically remove sources from cache
+      queryClient.setQueryData<Source[]>(
+        ["/api/news-tracker/sources"],
+        (oldData = []) => oldData.filter(source => !sourceIds.includes(source.id))
+      );
+      
+      return { previousSources };
+    },
+    onError: (error: any, sourceIds, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
+      }
+      
+      toast({
+        title: "Bulk delete failed",
+        description: error.message || "Failed to delete sources in bulk. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      setSelectedSources(new Set());
+      
+      const { summary, results } = data;
+      
+      if (summary.successful > 0) {
+        toast({
+          title: `Successfully deleted ${summary.successful} sources`,
+          description: summary.failed > 0 || summary.notFound > 0 
+            ? `${summary.failed} failed, ${summary.notFound} not found`
+            : undefined,
+        });
+      }
+      
+      if (summary.failed > 0) {
+        console.log("Failed deletions:", results.failed);
+      }
+    },
+  });
+
+  // Helper functions for bulk operations
+  const handleSelectSource = (sourceId: string, checked: boolean) => {
+    const newSelected = new Set(selectedSources);
+    if (checked) {
+      newSelected.add(sourceId);
+    } else {
+      newSelected.delete(sourceId);
+    }
+    setSelectedSources(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allSourceIds = sources.data?.map(s => s.id) || [];
+      setSelectedSources(new Set(allSourceIds));
+    } else {
+      setSelectedSources(new Set());
+    }
+  };
+
+  const handleBulkAdd = () => {
+    if (!bulkUrlsInput.trim()) {
+      toast({
+        title: "No URLs provided",
+        description: "Please enter comma-separated URLs to add.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkAddSources.mutate({ urls: bulkUrlsInput });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedSources.size === 0) {
+      toast({
+        title: "No sources selected",
+        description: "Please select sources to delete.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkDeleteSources.mutate(Array.from(selectedSources));
+  };
+
   const onSubmit = form.handleSubmit((data) => {
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
@@ -1202,6 +1386,40 @@ export default function Sources() {
             <p className="sm:text-sm lg:text-base text-slate-300">
               Manage news sources and control updates
             </p>
+          </div>
+          
+          {/* Bulk Operations Toolbar */}
+          <div className="flex items-center gap-2">
+            {selectedSources.size > 0 && (
+              <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
+                <span className="text-sm text-slate-300">
+                  {selectedSources.size} selected
+                </span>
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteSources.isPending}
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 px-2 text-xs"
+                >
+                  {bulkDeleteSources.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                  Delete Selected
+                </Button>
+              </div>
+            )}
+            
+            <Button
+              onClick={() => setBulkAddDialogOpen(true)}
+              size="sm"
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 px-3 text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Bulk Add Sources
+            </Button>
           </div>
         </div>
 
@@ -1529,9 +1747,22 @@ export default function Sources() {
       >
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
-              Source List
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
+                Source List
+              </h2>
+              {sources.data && sources.data.length > 0 && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedSources.size === sources.data.length}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-slate-600 bg-slate-800/70 text-[#BF00FF] focus:ring-[#BF00FF] focus:ring-offset-0"
+                  />
+                  <span className="text-xs text-slate-400">Select all</span>
+                </label>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <div className="text-xs sm:text-sm text-slate-400">
                 {sources.data?.length || 0} sources configured
@@ -1602,9 +1833,18 @@ export default function Sources() {
                       index % 2 === 0 ? 'bg-slate-800/50' : 'bg-slate-900/70'
                     }`}
                   >
-                    {/* First row: Name, URL, and Edit/Delete buttons */}
+                    {/* First row: Checkbox, Name, URL, and Edit/Delete buttons */}
                     <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
                       <div className="flex items-start gap-3 min-w-0 w-full">
+                        {/* Selection checkbox */}
+                        <div className="flex-shrink-0 pt-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedSources.has(source.id)}
+                            onChange={(e) => handleSelectSource(source.id, e.target.checked)}
+                            className="rounded border-slate-600 bg-slate-800/70 text-[#BF00FF] focus:ring-[#BF00FF] focus:ring-offset-0"
+                          />
+                        </div>
                         <div
                           className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                         />
@@ -1713,6 +1953,97 @@ export default function Sources() {
           </div>
         )}
       </div>
+
+      {/* Bulk Add Sources Dialog */}
+      <Dialog open={bulkAddDialogOpen} onOpenChange={setBulkAddDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Bulk Add News Sources
+            </DialogTitle>
+            <p className="text-sm text-slate-400">
+              Enter comma-separated URLs to add multiple sources at once. Titles will be automatically extracted.
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-urls" className="text-sm font-medium text-white">
+                URLs (comma-separated)
+              </Label>
+              <textarea
+                id="bulk-urls"
+                value={bulkUrlsInput}
+                onChange={(e) => setBulkUrlsInput(e.target.value)}
+                placeholder="https://example.com/news, https://another-site.com/articles, https://third-site.com/blog"
+                rows={4}
+                className="w-full text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 rounded-md p-3 resize-none focus:ring-2 focus:ring-[#BF00FF] focus:border-transparent"
+              />
+              <p className="text-xs text-slate-500">
+                URLs will be automatically normalized with https:// prefix if missing
+              </p>
+            </div>
+
+            {bulkUrlsInput.trim() && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-white">
+                  Preview ({bulkUrlsInput.split(',').map(url => url.trim()).filter(url => url).length} URLs)
+                </Label>
+                <div className="bg-slate-800/50 border border-slate-700/50 rounded-md p-3 max-h-32 overflow-y-auto">
+                  <div className="space-y-1 text-xs">
+                    {bulkUrlsInput
+                      .split(',')
+                      .map(url => url.trim())
+                      .filter(url => url)
+                      .slice(0, 10) // Show first 10 URLs
+                      .map((url, index) => (
+                        <div key={index} className="text-slate-300">
+                          {url.startsWith('http') ? url : `https://${url}`}
+                        </div>
+                      ))}
+                    {bulkUrlsInput.split(',').map(url => url.trim()).filter(url => url).length > 10 && (
+                      <div className="text-slate-500">
+                        ... and {bulkUrlsInput.split(',').map(url => url.trim()).filter(url => url).length - 10} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setBulkAddDialogOpen(false);
+                  setBulkUrlsInput("");
+                }}
+                className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAdd}
+                disabled={bulkAddInProgress || !bulkUrlsInput.trim()}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              >
+                {bulkAddInProgress ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding Sources...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Sources
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
