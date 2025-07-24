@@ -1290,6 +1290,7 @@ export default function Sources() {
     const userSources = localSources
       .filter((source) => !source.isDefault);
 
+
     console.log(localSources);
     console.log(defaultSources);
 
@@ -1338,9 +1339,7 @@ export default function Sources() {
                               </span>
                               <Badge
                                 variant="secondary"
-                                className="text-xs px-1.5 py-0.5 flex-shrink-0"
-
-                              >
+                                className="text-xs px-1.5 py-0.5 flex-shrink-0">
                                 Default
                               </Badge>
                             </div>
@@ -1501,7 +1500,6 @@ export default function Sources() {
                         <PencilLine className="h-3 w-3" />
                         <span className="sr-only">Edit</span>
                       </Button>
-
                       {source.isDefault ? (
                         <Button
                           variant="ghost"

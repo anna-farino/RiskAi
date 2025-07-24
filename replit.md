@@ -417,7 +417,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - **Consistent matching**: Both initial detection and OpenAI validation now use flexible matching
 - **Technical changes**:
   - `backend/apps/news-radar/services/background-jobs.ts`: Updated title keyword matching regex
-  - `backend/apps/news-radar/services/openai.ts`: Updated validation regex and prompt instructions
   - `backend/apps/threat-tracker/services/openai.ts`: Updated prompt to allow plural variations
 - **Impact**: 
   - **Resolves keyword detection failures** for plural forms of keywords

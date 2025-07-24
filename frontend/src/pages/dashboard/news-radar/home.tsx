@@ -786,6 +786,7 @@ export default function NewsHome() {
       <div className="flex flex-col gap-6 md:gap-10 mb-2">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
+
             News Radar
           </h1>
           <p className="text-muted-foreground max-w-3xl">

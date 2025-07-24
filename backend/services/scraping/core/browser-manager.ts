@@ -12,19 +12,72 @@ puppeteer.use(StealthPlugin());
 /**
  * Find Chrome executable path for Puppeteer
  * Combines logic from all three apps for maximum compatibility
+ * Now includes Render-specific paths for cross-platform support
  */
 function findChromePath(): string {
+  // First check for system Chrome (Google Chrome) - Azure Container Apps
+  const systemChromePaths = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable'
+  ];
+  
+  for (const path of systemChromePaths) {
+    if (fs.existsSync(path)) {
+      log(`[BrowserManager][findChromePath] Using system Chrome: ${path}`, "scraper");
+      return path;
+    }
+  }
+  
+  // Check for Render's Puppeteer cache paths
+  const renderPuppeteerPaths = [
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.49/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-130.0.6723.91/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-129.0.6668.89/chrome-linux64/chrome',
+    '/opt/render/project/src/.cache/puppeteer/chrome/linux-128.0.6613.84/chrome-linux64/chrome'
+  ];
+
+  for (const path of renderPuppeteerPaths) {
+    if (fs.existsSync(path)) {
+      log(`[BrowserManager][findChromePath] Using Render's Puppeteer Chrome: ${path}`, "scraper");
+      return path;
+    }
+  }
+
+  // Try to dynamically find Chrome in Render's Puppeteer cache
   try {
-    // First try using which chromium
-    const chromePath = execSync('which chromium').toString().trim();
+    const puppeteerCacheBase = '/opt/render/project/src/.cache/puppeteer/chrome';
+    if (fs.existsSync(puppeteerCacheBase)) {
+      const chromeVersions = fs.readdirSync(puppeteerCacheBase);
+      for (const version of chromeVersions) {
+        const chromePath = `${puppeteerCacheBase}/${version}/chrome-linux64/chrome`;
+        if (fs.existsSync(chromePath)) {
+          log(`[BrowserManager][findChromePath] Found Render's Chrome dynamically: ${chromePath}`, "scraper");
+          return chromePath;
+        }
+      }
+    }
+  } catch (error) {
+    log(`[BrowserManager][findChromePath] Error scanning Puppeteer cache: ${error}`, "scraper");
+  }
+  
+  try {
+    // Then try using which google-chrome
+    const chromePath = execSync('which google-chrome').toString().trim();
     return chromePath;
   } catch(e) {
-    // Then try to find Chrome using which command
     try {
-      const chromePath = execSync('which chrome').toString().trim();
+      // Try chromium
+      const chromePath = execSync('which chromium').toString().trim();
       return chromePath;
-    } catch (e) {
-      log("[BrowserManager][findChromePath] Using default path", "scraper");
+    } catch(e) {
+      // Then try to find Chrome using which command
+      try {
+        const chromePath = execSync('which chrome').toString().trim();
+        return chromePath;
+      } catch (e) {
+        log("[BrowserManager][findChromePath] Using default path", "scraper");
+      }
     }
   }
   
@@ -78,11 +131,20 @@ const BROWSER_ARGS = [
   '--no-default-browser-check',
   '--ignore-certificate-errors',
   '--allow-running-insecure-content',
-  '--disable-web-security'
+  '--disable-web-security',
+  // Crashpad disabling arguments
+  '--disable-crashpad',
+  '--disable-crash-reporter',
+  '--disable-breakpad',
+  '--single-process',
+  '--user-data-dir=/tmp/chrome-user-data',
+  '--disk-cache-dir=/tmp/chrome-cache',
+  '--force-crash-handler-disable',
+  '--crash-handler-disabled',
+  '--disable-crash-handler'
 ];
 
-const CHROME_PATH = findChromePath();
-log(`[BrowserManager] Using Chrome at: ${CHROME_PATH}`, "scraper");
+// Chrome path will be determined dynamically when browser is launched
 
 /**
  * Centralized browser instance management
@@ -135,12 +197,16 @@ export class BrowserManager {
    */
   private static async createNewBrowser(): Promise<Browser> {
     try {
+      // Determine Chrome path dynamically at launch time
+      const chromePath = findChromePath();
+      log(`[BrowserManager][createNewBrowser] Using Chrome at: ${chromePath}`, "scraper");
+      
       const browser = await puppeteer.launch({
         headless: true,
         args: BROWSER_ARGS,
-        executablePath: CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 60000, // Unified timeout from both apps
-        protocolTimeout: 180000, // Prevents "Runtime.callFunctionOn timed out"
+        executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
+        timeout: 120000, // Increased for slower environments like Render
+        protocolTimeout: 300000, // Increased for resource-constrained environments
         handleSIGINT: false, // Prevent premature shutdown
         handleSIGTERM: false,
         handleSIGHUP: false
