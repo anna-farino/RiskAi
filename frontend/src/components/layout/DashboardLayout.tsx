@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { RisqHeader } from './RisqHeader';
 import { MainNavigation } from './MainNavigation';
 import { useAuth0 } from '@auth0/auth0-react';
+import { toast } from '@/hooks/use-toast';
 
 export default function DashboardLayout() {
   const { 
@@ -13,14 +14,17 @@ export default function DashboardLayout() {
   } = useAuth0()
   const navigate = useNavigate()
 
-  useEffect(()=>{
+  function checkAuth() {
     if (!isLoading && !isAuthenticated) {
       navigate('/auth/login')
+      return
     }
     if (!isLoading && !user?.email_verified) {
-      logout({ logoutParams: { returnTo: '' }})
       navigate('/auth/login')
     }
+  }
+  useEffect(()=>{
+    checkAuth()
   },[isLoading, isAuthenticated, navigate])
 
 

@@ -1,39 +1,75 @@
 import { Request, Response, NextFunction } from 'express'
 import { db } from '../db/db';
 import { eq } from 'drizzle-orm';
-import { users } from '@shared/db/schema/user';
+import { User, users } from '@shared/db/schema/user';
 import { FullRequest } from '.';
 
-export async function auth0middleware(req: Request, res: Response, next: NextFunction) {
+
+type CustomRequest = Request &  { log: (...args: any[]) => void }
+
+export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
   const payload = req.auth
   const email = req.auth?.payload['user/email'] as string
   const email_verified = req.auth?.payload['user/email_verified']
   const sub = req.auth?.payload.sub
 
-  //console.log("payload", payload)
-  //console.log("email: ", email)
-  //console.log("sub: ", sub)
+  //req.log("payload", payload)
+  //req.log("email: ", email)
+  //req.log("sub: ", sub)
 
-  const user = await db
+  const userArray = await db
     .select()
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
-  //console.log("Users with email: ", email, user)
+  //req.log("Users with email: ", email, user)
+  req.log("[AUTH0-MIDDLEWARE] userArray: ", userArray)
 
-  if (
-    user.length === 0 || 
-    !user[0].verified ||
-    !email_verified
-  ) {
-    console.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
+  if (!email_verified) {
+    req.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
     res.status(401).end();
     return;
   }
 
-  (req as unknown as FullRequest).user = user[0];
+  let userToReturn: User;
 
+  if (userArray.length === 0) {
+    try {
+      const user = await db
+        .insert(users)
+        .values({
+          email: email,
+          name: email,
+          password: '',
+        })
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            email: email,
+            name: email,
+            password: '',
+          }
+        })
+        .returning()
+
+      req.log("👤[AUTH0-MIDDLEWARE] New user created", user[0])
+
+      userToReturn = user[0]
+
+    } catch(error) {
+      req.log("❌[AUTH0-MIDDLEWARE] An error occurred while creating the new user", error)
+      res.status(500).send()
+      return
+    }
+  } else {
+    userToReturn = userArray[0]
+  } 
+
+
+  (req as unknown as FullRequest).user = userToReturn;
+
+  //req.log("👤[AUTH0-MIDDLEWARE] req object updated with user:", req.user)
   //const userId = user[0].id.toString();
   //await attachPermissionsAndRoleToRequest(userId, req)
 

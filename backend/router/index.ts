@@ -20,19 +20,9 @@ import { auth0middleware } from 'backend/middleware/auth0middleware';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
-//router.use(auth(config));
-router.get('/auth0test', 
-  auth0CheckJwt, 
-  auth0middleware,
-  (req, res) => {
-  res.json({ 
-      loggedIn: true,
-      sub: req.auth
-  })
-})
 
 // HELLO WORLD route
-//router.get('/test', limiter, handleTest)
+router.get('/test', limiter, handleTest)
 //router.get('/test-articles', testArticles)
 
 router.get('/test-datadome-bypass', testDatadomeBypass)
