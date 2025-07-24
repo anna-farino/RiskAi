@@ -29,6 +29,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
@@ -1824,6 +1825,20 @@ export default function Sources() {
           </div>
         ) : (
           <div className="w-full max-w-full overflow-hidden space-y-3">
+            {/* Select All checkbox */}
+            <div className="flex items-center gap-2 pb-2">
+              <Checkbox
+                checked={sources.data && sources.data.length > 0 && sources.data.every(s => selectedSources.has(s.id))}
+                onCheckedChange={handleSelectAll}
+                className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] data-[state=checked]:text-white border-slate-600 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-0 rounded-sm"
+              />
+              <span className="text-sm font-medium text-white">Select All Sources</span>
+              {sources.data && (
+                <span className="text-xs text-slate-400">
+                  ({sources.data.length} {sources.data.length === 1 ? 'source' : 'sources'})
+                </span>
+              )}
+            </div>
             {sources.data &&
               sources.data
                 .slice()
@@ -1838,13 +1853,12 @@ export default function Sources() {
                     {/* First row: Checkbox, Name, URL, and Edit/Delete buttons */}
                     <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
                       <div className="flex items-start gap-3 min-w-0 w-full">
-                        {/* Selection checkbox */}
+                        {/* Selection checkbox - Material Design styled */}
                         <div className="flex-shrink-0 pt-1">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedSources.has(source.id)}
-                            onChange={(e) => handleSelectSource(source.id, e.target.checked)}
-                            className="rounded border-slate-600 bg-slate-800/70 text-[#BF00FF] focus:ring-[#BF00FF] focus:ring-offset-0"
+                            onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
+                            className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] data-[state=checked]:text-white border-slate-600 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-0 rounded-sm"
                           />
                         </div>
                         <div

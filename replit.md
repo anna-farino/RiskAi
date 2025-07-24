@@ -153,7 +153,21 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Maintained proper button styling and brand colors (#BF00FF purple with cyan hover effects)
   - Enhanced `backend/services/scraping/extractors/title-extraction/bulk-title-extractor.ts` with `parseMainTitle` function
   - Fixed cache invalidation in `frontend/src/pages/dashboard/news-radar/sources.tsx` and `frontend/src/pages/dashboard/threat-tracker/sources.tsx`
-- **User benefit**: All source management actions now accessible from single interface location with reliable UI refresh and cleaner, shorter titles extracted from websites
+- **Material Design Bulk Delete Interface**:
+  - Replaced basic HTML checkboxes with shadcn Checkbox components in News Radar
+  - Enhanced both applications with Material Design styling using RisqAi brand colors (#BF00FF)
+  - Added "Select All" functionality with visual indicators showing source count
+  - Implemented complete bulk delete toolbars that appear when sources are selected
+  - Consistent bulk delete experience across News Radar and Threat Tracker
+- **Technical implementation**:
+  - Modified `DialogFooter` in Threat Tracker with flex layout to accommodate three buttons
+  - Updated News Radar form button area to use flex column/row layout for mobile responsiveness
+  - Maintained proper button styling and brand colors (#BF00FF purple with cyan hover effects)
+  - Enhanced `backend/services/scraping/extractors/title-extraction/bulk-title-extractor.ts` with `parseMainTitle` function
+  - Fixed cache invalidation in `frontend/src/pages/dashboard/news-radar/sources.tsx` and `frontend/src/pages/dashboard/threat-tracker/sources.tsx`
+  - Added Material Design-styled Checkbox components with consistent brand styling
+  - Implemented "Select All" checkboxes with proper state management in both applications
+- **User benefit**: All source management actions now accessible from single interface location with reliable UI refresh, cleaner titles, and professional Material Design-styled bulk operations interface
 
 ### July 16, 2025 - Fixed Duplicate Delete All Articles Button Issue
 - **Fixed duplicate button display**: Removed duplicate "Delete All Articles" button from News Radar home page
