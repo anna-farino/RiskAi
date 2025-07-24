@@ -224,14 +224,58 @@ function extractFromDomain(url: string): { title: string; method: 'domain_fallba
 }
 
 /**
- * Clean and normalize extracted titles
+ * Parse main title by splitting on common separators and taking the first part
+ * Examples: 
+ * "WIRED - The Latest in Technology..." → "WIRED"
+ * "CNET: Product reviews, advice..." → "CNET"
+ */
+function parseMainTitle(title: string): string {
+  // Common separators that usually separate main title from description
+  const separators = [
+    ' - ',    // "WIRED - The Latest in..."
+    ' | ',    // "Site | Description"
+    ': ',     // "CNET: Product reviews..."
+    ' – ',    // em dash with spaces
+    ' — ',    // long em dash with spaces
+    ' • ',    // bullet point with spaces
+    ' :: ',   // double colon
+    ' / ',    // forward slash with spaces
+  ];
+  
+  // Try each separator and return the first part if found
+  for (const separator of separators) {
+    if (title.includes(separator)) {
+      const parts = title.split(separator);
+      const mainTitle = parts[0].trim();
+      
+      // Only use the parsed title if it's substantial (at least 2 characters)
+      // and not too short compared to original (avoid splitting legitimate short titles)
+      if (mainTitle.length >= 2 && (mainTitle.length > 3 || title.length > 50)) {
+        log(`[TitleParser] Smart parsing: "${title}" → "${mainTitle}" (separator: "${separator}")`, "title-extractor");
+        return mainTitle;
+      }
+    }
+  }
+  
+  // If no separators found or parsing didn't improve the title, return original
+  log(`[TitleParser] No parsing applied: "${title}" (no suitable separators found)`, "title-extractor");
+  return title;
+}
+
+/**
+ * Clean and normalize extracted titles with smart parsing
  */
 function cleanTitle(title: string): string {
-  return title
+  // First normalize whitespace and clean basic formatting
+  let cleaned = title
     .replace(/\s+/g, ' ') // Normalize whitespace
     .replace(/[\r\n\t]/g, ' ') // Remove line breaks and tabs
-    .trim()
-    .substring(0, 200); // Limit length to prevent extremely long titles
+    .trim();
+  
+  // Apply smart title parsing - extract main title before common separators
+  const parsedTitle = parseMainTitle(cleaned);
+  
+  return parsedTitle.substring(0, 200); // Limit length to prevent extremely long titles
 }
 
 /**
