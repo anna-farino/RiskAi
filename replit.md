@@ -127,6 +127,20 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 24, 2025 - Consolidated Bulk Source Management UX
+- **Improved source management UX**: Moved "Bulk Add Sources" button from header toolbar into source management forms for better consolidation
+- **Threat Tracker implementation**: Added bulk add button to "Add New Source" dialog footer alongside Cancel and Add Source buttons
+- **News Radar implementation**: Added bulk add button to "Add News Source" form alongside the single Add Source button
+- **Streamlined toolbar**: Removed standalone bulk add buttons from header toolbars, keeping only bulk delete when sources are selected
+- **Responsive design**: Both buttons maintain proper mobile/desktop responsive behavior with stacked layout on mobile
+- **Consistent UX pattern**: Source management actions now consolidated in a single location per application
+- **Better visual hierarchy**: Primary action (Add Source) remains prominently placed with secondary action (Bulk Add) as outline button
+- **Technical implementation**:
+  - Modified `DialogFooter` in Threat Tracker with flex layout to accommodate three buttons
+  - Updated News Radar form button area to use flex column/row layout for mobile responsiveness
+  - Maintained proper button styling and brand colors (#BF00FF purple with cyan hover effects)
+- **User benefit**: All source management actions now accessible from single interface location, reducing cognitive load and improving workflow efficiency
+
 ### July 16, 2025 - Fixed Duplicate Delete All Articles Button Issue
 - **Fixed duplicate button display**: Removed duplicate "Delete All Articles" button from News Radar home page
 - **Root cause**: Two identical buttons were rendering - one in pagination controls and one at bottom of page

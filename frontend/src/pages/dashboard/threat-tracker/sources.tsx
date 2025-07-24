@@ -1040,38 +1040,27 @@ export default function Sources() {
         </div>
         
         {/* Bulk Operations Toolbar */}
-        <div className="flex items-center gap-2">
-          {selectedSources.size > 0 && (
-            <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
-              <span className="text-sm text-slate-300">
-                {selectedSources.size} selected
-              </span>
-              <Button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteSources.isPending}
-                size="sm"
-                variant="destructive"
-                className="h-7 px-2 text-xs"
-              >
-                {bulkDeleteSources.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3" />
-                )}
-                Delete Selected
-              </Button>
-            </div>
-          )}
-          
-          <Button
-            onClick={() => setBulkAddDialogOpen(true)}
-            size="sm"
-            className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 px-3 text-xs"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            Bulk Add Sources
-          </Button>
-        </div>
+        {selectedSources.size > 0 && (
+          <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
+            <span className="text-sm text-slate-300">
+              {selectedSources.size} selected
+            </span>
+            <Button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteSources.isPending}
+              size="sm"
+              variant="destructive"
+              className="h-7 px-2 text-xs"
+            >
+              {bulkDeleteSources.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3" />
+              )}
+              Delete Selected
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Instructions Section */}
@@ -1411,23 +1400,39 @@ export default function Sources() {
                 )}
               />
 
-              <DialogFooter>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
                 <Button
-                  type="button"
+                  type="button" 
                   variant="outline"
-                  onClick={() => setSourceDialogOpen(false)}
+                  onClick={() => {
+                    setSourceDialogOpen(false);
+                    setBulkAddDialogOpen(true);
+                  }}
+                  className="w-full sm:w-auto order-first sm:order-none"
                 >
-                  Cancel
+                  <Plus className="mr-2 h-4 w-4" />
+                  Bulk Add Sources
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={createSource.isPending || updateSource.isPending}
-                >
-                  {(createSource.isPending || updateSource.isPending) && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {editingSource ? "Update" : "Add"} Source
-                </Button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSourceDialogOpen(false)}
+                    className="flex-1 sm:flex-none"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createSource.isPending || updateSource.isPending}
+                    className="flex-1 sm:flex-none bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                  >
+                    {(createSource.isPending || updateSource.isPending) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {editingSource ? "Update" : "Add"} Source
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </Form>

@@ -1389,38 +1389,27 @@ export default function Sources() {
           </div>
           
           {/* Bulk Operations Toolbar */}
-          <div className="flex items-center gap-2">
-            {selectedSources.size > 0 && (
-              <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
-                <span className="text-sm text-slate-300">
-                  {selectedSources.size} selected
-                </span>
-                <Button
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleteSources.isPending}
-                  size="sm"
-                  variant="destructive"
-                  className="h-7 px-2 text-xs"
-                >
-                  {bulkDeleteSources.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3 w-3" />
-                  )}
-                  Delete Selected
-                </Button>
-              </div>
-            )}
-            
-            <Button
-              onClick={() => setBulkAddDialogOpen(true)}
-              size="sm"
-              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 px-3 text-xs"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Bulk Add Sources
-            </Button>
-          </div>
+          {selectedSources.size > 0 && (
+            <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
+              <span className="text-sm text-slate-300">
+                {selectedSources.size} selected
+              </span>
+              <Button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteSources.isPending}
+                size="sm"
+                variant="destructive"
+                className="h-7 px-2 text-xs"
+              >
+                {bulkDeleteSources.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+                Delete Selected
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Instructions Section */}
@@ -1720,7 +1709,17 @@ export default function Sources() {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-col xs:flex-row gap-2 xs:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBulkAddDialogOpen(true)}
+                className="w-full xs:w-auto border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
+              >
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Bulk Add Sources</span>
+                <span className="xs:hidden">Bulk Add</span>
+              </Button>
               <Button
                 type="submit"
                 disabled={addSource.isPending || !form.formState.isValid}
