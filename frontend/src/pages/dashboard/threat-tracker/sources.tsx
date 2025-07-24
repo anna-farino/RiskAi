@@ -1708,7 +1708,7 @@ export default function Sources() {
               <Checkbox
                 checked={userSources.length > 0 && userSources.every(s => selectedSources.has(s.id))}
                 onCheckedChange={handleSelectAll}
-                className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] data-[state=checked]:text-white border-slate-600 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-0 rounded-sm mr-1"
+                className="mr-1"
               />
               <h3 className="text-sm font-medium">Your Sources</h3>
               <Badge variant="outline" className="text-xs">
@@ -1746,7 +1746,7 @@ export default function Sources() {
                   <Checkbox
                     checked={selectedSources.has(source.id)}
                     onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                    className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] data-[state=checked]:text-white border-slate-600 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-0 rounded-sm mt-1 flex-shrink-0"
+                    className="mt-1 flex-shrink-0"
                   />
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
