@@ -4,6 +4,7 @@ import { serverUrl } from "@/utils/server-url";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { useFetch } from "@/hooks/use-fetch";
+import { cn } from "@/lib/utils";
 import { ThreatSource } from "@shared/db/schema/threat-tracker";
 import {
   Table,
@@ -59,6 +60,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -72,6 +75,7 @@ import { z } from "zod";
 import {
   Loader2,
   Plus,
+  Minus,
   Trash2,
   AlertCircle,
   PencilLine,
@@ -142,6 +146,15 @@ export default function Sources() {
   const [isDefaultSourcesCollapsed, setIsDefaultSourcesCollapsed] =
     useState(false);
   const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(true);
+
+  // Bulk operations state
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(
+    new Set(),
+  );
+  const [bulkAddDialogOpen, setBulkAddDialogOpen] = useState(false);
+  const [bulkUrlsInput, setBulkUrlsInput] = useState("");
+  const [bulkAddInProgress, setBulkAddInProgress] = useState(false);
+  const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
@@ -719,77 +732,226 @@ export default function Sources() {
     },
   });
 
-  // Quick toggle source active status mutation (for immediate feedback)
-  const toggleSourceActive = useMutation({
+  // Bulk add sources mutation
+  const bulkAddSources = useMutation({
     mutationFn: async ({
-      id,
-      active,
-      source,
+      urls,
+      options,
     }: {
-      id: string;
-      active: boolean;
-      source: ThreatSource;
+      urls: string;
+      options?: { concurrency?: number; timeout?: number };
     }) => {
-      const response = await fetchWithTokens(
-        `/api/threat-tracker/sources/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
+      try {
+        const response = await fetchWithTokens(
+          `${serverUrl}/api/threat-tracker/sources/bulk-add`,
+          {
+            method: "POST",
+            body: JSON.stringify({ urls, options }),
+            credentials: "include",
           },
-          body: JSON.stringify({
-            name: source.name,
-            url: source.url,
-            active,
-            includeInAutoScrape: source.includeInAutoScrape,
-          }),
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to bulk add sources: ${response.statusText}`);
         }
-      );
-      return await response.json();
+
+        return await response.json();
+      } catch (error) {
+        console.error("Bulk add sources error:", error);
+        throw error;
+      }
     },
-    onMutate: async ({ id, active }) => {
-      // Cancel outgoing refetches
+    onMutate: () => {
+      setBulkAddInProgress(true);
+    },
+    onError: (error: any) => {
+      setBulkAddInProgress(false);
+      toast({
+        title: "Bulk add failed",
+        description:
+          error.message || "Failed to add sources in bulk. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: async (data) => {
+      setBulkAddInProgress(false);
+      setBulkAddDialogOpen(false);
+      setBulkUrlsInput("");
+
+      const { summary, results } = data;
+
+      // Add successful sources to local state immediately
+      if (results.successful && results.successful.length > 0) {
+        setLocalSources(prev => [...prev, ...results.successful]);
+      }
+
+      // Aggressive cache refresh to ensure UI updates
+      await queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Force refetch to guarantee UI refresh
+      const updatedSources = await queryClient.refetchQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+
+      // Sync local state with fresh data from server
+      if (updatedSources && updatedSources[0]?.data) {
+        setLocalSources(updatedSources[0].data);
+      }
+
+      // Show detailed results
+      if (summary.successful > 0) {
+        toast({
+          title: `Successfully added ${summary.successful} sources`,
+          description:
+            summary.failed > 0 || summary.duplicates > 0
+              ? `${summary.failed} failed, ${summary.duplicates} duplicates skipped`
+              : undefined,
+        });
+      }
+
+      if (summary.failed > 0) {
+        console.log("Failed sources:", results.failed);
+      }
+    },
+  });
+
+  // Bulk delete sources mutation
+  const bulkDeleteSources = useMutation({
+    mutationFn: async (sourceIds: string[]) => {
+      try {
+        const response = await fetchWithTokens(
+          `${serverUrl}/api/threat-tracker/sources/bulk-delete`,
+          {
+            method: "POST",
+            body: JSON.stringify({ sourceIds }),
+            credentials: "include",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to bulk delete sources: ${response.statusText}`,
+          );
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Bulk delete sources error:", error);
+        throw error;
+      }
+    },
+    onMutate: async (sourceIds: string[]) => {
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
 
-      // Snapshot previous value
-      const previousSources = [...localSources];
+      // Snapshot previous data
+      const previousSources = localSources;
 
-      // Optimistically update source active status
+      // Optimistically remove sources from local state
       setLocalSources((prev) =>
-        prev.map((source) =>
-          source.id === id ? { ...source, active } : source,
-        ),
+        prev.filter((source) => !sourceIds.includes(source.id)),
       );
 
-      return { previousSources, toggledId: id };
+      return { previousSources };
     },
-    onSuccess: (data, variables) => {
-      // Update with actual server response
-      if (data) {
-        setLocalSources((prev) =>
-          prev.map((source) => (source.id === variables.id ? data : source)),
-        );
-      }
-      queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
-      });
-    },
-    onError: (error, _, context) => {
+    onError: (error: any, sourceIds, context) => {
       // Rollback optimistic update
       if (context?.previousSources) {
         setLocalSources(context.previousSources);
       }
 
-      console.error("Error toggling source:", error);
       toast({
-        title: "Error updating source",
-        description: "Failed to update source status. Please try again.",
+        title: "Bulk delete failed",
+        description:
+          error.message ||
+          "Failed to delete sources in bulk. Please try again.",
         variant: "destructive",
       });
     },
+    onSuccess: (data) => {
+      setSelectedSources(new Set());
+      setIsBulkDeleteMode(false); // Auto-exit bulk delete mode
+
+      const { summary, results } = data;
+
+      if (summary.successful > 0) {
+        toast({
+          title: `Successfully deleted ${summary.successful} sources`,
+          description:
+            summary.failed > 0 || summary.notFound > 0
+              ? `${summary.failed} failed, ${summary.notFound} not found`
+              : undefined,
+        });
+      }
+
+      if (summary.failed > 0) {
+        console.log("Failed deletions:", results.failed);
+      }
+
+      // Refresh sources data
+      queryClient.invalidateQueries({
+        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+      });
+    },
   });
+
+  // Helper functions for bulk operations
+  const handleSelectSource = (sourceId: string, checked: boolean) => {
+    const newSelected = new Set(selectedSources);
+    if (checked) {
+      newSelected.add(sourceId);
+    } else {
+      newSelected.delete(sourceId);
+    }
+    setSelectedSources(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allSourceIds = localSources.map((s) => s.id);
+      setSelectedSources(new Set(allSourceIds));
+    } else {
+      setSelectedSources(new Set());
+    }
+  };
+
+  const handleBulkAdd = () => {
+    if (!bulkUrlsInput.trim()) {
+      toast({
+        title: "No URLs provided",
+        description: "Please enter comma-separated URLs to add.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkAddSources.mutate({ urls: bulkUrlsInput });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedSources.size === 0) {
+      toast({
+        title: "No sources selected",
+        description: "Please select sources to delete.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkDeleteSources.mutate(Array.from(selectedSources));
+  };
+
+  const toggleBulkDeleteMode = () => {
+    setIsBulkDeleteMode(!isBulkDeleteMode);
+    // Clear selections when exiting bulk delete mode
+    if (isBulkDeleteMode) {
+      setSelectedSources(new Set());
+    }
+  };
 
   // Handle form submission
   function onSubmit(values: SourceFormValues) {
@@ -920,12 +1082,18 @@ export default function Sources() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-bold tracking-tight">Tracking Sources</h1>
-        <p className="text-muted-foreground">
-          Manage sources for threat monitoring and configure auto-update
-          settings.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-4xl font-bold tracking-tight">
+            Tracking Sources
+          </h1>
+          <p className="text-muted-foreground">
+            Manage sources for threat monitoring and configure auto-update
+            settings.
+          </p>
+        </div>
+
+
       </div>
 
       {/* Instructions Section */}
@@ -1123,49 +1291,15 @@ export default function Sources() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-center">
           <div className="text-sm text-muted-foreground">
             {scrapeJobRunning ? (
               <span className="flex items-center text-primary">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Scan is currently running...
               </span>
-
-            ) : (
-              <span>Check for new threats</span>
-            )}
+            ) : null}
           </div>
-          <Button
-            onClick={() => {
-              if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
-                stopScrapeJob.mutate();
-              } else {
-                scrapeAllSources.mutate();
-              }
-            }}
-            disabled={
-              (scrapeAllSources.isPending && !stopScrapeJob.isPending) ||
-              (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
-              localSources.length === 0
-            }
-            size="sm"
-            className={
-              scrapeJobRunning || checkScrapeStatus?.data?.running
-                ? "bg-red-600 hover:bg-red-600/80 text-white"
-                : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-            }
-          >
-            {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
-              <X className="mr-2 h-4 w-4" />
-            ) : (
-              <PlayCircle className="mr-2 h-4 w-4" />
-            )}
-            {scrapeJobRunning || checkScrapeStatus?.data?.running
-              ? "Stop Scan"
-              : "Scan All Sources Now"}
-          </Button>
         </CardFooter>
       </Card>
 
@@ -1179,8 +1313,8 @@ export default function Sources() {
               be enabled/disabled.
             </CardDescription>
           </div>
-          
-          <div className="flex gap-2">
+
+          <div className="flex gap-2 items-center">
             <Button
               onClick={() => {
                 if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
@@ -1194,7 +1328,6 @@ export default function Sources() {
                 (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
                 localSources.length === 0
               }
-              
               className={
                 scrapeJobRunning || checkScrapeStatus?.data?.running
                   ? "bg-red-600 hover:bg-red-600/80 text-white"
@@ -1211,18 +1344,6 @@ export default function Sources() {
               {scrapeJobRunning || checkScrapeStatus?.data?.running
                 ? "Stop Scan"
                 : "Scan All Sources Now"}
-            </Button>
-            <Button
-              onClick={handleNewSource}
-              disabled={createSource.isPending}
-              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-            >
-              {createSource.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              
             </Button>
           </div>
         </CardHeader>
@@ -1299,23 +1420,39 @@ export default function Sources() {
                 )}
               />
 
-              <DialogFooter>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setSourceDialogOpen(false)}
+                  onClick={() => {
+                    setSourceDialogOpen(false);
+                    setBulkAddDialogOpen(true);
+                  }}
+                  className="w-full sm:w-auto order-first sm:order-none"
                 >
-                  Cancel
+                  <Plus className="mr-2 h-4 w-4" />
+                  Bulk Add Sources
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={createSource.isPending || updateSource.isPending}
-                >
-                  {(createSource.isPending || updateSource.isPending) && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {editingSource ? "Update" : "Add"} Source
-                </Button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSourceDialogOpen(false)}
+                    className="flex-1 sm:flex-none"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createSource.isPending || updateSource.isPending}
+                    className="flex-1 sm:flex-none bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                  >
+                    {(createSource.isPending || updateSource.isPending) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {editingSource ? "Update" : "Add"} Source
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </Form>
@@ -1361,6 +1498,63 @@ export default function Sources() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Add Sources Dialog */}
+      <Dialog open={bulkAddDialogOpen} onOpenChange={setBulkAddDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Bulk Add Sources</DialogTitle>
+            <DialogDescription>
+              Enter comma-separated URLs. Each URL will automatically get a
+              title from the website.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="bulk-urls"
+                className="text-sm font-medium mb-2 block"
+              >
+                URLs (comma-separated)
+              </label>
+              <Textarea
+                id="bulk-urls"
+                placeholder="https://example1.com, https://example2.com, https://example3.com"
+                value={bulkUrlsInput}
+                onChange={(e) => setBulkUrlsInput(e.target.value)}
+                className="min-h-[120px]"
+                disabled={bulkAddInProgress}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                URLs will be automatically normalized with https:// prefix if
+                missing. Titles will be extracted from each website's metadata.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBulkAddDialogOpen(false)}
+              disabled={bulkAddInProgress}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAdd}
+              disabled={bulkAddInProgress || !bulkUrlsInput.trim()}
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+            >
+              {bulkAddInProgress && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Add Sources
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -1394,24 +1588,9 @@ export default function Sources() {
     }
 
     // Separate default and user sources
-    const defaultSources = localSources
-      .filter((source) => source.isDefault)
-      .sort((a, b) => {
-        // Active sources first, then inactive
-        if (a.active && !b.active) return -1;
-        if (!a.active && b.active) return 1;
-        return 0;
-      });
+    const defaultSources = localSources.filter((source) => source.isDefault);
 
-    const userSources = localSources
-      .filter((source) => !source.isDefault)
-      .sort((a, b) => {
-        // Active sources first, then inactive
-        if (a.active && !b.active) return -1;
-        if (!a.active && b.active) return 1;
-        return 0;
-      });
-
+    const userSources = localSources.filter((source) => !source.isDefault);
 
     console.log(localSources);
     console.log(defaultSources);
@@ -1457,7 +1636,6 @@ export default function Sources() {
                           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                             <div className="flex items-center gap-2 w-full">
                               <span className="font-medium text-sm truncate flex-1">
-
                                 {source.name}
                               </span>
                               <Badge
@@ -1467,14 +1645,14 @@ export default function Sources() {
                                 Default
                               </Badge>
                             </div>
-                            <div className="text-xs truncate mt-0.5 w-full">
+                            <div className="text-xs mt-0.5 w-full">
                               <a
                                 href={source.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
                               >
-                                <span className="truncate block max-w-full">
+                                <span className="block max-w-full">
                                   {source.url.length > 35
                                     ? source.url.substring(0, 35) + "..."
                                     : source.url}
@@ -1492,27 +1670,36 @@ export default function Sources() {
                               onClick={() => {
                                 updateSource.mutate({
                                   id: source.id,
-                                  values: { 
-                                    name: source.name, 
-                                    url: source.url, 
-                                    includeInAutoScrape: !source.includeInAutoScrape 
-                                  }
+                                  values: {
+                                    name: source.name,
+                                    url: source.url,
+                                    includeInAutoScrape:
+                                      !source.includeInAutoScrape,
+                                  },
                                 });
                               }}
                               disabled={updateSource.isPending}
                               className={`h-6 px-3 text-xs ${
-                                source.includeInAutoScrape 
-                                  ? 'text-white hover:opacity-80 border-[#BF00FF]' 
-                                  : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
+                                source.includeInAutoScrape
+                                  ? "text-white hover:opacity-80 border-[#BF00FF]"
+                                  : "bg-gray-600 text-white hover:bg-gray-700 border-gray-600"
                               }`}
-                              style={source.includeInAutoScrape ? { backgroundColor: '#BF00FF' } : {}}
+                              style={
+                                source.includeInAutoScrape
+                                  ? { backgroundColor: "#BF00FF" }
+                                  : {}
+                              }
                             >
-                              {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
+                              {source.includeInAutoScrape
+                                ? "Enabled"
+                                : "Disabled"}
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => scrapeSingleSource.mutate(source.id)}
+                              onClick={() =>
+                                scrapeSingleSource.mutate(source.id)
+                              }
                               disabled={
                                 scrapeSingleSource.isPending &&
                                 scrapingSourceId === source.id
@@ -1531,9 +1718,9 @@ export default function Sources() {
                             </Button>
                           </div>
                           <div className="text-xs text-muted-foreground truncate">
-                            <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                            <span className="font-medium">Last Scanned:</span>{" "}
+                            {formatLastScraped(source.lastScraped)}
                           </div>
-
                         </div>
                       </div>
                     ))}
@@ -1547,10 +1734,62 @@ export default function Sources() {
         {userSources.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
+              {isBulkDeleteMode && (
+                <Checkbox
+                  checked={
+                    userSources.length > 0 &&
+                    userSources.every((s) => selectedSources.has(s.id))
+                  }
+                  onCheckedChange={handleSelectAll}
+                  className="mr-1"
+                />
+              )}
               <h3 className="text-sm font-medium">Your Sources</h3>
               <Badge variant="outline" className="text-xs">
                 {userSources.length} sources
               </Badge>
+
+              {/* Action buttons */}
+              <div className="ml-auto flex items-center gap-1">
+                {/* Delete Selected Button */}
+                {selectedSources.size > 0 && (
+                  <Button
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteSources.isPending}
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 px-3 text-xs mr-2"
+                  >
+                    {bulkDeleteSources.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : null}
+                    Delete Selected
+                  </Button>
+                )}
+                <button
+                  onClick={handleNewSource}
+                  className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors text-white opacity-60 hover:opacity-100 font-medium text-lg leading-none"
+                  title="Add Source"
+                >
+                  +
+                </button>
+                <button
+                  onClick={toggleBulkDeleteMode}
+                  className={cn(
+                    "group flex items-center justify-center w-8 h-8 rounded border transition-colors text-lg leading-none font-medium",
+                    isBulkDeleteMode
+                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
+                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 text-white opacity-60 hover:opacity-100",
+                  )}
+                  title={
+                    isBulkDeleteMode
+                      ? "Exit Bulk Delete Mode"
+                      : "Enter Bulk Delete Mode"
+                  }
+                >
+                  −
+                </button>
+              </div>
             </div>
             {renderUserSourcesTable(userSources)}
           </div>
@@ -1569,7 +1808,6 @@ export default function Sources() {
   // Helper function to render user sources table
   function renderUserSourcesTable(userSources: ThreatSource[]) {
     return (
-
       <div className="w-full max-w-full overflow-hidden space-y-3">
         {userSources
           .filter((s) => true)
@@ -1578,21 +1816,21 @@ export default function Sources() {
               key={source.id}
               className="flex flex-col gap-0 p-3 bg-background rounded-lg border w-full max-w-full"
             >
-{/* First row: Name, URL, and Edit/Delete buttons */}
-              <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
+              {/* First row: Name, URL, and Edit/Delete buttons */}
+              <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden pb-2">
                 <div className="flex items-start gap-3 min-w-0 w-full">
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                   />
                   <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                    <div className="font-medium text-sm truncate w-full">
+                    <div className="font-medium text-sm w-full">
                       {source.name}
                     </div>
                     <a
                       href={source.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
+                      className="flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
                     >
                       <span className="truncate block max-w-full">
                         {source.url.length > 35
@@ -1602,37 +1840,24 @@ export default function Sources() {
                       <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
                     </a>
                   </div>
-                  
-                  {/* Right side: Auto badge and Edit/Delete buttons stacked */}
-                  <div className="flex items-start gap-2 flex-shrink-0">
-                    {source.includeInAutoScrape && (
-                      <Badge
-                        variant="outline"
-                        className="flex items-center gap-1 text-xs px-2 py-0.5"
-                      >
-                        <RotateCw className="h-2 w-2" />
-                        Auto
-                      </Badge>
-                    )}
-                    
-                    {/* Edit/Delete buttons stacked vertically */}
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditSource(source)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <PencilLine className="h-3 w-3" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
 
-                      {source.isDefault ? (
+                  {/* Right side: Auto badge and Edit/Delete buttons stacked */}
+                  <div className="flex items-start gap-2 flex-shrink-0 justify-end">
+                    {/* Edit/Delete buttons stacked vertically */}
+                    <div className="flex flex-col gap-1 items-end ml-auto">
+                      {isBulkDeleteMode ? (
+                        <Checkbox
+                          checked={selectedSources.has(source.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectSource(source.id, checked === true)
+                          }
+                        />
+                      ) : source.isDefault ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           disabled
-                          className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
+                          className="text-muted-foreground w-[20px] h-[20px] p-1 cursor-not-allowed"
                           title="Cannot delete default sources"
                         >
                           <PencilLine className="h-3 w-3" />
@@ -1644,7 +1869,7 @@ export default function Sources() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                              className="text-destructive hover:text-destructive w-[20px] h-[20px] p-1"
                             >
                               <Trash2 className="h-3 w-3" />
                               <span className="sr-only">Delete</span>
@@ -1652,9 +1877,7 @@ export default function Sources() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Are you sure?
-                              </AlertDialogTitle>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
                                 This will permanently delete the source "
                                 {source.name}". This action cannot be undone.
@@ -1672,6 +1895,15 @@ export default function Sources() {
                           </AlertDialogContent>
                         </AlertDialog>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSource(source)}
+                        className="w-[20px] h-[20px] p-1"
+                      >
+                        <PencilLine className="h-3 w-3" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1687,22 +1919,26 @@ export default function Sources() {
                     onClick={() => {
                       updateSource.mutate({
                         id: source.id,
-                        values: { 
-                          name: source.name, 
-                          url: source.url, 
-                          includeInAutoScrape: !source.includeInAutoScrape 
-                        }
+                        values: {
+                          name: source.name,
+                          url: source.url,
+                          includeInAutoScrape: !source.includeInAutoScrape,
+                        },
                       });
                     }}
                     disabled={updateSource.isPending}
                     className={`h-7 px-3 text-xs ${
-                      source.includeInAutoScrape 
-                        ? 'text-white hover:opacity-80 border-[#BF00FF]' 
-                        : 'bg-gray-600 text-white hover:bg-gray-700 border-gray-600'
+                      source.includeInAutoScrape
+                        ? "text-white hover:opacity-80 border-[#BF00FF]"
+                        : "bg-gray-600 text-white hover:bg-gray-700 border-gray-600"
                     }`}
-                    style={source.includeInAutoScrape ? { backgroundColor: '#BF00FF' } : {}}
+                    style={
+                      source.includeInAutoScrape
+                        ? { backgroundColor: "#BF00FF" }
+                        : {}
+                    }
                   >
-                    {source.includeInAutoScrape ? 'Enabled' : 'Disabled'}
+                    {source.includeInAutoScrape ? "Enabled" : "Disabled"}
                   </Button>
 
                   <Button
@@ -1710,8 +1946,7 @@ export default function Sources() {
                     size="sm"
                     onClick={() => scrapeSingleSource.mutate(source.id)}
                     disabled={
-                      scrapingSourceId === source.id ||
-                      scrapeJobRunning
+                      scrapingSourceId === source.id || scrapeJobRunning
                     }
                     className="h-7 px-2 text-xs flex-shrink-0"
                   >
@@ -1726,7 +1961,8 @@ export default function Sources() {
 
                 {/* Right side: Last Scanned */}
                 <div className="text-xs text-muted-foreground truncate">
-                  <span className="font-medium">Last Scanned:</span> {formatLastScraped(source.lastScraped)}
+                  <span className="font-medium">Last Scanned:</span>{" "}
+                  {formatLastScraped(source.lastScraped)}
                 </div>
               </div>
             </div>
