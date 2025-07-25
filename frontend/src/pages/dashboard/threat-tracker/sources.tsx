@@ -1819,15 +1819,6 @@ export default function Sources() {
                     
                     {/* Edit/Delete buttons stacked vertically */}
                     <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditSource(source)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <PencilLine className="h-3 w-3" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
                       {isBulkDeleteMode ? (
                         <Checkbox
                           checked={selectedSources.has(source.id)}
@@ -1879,6 +1870,15 @@ export default function Sources() {
                           </AlertDialogContent>
                         </AlertDialog>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSource(source)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <PencilLine className="h-3 w-3" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
                     </div>
                   </div>
                 </div>

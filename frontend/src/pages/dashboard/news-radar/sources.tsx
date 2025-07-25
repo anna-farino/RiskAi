@@ -1914,16 +1914,6 @@ export default function Sources() {
                           
                           {/* Edit/Delete buttons stacked vertically */}
                           <div className="flex flex-col gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditSource(source)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <PencilLine className="h-3 w-3" />
-                              <span className="sr-only">Edit</span>
-                            </Button>
-
                             {/* Show checkbox in bulk delete mode, trash icon otherwise */}
                             {isBulkDeleteMode ? (
                               <Checkbox
@@ -1946,6 +1936,15 @@ export default function Sources() {
                                 <span className="sr-only">Delete</span>
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditSource(source)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <PencilLine className="h-3 w-3" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
                           </div>
                         </div>
                       </div>
