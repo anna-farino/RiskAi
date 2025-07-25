@@ -1086,28 +1086,7 @@ export default function Sources() {
           </p>
         </div>
 
-        {/* Bulk Operations Toolbar */}
-        {selectedSources.size > 0 && (
-          <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
-            <span className="text-sm text-slate-300">
-              {selectedSources.size} selected
-            </span>
-            <Button
-              onClick={handleBulkDelete}
-              disabled={bulkDeleteSources.isPending}
-              size="sm"
-              variant="destructive"
-              className="h-7 px-2 text-xs"
-            >
-              {bulkDeleteSources.isPending ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Trash2 className="h-3 w-3" />
-              )}
-              Delete Selected
-            </Button>
-          </div>
-        )}
+
       </div>
 
       {/* Instructions Section */}
@@ -1788,6 +1767,23 @@ export default function Sources() {
                 >
                   −
                 </button>
+                {/* Delete Selected Button */}
+                {selectedSources.size > 0 && (
+                  <Button
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteSources.isPending}
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 px-3 text-xs ml-2"
+                  >
+                    {bulkDeleteSources.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3" />
+                    )}
+                    Delete Selected
+                  </Button>
+                )}
               </div>
             </div>
             {renderUserSourcesTable(userSources)}
