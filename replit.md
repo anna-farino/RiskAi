@@ -127,28 +127,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 25, 2025 - Fixed Mobile Overflow Issues in Threat Tracker Sources Page
-- **Resolved critical mobile responsiveness bug**: Threat tracker sources page was overflowing horizontally on mobile devices instead of scaling properly
-- **Root cause identified**: CardContent container had `overflow-x-scroll` class that forced horizontal scrolling instead of allowing proper mobile wrapping
-- **Fixed main overflow issue**: Replaced `overflow-x-scroll` with `w-full min-w-0` classes for proper mobile scaling
-- **Enhanced URL display**: Replaced fixed-length truncation (35 characters) with responsive text wrapping using `break-all` and `break-words` classes
-- **Improved button responsiveness**:
-  - Made "Scan All Sources Now" button text responsive ("Scan All" on mobile, full text on desktop)
-  - Added `flex-wrap` to auto-scrape interval buttons to prevent overflow
-  - Added `flex-shrink-0` classes to prevent button text compression
-- **Enhanced source card layouts**:
-  - Default sources: Improved spacing and wrapping with `break-words` for titles and `break-all` for URLs
-  - User sources: Restructured layout with proper mobile-first responsive design
-  - Action buttons: Better positioning and sizing for mobile interaction
-- **Mobile-first responsive design**: Used `sm:` breakpoints throughout for proper mobile-to-desktop scaling
-- **Container improvements**: Added `min-w-0` and proper width constraints to prevent content overflow
-- **Technical implementation**:
-  - Removed problematic `overflow-x-scroll` from CardContent container
-  - Applied responsive text utilities for proper word wrapping
-  - Enhanced flex layouts with proper wrapping and shrinking behavior
-  - Maintained all existing functionality while fixing mobile issues
-- **User benefit**: Threat tracker sources page now properly scales to 100% viewport width on mobile with no horizontal overflow
-
 ### July 25, 2025 - Material Design Web Checkbox Implementation
 - **Implemented proper Material Design web checkbox**: Following official Material Design web specifications for checkbox components
 - **40x40 touch target**: Wrapper provides accessible touch target size as per Material Design guidelines
