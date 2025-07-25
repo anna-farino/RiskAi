@@ -1770,36 +1770,27 @@ export default function Sources() {
               
               {/* Action buttons */}
               <div className="ml-auto flex items-center gap-1">
-                <button
-                  onClick={() => {
-                    // Scroll to the add source form
-                    const addSourceForm = document.querySelector('form');
-                    if (addSourceForm) {
-                      addSourceForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      // Focus the first input
-                      const firstInput = addSourceForm.querySelector('input');
-                      if (firstInput) {
-                        setTimeout(() => firstInput.focus(), 300);
-                      }
-                    }
-                  }}
-                  className="flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors group"
+                <Button
+                  onClick={() => setSourceDialogOpen(true)}
+                  size="sm"
+                  className="flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
                   title="Add Source"
                 >
-                  <Plus className="h-4 w-4 text-slate-400 group-hover:text-[#BF00FF]" />
-                </button>
-                <button
+                  <Plus className="h-4 w-4 text-slate-400 hover:text-[#BF00FF]" />
+                </Button>
+                <Button
                   onClick={toggleBulkDeleteMode}
+                  size="sm"
                   className={cn(
-                    "flex items-center justify-center w-8 h-8 rounded border transition-colors group",
+                    "flex items-center justify-center w-8 h-8 rounded border transition-colors",
                     isBulkDeleteMode 
                       ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30"
                       : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10"
                   )}
                   title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
                 >
-                  <Minus className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-slate-400 group-hover:text-[#BF00FF]")} />
-                </button>
+                  <Minus className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-slate-400 hover:text-[#BF00FF]")} />
+                </Button>
               </div>
               
               {isBulkDeleteMode && sources.data && sources.data.length > 0 && (
