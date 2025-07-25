@@ -127,6 +127,108 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 25, 2025 - Material Design Web Checkbox Implementation
+- **Implemented proper Material Design web checkbox**: Following official Material Design web specifications for checkbox components
+- **40x40 touch target**: Wrapper provides accessible touch target size as per Material Design guidelines
+- **18x18 checkbox**: Inner checkbox follows Material Design standard dimensions
+- **No inline styles**: Replaced all inline styles with proper Tailwind utility classes
+- **Proper ripple effects**: Material Design ripple animations on hover, focus, and active states
+- **Animated checkmark**: SVG checkmark with stroke-dasharray animation for smooth check appearance
+- **Material Design structure**:
+  - Outer wrapper (40x40) for proper touch target
+  - Inner checkbox (18x18) with border and background transitions
+  - SVG checkmark with proper Material Design path and animation
+  - Ripple effect layer with proper opacity transitions
+- **Purple brand integration**: Checkboxes use RisqAi brand color (#BF00FF) for checked state and ripple effects
+- **Accessibility maintained**: Using Radix UI primitives for proper ARIA attributes and keyboard navigation
+- **Technical implementation**:
+  - Used Radix UI CheckboxPrimitive for accessibility foundation
+  - Implemented Material Design structure with proper layering
+  - All styles use Tailwind classes - no inline styles
+  - Proper group data states for animation triggers
+- **User benefit**: Authentic Material Design checkboxes with proper animations and accessibility
+
+### July 25, 2025 - Completed Toggle-Based Bulk Delete Mode Implementation for Both Applications
+- **Unified bulk delete UX pattern**: Implemented identical toggle-based bulk delete functionality across News Radar and Threat Tracker applications
+- **Minus button trigger**: Added styled minus button next to plus button that activates bulk delete mode with visual feedback
+- **Conditional checkbox display**: Checkboxes only appear when bulk delete mode is active, replacing always-visible approach for cleaner UX
+- **Hidden trash icons in bulk mode**: Individual delete/trash buttons are hidden when bulk delete mode is active to reduce visual clutter
+- **Delete toolbar at top**: When sources are selected in bulk mode, delete toolbar appears at top with "Delete Selected (X)" button
+- **Select all checkbox conditional**: "Select all" checkbox only shows when bulk delete mode is active, maintaining clean interface
+- **State management**: Bulk delete mode state properly managed with automatic selection clearing when exiting mode
+- **Button position swap**: Delete/checkbox button positioned on top, edit button on bottom for better visual hierarchy
+- **Material Design styling**: Maintained purple brand colors (#BF00FF) throughout toggle functionality with proper hover states
+- **Responsive design**: Toggle functionality works seamlessly across mobile and desktop interfaces
+- **Fixed duplicate checkbox issue**: Removed duplicate checkbox that was appearing to the left of source titles in News Radar bulk delete mode
+- **Technical implementation**:
+  - Added `isBulkDeleteMode` state and `toggleBulkDeleteMode` handler to both applications
+  - Enhanced toolbar with conditional delete toolbar and minus button with visual feedback
+  - Modified source rendering logic to show checkboxes conditionally based on bulk mode state
+  - Wrapped edit/delete buttons in `!isBulkDeleteMode` conditions to hide during bulk operations
+  - Maintained consistent styling and behavior patterns between News Radar and Threat Tracker
+  - Fixed checkbox positioning to show only one checkbox per source in the action button area
+- **User benefit**: Clean, intuitive bulk delete experience with toggle-based mode switching that keeps interface uncluttered when not needed
+
+### July 25, 2025 - Consolidated Source Management Interface in News Radar
+- **Moved bulk delete to inline form**: Relocated bulk delete functionality from small header button to main add sources form as third button
+- **Three-button layout**: News Radar now has Add Source, Bulk Add, and Bulk Delete as equal-width buttons in the inline form
+- **Threat Tracker unchanged**: Plus/Minus buttons remain on the "Your Sources" line next to the source count
+- **News Radar consolidation**: All source management actions (add, bulk add, bulk delete) now in single consolidated interface
+- **Removed header minus button**: Eliminated small minus (-) button from News Radar source list header 
+- **Consistent button styling**: All three buttons use consistent styling with responsive text display
+- **Active state indication**: Bulk Delete button shows red styling when bulk delete mode is active
+- **User benefit**: Complete source management workflow accessible from single location with clear visual hierarchy
+
+### July 25, 2025 - Fixed Plus and Minus Icon Visibility Issue with Simple Text Characters
+- **Resolved critical icon visibility bug**: Plus (+) and Minus (-) icons from lucide-react were not rendering properly, appearing as invisible elements
+- **Root cause**: SVG rendering issues in dark theme where stroke colors were not visible despite multiple approaches (currentColor, explicit colors, opacity)
+- **Simple text solution**: Replaced all SVG implementations with plain text characters
+  - Plus icon: Simple "+" character with text styling
+  - Minus icon: Unicode minus "−" character (not hyphen) with text styling
+  - Applied `text-lg leading-none font-medium` for proper sizing and centering
+- **Color visibility fix**: Using text-based approach with proper color classes
+  - Default state: `text-white opacity-60` for subtle but visible appearance
+  - Hover state: `hover:opacity-100` with purple background on button hover
+  - Bulk delete mode: `text-red-500` for minus button when active
+- **News Radar button fix**: Plus button now focuses on existing source name input field instead of attempting to open non-existent dialog
+  - Changed to use react-hook-form's `form.setFocus("name")` instead of direct ref to avoid duplicate ref errors
+  - Removed sourceNameInputRef and useRef import entirely
+  - Plus button onClick now calls `form.setFocus("name")` to focus on source name field
+- **Technical implementation**:
+  - Removed all SVG elements and replaced with text characters
+  - Maintained all button styling (borders, hover effects, transitions)
+  - Used explicit text color classes instead of relying on SVG stroke inheritance
+  - Consistent implementation across both News Radar and Threat Tracker
+- **User benefit**: Plus and Minus buttons are now guaranteed visible using simple, reliable text characters with proper color contrast
+
+### July 24, 2025 - Enhanced Bulk Source Operations with Smart Title Parsing and UI Refresh Fixes
+- **Improved source management UX**: Moved "Bulk Add Sources" button from header toolbar into source management forms for better consolidation
+- **Threat Tracker implementation**: Added bulk add button to "Add New Source" dialog footer alongside Cancel and Add Source buttons
+- **News Radar implementation**: Added bulk add button to "Add News Source" form side by side with Add Source button
+- **Streamlined toolbar**: Removed standalone bulk add buttons from header toolbars, keeping only bulk delete when sources are selected
+- **Side-by-side button layout**: Changed from stacked to horizontal layout with Add Source (left) and Bulk Add (right) as equal-width buttons
+- **Consistent UX pattern**: Source management actions now consolidated in a single location per application
+- **Better visual hierarchy**: Primary action (Add Source) remains prominently placed with secondary action (Bulk Add) as outline button
+- **Smart Title Parsing Implementation (Option 1)**:
+  - Enhanced `cleanTitle` function with intelligent separator detection
+  - Parses main titles by splitting on common separators: `" - "`, `" | "`, `": "`, `" – "`, `" — "`, `" • "`, `" :: "`, `" / "`
+  - Examples: `"WIRED - The Latest in Technology..."` → `"WIRED"`, `"CNET: Product reviews..."` → `"CNET"`
+  - Includes safeguards to avoid breaking legitimate short titles
+  - Added debug logging to track title transformations
+  - Falls back to original title if no suitable separator found
+- **Fixed UI Refresh Issue After Bulk Operations**:
+  - Enhanced cache invalidation in both News Radar and Threat Tracker bulk add mutations
+  - Added aggressive cache refresh with both `invalidateQueries` and `refetchQueries` to guarantee UI updates
+  - Made cache invalidation async to ensure proper completion before showing success messages
+  - Consistent implementation across both applications for reliable source list refresh
+- **Technical implementation**:
+  - Modified `DialogFooter` in Threat Tracker with flex layout to accommodate three buttons
+  - Updated News Radar form button area to use flex column/row layout for mobile responsiveness
+  - Maintained proper button styling and brand colors (#BF00FF purple with cyan hover effects)
+  - Enhanced `backend/services/scraping/extractors/title-extraction/bulk-title-extractor.ts` with `parseMainTitle` function
+  - Fixed cache invalidation in `frontend/src/pages/dashboard/news-radar/sources.tsx` and `frontend/src/pages/dashboard/threat-tracker/sources.tsx`
+- **User benefit**: All source management actions now accessible from single interface location with reliable UI refresh and cleaner, shorter titles extracted from websites
+
 ### July 16, 2025 - Fixed Duplicate Delete All Articles Button Issue
 - **Fixed duplicate button display**: Removed duplicate "Delete All Articles" button from News Radar home page
 - **Root cause**: Two identical buttons were rendering - one in pagination controls and one at bottom of page
@@ -169,7 +271,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Integrated scan buttons into home page headers with proper state management
   - Used Shield icon for scan button, X icon for stop, and Loader2 for loading states
 - **User benefit**: Users can now initiate scans without navigating to sources pages, improving workflow efficiency
-
 
 ### July 14, 2025 - Enhanced DataDome Challenge Solving and Performance Optimization
 - **Fixed critical DataDome challenge timeout issue** where system waited passively for 20 seconds instead of actively solving challenges
@@ -319,7 +420,6 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - DataDome meta tags and iframe detection
 - **Expected success rate improvement**: From 5-15% (basic) to 60-80% (enhanced implementation)
 - **Domain-agnostic approach**: Works with any DataDome-protected site, not just MarketWatch
-
 
 ### July 11, 2025 - Fixed News Capsule Database Constraint Violation
 - **Fixed critical "Send to News Capsule" button error** where database insertion failed due to null threat_name column
