@@ -1776,7 +1776,7 @@ export default function Sources() {
                   className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
                   title="Add Source"
                 >
-                  <Plus className="h-4 w-4 text-slate-400 group-hover:text-[#BF00FF]" />
+                  <Plus className="h-4 w-4" style={{ color: '#94A3B8' }} />
                 </Button>
                 <Button
                   onClick={toggleBulkDeleteMode}
@@ -1787,9 +1787,9 @@ export default function Sources() {
                       ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30"
                       : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10"
                   )}
-                  title={isBulkDeleteMode ? "Enter Bulk Delete Mode" : "Exit Bulk Delete Mode"}
+                  title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
                 >
-                  <Minus className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-slate-400 group-hover:text-[#BF00FF]")} />
+                  <Minus className="h-4 w-4" style={{ color: isBulkDeleteMode ? '#EF4444' : '#94A3B8' }} />
                 </Button>
               </div>
               
