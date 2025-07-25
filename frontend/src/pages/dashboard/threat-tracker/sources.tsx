@@ -1790,7 +1790,7 @@ export default function Sources() {
                   </div>
                   
                   {/* Right side: Auto badge and Edit/Delete buttons stacked */}
-                  <div className="flex items-start gap-2 flex-shrink-0">
+                  <div className="flex items-start gap-2 flex-shrink-0 justify-end">
                     {source.includeInAutoScrape && (
                       <Badge
                         variant="outline"
@@ -1802,7 +1802,7 @@ export default function Sources() {
                     )}
                     
                     {/* Edit/Delete buttons stacked vertically */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 items-end">
                       {isBulkDeleteMode ? (
                         <Checkbox
                           checked={selectedSources.has(source.id)}
