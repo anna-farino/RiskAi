@@ -1043,15 +1043,16 @@ export default function Sources() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-bold tracking-tight">Tracking Sources</h1>
-          <p className="text-muted-foreground">
-            Manage sources for threat monitoring and configure auto-update
-            settings.
-          </p>
-        </div>
+    <div className="w-full max-w-full overflow-hidden">
+      <div className="flex flex-col gap-6 px-1 sm:px-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
+          <div className="flex flex-col gap-2 min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Tracking Sources</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Manage sources for threat monitoring and configure auto-update
+              settings.
+            </p>
+          </div>
         
         {/* Bulk Operations Toolbar */}
         {selectedSources.size > 0 && (
@@ -1075,9 +1076,9 @@ export default function Sources() {
             </Button>
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Instructions Section */}
+        {/* Instructions Section */}
       <div className="mb-0">
         <Collapsible
           open={!isInstructionsCollapsed}
