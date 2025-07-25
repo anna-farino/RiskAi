@@ -110,7 +110,7 @@ export default function Login() {
         <CardHeader className="pb-4 px-4 sm:px-6">
           <CardTitle className="text-2xl text-white text-center">Login</CardTitle>
           <CardDescription className="text-gray-300 text-center">
-            Enter your email below to login to your account
+            Click the button below to log in or sign up 
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 px-4 sm:px-6">
@@ -125,7 +125,7 @@ export default function Login() {
           >
             Login/Signup
           </Button>
-          <Button 
+          {true && <Button 
             className={cn(
               "w-full text-white hover:text-white font-light",
               "transition-all duration-300 bg-gradient-to-r",
@@ -134,7 +134,7 @@ export default function Login() {
             onClick={handleLogout}
           >
             Logout
-          </Button>
+          </Button>}
           {searchParams.get("error_description") === "Please verify your email before logging in." &&
             <CardDescription className="flex flex-col gap-4 text-gray-300 text-center text-md">
               Please verify your email (check your inbox)

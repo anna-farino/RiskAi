@@ -30,6 +30,7 @@ export async function handleAuthCheck(req: Request, res: Response) {
     user: [
       { 
         ...user, 
+        password: "[hidden]",
         permissions: (req as unknown as FullRequest).user.permissions,
         role: (req as unknown as FullRequest).user.role,
       }

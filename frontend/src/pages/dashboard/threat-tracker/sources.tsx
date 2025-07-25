@@ -1,7 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { csfrHeaderObject } from "@/utils/csrf-header";
-import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
@@ -256,11 +254,17 @@ export default function Sources() {
   // Create source mutation
   const createSource = useMutation({
     mutationFn: async (values: SourceFormValues) => {
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/sources`,
-        values,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/sources`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        }
       );
+      return await response.json();
     },
     onMutate: async (newSource) => {
       // Cancel outgoing refetches
@@ -326,11 +330,17 @@ export default function Sources() {
       id: string;
       values: SourceFormValues;
     }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/sources/${id}`,
-        values,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/sources/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ id, values }) => {
       // Cancel outgoing refetches
@@ -399,9 +409,12 @@ export default function Sources() {
       deleteArticles?: boolean;
     }) => {
       const url = deleteArticles
-        ? `${serverUrl}/api/threat-tracker/sources/${id}?deleteArticles=true`
-        : `${serverUrl}/api/threat-tracker/sources/${id}`;
-      return apiRequest("DELETE", url);
+        ? `/api/threat-tracker/sources/${id}?deleteArticles=true`
+        : `/api/threat-tracker/sources/${id}`;
+      const response = await fetchWithTokens(url, {
+        method: "DELETE",
+      });
+      return await response.json();
     },
     onMutate: async ({ id: deletedId }) => {
       // Cancel outgoing refetches
@@ -451,10 +464,13 @@ export default function Sources() {
   const scrapeSingleSource = useMutation({
     mutationFn: async (id: string) => {
       setScrapingSourceId(id);
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/scrape/source/${id}`,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/scrape/source/${id}`,
+        {
+          method: "POST",
+        }
       );
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -493,7 +509,13 @@ export default function Sources() {
   // Scrape all sources mutation
   const scrapeAllSources = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/scrape/all`,
+        {
+          method: "POST",
+        }
+      );
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -609,11 +631,17 @@ export default function Sources() {
       enabled,
       interval,
     }: AutoScrapeSettings): Promise<AutoScrapeSettings> => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
-        { enabled, interval },
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/settings/auto-scrape`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ enabled, interval }),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ enabled, interval }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -702,16 +730,22 @@ export default function Sources() {
       active: boolean;
       source: ThreatSource;
     }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/sources/${id}`,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/sources/${id}`,
         {
-          name: source.name,
-          url: source.url,
-          active,
-          includeInAutoScrape: source.includeInAutoScrape,
-        },
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: source.name,
+            url: source.url,
+            active,
+            includeInAutoScrape: source.includeInAutoScrape,
+          }),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ id, active }) => {
       // Cancel outgoing refetches

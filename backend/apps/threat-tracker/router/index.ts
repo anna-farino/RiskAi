@@ -17,7 +17,10 @@ export const threatRouter = Router();
 function getUserId(req: any): string | undefined {
   return (req.user as User)?.id;
 }
-
+threatRouter.get('/test', (_,res)=>{
+  console.log("/api/threat-tracker/test hit")
+  res.json({ message: "ok"})
+})
 // Sources API
 threatRouter.get("/sources", async (req, res) => {
   reqLog(req, "🔎 GET /sources");

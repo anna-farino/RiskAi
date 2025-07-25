@@ -33,7 +33,9 @@ router.get('/test-datadome-bypass', testDatadomeBypass)
 // AUTH
 router.use('/auth', limiter, authRouter)
 
-// PROTECTIONS
+// ================================================
+// PROTECTIONS ====================================
+// ================================================
 router.use(auth0CheckJwt)
 router.use(jwtErrorHandler)
 //router.use(doubleCsrfProtection)
@@ -41,7 +43,10 @@ router.use(noSimpleRequests)
 //router.use(verifyToken)
 router.use(auth0middleware)
 
+
+// ================================================
 // PROTECTED ROUTES
+// ================================================
 router.use('/users', usersRouter)
 
 router.use('/news-tracker', newsRouter)

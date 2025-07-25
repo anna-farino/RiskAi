@@ -1,7 +1,6 @@
 import { auth0_client_id, auth0_client_secret, auth0_domain } from "./auth0-env";
 
-export async function getToken(): Promise<string> {
-  let token: string;
+export async function getToken(): Promise<string | null> {
   try {
       const response = await fetch(`${auth0_domain}/oauth/token`, {
         method: 'POST',
@@ -19,12 +18,13 @@ export async function getToken(): Promise<string> {
           throw new Error('Get token: Network response was not ok');
       }
       const data = await response.json();
-      token = data.access_token
+      const token = data.access_token
 
       if (!token) throw new Error("No token retrieved!")
       else console.log("Auth0 token successfully retrieved");
+      return token
   } catch (error) {
       console.error('Error fetching token:', error);
+    return null
   }
-  return token
 };

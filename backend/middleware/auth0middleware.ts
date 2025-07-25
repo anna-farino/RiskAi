@@ -24,7 +24,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
     .limit(1);
 
   //req.log("Users with email: ", email, user)
-  req.log("[AUTH0-MIDDLEWARE] userArray: ", userArray)
+  //req.log("[AUTH0-MIDDLEWARE] userArray: ", userArray)
 
   if (!email_verified) {
     req.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)

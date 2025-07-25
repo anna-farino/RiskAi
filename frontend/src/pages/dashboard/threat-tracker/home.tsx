@@ -2,7 +2,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
-import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import type {
   ThreatArticle,
@@ -252,10 +251,13 @@ export default function ThreatHome() {
   // Delete article mutation
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(
-        "DELETE",
-        `${serverUrl}/api/threat-tracker/articles/${id}`,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/articles/${id}`,
+        {
+          method: "DELETE",
+        }
       );
+      return await response.json();
     },
     onMutate: (id) => {
       // Optimistic update - remove article from local state
@@ -303,7 +305,13 @@ export default function ThreatHome() {
   // Delete all articles mutation
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/articles`);
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/articles`,
+        {
+          method: "DELETE",
+        }
+      );
+      return await response.json();
     },
     onMutate: () => {
       // Optimistic update - clear local articles
@@ -340,7 +348,10 @@ export default function ThreatHome() {
       const endpoint = marked
         ? `${serverUrl}/api/threat-tracker/articles/${id}/mark-for-capsule`
         : `${serverUrl}/api/threat-tracker/articles/${id}/unmark-for-capsule`;
-      return apiRequest("POST", endpoint);
+      const response = await fetchWithTokens(endpoint.replace(serverUrl, ''), {
+        method: "POST",
+      });
+      return await response.json();
     },
     onMutate: ({ id, marked }) => {
       // Add to pending operations
@@ -429,7 +440,9 @@ export default function ThreatHome() {
   // Scrape all sources mutation
   const scrapeAllSources = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+      return fetchWithTokens(`/api/threat-tracker/scrape/all`, {
+        method: 'POST'
+      });
     },
     onSuccess: () => {
       toast({

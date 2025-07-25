@@ -18,6 +18,10 @@ export const newsRouter = Router()
 
 const activeScraping = new Map<string, boolean>();
 
+newsRouter.get('/test', (_,res)=>{
+  console.log("/api/news-radar/test hit")
+  res.json({ message: "ok"})
+})
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;
   reqLog(req,"GET sources hit. userId=", userId)

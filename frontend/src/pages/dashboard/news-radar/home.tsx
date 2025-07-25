@@ -2,7 +2,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
-import { apiRequest } from "@/lib/query-client";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import type { Article, Keyword } from "@shared/db/schema/news-tracker/index";
