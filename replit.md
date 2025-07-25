@@ -172,11 +172,12 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 ### July 25, 2025 - Toolbar Buttons Repositioned to Source List Headers with Icon Visibility Fix
 - **Moved Plus/Minus buttons to inline toolbar**: Relocated Plus (+) and Minus (-) buttons from separate toolbar row to be inline with source list headers
 - **Threat Tracker implementation**: Plus/Minus buttons now appear on the "Your Sources" line next to the source count
-- **News Radar implementation**: Plus/Minus buttons now appear on the "Source List" line next to the configured sources count  
+- **News Radar implementation**: Only Minus (-) button appears on the "Source List" line - Plus button removed due to redundant inline add form
 - **Smaller button sizing**: Reduced button size from 40x40 to 32x32 (w-8 h-8) with smaller icons (h-4 w-4) to match text size
 - **Consistent styling**: Both applications use identical button styling with subtle borders and hover effects
 - **Removed old toolbar**: Eliminated separate toolbar row that previously housed Plus/Minus buttons
-- **User benefit**: Cleaner, more compact interface with source management controls integrated directly into section headers
+- **Eliminated redundancy**: Removed Plus button from News Radar since inline add source form is available above sources list
+- **User benefit**: Cleaner, more compact interface with source management controls integrated directly into section headers without unnecessary duplication
 
 ### July 25, 2025 - Fixed Plus and Minus Icon Visibility Issue with Simple Text Characters
 - **Resolved critical icon visibility bug**: Plus (+) and Minus (-) icons from lucide-react were not rendering properly, appearing as invisible elements

@@ -1774,14 +1774,6 @@ export default function Sources() {
               {/* Action buttons */}
               <div className="ml-auto flex items-center gap-1">
                 <Button
-                  onClick={() => form.setFocus("name")}
-                  size="sm"
-                  className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors text-white opacity-60 hover:opacity-100 font-medium text-lg leading-none"
-                  title="Add Source"
-                >
-                    +
-                </Button>
-                <Button
                   onClick={toggleBulkDeleteMode}
                   size="sm"
                   className={cn(
