@@ -1773,44 +1773,42 @@ export default function Sources() {
               className="flex flex-col gap-3 p-3 bg-background rounded-lg border w-full min-w-0"
             >
               {/* First row: Name, URL, and Action buttons */}
-              <div className="flex flex-col sm:flex-row sm:items-start gap-3 w-full min-w-0">
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div
-                    className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
-                  />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full">
-                      <span className="font-medium text-sm break-words">
-                        {source.name}
-                      </span>
-                      {source.includeInAutoScrape && (
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1 text-xs px-2 py-0.5 self-start sm:self-center flex-shrink-0"
-                        >
-                          <RotateCw className="h-2 w-2" />
-                          Auto
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-xs mt-0.5 w-full break-all">
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-start text-muted-foreground hover:underline text-xs min-w-0"
+              <div className="flex items-start gap-3 w-full min-w-0">
+                <div
+                  className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
+                />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full">
+                    <span className="font-medium text-sm break-words">
+                      {source.name}
+                    </span>
+                    {source.includeInAutoScrape && (
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 self-start sm:self-center flex-shrink-0"
                       >
-                        <span className="break-all flex-1 min-w-0">
-                          {source.url}
-                        </span>
-                        <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0 mt-0.5" />
-                      </a>
-                    </div>
+                        <RotateCw className="h-2 w-2" />
+                        Auto
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs mt-0.5 w-full break-all">
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start text-muted-foreground hover:underline text-xs min-w-0"
+                    >
+                      <span className="break-all flex-1 min-w-0">
+                        {source.url}
+                      </span>
+                      <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0 mt-0.5" />
+                    </a>
                   </div>
                 </div>
                 
-                {/* Action buttons on the right */}
-                <div className="flex flex-row sm:flex-col gap-1 justify-end sm:justify-start flex-shrink-0">
+                {/* Action buttons stacked to the right */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
                   {isBulkDeleteMode ? (
                     <Checkbox
                       checked={selectedSources.has(source.id)}
