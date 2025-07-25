@@ -1,96 +1,110 @@
 import * as React from "react"
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { cn } from "@/lib/utils"
 
-interface CheckboxProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  checked?: boolean
-  onCheckedChange?: (checked: boolean) => void
-}
-
-const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
-  ({ checked = false, onCheckedChange, className, disabled = false, ...props }, ref) => {
-    const handleClick = () => {
-      if (!disabled && onCheckedChange) {
-        onCheckedChange(!checked)
-      }
-    }
-
-    return (
-      <button
-        ref={ref}
-        type="button"
-        role="checkbox"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={handleClick}
+const Checkbox = React.forwardRef<
+  React.ElementRef<typeof CheckboxPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <div className="mdc-checkbox-wrapper relative inline-flex items-center justify-center w-10 h-10">
+    <CheckboxPrimitive.Root
+      ref={ref}
+      className={cn(
+        // Material Design checkbox container
+        "mdc-checkbox relative inline-flex items-center justify-center",
+        "w-[18px] h-[18px]",
+        "group",
+        className
+      )}
+      {...props}
+    >
+      {/* Background layer */}
+      <span 
         className={cn(
-          // Base styles - Material Design 18x18 checkbox
-          "material-checkbox",
-          "relative inline-flex items-center justify-center",
-          "w-[18px] h-[18px] min-w-[18px] min-h-[18px]",
+          "mdc-checkbox__background",
+          "absolute inset-0",
+          "inline-flex items-center justify-center",
           "rounded-sm border-2 border-gray-600",
+          "transition-all duration-90 ease-out",
           "bg-transparent",
-          "transition-all duration-150 ease-in-out",
           
-          // Interactive states
-          "hover:border-gray-500",
-          "focus:outline-none focus:ring-2 focus:ring-[#BF00FF] focus:ring-opacity-20 focus:ring-offset-2",
-          "active:scale-95",
+          // Hover state
+          "group-hover:border-gray-500",
           
           // Checked state
-          "data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF]",
+          "group-data-[state=checked]:bg-[#BF00FF]",
+          "group-data-[state=checked]:border-[#BF00FF]",
+          
+          // Focus state
+          "group-focus-visible:outline-none",
           
           // Disabled state
-          "disabled:cursor-not-allowed disabled:opacity-38 disabled:border-gray-400",
-          "disabled:data-[state=checked]:bg-gray-400 disabled:data-[state=checked]:border-gray-400",
-          
-          className
+          "group-disabled:border-gray-400",
+          "group-disabled:group-data-[state=checked]:bg-gray-400",
+          "group-disabled:group-data-[state=checked]:border-gray-400",
+          "group-disabled:cursor-not-allowed"
         )}
-        data-state={checked ? "checked" : "unchecked"}
-        {...props}
       >
-        <span
-          className={cn(
-            "absolute inset-0 flex items-center justify-center",
-            "opacity-0 scale-0 transition-all duration-150",
-            checked && "opacity-100 scale-100"
-          )}
+        <CheckboxPrimitive.Indicator 
+          className="mdc-checkbox__checkmark w-full h-full"
+          asChild
         >
           <svg
-            width="12"
-            height="9"
-            viewBox="0 0 12 9"
+            viewBox="0 0 24 24"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="text-white"
+            className="w-full h-full"
           >
             <path
-              d="M1 4.5L4.5 8L11 1"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              className={cn(
+                "mdc-checkbox__checkmark-path",
+                "stroke-white stroke-[3.12]",
+                "fill-none",
+                "transition-all duration-180 ease-out",
+                "origin-center",
+                "[stroke-dasharray:29.7833]",
+                "[stroke-dashoffset:29.7833]",
+                "group-data-[state=checked]:[stroke-dashoffset:0]"
+              )}
+              d="M1.73,12.91 8.1,19.28 22.79,4.59"
             />
           </svg>
-        </span>
+        </CheckboxPrimitive.Indicator>
         
-        {/* Ripple effect container */}
-        <span 
-          className="absolute inset-0 -m-3 w-12 h-12 rounded-full pointer-events-none"
-          aria-hidden="true"
-        >
-          <span 
-            className={cn(
-              "absolute inset-0 rounded-full",
-              "bg-[#BF00FF] opacity-0",
-              "transition-opacity duration-200",
-              "group-hover:opacity-8 group-focus:opacity-12"
-            )}
-          />
-        </span>
-      </button>
-    )
-  }
-)
-Checkbox.displayName = "Checkbox"
+        {/* Mixed state indicator */}
+        <span
+          className={cn(
+            "mdc-checkbox__mixedmark",
+            "absolute inset-[5px]",
+            "bg-white",
+            "opacity-0",
+            "transition-opacity duration-90",
+            "group-data-[state=indeterminate]:opacity-100"
+          )}
+        />
+      </span>
+      
+      {/* Ripple effect */}
+      <span
+        className={cn(
+          "mdc-checkbox__ripple",
+          "absolute inset-[-11px]",
+          "rounded-full",
+          "pointer-events-none",
+          "transition-all duration-150",
+          "bg-[#BF00FF]",
+          "opacity-0",
+          "scale-0",
+          "group-hover:opacity-[0.08]",
+          "group-hover:scale-100",
+          "group-focus-visible:opacity-[0.12]",
+          "group-focus-visible:scale-100",
+          "group-active:opacity-[0.16]",
+          "group-active:scale-100"
+        )}
+      />
+    </CheckboxPrimitive.Root>
+  </div>
+))
+Checkbox.displayName = CheckboxPrimitive.Root.displayName
 
 export { Checkbox }

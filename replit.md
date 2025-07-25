@@ -127,20 +127,26 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 25, 2025 - Custom Material Design Checkbox Implementation
-- **Completely rewrote checkbox component**: Created custom checkbox implementation without Radix UI dependencies to ensure proper Material Design compliance
-- **Perfect square dimensions**: Enforced 16x16px square shape with explicit inline styles to prevent any deformation
-- **Visible white checkmark**: Custom SVG path with white stroke that displays clearly on purple background when checked
-- **Material Design compliance**: Removed all border radius for true square appearance as per Material Design guidelines
-- **Purple brand integration**: Checkboxes use RisqAi brand color (#BF00FF) background when selected
-- **Enhanced interactivity**: Proper hover states (gray-300 border), focus rings, and smooth transitions
+### July 25, 2025 - Material Design Web Checkbox Implementation
+- **Implemented proper Material Design web checkbox**: Following official Material Design web specifications for checkbox components
+- **40x40 touch target**: Wrapper provides accessible touch target size as per Material Design guidelines
+- **18x18 checkbox**: Inner checkbox follows Material Design standard dimensions
+- **No inline styles**: Replaced all inline styles with proper Tailwind utility classes
+- **Proper ripple effects**: Material Design ripple animations on hover, focus, and active states
+- **Animated checkmark**: SVG checkmark with stroke-dasharray animation for smooth check appearance
+- **Material Design structure**:
+  - Outer wrapper (40x40) for proper touch target
+  - Inner checkbox (18x18) with border and background transitions
+  - SVG checkmark with proper Material Design path and animation
+  - Ripple effect layer with proper opacity transitions
+- **Purple brand integration**: Checkboxes use RisqAi brand color (#BF00FF) for checked state and ripple effects
+- **Accessibility maintained**: Using Radix UI primitives for proper ARIA attributes and keyboard navigation
 - **Technical implementation**:
-  - Replaced Radix UI CheckboxPrimitive with custom button-based implementation
-  - Used explicit inline styles to force square dimensions (width/height/minWidth/minHeight all 16px)
-  - Created custom SVG checkmark path optimized for 16x16 display
-  - Removed all size utility classes from checkbox usage across both applications
-  - Implemented proper checkbox ARIA attributes and keyboard accessibility
-- **User benefit**: Material Design compliant square checkboxes with guaranteed visible white checkmarks
+  - Used Radix UI CheckboxPrimitive for accessibility foundation
+  - Implemented Material Design structure with proper layering
+  - All styles use Tailwind classes - no inline styles
+  - Proper group data states for animation triggers
+- **User benefit**: Authentic Material Design checkboxes with proper animations and accessibility
 
 ### July 25, 2025 - Completed Toggle-Based Bulk Delete Mode Implementation for Both Applications
 - **Unified bulk delete UX pattern**: Implemented identical toggle-based bulk delete functionality across News Radar and Threat Tracker applications
