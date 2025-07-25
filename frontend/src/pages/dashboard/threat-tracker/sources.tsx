@@ -1625,14 +1625,14 @@ export default function Sources() {
                                 Default
                               </Badge>
                             </div>
-                            <div className="text-xs truncate mt-0.5 w-full">
+                            <div className="text-xs mt-0.5 w-full">
                               <a
                                 href={source.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
                               >
-                                <span className="truncate block max-w-full">
+                                <span className="block max-w-full">
                                   {source.url.length > 35
                                     ? source.url.substring(0, 35) + "..."
                                     : source.url}
@@ -1771,7 +1771,7 @@ export default function Sources() {
                     className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                   />
                   <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                    <div className="font-medium text-sm truncate w-full">
+                    <div className="font-medium text-sm w-full">
                       {source.name}
                     </div>
                     <a
@@ -1780,7 +1780,7 @@ export default function Sources() {
                       rel="noopener noreferrer"
                       className=" flex items-center text-muted-foreground hover:underline text-xs min-w-0 max-w-full"
                     >
-                      <span className="truncate block max-w-full">
+                      <span className="block max-w-full">
                         {source.url.length > 35
                           ? source.url.substring(0, 35) + "..."
                           : source.url}
