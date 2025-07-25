@@ -25,6 +25,6 @@ export async function sendEmailVerification({ token, userId }: Args) {
     const data = await response.json();
     console.log("Email verification sent!", data);
   } catch (error) {
-    console.error('Error fetching token:', error);
+    console.error('Error sending reset password:', error);
   }
 };

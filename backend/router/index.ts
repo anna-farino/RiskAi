@@ -17,6 +17,7 @@ import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/h
 import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 import { auth0middleware } from 'backend/middleware/auth0middleware';
+import { handleChangePassword } from 'backend/handlers/auth0/change-password';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
@@ -48,6 +49,7 @@ router.use(auth0middleware)
 // PROTECTED ROUTES
 // ================================================
 router.use('/users', usersRouter)
+router.post('/change-password', handleChangePassword)
 
 router.use('/news-tracker', newsRouter)
 router.use('/threat-tracker', threatRouter)

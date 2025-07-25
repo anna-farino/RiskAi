@@ -71,7 +71,7 @@ export default function Settings() {
   const sendOtpMutation = useMutation({
     mutationFn: async () => {
       if (!user?.email) throw new Error()
-      const response = await fetchWithTokens(`/api/reset-password`, {
+      const response = await fetchWithTokens(`/api/change-password`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
