@@ -14,6 +14,7 @@ import {
   Link2,
   Globe,
   Plus,
+  Minus,
   RotateCw,
   Check,
   X,
@@ -47,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -129,6 +131,16 @@ export default function Sources() {
   const [optimisticAutoScrapeInterval, setOptimisticAutoScrapeInterval] =
     useState<JobInterval | null>(null);
   const [isInstructionsCollapsed, setIsInstructionsCollapsed] = useState(true);
+  
+  // Bulk operations state
+  const [bulkAddDialogOpen, setBulkAddDialogOpen] = useState(false);
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
+  const [bulkUrlsInput, setBulkUrlsInput] = useState("");
+  const [bulkAddInProgress, setBulkAddInProgress] = useState(false);
+  const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
+  
+  // Ref for the source name input to focus on
+  // Removed sourceNameInputRef - will use form.setFocus instead
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1052,6 +1064,195 @@ export default function Sources() {
     },
   });
 
+  // Bulk add sources mutation
+  const bulkAddSources = useMutation({
+    mutationFn: async ({ urls, options }: { urls: string; options?: { concurrency?: number; timeout?: number } }) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/bulk-add`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          body: JSON.stringify({ urls, options }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to bulk add sources: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Bulk add sources error:", error);
+        throw error;
+      }
+    },
+    onMutate: () => {
+      setBulkAddInProgress(true);
+    },
+    onError: (error: any) => {
+      setBulkAddInProgress(false);
+      toast({
+        title: "Bulk add failed",
+        description: error.message || "Failed to add sources in bulk. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: async (data) => {
+      setBulkAddInProgress(false);
+      setBulkAddDialogOpen(false);
+      setBulkUrlsInput("");
+      
+      // Aggressive cache refresh to ensure UI updates
+      await queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Force refetch to guarantee UI refresh
+      await queryClient.refetchQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      const { summary, results } = data;
+      
+      // Show detailed results
+      if (summary.successful > 0) {
+        toast({
+          title: `Successfully added ${summary.successful} sources`,
+          description: summary.failed > 0 || summary.duplicates > 0 
+            ? `${summary.failed} failed, ${summary.duplicates} duplicates skipped`
+            : undefined,
+        });
+      }
+      
+      if (summary.failed > 0) {
+        console.log("Failed sources:", results.failed);
+      }
+    },
+  });
+
+  // Bulk delete sources mutation
+  const bulkDeleteSources = useMutation({
+    mutationFn: async (sourceIds: string[]) => {
+      try {
+        const response = await fetch(`${serverUrl}/api/news-tracker/sources/bulk-delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...csfrHeaderObject(),
+          },
+          body: JSON.stringify({ sourceIds }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to bulk delete sources: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Bulk delete sources error:", error);
+        throw error;
+      }
+    },
+    onMutate: async (sourceIds: string[]) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/sources"] });
+      
+      // Snapshot previous data
+      const previousSources = queryClient.getQueryData<Source[]>(["/api/news-tracker/sources"]);
+      
+      // Optimistically remove sources from cache
+      queryClient.setQueryData<Source[]>(
+        ["/api/news-tracker/sources"],
+        (oldData = []) => oldData.filter(source => !sourceIds.includes(source.id))
+      );
+      
+      return { previousSources };
+    },
+    onError: (error: any, sourceIds, context) => {
+      // Rollback optimistic update
+      if (context?.previousSources) {
+        queryClient.setQueryData<Source[]>(["/api/news-tracker/sources"], context.previousSources);
+      }
+      
+      toast({
+        title: "Bulk delete failed",
+        description: error.message || "Failed to delete sources in bulk. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      setSelectedSources(new Set());
+      
+      const { summary, results } = data;
+      
+      if (summary.successful > 0) {
+        toast({
+          title: `Successfully deleted ${summary.successful} sources`,
+          description: summary.failed > 0 || summary.notFound > 0 
+            ? `${summary.failed} failed, ${summary.notFound} not found`
+            : undefined,
+        });
+      }
+      
+      if (summary.failed > 0) {
+        console.log("Failed deletions:", results.failed);
+      }
+    },
+  });
+
+  // Helper functions for bulk operations
+  const handleSelectSource = (sourceId: string, checked: boolean) => {
+    const newSelected = new Set(selectedSources);
+    if (checked) {
+      newSelected.add(sourceId);
+    } else {
+      newSelected.delete(sourceId);
+    }
+    setSelectedSources(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allSourceIds = sources.data?.map(s => s.id) || [];
+      setSelectedSources(new Set(allSourceIds));
+    } else {
+      setSelectedSources(new Set());
+    }
+  };
+
+  const handleBulkAdd = () => {
+    if (!bulkUrlsInput.trim()) {
+      toast({
+        title: "No URLs provided",
+        description: "Please enter comma-separated URLs to add.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkAddSources.mutate({ urls: bulkUrlsInput });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedSources.size === 0) {
+      toast({
+        title: "No sources selected",
+        description: "Please select sources to delete.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkDeleteSources.mutate(Array.from(selectedSources));
+  };
+
+  const toggleBulkDeleteMode = () => {
+    setIsBulkDeleteMode(!isBulkDeleteMode);
+    // Clear selections when exiting bulk delete mode
+    if (isBulkDeleteMode) {
+      setSelectedSources(new Set());
+    }
+  };
+
   const onSubmit = form.handleSubmit((data) => {
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
@@ -1203,6 +1404,29 @@ export default function Sources() {
               Manage news sources and control updates
             </p>
           </div>
+          
+          {/* Bulk Operations Toolbar */}
+          {selectedSources.size > 0 && (
+            <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
+              <span className="text-sm text-slate-300">
+                {selectedSources.size} selected
+              </span>
+              <Button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteSources.isPending}
+                size="sm"
+                variant="destructive"
+                className="h-7 px-2 text-xs"
+              >
+                {bulkDeleteSources.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+                Delete Selected
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Instructions Section */}
@@ -1435,7 +1659,7 @@ export default function Sources() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
+          <CardFooter className="flex justify-center">
             <div className="text-sm text-slate-400">
               {autoScrapeStatus?.data?.running ? (
                 <span className="flex items-center text-primary">
@@ -1444,33 +1668,6 @@ export default function Sources() {
                 </span>
               ) : null}
             </div>
-            <Button
-              onClick={() => {
-                if (autoScrapeStatus?.data?.running) {
-                  stopGlobalScrape.mutate();
-                } else {
-                  runGlobalScrape.mutate();
-                }
-              }}
-              disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
-              size="sm"
-              className={
-                autoScrapeStatus?.data?.running
-                  ? "bg-red-600 hover:bg-red-600/80 text-white"
-                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              }
-            >
-              {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : autoScrapeStatus?.data?.running ? (
-                <X className="mr-2 h-4 w-4" />
-              ) : (
-                <Play className="mr-2 h-4 w-4" />
-              )}
-              {autoScrapeStatus?.data?.running
-                ? "Stop Scan"
-                : "Scan All Sources Now"}
-            </Button>
           </CardFooter>
         </Card>
       </div>
@@ -1495,7 +1692,7 @@ export default function Sources() {
                   {...form.register("name", {
                     required: "Source name is required",
                     validate: (value) =>
-                      value?.trim() !== "" || "Source name cannot be empty",
+                      value?.trim() !== "" || "Source name cannot be empty"
                   })}
                   className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   required
@@ -1529,11 +1726,11 @@ export default function Sources() {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-row gap-2">
               <Button
                 type="submit"
                 disabled={addSource.isPending || !form.formState.isValid}
-                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {addSource.isPending ? (
                   <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
@@ -1542,6 +1739,31 @@ export default function Sources() {
                 )}
                 <span className="hidden xs:inline">Add Source</span>
                 <span className="xs:hidden">Add</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBulkAddDialogOpen(true)}
+                className="flex-1 border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
+              >
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Bulk Add Sources</span>
+                <span className="xs:hidden">Bulk Add</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={toggleBulkDeleteMode}
+                className={cn(
+                  "flex-1 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm transition-colors font-medium",
+                  isBulkDeleteMode 
+                    ? "border border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
+                    : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                )}
+                title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
+              >
+                <span className="mr-1 sm:mr-2 text-lg leading-none">−</span>
+                <span className="hidden xs:inline">Bulk Delete</span>
+                <span className="xs:hidden">Bulk Delete</span>
               </Button>
             </div>
           </form>
@@ -1556,40 +1778,74 @@ export default function Sources() {
       >
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
-              Source List
-            </h2>
-            <div className="flex items-center gap-3">
-              <div className="text-xs sm:text-sm text-slate-400">
-                {sources.data?.length || 0} sources configured
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
+                Source List
+              </h2>
+              <div className="text-xs sm:text-sm text-slate-400 bg-slate-800/70 pl-2 pr-2 pt-1 pb-1 rounded-full">
+                {sources.data?.length || 0}
               </div>
-              <Button
-                onClick={() => {
-                  if (autoScrapeStatus?.data?.running) {
-                    stopGlobalScrape.mutate();
-                  } else {
-                    runGlobalScrape.mutate();
+              
+
+              
+              {isBulkDeleteMode && sources.data && sources.data.length > 0 && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedSources.size === sources.data.length}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-slate-600 bg-slate-800/70 text-[#BF00FF] focus:ring-[#BF00FF] focus:ring-offset-0"
+                  />
+                  <span className="text-xs text-slate-400">Select all</span>
+                </label>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {isBulkDeleteMode && selectedSources.size > 0 && (
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteSources.isPending}
+                  size="sm"
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700 text-white mr-2"
+                >
+                  {bulkDeleteSources.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete Selected ({selectedSources.size})
+                </Button>
+              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    if (autoScrapeStatus?.data?.running) {
+                      stopGlobalScrape.mutate();
+                    } else {
+                      runGlobalScrape.mutate();
+                    }
+                  }}
+                  disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
+                  size="sm"
+                  className={
+                    autoScrapeStatus?.data?.running
+                      ? "bg-red-600 hover:bg-red-600/80 text-white"
+                      : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
                   }
-                }}
-                disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
-                size="sm"
-                className={
-                  autoScrapeStatus?.data?.running
-                    ? "bg-red-600 hover:bg-red-600/80 text-white"
-                    : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-                }
-              >
-                {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : autoScrapeStatus?.data?.running ? (
-                  <X className="mr-2 h-4 w-4" />
-                ) : (
-                  <Play className="mr-2 h-4 w-4" />
-                )}
-                {autoScrapeStatus?.data?.running
-                  ? "Stop Scan"
-                  : "Scan All Sources Now"}
-              </Button>
+                >
+                  {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : autoScrapeStatus?.data?.running ? (
+                    <X className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  {autoScrapeStatus?.data?.running
+                    ? "Stop Scan"
+                    : "Scan All Sources Now"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1657,28 +1913,35 @@ export default function Sources() {
                           
                           {/* Edit/Delete buttons stacked vertically */}
                           <div className="flex flex-col gap-1">
+                            {/* Show checkbox in bulk delete mode, trash icon otherwise */}
+                            {isBulkDeleteMode ? (
+                              <Checkbox
+                                checked={selectedSources.has(source.id)}
+                                onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
+                              />
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSourceToDelete(source.id);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                disabled={deleteSource.isPending}
+                                className="text-destructive hover:text-destructive w-[20px] h-[20px] p-1"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditSource(source)}
-                              className="h-6 w-6 p-0"
+                              className=" w-[20px] h-[20px] p-1"
                             >
                               <PencilLine className="h-3 w-3" />
                               <span className="sr-only">Edit</span>
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSourceToDelete(source.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                              disabled={deleteSource.isPending}
-                              className="text-destructive hover:text-destructive h-6 w-6 p-0"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              <span className="sr-only">Delete</span>
                             </Button>
                           </div>
                         </div>
@@ -1740,6 +2003,97 @@ export default function Sources() {
           </div>
         )}
       </div>
+
+      {/* Bulk Add Sources Dialog */}
+      <Dialog open={bulkAddDialogOpen} onOpenChange={setBulkAddDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Bulk Add News Sources
+            </DialogTitle>
+            <p className="text-sm text-slate-400">
+              Enter comma-separated URLs to add multiple sources at once. Titles will be automatically extracted.
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-urls" className="text-sm font-medium text-white">
+                URLs (comma-separated)
+              </Label>
+              <textarea
+                id="bulk-urls"
+                value={bulkUrlsInput}
+                onChange={(e) => setBulkUrlsInput(e.target.value)}
+                placeholder="https://example.com/news, https://another-site.com/articles, https://third-site.com/blog"
+                rows={4}
+                className="w-full text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 rounded-md p-3 resize-none focus:ring-2 focus:ring-[#BF00FF] focus:border-transparent"
+              />
+              <p className="text-xs text-slate-500">
+                URLs will be automatically normalized with https:// prefix if missing
+              </p>
+            </div>
+
+            {bulkUrlsInput.trim() && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-white">
+                  Preview ({bulkUrlsInput.split(',').map(url => url.trim()).filter(url => url).length} URLs)
+                </Label>
+                <div className="bg-slate-800/50 border border-slate-700/50 rounded-md p-3 max-h-32 overflow-y-auto">
+                  <div className="space-y-1 text-xs">
+                    {bulkUrlsInput
+                      .split(',')
+                      .map(url => url.trim())
+                      .filter(url => url)
+                      .slice(0, 10) // Show first 10 URLs
+                      .map((url, index) => (
+                        <div key={index} className="text-slate-300">
+                          {url.startsWith('http') ? url : `https://${url}`}
+                        </div>
+                      ))}
+                    {bulkUrlsInput.split(',').map(url => url.trim()).filter(url => url).length > 10 && (
+                      <div className="text-slate-500">
+                        ... and {bulkUrlsInput.split(',').map(url => url.trim()).filter(url => url).length - 10} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setBulkAddDialogOpen(false);
+                  setBulkUrlsInput("");
+                }}
+                className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAdd}
+                disabled={bulkAddInProgress || !bulkUrlsInput.trim()}
+                className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+              >
+                {bulkAddInProgress ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding Sources...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Sources
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
