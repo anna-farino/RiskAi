@@ -9,6 +9,7 @@ import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
 import { db } from "backend/db/db";
 import { eq } from "drizzle-orm";
+import { extractTitlesFromUrls, isValidUrl } from "backend/services/scraping/extractors/title-extraction/bulk-title-extractor";
 
 
 export const newsRouter = Router()
@@ -66,6 +67,269 @@ newsRouter.delete("/sources/:id", async (req, res) => {
   } catch (error) {
     console.error(error)
     res.send(500)
+  }
+});
+
+// Bulk operations schemas
+const bulkAddSourcesSchema = z.object({
+  urls: z.string().min(1, "URLs are required"), // Comma-delimited URLs
+  options: z.object({
+    concurrency: z.number().min(1).max(10).optional(),
+    timeout: z.number().min(1000).max(30000).optional(),
+  }).optional()
+});
+
+const bulkDeleteSourcesSchema = z.object({
+  sourceIds: z.array(z.string().uuid()).min(1, "At least one source ID is required")
+});
+
+// Bulk add sources endpoint
+newsRouter.post("/sources/bulk-add", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    reqLog(req, "POST /sources/bulk-add", userId);
+
+    // Validate request body
+    const { urls, options } = bulkAddSourcesSchema.parse(req.body);
+    
+    // Parse comma-delimited URLs and clean them
+    const urlList = urls
+      .split(',')
+      .map(url => url.trim())
+      .filter(url => url.length > 0);
+
+    if (urlList.length === 0) {
+      return res.status(400).json({ 
+        error: "No valid URLs provided",
+        results: {
+          successful: [],
+          failed: [],
+          duplicates: []
+        }
+      });
+    }
+
+    if (urlList.length > 50) {
+      return res.status(400).json({ 
+        error: "Too many URLs. Maximum 50 URLs allowed per batch",
+        results: {
+          successful: [],
+          failed: [],
+          duplicates: []
+        }
+      });
+    }
+
+    log(`[NewsRadar] Starting bulk add for ${urlList.length} URLs`, "bulk-operations");
+
+    // Validate URLs first
+    const validUrls: string[] = [];
+    const invalidUrls: { url: string; error: string }[] = [];
+
+    urlList.forEach(url => {
+      if (isValidUrl(url)) {
+        validUrls.push(url);
+      } else {
+        invalidUrls.push({ url, error: "Invalid URL format" });
+      }
+    });
+
+    // Extract titles from valid URLs
+    const titleResults = await extractTitlesFromUrls(validUrls, {
+      concurrency: options?.concurrency || 5,
+      timeout: options?.timeout || 10000
+    });
+
+    // Check for existing sources to prevent duplicates
+    const existingSources = await storage.getSources(userId);
+    const existingUrls = new Set(existingSources.map(s => s.url));
+
+    const successful: any[] = [];
+    const failed: { url: string; error: string }[] = [...invalidUrls];
+    const duplicates: string[] = [];
+
+    // Process title extraction results
+    for (const result of titleResults) {
+      try {
+        // Check for duplicates
+        if (existingUrls.has(result.url)) {
+          duplicates.push(result.url);
+          continue;
+        }
+
+        // Create source
+        const sourceData = {
+          url: result.url,
+          name: result.title,
+          userId
+        };
+
+        const source = insertSourceSchema.parse(sourceData);
+        const created = await storage.createSource(source);
+        
+        successful.push({
+          url: result.url,
+          title: result.title,
+          method: result.method,
+          sourceId: created.id
+        });
+
+        log(`[NewsRadar] Successfully added source: ${result.title} (${result.url})`, "bulk-operations");
+        
+      } catch (error: any) {
+        failed.push({
+          url: result.url,
+          error: error.message || "Failed to create source"
+        });
+      }
+    }
+
+    const summary = {
+      total: urlList.length,
+      successful: successful.length,
+      failed: failed.length,
+      duplicates: duplicates.length
+    };
+
+    log(`[NewsRadar] Bulk add complete: ${summary.successful}/${summary.total} successful`, "bulk-operations");
+
+    res.json({
+      success: true,
+      summary,
+      results: {
+        successful,
+        failed,
+        duplicates
+      }
+    });
+
+  } catch (error: any) {
+    log(`[NewsRadar] Bulk add error: ${error.message}`, "bulk-operations");
+    
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: "Invalid request data", 
+        details: error.errors,
+        results: {
+          successful: [],
+          failed: [],
+          duplicates: []
+        }
+      });
+    }
+    
+    res.status(500).json({ 
+      error: "Internal server error during bulk add",
+      results: {
+        successful: [],
+        failed: [],
+        duplicates: []
+      }
+    });
+  }
+});
+
+// Bulk delete sources endpoint
+newsRouter.post("/sources/bulk-delete", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    reqLog(req, "POST /sources/bulk-delete", userId);
+
+    // Validate request body
+    const { sourceIds } = bulkDeleteSourcesSchema.parse(req.body);
+
+    if (sourceIds.length > 100) {
+      return res.status(400).json({ 
+        error: "Too many sources. Maximum 100 sources allowed per batch",
+        results: {
+          successful: [],
+          failed: [],
+          notFound: []
+        }
+      });
+    }
+
+    log(`[NewsRadar] Starting bulk delete for ${sourceIds.length} sources`, "bulk-operations");
+
+    const successful: string[] = [];
+    const failed: { sourceId: string; error: string }[] = [];
+    const notFound: string[] = [];
+
+    // Process each source deletion
+    for (const sourceId of sourceIds) {
+      try {
+        // Check if source exists and belongs to user
+        const source = await storage.getSource(sourceId);
+        
+        if (!source) {
+          notFound.push(sourceId);
+          continue;
+        }
+        
+        if (source.userId !== userId) {
+          failed.push({
+            sourceId,
+            error: "Not authorized to delete this source"
+          });
+          continue;
+        }
+
+        // Delete the source
+        await storage.deleteSource(sourceId);
+        successful.push(sourceId);
+        
+        log(`[NewsRadar] Successfully deleted source: ${sourceId}`, "bulk-operations");
+        
+      } catch (error: any) {
+        failed.push({
+          sourceId,
+          error: error.message || "Failed to delete source"
+        });
+      }
+    }
+
+    const summary = {
+      total: sourceIds.length,
+      successful: successful.length,
+      failed: failed.length,
+      notFound: notFound.length
+    };
+
+    log(`[NewsRadar] Bulk delete complete: ${summary.successful}/${summary.total} successful`, "bulk-operations");
+
+    res.json({
+      success: true,
+      summary,
+      results: {
+        successful,
+        failed,
+        notFound
+      }
+    });
+
+  } catch (error: any) {
+    log(`[NewsRadar] Bulk delete error: ${error.message}`, "bulk-operations");
+    
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: "Invalid request data", 
+        details: error.errors,
+        results: {
+          successful: [],
+          failed: [],
+          notFound: []
+        }
+      });
+    }
+    
+    res.status(500).json({ 
+      error: "Internal server error during bulk delete",
+      results: {
+        successful: [],
+        failed: [],
+        notFound: []
+      }
+    });
   }
 });
 
