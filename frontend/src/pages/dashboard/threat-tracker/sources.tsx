@@ -1744,6 +1744,21 @@ export default function Sources() {
 
               {/* Action buttons */}
               <div className="ml-auto flex items-center gap-1">
+                {/* Delete Selected Button */}
+                {selectedSources.size > 0 && (
+                  <Button
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteSources.isPending}
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 px-3 text-xs mr-2"
+                  >
+                    {bulkDeleteSources.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : null}
+                    Delete Selected
+                  </Button>
+                )}
                 <button
                   onClick={handleNewSource}
                   className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors text-white opacity-60 hover:opacity-100 font-medium text-lg leading-none"
@@ -1767,23 +1782,6 @@ export default function Sources() {
                 >
                   −
                 </button>
-                {/* Delete Selected Button */}
-                {selectedSources.size > 0 && (
-                  <Button
-                    onClick={handleBulkDelete}
-                    disabled={bulkDeleteSources.isPending}
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 px-3 text-xs ml-2"
-                  >
-                    {bulkDeleteSources.isPending ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3 w-3" />
-                    )}
-                    Delete Selected
-                  </Button>
-                )}
               </div>
             </div>
             {renderUserSourcesTable(userSources)}
