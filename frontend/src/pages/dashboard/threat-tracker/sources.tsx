@@ -780,25 +780,25 @@ export default function Sources() {
 
       const { summary, results } = data;
 
-      // Add successful sources to local state immediately
-      if (results.successful && results.successful.length > 0) {
-        setLocalSources(prev => [...prev, ...results.successful]);
-      }
+      // Add a small delay to ensure backend processing is complete
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Aggressive cache refresh to ensure UI updates
+      // Invalidate sources query cache
       await queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
 
-      // Force refetch to guarantee UI refresh
-      const updatedSources = await queryClient.refetchQueries({
+      // Force a complete refetch with fresh data
+      await queryClient.refetchQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
 
-      // Sync local state with fresh data from server
-      if (updatedSources && updatedSources[0]?.data) {
-        setLocalSources(updatedSources[0].data);
-      }
+      // Additional step: manually trigger another refetch to ensure data is fully loaded
+      setTimeout(() => {
+        queryClient.refetchQueries({
+          queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        });
+      }, 1000);
 
       // Show detailed results
       if (summary.successful > 0) {
