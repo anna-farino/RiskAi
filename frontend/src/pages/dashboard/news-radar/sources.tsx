@@ -1893,18 +1893,9 @@ export default function Sources() {
                       index % 2 === 0 ? 'bg-slate-800/50' : 'bg-slate-900/70'
                     }`}
                   >
-                    {/* First row: Checkbox, Name, URL, and Edit/Delete buttons */}
+                    {/* First row: Name, URL, and Edit/Delete buttons */}
                     <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
                       <div className="flex items-start gap-3 min-w-0 w-full">
-                        {/* Selection checkbox - only show in bulk delete mode */}
-                        {isBulkDeleteMode && (
-                          <div className="flex-shrink-0 pt-1">
-                            <Checkbox
-                              checked={selectedSources.has(source.id)}
-                              onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                            />
-                          </div>
-                        )}
                         <div
                           className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                         />

@@ -159,12 +159,14 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Button position swap**: Delete/checkbox button positioned on top, edit button on bottom for better visual hierarchy
 - **Material Design styling**: Maintained purple brand colors (#BF00FF) throughout toggle functionality with proper hover states
 - **Responsive design**: Toggle functionality works seamlessly across mobile and desktop interfaces
+- **Fixed duplicate checkbox issue**: Removed duplicate checkbox that was appearing to the left of source titles in News Radar bulk delete mode
 - **Technical implementation**:
   - Added `isBulkDeleteMode` state and `toggleBulkDeleteMode` handler to both applications
   - Enhanced toolbar with conditional delete toolbar and minus button with visual feedback
   - Modified source rendering logic to show checkboxes conditionally based on bulk mode state
   - Wrapped edit/delete buttons in `!isBulkDeleteMode` conditions to hide during bulk operations
   - Maintained consistent styling and behavior patterns between News Radar and Threat Tracker
+  - Fixed checkbox positioning to show only one checkbox per source in the action button area
 - **User benefit**: Clean, intuitive bulk delete experience with toggle-based mode switching that keeps interface uncluttered when not needed
 
 ### July 25, 2025 - Toolbar Buttons Repositioned to Source List Headers with Icon Visibility Fix
