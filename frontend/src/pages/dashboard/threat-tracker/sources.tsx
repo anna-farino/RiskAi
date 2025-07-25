@@ -1783,13 +1783,6 @@ export default function Sources() {
               {/* First row: Name, URL, and Edit/Delete buttons */}
               <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
                 <div className="flex items-start gap-3 min-w-0 w-full">
-                  {isBulkDeleteMode && (
-                    <Checkbox
-                      checked={selectedSources.has(source.id)}
-                      onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                      className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] border-slate-600 bg-slate-800/70 hover:bg-slate-700/70 hover:border-slate-500 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 rounded-md h-4 w-4 mt-1 flex-shrink-0"
-                    />
-                  )}
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                   />
@@ -1824,65 +1817,69 @@ export default function Sources() {
                       </Badge>
                     )}
                     
-                    {/* Edit/Delete buttons stacked vertically - hidden in bulk delete mode */}
-                    {!isBulkDeleteMode && (
-                      <div className="flex flex-col gap-1">
+                    {/* Edit/Delete buttons stacked vertically */}
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSource(source)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <PencilLine className="h-3 w-3" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      {isBulkDeleteMode ? (
+                        <Checkbox
+                          checked={selectedSources.has(source.id)}
+                          onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
+                          className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] border-slate-600 bg-slate-800/70 hover:bg-slate-700/70 hover:border-slate-500 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 rounded-md h-4 w-4"
+                        />
+                      ) : source.isDefault ? (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditSource(source)}
-                          className="h-6 w-6 p-0"
+                          disabled
+                          className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
+                          title="Cannot delete default sources"
                         >
                           <PencilLine className="h-3 w-3" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                        {source.isDefault ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled
-                            className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
-                            title="Cannot delete default sources"
-                          >
-                            <PencilLine className="h-3 w-3" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                        ) : (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Are you sure?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the source "
+                                {source.name}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSource(source)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                <Trash2 className="h-3 w-3" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Are you sure?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete the source "
-                                  {source.name}". This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteSource(source)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    )}
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
