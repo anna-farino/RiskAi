@@ -868,6 +868,7 @@ export default function Sources() {
     },
     onSuccess: (data) => {
       setSelectedSources(new Set());
+      setIsBulkDeleteMode(false); // Auto-exit bulk delete mode
 
       const { summary, results } = data;
 
