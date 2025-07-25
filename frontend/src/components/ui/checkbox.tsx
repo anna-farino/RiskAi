@@ -15,7 +15,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
     }
 
     return (
-      <div className={cn("mdc-checkbox", "relative inline-block w-[18px] h-[18px]", className)}>
+      <div className={cn("mdc-checkbox", "relative inline-block w-3 h-3", className)}>
         <input
           ref={ref}
           type="checkbox"
@@ -64,7 +64,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         <div 
           className={cn(
             "mdc-checkbox__ripple",
-            "absolute -inset-2.5 rounded-full",
+            "absolute -inset-1.5 rounded-full",
             "before:absolute before:inset-0 before:rounded-full before:bg-[#BF00FF] before:opacity-0",
             "hover:before:opacity-[0.04]",
             "focus-within:before:opacity-[0.12]",
