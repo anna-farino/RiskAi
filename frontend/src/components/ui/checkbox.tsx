@@ -15,7 +15,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
     }
 
     return (
-      <div className={cn("mdc-checkbox", "relative inline-block w-6 h-6", className)}>
+      <div className={cn("mdc-checkbox", "relative inline-block w-[20px] h-[20px]", className)}>
         <input
           ref={ref}
           type="checkbox"

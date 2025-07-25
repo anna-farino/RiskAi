@@ -1763,7 +1763,7 @@ export default function Sources() {
               >
                 <span className="mr-1 sm:mr-2 text-lg leading-none">−</span>
                 <span className="hidden xs:inline">Bulk Delete</span>
-                <span className="xs:hidden">Delete</span>
+                <span className="xs:hidden">Bulk Delete</span>
               </Button>
             </div>
           </form>
@@ -1778,12 +1778,12 @@ export default function Sources() {
       >
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
                 Source List
               </h2>
-              <div className="text-xs sm:text-sm text-slate-400">
-                {sources.data?.length || 0} sources configured
+              <div className="text-xs sm:text-sm text-slate-400 bg-slate-800/70 pl-2 pr-2 pt-1 pb-1 rounded-full">
+                {sources.data?.length || 0}
               </div>
               
 
@@ -1928,7 +1928,7 @@ export default function Sources() {
                                   setDeleteDialogOpen(true);
                                 }}
                                 disabled={deleteSource.isPending}
-                                className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                                className="text-destructive hover:text-destructive w-[20px] h-[20px] p-1"
                               >
                                 <Trash2 className="h-3 w-3" />
                                 <span className="sr-only">Delete</span>
@@ -1938,7 +1938,7 @@ export default function Sources() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditSource(source)}
-                              className="h-6 w-6 p-0"
+                              className=" w-[20px] h-[20px] p-1"
                             >
                               <PencilLine className="h-3 w-3" />
                               <span className="sr-only">Edit</span>

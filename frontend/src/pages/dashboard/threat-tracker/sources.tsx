@@ -1765,7 +1765,7 @@ export default function Sources() {
               className="flex flex-col gap-0 p-3 bg-background rounded-lg border w-full max-w-full"
             >
               {/* First row: Name, URL, and Edit/Delete buttons */}
-              <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
+              <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden pb-2">
                 <div className="flex items-start gap-3 min-w-0 w-full">
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
@@ -1813,7 +1813,7 @@ export default function Sources() {
                           variant="ghost"
                           size="sm"
                           disabled
-                          className="text-muted-foreground h-6 w-6 p-0 cursor-not-allowed"
+                          className="text-muted-foreground w-[20px] h-[20px] p-1 cursor-not-allowed"
                           title="Cannot delete default sources"
                         >
                           <PencilLine className="h-3 w-3" />
@@ -1825,7 +1825,7 @@ export default function Sources() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                              className="text-destructive hover:text-destructive w-[20px] h-[20px] p-1"
                             >
                               <Trash2 className="h-3 w-3" />
                               <span className="sr-only">Delete</span>
@@ -1857,7 +1857,7 @@ export default function Sources() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEditSource(source)}
-                        className="h-6 w-6 p-0"
+                        className="w-[20px] h-[20px] p-1"
                       >
                         <PencilLine className="h-3 w-3" />
                         <span className="sr-only">Edit</span>
