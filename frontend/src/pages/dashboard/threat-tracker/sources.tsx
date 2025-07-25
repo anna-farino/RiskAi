@@ -778,17 +778,27 @@ export default function Sources() {
       setBulkAddDialogOpen(false);
       setBulkUrlsInput("");
 
+      const { summary, results } = data;
+
+      // Add successful sources to local state immediately
+      if (results.successful && results.successful.length > 0) {
+        setLocalSources(prev => [...prev, ...results.successful]);
+      }
+
       // Aggressive cache refresh to ensure UI updates
       await queryClient.invalidateQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
 
       // Force refetch to guarantee UI refresh
-      await queryClient.refetchQueries({
+      const updatedSources = await queryClient.refetchQueries({
         queryKey: [`${serverUrl}/api/threat-tracker/sources`],
       });
 
-      const { summary, results } = data;
+      // Sync local state with fresh data from server
+      if (updatedSources && updatedSources[0]?.data) {
+        setLocalSources(updatedSources[0].data);
+      }
 
       // Show detailed results
       if (summary.successful > 0) {
