@@ -1750,6 +1750,21 @@ export default function Sources() {
                 <span className="hidden xs:inline">Bulk Add Sources</span>
                 <span className="xs:hidden">Bulk Add</span>
               </Button>
+              <Button
+                type="button"
+                onClick={toggleBulkDeleteMode}
+                className={cn(
+                  "flex-1 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm transition-colors font-medium",
+                  isBulkDeleteMode 
+                    ? "border border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
+                    : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                )}
+                title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
+              >
+                <span className="mr-1 sm:mr-2 text-lg leading-none">−</span>
+                <span className="hidden xs:inline">Bulk Delete</span>
+                <span className="xs:hidden">Delete</span>
+              </Button>
             </div>
           </form>
         </div>
@@ -1771,22 +1786,7 @@ export default function Sources() {
                 {sources.data?.length || 0} sources configured
               </div>
               
-              {/* Action buttons */}
-              <div className="ml-auto flex items-center gap-1">
-                <Button
-                  onClick={toggleBulkDeleteMode}
-                  size="sm"
-                  className={cn(
-                    "group flex items-center justify-center w-8 h-8 rounded border transition-colors text-lg leading-none font-medium",
-                    isBulkDeleteMode 
-                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
-                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 text-white opacity-60 hover:opacity-100"
-                  )}
-                  title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
-                >
-                  −
-                </Button>
-              </div>
+
               
               {isBulkDeleteMode && sources.data && sources.data.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">

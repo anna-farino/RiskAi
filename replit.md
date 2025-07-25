@@ -169,15 +169,15 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Fixed checkbox positioning to show only one checkbox per source in the action button area
 - **User benefit**: Clean, intuitive bulk delete experience with toggle-based mode switching that keeps interface uncluttered when not needed
 
-### July 25, 2025 - Toolbar Buttons Repositioned to Source List Headers with Icon Visibility Fix
-- **Moved Plus/Minus buttons to inline toolbar**: Relocated Plus (+) and Minus (-) buttons from separate toolbar row to be inline with source list headers
-- **Threat Tracker implementation**: Plus/Minus buttons now appear on the "Your Sources" line next to the source count
-- **News Radar implementation**: Only Minus (-) button appears on the "Source List" line - Plus button removed due to redundant inline add form
-- **Smaller button sizing**: Reduced button size from 40x40 to 32x32 (w-8 h-8) with smaller icons (h-4 w-4) to match text size
-- **Consistent styling**: Both applications use identical button styling with subtle borders and hover effects
-- **Removed old toolbar**: Eliminated separate toolbar row that previously housed Plus/Minus buttons
-- **Eliminated redundancy**: Removed Plus button from News Radar since inline add source form is available above sources list
-- **User benefit**: Cleaner, more compact interface with source management controls integrated directly into section headers without unnecessary duplication
+### July 25, 2025 - Consolidated Source Management Interface in News Radar
+- **Moved bulk delete to inline form**: Relocated bulk delete functionality from small header button to main add sources form as third button
+- **Three-button layout**: News Radar now has Add Source, Bulk Add, and Bulk Delete as equal-width buttons in the inline form
+- **Threat Tracker unchanged**: Plus/Minus buttons remain on the "Your Sources" line next to the source count
+- **News Radar consolidation**: All source management actions (add, bulk add, bulk delete) now in single consolidated interface
+- **Removed header minus button**: Eliminated small minus (-) button from News Radar source list header 
+- **Consistent button styling**: All three buttons use consistent styling with responsive text display
+- **Active state indication**: Bulk Delete button shows red styling when bulk delete mode is active
+- **User benefit**: Complete source management workflow accessible from single location with clear visual hierarchy
 
 ### July 25, 2025 - Fixed Plus and Minus Icon Visibility Issue with Simple Text Characters
 - **Resolved critical icon visibility bug**: Plus (+) and Minus (-) icons from lucide-react were not rendering properly, appearing as invisible elements
