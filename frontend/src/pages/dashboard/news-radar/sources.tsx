@@ -1885,7 +1885,7 @@ export default function Sources() {
                             <Checkbox
                               checked={selectedSources.has(source.id)}
                               onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                              className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] border-slate-600 bg-slate-800/70 hover:bg-slate-700/70 hover:border-slate-500 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 rounded-md h-4 w-4"
+                              className="h-4 w-4"
                             />
                           </div>
                         )}
@@ -1919,7 +1919,7 @@ export default function Sources() {
                               <Checkbox
                                 checked={selectedSources.has(source.id)}
                                 onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                                className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] border-slate-600 bg-slate-800/70 hover:bg-slate-700/70 hover:border-slate-500 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 rounded-md h-4 w-4"
+                                className="h-4 w-4"
                               />
                             ) : (
                               <Button

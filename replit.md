@@ -127,6 +127,22 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 25, 2025 - Enhanced Material Design Checkbox Implementation and Completed Toggle-Based Bulk Delete Mode
+- **Material Design checkbox upgrade**: Updated base Checkbox component to match proper Material Design specifications
+- **Square checkbox styling**: Removed rounded corners for true square appearance as per Material Design guidelines
+- **Proper checkmark display**: Fixed checkmark visibility with white color and proper stroke width
+- **Purple brand color integration**: Checkboxes now use RisqAi brand color (#BF00FF) when selected with white checkmarks
+- **Consistent styling across applications**: Updated all checkbox instances in both News Radar and Threat Tracker
+- **Enhanced visual feedback**: Added proper hover states, focus rings, and transitions
+- **Button position optimization**: Swapped delete/checkbox to top position and edit button to bottom for better visual hierarchy
+- **Technical implementation**:
+  - Updated `frontend/src/components/ui/checkbox.tsx` with Material Design square styling
+  - Removed custom checkbox styling from both application source files
+  - Applied consistent h-4 w-4 sizing across all checkbox instances
+  - Enhanced focus and hover states with proper purple branding
+  - Fixed checkmark icon sizing and visibility with white color and stroke-[3] weight
+- **User benefit**: Clean, professional Material Design checkboxes with proper visual feedback and brand consistency
+
 ### July 25, 2025 - Completed Toggle-Based Bulk Delete Mode Implementation for Both Applications
 - **Unified bulk delete UX pattern**: Implemented identical toggle-based bulk delete functionality across News Radar and Threat Tracker applications
 - **Minus button trigger**: Added styled minus button next to plus button that activates bulk delete mode with visual feedback
