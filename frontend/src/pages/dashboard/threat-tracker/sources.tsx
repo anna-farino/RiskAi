@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { ThreatSource } from "@shared/db/schema/threat-tracker";
 import {
   Table,
@@ -1295,34 +1296,6 @@ export default function Sources() {
           </div>
           
           <div className="flex gap-2 items-center">
-            {isBulkDeleteMode && selectedSources.size > 0 && (
-              <Button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteSources.isPending}
-                size="sm"
-                variant="destructive"
-                className="bg-red-600 hover:bg-red-700 text-white mr-2"
-              >
-                {bulkDeleteSources.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                Delete Selected ({selectedSources.size})
-              </Button>
-            )}
-            <Button
-              onClick={toggleBulkDeleteMode}
-              size="sm"
-              variant="outline"
-              className={
-                isBulkDeleteMode
-                  ? "bg-red-600/20 border-red-600 text-red-400 hover:bg-red-600/30"
-                  : "border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700/50"
-              }
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
             <Button
               onClick={() => {
                 if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
@@ -1353,18 +1326,6 @@ export default function Sources() {
               {scrapeJobRunning || checkScrapeStatus?.data?.running
                 ? "Stop Scan"
                 : "Scan All Sources Now"}
-            </Button>
-            <Button
-              onClick={handleNewSource}
-              disabled={createSource.isPending}
-              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-            >
-              {createSource.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              
             </Button>
           </div>
         </CardHeader>
@@ -1754,6 +1715,29 @@ export default function Sources() {
               <Badge variant="outline" className="text-xs">
                 {userSources.length} sources
               </Badge>
+              
+              {/* Action buttons */}
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  onClick={handleNewSource}
+                  className="flex items-center justify-center w-8 h-8 rounded border border-gray-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
+                  title="Add Source"
+                >
+                  <Plus className="h-4 w-4 text-gray-400 hover:text-[#BF00FF]" />
+                </button>
+                <button
+                  onClick={toggleBulkDeleteMode}
+                  className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded border transition-colors",
+                    isBulkDeleteMode 
+                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30"
+                      : "border-gray-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10"
+                  )}
+                  title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
+                >
+                  <Minus className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-gray-400 hover:text-[#BF00FF]")} />
+                </button>
+              </div>
             </div>
             {renderUserSourcesTable(userSources)}
           </div>

@@ -167,6 +167,19 @@ The platform provides automated web scraping, AI-powered content analysis, and i
   - Maintained consistent styling and behavior patterns between News Radar and Threat Tracker
 - **User benefit**: Clean, intuitive bulk delete experience with toggle-based mode switching that keeps interface uncluttered when not needed
 
+### July 25, 2025 - Toolbar Buttons Repositioned to Source List Headers
+- **Moved Plus/Minus buttons to inline toolbar**: Relocated Plus (+) and Minus (-) buttons from separate toolbar row to be inline with source list headers
+- **Threat Tracker implementation**: Plus/Minus buttons now appear on the "Your Sources" line next to the source count
+- **News Radar implementation**: Plus/Minus buttons now appear on the "Source List" line next to the configured sources count  
+- **Smaller button sizing**: Reduced button size from 40x40 to 32x32 (w-8 h-8) with smaller icons (h-4 w-4) to match text size
+- **Consistent styling**: Both applications use identical button styling with subtle borders and hover effects
+- **Removed old toolbar**: Eliminated separate toolbar row that previously housed Plus/Minus buttons
+- **Technical changes**:
+  - Threat Tracker: Buttons added to "Your Sources" heading with `ml-auto` for right alignment
+  - News Radar: Buttons added to "Source List" heading within the header section
+  - Both use `cn` utility for conditional styling based on bulk delete mode state
+- **User benefit**: Cleaner, more compact interface with source management controls integrated directly into section headers
+
 ### July 24, 2025 - Enhanced Bulk Source Operations with Smart Title Parsing and UI Refresh Fixes
 - **Improved source management UX**: Moved "Bulk Add Sources" button from header toolbar into source management forms for better consolidation
 - **Threat Tracker implementation**: Added bulk add button to "Add New Source" dialog footer alongside Cancel and Add Source buttons

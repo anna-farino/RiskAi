@@ -1764,6 +1764,35 @@ export default function Sources() {
               <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
                 Source List
               </h2>
+              <div className="text-xs sm:text-sm text-slate-400">
+                {sources.data?.length || 0} sources configured
+              </div>
+              
+              {/* Action buttons */}
+              <div className="ml-auto flex items-center gap-1">
+                <Button
+                  onClick={() => setSourceDialogOpen(true)}
+                  size="sm"
+                  className="flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
+                  title="Add Source"
+                >
+                  <Plus className="h-4 w-4 text-slate-400 hover:text-[#BF00FF]" />
+                </Button>
+                <Button
+                  onClick={toggleBulkDeleteMode}
+                  size="sm"
+                  className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded border transition-colors",
+                    isBulkDeleteMode 
+                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30"
+                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10"
+                  )}
+                  title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
+                >
+                  <Minus className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-slate-400 hover:text-[#BF00FF]")} />
+                </Button>
+              </div>
+              
               {isBulkDeleteMode && sources.data && sources.data.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1777,9 +1806,6 @@ export default function Sources() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-xs sm:text-sm text-slate-400">
-                {sources.data?.length || 0} sources configured
-              </div>
               {isBulkDeleteMode && selectedSources.size > 0 && (
                 <Button
                   onClick={handleBulkDelete}
@@ -1797,18 +1823,6 @@ export default function Sources() {
                 </Button>
               )}
               <div className="flex items-center gap-2">
-                <Button
-                  onClick={toggleBulkDeleteMode}
-                  size="sm"
-                  variant="outline"
-                  className={
-                    isBulkDeleteMode
-                      ? "bg-red-600/20 border-red-600 text-red-400 hover:bg-red-600/30"
-                      : "border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700/50"
-                  }
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
                 <Button
                   onClick={() => {
                     if (autoScrapeStatus?.data?.running) {
