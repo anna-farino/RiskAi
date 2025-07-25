@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -138,6 +138,9 @@ export default function Sources() {
   const [bulkUrlsInput, setBulkUrlsInput] = useState("");
   const [bulkAddInProgress, setBulkAddInProgress] = useState(false);
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
+  
+  // Ref for the source name input to focus on
+  const sourceNameInputRef = useRef<HTMLInputElement>(null);
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1685,6 +1688,7 @@ export default function Sources() {
                   Source Name *
                 </label>
                 <Input
+                  ref={sourceNameInputRef}
                   placeholder="E.g., Tech News Daily"
                   {...form.register("name", {
                     required: "Source name is required",
@@ -1771,12 +1775,15 @@ export default function Sources() {
               {/* Action buttons */}
               <div className="ml-auto flex items-center gap-1">
                 <Button
-                  onClick={() => setSourceDialogOpen(true)}
+                  onClick={() => sourceNameInputRef.current?.focus()}
                   size="sm"
                   className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
                   title="Add Source"
                 >
-                  <Plus className="h-4 w-4" style={{ color: '#94A3B8' }} />
+                  <svg className="h-4 w-4 text-slate-400 group-hover:text-[#BF00FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
                 </Button>
                 <Button
                   onClick={toggleBulkDeleteMode}
@@ -1789,7 +1796,9 @@ export default function Sources() {
                   )}
                   title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
                 >
-                  <Minus className="h-4 w-4" style={{ color: isBulkDeleteMode ? '#EF4444' : '#94A3B8' }} />
+                  <svg className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-slate-400 group-hover:text-[#BF00FF]")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
                 </Button>
               </div>
               
