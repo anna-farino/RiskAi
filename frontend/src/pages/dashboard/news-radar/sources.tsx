@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -140,7 +140,7 @@ export default function Sources() {
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
   
   // Ref for the source name input to focus on
-  const sourceNameInputRef = useRef<HTMLInputElement>(null);
+  // Removed sourceNameInputRef - will use form.setFocus instead
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1688,12 +1688,11 @@ export default function Sources() {
                   Source Name *
                 </label>
                 <Input
-                  ref={sourceNameInputRef}
                   placeholder="E.g., Tech News Daily"
                   {...form.register("name", {
                     required: "Source name is required",
                     validate: (value) =>
-                      value?.trim() !== "" || "Source name cannot be empty",
+                      value?.trim() !== "" || "Source name cannot be empty"
                   })}
                   className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   required
@@ -1775,29 +1774,25 @@ export default function Sources() {
               {/* Action buttons */}
               <div className="ml-auto flex items-center gap-1">
                 <Button
-                  onClick={() => sourceNameInputRef.current?.focus()}
+                  onClick={() => form.setFocus("name")}
                   size="sm"
-                  className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
+                  className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors text-white opacity-60 hover:opacity-100 font-medium text-lg leading-none"
                   title="Add Source"
                 >
-                  <svg className="h-4 w-4 text-white opacity-60 group-hover:text-[#BF00FF] group-hover:opacity-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                    +
                 </Button>
                 <Button
                   onClick={toggleBulkDeleteMode}
                   size="sm"
                   className={cn(
-                    "group flex items-center justify-center w-8 h-8 rounded border transition-colors",
+                    "group flex items-center justify-center w-8 h-8 rounded border transition-colors text-lg leading-none font-medium",
                     isBulkDeleteMode 
-                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30"
-                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10"
+                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
+                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 text-white opacity-60 hover:opacity-100"
                   )}
                   title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
                 >
-                  <svg className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-white opacity-60 group-hover:text-[#BF00FF] group-hover:opacity-100")} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  −
                 </Button>
               </div>
               

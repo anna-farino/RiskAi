@@ -176,29 +176,27 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Removed old toolbar**: Eliminated separate toolbar row that previously housed Plus/Minus buttons
 - **User benefit**: Cleaner, more compact interface with source management controls integrated directly into section headers
 
-### July 25, 2025 - Fixed Plus and Minus Icon Visibility Issue with Custom SVG Implementation
+### July 25, 2025 - Fixed Plus and Minus Icon Visibility Issue with Simple Text Characters
 - **Resolved critical icon visibility bug**: Plus (+) and Minus (-) icons from lucide-react were not rendering properly, appearing as invisible elements
-- **Root cause**: Specific rendering issue with Plus and Minus lucide-react components (other icons like Trash2, AlertCircle worked fine)
-- **Custom SVG solution**: Replaced lucide-react Plus/Minus components with custom inline SVG elements
-  - Plus icon: Path-based SVG with "M12 5v14M5 12h14" drawing perpendicular lines  
-  - Minus icon: Path-based SVG with "M5 12h14" drawing horizontal line
-  - Standard 24x24 viewBox matching lucide icon dimensions
-  - stroke="currentColor" for proper color inheritance from Tailwind classes
-  - strokeWidth="2", strokeLinecap="round", strokeLinejoin="round" for consistent appearance
-- **Color visibility fix**: Changed from `text-muted-foreground` to `text-white opacity-60` for guaranteed visibility on dark backgrounds
-  - Default state: White with 60% opacity for subtle appearance
-  - Hover state: Transitions to brand purple (#BF00FF) with 100% opacity
-  - Bulk delete mode: Maintains red color for minus button when active
+- **Root cause**: SVG rendering issues in dark theme where stroke colors were not visible despite multiple approaches (currentColor, explicit colors, opacity)
+- **Simple text solution**: Replaced all SVG implementations with plain text characters
+  - Plus icon: Simple "+" character with text styling
+  - Minus icon: Unicode minus "−" character (not hyphen) with text styling
+  - Applied `text-lg leading-none font-medium` for proper sizing and centering
+- **Color visibility fix**: Using text-based approach with proper color classes
+  - Default state: `text-white opacity-60` for subtle but visible appearance
+  - Hover state: `hover:opacity-100` with purple background on button hover
+  - Bulk delete mode: `text-red-500` for minus button when active
 - **News Radar button fix**: Plus button now focuses on existing source name input field instead of attempting to open non-existent dialog
-  - Added useRef to imports and created sourceNameInputRef
-  - Added ref attribute to source name input field
-  - Changed Plus button onClick to `sourceNameInputRef.current?.focus()`
+  - Changed to use react-hook-form's `form.setFocus("name")` instead of direct ref to avoid duplicate ref errors
+  - Removed sourceNameInputRef and useRef import entirely
+  - Plus button onClick now calls `form.setFocus("name")` to focus on source name field
 - **Technical implementation**:
-  - Replaced `<Plus />` with custom path-based SVG in both applications
-  - Replaced `<Minus />` with custom path-based SVG in both applications
-  - Used explicit white color with opacity for dark theme visibility
-  - Maintained group hover patterns with proper Tailwind classes
-- **User benefit**: Plus and Minus icons are now guaranteed visible with white semi-transparent default state and smooth purple hover transitions
+  - Removed all SVG elements and replaced with text characters
+  - Maintained all button styling (borders, hover effects, transitions)
+  - Used explicit text color classes instead of relying on SVG stroke inheritance
+  - Consistent implementation across both News Radar and Threat Tracker
+- **User benefit**: Plus and Minus buttons are now guaranteed visible using simple, reliable text characters with proper color contrast
 
 ### July 24, 2025 - Enhanced Bulk Source Operations with Smart Title Parsing and UI Refresh Fixes
 - **Improved source management UX**: Moved "Bulk Add Sources" button from header toolbar into source management forms for better consolidation

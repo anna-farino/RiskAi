@@ -1720,26 +1720,22 @@ export default function Sources() {
               <div className="ml-auto flex items-center gap-1">
                 <button
                   onClick={handleNewSource}
-                  className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors"
+                  className="group flex items-center justify-center w-8 h-8 rounded border border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 transition-colors text-white opacity-60 hover:opacity-100 font-medium text-lg leading-none"
                   title="Add Source"
                 >
-                  <svg className="h-4 w-4 text-white opacity-60 group-hover:text-[#BF00FF] group-hover:opacity-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  +
                 </button>
                 <button
                   onClick={toggleBulkDeleteMode}
                   className={cn(
-                    "group flex items-center justify-center w-8 h-8 rounded border transition-colors",
+                    "group flex items-center justify-center w-8 h-8 rounded border transition-colors text-lg leading-none font-medium",
                     isBulkDeleteMode 
-                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30"
-                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10"
+                      ? "border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
+                      : "border-slate-600 hover:border-[#BF00FF] hover:bg-[#BF00FF] hover:bg-opacity-10 text-white opacity-60 hover:opacity-100"
                   )}
                   title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
                 >
-                  <svg className={cn("h-4 w-4", isBulkDeleteMode ? "text-red-500" : "text-white opacity-60 group-hover:text-[#BF00FF] group-hover:opacity-100")} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  −
                 </button>
               </div>
             </div>
