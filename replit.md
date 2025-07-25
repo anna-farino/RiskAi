@@ -127,21 +127,20 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
-### July 25, 2025 - Enhanced Material Design Checkbox Implementation and Completed Toggle-Based Bulk Delete Mode
-- **Material Design checkbox upgrade**: Updated base Checkbox component to match proper Material Design specifications
-- **Square checkbox styling**: Removed rounded corners for true square appearance as per Material Design guidelines
-- **Proper checkmark display**: Fixed checkmark visibility with white color and proper stroke width
-- **Purple brand color integration**: Checkboxes now use RisqAi brand color (#BF00FF) when selected with white checkmarks
-- **Consistent styling across applications**: Updated all checkbox instances in both News Radar and Threat Tracker
-- **Enhanced visual feedback**: Added proper hover states, focus rings, and transitions
-- **Button position optimization**: Swapped delete/checkbox to top position and edit button to bottom for better visual hierarchy
+### July 25, 2025 - Custom Material Design Checkbox Implementation
+- **Completely rewrote checkbox component**: Created custom checkbox implementation without Radix UI dependencies to ensure proper Material Design compliance
+- **Perfect square dimensions**: Enforced 16x16px square shape with explicit inline styles to prevent any deformation
+- **Visible white checkmark**: Custom SVG path with white stroke that displays clearly on purple background when checked
+- **Material Design compliance**: Removed all border radius for true square appearance as per Material Design guidelines
+- **Purple brand integration**: Checkboxes use RisqAi brand color (#BF00FF) background when selected
+- **Enhanced interactivity**: Proper hover states (gray-300 border), focus rings, and smooth transitions
 - **Technical implementation**:
-  - Updated `frontend/src/components/ui/checkbox.tsx` with Material Design square styling
-  - Removed custom checkbox styling from both application source files
-  - Applied consistent h-4 w-4 sizing across all checkbox instances
-  - Enhanced focus and hover states with proper purple branding
-  - Fixed checkmark icon sizing and visibility with white color and stroke-[3] weight
-- **User benefit**: Clean, professional Material Design checkboxes with proper visual feedback and brand consistency
+  - Replaced Radix UI CheckboxPrimitive with custom button-based implementation
+  - Used explicit inline styles to force square dimensions (width/height/minWidth/minHeight all 16px)
+  - Created custom SVG checkmark path optimized for 16x16 display
+  - Removed all size utility classes from checkbox usage across both applications
+  - Implemented proper checkbox ARIA attributes and keyboard accessibility
+- **User benefit**: Material Design compliant square checkboxes with guaranteed visible white checkmarks
 
 ### July 25, 2025 - Completed Toggle-Based Bulk Delete Mode Implementation for Both Applications
 - **Unified bulk delete UX pattern**: Implemented identical toggle-based bulk delete functionality across News Radar and Threat Tracker applications
@@ -151,6 +150,7 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 - **Delete toolbar at top**: When sources are selected in bulk mode, delete toolbar appears at top with "Delete Selected (X)" button
 - **Select all checkbox conditional**: "Select all" checkbox only shows when bulk delete mode is active, maintaining clean interface
 - **State management**: Bulk delete mode state properly managed with automatic selection clearing when exiting mode
+- **Button position swap**: Delete/checkbox button positioned on top, edit button on bottom for better visual hierarchy
 - **Material Design styling**: Maintained purple brand colors (#BF00FF) throughout toggle functionality with proper hover states
 - **Responsive design**: Toggle functionality works seamlessly across mobile and desktop interfaces
 - **Technical implementation**:

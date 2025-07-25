@@ -1885,7 +1885,6 @@ export default function Sources() {
                             <Checkbox
                               checked={selectedSources.has(source.id)}
                               onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                              className="h-4 w-4"
                             />
                           </div>
                         )}
@@ -1919,7 +1918,6 @@ export default function Sources() {
                               <Checkbox
                                 checked={selectedSources.has(source.id)}
                                 onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                                className="h-4 w-4"
                               />
                             ) : (
                               <Button

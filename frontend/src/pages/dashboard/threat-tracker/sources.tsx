@@ -1747,7 +1747,7 @@ export default function Sources() {
                 <Checkbox
                   checked={userSources.length > 0 && userSources.every(s => selectedSources.has(s.id))}
                   onCheckedChange={handleSelectAll}
-                  className="h-4 w-4 mr-1"
+                  className="mr-1"
                 />
               )}
               <h3 className="text-sm font-medium">Your Sources</h3>
@@ -1823,7 +1823,6 @@ export default function Sources() {
                         <Checkbox
                           checked={selectedSources.has(source.id)}
                           onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                          className="h-4 w-4"
                         />
                       ) : source.isDefault ? (
                         <Button
