@@ -1802,7 +1802,7 @@ export default function Sources() {
                     )}
                     
                     {/* Edit/Delete buttons stacked vertically */}
-                    <div className="flex flex-col gap-1 items-end">
+                    <div className="flex flex-col gap-1 items-end ml-auto">
                       {isBulkDeleteMode ? (
                         <Checkbox
                           checked={selectedSources.has(source.id)}
