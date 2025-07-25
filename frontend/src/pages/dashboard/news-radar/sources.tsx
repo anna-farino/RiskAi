@@ -1730,7 +1730,7 @@ export default function Sources() {
               <Button
                 type="submit"
                 disabled={addSource.isPending || !form.formState.isValid}
-                className="flex-[2] bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {addSource.isPending ? (
                   <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
@@ -1744,26 +1744,26 @@ export default function Sources() {
                 type="button"
                 variant="outline"
                 onClick={() => setBulkAddDialogOpen(true)}
-                className="flex-1 border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 sm:h-9 lg:h-10 px-2 sm:px-3 text-xs sm:text-sm"
+                className="flex-1 border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
               >
-                <Plus className="mr-1 h-3 w-3" />
-                <span className="hidden sm:inline">Bulk Add</span>
-                <span className="sm:hidden">Bulk</span>
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Bulk Add Sources</span>
+                <span className="xs:hidden">Bulk Add</span>
               </Button>
               <Button
                 type="button"
                 onClick={toggleBulkDeleteMode}
                 className={cn(
-                  "flex-1 h-8 sm:h-9 lg:h-10 px-2 sm:px-3 text-xs sm:text-sm transition-colors font-medium",
+                  "flex-1 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm transition-colors font-medium",
                   isBulkDeleteMode 
                     ? "border border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
                     : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
                 )}
                 title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
               >
-                <span className="mr-1 text-sm leading-none">−</span>
-                <span className="hidden sm:inline">Delete</span>
-                <span className="sm:hidden">Del</span>
+                <span className="mr-1 sm:mr-2 text-lg leading-none">−</span>
+                <span className="hidden xs:inline">Bulk Delete</span>
+                <span className="xs:hidden">Delete</span>
               </Button>
             </div>
           </form>
