@@ -14,6 +14,7 @@ import {
   Link2,
   Globe,
   Plus,
+  Minus,
   RotateCw,
   Check,
   X,
@@ -136,6 +137,7 @@ export default function Sources() {
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [bulkUrlsInput, setBulkUrlsInput] = useState("");
   const [bulkAddInProgress, setBulkAddInProgress] = useState(false);
+  const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
 
   // Get job status
   const autoScrapeStatus = useQuery({
@@ -1240,6 +1242,14 @@ export default function Sources() {
     bulkDeleteSources.mutate(Array.from(selectedSources));
   };
 
+  const toggleBulkDeleteMode = () => {
+    setIsBulkDeleteMode(!isBulkDeleteMode);
+    // Clear selections when exiting bulk delete mode
+    if (isBulkDeleteMode) {
+      setSelectedSources(new Set());
+    }
+  };
+
   const onSubmit = form.handleSubmit((data) => {
     // Validate that both fields are not empty or just whitespace
     if (!data.name?.trim() || !data.url?.trim()) {
@@ -1754,7 +1764,7 @@ export default function Sources() {
               <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
                 Source List
               </h2>
-              {sources.data && sources.data.length > 0 && (
+              {isBulkDeleteMode && sources.data && sources.data.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1770,33 +1780,63 @@ export default function Sources() {
               <div className="text-xs sm:text-sm text-slate-400">
                 {sources.data?.length || 0} sources configured
               </div>
-              <Button
-                onClick={() => {
-                  if (autoScrapeStatus?.data?.running) {
-                    stopGlobalScrape.mutate();
-                  } else {
-                    runGlobalScrape.mutate();
+              {isBulkDeleteMode && selectedSources.size > 0 && (
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteSources.isPending}
+                  size="sm"
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700 text-white mr-2"
+                >
+                  {bulkDeleteSources.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete Selected ({selectedSources.size})
+                </Button>
+              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={toggleBulkDeleteMode}
+                  size="sm"
+                  variant="outline"
+                  className={
+                    isBulkDeleteMode
+                      ? "bg-red-600/20 border-red-600 text-red-400 hover:bg-red-600/30"
+                      : "border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700/50"
                   }
-                }}
-                disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
-                size="sm"
-                className={
-                  autoScrapeStatus?.data?.running
-                    ? "bg-red-600 hover:bg-red-600/80 text-white"
-                    : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-                }
-              >
-                {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : autoScrapeStatus?.data?.running ? (
-                  <X className="mr-2 h-4 w-4" />
-                ) : (
-                  <Play className="mr-2 h-4 w-4" />
-                )}
-                {autoScrapeStatus?.data?.running
-                  ? "Stop Scan"
-                  : "Scan All Sources Now"}
-              </Button>
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (autoScrapeStatus?.data?.running) {
+                      stopGlobalScrape.mutate();
+                    } else {
+                      runGlobalScrape.mutate();
+                    }
+                  }}
+                  disabled={runGlobalScrape.isPending && stopGlobalScrape.isPending}
+                  size="sm"
+                  className={
+                    autoScrapeStatus?.data?.running
+                      ? "bg-red-600 hover:bg-red-600/80 text-white"
+                      : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                  }
+                >
+                  {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : autoScrapeStatus?.data?.running ? (
+                    <X className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  {autoScrapeStatus?.data?.running
+                    ? "Stop Scan"
+                    : "Scan All Sources Now"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1839,14 +1879,16 @@ export default function Sources() {
                     {/* First row: Checkbox, Name, URL, and Edit/Delete buttons */}
                     <div className="flex flex-col gap-2 w-full max-w-full overflow-hidden">
                       <div className="flex items-start gap-3 min-w-0 w-full">
-                        {/* Selection checkbox */}
-                        <div className="flex-shrink-0 pt-1">
-                          <Checkbox
-                            checked={selectedSources.has(source.id)}
-                            onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
-                            className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] border-slate-600 bg-slate-800/70 hover:bg-slate-700/70 hover:border-slate-500 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 rounded-md h-4 w-4"
-                          />
-                        </div>
+                        {/* Selection checkbox - only show in bulk delete mode */}
+                        {isBulkDeleteMode && (
+                          <div className="flex-shrink-0 pt-1">
+                            <Checkbox
+                              checked={selectedSources.has(source.id)}
+                              onCheckedChange={(checked) => handleSelectSource(source.id, checked === true)}
+                              className="data-[state=checked]:bg-[#BF00FF] data-[state=checked]:border-[#BF00FF] border-slate-600 bg-slate-800/70 hover:bg-slate-700/70 hover:border-slate-500 focus:ring-2 focus:ring-[#BF00FF] focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 rounded-md h-4 w-4"
+                            />
+                          </div>
+                        )}
                         <div
                           className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${source.includeInAutoScrape ? "bg-green-500" : "bg-gray-400"}`}
                         />
@@ -1882,19 +1924,22 @@ export default function Sources() {
                               <span className="sr-only">Edit</span>
                             </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSourceToDelete(source.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                              disabled={deleteSource.isPending}
-                              className="text-destructive hover:text-destructive h-6 w-6 p-0"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
+                            {/* Only show delete button when NOT in bulk delete mode */}
+                            {!isBulkDeleteMode && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSourceToDelete(source.id);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                disabled={deleteSource.isPending}
+                                className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>

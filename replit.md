@@ -127,6 +127,24 @@ The platform provides automated web scraping, AI-powered content analysis, and i
 
 ## Recent Changes
 
+### July 25, 2025 - Completed Toggle-Based Bulk Delete Mode Implementation for Both Applications
+- **Unified bulk delete UX pattern**: Implemented identical toggle-based bulk delete functionality across News Radar and Threat Tracker applications
+- **Minus button trigger**: Added styled minus button next to plus button that activates bulk delete mode with visual feedback
+- **Conditional checkbox display**: Checkboxes only appear when bulk delete mode is active, replacing always-visible approach for cleaner UX
+- **Hidden trash icons in bulk mode**: Individual delete/trash buttons are hidden when bulk delete mode is active to reduce visual clutter
+- **Delete toolbar at top**: When sources are selected in bulk mode, delete toolbar appears at top with "Delete Selected (X)" button
+- **Select all checkbox conditional**: "Select all" checkbox only shows when bulk delete mode is active, maintaining clean interface
+- **State management**: Bulk delete mode state properly managed with automatic selection clearing when exiting mode
+- **Material Design styling**: Maintained purple brand colors (#BF00FF) throughout toggle functionality with proper hover states
+- **Responsive design**: Toggle functionality works seamlessly across mobile and desktop interfaces
+- **Technical implementation**:
+  - Added `isBulkDeleteMode` state and `toggleBulkDeleteMode` handler to both applications
+  - Enhanced toolbar with conditional delete toolbar and minus button with visual feedback
+  - Modified source rendering logic to show checkboxes conditionally based on bulk mode state
+  - Wrapped edit/delete buttons in `!isBulkDeleteMode` conditions to hide during bulk operations
+  - Maintained consistent styling and behavior patterns between News Radar and Threat Tracker
+- **User benefit**: Clean, intuitive bulk delete experience with toggle-based mode switching that keeps interface uncluttered when not needed
+
 ### July 24, 2025 - Enhanced Bulk Source Operations with Smart Title Parsing and UI Refresh Fixes
 - **Improved source management UX**: Moved "Bulk Add Sources" button from header toolbar into source management forms for better consolidation
 - **Threat Tracker implementation**: Added bulk add button to "Add New Source" dialog footer alongside Cancel and Add Source buttons
