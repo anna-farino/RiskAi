@@ -13,6 +13,13 @@ import dotenvConfig from "backend/utils/dotenv-config";
 import dotenv from "dotenv";
 import { Request } from 'express';
 import sendGrid from "backend/utils/sendGrid";
+import { 
+  logSourceScrapingError, 
+  logArticleScrapingError,
+  logBackgroundJobError,
+  createNewsRadarContext,
+  type ScrapingContextInfo 
+} from "backend/services/error-logging";
 
 dotenvConfig(dotenv)
 // Track active scraping processes for all sources
@@ -44,10 +51,13 @@ export async function scrapeSource(
     log(`[Scraping] Starting scrape for source: ${source.url}`, "scraper");
     log(`[Scraping] Source ID: ${sourceId}, Name: ${source.name}`, "scraper");
 
+    // Create error context for source scraping operations
+    const sourceErrorContext = createNewsRadarContext(userId, sourceId);
+
     // Step 2: Extract article links using unified scraping service
     log(`[Scraping] Using unified scraping service for link extraction`, "scraper");
     // Use scrapeSourceUrl which already includes the news-radar context
-    const articleLinks = await scrapingService.scrapeSourceUrl(source.url);
+    const articleLinks = await scrapingService.scrapeSourceUrl(source.url, undefined, undefined, sourceErrorContext);
     log(
       `[Scraping] Found ${articleLinks.length} potential article links`,
       "scraper",
@@ -101,6 +111,9 @@ export async function scrapeSource(
           break;
         }
         
+        // Create error context for this article processing
+        const errorContext = createNewsRadarContext(userId, sourceId, link);
+        
         // Use unified scraping service for article content extraction
         // Only create unified config if scrapingConfig exists - let AI detection handle it automatically otherwise
         let article;
@@ -114,10 +127,10 @@ export async function scrapeSource(
             articleSelector: newsConfig.articleSelector,
             confidence: 0.8 // Default confidence for news radar
           };
-          article = await scrapingService.scrapeArticleUrl(link, unifiedConfig);
+          article = await scrapingService.scrapeArticleUrl(link, unifiedConfig, errorContext);
         } else {
           // No cached structure - let unified scraper handle AI detection automatically
-          article = await scrapingService.scrapeArticleUrl(link);
+          article = await scrapingService.scrapeArticleUrl(link, undefined, errorContext);
         }
         log(
           `[Scraping] Article extracted successfully: "${article.title}"`,
@@ -240,6 +253,26 @@ export async function scrapeSource(
         }
       } catch (error) {
         log(`[Scraping] Error processing article ${link}: ERROR:${error}, ERROR STACK: ${error.stack}`, "scraper");
+        
+        // Log detailed error with context
+        if (error instanceof Error) {
+          const errorContext = createNewsRadarContext(userId, sourceId, link);
+          await logArticleScrapingError(
+            error,
+            errorContext,
+            'http', // Will be determined by the actual method used
+            'background-job-article-processing',
+            {
+              step: 'article-processing-in-background-job',
+              operation: 'news-radar-background-article-scraping',
+              processedCount,
+              totalArticles: articleLinks.length,
+              articleUrl: link,
+              hasScrapingConfig: !!scrapingConfig,
+            }
+          );
+        }
+        
         continue;
       }
     }
@@ -261,6 +294,23 @@ export async function scrapeSource(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     log(`[Scraping] Fatal error: ${errorMessage}`, "scraper");
+    
+    // Log detailed error with context
+    if (error instanceof Error) {
+      const errorContext = createNewsRadarContext(userId, sourceId);
+      await logBackgroundJobError(
+        error,
+        errorContext,
+        {
+          step: 'source-scraping-background-job',
+          operation: 'news-radar-source-processing',
+          sourceUrl: source.url,
+          sourceName: source.name,
+          errorOccurredAt: new Date().toISOString(),
+        }
+      );
+    }
+    
     throw error;
   }
 }
@@ -518,6 +568,23 @@ export async function runGlobalScrapeJob(
           `[Background Job] Error scraping source ${source.name}: ${errorMessage}`,
           "scraper",
         );
+        
+        // Log detailed error with context
+        if (error instanceof Error) {
+          const errorContext = createNewsRadarContext(userId, source.id);
+          await logBackgroundJobError(
+            error,
+            errorContext,
+            {
+              step: 'global-job-source-processing',
+              operation: 'news-radar-global-scrape-source',
+              sourceUrl: source.url,
+              sourceName: source.name,
+              globalJobRunning: true,
+            }
+          );
+        }
+        
         results.push({
           sourceId: source.id,
           sourceName: source.name,
@@ -562,6 +629,22 @@ export async function runGlobalScrapeJob(
       `[Background Job] Fatal error in global scrape job: ${errorMessage}`,
       "scraper",
     );
+    
+    // Log detailed error with context
+    if (error instanceof Error) {
+      const errorContext = createNewsRadarContext(userId);
+      await logBackgroundJobError(
+        error,
+        errorContext,
+        {
+          step: 'global-scrape-job-fatal-error',
+          operation: 'news-radar-global-scrape',
+          globalJobRunning: true,
+          errorOccurredAt: new Date().toISOString(),
+        }
+      );
+    }
+    
     globalJobRunning = false;
     return { success: false, message: errorMessage };
   }
