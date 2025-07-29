@@ -40,11 +40,19 @@ async function processArticle(
     hardware: string[];
   },
 ) {
+  // Get source information for error context (outside try block for catch access)
+  const source = await storage.getSource(sourceId);
+  if (!source) {
+    log(`[ThreatTracker] Source not found: ${sourceId}`, "scraper-error");
+    return null;
+  }
+  
+  // Create error context for article processing (outside try block for catch access)
+  const errorContext = createThreatTrackerContext(userId, sourceId, source.url, source.name);
+  
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
-
-    
     // Check if we already have this article FOR THIS USER - use original URL for lookup
     // We'll handle URL variations through title similarity instead of URL normalization
     const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
@@ -62,22 +70,12 @@ async function processArticle(
       log(`[ThreatTracker] Stop signal received, aborting article processing: ${articleUrl}`, "scraper");
       return null;
     }
-
-    // Get source information for error context
-    const source = await storage.getSource(sourceId);
-    if (!source) {
-      log(`[ThreatTracker] Source not found: ${sourceId}`, "scraper-error");
-      return null;
-    }
-    
-    // Create error context for article processing  
-    const errorContext = createThreatTrackerContext(userId, sourceId, source.url, source.name);
     
     // Early content extraction to get title for additional duplicate checking
     // Only pass htmlStructure if it's not null - let unified scraper handle AI detection automatically
     const articleContent = htmlStructure 
-      ? await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure, errorContext)
-      : await scrapingService.scrapeArticleUrl(articleUrl, undefined, errorContext);
+      ? await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure)
+      : await scrapingService.scrapeArticleUrl(articleUrl, undefined);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
@@ -334,7 +332,7 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       "scraper",
     );
     // Use scrapeSourceUrl which already includes the threat-tracker context
-    const processedLinks = await scrapingService.scrapeSourceUrl(source.url, "threat-tracker", sourceErrorContext);
+    const processedLinks = await scrapingService.scrapeSourceUrl(source.url);
     log(
       `[ThreatTracker] Found ${processedLinks.length} possible article links for ${source.name}`,
       "scraper",
@@ -362,13 +360,13 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
 
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
+      // Create error context for structure detection (outside try block for catch access)
+      const structureErrorContext = createThreatTrackerContext(userId, source.id, source.url, source.name);
+      
       try {
-        // Create error context for structure detection
-        const structureErrorContext = createThreatTrackerContext(userId, source.id, source.url, source.name);
-        
         // Let the unified scraper handle structure detection automatically
         // It will use AI detection and cache the results properly
-        const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl, undefined, structureErrorContext);
+        const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl, undefined);
 
         log(
           `[ThreatTracker] Step 7: Structure detection handled by unified scraper`,
