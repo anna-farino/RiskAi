@@ -3,7 +3,7 @@ import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
 import { analyzeContent } from "./openai";
 import type { ScrapingConfig as NewsRadarConfig } from "@shared/db/schema/news-tracker/types";
-import type { ScrapingConfig } from "backend/services/scraping/extractors/structure-detector";
+
 import { sendEmailJs } from "backend/utils/sendEmailJs";
 import { db } from "backend/db/db";
 import { users } from "@shared/db/schema/user";
@@ -47,17 +47,22 @@ export async function scrapeSource(
   activeScraping.set(sourceId, true);
 
   try {
+    // Handle the case where userId might be null
+    // Since TypeScript is complaining about null vs undefined, let's explicitly check and handle
+    // Store userId in a variable that's accessible throughout the function
+    const userId = source.userId === null ? undefined : source.userId;
+
     // Step 1: Initial scraping setup
     log(`[Scraping] Starting scrape for source: ${source.url}`, "scraper");
     log(`[Scraping] Source ID: ${sourceId}, Name: ${source.name}`, "scraper");
 
     // Create error context for source scraping operations
-    const sourceErrorContext = createNewsRadarContext(userId, sourceId);
+    const sourceErrorContext = createNewsRadarContext(userId, sourceId, source.url, source.name);
 
     // Step 2: Extract article links using unified scraping service
     log(`[Scraping] Using unified scraping service for link extraction`, "scraper");
     // Use scrapeSourceUrl which already includes the news-radar context
-    const articleLinks = await scrapingService.scrapeSourceUrl(source.url, undefined, undefined, sourceErrorContext);
+    const articleLinks = await scrapingService.scrapeSourceUrl(source.url);
     log(
       `[Scraping] Found ${articleLinks.length} potential article links`,
       "scraper",
@@ -72,10 +77,6 @@ export async function scrapeSource(
     const scrapingConfig = source.scrapingConfig;
 
     // Step 5: Get active keywords for this user
-    // Handle the case where userId might be null
-    // Since TypeScript is complaining about null vs undefined, let's explicitly check and handle
-    // Store userId in a variable that's accessible throughout the function
-    const userId = source.userId === null ? undefined : source.userId;
     const keywords = await storage.getKeywords(userId);
     const activeKeywords = keywords.filter((k) => k.active).map((k) => k.term);
     log(
@@ -99,6 +100,9 @@ export async function scrapeSource(
         break;
       }
 
+      // Create error context for this article processing - declare outside try block
+      const errorContext = createNewsRadarContext(userId, sourceId, source.url, source.name);
+
       try {
         log(
           `[Scraping] Processing article ${++processedCount}/${articleLinks.length}: ${link}`,
@@ -111,26 +115,22 @@ export async function scrapeSource(
           break;
         }
         
-        // Create error context for this article processing
-        const errorContext = createNewsRadarContext(userId, sourceId, link);
-        
         // Use unified scraping service for article content extraction
         // Only create unified config if scrapingConfig exists - let AI detection handle it automatically otherwise
         let article;
         if (scrapingConfig) {
           const newsConfig = scrapingConfig as NewsRadarConfig;
-          const unifiedConfig: ScrapingConfig = {
+          const unifiedConfig: NewsRadarConfig = {
             titleSelector: newsConfig.titleSelector,
             contentSelector: newsConfig.contentSelector,
             authorSelector: newsConfig.authorSelector,
             dateSelector: newsConfig.dateSelector,
-            articleSelector: newsConfig.articleSelector,
-            confidence: 0.8 // Default confidence for news radar
+            articleSelector: newsConfig.articleSelector
           };
-          article = await scrapingService.scrapeArticleUrl(link, unifiedConfig, errorContext);
+          article = await scrapingService.scrapeArticleUrl(link, unifiedConfig);
         } else {
           // No cached structure - let unified scraper handle AI detection automatically
-          article = await scrapingService.scrapeArticleUrl(link, undefined, errorContext);
+          article = await scrapingService.scrapeArticleUrl(link, undefined);
         }
         log(
           `[Scraping] Article extracted successfully: "${article.title}"`,
@@ -256,18 +256,17 @@ export async function scrapeSource(
         
         // Log detailed error with context
         if (error instanceof Error) {
-          const errorContext = createNewsRadarContext(userId, sourceId, link);
           await logArticleScrapingError(
             error,
             errorContext,
-            'http', // Will be determined by the actual method used
-            'background-job-article-processing',
+            link, // articleUrl
+            'http', // scrapingMethod - will be determined by the actual method used
+            'article-scraping', // extractionStep
             {
               step: 'article-processing-in-background-job',
               operation: 'news-radar-background-article-scraping',
               processedCount,
               totalArticles: articleLinks.length,
-              articleUrl: link,
               hasScrapingConfig: !!scrapingConfig,
             }
           );
@@ -297,15 +296,15 @@ export async function scrapeSource(
     
     // Log detailed error with context
     if (error instanceof Error) {
-      const errorContext = createNewsRadarContext(userId, sourceId);
+      const userId = source.userId === null ? undefined : source.userId;
+      const errorContext = createNewsRadarContext(userId, sourceId, source.url, source.name);
       await logBackgroundJobError(
         error,
         errorContext,
+        'source-scraping-job', // jobType string
         {
           step: 'source-scraping-background-job',
           operation: 'news-radar-source-processing',
-          sourceUrl: source.url,
-          sourceName: source.name,
           errorOccurredAt: new Date().toISOString(),
         }
       );
@@ -571,15 +570,14 @@ export async function runGlobalScrapeJob(
         
         // Log detailed error with context
         if (error instanceof Error) {
-          const errorContext = createNewsRadarContext(userId, source.id);
+          const errorContext = createNewsRadarContext(userId, source.id, source.url, source.name);
           await logBackgroundJobError(
             error,
             errorContext,
+            'global-job-source-processing', // jobType string
             {
               step: 'global-job-source-processing',
               operation: 'news-radar-global-scrape-source',
-              sourceUrl: source.url,
-              sourceName: source.name,
               globalJobRunning: true,
             }
           );
@@ -632,10 +630,16 @@ export async function runGlobalScrapeJob(
     
     // Log detailed error with context
     if (error instanceof Error) {
-      const errorContext = createNewsRadarContext(userId);
+      const errorContext = createNewsRadarContext(
+        userId, 
+        'global-job', 
+        'global-scrape-operation', 
+        'Global Scrape Job'
+      );
       await logBackgroundJobError(
         error,
         errorContext,
+        'global-scrape-job', // jobType string  
         {
           step: 'global-scrape-job-fatal-error',
           operation: 'news-radar-global-scrape',
