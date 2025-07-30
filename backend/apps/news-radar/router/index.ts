@@ -660,3 +660,39 @@ newsRouter.post("/settings/auto-scrape", async (req, res) => {
     res.status(500).json({ message: errorMessage });
   }
 });
+
+// Test endpoint for error logging functionality (for development/testing only)
+newsRouter.post("/test/error-logging", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    
+    // Import error logging functionality
+    const { testErrorLogging } = await import("backend/services/error-logging");
+    
+    log("[TEST] Starting error logging functionality test", "error-logging-test");
+    
+    const testResult = await testErrorLogging();
+    
+    if (testResult) {
+      log("[TEST] Error logging test completed successfully", "error-logging-test");
+      res.json({
+        success: true,
+        message: "Error logging functionality test completed successfully",
+        userId: userId
+      });
+    } else {
+      log("[TEST] Error logging test failed", "error-logging-test");
+      res.status(500).json({
+        success: false,
+        message: "Error logging functionality test failed"
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    log(`[TEST] Error logging test error: ${errorMessage}`, "error-logging-test");
+    res.status(500).json({ 
+      success: false, 
+      message: `Error logging test error: ${errorMessage}` 
+    });
+  }
+});
