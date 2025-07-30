@@ -5,6 +5,13 @@ import { scrapingService } from "./scraper";
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { normalizeUrl, titleSimilarity } from "./url-utils";
+import { 
+  logSourceScrapingError, 
+  logArticleScrapingError,
+  logBackgroundJobError,
+  createThreatTrackerContext,
+  type ScrapingContextInfo 
+} from "backend/services/error-logging";
 
 // Track active scraping processes for individual sources
 export const activeScraping = new Map<string, boolean>();
@@ -33,11 +40,19 @@ async function processArticle(
     hardware: string[];
   },
 ) {
+  // Get source information for error context (outside try block for catch access)
+  const source = await storage.getSource(sourceId);
+  if (!source) {
+    log(`[ThreatTracker] Source not found: ${sourceId}`, "scraper-error");
+    return null;
+  }
+  
+  // Create error context for article processing (outside try block for catch access)
+  const errorContext = createThreatTrackerContext(userId, sourceId, source.url, source.name);
+  
   try {
     log(`[ThreatTracker] Processing article: ${articleUrl}`, "scraper");
 
-
-    
     // Check if we already have this article FOR THIS USER - use original URL for lookup
     // We'll handle URL variations through title similarity instead of URL normalization
     const existingArticle = await storage.getArticleByUrl(articleUrl, userId);
@@ -55,12 +70,12 @@ async function processArticle(
       log(`[ThreatTracker] Stop signal received, aborting article processing: ${articleUrl}`, "scraper");
       return null;
     }
-
+    
     // Early content extraction to get title for additional duplicate checking
     // Only pass htmlStructure if it's not null - let unified scraper handle AI detection automatically
     const articleContent = htmlStructure 
       ? await scrapingService.scrapeArticleUrl(articleUrl, htmlStructure)
-      : await scrapingService.scrapeArticleUrl(articleUrl);
+      : await scrapingService.scrapeArticleUrl(articleUrl, undefined);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
@@ -228,6 +243,23 @@ async function processArticle(
       `[ThreatTracker] Error processing article ${articleUrl}: ${error.message}`,
       "scraper-error",
     );
+    
+    // Log detailed error with context
+    if (error instanceof Error) {
+      await logArticleScrapingError(
+        error,
+        errorContext, // This was already created earlier with correct source info
+        articleUrl,
+        'http',
+        'article-scraping',
+        {
+          step: 'article-processing-in-background-job',
+          operation: 'threat-tracker-background-article-scraping',
+          hasHtmlStructure: !!htmlStructure,
+        }
+      );
+    }
+    
     return null;
   }
 }
@@ -253,6 +285,9 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
   const keywordUserId = source.userId || userId
 
   try {
+    // Create error context for source scraping operations
+    const sourceErrorContext = createThreatTrackerContext(userId, source.id, source.url, source.name);
+
     // Get all threat-related keywords for analysis, filtered by the source's userId
     const threatKeywords = await storage.getKeywordsByCategory(
       "threat",
@@ -325,10 +360,13 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
 
     // If we don't have an HTML structure yet, we need to detect it from the first article
     if (!htmlStructure) {
+      // Create error context for structure detection (outside try block for catch access)
+      const structureErrorContext = createThreatTrackerContext(userId, source.id, source.url, source.name);
+      
       try {
         // Let the unified scraper handle structure detection automatically
         // It will use AI detection and cache the results properly
-        const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl);
+        const firstArticleContent = await scrapingService.scrapeArticleUrl(firstArticleUrl, undefined);
 
         log(
           `[ThreatTracker] Step 7: Structure detection handled by unified scraper`,
@@ -346,6 +384,22 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
           `[ThreatTracker] Error in structure detection: ${error.message}`,
           "scraper-error",
         );
+        
+        // Log detailed error with context
+        if (error instanceof Error) {
+          await logArticleScrapingError(
+            error,
+            structureErrorContext, // Reuse the context created earlier
+            firstArticleUrl,
+            'http',
+            'structure-detection',
+            {
+              step: 'structure-detection-in-background-job',
+              operation: 'threat-tracker-structure-detection',
+              sourceName: source.name,
+            }
+          );
+        }
         // Set to null to let unified scraper handle detection
         htmlStructure = null;
       }
@@ -420,6 +474,22 @@ export async function scrapeSource(source: ThreatSource, userId: string) {
       `[ThreatTracker] Error in scrape job for source ${source.name}: ${error.message}`,
       "scraper-error",
     );
+    
+    // Log detailed error with context
+    if (error instanceof Error) {
+      const errorContext = createThreatTrackerContext(userId, source.id, source.url, source.name);
+      await logBackgroundJobError(
+        error,
+        errorContext,
+        'source-scraping',
+        {
+          step: 'source-scraping-background-job',
+          operation: 'threat-tracker-source-processing',
+          errorOccurredAt: new Date().toISOString(),
+        }
+      );
+    }
+    
     throw error;
   } finally {
     // Clean up the active scraping flag for this source
@@ -490,6 +560,22 @@ export async function runGlobalScrapeJob(userId?: string) {
           `[ThreatTracker] Error scraping source ${source.name}: ${error.message}`,
           "scraper-error",
         );
+        
+        // Log detailed error with context
+        if (error instanceof Error) {
+          const errorContext = createThreatTrackerContext(userId, source.id, source.url, source.name);
+          await logBackgroundJobError(
+            error,
+            errorContext,
+            'global-job-source-processing',
+            {
+              step: 'global-job-source-processing',
+              operation: 'threat-tracker-global-scrape-source',
+              globalJobRunning: true,
+            }
+          );
+        }
+        
         // Continue with the next source
         continue;
       } finally {
@@ -513,6 +599,28 @@ export async function runGlobalScrapeJob(userId?: string) {
       `[ThreatTracker] Error in scrape job for user ${userId}: ${error.message}`,
       "scraper-error",
     );
+    
+    // Log detailed error with context
+    if (error instanceof Error) {
+      const errorContext = createThreatTrackerContext(
+        userId, 
+        'global-job', 
+        'global-scrape-operation', 
+        'Global Scrape Job'
+      );
+      await logBackgroundJobError(
+        error,
+        errorContext,
+        'global-scrape-job',
+        {
+          step: 'global-scrape-job-fatal-error',
+          operation: 'threat-tracker-global-scrape',
+          globalJobRunning: true,
+          errorOccurredAt: new Date().toISOString(),
+        }
+      );
+    }
+    
     userJobsRunning.set(userId, false);
     throw error;
   }
