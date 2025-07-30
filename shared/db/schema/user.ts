@@ -3,6 +3,12 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 import { capsuleArticles } from "./news-capsule";
 
+export const auth0Ids = pgTable("auth0_ids", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  auth0Id: text("auth0_id").notNull().unique()
+})
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
@@ -30,7 +36,8 @@ export const refreshTokens = pgTable("refresh_tokens", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   refreshTokens: many(refreshTokens),
-  capsuleArticles: many(capsuleArticles)
+  capsuleArticles: many(capsuleArticles),
+  auth0Ids: many(auth0Ids)
 }));
 
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
