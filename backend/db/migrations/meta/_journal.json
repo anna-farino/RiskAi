@@ -183,6 +183,13 @@
       "when": 1753735138880,
       "tag": "0025_material_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1753900180208,
+      "tag": "0026_yummy_chat",
+      "breakpoints": true
     }
   ]
 }
