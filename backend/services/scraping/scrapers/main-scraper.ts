@@ -13,6 +13,14 @@ import {
 } from '../extractors/content-extraction/ai-reanalysis';
 import { extractArticleLinks, extractArticleLinksFromPage } from '../extractors/link-extraction/dynamic-content-handler';
 import { AppScrapingContext } from '../strategies/app-strategy.interface';
+import { 
+  logSourceScrapingError, 
+  logArticleScrapingError,
+  logStructureDetectionError,
+  logContentExtractionError,
+  inferErrorType,
+  type ScrapingContextInfo 
+} from "backend/services/error-logging";
 
 /**
  * Streamlined Unified Scraper V2
@@ -24,8 +32,9 @@ export class StreamlinedUnifiedScraper {
   /**
    * Streamlined article scraping - 3 steps total
    * @param context - Optional app-specific context for neutral operation
+   * @param errorContext - Optional context for error logging (userId, sourceId, etc.)
    */
-  async scrapeArticleUrl(url: string, config?: ScrapingConfig, context?: AppScrapingContext): Promise<ArticleContent> {
+  async scrapeArticleUrl(url: string, config?: ScrapingConfig, context?: AppScrapingContext, errorContext?: ScrapingContextInfo): Promise<ArticleContent> {
     try {
       log(`[SimpleScraper] Starting article scraping: ${url}`, "scraper");
 
@@ -41,16 +50,53 @@ export class StreamlinedUnifiedScraper {
       
       // If no config provided, use AI detection
       if (!structureConfig) {
-        structureConfig = await detectHtmlStructure(url, contentResult.html, context);
+        try {
+          structureConfig = await detectHtmlStructure(url, contentResult.html, context);
+        } catch (error) {
+          if (error instanceof Error && errorContext) {
+            await logStructureDetectionError(
+              error,
+              errorContext,
+              url,
+              contentResult.method,
+              {
+                step: 'html-structure-detection',
+                hasConfig: !!config,
+                method: contentResult.method,
+              }
+            );
+          }
+          throw error;
+        }
       }
 
       // Step 3: Extract content with enhanced recovery
-      let extracted = extractContentWithSelectors(contentResult.html, structureConfig);
-      
-      // Phase 4: AI re-analysis trigger for failed extractions
-      if (shouldTriggerAIReanalysis(extracted)) {
-        log(`[SimpleScraper] Triggering AI re-analysis due to insufficient extraction`, "scraper");
-        extracted = await performAIReanalysis(contentResult.html, url, extracted);
+      let extracted;
+      try {
+        extracted = extractContentWithSelectors(contentResult.html, structureConfig);
+        
+        // Phase 4: AI re-analysis trigger for failed extractions
+        if (shouldTriggerAIReanalysis(extracted)) {
+          log(`[SimpleScraper] Triggering AI re-analysis due to insufficient extraction`, "scraper");
+          extracted = await performAIReanalysis(contentResult.html, url, extracted);
+        }
+      } catch (error) {
+        if (error instanceof Error && errorContext) {
+          await logContentExtractionError(
+            error,
+            errorContext,
+            url,
+            contentResult.method,
+            {
+              step: 'content-selector-extraction',
+              titleLength: extracted?.title?.length || 0,
+              contentLength: extracted?.content?.length || 0,
+              method: contentResult.method,
+              structureConfig: structureConfig ? 'provided' : 'detected',
+            }
+          );
+        }
+        throw error;
       }
 
       // Extract publish date using centralized date extractor
@@ -81,6 +127,23 @@ export class StreamlinedUnifiedScraper {
 
     } catch (error: any) {
       log(`[SimpleScraper] Error in article scraping: ${error.message}`, "scraper-error");
+      
+      // Log the error with context if available
+      if (error instanceof Error && errorContext) {
+        await logArticleScrapingError(
+          error,
+          errorContext,
+          url,
+          'http', // Default, will be overridden by actual method in most cases
+          'article-scraping',
+          {
+            step: 'general-article-scraping-failure',
+            operation: 'main-scraper-article',
+            errorOccurredAt: new Date().toISOString(),
+          }
+        );
+      }
+      
       throw error;
     }
   }
@@ -88,8 +151,9 @@ export class StreamlinedUnifiedScraper {
   /**
    * Source URL scraping with advanced HTMX handling
    * @param context - Optional app-specific context for neutral operation
+   * @param errorContext - Optional context for error logging (userId, sourceId, etc.)
    */
-  async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext): Promise<string[]> {
+  async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext, errorContext?: ScrapingContextInfo): Promise<string[]> {
     try {
       log(`[SimpleScraper] Starting source scraping: ${url}`, "scraper");
 
@@ -132,24 +196,75 @@ export class StreamlinedUnifiedScraper {
           log(`[SimpleScraper] Advanced HTMX extraction completed: ${articleLinks.length} links found`, "scraper");
           return articleLinks;
           
+        } catch (puppeteerError) {
+          if (puppeteerError instanceof Error && errorContext) {
+            await logSourceScrapingError(
+              puppeteerError,
+              errorContext,
+              'puppeteer',
+              {
+                step: 'puppeteer-source-extraction',
+                operation: 'htmx-dynamic-content',
+                url,
+                maxLinks: extractionOptions.maxLinks,
+                hasAdvancedExtraction: true,
+              }
+            );
+          }
+          throw puppeteerError;
         } finally {
           if (page) {
             try {
               await page.close();
             } catch (closeError) {
               log(`[SimpleScraper] Error closing page: ${closeError}`, "scraper-error");
+              // Don't log page close errors to database - they're cleanup issues
             }
           }
         }
       } else {
         // Step 3: Extract links with standard method for static sites
-        const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
-        log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
-        return articleLinks;
+        try {
+          const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
+          log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
+          return articleLinks;
+        } catch (standardError) {
+          if (standardError instanceof Error && errorContext) {
+            await logSourceScrapingError(
+              standardError,
+              errorContext,
+              result.method,
+              {
+                step: 'standard-link-extraction',
+                operation: 'static-content',
+                url,
+                maxLinks: extractionOptions.maxLinks,
+                hasAdvancedExtraction: false,
+              }
+            );
+          }
+          throw standardError;
+        }
       }
 
     } catch (error: any) {
       log(`[SimpleScraper] Error in source scraping: ${error.message}`, "scraper-error");
+      
+      // Log the error with context if available
+      if (error instanceof Error && errorContext) {
+        await logSourceScrapingError(
+          error,
+          errorContext,
+          'http', // Default, will be determined by method detection
+          {
+            step: 'general-source-scraping-failure',
+            operation: 'main-scraper-source',
+            url,
+            errorOccurredAt: new Date().toISOString(),
+          }
+        );
+      }
+      
       throw error;
     }
   }
