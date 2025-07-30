@@ -15,7 +15,13 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
 
   //req.log("payload", payload)
   //req.log("email: ", email)
-  //req.log("sub: ", sub)
+  req.log("sub: ", sub)
+
+  if (!email_verified) {
+    req.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
+    res.status(401).end();
+    return;
+  }
 
   const userArray = await db
     .select()
@@ -25,12 +31,6 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
 
   //req.log("Users with email: ", email, user)
   //req.log("[AUTH0-MIDDLEWARE] userArray: ", userArray)
-
-  if (!email_verified) {
-    req.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
-    res.status(401).end();
-    return;
-  }
 
   let userToReturn: User;
 
