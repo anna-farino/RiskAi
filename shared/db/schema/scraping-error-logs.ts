@@ -7,6 +7,8 @@ import {
   jsonb,
   pgEnum,
 } from 'drizzle-orm/pg-core';
+import { createInsertSchema } from 'drizzle-zod';
+import { z } from 'zod';
 import { users } from './user';
 
 export const appTypeEnum = pgEnum('app_type', [
@@ -40,3 +42,19 @@ export const scrapingErrorLogs = pgTable('scraping_error_logs', {
   timestamp: timestamp('timestamp', { withTimezone: false }).notNull(),
   retryCount: integer('retry_count').default(0),
 });
+
+// Zod schemas
+export const insertScrapingErrorLogSchema = createInsertSchema(scrapingErrorLogs).omit({
+  id: true,
+  timestamp: true,
+});
+
+// Types
+export type ScrapingErrorLog = typeof scrapingErrorLogs.$inferSelect;
+export type InsertScrapingErrorLog = z.infer<typeof insertScrapingErrorLogSchema>;
+
+// Type aliases for enums
+export type AppType = 'news-radar' | 'threat-tracker' | 'news-capsule';
+export type ErrorType = 'network' | 'parsing' | 'ai' | 'puppeteer' | 'timeout' | 'auth' | 'unknown';
+export type ScrapingMethod = 'http' | 'puppeteer';
+export type ExtractionStep = 'source-scraping' | 'article-scraping' | 'structure-detection' | 'content-extraction';
