@@ -39,7 +39,7 @@ export default function FloatingNavigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
-  const { handleLogout:logout } = useLogout();
+  const { logout } = useLogout();
   const { data: userData } = useAuth();
   
   // Handle responsive state

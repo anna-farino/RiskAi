@@ -2,109 +2,46 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import AuthLayout from "@/components/layout/AuthLayout"
-import { useAuth0 } from "@auth0/auth0-react"
-import { cn } from "@/lib/utils"
-import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router"
-import { serverUrl } from "@/utils/server-url"
-import { useToast } from "@/hooks/use-toast"
+import { Link } from "react-router-dom"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { Loader2 } from "lucide-react"
+import { useState } from "react"
+import PasswordEye from "@/components/password-eye"
+import useLogin from "@/hooks/use-login"
 
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/\d/, 'Password must contain at least one number')
+    .regex(/[?!@#$%^&*()]/, 'Password must contain at least one special character (!?@#$%^&*())'),
+  rememberMe: z.boolean().optional(),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { 
-    loginWithRedirect, 
-    isLoading,
-    isAuthenticated,
-    logout,
-    user
-  } = useAuth0()
-  const [ searchParams,_ ] = useSearchParams()
-  const { toast } = useToast()
-  const [email, setEmail] = useState("")
-  const [emailError, setEmailError] = useState("")
-  const [isResending, setIsResending] = useState(false)
-  
-  const audience = (import.meta as any).env.VITE_AUTH0_AUDIENCE;
-  
-  console.log("searchParams", searchParams.get("email_verified"))
-  console.log("searchParams2", searchParams.get("error_description"))
-  console.log("[Login page] isAuthenticated", isAuthenticated)
+  const [ showPassword, setShowPassword ] = useState(false)
+  const { mutate: login, isPending: loginIsPending } = useLogin();
 
-  // Email validation schema
-  const emailSchema = z.object({
-    email: z.string().email("Please enter a valid email address")
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+  });
+
+  const onSubmit = form.handleSubmit((data) => {
+    login(data)
   })
-
-
-  useEffect(()=>{
-    if (searchParams.get("email_verified") === "true") {
-      handleLogin()
-    }
-  },[])
-
-  async function handleLogin() {
-    localStorage.removeItem("email_not_verified")
-    await loginWithRedirect({
-      authorizationParams: {
-        audience
-      },
-    });
-  };
-
-  async function handleLogout() {
-    localStorage.removeItem("email_not_verified")
-    logout({ logoutParams: { returnTo: '' }})
-  }
-
-  async function resendLink() {
-    try {
-      setEmailError("")
-      setIsResending(true)
-      
-      // Validate email with zod
-      const validation = emailSchema.safeParse({ email })
-      if (!validation.success) {
-        setEmailError(validation.error.errors[0].message)
-        return
-      }
-
-      const response = await fetch(`${serverUrl}/api/auth/send-verify-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': "application/json",
-          'Accept': "application/json"
-        },
-        body: JSON.stringify({
-          email: email
-        })
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "There was an error while trying to resend the link")
-      }
-      
-      // Success: clear input and show toast
-      setEmail("")
-      toast({
-        title: "Success",
-        description: "Verification email sent successfully. Please check your inbox.",
-      })
-      
-    } catch(error){
-      console.error(error)
-      setEmailError(error instanceof Error ? error.message : "Failed to send verification email")
-    } finally {
-      setIsResending(false)
-    }
-  }
-
-  if (
-    isLoading || 
-    (isAuthenticated && user?.email_verified)
-  ) return null
 
   return (
     <AuthLayout>
@@ -112,65 +49,97 @@ export default function Login() {
         <CardHeader className="pb-4 px-4 sm:px-6">
           <CardTitle className="text-2xl text-white text-center">Login</CardTitle>
           <CardDescription className="text-gray-300 text-center">
-            Click the button below to log in or sign up 
+            Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 px-4 sm:px-6">
-          <Button 
-            className={cn(
-              "w-full text-white hover:text-white font-light",
-              "transition-all duration-300 bg-gradient-to-r",
-              "from-[#8B5CF6] to-[#06B6D4] hover:from-[#7C3AED] hover:to-[#0891B2]",
-              "h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none"
-            )} 
-            onClick={handleLogin}
-          >
-            Login/Signup
-          </Button>
-          {false && <Button 
-            className={cn(
-              "w-full text-white hover:text-white font-light",
-              "transition-all duration-300 bg-gradient-to-r",
-              "h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none"
-            )} 
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>}
-          {searchParams.get("error_description") === "Please verify your email before logging in." &&
-            <CardDescription className="flex flex-col gap-4 text-gray-300 text-center text-md">
-              Please verify your email (check your inbox)
-              <div className="flex flex-col gap-2 mt-4">
-                <Label htmlFor="email" className="text-left text-gray-300">
-                  Email address
-                </Label>
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={onSubmit}>
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-2 relative">
+                <Label htmlFor="email" className="text-white font-medium mb-1">Email</Label>
                 <Input
                   id="email"
                   type="email"
+                  disabled={loginIsPending}
+                  {...form.register("email")}
+                  className="bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 h-11 px-4"
                   placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-black/50 border-[#BF00FF]/20 text-white placeholder:text-gray-500"
                 />
-                {emailError && (
-                  <p className="text-red-400 text-sm text-left">{emailError}</p>
+                {form.formState.errors.email && (
+                  <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md border border-red-500/20 mt-1">
+                    {form.formState.errors.email.message}
+                  </p>
                 )}
               </div>
-              <Button 
-                onClick={resendLink}
-                disabled={isResending}
-                className={cn(
-                  "w-full text-white hover:text-white font-light",
-                  "transition-all duration-300 bg-gradient-to-r",
-                  "from-[#8B5CF6] to-[#06B6D4] hover:from-[#7C3AED] hover:to-[#0891B2]",
-                  "h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
+              <div className="grid gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <Label htmlFor="password" className="text-white font-medium">Password</Label>
+                  <Link
+                    to="/auth/email-otp"
+                    className="sm:ml-auto inline-block text-sm text-[#00FFFF] underline-offset-4 hover:opacity-80 hover:underline transition-all mt-1 sm:mt-0"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+                <div className="flex relative">
+                  <Input 
+                    id="password" 
+                    type={showPassword ? "text" : "password"}
+                    disabled={loginIsPending}
+                    {...form.register("password")}
+                    className="bg-black/60 border-2 border-[#BF00FF]/30 text-white placeholder:text-gray-400 focus:border-[#00FFFF] focus:ring-[#00FFFF]/30 h-11 px-4"
+                    placeholder="Enter your password"
+                  />
+                  <PasswordEye
+                    state={showPassword}
+                    setStateFn={setShowPassword}
+                    top={14}
+                  />
+                </div>
+                {form.formState.errors.password && (
+                  <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md border border-red-500/20 mt-1">
+                    {form.formState.errors.password.message}
+                  </p>
                 )}
+              </div>
+              {false && <div className="flex items-center space-x-2">
+                <Switch 
+                  id="remember-me"
+                  checked={form.watch("rememberMe")}
+                  onCheckedChange={(checked) => form.setValue("rememberMe", checked)}
+                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-[#BF00FF] data-[state=checked]:to-[#00FFFF]"
+                  disabled={loginIsPending}
+                />
+                <Label 
+                  htmlFor="remember-me" 
+                  className="text-sm text-gray-200 hover:text-white cursor-pointer"
+                  onClick={() => form.setValue("rememberMe", !form.watch("rememberMe"))}
+                >
+                  Remember me
+                </Label>
+              </div>}
+              <Button 
+                type="submit" 
+                className="w-full text-white hover:text-white font-medium transition-all duration-300 bg-gradient-to-r from-[#8B5CF6] to-[#06B6D4] hover:from-[#7C3AED] hover:to-[#0891B2] h-11 sm:h-12 text-sm sm:text-base rounded-md shadow-md border-none" 
+                disabled={loginIsPending}
               >
-                {isResending ? "Sending..." : "Resend Link"}
+                {loginIsPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  "Login"
+                )}
               </Button>
-            </CardDescription>
-          }
+            </div>
+            <div className="mt-6 text-center text-sm text-gray-300">
+              Don&apos;t have an account?{" "}
+              <Link to="/auth/signup" className="text-[#00FFFF] font-medium underline-offset-4 hover:opacity-80 hover:underline transition-all">
+                Sign up
+              </Link>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </AuthLayout>
