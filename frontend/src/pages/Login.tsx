@@ -26,6 +26,8 @@ export default function Login() {
   const [emailError, setEmailError] = useState("")
   const [isResending, setIsResending] = useState(false)
   
+  const audience = (import.meta as any).env.VITE_AUTH0_AUDIENCE;
+  
   console.log("searchParams", searchParams.get("email_verified"))
   console.log("searchParams2", searchParams.get("error_description"))
   console.log("[Login page] isAuthenticated", isAuthenticated)
@@ -46,7 +48,7 @@ export default function Login() {
     localStorage.removeItem("email_not_verified")
     await loginWithRedirect({
       authorizationParams: {
-        audience: 'http://localhost:5002'
+        audience
       },
     });
   };
