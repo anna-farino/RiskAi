@@ -9,7 +9,6 @@ on:
     branches:
       - staging
       - main
-
 jobs:
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -17,9 +16,9 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: ${{ 
-      github.ref == 'refs/heads/main'    && 'production'  ||
-      github.ref == 'refs/heads/staging' && 'staging'     
+    environment: ${{
+      github.ref == 'refs/heads/main' && 'production' ||
+      github.ref == 'refs/heads/staging' && 'staging'
     }}
     steps:
       - uses: actions/checkout@v3
@@ -58,9 +57,9 @@ jobs:
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
-    environment: ${{ 
-      github.ref == 'refs/heads/main'    && 'production'  ||
-      github.ref == 'refs/heads/staging' && 'staging'     ||
+    environment: ${{
+      github.ref == 'refs/heads/main' && 'production' ||
+      github.ref == 'refs/heads/staging' && 'staging'
     }}
     steps:
       - uses: Azure/static-web-apps-deploy@v1
