@@ -28,6 +28,10 @@ export const router = createBrowserRouter([
         children: dashboardChildren 
       },
       {
+        index: true,
+        element: <Redirect/>
+      },
+      {
         path: '*',
         element: <Redirect/>
       },
