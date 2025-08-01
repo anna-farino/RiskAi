@@ -1,10 +1,9 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { csfrHeaderObject } from "@/utils/csrf-header";
-import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
+import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { ThreatSource } from "@shared/db/schema/threat-tracker";
 import {
@@ -129,6 +128,7 @@ type SourceFormValues = z.infer<typeof sourceFormSchema>;
 
 export default function Sources() {
   const { toast } = useToast();
+  const fetchWithTokens = useFetch();
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<ThreatSource | null>(null);
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
@@ -171,15 +171,8 @@ export default function Sources() {
     queryKey: [`${serverUrl}/api/threat-tracker/sources`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/sources`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/sources`
         );
         if (!response.ok) throw new Error("Failed to fetch sources");
 
@@ -204,15 +197,8 @@ export default function Sources() {
     queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/settings/auto-scrape`
         );
         if (!response.ok)
           throw new Error("Failed to fetch auto-update settings");
@@ -247,15 +233,8 @@ export default function Sources() {
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/status`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/scrape/status`
         );
         if (!response.ok) {
           console.warn(
@@ -288,11 +267,17 @@ export default function Sources() {
   // Create source mutation
   const createSource = useMutation({
     mutationFn: async (values: SourceFormValues) => {
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/sources`,
-        values,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/sources`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        }
       );
+      return await response.json();
     },
     onMutate: async (newSource) => {
       // Cancel outgoing refetches
@@ -358,11 +343,17 @@ export default function Sources() {
       id: string;
       values: SourceFormValues;
     }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/sources/${id}`,
-        values,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/sources/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ id, values }) => {
       // Cancel outgoing refetches
@@ -431,9 +422,12 @@ export default function Sources() {
       deleteArticles?: boolean;
     }) => {
       const url = deleteArticles
-        ? `${serverUrl}/api/threat-tracker/sources/${id}?deleteArticles=true`
-        : `${serverUrl}/api/threat-tracker/sources/${id}`;
-      return apiRequest("DELETE", url);
+        ? `/api/threat-tracker/sources/${id}?deleteArticles=true`
+        : `/api/threat-tracker/sources/${id}`;
+      const response = await fetchWithTokens(url, {
+        method: "DELETE",
+      });
+      return await response.json();
     },
     onMutate: async ({ id: deletedId }) => {
       // Cancel outgoing refetches
@@ -483,10 +477,13 @@ export default function Sources() {
   const scrapeSingleSource = useMutation({
     mutationFn: async (id: string) => {
       setScrapingSourceId(id);
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/scrape/source/${id}`,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/scrape/source/${id}`,
+        {
+          method: "POST",
+        }
       );
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -525,7 +522,13 @@ export default function Sources() {
   // Scrape all sources mutation
   const scrapeAllSources = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/scrape/all`,
+        {
+          method: "POST",
+        }
+      );
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -559,17 +562,12 @@ export default function Sources() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/stop`,
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/scrape/stop`,
           {
             method: "POST",
-            headers: {
-              ...csfrHeaderObject(),
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
             signal: controller.signal,
-          },
+          }
         );
 
         clearTimeout(timeoutId);
@@ -646,11 +644,17 @@ export default function Sources() {
       enabled,
       interval,
     }: AutoScrapeSettings): Promise<AutoScrapeSettings> => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
-        { enabled, interval },
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/settings/auto-scrape`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ enabled, interval }),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ enabled, interval }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -738,14 +742,10 @@ export default function Sources() {
       options?: { concurrency?: number; timeout?: number };
     }) => {
       try {
-        const response = await fetch(
+        const response = await fetchWithTokens(
           `${serverUrl}/api/threat-tracker/sources/bulk-add`,
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...csfrHeaderObject(),
-            },
             body: JSON.stringify({ urls, options }),
             credentials: "include",
           },
@@ -821,14 +821,10 @@ export default function Sources() {
   const bulkDeleteSources = useMutation({
     mutationFn: async (sourceIds: string[]) => {
       try {
-        const response = await fetch(
+        const response = await fetchWithTokens(
           `${serverUrl}/api/threat-tracker/sources/bulk-delete`,
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...csfrHeaderObject(),
-            },
             body: JSON.stringify({ sourceIds }),
             credentials: "include",
           },

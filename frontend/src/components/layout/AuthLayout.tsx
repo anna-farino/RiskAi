@@ -5,10 +5,14 @@ type Props = {
   children: React.ReactNode
   twHeight?: 'h-full' | 'min-h-screen' 
 }
-export default function AuthLayout({ 
+export default function AuthLayout(
+{ 
   children,
   twHeight='min-h-screen'
-}: Props) {
+}
+  : Props
+) {
+
   return (
     <div className={`flex ${twHeight} items-center justify-center bg-slate-900 bg-[radial-gradient(ellipse_at_center,rgba(94,58,162,0.05)_0%,rgba(0,0,0,0)_80%)]`}>
       {false && <div className="absolute top-4 right-4">

@@ -1,8 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
-import { apiRequest } from "@/lib/query-client";
 import { serverUrl } from "@/utils/server-url";
+import { useFetch } from "@/hooks/use-fetch";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { ThreatKeyword } from "@shared/db/schema/threat-tracker";
@@ -103,6 +103,7 @@ const bulkKeywordFormSchema = z.object({
 type BulkKeywordFormValues = z.infer<typeof bulkKeywordFormSchema>;
 
 export default function Keywords() {
+  const fetchWithTokens = useFetch();
   const { toast } = useToast();
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [bulkKeywordDialogOpen, setBulkKeywordDialogOpen] = useState(false);
@@ -145,14 +146,10 @@ export default function Keywords() {
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/keywords`,
+        const response = await fetchWithTokens(
+          `/api/threat-tracker/keywords`,
           {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
           },
         );
         if (!response.ok) throw new Error("Failed to fetch keywords");
@@ -193,15 +190,21 @@ export default function Keywords() {
 
       for (const term of keywordTerms) {
         try {
-          const result = await apiRequest(
-            "POST",
-            `${serverUrl}/api/threat-tracker/keywords`,
+          const response = await fetchWithTokens(
+            `/api/threat-tracker/keywords`,
             {
-              term,
-              category: values.category,
-              active: values.active,
-            },
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                term,
+                category: values.category,
+                active: values.active,
+              }),
+            }
           );
+          const result = await response.json();
 
           console.log(`Created keyword: ${term}`, result);
           createdKeywords.push(result);
@@ -304,11 +307,17 @@ export default function Keywords() {
   // Create keyword mutation with optimistic updates
   const createKeyword = useMutation({
     mutationFn: async (values: KeywordFormValues) => {
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/keywords`,
-        values,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/keywords`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        }
       );
+      return await response.json();
     },
     onMutate: async (newKeyword) => {
       // Create a temporary optimistic keyword
@@ -394,11 +403,17 @@ export default function Keywords() {
       id: string;
       values: KeywordFormValues;
     }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/keywords/${id}`,
-        values,
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/keywords/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ id, values }) => {
       // Cancel any outgoing refetches
@@ -475,10 +490,8 @@ export default function Keywords() {
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const response = await fetch(`${serverUrl}/api/threat-tracker/keywords/${id}`, {
-          method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
+        const response = await fetchWithTokens(`/api/threat-tracker/keywords/${id}`, {
+          method: "DELETE"
         });
         
         if (!response.ok) {
@@ -541,11 +554,17 @@ export default function Keywords() {
   // Toggle keyword active status with optimistic updates
   const toggleKeywordActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/keywords/${id}`,
-        { active },
+      const response = await fetchWithTokens(
+        `/api/threat-tracker/keywords/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ active }),
+        }
       );
+      return await response.json();
     },
     onMutate: async ({ id, active }) => {
       // Cancel any outgoing refetches

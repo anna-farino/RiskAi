@@ -19,6 +19,10 @@ export const newsRouter = Router()
 
 const activeScraping = new Map<string, boolean>();
 
+newsRouter.get('/test', (_,res)=>{
+  console.log("/api/news-radar/test hit")
+  res.json({ message: "ok"})
+})
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;
   reqLog(req,"GET sources hit. userId=", userId)
@@ -382,7 +386,11 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 
 // Articles
 newsRouter.get("/articles", async (req, res) => {
-  const userId = (req.user as User).id as string;
+  const userId = (req.user as User)?.id as string;
+  if (!userId) {
+    res.status(404).send()
+    return
+  }
   
   // Parse query parameters for filtering
   const { search, keywordIds, startDate, endDate } = req.query;
@@ -441,7 +449,7 @@ newsRouter.get("/articles", async (req, res) => {
 });
 
 newsRouter.delete("/articles/:id", async (req, res) => {
-  const userId = (req.user as User).id as string;
+  const userId = (req.user as User)?.id as string;
   console.log("[DELETE article] user id", userId )
   const id = req.params.id;
   console.log("[DELETE article] article id", id)
