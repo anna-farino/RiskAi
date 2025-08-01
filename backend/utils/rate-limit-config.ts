@@ -1,3 +1,5 @@
+import { Request, Response } from 'express'
+
 export const rateLimitConfig = {
   windowMs: 15 * 60 * 1000, 
   limit: 30, 
@@ -10,7 +12,7 @@ export const rateLimitConfig = {
   trustProxy: true,
   
   // Custom key generator to handle X-Forwarded-For issues
-  keyGenerator: (req, res) => {
+  keyGenerator: (req: Request, _res: Response) => {
     let clientIP = req.ip || 
                    req.connection.remoteAddress || 
                    req.socket.remoteAddress;
@@ -18,7 +20,7 @@ export const rateLimitConfig = {
     // Handle X-Forwarded-For header safely
     const xForwardedFor = req.headers['x-forwarded-for'];
     if (xForwardedFor) {
-      const ips = xForwardedFor.split(',').map(ip => ip.trim());
+      const ips = (xForwardedFor as string).split(',').map((ip: string) => ip.trim());
       clientIP = ips[0] || clientIP;
     }
     
@@ -27,7 +29,7 @@ export const rateLimitConfig = {
   },
   
   // Skip rate limiting if we can't determine the IP properly
-  skip: (req, res) => {
+  skip: (_req: Request, _res: Response) => {
     // Don't skip - but you could add logic here if needed
     return false;
   }

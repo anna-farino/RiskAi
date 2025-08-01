@@ -126,7 +126,7 @@ export default function Admin() {
   console.log("User data", user.data)
   console.log("User is pending", user.isPending)
   if (!isUserAdmin) <></>
-  if (!user.isPending && !user.data?.role) navigate('/dashboard/home')
+  if (!user.isPending && !user.data?.role) navigate('/dashboard')
   if (userRolesQuery.isPending) return <h1> Fetching the data...</h1>
 
   return (
