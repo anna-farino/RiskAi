@@ -8,28 +8,24 @@ import Redirect from "@/Redirect";
 
 export const authChildren = [
   {
-    index: true,
-    element: <Redirect/>
-  },
-  {
     path: "login",
     element: <Login />
   },
-  {
-    path: "signup",
-    element: <Signup />
-  },
-  {
-    path: "email-otp",
-    element: <EmailOtp />
-  },
-  {
-    path: "otp",
-    element: <OtpPage twHeight='min-h-screen'/>
-  },
-  {
-    path: "new-password",
-    element: <ConfirmPassword />
-  },
+  //{
+  //  path: "signup",
+  //  element: <Signup />
+  //},
+  //{
+  //  path: "email-otp",
+  //  element: <EmailOtp />
+  //},
+  //{
+  //  path: "otp",
+  //  element: <OtpPage twHeight='min-h-screen'/>
+  //},
+  //{
+  //  path: "new-password",
+  //  element: <ConfirmPassword />
+  //},
 ]
 
