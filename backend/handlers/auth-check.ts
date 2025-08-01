@@ -8,10 +8,11 @@ import { withUserContext } from 'backend/db/with-user-context';
 export async function handleAuthCheck(req: Request, res: Response) {
   console.log("[👤 AUTH-CHECK] Checking if user is logged in...")
 
-  const userId = (req as unknown as FullRequest).user.id;
+  const userId = (req as unknown as FullRequest).user?.id;
+  console.log("[👤 AUTH-CHECK] user id:", userId)
   if (!userId) {
     console.log("[👤 AUTH-CHECK] No user found!")
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(404).send();
   }
   const [ user ] = await withUserContext(
     userId,
@@ -29,9 +30,9 @@ export async function handleAuthCheck(req: Request, res: Response) {
     user: [
       { 
         ...user, 
+        password: "[hidden]",
         permissions: (req as unknown as FullRequest).user.permissions,
         role: (req as unknown as FullRequest).user.role,
-        password: "hidden"
       }
     ]
   });
