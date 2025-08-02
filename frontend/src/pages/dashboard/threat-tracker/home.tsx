@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { ArticleCard } from "@/components/ui/article-card";
+import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import type {
   ThreatArticle,
@@ -43,11 +44,9 @@ import { useToast } from "@/hooks/use-toast";
 import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
-import { useFetch } from "@/hooks/use-fetch";
 
 export default function ThreatHome() {
   const { toast } = useToast();
-  const fetchWithTokens = useFetch();
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -81,8 +80,15 @@ export default function ThreatHome() {
     queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
     queryFn: async () => {
       try {
-        const response = await fetchWithTokens(
-          `/api/threat-tracker/scrape/status`
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/scrape/status`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...csfrHeaderObject(),
+            },
+          },
         );
         if (!response.ok) {
           console.warn(
@@ -110,8 +116,15 @@ export default function ThreatHome() {
     queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
     queryFn: async () => {
       try {
-        const response = await fetchWithTokens(
-          `/api/threat-tracker/keywords`
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/keywords`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              ...csfrHeaderObject(),
+            },
+          },
         );
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
@@ -162,11 +175,17 @@ export default function ThreatHome() {
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+        const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
 
-        console.log("Fetching articles with URL:", serverUrl + url);
+        console.log("Fetching articles with URL:", url);
 
-        const response = await fetchWithTokens(url);
+        const response = await fetch(url, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            ...csfrHeaderObject(),
+          },
+        });
 
         if (!response.ok) throw new Error("Failed to fetch articles");
         const data = await response.json();
@@ -251,13 +270,10 @@ export default function ThreatHome() {
   // Delete article mutation
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetchWithTokens(
-        `/api/threat-tracker/articles/${id}`,
-        {
-          method: "DELETE",
-        }
+      return apiRequest(
+        "DELETE",
+        `${serverUrl}/api/threat-tracker/articles/${id}`,
       );
-      return await response.json();
     },
     onMutate: (id) => {
       // Optimistic update - remove article from local state
@@ -305,13 +321,7 @@ export default function ThreatHome() {
   // Delete all articles mutation
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      const response = await fetchWithTokens(
-        `/api/threat-tracker/articles`,
-        {
-          method: "DELETE",
-        }
-      );
-      return await response.json();
+      return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/articles`);
     },
     onMutate: () => {
       // Optimistic update - clear local articles
@@ -348,10 +358,7 @@ export default function ThreatHome() {
       const endpoint = marked
         ? `${serverUrl}/api/threat-tracker/articles/${id}/mark-for-capsule`
         : `${serverUrl}/api/threat-tracker/articles/${id}/unmark-for-capsule`;
-      const response = await fetchWithTokens(endpoint.replace(serverUrl, ''), {
-        method: "POST",
-      });
-      return await response.json();
+      return apiRequest("POST", endpoint);
     },
     onMutate: ({ id, marked }) => {
       // Add to pending operations
@@ -407,15 +414,17 @@ export default function ThreatHome() {
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
-      const response = await fetchWithTokens(
-        `/api/news-capsule/process-url`,
+      const response = await fetch(
+        `${serverUrl}/api/news-capsule/process-url`,
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            ...csfrHeaderObject(),
           },
           body: JSON.stringify({ url }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -440,9 +449,7 @@ export default function ThreatHome() {
   // Scrape all sources mutation
   const scrapeAllSources = useMutation({
     mutationFn: async () => {
-      return fetchWithTokens(`/api/threat-tracker/scrape/all`, {
-        method: 'POST'
-      });
+      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
     },
     onSuccess: () => {
       toast({
@@ -475,12 +482,17 @@ export default function ThreatHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetchWithTokens(
-          `/api/threat-tracker/scrape/stop`,
+        const response = await fetch(
+          `${serverUrl}/api/threat-tracker/scrape/stop`,
           {
             method: "POST",
+            headers: {
+              ...csfrHeaderObject(),
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
             signal: controller.signal,
-          }
+          },
         );
 
         clearTimeout(timeoutId);

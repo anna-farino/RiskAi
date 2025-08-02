@@ -14,18 +14,15 @@ import { deleteSecrets, getEncryptedSecrets, getSecrets, storeSecret } from 'bac
 import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
 import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
-import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
-import { auth0middleware } from 'backend/middleware/auth0middleware';
-import { handleChangePassword } from 'backend/handlers/auth0/change-password';
 
 const limiter = rateLimit(rateLimitConfig)
+
 const router = Router();
 
 // HELLO WORLD route
 router.get('/test', limiter, handleTest)
-//router.get('/test-articles', testArticles)
-
+// Test endpoint for DataDome bypass
 router.get('/test-datadome-bypass', testDatadomeBypass)
 
 // TESTING RLS MIDDLEWARE
@@ -34,22 +31,13 @@ router.get('/test-datadome-bypass', testDatadomeBypass)
 // AUTH
 router.use('/auth', limiter, authRouter)
 
-// ================================================
-// PROTECTIONS ====================================
-// ================================================
-router.use(auth0CheckJwt)
-router.use(jwtErrorHandler)
+// PROTECTIONS
 //router.use(doubleCsrfProtection)
 router.use(noSimpleRequests)
-//router.use(verifyToken)
-router.use(auth0middleware)
+router.use(verifyToken)
 
-
-// ================================================
 // PROTECTED ROUTES
-// ================================================
 router.use('/users', usersRouter)
-router.post('/change-password', handleChangePassword)
 
 router.use('/news-tracker', newsRouter)
 router.use('/threat-tracker', threatRouter)
@@ -64,13 +52,10 @@ router.delete('/secrets', deleteSecrets)
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
 
 // Sample Data Population API endpoints
-router.get('/sample-data/status', 
-  //verifyToken, 
+router.get('/sample-data/status', verifyToken, 
   //doubleCsrfProtection, 
   noSimpleRequests, handleCheckSampleDataStatus)
-
-router.post('/sample-data/populate', 
-  //verifyToken, 
+router.post('/sample-data/populate', verifyToken, 
   //doubleCsrfProtection, 
 noSimpleRequests, handlePopulateSampleData)
 

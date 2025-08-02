@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeader } from "@/utils/csrf-header";
-import { useFetch } from "@/hooks/use-fetch";
 import { AlertTriangle, Database, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 const HAS_BEEN_POPULATED_KEY = 'sampleDataPopulated';
@@ -19,7 +18,6 @@ interface PopulationLog {
 }
 
 export default function SampleDataPopulator() {
-  const fetchWithTokens = useFetch();
   const [logs, setLogs] = useState<PopulationLog[]>([]);
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Ready to start");
@@ -37,7 +35,8 @@ export default function SampleDataPopulator() {
   };
 
   const makeRequest = async (endpoint: string, options: any = {}) => {
-    const response = await fetchWithTokens(`/api${endpoint}`, {
+    const response = await fetch(`${serverUrl}/api${endpoint}`, {
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         [csfrHeader().name]: csfrHeader().token,

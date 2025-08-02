@@ -40,8 +40,16 @@ export async function generateOtpAndSendToUser({
     })
   }
   console.log("🔐 [OTP] OTP hashed");
+
+  //Old emailJS stuff
+  //const templateParams = { 
+  //  email, 
+  //  otp
+  //};
   
   try {
+    //const template = process.env.EMAILJS_TEMPLATE_OTP_ID as string
+    //sendEmailJs({ template, templateParams })
     await sendGrid({
       to: email,
       subject: "Your One-Time Password",

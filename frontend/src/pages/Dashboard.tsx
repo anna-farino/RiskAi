@@ -1,18 +1,25 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
 import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart, Loader2 } from 'lucide-react';
 import { useQuery } from "@tanstack/react-query";
-import { useFetch } from '@/hooks/use-fetch';
+import { serverUrl } from "@/utils/server-url";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const fetchWithTokens = useFetch()
   
   // Fetch News Radar articles with enhanced real-time updates
   const { data: newsArticles, isLoading: newsLoading, error: newsError, refetch: refetchNews } = useQuery({
     queryKey: ['news-radar-articles-dashboard'],
     queryFn: async () => {
-      const response = await fetchWithTokens(`/api/news-tracker/articles?limit=10&sortBy=createdAt&order=desc`);
+      const response = await fetch(`${serverUrl}/api/news-tracker/articles?limit=10&sortBy=createdAt&order=desc`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch news articles: ${response.statusText}`);
@@ -32,7 +39,13 @@ export default function Dashboard() {
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
     queryKey: ['threat-tracker-articles-dashboard'],
     queryFn: async () => {
-      const response = await fetchWithTokens(`/api/threat-tracker/articles`)
+      const response = await fetch(`${serverUrl}/api/threat-tracker/articles`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch threat articles: ${response.statusText}`);
@@ -52,7 +65,13 @@ export default function Dashboard() {
   const { data: capsuleReports, isLoading: capsuleLoading, error: capsuleError, refetch: refetchCapsule } = useQuery({
     queryKey: ['news-capsule-reports-dashboard'],
     queryFn: async () => {
-      const response = await fetchWithTokens(`/api/news-capsule/reports?limit=6&sortBy=createdAt&order=desc`)
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports?limit=6&sortBy=createdAt&order=desc`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch capsule reports: ${response.statusText}`);
