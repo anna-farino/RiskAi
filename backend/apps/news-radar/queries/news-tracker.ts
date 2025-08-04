@@ -42,11 +42,11 @@ export interface IStorage {
 
   // Keywords
   getKeywords(userId?: string): Promise<Keyword[]>;
-  getKeyword(id: string): Promise<Keyword | undefined>;
+  getKeyword(id: string, userId?: string): Promise<Keyword | undefined>;
   getKeywordTermsById(ids: string[]): Promise<string[]>;
-  createKeyword(keyword: InsertKeyword): Promise<Keyword>;
-  updateKeyword(id: string, keyword: Partial<Keyword>): Promise<Keyword>;
-  deleteKeyword(id: string): Promise<void>;
+  createKeyword(keyword: InsertKeyword, userId?: string): Promise<Keyword>;
+  updateKeyword(id: string, keyword: Partial<Keyword>, userId?: string): Promise<Keyword>;
+  deleteKeyword(id: string, userId?: string): Promise<void>;
 
   // Articles
   getArticles(
@@ -138,20 +138,35 @@ export class DatabaseStorage implements IStorage {
   // Keywords
   async getKeywords(userId?: string): Promise<Keyword[]> {
     if (userId) {
-      return await db.select()
-        .from(keywords)
-        .where(eq(keywords.userId, userId));
+      return await withUserContext(
+        userId,
+        async (db) => db.select()
+          .from(keywords)
+          .where(eq(keywords.userId, userId))
+      );
     } else {
       return await db.select().from(keywords);
     }
   }
 
-  async getKeyword(id: string): Promise<Keyword | undefined> {
-    const [keyword] = await db
-      .select()
-      .from(keywords)
-      .where(eq(keywords.id, id));
-    return keyword;
+  async getKeyword(id: string, userId?: string): Promise<Keyword | undefined> {
+    if (userId) {
+      const data = await withUserContext(
+        userId,
+        async (db) => db
+          .select()
+          .from(keywords)
+          .where(eq(keywords.id, id))
+          .limit(1)
+      );
+      return data.length > 0 ? data[0] : undefined;
+    } else {
+      const [keyword] = await db
+        .select()
+        .from(keywords)
+        .where(eq(keywords.id, id));
+      return keyword;
+    }
   }
 
   async getKeywordTermsById(ids: string[]): Promise<string[]> {
@@ -170,25 +185,55 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createKeyword(keyword: InsertKeyword): Promise<Keyword> {
-    const [created] = await db
-      .insert(keywords)
-      .values(keyword as Required<InsertKeyword>)
-      .returning();
-    return created;
+  async createKeyword(keyword: InsertKeyword, userId?: string): Promise<Keyword> {
+    if (userId) {
+      const [created] = await withUserContext(
+        userId,
+        async (db) => db
+          .insert(keywords)
+          .values(keyword as Required<InsertKeyword>)
+          .returning()
+      );
+      return created;
+    } else {
+      const [created] = await db
+        .insert(keywords)
+        .values(keyword as Required<InsertKeyword>)
+        .returning();
+      return created;
+    }
   }
 
-  async updateKeyword(id: string, keyword: Partial<Keyword>): Promise<Keyword> {
-    const [updated] = await db
-      .update(keywords)
-      .set(keyword)
-      .where(eq(keywords.id, id))
-      .returning();
-    return updated;
+  async updateKeyword(id: string, keyword: Partial<Keyword>, userId?: string): Promise<Keyword> {
+    if (userId) {
+      const [updated] = await withUserContext(
+        userId,
+        async (db) => db
+          .update(keywords)
+          .set(keyword)
+          .where(eq(keywords.id, id))
+          .returning()
+      );
+      return updated;
+    } else {
+      const [updated] = await db
+        .update(keywords)
+        .set(keyword)
+        .where(eq(keywords.id, id))
+        .returning();
+      return updated;
+    }
   }
 
-  async deleteKeyword(id: string): Promise<void> {
-    await db.delete(keywords).where(eq(keywords.id, id));
+  async deleteKeyword(id: string, userId?: string): Promise<void> {
+    if (userId) {
+      await withUserContext(
+        userId,
+        async (db) => db.delete(keywords).where(eq(keywords.id, id))
+      );
+    } else {
+      await db.delete(keywords).where(eq(keywords.id, id));
+    }
   }
 
   // Articles

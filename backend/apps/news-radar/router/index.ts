@@ -351,7 +351,7 @@ newsRouter.post("/keywords", async (req, res) => {
     ...req.body,
     userId
   });
-  const created = await storage.createKeyword(keyword);
+  const created = await storage.createKeyword(keyword, userId);
   res.json(created);
 });
 
@@ -360,12 +360,12 @@ newsRouter.patch("/keywords/:id", async (req, res) => {
   const id = req.params.id;
   
   // Check if keyword belongs to user
-  const keyword = await storage.getKeyword(id);
+  const keyword = await storage.getKeyword(id, userId);
   if (!keyword || keyword.userId !== userId) {
     return res.status(404).json({ message: "Keyword not found" });
   }
   
-  const updated = await storage.updateKeyword(id, req.body);
+  const updated = await storage.updateKeyword(id, req.body, userId);
   res.json(updated);
 });
 
@@ -374,12 +374,12 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
   const id = req.params.id;
   
   // Check if keyword belongs to user
-  const keyword = await storage.getKeyword(id);
+  const keyword = await storage.getKeyword(id, userId);
   if (!keyword || keyword.userId !== userId) {
     return res.status(404).json({ message: "Keyword not found" });
   }
   
-  await storage.deleteKeyword(id);
+  await storage.deleteKeyword(id, userId);
   // Return success object instead of empty response to better support optimistic UI updates
   res.status(200).json({ success: true, id, message: "Keyword deleted successfully" });
 });
