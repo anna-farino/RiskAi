@@ -197,6 +197,27 @@
       "when": 1754405799085,
       "tag": "0027_furry_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1754408877700,
+      "tag": "0028_romantic_havok",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1754409533434,
+      "tag": "0029_cute_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1754411993121,
+      "tag": "0030_orange_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ export const reports = pgTable('reports', {
 },(_t) => [
   pgPolicy('rls-reports', {
     for: 'all',
+    using: sql`user_id::text = current_setting('app.current_user_id', true)`,
     withCheck: sql`user_id::text = current_setting('app.current_user_id', true)`
   })
 ])

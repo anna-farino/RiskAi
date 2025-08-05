@@ -339,20 +339,25 @@ newsRouter.post("/sources/bulk-delete", async (req, res) => {
 
 // Keywords
 newsRouter.get("/keywords", async (req, res) => {
-  console.log("Getting keywords")
+  console.log("Getting keywords...")
   const userId = (req.user as User).id as string;
   const keywords = await storage.getKeywords(userId);
   res.json(keywords);
 });
 
 newsRouter.post("/keywords", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const keyword = insertKeywordSchema.parse({
-    ...req.body,
-    userId
-  });
-  const created = await storage.createKeyword(keyword, userId);
-  res.json(created);
+  try {
+    const userId = (req.user as User).id as string;
+    console.log("POST /keywords. User id", userId)
+    const keyword = insertKeywordSchema.parse({
+      ...req.body,
+      userId
+    });
+    const created = await storage.createKeyword(keyword, userId);
+    res.json(created);
+  } catch(error) {
+    res.status(500).json({ message: "An error occurred"})
+  }
 });
 
 newsRouter.patch("/keywords/:id", async (req, res) => {

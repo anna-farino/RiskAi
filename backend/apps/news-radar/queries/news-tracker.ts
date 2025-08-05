@@ -43,7 +43,6 @@ export interface IStorage {
   // Keywords
   getKeywords(userId?: string): Promise<Keyword[]>;
   getKeyword(id: string, userId?: string): Promise<Keyword | undefined>;
-  getKeywordTermsById(ids: string[]): Promise<string[]>;
   createKeyword(keyword: InsertKeyword, userId?: string): Promise<Keyword>;
   updateKeyword(id: string, keyword: Partial<Keyword>, userId?: string): Promise<Keyword>;
   deleteKeyword(id: string, userId?: string): Promise<void>;
@@ -137,7 +136,9 @@ export class DatabaseStorage implements IStorage {
 
   // Keywords
   async getKeywords(userId?: string): Promise<Keyword[]> {
+    console.log("Getting keywords, userId", userId)
     if (userId) {
+      console.log("User id found!")
       return await withUserContext(
         userId,
         async (db) => db.select()
@@ -145,7 +146,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(keywords.userId, userId))
       );
     } else {
-      return await db.select().from(keywords);
+      throw new Error("User id not found")
     }
   }
 
@@ -161,31 +162,13 @@ export class DatabaseStorage implements IStorage {
       );
       return data.length > 0 ? data[0] : undefined;
     } else {
-      const [keyword] = await db
-        .select()
-        .from(keywords)
-        .where(eq(keywords.id, id));
-      return keyword;
+      throw new Error("User id not found")
     }
   }
 
-  async getKeywordTermsById(ids: string[]): Promise<string[]> {
-    if (!ids || ids.length === 0) return [];
-
-    try {
-      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
-      const sqlStr = `SELECT term FROM keywords WHERE id IN (${placeholders})`;
-
-      // Use raw SQL query to get terms for the given IDs
-      const results = await executeRawSql<{ term: string }>(sqlStr, ids);
-      return results.map(row => row.term);
-    } catch (error) {
-      console.error("Error getting keyword terms by IDs:", error);
-      return [];
-    }
-  }
 
   async createKeyword(keyword: InsertKeyword, userId?: string): Promise<Keyword> {
+    console.log("Values for new keyword:", keyword)
     if (userId) {
       const [created] = await withUserContext(
         userId,
@@ -196,11 +179,7 @@ export class DatabaseStorage implements IStorage {
       );
       return created;
     } else {
-      const [created] = await db
-        .insert(keywords)
-        .values(keyword as Required<InsertKeyword>)
-        .returning();
-      return created;
+      throw new Error("User id not found")
     }
   }
 
@@ -216,12 +195,7 @@ export class DatabaseStorage implements IStorage {
       );
       return updated;
     } else {
-      const [updated] = await db
-        .update(keywords)
-        .set(keyword)
-        .where(eq(keywords.id, id))
-        .returning();
-      return updated;
+      throw new Error("User id not found")
     }
   }
 
@@ -232,7 +206,7 @@ export class DatabaseStorage implements IStorage {
         async (db) => db.delete(keywords).where(eq(keywords.id, id))
       );
     } else {
-      await db.delete(keywords).where(eq(keywords.id, id));
+      throw new Error("User id not found")
     }
   }
 

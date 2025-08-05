@@ -27,6 +27,10 @@ export const threatKeywords = pgTable("threat_keywords", {
 }, (_t) => [
     pgPolicy('rls-threat-keywords', {
       for: 'all',
+      using: sql`(
+        user_id::text = current_setting('app.current_user_id', true)
+        OR is_default = true
+      `,
       withCheck: sql`user_id::text = current_setting('app.current_user_id', true)`
     })
 ]);
