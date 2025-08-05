@@ -1,6 +1,7 @@
-import { pgTable, primaryKey, timestamp, uuid, text } from "drizzle-orm/pg-core";
+import { pgTable, primaryKey, timestamp, uuid, text, pgPolicy } from "drizzle-orm/pg-core";
 import { users } from "./user";
 import { capsuleArticles } from "./news-capsule";
+import { sql } from "drizzle-orm";
 
 
 export const reports = pgTable('reports', {
@@ -8,7 +9,12 @@ export const reports = pgTable('reports', {
   userId: uuid("user_id").references(() => users.id).notNull(),
   topic: text("topic"),
   createdAt: timestamp("created_at").defaultNow().notNull()
-})
+},(_t) => [
+  pgPolicy('rls-reports', {
+    for: 'all',
+    withCheck: sql`user_id::text = current_setting('app.current_user_id', true)`
+  })
+])
 
 export const capsuleArticlesInReports = pgTable('capsule_articles_in_reports', 
   {

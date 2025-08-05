@@ -1,7 +1,8 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, interval, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, interval, uuid, pgPolicy } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "../user";
+import { sql } from "drizzle-orm";
 
 
 export const sources = pgTable("sources", {
@@ -20,7 +21,12 @@ export const keywords = pgTable("keywords", {
   term: text("term").notNull(),
   active: boolean("active").notNull().default(true),
   userId: uuid("user_id").references(() => users.id),
-});
+}, (_t) => [
+    pgPolicy('keywords-rls', {
+      for: 'all',
+      withCheck: sql`user_id::text = current_setting('app.current_user_id', true)`
+    })
+])
 
 export const articles = pgTable("articles", {
   id: uuid("id").defaultRandom().primaryKey(),
