@@ -1,7 +1,8 @@
-import { pgTable, text, boolean, timestamp, jsonb, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, jsonb, uuid, pgPolicy } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "../user";
+import { sql } from "drizzle-orm";
 
 // Source websites to scrape for threats
 export const threatSources = pgTable("threat_sources", {
@@ -23,7 +24,16 @@ export const threatKeywords = pgTable("threat_keywords", {
   active: boolean("active").notNull().default(true),
   userId: uuid("user_id").references(() => users.id),
   isDefault: boolean("is_default").notNull().default(false),
-});
+}, (_t) => [
+    pgPolicy('rls-threat-keywords', {
+      for: 'all',
+      using: sql`(
+        user_id::text = current_setting('app.current_user_id', true)
+        OR is_default = true
+      `,
+      withCheck: sql`user_id::text = current_setting('app.current_user_id', true)`
+    })
+]);
 
 // Identified threats from articles
 export const threatArticles = pgTable("threat_articles", {
