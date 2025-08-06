@@ -583,7 +583,7 @@ export default function ThreatHome() {
         ["threats", "vendors", "clients", "hardware"].forEach((category) => {
           if (detected[category] && Array.isArray(detected[category])) {
             detected[category].forEach((term: string) => {
-              detectedKeywordTerms.add(term.toLowerCase());
+              detectedKeywordTerms.add(term?.toLowerCase());
             });
           } else if (
             detected[category] &&
@@ -591,7 +591,7 @@ export default function ThreatHome() {
           ) {
             // Handle case where it's stored as a string
             detected[category].split(",").forEach((term: string) => {
-              detectedKeywordTerms.add(term.trim().toLowerCase());
+              detectedKeywordTerms.add(term?.trim().toLowerCase());
             });
           }
         });
@@ -601,10 +601,10 @@ export default function ThreatHome() {
     return keywords.data.filter((keyword) => {
       const matchesSearch =
         keywordSearchTerm === "" ||
-        keyword.term.toLowerCase().includes(keywordSearchTerm.toLowerCase());
+        keyword.term?.toLowerCase().includes(keywordSearchTerm.toLowerCase());
       const notAlreadySelected = !selectedKeywordIds.includes(keyword.id);
       const hasBeenDetected = detectedKeywordTerms.has(
-        keyword.term.toLowerCase(),
+        keyword.term?.toLowerCase(),
       );
       return (
         matchesSearch && notAlreadySelected && keyword.active && hasBeenDetected
@@ -865,8 +865,8 @@ export default function ThreatHome() {
                         const matchingKeywords = keywords.data?.filter(
                           (k) =>
                             k.term
-                              .toLowerCase()
-                              .includes(e.target.value.toLowerCase()) &&
+                              ?.toLowerCase()
+                              .includes(e.target.value?.toLowerCase()) &&
                             k.active &&
                             !selectedKeywordIds.includes(k.id),
                         );
