@@ -1,0 +1,1 @@
+ALTER POLICY "keywords-rls" ON "keywords" TO public USING (user_id::text = current_setting('app.current_user_id', true)) WITH CHECK (user_id::text = current_setting('app.current_user_id', true));

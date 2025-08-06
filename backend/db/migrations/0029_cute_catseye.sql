@@ -1,0 +1,2 @@
+ALTER POLICY "rls-reports" ON "reports" TO public USING (user_id::text = current_setting('app.current_user_id', true)) WITH CHECK (user_id::text = current_setting('app.current_user_id', true));--> statement-breakpoint
+ALTER POLICY "rls-threat-keywords" ON "threat_keywords" TO public USING (user_id::text = current_setting('app.current_user_id', true)) WITH CHECK (user_id::text = current_setting('app.current_user_id', true));
