@@ -693,7 +693,7 @@ export default function NewsHome() {
             size="sm"
             onClick={goToPreviousPage}
             disabled={currentPage === 1}
-            className="border-slate-600 hover:bg-white/10 text-white disabled:opacity-50"
+            className="h-9 px-4 font-semibold border-slate-600 hover:bg-white/10 text-white disabled:opacity-50 transition-all duration-200"
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -710,9 +710,9 @@ export default function NewsHome() {
                   size="sm"
                   onClick={() => goToPage(page as number)}
                   className={cn(
-                    "w-10 h-8",
+                    "w-10 h-9 font-semibold transition-all duration-200",
                     currentPage === page
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80"
                       : "border-slate-600 hover:bg-white/10 text-white"
                   )}
                 >
@@ -727,7 +727,7 @@ export default function NewsHome() {
             size="sm"
             onClick={goToNextPage}
             disabled={currentPage === totalPages}
-            className="border-slate-600 hover:bg-white/10 text-white disabled:opacity-50"
+            className="h-9 px-4 font-semibold border-slate-600 hover:bg-white/10 text-white disabled:opacity-50 transition-all duration-200"
           >
             Next
             <ChevronRight className="h-4 w-4" />
@@ -736,13 +736,14 @@ export default function NewsHome() {
         </div>
         
         {totalArticles > 0 && (
-          <div className="flex justify-center pt-2 border-t border-slate-700/30">
+          <div className="flex justify-center pt-6 mt-6 border-t border-slate-700/30">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="destructive"
                   size="sm"
                   disabled={deleteAllArticles.isPending}
+                  className="h-9 px-4 font-semibold transition-all duration-200"
                 >
                   {deleteAllArticles.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -783,95 +784,72 @@ export default function NewsHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 md:gap-10 mb-2">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-
-            News Radar
-          </h1>
-          <p className="text-muted-foreground max-w-3xl">
-            Advanced aggregation and AI-driven content analysis for efficient
-            news collection and processing.
-          </p>
-        </div>
-
-      </div>
-
-      {/* Actions and Filters Section - Outside of articles container */}
-      <div className="flex flex-col w-full gap-4">
-        {/* Top row - Counter and Scan Button */}
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-medium text-slate-300">
-              {localArticles.length} Recent Articles
-            </span>
+      {/* Header and Actions Container */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 mb-4">
+        <div className="flex flex-col gap-6 md:gap-8">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
+              <span className="bg-gradient-to-r from-[#BF00FF] via-[#BF00FF]/90 to-[#00FFFF] bg-clip-text text-transparent" 
+                    style={{ 
+                      backgroundImage: 'linear-gradient(to right, #BF00FF, #BF00FF 40%, #00FFFF)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text'
+                    }}>
+                News Radar
+              </span>
+            </h1>
+            <p className="text-muted-foreground max-w-3xl">
+              Advanced aggregation and AI-driven content analysis for efficient
+              news collection and processing.
+            </p>
           </div>
 
-          <div className="flex flex-row gap-2 flex-shrink-0">
-            {/* Scan for News Button */}
-            <Button
-              onClick={() => {
-                if (autoScrapeStatus?.data?.running) {
-                  stopGlobalScrape.mutate();
-                } else {
-                  runGlobalScrape.mutate();
-                }
-              }}
-              disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
-              size="sm"
-              className={
-                autoScrapeStatus?.data?.running
-                  ? "bg-red-600 hover:bg-red-600/80 text-white"
-                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              }
-            >
-              {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : autoScrapeStatus?.data?.running ? (
-                <X className="mr-2 h-4 w-4" />
-              ) : (
-                <Newspaper className="mr-2 h-4 w-4" />
-              )}
-              {autoScrapeStatus?.data?.running
-                ? "Stop Scan"
-                : "Scan for News"}
-            </Button>
-          </div>
-        </div>
+          {/* Unified Control Strip */}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6 p-4 bg-slate-800/30 rounded-md border border-slate-700/40">
+            
+            {/* Left side - Article counter */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <FileText className="h-4 w-4 text-[#BF00FF]" />
+              <span className="text-sm font-semibold text-[#BF00FF]">
+                {localArticles.length} Recent Articles
+              </span>
+            </div>
 
-        {/* Second row - Search and Filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search articles..."
-              className="pl-9 w-full"
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
-          </div>
+            {/* Center - Search bar */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 transition-colors" />
+              <Input
+                placeholder="Search articles..."
+                className="pl-12 pr-4 h-11 w-full text-base font-medium bg-slate-800/60 border-slate-600/50 hover:border-slate-500/70 focus:border-[#BF00FF]/60 focus:ring-2 focus:ring-[#BF00FF]/20 text-white placeholder:text-slate-400 rounded-full transition-all duration-200"
+                value={searchTerm}
+                onChange={handleSearchChange}
+              />
+            </div>
 
-          <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "flex items-center gap-1.5 flex-shrink-0",
-                  (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
-                  "bg-primary/20 border-primary/50 text-primary"
-                )}
-              >
-                <Filter className="h-4 w-4" />
-                Filter
-                {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
-                  <Badge variant="secondary" className="ml-1">
-                    {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
-                  </Badge>
-                )}
-              </Button>
-            </AlertDialogTrigger>
+            {/* Right side - Action buttons */}
+            <div className="flex items-center gap-4 flex-shrink-0">
+            <AlertDialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline" 
+                  size="sm"
+                  className={cn(
+                    "h-11 px-4 font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-200",
+                    "border-slate-600/50 hover:border-slate-500/70 hover:bg-white/10 text-white",
+                    (selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && 
+                    "bg-[#BF00FF]/20 border-[#BF00FF]/50 text-[#BF00FF] hover:bg-[#BF00FF]/30 hover:border-[#BF00FF]/60"
+                  )}
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate) && (
+                    <Badge variant="secondary" className="ml-1 bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30">
+                      {selectedKeywordIds.length + (dateRange.startDate ? 1 : 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
             <AlertDialogContent className="bg-background border-slate-700/50 text-white">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-white">Filter Articles</AlertDialogTitle>
@@ -880,11 +858,11 @@ export default function NewsHome() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               
-              <div className="py-4 space-y-4">
+              <div className="py-6 space-y-6">
                 {/* Keywords section */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <h4 className="text-sm font-medium text-white">Keywords</h4>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {keywords.data && keywords.data.length > 0 ? (
                       keywords.data.map((keyword: Keyword) => (
                         <Badge 
@@ -913,9 +891,9 @@ export default function NewsHome() {
                 </div>
                 
                 {/* Date range section */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <h4 className="text-sm font-medium text-white">Date Range</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs text-slate-400">Start Date</label>
                       <Input 
@@ -948,55 +926,102 @@ export default function NewsHome() {
                 <Button
                   variant="ghost"
                   onClick={resetFilters}
-                  className="text-slate-300 hover:text-white hover:bg-white/10"
+                  className="h-11 px-4 font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200"
                 >
                   Reset Filters
                 </Button>
-                <AlertDialogCancel className="border-slate-700 bg-background text-white hover:bg-white/10 hover:text-white">
+                <AlertDialogCancel className="h-11 px-4 font-semibold border-slate-700 bg-background text-white hover:bg-white/10 hover:text-white transition-all duration-200">
                   Close
                 </AlertDialogCancel>
               </AlertDialogFooter>
             </AlertDialogContent>
-          </AlertDialog>
+            </AlertDialog>
+
+              {/* Scan for News Button */}
+              <Button
+                onClick={() => {
+                  if (autoScrapeStatus?.data?.running) {
+                    stopGlobalScrape.mutate();
+                  } else {
+                    runGlobalScrape.mutate();
+                  }
+                }}
+                disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
+                size="sm"
+                className={cn(
+                  "h-11 px-4 font-semibold transition-all duration-200",
+                  autoScrapeStatus?.data?.running
+                    ? "bg-red-600 hover:bg-red-600/80 text-white"
+                    : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                )}
+              >
+                {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : autoScrapeStatus?.data?.running ? (
+                  <X className="mr-2 h-4 w-4" />
+                ) : (
+                  <Newspaper className="mr-2 h-4 w-4" />
+                )}
+                {autoScrapeStatus?.data?.running
+                  ? "Stop Scan"
+                  : "Scan For New Articles"}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Articles Container - Separate from actions */}
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-5 md:p-6">
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
 
           {articles.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-2 sm:py-4">
-              {/* Adjust number of skeleton items based on screen size */}
-              {[...Array(window.innerWidth < 640 ? 3 : 6)].map((_, i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 py-4">
+              {/* Standardized skeleton items */}
+              {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-lg border border-slate-700/50 overflow-hidden"
+                  className="rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden"
                 >
-                  <div className="h-32 sm:h-40 md:h-48 bg-slate-800/50 animate-pulse" />
-                  <div className="p-3 sm:p-4">
-                    <div className="h-4 w-3/4 bg-slate-800/50 animate-pulse rounded mb-2" />
-                    <div className="h-3 w-1/2 bg-slate-800/50 animate-pulse rounded" />
+                  <div className="h-1.5 w-full bg-slate-800/50 animate-pulse" />
+                  <div className="p-4 sm:p-5">
+                    <div className="h-5 w-4/5 bg-slate-800/50 animate-pulse rounded mb-3" />
+                    <div className="h-3 w-3/4 bg-slate-800/50 animate-pulse rounded mb-3" />
+                    <div className="h-3 w-1/2 bg-slate-800/50 animate-pulse rounded mb-4" />
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 bg-slate-800/50 animate-pulse rounded-full" />
+                      <div className="h-6 w-20 bg-slate-800/50 animate-pulse rounded-full" />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : localArticles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 sm:py-12 md:py-16 text-center">
-              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-slate-800/50 flex items-center justify-center mb-3 sm:mb-4">
-                <Newspaper className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" />
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-full flex items-center justify-center mb-6">
+                <Newspaper className="h-8 w-8 text-[#BF00FF]" />
               </div>
-              <h3 className="text-lg sm:text-xl font-medium text-white mb-1 sm:mb-2">
+              <h3 className="text-xl font-semibold text-white mb-3">
                 No articles yet
               </h3>
-              <p className="text-sm sm:text-base text-slate-400 max-w-md mb-4 sm:mb-6 px-4">
+              <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed">
                 Add sources and start scraping to populate your news feed with
-                the latest articles.
+                the latest articles and analysis.
               </p>
-              <Button asChild size="sm" className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] sm:py-2 sm:px-4">
-                <Link to="/dashboard/news/sources">
-                  Get Started with Sources
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Button
+                  asChild
+                  className="h-10 px-6 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] transition-all duration-200"
+                >
+                  <Link to="/dashboard/news/sources">Add Sources</Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  asChild
+                  className="h-10 px-6 font-semibold border-slate-600 hover:bg-white/10 text-white transition-all duration-200"
+                >
+                  <Link to="/dashboard/news/keywords">Manage Keywords</Link>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

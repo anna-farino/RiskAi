@@ -25,9 +25,6 @@ router.get('/test', limiter, handleTest)
 // Test endpoint for DataDome bypass
 router.get('/test-datadome-bypass', testDatadomeBypass)
 
-// TESTING RLS MIDDLEWARE
-//router.use(withDbContext)
-
 // AUTH
 router.use('/auth', limiter, authRouter)
 

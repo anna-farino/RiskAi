@@ -711,139 +711,153 @@ export default function ThreatHome() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 md:gap-10 mb-2">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-            Threat Tracker
-          </h1>
-          <p className="text-muted-foreground max-w-3xl">
-            Monitor cybersecurity threats affecting your vendors, clients, and
-            hardware/software to stay ahead of potential vulnerabilities.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col w-full gap-4">
-        {/* Top row - Counter and Scan Button */}
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-slate-300">
-              <FileText className="h-4 w-4 text-slate-400" />
-              <span className="text-sm font-medium">
-                {localArticles.length} Potential Threats
+      {/* Header and Actions Container */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 mb-4">
+        <div className="flex flex-col gap-6 md:gap-8">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
+              <span className="bg-gradient-to-r from-[#BF00FF] via-[#BF00FF]/90 to-[#00FFFF] bg-clip-text text-transparent" 
+                    style={{ 
+                      backgroundImage: 'linear-gradient(to right, #BF00FF, #BF00FF 40%, #00FFFF)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text'
+                    }}>
+                Threat Tracker
               </span>
-            </div>
-            {newArticlesCount > 0 && !sortNewToTop && (
-              <button
-                onClick={handleSurfaceNewArticles}
-                className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
-                title={`Click to surface ${newArticlesCount} new articles to top`}
-              >
-                <Star className="h-3 w-3 text-[#BF00FF]" />
-                <span className="text-xs font-medium text-[#BF00FF]">
-                  {newArticlesCount} New
-                </span>
-              </button>
-            )}
-            {sortNewToTop && (
-              <button
-                onClick={() => setSortNewToTop(false)}
-                className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
-                title="Click to return to chronological order"
-              >
-                <Check className="h-3 w-3 text-[#00FFFF]" />
-                <span className="text-xs font-medium text-[#00FFFF]">
-                  Sorted
-                </span>
-              </button>
-            )}
+            </h1>
+            <p className="text-muted-foreground max-w-3xl">
+              Monitor cybersecurity threats affecting your vendors, clients, and
+              hardware/software to stay ahead of potential vulnerabilities.
+            </p>
           </div>
 
-          <div className="flex flex-row gap-2 flex-shrink-0">
-            {/* Scan for New Threats Button */}
-            <Button
-              onClick={() => {
-                if (checkScrapeStatus?.data?.running) {
-                  stopScrapeJob.mutate();
-                } else {
-                  scrapeAllSources.mutate();
-                }
-              }}
-              disabled={scrapeAllSources.isPending || stopScrapeJob.isPending}
-              size="sm"
-              className={
-                checkScrapeStatus?.data?.running
-                  ? "bg-red-600 hover:bg-red-600/80 text-white"
-                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              }
-            >
-              {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : checkScrapeStatus?.data?.running ? (
-                <X className="mr-2 h-4 w-4" />
-              ) : (
-                <Shield className="mr-2 h-4 w-4" />
-              )}
-              {checkScrapeStatus?.data?.running
-                ? "Stop Scan"
-                : "Scan For New Threats"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Second row - Search and Filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search articles..."
-              className="pl-9 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1.5 flex-shrink-0"
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-            >
-              <Filter className="h-4 w-4" />
-              Filters
-              {selectedKeywordIds.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {selectedKeywordIds.length}
-                </Badge>
-              )}
-            </Button>
+          {/* Unified Control Strip */}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6 p-4 bg-slate-800/30 rounded-md border border-slate-700/40">
             
-            {highlightedArticleId && (
+            {/* Left side - Threat counter and status indicators */}
+            <div className="flex flex-wrap items-center gap-4 text-slate-300 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="h-4 w-4 text-[#BF00FF]" />
+                <span className="text-sm font-semibold text-[#BF00FF]">
+                  {localArticles.length} Potential Threats
+                </span>
+              </div>
+
+              {newArticlesCount > 0 && !sortNewToTop && (
+                <button
+                  onClick={handleSurfaceNewArticles}
+                  className="flex items-center gap-1.5 bg-[#BF00FF]/10 hover:bg-[#BF00FF]/20 rounded-md px-2 py-1 border border-[#BF00FF]/20 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                  title={`Click to surface ${newArticlesCount} new articles to top`}
+                >
+                  <Star className="h-3 w-3 text-[#BF00FF]" />
+                  <span className="text-xs font-medium text-[#BF00FF]">
+                    {newArticlesCount} New
+                  </span>
+                </button>
+              )}
+              {sortNewToTop && (
+                <button
+                  onClick={() => setSortNewToTop(false)}
+                  className="flex items-center gap-1.5 bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 rounded-md px-2 py-1 border border-[#00FFFF]/20 hover:border-[#00FFFF]/30 transition-all duration-200 cursor-pointer group"
+                  title="Click to return to chronological order"
+                >
+                  <Check className="h-3 w-3 text-[#00FFFF]" />
+                  <span className="text-xs font-medium text-[#00FFFF]">
+                    Sorted
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Center - Search bar */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 transition-colors" />
+              <Input
+                placeholder="Search threat articles..."
+                className="pl-12 pr-4 h-11 w-full text-base font-medium bg-slate-800/60 border-slate-600/50 hover:border-slate-500/70 focus:border-[#BF00FF]/60 focus:ring-2 focus:ring-[#BF00FF]/20 text-white placeholder:text-slate-400 rounded-full transition-all duration-200"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Right side - Action buttons */}
+            <div className="flex items-center gap-4 flex-shrink-0">
               <Button
                 variant="outline"
                 size="sm"
-                className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
-                onClick={() => setHighlightedArticleId(null)}
+                className={cn(
+                  "h-11 px-4 font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-200",
+                  "border-slate-600/50 hover:border-slate-500/70 hover:bg-white/10 text-white",
+                  selectedKeywordIds.length > 0 && 
+                  "bg-[#BF00FF]/20 border-[#BF00FF]/50 text-[#BF00FF] hover:bg-[#BF00FF]/30 hover:border-[#BF00FF]/60"
+                )}
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
               >
-                <X className="h-3 w-3 mr-1" />
-                Clear Selection
+                <Filter className="h-4 w-4" />
+                Filters
+                {selectedKeywordIds.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30">
+                    {selectedKeywordIds.length}
+                  </Badge>
+                )}
               </Button>
-            )}
+              
+              {highlightedArticleId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-11 px-4 font-semibold border-[#00FFFF]/50 bg-[#00FFFF]/10 text-[#00FFFF] hover:bg-[#00FFFF]/20 transition-all duration-200"
+                  onClick={() => setHighlightedArticleId(null)}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Selection
+                </Button>
+              )}
+
+              {/* Scan for New Threats Button */}
+              <Button
+                onClick={() => {
+                  if (checkScrapeStatus?.data?.running) {
+                    stopScrapeJob.mutate();
+                  } else {
+                    scrapeAllSources.mutate();
+                  }
+                }}
+                disabled={scrapeAllSources.isPending || stopScrapeJob.isPending}
+                size="sm"
+                className={cn(
+                  "h-11 px-4 font-semibold transition-all duration-200",
+                  checkScrapeStatus?.data?.running
+                    ? "bg-red-600 hover:bg-red-600/80 text-white"
+                    : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                )}
+              >
+                {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : checkScrapeStatus?.data?.running ? (
+                  <X className="mr-2 h-4 w-4" />
+                ) : (
+                  <Shield className="mr-2 h-4 w-4" />
+                )}
+                {checkScrapeStatus?.data?.running
+                  ? "Stop Scan"
+                  : "Scan For New Threats"}
+              </Button>
+            </div>
           </div>
-        </div>
 
         {/* Filters section */}
         {isFilterOpen && (
-          <div className="p-4 border rounded-lg bg-card">
-            <div className="flex justify-between items-center mb-4">
+          <div className="p-6 border border-slate-700/50 rounded-md bg-slate-900/50 mt-4">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="font-medium">Filter Options</h3>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="h-8 px-2 text-xs"
+                  className="h-11 px-4 font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200"
                 >
                   Clear all
                 </Button>
@@ -851,7 +865,7 @@ export default function ThreatHome() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsFilterOpen(false)}
-                  className="h-8 w-8 p-0"
+                  className="h-11 w-11 p-0 text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -953,24 +967,44 @@ export default function ThreatHome() {
             </div>
           </div>
         )}
+        </div>
+      </div>
 
-        {/* Articles display */}
-        <div className="space-y-4">
+      {/* Articles Container - Separate from actions */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <div className="space-y-6">
           {articles.isLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6 py-4">
+              {/* Standardized skeleton items */}
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden"
+                >
+                  <div className="h-1.5 w-full bg-slate-800/50 animate-pulse" />
+                  <div className="p-4 sm:p-5">
+                    <div className="h-5 w-4/5 bg-slate-800/50 animate-pulse rounded mb-3" />
+                    <div className="h-3 w-3/4 bg-slate-800/50 animate-pulse rounded mb-3" />
+                    <div className="h-3 w-1/2 bg-slate-800/50 animate-pulse rounded mb-4" />
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 bg-slate-800/50 animate-pulse rounded-full" />
+                      <div className="h-6 w-20 bg-slate-800/50 animate-pulse rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : localArticles.length > 0 ? (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6 pt-4">
                 {paginatedArticles.map((article, index) => (
                 <div key={article.id} className={cn(
                   "relative",
-                  article.id === highlightedArticleId && "bg-primary/10"
+                  article.id === highlightedArticleId && "bg-primary/10 rounded-xl"
                 )}>
                   {isArticleNew(article) && (
-                    <div className="absolute -top-2 -right-2 z-10">
-                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-2 py-1 shadow-lg animate-pulse">
+                    <div className="absolute -top-1 -right-1 z-10">
+                      <Badge className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 text-xs px-1.5 py-0.5 shadow-md">
                         NEW
                       </Badge>
                     </div>
@@ -1001,7 +1035,7 @@ export default function ThreatHome() {
               
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t border-slate-700/50">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-6 border-t border-slate-700/50">
                   <div className="text-sm text-slate-400">
                     Showing {startIndex + 1}-{Math.min(endIndex, totalArticles)} of {totalArticles} articles
                   </div>
@@ -1060,13 +1094,13 @@ export default function ThreatHome() {
 
               {/* Clear All Button - Bottom of page */}
               {totalArticles > 0 && (
-                <div className="flex justify-center mt-8 pt-6 border-t border-slate-700/50">
+                <div className="flex justify-center pt-6 mt-6 border-t border-slate-700/30">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="destructive"
                         size="sm"
-                        className="flex items-center gap-1.5"
+                        className="h-9 px-4 font-semibold transition-all duration-200"
                         disabled={deleteAllArticles.isPending}
                       >
                         {deleteAllArticles.isPending ? (
@@ -1097,22 +1131,29 @@ export default function ThreatHome() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 px-4 rounded-lg border border-dashed">
-              <h3 className="font-semibold text-xl mb-2">
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-full flex items-center justify-center mb-6">
+                <Shield className="h-8 w-8 text-[#BF00FF]" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-3">
                 No threat articles found
               </h3>
-              <p className="text-muted-foreground text-center max-w-md mb-6">
+              <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed">
                 Start by adding sources and keywords to monitor for security
-                threats, or adjust your search filters.
+                threats, or adjust your search filters to discover potential vulnerabilities.
               </p>
-              <div className="flex flex-wrap gap-3 justify-center">
+              <div className="flex flex-wrap gap-4 justify-center">
                 <Button
                   asChild
-                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
+                  className="h-10 px-6 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] transition-all duration-200"
                 >
                   <Link to="/dashboard/threat/sources">Add Sources</Link>
                 </Button>
-                <Button variant="outline" asChild>
+                <Button 
+                  variant="outline" 
+                  asChild
+                  className="h-10 px-6 font-semibold border-slate-600 hover:bg-white/10 text-white transition-all duration-200"
+                >
                   <Link to="/dashboard/threat/keywords">Manage Keywords</Link>
                 </Button>
               </div>

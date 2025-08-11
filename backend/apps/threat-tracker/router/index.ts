@@ -402,7 +402,7 @@ threatRouter.post("/keywords", async (req, res) => {
       userId
     });
     
-    const keyword = await storage.createKeyword(keywordData);
+    const keyword = await storage.createKeyword(keywordData, userId);
     res.status(201).json(keyword);
   } catch (error: any) {
     console.error("Error creating keyword:", error);
@@ -449,7 +449,7 @@ threatRouter.post("/keywords/bulk", async (req, res) => {
           userId
         });
         
-        const keyword = await storage.createKeyword(keywordData);
+        const keyword = await storage.createKeyword(keywordData, userId);
         createdKeywords.push(keyword);
       } catch (error) {
         console.error(`Error creating keyword "${term}":`, error);
@@ -477,7 +477,7 @@ threatRouter.put("/keywords/:id", async (req, res) => {
     const userId = getUserId(req);
     
     // Check if the keyword exists and belongs to the user
-    const existingKeyword = await storage.getKeyword(keywordId);
+    const existingKeyword = await storage.getKeyword(keywordId, userId);
     if (!existingKeyword) {
       return res.status(404).json({ error: "Keyword not found" });
     }
@@ -491,7 +491,7 @@ threatRouter.put("/keywords/:id", async (req, res) => {
       return res.status(403).json({ error: "Not authorized to update this keyword" });
     }
     
-    const updatedKeyword = await storage.updateKeyword(keywordId, req.body);
+    const updatedKeyword = await storage.updateKeyword(keywordId, req.body, userId);
     res.json(updatedKeyword);
   } catch (error: any) {
     console.error("Error updating keyword:", error);
@@ -506,7 +506,7 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
     const userId = getUserId(req);
     
     // Check if the keyword exists and belongs to the user
-    const existingKeyword = await storage.getKeyword(keywordId);
+    const existingKeyword = await storage.getKeyword(keywordId, userId);
     if (!existingKeyword) {
       return res.status(404).json({ error: "Keyword not found" });
     }
@@ -520,7 +520,7 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
       return res.status(403).json({ error: "Not authorized to delete this keyword" });
     }
     
-    await storage.deleteKeyword(keywordId);
+    await storage.deleteKeyword(keywordId, userId);
     res.status(204).send();
   } catch (error: any) {
     console.error("Error deleting keyword:", error);

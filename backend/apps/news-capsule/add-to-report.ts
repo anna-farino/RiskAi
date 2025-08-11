@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { withUserContext } from '../../db/with-user-context';
 import { db } from '../../db/db';
 import { reports, capsuleArticlesInReports } from '../../../shared/db/schema/reports';
 import { and, eq, desc } from 'drizzle-orm';
@@ -14,91 +15,105 @@ export async function addToReport(req: Request, res: Response) {
     
     const userId = (req as FullRequest).user.id;
     
-    let reportId: string;
-    let reportVersion = 1;
-    
-    // If user wants to use an existing report and provided a valid ID
-    if (useExistingReport && existingReportId) {
-      // Verify the report exists and belongs to this user
-      const existingReport = await db
-        .select()
-        .from(reports)
-        .where(
-          and(
-            eq(reports.id, existingReportId),
-            eq(reports.userId, userId)
-          )
-        );
-      
-      if (existingReport.length === 0) {
-        return res.status(404).json({ error: 'Report not found or access denied' });
-      }
-      
-      reportId = existingReportId;
-    } else {
-      // Create a new report with current date and version info
-      const currentDate = new Date();
-      
-      // Set version number if provided
-      if (versionNumber && versionNumber > 1) {
-        reportVersion = versionNumber;
-      }
-      
-      // Store version info in JSON metadata
-      const metadata = {
-        version: reportVersion
-      };
-      
-      // Create a new report
-      const [newReport] = await db
-        .insert(reports)
-        .values({
-          userId,
-          topic: topic || null,
-          createdAt: currentDate
-        })
-        .returning();
-      
-      reportId = newReport.id;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
     
-    // Add articles to the report
-    const articlesToAdd = articleIds.map(articleId => ({
-      articleId,
-      reportId
-    }));
-    
-    // Use a transaction to ensure all or nothing is added
-    await db.transaction(async (tx) => {
-      for (const article of articlesToAdd) {
-        // Check if this article is already in the report
-        const existing = await tx
-          .select()
-          .from(capsuleArticlesInReports)
-          .where(
-            and(
-              eq(capsuleArticlesInReports.articleId, article.articleId),
-              eq(capsuleArticlesInReports.reportId, article.reportId)
-            )
-          );
+    const result = await withUserContext(
+      userId,
+      async (db) => {
+        let reportId: string;
+        let reportVersion = 1;
         
-        // Only insert if it doesn't exist already
-        if (existing.length === 0) {
-          await tx
-            .insert(capsuleArticlesInReports)
-            .values(article);
+        // If user wants to use an existing report and provided a valid ID
+        if (useExistingReport && existingReportId) {
+          // Verify the report exists and belongs to this user
+          const existingReport = await db
+            .select()
+            .from(reports)
+            .where(
+              and(
+                eq(reports.id, existingReportId),
+                eq(reports.userId, userId)
+              )
+            );
+          
+          if (existingReport.length === 0) {
+            throw new Error('Report not found or access denied');
+          }
+          
+          reportId = existingReportId;
+        } else {
+          // Create a new report with current date and version info
+          const currentDate = new Date();
+          
+          // Set version number if provided
+          if (versionNumber && versionNumber > 1) {
+            reportVersion = versionNumber;
+          }
+          
+          // Store version info in JSON metadata
+          const metadata = {
+            version: reportVersion
+          };
+          
+          // Create a new report
+          const [newReport] = await db
+            .insert(reports)
+            .values({
+              userId,
+              topic: topic || null,
+              createdAt: currentDate
+            })
+            .returning();
+          
+          reportId = newReport.id;
         }
+        
+        // Add articles to the report
+        const articlesToAdd = articleIds.map(articleId => ({
+          articleId,
+          reportId
+        }));
+        
+        // Use a transaction to ensure all or nothing is added
+        await db.transaction(async (tx) => {
+          for (const article of articlesToAdd) {
+            // Check if this article is already in the report
+            const existing = await tx
+              .select()
+              .from(capsuleArticlesInReports)
+              .where(
+                and(
+                  eq(capsuleArticlesInReports.articleId, article.articleId),
+                  eq(capsuleArticlesInReports.reportId, article.reportId)
+                )
+              );
+            
+            // Only insert if it doesn't exist already
+            if (existing.length === 0) {
+              await tx
+                .insert(capsuleArticlesInReports)
+                .values(article);
+            }
+          }
+        });
+        
+        return reportId;
       }
-    });
+    );
     
     return res.status(200).json({ 
       success: true, 
       message: 'Articles added to report',
-      reportId
+      reportId: result
     });
     
   } catch (error) {
     console.error('Error adding to report:', error);
+    if (error instanceof Error && error.message === 'Report not found or access denied') {
+      return res.status(404).json({ error: error.message });
+    }
     return res.status(500).json({ error: 'Failed to add articles to report' });
   }
 }

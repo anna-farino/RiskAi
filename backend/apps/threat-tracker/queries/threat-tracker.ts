@@ -1,9 +1,10 @@
+import { withUserContext } from "backend/db/with-user-context";
 import type {
   ThreatSource,
   InsertThreatSource,
   ThreatKeyword,
   InsertThreatKeyword,
-  ThreatArticle,
+  ThreatArticle,  
   InsertThreatArticle,
   ThreatSetting,
 } from "@shared/db/schema/threat-tracker/index";
@@ -46,17 +47,18 @@ export interface IStorage {
 
   // Keywords
   getKeywords(category?: string, userId?: string): Promise<ThreatKeyword[]>;
-  getKeyword(id: string): Promise<ThreatKeyword | undefined>;
+  getKeyword(id: string, userId?: string): Promise<ThreatKeyword | undefined>;
   getKeywordsByCategory(
     category: string,
     userId?: string,
   ): Promise<ThreatKeyword[]>;
-  createKeyword(keyword: InsertThreatKeyword): Promise<ThreatKeyword>;
+  createKeyword(keyword: InsertThreatKeyword, userId?: string): Promise<ThreatKeyword>;
   updateKeyword(
     id: string,
     keyword: Partial<ThreatKeyword>,
+    userId?: string,
   ): Promise<ThreatKeyword>;
-  deleteKeyword(id: string): Promise<void>;
+  deleteKeyword(id: string, userId?: string): Promise<void>;
 
   // Articles
   getArticle(id: string, userId?: string): Promise<ThreatArticle | undefined>;
@@ -336,11 +338,13 @@ export const storage: IStorage = {
         ];
         if (category) userConditions.push(eq(threatKeywords.category, category));
 
-        userKeywords = await db
-          .select()
-          .from(threatKeywords)
-          .where(and(...userConditions))
-          .execute();
+        userKeywords = await withUserContext(
+          userId,
+          async (db) => db
+            .select()
+            .from(threatKeywords)
+            .where(and(...userConditions))
+        );
       }
 
       // Combine default and user keywords
@@ -351,17 +355,24 @@ export const storage: IStorage = {
     }
   },
 
-  getKeyword: async (id: string) => {
+  getKeyword: async (id: string, userId?: string) => {
     try {
-      const results = await db
-        .select()
-        .from(threatKeywords)
-        .where(eq(threatKeywords.id, id))
-        .execute();
-      return results[0];
+      if (!userId) {
+        throw new Error("User ID is required for getKeyword");
+      }
+      
+      const results = await withUserContext(
+        userId,
+        async (db) => db
+          .select()
+          .from(threatKeywords)
+          .where(eq(threatKeywords.id, id))
+          .limit(1)
+      );
+      return results.length > 0 ? results[0] : undefined;
     } catch (error) {
       console.error("Error fetching threat keyword:", error);
-      return undefined;
+      throw error;
     }
   },
 
@@ -404,8 +415,12 @@ export const storage: IStorage = {
     }
   },
 
-  createKeyword: async (keyword: InsertThreatKeyword) => {
+  createKeyword: async (keyword: InsertThreatKeyword, userId?: string) => {
     try {
+      if (!userId) {
+        throw new Error("User ID is required for createKeyword");
+      }
+      
       if (!keyword.term || !keyword.category) {
         throw new Error("Keyword must have a term and category");
       }
@@ -429,25 +444,35 @@ export const storage: IStorage = {
         isDefault: false,
       };
 
-      const results = await db
-        .insert(threatKeywords)
-        .values(keyword)
-        .returning();
-      return results[0];
+      const [result] = await withUserContext(
+        userId,
+        async (db) => db
+          .insert(threatKeywords)
+          .values(keyword)
+          .returning()
+      );
+      return result;
     } catch (error) {
       console.error("Error creating threat keyword:", error);
       throw error;
     }
   },
 
-  updateKeyword: async (id: string, keyword: Partial<ThreatKeyword>) => {
+  updateKeyword: async (id: string, keyword: Partial<ThreatKeyword>, userId?: string) => {
     try {
-      // First check if this is a default keyword
-      const existingKeyword = await db
-        .select()
-        .from(threatKeywords)
-        .where(eq(threatKeywords.id, id))
-        .execute();
+      if (!userId) {
+        throw new Error("User ID is required for updateKeyword");
+      }
+
+      // First check if this is a default keyword using withUserContext
+      const existingKeyword = await withUserContext(
+        userId,
+        async (db) => db
+          .select()
+          .from(threatKeywords)
+          .where(eq(threatKeywords.id, id))
+          .limit(1)
+      );
 
       if (existingKeyword.length === 0) {
         throw new Error("Keyword not found");
@@ -461,26 +486,36 @@ export const storage: IStorage = {
       const updateData = { ...keyword };
       delete (updateData as any).isDefault;
 
-      const results = await db
-        .update(threatKeywords)
-        .set(updateData)
-        .where(eq(threatKeywords.id, id))
-        .returning();
-      return results[0];
+      const [result] = await withUserContext(
+        userId,
+        async (db) => db
+          .update(threatKeywords)
+          .set(updateData)
+          .where(eq(threatKeywords.id, id))
+          .returning()
+      );
+      return result;
     } catch (error) {
       console.error("Error updating threat keyword:", error);
       throw error;
     }
   },
 
-  deleteKeyword: async (id: string) => {
+  deleteKeyword: async (id: string, userId?: string) => {
     try {
-      // First check if this is a default keyword
-      const existingKeyword = await db
-        .select()
-        .from(threatKeywords)
-        .where(eq(threatKeywords.id, id))
-        .execute();
+      if (!userId) {
+        throw new Error("User ID is required for deleteKeyword");
+      }
+
+      // First check if this is a default keyword using withUserContext
+      const existingKeyword = await withUserContext(
+        userId,
+        async (db) => db
+          .select()
+          .from(threatKeywords)
+          .where(eq(threatKeywords.id, id))
+          .limit(1)
+      );
 
       if (existingKeyword.length === 0) {
         throw new Error("Keyword not found");
@@ -490,7 +525,10 @@ export const storage: IStorage = {
         throw new Error("Cannot delete default keywords");
       }
 
-      await db.delete(threatKeywords).where(eq(threatKeywords.id, id));
+      await withUserContext(
+        userId,
+        async (db) => db.delete(threatKeywords).where(eq(threatKeywords.id, id))
+      );
     } catch (error) {
       console.error("Error deleting threat keyword:", error);
       throw error;
