@@ -8,14 +8,14 @@ const buttons = [
     url: "/dashboard/news/home",
   },
   {
-    label: "Keywords",
-    url: "/dashboard/news/keywords",
+    label: 'Sources',
+    url: '/dashboard/news/sources'
   },
   {
-    label: "Sources",
-    url: "/dashboard/news/sources",
+    label: 'Keywords',
+    url: '/dashboard/news/keywords'
   },
-];
+]
 
 export default function NewsLayout() {
   const location = useLocation().pathname.split("/")[3];
@@ -43,18 +43,17 @@ export default function NewsLayout() {
         )}
       >
         {buttons.map((button) => {
-          const selected = location === button.label.toLowerCase();
+          const selected = location === button.url.split('/').pop();
 
           return (
             <Link
               to={button.url}
               key={button.label}
               className={cn(
-                "whitespace-nowrap transition-colors",
-                "hover:underline",
+                "whitespace-nowrap transition-colors duration-200",
                 selected
-                  ? "text-primary font-medium"
-                  : "text-foreground/80 hover:text-foreground",
+                  ? "text-[#00FFFF] font-medium px-2 py-1"
+                  : "text-foreground/80 hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 px-2 py-1 rounded-md",
               )}
             >
               {button.label}

@@ -31,17 +31,21 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
-  // Generate a random color for the card accent (in a real app, this could be based on source or category)
-  const getRandomAccent = () => {
+  // Unified accent colors using primary palette and severity scale
+  const getUnifiedAccent = () => {
     const accents = [
-      "from-blue-500/20",
-      "from-green-500/20",
-      "from-purple-500/20",
-      "from-amber-500/20",
-      "from-pink-500/20",
+      "from-[#00FFFF]/30", // Primary cyan
+      "from-[#BF00FF]/30", // Primary magenta
+      "from-blue-500/30",   // High priority
+      "from-yellow-500/30", // Medium priority
+      "from-orange-500/30", // Lower priority
     ];
-    const random0To4 = Math.floor(Math.random() * 5);
-    return accents[random0To4];
+    // Use article ID hash for consistent coloring per article
+    const hash = article.id.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return accents[Math.abs(hash) % accents.length];
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -73,82 +77,128 @@ export function ArticleCard({
 
   const keywords = getKeywords();
 
+  // Unified color palette using consistent severity/priority mapping
+  const getUnifiedKeywordColor = (index: number) => {
+    // Consistent color scale: red→orange→yellow→blue→cyan (primary colors)
+    const colors = [
+      {
+        bg: "bg-[#00FFFF]/10", // Primary cyan
+        text: "text-[#00FFFF]", 
+        border: "border-[#00FFFF]/30",
+        hover: "hover:bg-[#00FFFF]/20 hover:text-[#00FFFF]"
+      },
+      {
+        bg: "bg-[#BF00FF]/10", // Primary magenta
+        text: "text-[#BF00FF]",
+        border: "border-[#BF00FF]/30", 
+        hover: "hover:bg-[#BF00FF]/20 hover:text-[#BF00FF]"
+      },
+      {
+        bg: "bg-blue-500/10", // High priority - blue
+        text: "text-blue-400",
+        border: "border-blue-500/30",
+        hover: "hover:bg-blue-500/20 hover:text-blue-400"
+      },
+      {
+        bg: "bg-yellow-500/10", // Medium priority - yellow
+        text: "text-yellow-400",
+        border: "border-yellow-500/30",
+        hover: "hover:bg-yellow-500/20 hover:text-yellow-400"
+      },
+      {
+        bg: "bg-orange-500/10", // Lower priority - orange
+        text: "text-orange-400",
+        border: "border-orange-500/30",
+        hover: "hover:bg-orange-500/20 hover:text-orange-400"
+      }
+    ];
+    return colors[index % colors.length];
+  };
+
   return (
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div
         className={cn(
           "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
-          "hover:border-slate-600/80 transition-all duration-300",
+          "hover:border-[#00FFFF]/40 hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300",
           "flex flex-col relative",
           isPending && "bg-black/30",
         )}
       >
         <div
           className={cn(
-            "h-1 sm:h-1.5 w-full bg-gradient-to-r",
+            "h-1.5 w-full bg-gradient-to-r",
             isPending
               ? "from-slate-500/50 to-slate-700/50 animate-pulse"
-              : getRandomAccent(),
+              : getUnifiedAccent(),
           )}
         ></div>
 
-        <div className="flex-1 p-3 sm:p-4 md:p-5 flex flex-col">
-          <h3 className="text-base sm:text-lg font-medium text-white line-clamp-2 mb-1.5 sm:mb-2 group-hover:text-primary transition-colors">
+        <div className="flex-1 p-4 sm:p-5 flex flex-col">
+          <h3 className="text-lg font-semibold text-white line-clamp-2 mb-3 leading-6 group-hover:text-[#00FFFF] transition-colors">
             {article.title}
           </h3>
 
-          <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-            {/*Author disabled*/}
-            {article.author && false && (
-              <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-slate-400">
-                <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                <span className="text-[10px] sm:text-xs">{article.author}</span>
+          <div className="flex items-center gap-3 mb-3">
+            {article.author && (
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
+                <User className="h-3 w-3" />
+                <span className="font-medium">{article.author}</span>
               </div>
             )}
 
             {article.publishDate && (
-              <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-slate-400">
-                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                <span className="text-[10px] sm:text-xs">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
+                <Clock className="h-3 w-3" />
+                <span className="font-medium">
                   {format(new Date(article.publishDate), "MMM d, yyyy")}
                 </span>
               </div>
             )}
 
             {article.sourceName && (
-              <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-slate-400">
-                <span className="text-[10px] sm:text-xs font-medium">
+              <div className="flex items-center gap-1.5 text-xs leading-4">
+                <span className="font-semibold text-[#BF00FF]">
                   {article.sourceName}
                 </span>
               </div>
             )}
           </div>
 
-          <p className="text-xs sm:text-sm text-slate-300 mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-3 flex-1">
+          <p className="text-sm text-slate-300 mb-4 line-clamp-3 flex-1 leading-5">
             {article.summary}
           </p>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap gap-1.5 min-w-0 flex-1">
               {Array.isArray(keywords) &&
-                keywords.slice(0, 2).map((keyword: string) => (
-                  <Badge
-                    key={keyword}
-                    variant="outline"
-                    className="bg-white/5 text-xs text-slate-300 hover:bg-primary/20 hover:text-primary hover:border-primary/30 border-slate-700 cursor-pointer transition-colors truncate max-w-20"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (onKeywordClick) onKeywordClick(keyword);
-                    }}
-                  >
-                    {keyword}
-                  </Badge>
-                ))}
+                keywords.slice(0, 3).map((keyword: string, index: number) => {
+                  const colors = getUnifiedKeywordColor(index);
+                  return (
+                    <Badge
+                      key={keyword}
+                      variant="outline"
+                      className={cn(
+                        "text-xs font-medium cursor-pointer transition-colors truncate max-w-24 leading-4",
+                        colors.bg,
+                        colors.text,
+                        colors.border,
+                        colors.hover
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(keyword);
+                      }}
+                    >
+                      {keyword}
+                    </Badge>
+                  );
+                })}
 
-              {Array.isArray(keywords) && keywords.length > 2 && (
-                <span className="text-xs text-slate-500">
-                  +{keywords.length - 2} more
+              {Array.isArray(keywords) && keywords.length > 3 && (
+                <span className="text-xs font-medium text-[#00FFFF] leading-4">
+                  +{keywords.length - 3} more
                 </span>
               )}
             </div>
@@ -161,18 +211,19 @@ export function ArticleCard({
                   disabled={isPending || sendingToCapsule}
                   onClick={handleSendToCapsule}
                   className={cn(
-                    "h-fit w-fit p-1.5 sm:p-2",
+                    "h-8 w-8 p-2",
                     "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-blue-400 hover:bg-blue-400/10",
+                    "text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 hover:border-[#00FFFF]/30",
+                    "transition-all duration-200",
                     (isPending || sendingToCapsule) &&
                       "cursor-not-allowed opacity-70",
                   )}
                   title="Send to News Capsule"
                 >
                   {sendingToCapsule ? (
-                    <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <Send className="h-4 w-4" />
                   )}
                 </Button>
               )}
@@ -191,16 +242,17 @@ export function ArticleCard({
                     setOpenAlert(true);
                   }}
                   className={cn(
-                    "h-fit w-fit p-1.5 sm:p-2",
+                    "h-8 w-8 p-2",
                     "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
+                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10 hover:border-red-500/30",
+                    "transition-all duration-200",
                     isPending && "cursor-not-allowed opacity-70",
                   )}
                 >
                   {isPending ? (
-                    <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   )}
                 </Button>
               </DeleteAlertDialog>

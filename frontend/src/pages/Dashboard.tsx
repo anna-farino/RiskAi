@@ -238,9 +238,9 @@ export default function Dashboard() {
   
   return (
     <div className="min-h-screen bg-black">
-      <div className="container mx-auto px-4 py-8">
+      <div className="mx-auto py-4">
         {/* Dashboard introduction section - new design with brand styling */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="bg-black/40 border border-[#BF00FF]/20 rounded-lg p-6 backdrop-blur shadow-xl">
             <div className="flex items-center gap-4">
               <div className="bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] p-[1px] rounded-lg shadow-glow">
@@ -265,7 +265,7 @@ export default function Dashboard() {
         <WidgetGrid>
           <RisqWidget
             title="News Radar"
-            description="Latest security news from across the web"
+            description="Latest security news"
             icon={<Newspaper className="w-10 h-10 text-[#BF00FF]" />}
             variant="interactive"
             delay={0.1}
@@ -299,7 +299,7 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               {newsLoading ? (
                 <>
                   {[1, 2, 3, 4].map((i) => (
@@ -322,59 +322,136 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500 mt-1">Check your connection</p>
                 </div>
               ) : newsArticles && newsArticles.length > 0 ? (
-                newsArticles.slice(0, 4).map((article: any, index: number) => {
-                  const sourceBadge = getSourceBadge(article);
-                  const priorityBadge = getPriorityBadge(article);
-                  const keywords = article.detectedKeywords || [];
-                  
-                  return (
-                    <div 
-                      key={article.id || index} 
-                      className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
-                      onClick={() => handleArticleClick(article)}
-                    >
-                      <div className="flex justify-between items-start mb-2 gap-2">
-                        <div className="flex gap-1.5 flex-wrap min-w-0">
-                          <span className={`text-xs px-1.5 py-0.5 rounded border ${priorityBadge.style} whitespace-nowrap`}>
-                            {priorityBadge.level}
-                          </span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${sourceBadge.style} whitespace-nowrap`}>
-                            {sourceBadge.name}
+                <>
+                  {/* News Overview Summary Bar */}
+                  <div className="bg-black/50 rounded-lg p-2 border border-[#BF00FF]/30 mb-3">
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-gray-300 font-medium">News Overview</span>
+                      <span className="text-gray-400">{newsArticles.length} articles</span>
+                    </div>
+                    <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-gray-800">
+                      {(() => {
+                        const priorities = newsArticles.reduce((acc: any, article: any) => {
+                          const priority = getPriorityBadge(article);
+                          const level = priority.level.toUpperCase();
+                          acc[level] = (acc[level] || 0) + 1;
+                          return acc;
+                        }, {});
+                        const total = newsArticles.length;
+                        
+                        return (
+                          <>
+                            {priorities.CRITICAL > 0 && (
+                              <div 
+                                className="bg-red-500 h-full" 
+                                style={{ width: `${(priorities.CRITICAL / total) * 100}%` }}
+                                title={`${priorities.CRITICAL} Critical articles`}
+                              />
+                            )}
+                            {priorities.HIGH > 0 && (
+                              <div 
+                                className="bg-orange-500 h-full" 
+                                style={{ width: `${(priorities.HIGH / total) * 100}%` }}
+                                title={`${priorities.HIGH} High priority articles`}
+                              />
+                            )}
+                            {priorities.MEDIUM > 0 && (
+                              <div 
+                                className="bg-[#BF00FF] h-full" 
+                                style={{ width: `${(priorities.MEDIUM / total) * 100}%` }}
+                                title={`${priorities.MEDIUM} Medium priority articles`}
+                              />
+                            )}
+                            {priorities.LOW > 0 && (
+                              <div 
+                                className="bg-[#00FFFF] h-full" 
+                                style={{ width: `${(priorities.LOW / total) * 100}%` }}
+                                title={`${priorities.LOW} Low priority articles`}
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex justify-between text-xs mt-1 text-gray-400">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+
+                  {/* News Articles List */}
+                  {newsArticles.slice(0, 1).map((article: any, index: number) => {
+                    const sourceBadge = getSourceBadge(article);
+                    const priorityBadge = getPriorityBadge(article);
+                    const keywords = article.detectedKeywords || [];
+                    
+                    return (
+                      <div 
+                        key={article.id || index} 
+                        className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10 hover:border-[#BF00FF]/30 transition-all duration-200 cursor-pointer group"
+                        onClick={() => handleArticleClick(article)}
+                      >
+                        <div className="flex justify-between items-start mb-2 gap-2">
+                          <div className="flex gap-1.5 flex-wrap min-w-0">
+                            <span className={`text-xs px-1.5 py-0.5 rounded border ${priorityBadge.style} whitespace-nowrap`}>
+                              {priorityBadge.level}
+                            </span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${sourceBadge.style} whitespace-nowrap`}>
+                              {sourceBadge.name}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                            {article.publishDate ? formatPublishDate(article.publishDate) : 'Unknown date'}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-                          {article.publishDate ? formatPublishDate(article.publishDate) : 'Unknown date'}
+                        
+                        <h4 className="text-xs font-medium text-white mb-1 line-clamp-1 group-hover:text-[#00FFFF] transition-colors">
+                          {article.title || 'Untitled Article'}
+                        </h4>
+                        
+                        {article.summary && (
+                          <p className="text-xs text-gray-300 line-clamp-3 mb-2">
+                            {article.summary}
+                          </p>
+                        )}
+                        
+                        {keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
+                              <span 
+                                key={kidx} 
+                                className="text-xs px-1.5 py-0.5 bg-[#BF00FF]/10 text-[#BF00FF] rounded border border-[#BF00FF]/20"
+                              >
+                                {keyword.keyword || keyword}
+                              </span>
+                            ))}
+                            {keywords.length > 3 && (
+                              <span className="text-xs text-gray-500">+{keywords.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show More Section for News Radar */}
+                  {newsArticles.length > 1 && (
+                    <div className="bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg p-3 border border-[#BF00FF]/30 text-center backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
+                        <span className="text-xs text-white font-medium">
+                          {newsArticles.length - 1} more articles available
                         </span>
                       </div>
-                      
-                      <h4 className="text-xs font-medium text-white mb-1 line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
-                        {article.title || 'Untitled Article'}
-                      </h4>
-                      
-                      {article.summary && (
-                        <p className="text-xs text-gray-300 line-clamp-2 mb-2">
-                          {article.summary}
-                        </p>
-                      )}
-                      
-                      {keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
-                            <span 
-                              key={kidx} 
-                              className="text-xs px-1.5 py-0.5 bg-[#BF00FF]/10 text-[#BF00FF] rounded border border-[#BF00FF]/20"
-                            >
-                              {keyword.keyword || keyword}
-                            </span>
-                          ))}
-                          {keywords.length > 3 && (
-                            <span className="text-xs text-gray-500">+{keywords.length - 3}</span>
-                          )}
-                        </div>
-                      )}
+                      <button 
+                        onClick={() => navigate('/dashboard/news/home')}
+                        className="text-xs text-[#00FFFF] hover:text-white transition-colors font-medium"
+                      >
+                        View All Articles →
+                      </button>
                     </div>
-                  );
-                })
+                  )}
+                </>
               ) : (
                 <div className="bg-black/30 rounded-lg p-4 border border-[#BF00FF]/10 text-center">
                   <Newspaper className="w-6 h-6 text-gray-400 mx-auto mb-2" />
@@ -393,7 +470,7 @@ export default function Dashboard() {
           
           <RisqWidget
             title="Threat Tracker"
-            description="Critical security alerts requiring attention"
+            description="Critical security alerts"
             icon={<AlertTriangle className="w-10 h-10 text-[#00FFFF]" />}
             variant="interactive"
             delay={0.2}
@@ -427,7 +504,7 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               {threatLoading ? (
                 <>
                   {[1, 2, 3].map((i) => (
@@ -519,7 +596,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Threat Articles List */}
-                  {threatArticles.slice(0, 3).map((threat: any, index: number) => {
+                  {threatArticles.slice(0, 1).map((threat: any, index: number) => {
                     const severity = getThreatSeverity(threat);
                     const keywords = threat.detectedKeywords || [];
                     
@@ -534,8 +611,8 @@ export default function Dashboard() {
                             <AlertTriangle className="w-4 h-4 mt-0.5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="flex items-center gap-2">
+                            <div className="flex justify-between items-start mb-2 gap-2">
+                              <div className="flex gap-1.5 flex-wrap min-w-0">
                                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                                   severity.level === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
                                   severity.level === 'HIGH' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
@@ -544,14 +621,37 @@ export default function Dashboard() {
                                 }`}>
                                   {severity.level}
                                 </span>
-                                <div className={`w-2 h-2 rounded-full ${
-                                  severity.icon === 'red' ? 'bg-red-400 animate-pulse' : 
-                                  severity.icon === 'yellow' ? 'bg-yellow-400' : 
-                                  severity.icon === 'purple' ? 'bg-purple-400' : 
-                                  'bg-blue-400'
-                                }`}></div>
+                                {/* CVE ID Badge */}
+                                {(() => {
+                                  const cveMatch = threat.title?.match(/CVE-\d{4}-\d+/) || threat.summary?.match(/CVE-\d{4}-\d+/);
+                                  if (cveMatch) {
+                                    return (
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-300 border border-gray-600/30 whitespace-nowrap">
+                                        {cveMatch[0]}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                                {/* Attack Vector Badge */}
+                                {(() => {
+                                  const vectors = ['RCE', 'XSS', 'SQLi', 'Phishing', 'Malware', 'DDoS', 'Ransomware', 'APT'];
+                                  const foundVector = vectors.find(v => 
+                                    threat.title?.toLowerCase().includes(v.toLowerCase()) || 
+                                    threat.summary?.toLowerCase().includes(v.toLowerCase()) ||
+                                    (Array.isArray(keywords) && keywords.some((k: any) => (k.keyword || k).toLowerCase().includes(v.toLowerCase())))
+                                  );
+                                  if (foundVector) {
+                                    return (
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 whitespace-nowrap">
+                                        {foundVector}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
-                              <span className="text-xs text-gray-400 whitespace-nowrap">
+                              <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
                                 {threat.publishDate ? formatPublishDate(threat.publishDate) : 'Unknown date'}
                               </span>
                             </div>
@@ -560,11 +660,54 @@ export default function Dashboard() {
                               {threat.title || 'Security Alert'}
                             </h4>
                             
-                            <p className="text-xs text-gray-400 line-clamp-2 mb-2">
+                            <p className="text-xs text-gray-400 line-clamp-3 mb-2">
                               {threat.summary || keywords.slice(0, 3).map((k: any) => k.keyword || k).join(', ') || 'Threat detected requiring immediate attention'}
                             </p>
                             
-                            {keywords.length > 0 && (
+                            {/* Threat-specific metadata */}
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {/* Affected Systems */}
+                              {(() => {
+                                const systems = ['Windows', 'Linux', 'macOS', 'Android', 'iOS', 'Chrome', 'Firefox', 'Apache', 'nginx', 'Exchange'];
+                                const foundSystems = systems.filter(s => 
+                                  threat.title?.toLowerCase().includes(s.toLowerCase()) || 
+                                  threat.summary?.toLowerCase().includes(s.toLowerCase())
+                                ).slice(0, 2);
+                                
+                                return foundSystems.map((system, idx) => (
+                                  <span key={idx} className="text-xs px-1.5 py-0.5 bg-blue-500/15 text-blue-300 rounded border border-blue-500/20">
+                                    {system}
+                                  </span>
+                                ));
+                              })()}
+                              
+                              {/* Impact Level */}
+                              {(() => {
+                                const impacts = threat.summary?.toLowerCase();
+                                if (impacts?.includes('data breach') || impacts?.includes('credential')) {
+                                  return (
+                                    <span className="text-xs px-1.5 py-0.5 bg-red-500/15 text-red-300 rounded border border-red-500/20">
+                                      Data Risk
+                                    </span>
+                                  );
+                                } else if (impacts?.includes('denial') || impacts?.includes('ddos') || impacts?.includes('outage')) {
+                                  return (
+                                    <span className="text-xs px-1.5 py-0.5 bg-yellow-500/15 text-yellow-300 rounded border border-yellow-500/20">
+                                      Service Risk
+                                    </span>
+                                  );
+                                } else if (impacts?.includes('privilege') || impacts?.includes('escalation') || impacts?.includes('admin')) {
+                                  return (
+                                    <span className="text-xs px-1.5 py-0.5 bg-purple-500/15 text-purple-300 rounded border border-purple-500/20">
+                                      Access Risk
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                            
+                            {Array.isArray(keywords) && keywords.length > 0 && (
                               <div className="flex gap-1 flex-wrap">
                                 {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
                                   <span 
@@ -588,17 +731,17 @@ export default function Dashboard() {
                   })}
                   
                   {/* Show More Section */}
-                  {threatArticles.length > 3 && (
-                    <div className="bg-slate-900/30 rounded-lg p-3 border border-slate-700/20 text-center">
+                  {threatArticles.length > 1 && (
+                    <div className="bg-gradient-to-r from-red-500/20 to-[#00FFFF]/20 rounded-lg p-3 border border-red-400/30 text-center backdrop-blur-sm">
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-[#00FFFF] rounded-full animate-pulse"></div>
-                        <span className="text-xs text-gray-300">
-                          {threatArticles.length - 3} more threats available
+                        <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-white font-medium">
+                          {threatArticles.length - 1} more threats available
                         </span>
                       </div>
                       <button 
                         onClick={() => navigate('/dashboard/threat/home')}
-                        className="text-xs text-[#00FFFF] hover:text-[#BF00FF] transition-colors font-medium"
+                        className="text-xs text-[#00FFFF] hover:text-white transition-colors font-medium"
                       >
                         View All Threats →
                       </button>
@@ -639,7 +782,7 @@ export default function Dashboard() {
           
           <RisqWidget
             title="News Capsule"
-            description="Process articles for executive reports"
+            description="Executive reports"
             icon={<Radar className="w-10 h-10 text-[#BF00FF]" />}
             variant="interactive"
             delay={0.4}
@@ -673,7 +816,7 @@ export default function Dashboard() {
               </div>
             }
           >
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               {capsuleLoading ? (
                 <>
                   {[1, 2, 3, 4].map((i) => (
@@ -696,7 +839,57 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500 mt-1">Check API connection</p>
                 </div>
               ) : capsuleReports && capsuleReports.length > 0 ? (
-                capsuleReports.slice(0, 4).map((report: any, index: number) => {
+                <>
+                  {/* Reports Overview Summary Bar */}
+                  <div className="bg-black/50 rounded-lg p-2 border border-[#BF00FF]/30 mb-3">
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-gray-300 font-medium">Reports Overview</span>
+                      <span className="text-gray-400">{capsuleReports.length} reports</span>
+                    </div>
+                    <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-gray-800">
+                      {(() => {
+                        const statuses = capsuleReports.reduce((acc: any, report: any) => {
+                          const status = getReportStatus(report);
+                          acc[status.label] = (acc[status.label] || 0) + 1;
+                          return acc;
+                        }, {});
+                        const total = capsuleReports.length;
+                        
+                        return (
+                          <>
+                            {statuses.Processed > 0 && (
+                              <div 
+                                className="bg-emerald-500 h-full" 
+                                style={{ width: `${(statuses.Processed / total) * 100}%` }}
+                                title={`${statuses.Processed} Processed reports`}
+                              />
+                            )}
+                            {statuses.Processing > 0 && (
+                              <div 
+                                className="bg-blue-500 h-full" 
+                                style={{ width: `${(statuses.Processing / total) * 100}%` }}
+                                title={`${statuses.Processing} Processing reports`}
+                              />
+                            )}
+                            {statuses.Empty > 0 && (
+                              <div 
+                                className="bg-gray-500 h-full" 
+                                style={{ width: `${(statuses.Empty / total) * 100}%` }}
+                                title={`${statuses.Empty} Empty reports`}
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex justify-between text-xs mt-1 text-gray-400">
+                      <span>Empty</span>
+                      <span>Ready</span>
+                    </div>
+                  </div>
+
+                  {/* Reports List */}
+                  {capsuleReports.slice(0, 1).map((report: any, index: number) => {
                   const status = getReportStatus(report);
                   
                   return (
@@ -709,16 +902,49 @@ export default function Dashboard() {
                       }}
                     >
                       <div className="flex justify-between items-start mb-2 gap-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5 flex-wrap min-w-0">
                           <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${status.style}`}>
                             {status.label}
                           </span>
                           {report.versionNumber && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#00FFFF]/20 text-[#00FFFF] font-medium">
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#00FFFF]/20 text-[#00FFFF] font-medium whitespace-nowrap">
                               v{report.versionNumber}
                             </span>
                           )}
-                          <div className={`w-2 h-2 rounded-full ${status.indicator}`}></div>
+                          {/* Article Count Badge */}
+                          {report.articles && report.articles.length > 0 && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#BF00FF]/20 text-[#BF00FF] border border-[#BF00FF]/30 whitespace-nowrap">
+                              {report.articles.length} articles
+                            </span>
+                          )}
+                          {/* Report Type Badge */}
+                          {(() => {
+                            if (report.articles && report.articles.length > 0) {
+                              const hasThreats = report.articles.some((a: any) => a.threatName || a.title?.toLowerCase().includes('threat'));
+                              const hasNews = report.articles.some((a: any) => !a.threatName && a.title);
+                              
+                              if (hasThreats && hasNews) {
+                                return (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                    Mixed Intel
+                                  </span>
+                                );
+                              } else if (hasThreats) {
+                                return (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 whitespace-nowrap">
+                                    Threat Intel
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 whitespace-nowrap">
+                                    News Intel
+                                  </span>
+                                );
+                              }
+                            }
+                            return null;
+                          })()}
                         </div>
                         <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
                           {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { 
@@ -742,31 +968,118 @@ export default function Dashboard() {
                         )}
                       </h4>
                       
-                      <p className="text-xs text-gray-300 line-clamp-2">
-                        <span className="text-gray-400">Topic:</span> {(() => {
-                          // Generate brief topic from articles
+                      <p className="text-xs text-gray-300 line-clamp-3 mb-2">
+                        <span className="text-gray-400">Summary:</span> {(() => {
+                          // Generate comprehensive report summary
                           if (report.articles && report.articles.length > 0) {
                             const threats = report.articles.map((a: any) => a.threatName || a.title?.split(' ')[0] || 'Security').slice(0, 2);
                             const uniqueThreats = [...new Set(threats)];
                             const topic = uniqueThreats.length > 1 
-                              ? `${uniqueThreats[0]} & ${uniqueThreats.length - 1} more threats`
-                              : `${uniqueThreats[0]} analysis`;
-                            return `${topic} • ${report.articles.length} threat${report.articles.length !== 1 ? 's' : ''} processed`;
+                              ? `${uniqueThreats[0]} & ${uniqueThreats.length - 1} more security topics`
+                              : `${uniqueThreats[0]} security analysis`;
+                            return `Executive briefing covering ${topic}. Processed ${report.articles.length} intelligence source${report.articles.length !== 1 ? 's' : ''} for comprehensive threat landscape assessment and strategic recommendations.`;
                           }
-                          return 'Security report generated';
+                          return 'Executive security intelligence report with strategic recommendations and threat landscape analysis for leadership review.';
                         })()}
                       </p>
                       
+                      {/* Report-specific metadata */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {/* Processing Time Indicator */}
+                        {(() => {
+                          const created = report.createdAt ? new Date(report.createdAt) : null;
+                          if (created) {
+                            const now = new Date();
+                            const diffMinutes = Math.floor((now.getTime() - created.getTime()) / (1000 * 60));
+                            
+                            if (diffMinutes < 60) {
+                              return (
+                                <span className="text-xs px-1.5 py-0.5 bg-green-500/15 text-green-300 rounded border border-green-500/20">
+                                  Fresh ({diffMinutes}m ago)
+                                </span>
+                              );
+                            } else if (diffMinutes < 1440) {
+                              const hours = Math.floor(diffMinutes / 60);
+                              return (
+                                <span className="text-xs px-1.5 py-0.5 bg-yellow-500/15 text-yellow-300 rounded border border-yellow-500/20">
+                                  Recent ({hours}h ago)
+                                </span>
+                              );
+                            } else {
+                              const days = Math.floor(diffMinutes / 1440);
+                              return (
+                                <span className="text-xs px-1.5 py-0.5 bg-gray-500/15 text-gray-300 rounded border border-gray-500/20">
+                                  Archived ({days}d ago)
+                                </span>
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
+                        
+                        {/* Content Scope */}
+                        {report.articles && report.articles.length > 0 && (() => {
+                          const articleCount = report.articles.length;
+                          if (articleCount >= 10) {
+                            return (
+                              <span className="text-xs px-1.5 py-0.5 bg-purple-500/15 text-purple-300 rounded border border-purple-500/20">
+                                Comprehensive
+                              </span>
+                            );
+                          } else if (articleCount >= 5) {
+                            return (
+                              <span className="text-xs px-1.5 py-0.5 bg-blue-500/15 text-blue-300 rounded border border-blue-500/20">
+                                Standard
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span className="text-xs px-1.5 py-0.5 bg-orange-500/15 text-orange-300 rounded border border-orange-500/20">
+                                Brief
+                              </span>
+                            );
+                          }
+                        })()}
+                        
+                        {/* Report Format */}
+                        <span className="text-xs px-1.5 py-0.5 bg-[#00FFFF]/15 text-[#00FFFF] rounded border border-[#00FFFF]/20">
+                          Executive Brief
+                        </span>
+                      </div>
+                      
+                      {/* Source Information */}
                       {report.articles && report.articles.length > 0 && (
-                        <div className="flex items-center gap-1 mt-2">
+                        <div className="flex items-center gap-1 mt-1">
                           <span className="text-xs text-[#BF00FF]">
-                            {report.articles.length} articles processed
+                            {report.articles.length} sources • {(() => {
+                              const uniqueSources = [...new Set(report.articles.map((a: any) => a.source || 'Unknown'))];
+                              return uniqueSources.length;
+                            })()} publishers
                           </span>
                         </div>
                       )}
                     </div>
                   );
-                })
+                  })}
+                  
+                  {/* Show More Section for News Capsule */}
+                  {capsuleReports.length > 1 && (
+                    <div className="bg-gradient-to-r from-[#BF00FF]/20 to-purple-500/20 rounded-lg p-3 border border-purple-400/30 text-center backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-white font-medium">
+                          {capsuleReports.length - 1} more reports available
+                        </span>
+                      </div>
+                      <button 
+                        onClick={() => navigate('/dashboard/news-capsule/reports')}
+                        className="text-xs text-[#00FFFF] hover:text-white transition-colors font-medium"
+                      >
+                        View All Reports →
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="bg-black/30 rounded-lg p-4 border border-[#BF00FF]/10 text-center">
                   <Radar className="w-6 h-6 text-gray-400 mx-auto mb-2" />
