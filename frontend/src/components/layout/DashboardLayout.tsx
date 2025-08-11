@@ -1,36 +1,9 @@
-import React, { useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { RisqHeader } from './RisqHeader';
 import { MainNavigation } from './MainNavigation';
-import { useAuth0 } from '@auth0/auth0-react';
-import { toast } from '@/hooks/use-toast';
 
 export default function DashboardLayout() {
-  const { 
-    isAuthenticated, 
-    isLoading, 
-    user,
-    logout
-  } = useAuth0()
-  const navigate = useNavigate()
-
-  function checkAuth() {
-    if (!isLoading && !isAuthenticated) {
-      navigate('/auth/login')
-      return
-    }
-    if (!isLoading && !user?.email_verified) {
-      navigate('/auth/login')
-    }
-  }
-  useEffect(()=>{
-    checkAuth()
-  },[isLoading, isAuthenticated, navigate])
-
-
-  if (isLoading || !isAuthenticated) return null
-
-
   return (
     <div className="min-h-screen bg-black">
       <RisqHeader />

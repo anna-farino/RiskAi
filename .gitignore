@@ -17,7 +17,4 @@ backend_security_report.md
 .cache/
 attached_assets/
 test/
-auth0-dev.json
-auth0-staging.json
-auth0-dev-settings/*
 

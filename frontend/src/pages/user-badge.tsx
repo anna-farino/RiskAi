@@ -24,7 +24,7 @@ type Props = {
 }
 export default function UserBadgeAndDropDown({ userData }: Props) {
   const [ open, setOpen ] = useState(false)
-  const { handleLogout: logout } = useLogout()
+  const { logout } = useLogout()
 
   function handleLogout() {
     setOpen(false)
@@ -76,10 +76,7 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
 
         <DropdownMenuSeparator />
           <DropdownMenuItem 
-            onClick={() => {
-              console.log("click")
-              handleLogout
-            }}
+            onClick={handleLogout}
           >
             <div
               className={cn(

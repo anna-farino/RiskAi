@@ -9,7 +9,6 @@ import html2canvas from 'html2canvas';
 import { serverUrl } from "@/utils/server-url";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { csfrHeaderObject } from "@/utils/csrf-header";
-import { useFetch } from "@/hooks/use-fetch";
 import type { Report } from "@shared/db/schema/reports";
 import type { CapsuleArticle } from "@shared/db/schema/news-capsule";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +30,6 @@ interface ReportWithArticles extends Report {
 }
 
 export default function Reports() {
-  const fetchWithTokens = useFetch();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedReport, setSelectedReport] = useState<ReportWithArticles | null>(null);
@@ -74,8 +72,12 @@ export default function Reports() {
   const { data: reports = [], isLoading: reportsLoading } = useQuery<ReportWithArticles[]>({
     queryKey: ["/api/news-capsule/reports"],
     queryFn: async () => {
-      const response = await fetchWithTokens(`/api/news-capsule/reports`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports`, {
         method: "GET",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
       if (!response.ok) throw new Error('Failed to fetch reports');
       return response.json();
@@ -103,8 +105,12 @@ export default function Reports() {
   // Delete report mutation
   const deleteReportMutation = useMutation({
     mutationFn: async (reportId: string) => {
-      const response = await fetchWithTokens(`/api/news-capsule/reports/${reportId}`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
       if (!response.ok) throw new Error('Failed to delete report');
       return response.json();
@@ -141,8 +147,8 @@ export default function Reports() {
   // Load executive notes for the selected report
   const loadExecutiveNotes = async (reportId: string) => {
     try {
-      const response = await fetchWithTokens(`/api/news-capsule/executive-notes/${reportId}`, {
-        method: 'GET'
+      const response = await fetch(serverUrl + `/api/news-capsule/executive-notes/${reportId}`, {
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
@@ -166,9 +172,10 @@ export default function Reports() {
     if (!selectedReport) return;
 
     try {
-      const response = await fetchWithTokens('/api/news-capsule/executive-notes', {
+      const response = await fetch(serverUrl + '/api/news-capsule/executive-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           articleId,
           reportId: selectedReport.id,
@@ -207,8 +214,12 @@ export default function Reports() {
   // Remove article from report mutation
   const removeArticleFromReportMutation = useMutation({
     mutationFn: async ({ reportId, articleId }: { reportId: string; articleId: string }) => {
-      const response = await fetchWithTokens(`/api/news-capsule/reports/${reportId}/articles/${articleId}`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports/${reportId}/articles/${articleId}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
       if (!response.ok) throw new Error('Failed to remove article from report');
       return response.json();

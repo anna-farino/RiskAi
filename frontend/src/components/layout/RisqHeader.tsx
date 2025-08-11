@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 export function RisqHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
-  const { handleLogout: logout } = useLogout();
+  const { logout } = useLogout();
   const { data: userData } = useAuth();
   
   // Add window resize listener
