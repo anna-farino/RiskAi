@@ -234,7 +234,6 @@ export class DatabaseStorage implements IStorage {
         ...updated,
         term: decrypt(updated.term)
       };
-
     } else {
       throw new Error("User id not found")
     }
