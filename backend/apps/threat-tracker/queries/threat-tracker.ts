@@ -389,6 +389,7 @@ export const storage: IStorage = {
         };
       }
       return undefined;
+
     } catch (error) {
       console.error("Error fetching threat keyword:", error);
       throw error;
