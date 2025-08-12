@@ -213,6 +213,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateKeyword(id: string, keyword: Partial<Keyword>, userId?: string): Promise<Keyword> {
     if (userId) {
+
       // Encrypt the term if it's being updated
       const updateData = { ...keyword };
       if (updateData.term) {
