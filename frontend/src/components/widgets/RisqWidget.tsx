@@ -53,22 +53,26 @@ export function RisqWidget({
       whileHover={variant === 'interactive' ? { scale: 1.02 } : undefined}
     >
       {/* Header */}
-      <div className="mb-4">
-        {icon && (
-          <div className="mb-4 text-[#00FFFF]">
-            {icon}
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          {icon && (
+            <div className="text-[#00FFFF] flex-shrink-0">
+              {icon}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xl font-bold mb-1 leading-tight">{title}</h3>
+            {description && (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {description}
+              </p>
+            )}
           </div>
-        )}
-        <h3 className="text-xl font-bold mb-2">{title}</h3>
-        {description && (
-          <p className="text-sm text-muted-foreground mb-4">
-            {description}
-          </p>
-        )}
+        </div>
       </div>
       
       {/* Content */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-[280px] flex flex-col">
         {children}
       </div>
       

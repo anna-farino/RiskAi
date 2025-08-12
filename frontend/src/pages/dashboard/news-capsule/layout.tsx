@@ -5,7 +5,7 @@ import { NewsCapsuleProvider } from "@/context/NewsCapsuleContext";
 
 const buttons = [
   {
-    label: 'Home',
+    label: 'Capsule',
     url: '/dashboard/news-capsule/home'
   },
   {
@@ -50,11 +50,10 @@ export default function NewsCapsuleLayout() {
                 to={button.url}
                 key={button.label}
                 className={cn(
-                  "whitespace-nowrap transition-colors",
-                  "hover:underline", 
+                  "whitespace-nowrap transition-colors duration-200",
                   selected 
-                    ? "text-primary font-medium" 
-                    : "text-foreground/80 hover:text-foreground"
+                    ? "text-[#00FFFF] font-medium px-2 py-1" 
+                    : "text-foreground/80 hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 px-2 py-1 rounded-md"
                 )} 
               >
                 {button.label}

@@ -25,7 +25,6 @@ app.use(setNonce)
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-app.get('/test', (_,res)=>res.json({ message: "ok"}))
 app.use('/api', router);
 
 if (isDevelopment) {

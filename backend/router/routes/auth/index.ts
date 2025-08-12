@@ -9,14 +9,9 @@ import { doubleCsrfProtection } from "backend/middleware/csrf";
 import { noSimpleRequests } from "backend/middleware/no-simple-requests";
 import { handleNewPassword } from "backend/handlers/new-password";
 import { handleForgotPswOtp } from "backend/handlers/generate-otp-psw";
-import { auth0middleware } from "backend/middleware/auth0middleware";
-import { auth0CheckJwt } from "backend/middleware/auth0";
-import { handleSendEmailVerification } from "backend/handlers/auth0/send-email-verification";
-import { handleTest } from "backend/handlers/test";
 
 
 export const authRouter = Router()
-
 
 authRouter.post('/signup', handleSignUp);
 authRouter.post('/login', handleLogin);
@@ -27,17 +22,12 @@ authRouter.post('/verify-otp-new-password', handleVerifyOtp({ otpPurpose: 'new-p
 authRouter.post('/store-new-password', handleNewPassword)
 authRouter.post('/logout', handleLogout);
 
-
-authRouter.post('/send-verify-email', handleSendEmailVerification)
-
 //protected route 
-authRouter.use(auth0CheckJwt)
 authRouter.get(
   '/check', 
-  auth0middleware,
-  //verifyToken, 
-  //doubleCsrfProtection, 
-  noSimpleRequests, 
+    verifyToken, 
+    //doubleCsrfProtection, 
+    noSimpleRequests, 
   handleAuthCheck
 );
 

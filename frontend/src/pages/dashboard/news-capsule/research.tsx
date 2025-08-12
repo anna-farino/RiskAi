@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useFetch } from "@/hooks/use-fetch";
 import type { CapsuleArticle } from "@shared/db/schema/news-capsule";
 import type { Report } from "@shared/db/schema/reports";
 import {
@@ -82,7 +81,6 @@ const getSourceAppIndicator = (article: CapsuleArticle) => {
 
 
 export default function Research() {
-  const fetchWithTokens = useFetch();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [url, setUrl] = useState("");
@@ -144,8 +142,12 @@ export default function Research() {
   const { data: processedArticles = [], isLoading: articlesLoading, refetch: refetchArticles } = useQuery<CapsuleArticle[]>({
     queryKey: ["/api/news-capsule/articles"],
     queryFn: async () => {
-      const response = await fetchWithTokens(`/api/news-capsule/articles`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles`, {
         method: "GET",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
       if (!response.ok) throw new Error('Failed to fetch articles');
       return response.json();
@@ -156,8 +158,12 @@ export default function Research() {
   const { data: allReports = [] } = useQuery<ReportWithArticles[]>({
     queryKey: ["/api/news-capsule/reports"],
     queryFn: async () => {
-      const response = await fetchWithTokens(`/api/news-capsule/reports`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/reports`, {
         method: "GET",
+        credentials: "include",
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
       if (!response.ok) throw new Error('Failed to fetch reports');
       return response.json();
@@ -167,10 +173,12 @@ export default function Research() {
   // Create report mutation
   const createReportMutation = useMutation({
     mutationFn: async ({ articleIds, topic }: { articleIds: string[]; topic?: string }) => {
-      const response = await fetchWithTokens(`/api/news-capsule/add-to-report`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/add-to-report`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...csfrHeaderObject(),
         },
         body: JSON.stringify({ 
           articleIds,
@@ -201,10 +209,12 @@ export default function Research() {
   // Add to existing report mutation
   const addToExistingReportMutation = useMutation({
     mutationFn: async ({ articleIds, reportId, topic }: { articleIds: string[]; reportId: string; topic?: string }) => {
-      const response = await fetchWithTokens(`/api/news-capsule/add-to-report`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/add-to-report`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...csfrHeaderObject(),
         },
         body: JSON.stringify({ 
           articleIds,
@@ -323,10 +333,12 @@ export default function Research() {
         // Update loading state with current progress (could show progress toast here if needed)
         
         try {
-          const response = await fetchWithTokens("/api/news-capsule/process-url", {
+          const response = await fetch(serverUrl + "/api/news-capsule/process-url", {
             method: "POST",
+            credentials: 'include',
             headers: {
               "Content-Type": "application/json",
+              ...csfrHeaderObject(),
             },
             body: JSON.stringify({ url: singleUrl }),
           });
@@ -446,8 +458,12 @@ export default function Research() {
   // Delete article mutation
   const deleteArticleMutation = useMutation({
     mutationFn: async (articleId: string) => {
-      const response = await fetchWithTokens(`/api/news-capsule/articles/${articleId}`, {
+      const response = await fetch(`${serverUrl}/api/news-capsule/articles/${articleId}`, {
         method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject(),
+        },
       });
       if (!response.ok) throw new Error('Failed to delete article');
       return response.json();

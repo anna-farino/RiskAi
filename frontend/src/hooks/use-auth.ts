@@ -1,19 +1,25 @@
+import { csfrHeaderObject } from "@/utils/csrf-header";
+import { serverUrl } from "@/utils/server-url";
 import { useQuery } from "@tanstack/react-query";
 import { User } from "@shared/db/schema/user"
 import { useNavigate } from "react-router";
-import { useFetch } from "@/hooks/use-fetch";
 
 export type Role = 'admin' | 'user'
 export type UserWithPerm = User & { permissions: string[] } & { role: Role }
 
 export function useAuth() {
+
   const navigate = useNavigate();
-  const fetchWithTokens = useFetch()
 
   return useQuery<UserWithPerm>({
     queryKey: ['auth-user'],
     queryFn: async () => {
-      const response = await fetchWithTokens('/api/auth/check');
+      const response = await fetch(serverUrl + '/api/auth/check', {
+        credentials: 'include',
+        headers: {
+          ...csfrHeaderObject()
+        }
+      });
 
       if (!response.ok) {
         navigate("/auth/login")

@@ -7,7 +7,7 @@
     "esModuleInterop": true,
     "baseUrl": ".",             
     "paths": {
-      "@backend/*": ["./*"],
+      "@backend/*": ["../backend/*"],
       "@shared/*": ["../shared/*"],
       "backend/*": ["./*"]
     },

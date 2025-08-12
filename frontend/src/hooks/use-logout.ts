@@ -1,20 +1,32 @@
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth0 } from "@auth0/auth0-react";
+import { serverUrl } from "@/utils/server-url";
 
 
 export function useLogout() {
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const { logout } = useAuth0()
 
-  const callbackUrl = (import.meta as any).env.VITE_AUTH0_CALLBACK_URL
-
-  async function handleLogout() {
+  const logout = async () => {
     try {
-      await logout({
-        logoutParams: {
-          returnTo: callbackUrl,
-        }
-      })
+      console.log("Logging out...")
+      const response = await fetch(serverUrl + '/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      const data = await response.json()
+      console.log(data)
+      if (data.noToken) navigate('/auth/login')
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+      navigate('/auth/login');
+
       toast({
         title: "Success",
         description: "Logged out successfully",
@@ -26,7 +38,7 @@ export function useLogout() {
         variant: "destructive",
       });
     }
-  }
+  };
 
-  return { handleLogout };
+  return { logout };
 }

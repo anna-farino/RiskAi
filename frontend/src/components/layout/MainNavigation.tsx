@@ -58,7 +58,7 @@ const NavItem = ({ href, icon, children, active, isChild = false }: NavItemProps
         ? isChild
           ? "bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/5 text-white shadow-inner" 
           : "bg-gradient-to-r from-[#BF00FF]/30 to-[#00FFFF]/10 text-white shadow-inner"
-        : "text-white hover:text-white hover:bg-gradient-to-r hover:from-[#BF00FF]/20 hover:to-[#00FFFF]/5"
+        : "text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-[#BF00FF]/15 hover:to-[#00FFFF]/10 transition-all duration-200"
     )}
   >
     {isChild && (
@@ -79,7 +79,7 @@ const NavGroup = ({ title, children, defaultOpen = false }: NavGroupProps) => {
       <CollapsibleTrigger asChild>
         <Button 
           variant="ghost" 
-          className="flex w-full items-center justify-between py-1 px-2 text-sm text-gray-400 hover:text-white"
+          className="flex w-full items-center justify-between py-1 px-2 text-sm text-gray-400 hover:text-[#BF00FF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 transition-all duration-200 rounded-md"
         >
           <span className="font-medium">{title}</span>
           {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
