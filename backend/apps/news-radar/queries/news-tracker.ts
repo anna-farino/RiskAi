@@ -18,6 +18,7 @@ import { db, pool } from "backend/db/db";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
 import { Request } from "express";
 import { userInfo } from "os";
+import { encrypt, decrypt } from "backend/utils/encryption";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -139,12 +140,18 @@ export class DatabaseStorage implements IStorage {
     console.log("Getting keywords, userId", userId)
     if (userId) {
       console.log("User id found!")
-      return await withUserContext(
+      const encryptedKeywords = await withUserContext(
         userId,
         async (db) => db.select()
           .from(keywords)
           .where(eq(keywords.userId, userId))
       );
+      console.log(encryptedKeywords) 
+      // Decrypt the term field for each keyword
+      return encryptedKeywords.map(keyword => ({
+        ...keyword,
+        term: decrypt(keyword.term)
+      }));
     } else {
       throw new Error("User id not found")
     }
@@ -160,7 +167,15 @@ export class DatabaseStorage implements IStorage {
           .where(eq(keywords.id, id))
           .limit(1)
       );
-      return data.length > 0 ? data[0] : undefined;
+      
+      if (data.length > 0) {
+        const keyword = data[0];
+        return {
+          ...keyword,
+          term: decrypt(keyword.term)
+        };
+      }
+      return undefined;
     } else {
       throw new Error("User id not found")
     }
@@ -169,15 +184,28 @@ export class DatabaseStorage implements IStorage {
 
   async createKeyword(keyword: InsertKeyword, userId?: string): Promise<Keyword> {
     console.log("Values for new keyword:", keyword)
-    if (userId) {
+    if (userId || keyword.userId) {
+      const encryptedTerm = encrypt(keyword.term) 
+      const encryptedKeyword = {
+        ...keyword,
+        term: encryptedTerm
+      };
+
+      console.log("Encrypted term", encryptedTerm)
+      
       const [created] = await withUserContext(
-        userId,
+        userId || keyword.userId,
         async (db) => db
           .insert(keywords)
-          .values(keyword as Required<InsertKeyword>)
+          .values(encryptedKeyword as Required<InsertKeyword>)
           .returning()
       );
-      return created;
+      
+      // Return with decrypted term for consistency with API
+      return {
+        ...created,
+        term: decrypt(created.term)
+      };
     } else {
       throw new Error("User id not found")
     }
@@ -185,15 +213,28 @@ export class DatabaseStorage implements IStorage {
 
   async updateKeyword(id: string, keyword: Partial<Keyword>, userId?: string): Promise<Keyword> {
     if (userId) {
+
+      // Encrypt the term if it's being updated
+      const updateData = { ...keyword };
+      if (updateData.term) {
+        updateData.term = encrypt(updateData.term);
+      }
+      
       const [updated] = await withUserContext(
         userId,
         async (db) => db
           .update(keywords)
-          .set(keyword)
+          .set(updateData)
           .where(eq(keywords.id, id))
           .returning()
       );
-      return updated;
+      
+      // Return with decrypted term for consistency with API
+      return {
+        ...updated,
+        term: decrypt(updated.term)
+      };
+
     } else {
       throw new Error("User id not found")
     }

@@ -16,6 +16,7 @@ import {
 } from "@shared/db/schema/threat-tracker/index";
 import { db, pool } from "backend/db/db";
 import { eq, and, isNull, sql, SQL, desc, inArray } from "drizzle-orm";
+import { encrypt, decrypt } from "backend/utils/encryption";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(
@@ -347,8 +348,18 @@ export const storage: IStorage = {
         );
       }
 
+      const decryptedDefaultKeywords = defaultKeywords.map(keyword => ({
+        ...keyword,
+        term: keyword.term
+      }));
+
+      const decryptedUserKeywords = userKeywords.map(keyword => ({
+        ...keyword,
+        term: decrypt(keyword.term)
+      }));
+
       // Combine default and user keywords
-      return [...defaultKeywords, ...userKeywords];
+      return [...decryptedDefaultKeywords, ...decryptedUserKeywords];
     } catch (error) {
       console.error("Error fetching threat keywords:", error);
       return [];
@@ -369,7 +380,16 @@ export const storage: IStorage = {
           .where(eq(threatKeywords.id, id))
           .limit(1)
       );
-      return results.length > 0 ? results[0] : undefined;
+      
+      if (results.length > 0) {
+        const keyword = results[0];
+        return {
+          ...keyword,
+          term: decrypt(keyword.term)
+        };
+      }
+      return undefined;
+
     } catch (error) {
       console.error("Error fetching threat keyword:", error);
       throw error;
@@ -407,8 +427,19 @@ export const storage: IStorage = {
           .execute();
       }
 
+      // Decrypt terms for both default and user keywords
+      const decryptedDefaultKeywords = defaultKeywords.map(keyword => ({
+        ...keyword,
+        term: decrypt(keyword.term)
+      }));
+
+      const decryptedUserKeywords = userKeywords.map(keyword => ({
+        ...keyword,
+        term: decrypt(keyword.term)
+      }));
+
       // Combine default and user keywords
-      return [...defaultKeywords, ...userKeywords];
+      return [...decryptedDefaultKeywords, ...decryptedUserKeywords];
     } catch (error) {
       console.error("Error fetching threat keywords by category:", error);
       return [];
@@ -417,7 +448,7 @@ export const storage: IStorage = {
 
   createKeyword: async (keyword: InsertThreatKeyword, userId?: string) => {
     try {
-      if (!userId) {
+      if (!userId && !keyword.userId) {
         throw new Error("User ID is required for createKeyword");
       }
       
@@ -439,19 +470,24 @@ export const storage: IStorage = {
           category: "threat" | "vendor" | "client" | "hardware";
       } = {
         ...keyword,
-        term: keyword.term!,
+        term: encrypt(keyword.term!), // Encrypt the term before saving
         category: keyword.category!,
-        isDefault: false,
+        isDefault: keyword.isDefault || false,
       };
 
       const [result] = await withUserContext(
-        userId,
+        userId || keyword.userId,
         async (db) => db
           .insert(threatKeywords)
-          .values(keyword)
+          .values(keywordToCreate)
           .returning()
       );
-      return result;
+      
+      // Return with decrypted term for API consistency
+      return {
+        ...result,
+        term: decrypt(result.term)
+      };
     } catch (error) {
       console.error("Error creating threat keyword:", error);
       throw error;
@@ -485,6 +521,11 @@ export const storage: IStorage = {
       // Prevent changing isDefault flag through this endpoint
       const updateData = { ...keyword };
       delete (updateData as any).isDefault;
+      
+      // Encrypt the term if it's being updated
+      if (updateData.term) {
+        updateData.term = encrypt(updateData.term);
+      }
 
       const [result] = await withUserContext(
         userId,
@@ -494,7 +535,12 @@ export const storage: IStorage = {
           .where(eq(threatKeywords.id, id))
           .returning()
       );
-      return result;
+      
+      // Return with decrypted term for API consistency
+      return {
+        ...result,
+        term: decrypt(result.term)
+      };
     } catch (error) {
       console.error("Error updating threat keyword:", error);
       throw error;
