@@ -1,18 +1,9 @@
-name: Build and deploy Node.js backend to Azure Container Apps - backend-22
+name: Backend – Build & Deploy (ACA)
 
 on:
   push:
-    branches:
-      - staging
+    branches: [staging, main]
   workflow_dispatch:
-
-env:
-  REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
-  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
-  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
-  CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
-  CONTAINER_APP_ENVIRONMENT: ${{ secrets.CONTAINER_APP_ENVIRONMENT }}
-
 
 jobs:
   deploy:
@@ -20,34 +11,38 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'staging' && 'staging' || 'development' }}
+    concurrency:
+      group: backend-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
+      IMAGE_NAME:            ${{ vars.IMAGE_NAME }}
+      RESOURCE_GROUP:        ${{ vars.RESOURCE_GROUP }}
+      CONTAINER_APP_NAME:    ${{ vars.CONTAINER_APP_NAME }}
+
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      
-      - name: Login to Azure
-        uses: azure/login@v2
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F12CA1AA54C34611AB5747A144391442 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5CE6D9C7FE75412196AF4BC5C2400D29 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C7534E6AE3D046C886A5D3666F6C259B }}
-      
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Build Docker image
-        run: |
-          docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-          docker build -t ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest .
-      
+        run: docker build -t "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}" .
+
       - name: Push Docker image
         run: |
-          docker login ${{ env.REGISTRY_NAME }}.azurecr.io --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
-          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-      
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login "$REGISTRY_LOGIN_SERVER" -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+          docker push "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
+
       - name: Deploy to Azure Container Apps
         run: |
           az containerapp update \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}" \
             --min-replicas 1 \
             --max-replicas 10
