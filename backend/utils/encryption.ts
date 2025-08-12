@@ -1,6 +1,9 @@
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 
-const NEW_KEY = Buffer.from(process.env.NEW_ENCRYPTION_KEY!, 'hex');
+const NEW_KEY = process.env.NEW_ENCRYPTION_KEY 
+  ? Buffer.from(process.env.NEW_ENCRYPTION_KEY, 'hex')
+  : null;
+
 const OLD_KEY = process.env.OLD_ENCRYPTION_KEY
   ? Buffer.from(process.env.OLD_ENCRYPTION_KEY, 'hex')
   : null;
