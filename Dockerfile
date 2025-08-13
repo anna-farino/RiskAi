@@ -58,6 +58,7 @@ RUN cd backend && npm install --legacy-peer-deps
 COPY backend/ ./backend/
 COPY shared/ ./shared/
 COPY drizzle.config.ts ./
+COPY drizzle.config.ts ./backend/
 
 # Set working directory to backend for build
 WORKDIR /app/backend
@@ -81,4 +82,4 @@ USER nodeuser
 EXPOSE 3000
 
 # Run DB migrations and start the app  
-CMD ["sh", "-c", "cd /app/backend && npx drizzle-kit migrate --config ../drizzle.config.ts && node dist/index.js"]
+CMD ["sh", "-c", "cd /app/backend && npx drizzle-kit migrate && node dist/index.js"]
