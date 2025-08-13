@@ -81,4 +81,4 @@ USER nodeuser
 EXPOSE 3000
 
 # Run DB migrations and start the app  
-CMD ["sh", "-c", "cd /app/backend && node dist/index.js"]
+CMD ["sh", "-c", "cd /app/backend && npx drizzle-kit migrate --config ../drizzle.config.ts && node dist/index.js"]
