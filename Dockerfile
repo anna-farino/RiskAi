@@ -60,6 +60,11 @@ COPY shared/ ./shared/
 COPY drizzle.config.ts ./
 COPY drizzle.config.ts ./backend/
 
+# Verify critical migration files exist - fail build if missing
+RUN test -f /app/backend/db/migrations/meta/_journal.json || (echo "ERROR: _journal.json not found at /app/backend/db/migrations/meta/" && ls -la /app/backend/db/migrations/ && exit 1)
+RUN test -f /app/backend/drizzle.config.ts || (echo "ERROR: drizzle.config.ts not found at /app/backend/" && ls -la /app/backend/ && exit 1)
+RUN echo "✓ Migration files verified successfully"
+
 # Set working directory to backend for build
 WORKDIR /app/backend
 
