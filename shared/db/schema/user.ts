@@ -3,6 +3,12 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 import { capsuleArticles } from "./news-capsule";
 
+export const auth0Ids = pgTable("auth0_ids", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  auth0Id: text("auth0_id").notNull().unique()
+})
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
