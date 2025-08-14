@@ -60,7 +60,7 @@ export default function Settings() {
   const sendOtpMutation = useMutation({
     mutationFn: async () => {
       if (!userData.data?.email) throw new Error()
-      const response = await fetch(`${serverUrl}/api/auth/new-password-otp`, {
+      const response = await fetchWithAuth(`${serverUrl}/api/auth/new-password-otp`, {
         method: 'POST',
         credentials: 'include',
         headers: {
