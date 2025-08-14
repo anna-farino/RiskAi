@@ -37,7 +37,7 @@ export default function SampleDataPopulator() {
 
   const fetchWithAuth = useFetch()
   const makeRequest = async (endpoint: string, options: any = {}) => {
-    const response = await fetchWithAuth(`${serverUrl}/api${endpoint}`, {
+    const response = await fetchWithAuth(`/api${endpoint}`, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
