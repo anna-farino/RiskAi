@@ -24,7 +24,7 @@ export async function handleSendEmailVerification(req: Request, res: Response) {
 
   } catch(error) {
     console.error("❌ [Send Email Verification] An error ocurred while trying to send a verification email:", error)
-    res.status(500).send()
+    return res.status(500).send()
   }
   res.status(200).json({ message: "Email sent correctly"})
 }
