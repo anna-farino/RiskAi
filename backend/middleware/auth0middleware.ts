@@ -8,8 +8,8 @@ type CustomRequest = Request &  { log: (...args: any[]) => void }
 
 export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
   //const payload = req.auth
-  const email = req.auth?.payload['user/email'] as string
-  const email_verified = req.auth?.payload['user/email_verified']
+  const email = req.auth?.payload['email'] as string
+  const email_verified = req.auth?.payload['email_verified']
   const sub = req.auth?.payload.sub
 
   //req.log("payload", payload)
