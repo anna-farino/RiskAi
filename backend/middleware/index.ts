@@ -14,7 +14,6 @@ dotenv.config()
 export const SECRET = process.env.JWT_SECRET || 'secret';
 const baseURL = process.env.BASE_URL;
 
-// console.log("base url", baseURL)
 
 export type FullRequest = express.Request & { 
   user: User 
