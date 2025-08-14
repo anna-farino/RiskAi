@@ -95,7 +95,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
             .insert(auth0Ids)
             .values({
               auth0Id: sub,
-              userId: userToReturn.id
+              userId: user.id
             })
             .onConflictDoNothing()
         })
