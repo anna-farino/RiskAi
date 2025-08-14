@@ -20,6 +20,7 @@ export function encrypt(text: string): string {
 }
 
 export function decrypt(blobB64: string | null): string | null {
+  return blobB64
   if (!blobB64) {
     console.error("Blob64 not found")
     return null;
