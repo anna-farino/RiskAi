@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { serverUrl } from "@/utils/server-url";
 import { csfrHeader } from "@/utils/csrf-header";
 import { AlertTriangle, Database, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { useFetch } from "@/hooks/use-fetch";
 
 const HAS_BEEN_POPULATED_KEY = 'sampleDataPopulated';
 
@@ -34,8 +35,9 @@ export default function SampleDataPopulator() {
     }]);
   };
 
+  const fetchWithAuth = useFetch()
   const makeRequest = async (endpoint: string, options: any = {}) => {
-    const response = await fetch(`${serverUrl}/api${endpoint}`, {
+    const response = await fetchWithAuth(`${serverUrl}/api${endpoint}`, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
