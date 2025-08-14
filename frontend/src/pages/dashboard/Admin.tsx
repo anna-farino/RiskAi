@@ -1,7 +1,6 @@
 import UserRoleRow from "@/components/user-role-row"
 import { useAuth } from "@/hooks/use-auth"
-import { csfrHeaderObject } from "@/utils/csrf-header"
-import { serverUrl } from "@/utils/server-url"
+import { useFetch } from "@/hooks/use-fetch"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -13,6 +12,7 @@ export default function Admin() {
   const user = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const fetchWithAuth = useFetch()
 
 
   useEffect(()=>{
@@ -37,13 +37,7 @@ export default function Admin() {
         return []
       };
       try {
-        const response = await fetch(`${serverUrl}/api/users/roles`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...csfrHeaderObject()
-          },
-        });
+        const response = await fetchWithAuth('/api/users/roles');
         if (!response.ok) throw new Error('Failed to fetch permissions');
         return response.json();
       } catch(error) {
@@ -63,13 +57,7 @@ export default function Admin() {
         return []
       };
       try {
-        const response = await fetch(`${serverUrl}/api/roles`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...csfrHeaderObject()
-          }
-        })
+        const response = await fetchWithAuth('/api/roles')
         if (!response.ok) throw new Error('Failed to fetch roles')
         return response.json()
       } catch(error) {
@@ -85,12 +73,10 @@ export default function Admin() {
         console.error("Admins cannot change their own role")
         return userRolesQuery.data;
       }
-      return fetch(`${serverUrl}/api/users/${item.userId}/roles/${item.userRole}`, {
+      return fetchWithAuth(`/api/users/${item.userId}/roles/${item.userRole}`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
-          'Accept': 'application/json',
-          ...csfrHeaderObject()
+          'Accept': 'application/json'
         }
       })
     },

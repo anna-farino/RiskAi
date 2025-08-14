@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { csfrHeader } from "@/utils/csrf-header";
+import { useFetch } from "@/hooks/use-fetch"; 
 import { serverUrl } from "@/utils/server-url";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -18,6 +19,7 @@ export default function Settings() {
   const [ resetOpen, setResetOpen ] = useState(false)
   const [ error, setError ] = useState(false)
   const userData = useAuth()
+  const fetchWithAuth = useFetch();
   
   // News Intelligence Preferences state
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -36,12 +38,10 @@ export default function Settings() {
   const twoFAmutation = useMutation({
     mutationFn: (newTwoFAvalue: boolean) => {
       //throw new Error("test") //Error for testing. To be removed soon
-      return fetch(serverUrl + `/api/users/${userData.data?.id}/2fa`, {
+      return fetchWithAuth(`/api/users/${userData.data?.id}/2fa`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          [csfrHeader().name]: csfrHeader().token 
         },
         body: JSON.stringify({
           twoFactorEnabled: newTwoFAvalue 

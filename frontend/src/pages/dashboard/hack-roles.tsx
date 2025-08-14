@@ -1,22 +1,19 @@
 import { useAuth } from "@/hooks/use-auth"
-import { csfrHeaderObject } from "@/utils/csrf-header"
-import { serverUrl } from "@/utils/server-url"
+import { useFetch } from "@/hooks/use-fetch"
 import { useQuery } from "@tanstack/react-query"
 
 
 export default function HackRoles() {
   const userData = useAuth()
+  const fetchWithAuth = useFetch()
 
   const hackRoles = useQuery({
     queryKey: ['hack-roles'],
     enabled: !!userData.data?.id,
     queryFn: async () => {
       const id = userData.data?.id
-      const response = await fetch(serverUrl + `/api/hack-roles/${id}`, {
-        credentials: "include",
-        headers: {
-          ...csfrHeaderObject()
-        }
+      const response = await fetchWithAuth(`/api/hack-roles/${id}`, {
+        method: "GET"
       })
       if (!response.ok) throw new Error("Ooops! An error occurred!")
       return await response.json()

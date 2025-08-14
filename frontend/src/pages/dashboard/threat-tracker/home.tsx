@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
-import { csfrHeaderObject } from "@/utils/csrf-header";
+import { useFetch } from "@/hooks/use-fetch";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
@@ -41,12 +41,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
 
 export default function ThreatHome() {
   const { toast } = useToast();
+  const fetchWithAuth = useFetch();
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -77,19 +77,12 @@ export default function ThreatHome() {
 
   // Check scrape job status for scan all sources functionality
   const checkScrapeStatus = useQuery<{ running: boolean }>({
-    queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+    queryKey: ["/api/threat-tracker/scrape/status"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/status`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/scrape/status", {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
-        );
+          });
         if (!response.ok) {
           console.warn(
             "Scrape status API returned non-ok response:",
@@ -113,19 +106,12 @@ export default function ThreatHome() {
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+    queryKey: ["/api/threat-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/keywords`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/keywords", {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
-        );
+          });
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
         return data || [];
@@ -167,7 +153,7 @@ export default function ThreatHome() {
   // Articles query with filtering
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
-      `${serverUrl}/api/threat-tracker/articles`,
+      "/api/threat-tracker/articles",
       searchTerm,
       selectedKeywordIds,
       dateRange,
@@ -175,16 +161,12 @@ export default function ThreatHome() {
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `${serverUrl}/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
 
         console.log("Fetching articles with URL:", url);
 
-        const response = await fetch(url, {
+        const response = await fetchWithAuth(url, {
           method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
         });
 
         if (!response.ok) throw new Error("Failed to fetch articles");
@@ -270,10 +252,9 @@ export default function ThreatHome() {
   // Delete article mutation
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(
-        "DELETE",
-        `${serverUrl}/api/threat-tracker/articles/${id}`,
-      );
+      return fetchWithAuth(`/api/threat-tracker/articles/${id}`, {
+        method: "DELETE",
+      });
     },
     onMutate: (id) => {
       // Optimistic update - remove article from local state
@@ -294,7 +275,7 @@ export default function ThreatHome() {
       });
       // Invalidate queries to refetch data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+        queryKey: ["/api/threat-tracker/articles"],
       });
     },
     onError: (error, id) => {
@@ -307,7 +288,7 @@ export default function ThreatHome() {
       });
       // Revert optimistic update
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+        queryKey: ["/api/threat-tracker/articles"],
       });
       // Remove from pending operations
       setPendingItems((prev) => {
@@ -321,7 +302,9 @@ export default function ThreatHome() {
   // Delete all articles mutation
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
-      return apiRequest("DELETE", `${serverUrl}/api/threat-tracker/articles`);
+      return fetchWithAuth('/api/threat-tracker/articles', {
+        method: "DELETE",
+      });
     },
     onMutate: () => {
       // Optimistic update - clear local articles
@@ -334,7 +317,7 @@ export default function ThreatHome() {
       });
       // Invalidate queries to refetch data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+        queryKey: ["/api/threat-tracker/articles"],
       });
     },
     onError: (error) => {
@@ -347,7 +330,7 @@ export default function ThreatHome() {
       });
       // Revert optimistic update
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+        queryKey: ["/api/threat-tracker/articles"],
       });
     },
   });
@@ -356,9 +339,11 @@ export default function ThreatHome() {
   const markArticleForCapsule = useMutation({
     mutationFn: async ({ id, marked }: { id: string; marked: boolean }) => {
       const endpoint = marked
-        ? `${serverUrl}/api/threat-tracker/articles/${id}/mark-for-capsule`
-        : `${serverUrl}/api/threat-tracker/articles/${id}/unmark-for-capsule`;
-      return apiRequest("POST", endpoint);
+        ? `/api/threat-tracker/articles/${id}/mark-for-capsule`
+        : `/api/threat-tracker/articles/${id}/unmark-for-capsule`;
+      return fetchWithAuth(endpoint, {
+        method: "POST",
+      });
     },
     onMutate: ({ id, marked }) => {
       // Add to pending operations
@@ -387,7 +372,7 @@ export default function ThreatHome() {
       });
       // Invalidate queries to refetch data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+        queryKey: ["/api/threat-tracker/articles"],
       });
     },
     onError: (error, { id }) => {
@@ -400,7 +385,7 @@ export default function ThreatHome() {
       });
       // Revert optimistic update
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/articles`],
+        queryKey: ["/api/threat-tracker/articles"],
       });
       // Remove from pending operations
       setPendingItems((prev) => {
@@ -414,18 +399,13 @@ export default function ThreatHome() {
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
-      const response = await fetch(
-        `${serverUrl}/api/news-capsule/process-url`,
-        {
+      const response = await fetchWithAuth('/api/news-capsule/process-url', {
           method: "POST",
-          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject(),
           },
           body: JSON.stringify({ url }),
-        },
-      );
+        });
 
       if (!response.ok) {
         throw new Error(`Failed to send to capsule: ${response.statusText}`);
@@ -449,7 +429,9 @@ export default function ThreatHome() {
   // Scrape all sources mutation
   const scrapeAllSources = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+      return fetchWithAuth('/api/threat-tracker/scrape/all', {
+        method: "POST",
+      });
     },
     onSuccess: () => {
       toast({
@@ -459,7 +441,7 @@ export default function ThreatHome() {
       });
       // Start polling for status updates
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+        queryKey: ["/api/threat-tracker/scrape/status"],
       });
     },
     onError: (error) => {
@@ -482,18 +464,13 @@ export default function ThreatHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/stop`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/scrape/stop", {
             method: "POST",
             headers: {
-              ...csfrHeaderObject(),
               "Content-Type": "application/json",
             },
-            credentials: "include",
             signal: controller.signal,
-          },
-        );
+          });
 
         clearTimeout(timeoutId);
 
@@ -530,7 +507,7 @@ export default function ThreatHome() {
         description: "The scan has been stopped successfully.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+        queryKey: ["/api/threat-tracker/scrape/status"],
       });
     },
     onError: (error) => {
