@@ -93,4 +93,4 @@ USER nodeuser
 EXPOSE 3000
 
 # Run DB migrations and start the app  
-CMD ["sh", "-c", "cd /app && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate && cd /app/backend && node dist/index.js"]
+CMD ["sh", "-c", "cd /app/backend && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
