@@ -185,6 +185,13 @@
       "breakpoints": true
     },
     {
+      "idx": 26,
+      "version": "7",
+      "when": 1753900180208,
+      "tag": "0026_yummy_chat",
+      "breakpoints": true
+    },
+    {
       "idx": 27,
       "version": "7",
       "when": 1754405799085,
