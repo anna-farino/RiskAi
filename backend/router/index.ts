@@ -24,6 +24,11 @@ const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 
 // HELLO WORLD route
+router.use((req: Request, _: Response, next: NextFunction)=>{
+  console.log("Server hit")
+  console.log("req.headers.authorization", req.headers.authorization)
+  next()
+})
 router.get('/test', limiter, handleTest)
 //router.get('/test-articles', testArticles)
 
@@ -35,11 +40,6 @@ router.get('/test-datadome-bypass', testDatadomeBypass)
 // AUTH
 router.use('/auth', limiter, authRouter)
 
-router.use((req: Request, _: Response, next: NextFunction)=>{
-  console.log("Server hit")
-  console.log("req.headers.authorization", req.headers.authorization)
-  next()
-})
 
 // ================================================
 // PROTECTIONS ====================================
