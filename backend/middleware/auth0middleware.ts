@@ -6,25 +6,24 @@ import { FullRequest } from '.';
 
 type CustomRequest = Request &  { log: (...args: any[]) => void }
 
-export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
-  const payload = req.auth
+export async function auth0middleware(req: Request, res: Response, next: NextFunction) {
+  const customReq = req as CustomRequest
+  const payload = customReq.auth
   const email = req.auth?.payload['user/email'] as string || req.auth?.payload['email'] as string
   const email_verified = req.auth?.payload['user/email_verified'] || req.auth?.payload['email_verified']
   const sub = req.auth?.payload.sub
 
-  req.log("payload", payload)
+  //customReq.log("payload", payload)
   //req.log("email: ", email)
   //req.log("sub: ", sub)
 
-  console.log("auth0middleware")
-
   if (!sub) {
-    req.log("❌ [AUTH0-MIDDLEWARE] User id not provided")
+    customReq.log("❌ [AUTH0-MIDDLEWARE] User id not provided")
     res.status(404).end();
     return;
   }
   if (!email_verified) {
-    req.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
+    customReq.log("❌ [AUTH0-MIDDLEWARE] User not authorized. Email, email_verified", email, email_verified)
     res.status(401).end();
     return;
   }
@@ -104,7 +103,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
 
         userToReturn = user
       } catch(error) {
-        req.log("❌[AUTH0-MIDDLEWARE] An error occurred while creating the new user", error)
+        customReq.log("❌[AUTH0-MIDDLEWARE] An error occurred while creating the new user", error)
         res.status(500).send()
         return
       }
@@ -119,7 +118,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
         })
         .onConflictDoNothing()
     } 
-    req.log("👤[AUTH0-MIDDLEWARE] New user created", userToReturn)
+    customReq.log("👤[AUTH0-MIDDLEWARE] New user created", userToReturn)
   }
 
   (req as unknown as FullRequest).user = userToReturn;
