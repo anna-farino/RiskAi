@@ -35,6 +35,7 @@
     "drizzle-orm": "^0.43.1",
     "drizzle-zod": "^0.7.1",
     "esbuild": "^0.25.2",
+    "express-oauth2-jwt-bearer": "^1.6.1",
     "framer-motion": "^12.11.3",
     "ghost-cursor": "^1.4.1",
     "jsdom": "^26.1.0",
