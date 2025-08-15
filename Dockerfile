@@ -58,6 +58,18 @@ RUN cd backend && npm install --legacy-peer-deps
 COPY backend/ ./backend/
 COPY shared/ ./shared/
 COPY drizzle.config.ts ./
+COPY drizzle.config.ts ./backend/
+
+# Verify critical migration files exist - fail build if missing
+# Build timestamp: 2025-08-13 20:15 UTC - Add extensive debugging
+RUN echo "=== DEBUGGING: Checking file structure ===" && \
+    ls -la /app/backend/db/migrations/ || echo "migrations dir not found" && \
+    ls -la /app/backend/db/migrations/meta/ || echo "meta dir not found" && \
+    find /app -name "_journal.json" -type f || echo "No _journal.json found anywhere" && \
+    find /app -name "drizzle.config.ts" -type f || echo "No drizzle.config.ts found anywhere"
+RUN test -f /app/backend/db/migrations/meta/_journal.json || (echo "ERROR: _journal.json not found at /app/backend/db/migrations/meta/" && exit 1)
+RUN test -f /app/backend/drizzle.config.ts || (echo "ERROR: drizzle.config.ts not found at /app/backend/" && exit 1)
+RUN echo "✓ Migration files verified successfully - Build 2025-08-13-20:15"
 
 # Set working directory to backend for build
 WORKDIR /app/backend
@@ -81,4 +93,4 @@ USER nodeuser
 EXPOSE 3000
 
 # Run DB migrations and start the app  
-CMD ["sh", "-c", "cd /app/backend && node dist/index.js"]
+CMD ["sh", "-c", "cd /app/backend && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]

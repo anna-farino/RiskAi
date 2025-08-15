@@ -1,5 +1,4 @@
-import { csfrHeader, csfrHeaderObject } from "@/utils/csrf-header";
-import { serverUrl } from "@/utils/server-url";
+import { useFetch } from "@/hooks/use-fetch";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -10,15 +9,12 @@ type Props = {
 export default function ProtectedRoutesWrapper({ children }: Props) {
   const [ isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
+  const fetchWithAuth = useFetch();
+  
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch(serverUrl + '/api/auth/check', {
-          credentials: 'include',
-          headers: {
-            ...csfrHeaderObject()
-          }
-        });
+        const response = await fetchWithAuth('/api/auth/check');
         if (!response.ok) {
           throw new Error('Authentication failed');
         }
@@ -30,7 +26,7 @@ export default function ProtectedRoutesWrapper({ children }: Props) {
       }
     }
     checkAuth();
-  }, [])
+  }, [fetchWithAuth, navigate])
 
   if (!isAuthenticated) {
     return <LoadingScreen />;

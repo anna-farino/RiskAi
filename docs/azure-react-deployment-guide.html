@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Azure React App Deployment Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+        h2 { color: #1d4ed8; margin-top: 30px; }
+        h3 { color: #1e40af; }
+        .success { background: #dcfce7; border-left: 4px solid #16a34a; padding: 10px; margin: 15px 0; }
+        .error { background: #fef2f2; border-left: 4px solid #dc2626; padding: 10px; margin: 15px 0; }
+        .warning { background: #fef3c7; border-left: 4px solid #d97706; padding: 10px; margin: 15px 0; }
+        .info { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px; margin: 15px 0; }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .inline-code {
+            background: #f1f5f9;
+            color: #334155;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+        .step {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .checklist {
+            background: #f0f9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .checklist ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .checklist li {
+            margin: 8px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        .status-ready { color: #16a34a; font-weight: 600; }
+        .status-needs-setup { color: #d97706; font-weight: 600; }
+        .status-optional { color: #6b7280; }
+    </style>
+</head>
+<body>
+    <h1>Azure React App Deployment Guide</h1>
+    <p><strong>Deploy your React frontend to Azure Static Web Apps</strong></p>
+    
+    <div class="success">
+        <strong>✅ Good News:</strong> Your GitHub Actions workflow is already configured! You just need to set up the secrets and verify the Azure resources.
+    </div>
+
+    <h2>Current Setup Status</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Status</th>
+                <th>Action Required</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>GitHub Actions Workflow</td>
+                <td class="status-ready">✅ Ready</td>
+                <td>None - already configured</td>
+            </tr>
+            <tr>
+                <td>React App Build Config</td>
+                <td class="status-ready">✅ Ready</td>
+                <td>None - Vite configured</td>
+            </tr>
+            <tr>
+                <td>Azure Static Web Apps Resource</td>
+                <td class="status-needs-setup">⚠️ Verify</td>
+                <td>Check if exists or create new</td>
+            </tr>
+            <tr>
+                <td>GitHub Secrets</td>
+                <td class="status-needs-setup">⚠️ Setup</td>
+                <td>Add environment variables</td>
+            </tr>
+            <tr>
+                <td>Backend Integration</td>
+                <td class="status-ready">✅ Ready</td>
+                <td>Already deployed to ACA</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Step-by-Step Deployment Guide</h2>
+
+    <div class="step">
+        <h3>Step 1: Check Azure Static Web Apps Resource</h3>
+        <p>First, let's verify if you already have a Static Web Apps resource or need to create one.</p>
+        
+        <div class="code-block"># List existing Static Web Apps
+az staticwebapp list --query "[].{Name:name, ResourceGroup:resourceGroup, Location:location}" -o table</div>
+
+        <div class="info">
+            <strong>Expected Result:</strong> If you see a Static Web App named something like "kind-pebble-02817100f", you're all set! If not, you'll need to create one in the next step.
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 2A: If Static Web App Exists - Get API Token</h3>
+        <p>If you found an existing Static Web App, get its API token:</p>
+        
+        <div class="code-block"># Get API token for existing Static Web App
+az staticwebapp secrets list --name YOUR_STATIC_APP_NAME --query "properties.apiKey" -o tsv</div>
+
+        <p>Save this token - you'll need it for GitHub secrets.</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 2B: If No Static Web App Exists - Create New One</h3>
+        <p>Create a new Azure Static Web Apps resource:</p>
+        
+        <div class="code-block"># Create new Static Web App
+az staticwebapp create \
+    --name "risqai-frontend-staging" \
+    --resource-group "group-risqai-staging" \
+    --source "https://github.com/YOUR_USERNAME/YOUR_REPO_NAME" \
+    --location "eastus" \
+    --branch "staging" \
+    --app-location "frontend" \
+    --output-location "dist"</div>
+
+        <div class="code-block"># Get the API token from the new resource
+az staticwebapp secrets list --name "risqai-frontend-staging" --query "properties.apiKey" -o tsv</div>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Configure GitHub Repository Secrets</h3>
+        <p>Add the required secrets to your GitHub repository:</p>
+
+        <div class="checklist">
+            <strong>Required Secrets (Settings → Secrets and variables → Actions):</strong>
+            <ul>
+                <li><strong>AZURE_STATIC_WEB_APPS_API_TOKEN_KIND_PEBBLE_02817100F</strong> - The API token from Step 2</li>
+                <li><strong>VITE_SERVER_URL_DEV</strong> - Your backend URL (e.g., https://app-risqai-backend.lemonbay-f060baa5.eastus.azurecontainerapps.io)</li>
+                <li><strong>VITE_AUTH0_DOMAIN</strong> - Your Auth0 domain</li>
+                <li><strong>VITE_AUTH0_CLIENT_ID</strong> - Your Auth0 client ID</li>
+                <li><strong>VITE_AUTH0_CALLBACK_URL</strong> - Your Auth0 callback URL</li>
+                <li><strong>VITE_AUTH0_AUDIENCE</strong> - Your Auth0 API audience</li>
+            </ul>
+        </div>
+
+        <div class="code-block"># Example values for your secrets:
+
+AZURE_STATIC_WEB_APPS_API_TOKEN_KIND_PEBBLE_02817100F
+# The API token you got from Step 2
+
+VITE_SERVER_URL_DEV
+# https://app-risqai-backend.lemonbay-f060baa5.eastus.azurecontainerapps.io
+
+VITE_AUTH0_DOMAIN
+# https://preview-risqai.us.auth0.com
+
+VITE_AUTH0_CLIENT_ID
+# 5ihqDjSECBO6uAbke1ctsbJYZPCSjaji
+
+VITE_AUTH0_CALLBACK_URL
+# https://YOUR_STATIC_WEB_APP_URL.azurestaticapps.net/callback
+
+VITE_AUTH0_AUDIENCE
+# https://app-risqai-backend--0000001.lemonbay-f060baa5.eastus.azurecontainerapps.io/</div>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Get Your Static Web App URL</h3>
+        <p>Get the URL of your Static Web App to update Auth0 settings:</p>
+        
+        <div class="code-block"># Get your Static Web App URL
+az staticwebapp show --name "YOUR_STATIC_APP_NAME" --query "defaultHostname" -o tsv</div>
+
+        <p>This will give you a URL like: <code class="inline-code">kind-pebble-02817100f.azurestaticapps.net</code></p>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Update Auth0 Configuration</h3>
+        <p>Update your Auth0 application settings with the new Static Web App URLs:</p>
+
+        <div class="checklist">
+            <strong>In Auth0 Dashboard → Applications → Your App:</strong>
+            <ul>
+                <li><strong>Allowed Callback URLs:</strong> Add <code>https://YOUR_STATIC_APP_URL/callback</code></li>
+                <li><strong>Allowed Logout URLs:</strong> Add <code>https://YOUR_STATIC_APP_URL</code></li>
+                <li><strong>Allowed Web Origins:</strong> Add <code>https://YOUR_STATIC_APP_URL</code></li>
+                <li><strong>Allowed Origins (CORS):</strong> Add <code>https://YOUR_STATIC_APP_URL</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 6: Update GitHub Secrets with Correct URLs</h3>
+        <p>Now update your GitHub secrets with the actual Static Web App URL:</p>
+
+        <div class="code-block"># Update this secret with your actual Static Web App URL
+VITE_AUTH0_CALLBACK_URL
+# https://YOUR_STATIC_APP_URL.azurestaticapps.net/callback</div>
+    </div>
+
+    <div class="step">
+        <h3>Step 7: Test the Deployment</h3>
+        <p>Push changes to the <code class="inline-code">staging</code> branch to trigger deployment:</p>
+
+        <div class="code-block"># Make a small change and push to staging
+git checkout staging
+git add .
+git commit -m "Deploy React app to Azure Static Web Apps"
+git push origin staging</div>
+
+        <p>This will trigger the GitHub Actions workflow automatically!</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 8: Monitor Deployment</h3>
+        <p>Watch the deployment progress:</p>
+
+        <div class="checklist">
+            <strong>Monitoring Options:</strong>
+            <ul>
+                <li><strong>GitHub Actions:</strong> Go to your repo → Actions tab → Watch the "Azure Static Web Apps CI/CD" workflow</li>
+                <li><strong>Azure Portal:</strong> Go to your Static Web App → Deployment Center → View deployment logs</li>
+                <li><strong>Azure CLI:</strong> Use the command below to check deployment status</li>
+            </ul>
+        </div>
+
+        <div class="code-block"># Check deployment status
+az staticwebapp show --name "YOUR_STATIC_APP_NAME" --query "repositoryUrl,branch,buildProperties" -o table</div>
+    </div>
+
+    <h2>Your Current GitHub Actions Workflow</h2>
+    
+    <div class="info">
+        <strong>Your workflow is already configured!</strong> Here's what it does:
+    </div>
+
+    <div class="code-block"># .github/workflows/azure-static-web-apps-kind-pebble-02817100f.yml
+name: Azure Static Web Apps CI/CD
+on:
+  push:
+    branches: [staging]  # ← Triggers on staging branch
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [staging]
+
+jobs:
+  build_and_deploy_job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build And Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          app_location: "./frontend"     # ← Your React app location
+          output_location: "dist"        # ← Vite build output
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_KIND_PEBBLE_02817100F }}
+        env:
+          VITE_SERVER_URL_DEV: ${{ secrets.VITE_SERVER_URL_DEV }}
+          VITE_AUTH0_DOMAIN: ${{ secrets.VITE_AUTH0_DOMAIN }}
+          VITE_AUTH0_CLIENT_ID: ${{ secrets.VITE_AUTH0_CLIENT_ID }}
+          VITE_AUTH0_CALLBACK_URL: ${{ secrets.VITE_AUTH0_CALLBACK_URL }}
+          VITE_AUTH0_AUDIENCE: ${{ secrets.VITE_AUTH0_AUDIENCE }}</div>
+
+    <h2>Environment Variables Configuration</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Environment Variable</th>
+                <th>Description</th>
+                <th>Example Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>VITE_SERVER_URL_DEV</code></td>
+                <td>Backend API URL</td>
+                <td><code>https://app-risqai-backend.lemonbay-f060baa5.eastus.azurecontainerapps.io</code></td>
+            </tr>
+            <tr>
+                <td><code>VITE_AUTH0_DOMAIN</code></td>
+                <td>Auth0 domain</td>
+                <td><code>https://preview-risqai.us.auth0.com</code></td>
+            </tr>
+            <tr>
+                <td><code>VITE_AUTH0_CLIENT_ID</code></td>
+                <td>Auth0 client application ID</td>
+                <td><code>5ihqDjSECBO6uAbke1ctsbJYZPCSjaji</code></td>
+            </tr>
+            <tr>
+                <td><code>VITE_AUTH0_CALLBACK_URL</code></td>
+                <td>Post-login redirect URL</td>
+                <td><code>https://YOUR_APP.azurestaticapps.net/callback</code></td>
+            </tr>
+            <tr>
+                <td><code>VITE_AUTH0_AUDIENCE</code></td>
+                <td>Auth0 API audience</td>
+                <td><code>https://app-risqai-backend--0000001.lemonbay-f060baa5.eastus.azurecontainerapps.io/</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Troubleshooting</h2>
+
+    <div class="step">
+        <h3>Common Issues & Solutions</h3>
+
+        <h4>1. Build Fails - Missing Environment Variables</h4>
+        <div class="error">
+            <strong>Error:</strong> Vite build fails because environment variables are undefined
+        </div>
+        <div class="code-block"># Solution: Check that all VITE_* secrets are set in GitHub
+# Go to: Repository Settings → Secrets and variables → Actions</div>
+
+        <h4>2. App Loads but Can't Connect to Backend</h4>
+        <div class="error">
+            <strong>Error:</strong> CORS errors or API calls fail
+        </div>
+        <div class="code-block"># Solution: Verify VITE_SERVER_URL_DEV points to your Container App
+# Check that your backend allows requests from the Static Web App URL</div>
+
+        <h4>3. Auth0 Login Fails</h4>
+        <div class="error">
+            <strong>Error:</strong> "Callback URL not allowed" or similar Auth0 errors
+        </div>
+        <div class="code-block"># Solution: Update Auth0 application settings with your Static Web App URL
+# Add to Allowed Callback URLs, Allowed Web Origins, etc.</div>
+
+        <h4>4. Deployment Succeeds but Site Shows 404</h4>
+        <div class="error">
+            <strong>Error:</strong> Static Web App deployment succeeds but site doesn't load
+        </div>
+        <div class="code-block"># Solution: Check the app_location and output_location in the workflow
+# Should be: app_location: "./frontend", output_location: "dist"</div>
+    </div>
+
+    <h2>Useful Azure CLI Commands</h2>
+
+    <div class="code-block"># List all Static Web Apps
+az staticwebapp list -o table
+
+# Get Static Web App details
+az staticwebapp show --name "YOUR_APP_NAME"
+
+# Get deployment token
+az staticwebapp secrets list --name "YOUR_APP_NAME"
+
+# Check deployment environments
+az staticwebapp environment list --name "YOUR_APP_NAME"
+
+# View build logs (if available)
+az staticwebapp environment show --name "YOUR_APP_NAME" --environment-name "default"
+
+# Delete Static Web App (if needed)
+az staticwebapp delete --name "YOUR_APP_NAME"</div>
+
+    <h2>Final Checklist</h2>
+
+    <div class="checklist">
+        <strong>Before going live, verify:</strong>
+        <ul>
+            <li>✅ Azure Static Web Apps resource exists</li>
+            <li>✅ All GitHub secrets are configured</li>
+            <li>✅ Auth0 application has correct URLs</li>
+            <li>✅ Backend allows CORS from frontend URL</li>
+            <li>✅ GitHub Actions workflow runs successfully</li>
+            <li>✅ Static Web App URL loads your React app</li>
+            <li>✅ Login/authentication works</li>
+            <li>✅ API calls to backend succeed</li>
+        </ul>
+    </div>
+
+    <div class="success">
+        <strong>🎉 Success!</strong> Once all steps are complete, your React app will be live on Azure Static Web Apps and automatically deploy when you push to the staging branch!
+    </div>
+
+    <h2>Next Steps After Deployment</h2>
+
+    <div class="step">
+        <h3>Optional Enhancements</h3>
+        <ul>
+            <li><strong>Custom Domain:</strong> Add your own domain name to the Static Web App</li>
+            <li><strong>Production Branch:</strong> Set up a separate production deployment from the <code class="inline-code">main</code> branch</li>
+            <li><strong>Staging Slots:</strong> Use deployment slots for preview deployments</li>
+            <li><strong>Monitoring:</strong> Set up Application Insights for frontend monitoring</li>
+            <li><strong>CDN:</strong> Configure Azure CDN for better global performance</li>
+        </ul>
+    </div>
+
+    <p><em>Documentation created: August 13, 2025</em></p>
+</body>
+</html>

@@ -1,22 +1,26 @@
 import { useNavigate } from "react-router-dom"
-import { useAuth } from "./hooks/use-auth"
 import { useEffect } from "react"
+import { useAuth0 } from "@auth0/auth0-react";
 
 export default function Redirect() {
-  const { data, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth0();
   const navigate = useNavigate();
+
+  console.log("Redirect component. User:", user)
+  console.log("isAuthenticated", isAuthenticated)
+  console.log("isLoading", isLoading)
 
   useEffect(() => {
     if (isLoading) return;
 
-    if (data) {
+    if (isAuthenticated && user?.email_verified) {
       console.log("Redirect: authenticated");
       navigate("/dashboard");
     } else {
       console.log("Redirect: NOT authenticated");
       navigate("/auth/login");
     }
-  }, [data, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   return null;
 }

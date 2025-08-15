@@ -73,8 +73,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { serverUrl } from "@/utils/server-url";
-import { csfrHeaderObject } from "@/utils/csrf-header";
+import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +118,7 @@ type EditSourceFormValues = z.infer<typeof editSourceSchema>;
 export default function Sources() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fetchWithAuth = useFetch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
@@ -147,14 +147,9 @@ export default function Sources() {
     queryKey: ["/api/news-tracker/jobs/status"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/status`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/jobs/status", {
             method: "GET",
-            credentials: "include",
-            headers: csfrHeaderObject(),
-          },
-        );
+          });
         if (!response.ok) {
           // Don't throw for non-ok responses, just return default state
           console.warn(
@@ -200,12 +195,8 @@ export default function Sources() {
     queryKey: ["/api/news-tracker/sources"],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/sources`, {
+        const response = await fetchWithAuth('/api/news-tracker/sources', {
           method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
         });
         if (!response.ok) throw new Error("Failed to fetch sources");
 
@@ -224,16 +215,9 @@ export default function Sources() {
     queryKey: ["/api/news-tracker/settings/auto-scrape"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/settings/auto-scrape`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/settings/auto-scrape", {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
-        );
+          });
         if (!response.ok)
           throw new Error("Failed to fetch auto-update settings");
 
@@ -270,14 +254,12 @@ export default function Sources() {
   const addSource = useMutation({
     mutationFn: async (data: { url: string; name: string }) => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/sources`, {
+        const response = await fetchWithAuth('/api/news-tracker/sources', {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject(),
           },
           body: JSON.stringify(data),
-          credentials: "include",
         });
 
         if (!response.ok) {
@@ -364,14 +346,9 @@ export default function Sources() {
   const scrapeSource = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/sources/${id}/scrape`,
-          {
+        const response = await fetchWithAuth(`/api/news-tracker/sources/${id}/scrape`, {
             method: "POST",
-            headers: csfrHeaderObject(),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(`Failed to update source: ${response.statusText}`);
@@ -449,14 +426,9 @@ export default function Sources() {
   const stopScraping = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/sources/${id}/stop`,
-          {
+        const response = await fetchWithAuth(`/api/news-tracker/sources/${id}/stop`, {
             method: "POST",
-            headers: csfrHeaderObject(),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(`Failed to stop updating: ${response.statusText}`);
@@ -534,18 +506,13 @@ export default function Sources() {
   const toggleAutoScrape = useMutation({
     mutationFn: async ({ id, include }: { id: string; include: boolean }) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/sources/${id}/auto-scrape`,
-          {
+        const response = await fetchWithAuth(`/api/news-tracker/sources/${id}/auto-scrape`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              ...csfrHeaderObject(),
             },
             body: JSON.stringify({ includeInAutoScrape: include }),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(
@@ -621,18 +588,13 @@ export default function Sources() {
       data: EditSourceFormValues;
     }) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/sources/${id}`,
-          {
+        const response = await fetchWithAuth(`/api/news-tracker/sources/${id}`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              ...csfrHeaderObject(),
             },
             body: JSON.stringify(data),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(`Failed to update source: ${response.statusText}`);
@@ -699,14 +661,9 @@ export default function Sources() {
   const deleteSource = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/sources/${id}`,
-          {
+        const response = await fetchWithAuth(`/api/news-tracker/sources/${id}`, {
             method: "DELETE",
-            headers: csfrHeaderObject(),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(`Failed to delete source: ${response.statusText}`);
@@ -772,18 +729,13 @@ export default function Sources() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/stop`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/jobs/stop", {
             method: "POST",
             headers: {
-              ...csfrHeaderObject(),
               "Content-Type": "application/json",
             },
-            credentials: "include",
             signal: controller.signal,
-          },
-        );
+          });
 
         clearTimeout(timeoutId);
 
@@ -856,15 +808,10 @@ export default function Sources() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
 
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/scrape`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/jobs/scrape", {
             method: "POST",
-            headers: csfrHeaderObject(),
-            credentials: "include",
             signal: controller.signal,
-          },
-        );
+          });
 
         clearTimeout(timeoutId);
 
@@ -949,18 +896,13 @@ export default function Sources() {
       interval: JobInterval;
     }) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/settings/auto-scrape`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/settings/auto-scrape", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...csfrHeaderObject(),
             },
             body: JSON.stringify({ enabled, interval }),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(
@@ -1068,14 +1010,12 @@ export default function Sources() {
   const bulkAddSources = useMutation({
     mutationFn: async ({ urls, options }: { urls: string; options?: { concurrency?: number; timeout?: number } }) => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/sources/bulk-add`, {
+        const response = await fetchWithAuth('/api/news-tracker/sources/bulk-add', {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject(),
           },
           body: JSON.stringify({ urls, options }),
-          credentials: "include",
         });
 
         if (!response.ok) {
@@ -1132,14 +1072,12 @@ export default function Sources() {
   const bulkDeleteSources = useMutation({
     mutationFn: async (sourceIds: string[]) => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/sources/bulk-delete`, {
+        const response = await fetchWithAuth('/api/news-tracker/sources/bulk-delete', {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject(),
           },
           body: JSON.stringify({ sourceIds }),
-          credentials: "include",
         });
 
         if (!response.ok) {

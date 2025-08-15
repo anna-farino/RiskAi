@@ -1,8 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { csfrHeaderObject } from "@/utils/csrf-header";
-import { apiRequest } from "@/lib/query-client";
-import { serverUrl } from "@/utils/server-url";
+import { useFetch } from "@/hooks/use-fetch";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -129,6 +127,7 @@ type SourceFormValues = z.infer<typeof sourceFormSchema>;
 
 export default function Sources() {
   const { toast } = useToast();
+  const fetchWithAuth = useFetch();
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<ThreatSource | null>(null);
   const [localSources, setLocalSources] = useState<ThreatSource[]>([]);
@@ -168,19 +167,12 @@ export default function Sources() {
 
   // Fetch sources
   const sources = useQuery<ThreatSource[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+    queryKey: ["/api/threat-tracker/sources"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/sources`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/sources", {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
-        );
+          });
         if (!response.ok) throw new Error("Failed to fetch sources");
 
         const data = await response.json();
@@ -201,19 +193,12 @@ export default function Sources() {
 
   // Get auto-scrape settings
   const autoScrapeSettings = useQuery<AutoScrapeSettings>({
-    queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+    queryKey: ["/api/threat-tracker/settings/auto-scrape"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/settings/auto-scrape", {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
-        );
+          });
         if (!response.ok)
           throw new Error("Failed to fetch auto-update settings");
 
@@ -244,19 +229,12 @@ export default function Sources() {
 
   // Check scrape job status
   const checkScrapeStatus = useQuery<{ running: boolean }>({
-    queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+    queryKey: ["/api/threat-tracker/scrape/status"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/status`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/scrape/status", {
             method: "GET",
-            credentials: "include",
-            headers: {
-              ...csfrHeaderObject(),
-            },
-          },
-        );
+          });
         if (!response.ok) {
           console.warn(
             "Scrape status API returned non-ok response:",
@@ -288,16 +266,19 @@ export default function Sources() {
   // Create source mutation
   const createSource = useMutation({
     mutationFn: async (values: SourceFormValues) => {
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/sources`,
-        values,
-      );
+      const response = await fetchWithAuth('/api/threat-tracker/sources', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+      return response.json();
     },
     onMutate: async (newSource) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
 
       // Create optimistic source with temporary ID
@@ -317,7 +298,7 @@ export default function Sources() {
 
       // Store previous state for rollback
       const previousSources = queryClient.getQueryData([
-        `${serverUrl}/api/threat-tracker/sources`,
+        "/api/threat-tracker/sources",
       ]);
       return { previousSources, optimisticSource };
     },
@@ -335,7 +316,7 @@ export default function Sources() {
       setSourceDialogOpen(false);
       form.reset();
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
     },
     onError: (error) => {
@@ -358,16 +339,19 @@ export default function Sources() {
       id: string;
       values: SourceFormValues;
     }) => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/sources/${id}`,
-        values,
-      );
+      const response = await fetchWithAuth(`/api/threat-tracker/sources/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+      return response.json();
     },
     onMutate: async ({ id, values }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
 
       // Snapshot previous value
@@ -402,7 +386,7 @@ export default function Sources() {
       }
 
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
     },
     onError: (error, _, context) => {
@@ -431,14 +415,16 @@ export default function Sources() {
       deleteArticles?: boolean;
     }) => {
       const url = deleteArticles
-        ? `${serverUrl}/api/threat-tracker/sources/${id}?deleteArticles=true`
-        : `${serverUrl}/api/threat-tracker/sources/${id}`;
-      return apiRequest("DELETE", url);
+        ? `/api/threat-tracker/sources/${id}?deleteArticles=true`
+        : `/api/threat-tracker/sources/${id}`;
+      return fetchWithAuth(url, {
+        method: "DELETE",
+      });
     },
     onMutate: async ({ id: deletedId }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
 
       // Remove from local state immediately
@@ -455,7 +441,7 @@ export default function Sources() {
         description: "Your source has been deleted successfully.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
     },
     onError: (error: any, _, context) => {
@@ -483,10 +469,10 @@ export default function Sources() {
   const scrapeSingleSource = useMutation({
     mutationFn: async (id: string) => {
       setScrapingSourceId(id);
-      return apiRequest(
-        "POST",
-        `${serverUrl}/api/threat-tracker/scrape/source/${id}`,
-      );
+      const response = await fetchWithAuth(`/api/threat-tracker/scrape/source/${id}`, {
+        method: "POST",
+      });
+      return response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -495,7 +481,7 @@ export default function Sources() {
       });
       setScrapingSourceId(null);
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
     },
     onError: (error) => {
@@ -525,7 +511,10 @@ export default function Sources() {
   // Scrape all sources mutation
   const scrapeAllSources = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `${serverUrl}/api/threat-tracker/scrape/all`);
+      const response = await fetchWithAuth('/api/threat-tracker/scrape/all', {
+        method: "POST",
+      });
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -536,7 +525,7 @@ export default function Sources() {
       setScrapeJobRunning(true);
       // Start polling for status updates
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+        queryKey: ["/api/threat-tracker/scrape/status"],
       });
     },
     onError: (error) => {
@@ -559,18 +548,13 @@ export default function Sources() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/scrape/stop`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/scrape/stop", {
             method: "POST",
             headers: {
-              ...csfrHeaderObject(),
               "Content-Type": "application/json",
             },
-            credentials: "include",
             signal: controller.signal,
-          },
-        );
+          });
 
         clearTimeout(timeoutId);
 
@@ -611,7 +595,7 @@ export default function Sources() {
       });
       setScrapeJobRunning(false);
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+        queryKey: ["/api/threat-tracker/scrape/status"],
       });
     },
     onError: (error) => {
@@ -626,7 +610,7 @@ export default function Sources() {
       });
       // Force status check after error
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+        queryKey: ["/api/threat-tracker/scrape/status"],
       });
     },
     onSettled: () => {
@@ -634,7 +618,7 @@ export default function Sources() {
       // Reset any pending states
       setTimeout(() => {
         queryClient.invalidateQueries({
-          queryKey: [`${serverUrl}/api/threat-tracker/scrape/status`],
+          queryKey: ["/api/threat-tracker/scrape/status"],
         });
       }, 1000);
     },
@@ -646,28 +630,31 @@ export default function Sources() {
       enabled,
       interval,
     }: AutoScrapeSettings): Promise<AutoScrapeSettings> => {
-      return apiRequest(
-        "PUT",
-        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
-        { enabled, interval },
-      );
+      const response = await fetchWithAuth('/api/threat-tracker/settings/auto-scrape', {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enabled, interval }),
+      });
+      return response.json();
     },
     onMutate: async ({ enabled, interval }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        queryKey: ["/api/threat-tracker/settings/auto-scrape"],
       });
 
       // Snapshot the previous values for potential rollback
       const previousSettings = queryClient.getQueryData<AutoScrapeSettings>([
-        `${serverUrl}/api/threat-tracker/settings/auto-scrape`,
+        "/api/threat-tracker/settings/auto-scrape",
       ]);
       const previousLocalEnabled = localAutoScrapeEnabled;
       const previousLocalInterval = localAutoScrapeInterval;
 
       // Optimistically update the cache with new settings
       queryClient.setQueryData<AutoScrapeSettings>(
-        [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        ["/api/threat-tracker/settings/auto-scrape"],
         { enabled, interval },
       );
 
@@ -685,7 +672,7 @@ export default function Sources() {
       // Rollback optimistic update on error
       if (context?.previousSettings) {
         queryClient.setQueryData<AutoScrapeSettings>(
-          [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+          ["/api/threat-tracker/settings/auto-scrape"],
           context.previousSettings,
         );
       }
@@ -709,7 +696,7 @@ export default function Sources() {
     onSuccess: (data, variables) => {
       // Update cache with actual server response
       queryClient.setQueryData<AutoScrapeSettings>(
-        [`${serverUrl}/api/threat-tracker/settings/auto-scrape`],
+        ["/api/threat-tracker/settings/auto-scrape"],
         data,
       );
 
@@ -738,18 +725,13 @@ export default function Sources() {
       options?: { concurrency?: number; timeout?: number };
     }) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/sources/bulk-add`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/sources/bulk-add", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...csfrHeaderObject(),
             },
             body: JSON.stringify({ urls, options }),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(`Failed to bulk add sources: ${response.statusText}`);
@@ -787,12 +769,12 @@ export default function Sources() {
 
       // Aggressive cache refresh to ensure UI updates
       await queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
 
       // Force refetch to guarantee UI refresh
       const updatedSources = await queryClient.refetchQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
 
       // Sync local state with fresh data from server
@@ -821,18 +803,13 @@ export default function Sources() {
   const bulkDeleteSources = useMutation({
     mutationFn: async (sourceIds: string[]) => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/threat-tracker/sources/bulk-delete`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/sources/bulk-delete", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...csfrHeaderObject(),
             },
             body: JSON.stringify({ sourceIds }),
-            credentials: "include",
-          },
-        );
+          });
 
         if (!response.ok) {
           throw new Error(
@@ -849,7 +826,7 @@ export default function Sources() {
     onMutate: async (sourceIds: string[]) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
 
       // Snapshot previous data
@@ -898,7 +875,7 @@ export default function Sources() {
 
       // Refresh sources data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/sources`],
+        queryKey: ["/api/threat-tracker/sources"],
       });
     },
   });

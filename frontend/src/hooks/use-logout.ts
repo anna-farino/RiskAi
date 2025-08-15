@@ -1,37 +1,27 @@
-import { useNavigate } from "react-router-dom";
+import { useAuth0 } from "@auth0/auth0-react";
 import { useToast } from "@/hooks/use-toast";
-import { serverUrl } from "@/utils/server-url";
-
 
 export function useLogout() {
-  const navigate = useNavigate();
+  const { logout: auth0Logout } = useAuth0();
   const { toast } = useToast();
 
   const logout = async () => {
     try {
       console.log("Logging out...")
-      const response = await fetch(serverUrl + '/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+      
+      // Use Auth0 logout which will clear Auth0 session and redirect
+      await auth0Logout({
+        logoutParams: {
+          returnTo: window.location.origin + '/auth/login'
+        }
       });
-
-      const data = await response.json()
-      console.log(data)
-      if (data.noToken) navigate('/auth/login')
-
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-      navigate('/auth/login');
 
       toast({
         title: "Success",
         description: "Logged out successfully",
       });
     } catch (error) {
+      console.error("Logout error:", error);
       toast({
         title: "Error",
         description: "Failed to logout",
