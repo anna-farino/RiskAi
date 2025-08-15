@@ -4,13 +4,11 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
-.env.local
-frontend/.env
-frontend/.env
-backend/.env
-backend/.env.local
-.env
-.env.local
+
+# Environment files - ignore all .env* files anywhere in the project
+**/.env*
+.env*
+
 .opencode
 .opencode/*
 backend_security_report.md

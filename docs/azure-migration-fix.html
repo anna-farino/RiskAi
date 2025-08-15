@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Azure Migration Fix - Drizzle Configuration Issue</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+        h2 { color: #1d4ed8; margin-top: 30px; }
+        h3 { color: #1e40af; }
+        .success { background: #dcfce7; border-left: 4px solid #16a34a; padding: 10px; margin: 15px 0; }
+        .error { background: #fef2f2; border-left: 4px solid #dc2626; padding: 10px; margin: 15px 0; }
+        .warning { background: #fef3c7; border-left: 4px solid #d97706; padding: 10px; margin: 15px 0; }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .inline-code {
+            background: #f1f5f9;
+            color: #334155;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+        .step {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        .timeline {
+            border-left: 3px solid #2563eb;
+            padding-left: 20px;
+            margin: 20px 0;
+        }
+        .timeline-item {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Azure Migration Fix Documentation</h1>
+    <p><strong>Issue Resolved:</strong> August 13, 2025 - Drizzle migrations failing in Azure Container Apps</p>
+    
+    <div class="success">
+        <strong>✅ Resolution Summary:</strong> Fixed missing <code class="inline-code">IS_AZURE=true</code> environment variable that caused incorrect migration file path resolution.
+    </div>
+
+    <h2>Problem Overview</h2>
+    <p>The Azure Container Apps deployment was failing during database migrations with the error:</p>
+    
+    <div class="error">
+        <strong>Error Message:</strong><br>
+        <code>Error: Can't find meta/_journal.json file</code><br>
+        <code>at readMigrationFiles (/app/backend/node_modules/src/migrator.ts:29:9)</code>
+    </div>
+
+    <h2>Root Cause Analysis</h2>
+    
+    <div class="step">
+        <h3>1. Path Resolution Issue</h3>
+        <p>The issue was in the <code class="inline-code">drizzle.config.ts</code> file's conditional path configuration:</p>
+        
+        <div class="code-block">// drizzle.config.ts
+const isAzure = process.env.IS_AZURE;
+
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: isAzure ? '../shared/db/schema/*' : './shared/db/schema/*',
+  out: isAzure ? './db/migrations' : './backend/db/migrations',  // ← This was the issue
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+  migrations: {
+    table: '__drizzle_migrations',
+    schema: 'drizzle',
+  },
+});</div>
+
+        <p><strong>What was happening:</strong></p>
+        <ul>
+            <li>Without <code class="inline-code">IS_AZURE=true</code>, the config used <code class="inline-code">./backend/db/migrations</code></li>
+            <li>Running from <code class="inline-code">/app/backend</code>, drizzle looked for migrations at <code class="inline-code">/app/backend/backend/db/migrations/meta/_journal.json</code> ❌</li>
+            <li>But the actual file was at <code class="inline-code">/app/backend/db/migrations/meta/_journal.json</code> ✅</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>2. Debugging Process</h3>
+        <p>We used Azure CLI and Docker debugging to identify the issue:</p>
+        
+        <div class="code-block"># Added runtime debugging to Dockerfile CMD
+CMD ["sh", "-c", "cd /app/backend && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate && node dist/index.js"]</div>
+
+        <p><strong>Key Discovery:</strong> The runtime logs showed the file existed at the correct location, but drizzle was looking in the wrong path.</p>
+    </div>
+
+    <h2>Solution Implementation</h2>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <h3>Step 1: Identified Missing Environment Variable</h3>
+            <p>Checked Azure Container App environment variables and found <code class="inline-code">IS_AZURE</code> was missing:</p>
+            <div class="code-block"># Check current environment variables
+az containerapp show --name app-risqai-backend --resource-group group-risqai-staging --query "properties.template.containers[0].env" -o table</div>
+        </div>
+
+        <div class="timeline-item">
+            <h3>Step 2: Added IS_AZURE Environment Variable</h3>
+            <p>Used Azure CLI to add the missing environment variable:</p>
+            <div class="code-block"># Add IS_AZURE=true to container app
+az containerapp update --name app-risqai-backend --resource-group group-risqai-staging --set-env-vars IS_AZURE=true</div>
+        </div>
+
+        <div class="timeline-item">
+            <h3>Step 3: Verified Fix</h3>
+            <p>Monitored logs to confirm migrations now work:</p>
+            <div class="code-block"># Check logs for migration success
+az containerapp logs show --name app-risqai-backend --resource-group group-risqai-staging --tail 20</div>
+            
+            <div class="success">
+                <strong>Success Message:</strong><br>
+                <code>[✓] migrations applied successfully!</code>
+            </div>
+        </div>
+    </div>
+
+    <h2>How Migrations Work Now</h2>
+
+    <div class="step">
+        <h3>Current Migration Flow</h3>
+        <ol>
+            <li><strong>Docker Build:</strong> Migrations are copied to <code class="inline-code">/app/backend/db/migrations/</code></li>
+            <li><strong>Environment Detection:</strong> <code class="inline-code">IS_AZURE=true</code> is set in Azure Container Apps</li>
+            <li><strong>Path Resolution:</strong> Drizzle config resolves to <code class="inline-code">./db/migrations</code> (correct path)</li>
+            <li><strong>Migration Execution:</strong> Drizzle finds files at <code class="inline-code">/app/backend/db/migrations/meta/_journal.json</code></li>
+            <li><strong>Success:</strong> Migrations apply successfully and server starts</li>
+        </ol>
+    </div>
+
+    <h2>Path Resolution Table</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Environment</th>
+                <th>IS_AZURE Value</th>
+                <th>Config Path</th>
+                <th>Working Directory</th>
+                <th>Resolved Path</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Local Development</td>
+                <td>undefined</td>
+                <td>./backend/db/migrations</td>
+                <td>/project-root</td>
+                <td>/project-root/backend/db/migrations</td>
+                <td>✅ Correct</td>
+            </tr>
+            <tr>
+                <td>Azure (Before Fix)</td>
+                <td>undefined</td>
+                <td>./backend/db/migrations</td>
+                <td>/app/backend</td>
+                <td>/app/backend/backend/db/migrations</td>
+                <td>❌ Wrong</td>
+            </tr>
+            <tr>
+                <td>Azure (After Fix)</td>
+                <td>true</td>
+                <td>./db/migrations</td>
+                <td>/app/backend</td>
+                <td>/app/backend/db/migrations</td>
+                <td>✅ Correct</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>File Structure in Docker Container</h2>
+    <div class="code-block">/app/
+├── backend/
+│   ├── db/
+│   │   └── migrations/
+│   │       ├── meta/
+│   │       │   ├── _journal.json          ← Target file
+│   │       │   ├── 0000_snapshot.json
+│   │       │   ├── 0001_snapshot.json
+│   │       │   └── ...
+│   │       ├── 0000_spicy_peter_quill.sql
+│   │       ├── 0001_mute_micromax.sql
+│   │       └── ...
+│   ├── drizzle.config.ts
+│   └── ...
+├── shared/
+│   └── db/
+│       └── schema/
+└── drizzle.config.ts</div>
+
+    <h2>Configuration Details</h2>
+
+    <div class="step">
+        <h3>Dockerfile Configuration</h3>
+        <p>The Dockerfile correctly copies all necessary files:</p>
+        <div class="code-block"># Copy app code
+COPY backend/ ./backend/
+COPY shared/ ./shared/
+COPY drizzle.config.ts ./
+COPY drizzle.config.ts ./backend/
+
+# Set working directory to backend for build
+WORKDIR /app/backend
+
+# Migration command runs from /app/backend
+CMD ["sh", "-c", "cd /app/backend && npx drizzle-kit migrate && node dist/index.js"]</div>
+    </div>
+
+    <div class="step">
+        <h3>Azure Container App Environment Variables</h3>
+        <p>Required environment variables for proper operation:</p>
+        <div class="code-block"># Core application variables
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+IS_AZURE=true  # ← Critical for path resolution
+
+# Application-specific variables
+JWT_SECRET=...
+ENCRYPTION_KEY=...
+OPENAI_API_KEY=...
+# ... other app variables</div>
+    </div>
+
+    <h2>Troubleshooting Guide</h2>
+
+    <div class="step">
+        <h3>If Migrations Fail Again</h3>
+        
+        <h4>1. Check Environment Variables</h4>
+        <div class="code-block"># Verify IS_AZURE is set
+az containerapp show --name app-risqai-backend --resource-group group-risqai-staging --query "properties.template.containers[0].env" -o table</div>
+
+        <h4>2. Check File Existence in Container</h4>
+        <div class="code-block"># Add temporary debugging to Dockerfile CMD
+CMD ["sh", "-c", "cd /app/backend && ls -la /app/backend/db/migrations/meta/ && npx drizzle-kit migrate && node dist/index.js"]</div>
+
+        <h4>3. Verify Migration Files</h4>
+        <div class="code-block"># Check _journal.json locally
+cat backend/db/migrations/meta/_journal.json
+
+# Ensure no merge conflicts or missing migrations</div>
+
+        <h4>4. Test Drizzle Config</h4>
+        <div class="code-block"># Test config locally
+cd backend
+IS_AZURE=true npx drizzle-kit migrate</div>
+    </div>
+
+    <h2>Prevention Measures</h2>
+
+    <div class="warning">
+        <strong>Important:</strong> Always ensure <code class="inline-code">IS_AZURE=true</code> is set in Azure Container App environment variables for future deployments.
+    </div>
+
+    <div class="step">
+        <h3>Deployment Checklist</h3>
+        <ul>
+            <li>✅ <code class="inline-code">IS_AZURE=true</code> environment variable is set</li>
+            <li>✅ Migration files exist in <code class="inline-code">backend/db/migrations/meta/</code></li>
+            <li>✅ <code class="inline-code">_journal.json</code> has no merge conflicts</li>
+            <li>✅ <code class="inline-code">DATABASE_URL</code> is correctly configured</li>
+            <li>✅ Docker build includes all migration files</li>
+        </ul>
+    </div>
+
+    <h2>Azure CLI Commands Reference</h2>
+    <div class="code-block"># Update container app with environment variable
+az containerapp update --name app-risqai-backend --resource-group group-risqai-staging --set-env-vars IS_AZURE=true
+
+# Check current image
+az containerapp show --name app-risqai-backend --resource-group group-risqai-staging --query "properties.template.containers[0].image" -o tsv
+
+# Monitor logs
+az containerapp logs show --name app-risqai-backend --resource-group group-risqai-staging --tail 20 --follow
+
+# Check environment variables
+az containerapp show --name app-risqai-backend --resource-group group-risqai-staging --query "properties.template.containers[0].env" -o table</div>
+
+    <h2>Related Files</h2>
+    <ul>
+        <li><code class="inline-code">drizzle.config.ts</code> - Migration configuration with conditional paths</li>
+        <li><code class="inline-code">Dockerfile</code> - Container build configuration</li>
+        <li><code class="inline-code">backend/db/migrations/meta/_journal.json</code> - Migration history</li>
+        <li><code class="inline-code">backend/db/migrations/meta/[xxx]_snapshot.json</code> - Migration snapshots</li>
+    </ul>
+
+    <p><em>Documentation created: August 13, 2025</em></p>
+</body>
+</html>

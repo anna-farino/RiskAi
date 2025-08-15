@@ -1,11 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { csfrHeaderObject } from "@/utils/csrf-header";
+import { useFetch } from "@/hooks/use-fetch";
 import { ArticleCard } from "@/components/ui/article-card";
 import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import type { Article, Keyword } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
+import { serverUrl } from "@/utils/server-url";
+import { csfrHeaderObject } from "@/utils/csrf-header";
 import {
   Loader2,
   Newspaper,
@@ -37,11 +39,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { serverUrl } from "@/utils/server-url";
 import { Link } from "react-router-dom";
 
 export default function NewsHome() {
   const { toast } = useToast();
+  const fetchWithAuth = useFetch();
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -70,14 +72,9 @@ export default function NewsHome() {
     queryKey: ["/api/news-tracker/jobs/status"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/status`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/jobs/status", {
             method: "GET",
-            credentials: "include",
-            headers: csfrHeaderObject(),
-          },
-        );
+          });
         if (!response.ok) {
           console.warn(
             "Job status API returned non-ok response:",
@@ -103,12 +100,8 @@ export default function NewsHome() {
     queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
+        const response = await fetchWithAuth("/api/news-tracker/keywords", {
           method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
         });
         if (!response.ok) throw new Error('Failed to fetch keywords');
         const data = await response.json();
@@ -154,7 +147,7 @@ export default function NewsHome() {
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `${serverUrl}/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
+        const url = `/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
         
         console.log("Fetching articles with URL:", url);
         console.log("Filter parameters:", {
@@ -163,12 +156,8 @@ export default function NewsHome() {
           ...dateRange
         });
         
-        const response = await fetch(url, {
+        const response = await fetchWithAuth(url, {
           method: "GET",
-          credentials: "include",
-          headers: {
-            ...csfrHeaderObject(),
-          },
         });
         
         if (!response.ok) throw new Error('Failed to fetch articles');
@@ -321,10 +310,8 @@ export default function NewsHome() {
     mutationFn: async (id: string) => {
       try {
         // Use fetch directly to handle empty responses properly
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles/${id}`, {
+        const response = await fetchWithAuth(`/api/news-tracker/articles/${id}`, {
           method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
         });
         
         if (!response.ok) {
@@ -398,10 +385,8 @@ export default function NewsHome() {
   const deleteAllArticles = useMutation({
     mutationFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/articles`, {
+        const response = await fetchWithAuth(`/api/news-tracker/articles`, {
           method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
         });
         
         if (!response.ok) {
@@ -470,15 +455,10 @@ export default function NewsHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
 
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/scrape`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/jobs/scrape", {
             method: "POST",
-            headers: csfrHeaderObject(),
-            credentials: "include",
             signal: controller.signal,
-          },
-        );
+          });
 
         clearTimeout(timeoutId);
 
@@ -529,18 +509,13 @@ export default function NewsHome() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(
-          `${serverUrl}/api/news-tracker/jobs/stop`,
-          {
+        const response = await fetchWithAuth("/api/news-tracker/jobs/stop", {
             method: "POST",
             headers: {
-              ...csfrHeaderObject(),
               "Content-Type": "application/json",
             },
-            credentials: "include",
             signal: controller.signal,
-          },
-        );
+          });
 
         clearTimeout(timeoutId);
 
@@ -614,12 +589,10 @@ export default function NewsHome() {
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
     try {
-      const response = await fetch(`${serverUrl}/api/news-capsule/process-url`, {
+      const response = await fetchWithAuth(`/api/news-capsule/process-url`, {
         method: "POST",
-        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
-          ...csfrHeaderObject(),
         },
         body: JSON.stringify({ url }),
       });

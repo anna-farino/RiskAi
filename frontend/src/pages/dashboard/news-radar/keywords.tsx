@@ -9,12 +9,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { serverUrl } from "@/utils/server-url";
-import { csfrHeaderObject } from "@/utils/csrf-header";
+import { useFetch } from "@/hooks/use-fetch";
 import { useState, useEffect } from "react";
 
 export default function Keywords() {
   const { toast } = useToast();
+  const fetchWithAuth = useFetch();
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   const [keywordsUpdating, setKeywordsUpdating] = useState(false);
   const [activeKeywordsUpdating, setActiveKeywordsUpdating] = useState(false);
@@ -31,12 +31,8 @@ export default function Keywords() {
     queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
+        const response = await fetchWithAuth('/api/news-tracker/keywords', {
           method: 'GET',
-          credentials: 'include',
-          headers: {
-            ...csfrHeaderObject()
-          }
         })
         if (!response.ok) throw new Error('Failed to fetch keywords')
         const data = await response.json()
@@ -54,14 +50,12 @@ export default function Keywords() {
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/keywords`, {
+        const response = await fetchWithAuth('/api/news-tracker/keywords', {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject()
           },
           body: JSON.stringify(data),
-          credentials: "include"
         });
         
         if (!response.ok) {
@@ -154,14 +148,12 @@ export default function Keywords() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       setKeywordBeingToggled(prev => [...prev, id])
       try {
-        const response = await fetch(`${serverUrl}/api/news-tracker/keywords/${id}`, {
+        const response = await fetchWithAuth(`/api/news-tracker/keywords/${id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            ...csfrHeaderObject()
           },
           body: JSON.stringify({ active }),
-          credentials: "include"
         });
         
         if (!response.ok) {
@@ -249,10 +241,8 @@ export default function Keywords() {
     mutationFn: async (id: string) => {
       try {
         // Use fetch directly to handle empty responses properly
-        const response = await fetch(`${serverUrl}/api/news-tracker/keywords/${id}`, {
+        const response = await fetchWithAuth(`/api/news-tracker/keywords/${id}`, {
           method: "DELETE",
-          headers: csfrHeaderObject(),
-          credentials: "include"
         });
         
         if (!response.ok) {

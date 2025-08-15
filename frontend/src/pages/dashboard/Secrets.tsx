@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
-import { csfrHeaderObject } from "@/utils/csrf-header"
-import { serverUrl } from "@/utils/server-url"
+import { useFetch } from "@/hooks/use-fetch"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Secret } from "jsonwebtoken"
 import { useForm } from "react-hook-form"
@@ -11,44 +10,29 @@ import { useForm } from "react-hook-form"
 export default function Secrets() {
 
   const form = useForm()
+  const fetchWithAuth = useFetch()
 
   const secrets = useQuery({
     queryKey: ['secrets'],
     queryFn: async () => {
-      const response = await fetch(serverUrl + '/api/secrets', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject()
-        },
-      })
+      const response = await fetchWithAuth('/api/secrets')
       return response.json()
     }
   })
   const encryptedSecrets = useQuery({
     queryKey: ['encryptedSecrets'],
     queryFn: async () => {
-      const response = await fetch(serverUrl + '/api/e-secrets', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject()
-        },
-      })
+      const response = await fetchWithAuth('/api/e-secrets')
       return response.json()
     }
   })
 
   const insertSecrets = useMutation({
     mutationFn: (newSecret) => {
-      return fetch(serverUrl + '/api/secrets', {
+      return fetchWithAuth('/api/secrets', {
         method: 'POST',
-        credentials: 'include',
         headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject()
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           secret: newSecret 
@@ -63,12 +47,10 @@ export default function Secrets() {
 
   const deleteSecrets = useMutation({
     mutationFn: () => {
-      return fetch(serverUrl + '/api/secrets', {
+      return fetchWithAuth('/api/secrets', {
         method: 'DELETE',
-        credentials: 'include',
         headers: {
-          "Content-Type": "application/json",
-          ...csfrHeaderObject()
+          "Content-Type": "application/json"
         }
       })
     },
