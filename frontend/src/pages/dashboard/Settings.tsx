@@ -33,6 +33,7 @@ export default function Settings() {
   // Account Management state
   const [dataRetention, setDataRetention] = useState("12months")
 
+  console.log("User from Setting.tsx: ", user)
 
   const twoFAmutation = useMutation({
     mutationFn: (newTwoFAvalue: boolean) => {

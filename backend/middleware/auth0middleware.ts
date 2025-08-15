@@ -17,8 +17,6 @@ export async function auth0middleware(req: Request, res: Response, next: NextFun
   //req.log("email: ", email)
   //req.log("sub: ", sub)
 
-  console.log("auth0middleware")
-
   if (!sub) {
     customReq.log("❌ [AUTH0-MIDDLEWARE] User id not provided")
     res.status(404).end();

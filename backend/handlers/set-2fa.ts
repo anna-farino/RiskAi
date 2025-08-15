@@ -1,11 +1,14 @@
-import { users } from "@shared/db/schema/user";
+import { User, users } from "@shared/db/schema/user";
 import { db } from "backend/db/db";
 import { eq } from "drizzle-orm";
 import { Request, Response } from "express";
 
 export async function handleSet2FA(req: Request, res: Response) {
   const { twoFactorEnabled } = req.body
-  const { userId } = req.params
+  const { user } = req as Request & { user: User }
+
+
+  console.log("handleSet2FA == user", user)
 
   if (twoFactorEnabled == null) {
     console.error("[👥 2FA: no 2fa option found]")
@@ -13,13 +16,13 @@ export async function handleSet2FA(req: Request, res: Response) {
   }
 
   try {
-    const user = await db
+    const userResult = await db
       .update(users)
       .set({ twoFactorEnabled })
-      .where(eq(users.id, userId))
+      .where(eq(users.id, user.id))
       .returning()
 
-    if (!user || user.length === 0) {
+    if (!userResult || userResult.length === 0) {
       console.error("[👥 2FA: No user returned]")
       return res.status(500).send()
     }
