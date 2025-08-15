@@ -4,20 +4,22 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/use-auth";
 import { csfrHeader } from "@/utils/csrf-header";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useFetch } from "@/hooks/use-fetch";
+import { useFetch } from "@/hooks/use-fetch"; 
+import { serverUrl } from "@/utils/server-url";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Globe, AlertTriangle, Clock, Mail, Shield } from "lucide-react";
 import SampleDataPopulator from "@/components/SampleDataPopulator";
-import { useAuth0 } from "@auth0/auth0-react";
 
 export default function Settings() {
-  const fetchWithTokens = useFetch();
   const [ resetOpen, setResetOpen ] = useState(false)
   const [ error, setError ] = useState(false)
-  const { user } = useAuth0()
+  const userData = useAuth()
+  const fetchWithAuth = useFetch();
   
   // News Intelligence Preferences state
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -33,22 +35,20 @@ export default function Settings() {
   // Account Management state
   const [dataRetention, setDataRetention] = useState("12months")
 
-
   const twoFAmutation = useMutation({
     mutationFn: (newTwoFAvalue: boolean) => {
       //throw new Error("test") //Error for testing. To be removed soon
-      return fetchWithTokens(`/api/users/${user?.sub}/2fa`, {
+      return fetchWithAuth(`/api/users/${userData.data?.id}/2fa`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          [csfrHeader().name]: csfrHeader().token 
         },
         body: JSON.stringify({
           twoFactorEnabled: newTwoFAvalue 
         })
       })
     },
-    onSettled: () => mfaStatus.refetch(),
+    onSettled: () => userData.refetch(),
     onError: () => {
       setError(true)
       setTimeout(()=>setError(false),3000)
@@ -57,34 +57,24 @@ export default function Settings() {
 
   const navigate = useNavigate();
 
-
-  const mfaStatus = useQuery({
-    queryKey: ['mfaStatus'],
-    queryFn: async () => {
-      const response = await fetchWithTokens(`/api/users/${user?.sub}/2fa`)
-      if (!response.ok) throw new Error("MFA status couldn't be read")
-      return response.json()
-    }
-  })
-  console.log("User email", user?.email)
-
   const sendOtpMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.email) throw new Error()
-      const response = await fetchWithTokens(`/api/change-password`, {
+      if (!userData.data?.email) throw new Error()
+      const response = await fetchWithAuth(`${serverUrl}/api/auth/new-password-otp`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email: user?.email
+          email: userData.data?.email
         })
       })
       if (!response.ok) throw new Error("No response")
     },
     onSuccess() {
-      //navigate('/dashboard/settings/otp?p=npw')
+      navigate('/dashboard/settings/otp?p=npw')
     },
     onError(error) {
       console.error(error)
@@ -134,8 +124,8 @@ export default function Settings() {
               <Switch
                 id="two-factor-authentication"
                 disabled={twoFAmutation.isPending}
-                checked={twoFAmutation.isPending ? twoFAmutation.variables : !!mfaStatus.data?.mfaStatus}
-                onClick={() => twoFAmutation.mutate(!mfaStatus.data?.mfaStatus)}
+                checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
+                onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
               />
             </div>
             

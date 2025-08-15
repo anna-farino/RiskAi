@@ -36,8 +36,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   refreshTokens: many(refreshTokens),
-  capsuleArticles: many(capsuleArticles),
-  auth0Ids: many(auth0Ids)
+  capsuleArticles: many(capsuleArticles)
 }));
 
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({

@@ -7,12 +7,12 @@ import { FullRequest } from '.';
 type CustomRequest = Request &  { log: (...args: any[]) => void }
 
 export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
-  //const payload = req.auth
-  const email = req.auth?.payload['user/email'] as string
-  const email_verified = req.auth?.payload['user/email_verified']
+  const payload = req.auth
+  const email = req.auth?.payload['user/email'] as string || req.auth?.payload['email'] as string
+  const email_verified = req.auth?.payload['user/email_verified'] || req.auth?.payload['email_verified']
   const sub = req.auth?.payload.sub
 
-  //req.log("payload", payload)
+  req.log("payload", payload)
   //req.log("email: ", email)
   //req.log("sub: ", sub)
 
@@ -95,7 +95,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
             .insert(auth0Ids)
             .values({
               auth0Id: sub,
-              userId: userToReturn.id
+              userId: user.id
             })
             .onConflictDoNothing()
         })

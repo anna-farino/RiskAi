@@ -2,7 +2,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Keyword, insertKeywordSchema } from "@shared/db/schema/news-tracker/index";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
-import { useFetch } from "@/hooks/use-fetch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -10,13 +9,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { serverUrl } from "@/utils/server-url";
-import { csfrHeaderObject } from "@/utils/csrf-header";
+import { useFetch } from "@/hooks/use-fetch";
 import { useState, useEffect } from "react";
 
 export default function Keywords() {
-  const fetchWithTokens = useFetch();
   const { toast } = useToast();
+  const fetchWithAuth = useFetch();
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   const [keywordsUpdating, setKeywordsUpdating] = useState(false);
   const [activeKeywordsUpdating, setActiveKeywordsUpdating] = useState(false);
@@ -33,8 +31,8 @@ export default function Keywords() {
     queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithTokens(`/api/news-tracker/keywords`, {
-          method: 'GET'
+        const response = await fetchWithAuth('/api/news-tracker/keywords', {
+          method: 'GET',
         })
         if (!response.ok) throw new Error('Failed to fetch keywords')
         const data = await response.json()
@@ -52,12 +50,12 @@ export default function Keywords() {
   const addKeyword = useMutation({
     mutationFn: async (data: { term: string }) => {
       try {
-        const response = await fetchWithTokens(`/api/news-tracker/keywords`, {
+        const response = await fetchWithAuth('/api/news-tracker/keywords', {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
         });
         
         if (!response.ok) {
@@ -150,12 +148,12 @@ export default function Keywords() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       setKeywordBeingToggled(prev => [...prev, id])
       try {
-        const response = await fetchWithTokens(`/api/news-tracker/keywords/${id}`, {
+        const response = await fetchWithAuth(`/api/news-tracker/keywords/${id}`, {
           method: "PATCH",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ active })
+          body: JSON.stringify({ active }),
         });
         
         if (!response.ok) {
@@ -243,8 +241,8 @@ export default function Keywords() {
     mutationFn: async (id: string) => {
       try {
         // Use fetch directly to handle empty responses properly
-        const response = await fetchWithTokens(`/api/news-tracker/keywords/${id}`, {
-          method: "DELETE"
+        const response = await fetchWithAuth(`/api/news-tracker/keywords/${id}`, {
+          method: "DELETE",
         });
         
         if (!response.ok) {

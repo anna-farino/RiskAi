@@ -1,7 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { csfrHeaderObject } from "@/utils/csrf-header";
-import { serverUrl } from "@/utils/server-url";
 import { useFetch } from "@/hooks/use-fetch";
 import { queryClient } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
@@ -103,8 +101,8 @@ const bulkKeywordFormSchema = z.object({
 type BulkKeywordFormValues = z.infer<typeof bulkKeywordFormSchema>;
 
 export default function Keywords() {
-  const fetchWithTokens = useFetch();
   const { toast } = useToast();
+  const fetchWithAuth = useFetch();
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [bulkKeywordDialogOpen, setBulkKeywordDialogOpen] = useState(false);
   const [editingKeyword, setEditingKeyword] = useState<ThreatKeyword | null>(
@@ -143,15 +141,12 @@ export default function Keywords() {
 
   // Fetch keywords
   const keywords = useQuery<ThreatKeyword[]>({
-    queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+    queryKey: ["/api/threat-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithTokens(
-          `/api/threat-tracker/keywords`,
-          {
+        const response = await fetchWithAuth("/api/threat-tracker/keywords", {
             method: "GET",
-          },
-        );
+          });
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
         return data || [];
@@ -190,20 +185,17 @@ export default function Keywords() {
 
       for (const term of keywordTerms) {
         try {
-          const response = await fetchWithTokens(
-            `/api/threat-tracker/keywords`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                term,
-                category: values.category,
-                active: values.active,
-              }),
-            }
-          );
+          const response = await fetchWithAuth('/api/threat-tracker/keywords', {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              term,
+              category: values.category,
+              active: values.active,
+            }),
+          });
           const result = await response.json();
 
           console.log(`Created keyword: ${term}`, result);
@@ -236,17 +228,17 @@ export default function Keywords() {
       }));
       
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      await queryClient.cancelQueries({ queryKey: ["/api/threat-tracker/keywords"] });
       
       // Snapshot the previous state
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"]);
       const previousLocalKeywords = [...localKeywords];
       
       // Update local state immediately
       setLocalKeywords(prev => [...tempKeywords, ...prev]);
       
       // Update React Query cache
-      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+      queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], old => 
         old ? [...tempKeywords, ...old] : tempKeywords
       );
       
@@ -256,7 +248,7 @@ export default function Keywords() {
       // Revert both local state and React Query cache
       if (context) {
         setLocalKeywords(context.previousLocalKeywords);
-        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+        queryClient.setQueryData(["/api/threat-tracker/keywords"], context.previousKeywords);
       }
       
       console.error("Error creating bulk keywords:", err);
@@ -279,7 +271,7 @@ export default function Keywords() {
         });
         
         // Update React Query cache
-        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => {
+        queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], prev => {
           if (!prev) return createdKeywords;
           const withoutTemp = prev.filter(k => !context.tempKeywords.some(temp => temp.id === k.id));
           return [...createdKeywords, ...withoutTemp];
@@ -299,7 +291,7 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+        queryKey: ["/api/threat-tracker/keywords"],
       });
     },
   });
@@ -307,17 +299,14 @@ export default function Keywords() {
   // Create keyword mutation with optimistic updates
   const createKeyword = useMutation({
     mutationFn: async (values: KeywordFormValues) => {
-      const response = await fetchWithTokens(
-        `/api/threat-tracker/keywords`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(values),
-        }
-      );
-      return await response.json();
+      const response = await fetchWithAuth('/api/threat-tracker/keywords', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+      return response.json();
     },
     onMutate: async (newKeyword) => {
       // Create a temporary optimistic keyword
@@ -332,17 +321,17 @@ export default function Keywords() {
       };
       
       // Cancel any outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      await queryClient.cancelQueries({ queryKey: ["/api/threat-tracker/keywords"] });
       
       // Snapshot the previous state for potential rollback
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"]);
       const previousLocalKeywords = [...localKeywords];
       
       // Update local state immediately for UI
       setLocalKeywords(prev => [tempKeyword, ...prev]);
       
       // Update React Query cache
-      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+      queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], old => 
         old ? [tempKeyword, ...old] : [tempKeyword]
       );
       
@@ -352,7 +341,7 @@ export default function Keywords() {
       // Revert both local state and React Query cache
       if (context) {
         setLocalKeywords(context.previousLocalKeywords);
-        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+        queryClient.setQueryData(["/api/threat-tracker/keywords"], context.previousKeywords);
       }
       
       console.error("Error creating keyword:", err);
@@ -373,7 +362,7 @@ export default function Keywords() {
         );
         
         // Update React Query cache
-        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
+        queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], prev => 
           prev?.map(keyword => 
             keyword.id === context.tempId ? (data as ThreatKeyword) : keyword
           ) || []
@@ -389,7 +378,7 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+        queryKey: ["/api/threat-tracker/keywords"],
       });
     },
   });
@@ -403,24 +392,21 @@ export default function Keywords() {
       id: string;
       values: KeywordFormValues;
     }) => {
-      const response = await fetchWithTokens(
-        `/api/threat-tracker/keywords/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(values),
-        }
-      );
-      return await response.json();
+      const response = await fetchWithAuth(`/api/threat-tracker/keywords/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+      return response.json();
     },
     onMutate: async ({ id, values }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      await queryClient.cancelQueries({ queryKey: ["/api/threat-tracker/keywords"] });
       
       // Snapshot the previous state
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"]);
       const previousLocalKeywords = [...localKeywords];
       
       // Update local state immediately
@@ -431,7 +417,7 @@ export default function Keywords() {
       );
       
       // Update React Query cache
-      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], old => 
+      queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], old => 
         (old || []).map(keyword => 
           keyword.id === id ? { ...keyword, ...values } : keyword
         )
@@ -443,7 +429,7 @@ export default function Keywords() {
       // Revert both local state and React Query cache
       if (context) {
         setLocalKeywords(context.previousLocalKeywords);
-        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+        queryClient.setQueryData(["/api/threat-tracker/keywords"], context.previousKeywords);
       }
       
       console.error("Error updating keyword:", err);
@@ -464,7 +450,7 @@ export default function Keywords() {
         );
         
         // Update React Query cache
-        queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], prev => 
+        queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], prev => 
           prev?.map(keyword => 
             keyword.id === context.id ? (data as ThreatKeyword) : keyword
           ) || []
@@ -481,7 +467,7 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+        queryKey: ["/api/threat-tracker/keywords"],
       });
     },
   });
@@ -490,8 +476,8 @@ export default function Keywords() {
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const response = await fetchWithTokens(`/api/threat-tracker/keywords/${id}`, {
-          method: "DELETE"
+        const response = await fetchWithAuth(`/api/threat-tracker/keywords/${id}`, {
+          method: "DELETE",
         });
         
         if (!response.ok) {
@@ -507,17 +493,17 @@ export default function Keywords() {
     },
     onMutate: async (id) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      await queryClient.cancelQueries({ queryKey: ["/api/threat-tracker/keywords"] });
       
       // Snapshot the previous data
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"]);
       const previousLocalKeywords = [...localKeywords];
       
       // Immediately update local state
       setLocalKeywords(prev => prev.filter(keyword => keyword.id !== id));
       
       // Update React Query cache
-      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], (oldData = []) => 
+      queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], (oldData = []) => 
         oldData.filter(keyword => keyword.id !== id)
       );
       
@@ -527,7 +513,7 @@ export default function Keywords() {
       // Revert both local state and cache
       if (context) {
         setLocalKeywords(context.previousLocalKeywords);
-        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+        queryClient.setQueryData(["/api/threat-tracker/keywords"], context.previousKeywords);
       }
       
       console.error("Error deleting keyword:", err);
@@ -546,7 +532,7 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+        queryKey: ["/api/threat-tracker/keywords"],
       });
     },
   });
@@ -554,24 +540,21 @@ export default function Keywords() {
   // Toggle keyword active status with optimistic updates
   const toggleKeywordActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const response = await fetchWithTokens(
-        `/api/threat-tracker/keywords/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ active }),
-        }
-      );
-      return await response.json();
+      const response = await fetchWithAuth(`/api/threat-tracker/keywords/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ active }),
+      });
+      return response.json();
     },
     onMutate: async ({ id, active }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`${serverUrl}/api/threat-tracker/keywords`] });
+      await queryClient.cancelQueries({ queryKey: ["/api/threat-tracker/keywords"] });
       
       // Snapshot the previous values
-      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`]);
+      const previousKeywords = queryClient.getQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"]);
       const previousLocalKeywords = [...localKeywords];
       
       // Update local state immediately
@@ -582,7 +565,7 @@ export default function Keywords() {
       );
       
       // Also update React Query cache
-      queryClient.setQueryData<ThreatKeyword[]>([`${serverUrl}/api/threat-tracker/keywords`], oldData => 
+      queryClient.setQueryData<ThreatKeyword[]>(["/api/threat-tracker/keywords"], oldData => 
         (oldData || []).map(keyword => 
           keyword.id === id ? { ...keyword, active } : keyword
         )
@@ -594,7 +577,7 @@ export default function Keywords() {
       if (context) {
         // Revert both local state and cache
         setLocalKeywords(context.previousLocalKeywords);
-        queryClient.setQueryData([`${serverUrl}/api/threat-tracker/keywords`], context.previousKeywords);
+        queryClient.setQueryData(["/api/threat-tracker/keywords"], context.previousKeywords);
       }
       
       console.error("Error toggling keyword active status:", err);
@@ -613,7 +596,7 @@ export default function Keywords() {
       
       // Invalidate and refetch to ensure all components have fresh data
       queryClient.invalidateQueries({
-        queryKey: [`${serverUrl}/api/threat-tracker/keywords`],
+        queryKey: ["/api/threat-tracker/keywords"],
       });
     },
   });

@@ -18,18 +18,28 @@ import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 import { auth0middleware } from 'backend/middleware/auth0middleware';
 import { handleChangePassword } from 'backend/handlers/auth0/change-password';
+import { NextFunction } from 'http-proxy-middleware/dist/types';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 
 // HELLO WORLD route
+router.use((req: Request, _: Response, next: NextFunction)=>{
+  console.log("Server hit")
+  console.log("req.headers.authorization", req.headers.authorization)
+  next()
+})
 router.get('/test', limiter, handleTest)
 //router.get('/test-articles', testArticles)
 
 router.get('/test-datadome-bypass', testDatadomeBypass)
 
+// TESTING RLS MIDDLEWARE
+//router.use(withDbContext)
+
 // AUTH
 router.use('/auth', limiter, authRouter)
+
 
 // ================================================
 // PROTECTIONS ====================================

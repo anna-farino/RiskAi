@@ -1,32 +1,34 @@
-import { useToast } from "@/hooks/use-toast";
 import { useAuth0 } from "@auth0/auth0-react";
-
+import { useToast } from "@/hooks/use-toast";
 
 export function useLogout() {
+  const { logout: auth0Logout } = useAuth0();
   const { toast } = useToast();
-  const { logout } = useAuth0()
 
-  const callbackUrl = (import.meta as any).env.VITE_AUTH0_CALLBACK_URL
-
-  async function handleLogout() {
+  const logout = async () => {
     try {
-      await logout({
+      console.log("Logging out...")
+      
+      // Use Auth0 logout which will clear Auth0 session and redirect
+      await auth0Logout({
         logoutParams: {
-          returnTo: callbackUrl,
+          returnTo: window.location.origin + '/auth/login'
         }
-      })
+      });
+
       toast({
         title: "Success",
         description: "Logged out successfully",
       });
     } catch (error) {
+      console.error("Logout error:", error);
       toast({
         title: "Error",
         description: "Failed to logout",
         variant: "destructive",
       });
     }
-  }
+  };
 
-  return { handleLogout };
+  return { logout };
 }

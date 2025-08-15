@@ -11,7 +11,8 @@ export const auth0CheckJwt = auth({
   tokenSigningAlg: 'RS256'
 });
 
-export function jwtErrorHandler(err: ErrorRequestHandler, _req: Request, res: Response, next: NextFunction) {
+
+export function jwtErrorHandler(err: Error, _req: Request, res: Response, next: NextFunction) {
   if (err instanceof UnauthorizedError) {
     console.error('JWT validation failed:', err);  // Detailed reason here
     return res.status(401).send('Invalid or expired token');

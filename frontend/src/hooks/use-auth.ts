@@ -13,17 +13,25 @@ export function useAuth() {
   return useQuery<UserWithPerm>({
     queryKey: ['auth-user'],
     queryFn: async () => {
-      const response = await fetchWithTokens('/api/auth/check');
+      try {
+        const response = await fetchWithTokens('/api/auth/check');
 
-      if (!response.ok) {
+        if (!response.ok) {
+          console.error("Auth check failed with status:", response.status);
+          navigate("/auth/login")
+          return null
+        }
+        const data = await response.json();
+        //console.log("useAuth data", data)
+        const user = data.user.length > 0 ? data.user[0] : null;
+        return user;
+      } catch (error) {
+        console.error("Auth check error:", error);
         navigate("/auth/login")
-        return null
+        return null;
       }
-      const data = await response.json();
-      //console.log("useAuth data", data)
-      const user = data.user.length > 0 ? data.user[0] : null;
-      return user;
     },
+    retry: false, // Don't retry auth checks
   });
 }
 

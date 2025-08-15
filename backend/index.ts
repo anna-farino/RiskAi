@@ -12,7 +12,6 @@ import { helmetConfig, setNonce } from './utils/helmet-config';
 const port = Number(process.env.PORT) || 5000;
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
-console.log("Database url", process.env.DATABASE_URL)
 console.log("[🌐 NODE_ENV]", process.env.NODE_ENV)
 
 const app = express();
@@ -25,7 +24,6 @@ app.use(setNonce)
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-app.get('/test', (_,res)=>res.json({ message: "ok"}))
 app.use('/api', router);
 
 if (isDevelopment) {

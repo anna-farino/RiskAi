@@ -2,7 +2,6 @@ import { useMutation } from "@tanstack/react-query"
 import { toast } from "./use-toast";
 import { useNavigate } from "react-router-dom";
 import { serverUrl } from "@/utils/server-url";
-import { useFetch } from "@/hooks/use-fetch";
 
 export type LoginData = {
   email: string;
@@ -10,17 +9,17 @@ export type LoginData = {
 }
 
 export default function useLogin() {
-  const fetchWithTokens = useFetch();
   const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async (loginData: LoginData) => {
-      const response = await fetchWithTokens(`/api/auth/login`, {
+      const response = await fetch(`${serverUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           email: loginData.email,
           password: loginData.password

@@ -26,7 +26,17 @@ export default defineConfig({
       "@schema": path.resolve(__dirname, "../shared/schema")
     }
   },
-  base: './',
+  build: {
+    outDir: 'build',
+    sourcemap: false,
+    minify: 'esbuild',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
   optimizeDeps: {
     include: ['react', 'react-dom']
   }

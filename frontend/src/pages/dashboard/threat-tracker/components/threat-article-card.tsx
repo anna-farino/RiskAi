@@ -142,12 +142,13 @@ export function ThreatArticleCard({
     (arr: string[]) => arr.length > 0,
   );
 
-  // Get the accent color based on threat severity
-  const getAccentColor = () => {
-    if (normalizedSecurityScore >= 8) return "from-red-500/30";
-    if (normalizedSecurityScore >= 6) return "from-orange-500/30";
-    if (normalizedSecurityScore >= 4) return "from-yellow-500/30";
-    return "from-green-500/30";
+  // Unified accent color based on threat severity using consistent scale
+  const getUnifiedAccentColor = () => {
+    if (normalizedSecurityScore >= 8) return "from-red-500/30";    // Critical - red
+    if (normalizedSecurityScore >= 6) return "from-orange-500/30"; // High - orange  
+    if (normalizedSecurityScore >= 4) return "from-yellow-500/30"; // Medium - yellow
+    if (normalizedSecurityScore >= 2) return "from-blue-500/30";   // Low - blue
+    return "from-[#00FFFF]/30"; // Minimal - primary cyan
   };
 
   return (
@@ -155,7 +156,7 @@ export function ThreatArticleCard({
       <div
         className={cn(
           "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
-          "hover:border-slate-600/80 transition-all duration-300",
+          "hover:border-[#00FFFF]/40 hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300",
           "flex flex-col relative",
           isPending && "bg-black/30",
         )}
@@ -165,23 +166,23 @@ export function ThreatArticleCard({
             "h-1.5 w-full bg-gradient-to-r",
             isPending
               ? "from-slate-500/50 to-slate-700/50 animate-pulse"
-              : getAccentColor(),
+              : getUnifiedAccentColor(),
           )}
         ></div>
 
-        <div className="flex-1 p-5 flex flex-col">
+        <div className="flex-1 p-4 sm:p-5 flex flex-col">
           <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 pr-2">
+            <h3 className="text-lg font-semibold text-white line-clamp-2 leading-6 group-hover:text-[#00FFFF] transition-colors flex-1 pr-2">
               <a
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-lg font-medium text-white line-clamp-2 group-hover:text-primary transition-colors hover:underline cursor-pointer"
+                className="hover:underline cursor-pointer"
                 onClick={(e) => e.stopPropagation()}
               >
                 {article.title}
               </a>
-            </div>
+            </h3>
 
             {/* Threat severity score badge */}
             <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full flex-shrink-0">
@@ -193,7 +194,7 @@ export function ThreatArticleCard({
               />
               <span
                 className={cn(
-                  "text-xs font-semibold",
+                  "text-xs font-semibold leading-4",
                   getScoreColor(normalizedSecurityScore),
                 )}
               >
@@ -207,12 +208,12 @@ export function ThreatArticleCard({
             {/* Severity score indicator */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-400 flex items-center gap-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1 leading-4">
                   <Zap className="h-3 w-3" /> Threat Severity
                 </span>
                 <span
                   className={cn(
-                    "text-xs font-medium",
+                    "text-xs font-medium leading-4",
                     getScoreColor(normalizedSecurityScore),
                   )}
                 >
@@ -232,12 +233,12 @@ export function ThreatArticleCard({
             {/* Relevance score indicator */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-400 flex items-center gap-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1 leading-4">
                   <AlertTriangle className="h-3 w-3" /> Relevance Score
                 </span>
                 <span
                   className={cn(
-                    "text-xs font-medium",
+                    "text-xs font-medium leading-4",
                     getScoreColor(normalizedRelevanceScore),
                   )}
                 >
@@ -257,25 +258,25 @@ export function ThreatArticleCard({
 
           <div className="flex items-center gap-3 mb-3">
             {article.author && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
                 <User className="h-3 w-3" />
-                <span>{article.author}</span>
+                <span className="font-medium">{article.author}</span>
               </div>
             )}
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
               <Clock className="h-3 w-3" />
-              <span>
+              <span className="font-medium">
                 {article.publishDate
-                  ? `Published ${formatDateOnly(article.publishDate)}`
+                  ? formatDateOnly(article.publishDate)
                   : article.scrapeDate
-                    ? `Article Pulled ${formatDateOnly(article.scrapeDate)}`
+                    ? formatDateOnly(article.scrapeDate)
                     : "Unknown date"}
               </span>
             </div>
           </div>
 
-          <p className="text-sm text-slate-300 mb-4 line-clamp-3 flex-1">
+          <p className="text-sm text-slate-300 mb-4 line-clamp-3 flex-1 leading-5">
             {article.summary}
           </p>
 
@@ -284,7 +285,7 @@ export function ThreatArticleCard({
               {detectedKeywords.threats &&
                 detectedKeywords.threats.length > 0 && (
                   <div>
-                    <span className="text-xs text-red-400 flex items-center gap-1 mb-1">
+                    <span className="text-xs text-red-400 flex items-center gap-1 mb-1 leading-4 font-medium">
                       <AlertTriangle className="h-3 w-3" /> Threats
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -294,7 +295,7 @@ export function ThreatArticleCard({
                           <Badge
                             key={`threat-${keyword}`}
                             variant="outline"
-                            className="bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-300 border-red-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            className="bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 hover:text-red-400 border-red-500/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -306,7 +307,7 @@ export function ThreatArticleCard({
                           </Badge>
                         ))}
                       {detectedKeywords.threats.length > 3 && (
-                        <span className="text-xs text-red-400">
+                        <span className="text-xs font-medium text-red-400 leading-4">
                           +{detectedKeywords.threats.length - 3}
                         </span>
                       )}
@@ -317,7 +318,7 @@ export function ThreatArticleCard({
               {detectedKeywords.vendors &&
                 detectedKeywords.vendors.length > 0 && (
                   <div>
-                    <span className="text-xs text-blue-400 flex items-center gap-1 mb-1">
+                    <span className="text-xs text-blue-400 flex items-center gap-1 mb-1 leading-4 font-medium">
                       <Shield className="h-3 w-3" /> Vendors
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -327,7 +328,7 @@ export function ThreatArticleCard({
                           <Badge
                             key={`vendor-${keyword}`}
                             variant="outline"
-                            className="bg-blue-500/10 text-xs text-blue-300 hover:bg-blue-500/20 hover:text-blue-300 border-blue-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            className="bg-blue-500/10 text-xs font-medium text-blue-400 hover:bg-blue-500/20 hover:text-blue-400 border-blue-500/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -339,7 +340,7 @@ export function ThreatArticleCard({
                           </Badge>
                         ))}
                       {detectedKeywords.vendors.length > 3 && (
-                        <span className="text-xs text-blue-400">
+                        <span className="text-xs font-medium text-blue-400 leading-4">
                           +{detectedKeywords.vendors.length - 3}
                         </span>
                       )}
@@ -350,7 +351,7 @@ export function ThreatArticleCard({
               {detectedKeywords.clients &&
                 detectedKeywords.clients.length > 0 && (
                   <div>
-                    <span className="text-xs text-purple-400 flex items-center gap-1 mb-1">
+                    <span className="text-xs text-[#BF00FF] flex items-center gap-1 mb-1 leading-4 font-medium">
                       <CheckCircle2 className="h-3 w-3" /> Clients
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -360,7 +361,7 @@ export function ThreatArticleCard({
                           <Badge
                             key={`client-${keyword}`}
                             variant="outline"
-                            className="bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            className="bg-[#BF00FF]/10 text-xs font-medium text-[#BF00FF] hover:bg-[#BF00FF]/20 hover:text-[#BF00FF] border-[#BF00FF]/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -372,7 +373,7 @@ export function ThreatArticleCard({
                           </Badge>
                         ))}
                       {detectedKeywords.clients.length > 3 && (
-                        <span className="text-xs text-purple-400">
+                        <span className="text-xs font-medium text-[#BF00FF] leading-4">
                           +{detectedKeywords.clients.length - 3}
                         </span>
                       )}
@@ -383,7 +384,7 @@ export function ThreatArticleCard({
               {detectedKeywords.hardware &&
                 detectedKeywords.hardware.length > 0 && (
                   <div>
-                    <span className="text-xs text-amber-400 flex items-center gap-1 mb-1">
+                    <span className="text-xs text-[#00FFFF] flex items-center gap-1 mb-1 leading-4 font-medium">
                       <Shield className="h-3 w-3" /> Hardware/Software
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -393,7 +394,7 @@ export function ThreatArticleCard({
                           <Badge
                             key={`hardware-${keyword}`}
                             variant="outline"
-                            className="bg-amber-500/10 text-xs text-amber-300 hover:bg-amber-500/20 hover:text-amber-300 border-amber-500/30 cursor-pointer transition-colors truncate max-w-24"
+                            className="bg-[#00FFFF]/10 text-xs font-medium text-[#00FFFF] hover:bg-[#00FFFF]/20 hover:text-[#00FFFF] border-[#00FFFF]/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -405,7 +406,7 @@ export function ThreatArticleCard({
                           </Badge>
                         ))}
                       {detectedKeywords.hardware.length > 3 && (
-                        <span className="text-xs text-amber-400">
+                        <span className="text-xs font-medium text-[#00FFFF] leading-4">
                           +{detectedKeywords.hardware.length - 3}
                         </span>
                       )}
@@ -431,18 +432,19 @@ export function ThreatArticleCard({
                   disabled={isPending || sendingToCapsule}
                   onClick={handleSendToCapsule}
                   className={cn(
-                    "h-fit w-fit p-2",
+                    "h-8 w-8 p-2",
                     "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-blue-400 hover:bg-blue-400/10",
+                    "text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 hover:border-[#00FFFF]/30",
+                    "transition-all duration-200",
                     (isPending || sendingToCapsule) &&
                       "cursor-not-allowed opacity-70",
                   )}
                   title="Send to News Capsule"
                 >
                   {sendingToCapsule ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="h-3.5 w-3.5" />
+                    <Send className="h-4 w-4" />
                   )}
                 </Button>
               )}
@@ -461,16 +463,17 @@ export function ThreatArticleCard({
                     setOpenAlert(true);
                   }}
                   className={cn(
-                    "h-fit w-fit p-2",
+                    "h-8 w-8 p-2",
                     "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10",
+                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10 hover:border-red-500/30",
+                    "transition-all duration-200",
                     isPending && "cursor-not-allowed opacity-70",
                   )}
                 >
                   {isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   )}
                 </Button>
               </DeleteAlertDialog>
