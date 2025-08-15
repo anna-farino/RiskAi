@@ -23,7 +23,7 @@ import { NextFunction } from 'http-proxy-middleware/dist/types';
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 
-// HELLO WORLD route
+/// HELLO WORLD route
 router.use((req: Request, _: Response, next: NextFunction)=>{
   console.log("Server hit")
   console.log("req.headers.authorization", req.headers.authorization)
