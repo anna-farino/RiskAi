@@ -9,6 +9,8 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) frontend and a Node.js (TypeScript) Express.js backend.
 
+**Re-Architecture Status (August 2025)**: Currently implementing Phase 2 of the global scraping re-architecture. The system is being transformed from user-specific article scraping to a global, shared infrastructure with automated collection every 3 hours and query-time filtering.
+
 ### Frontend
 - **Framework**: React 18 with TypeScript
 - **State Management**: Zustand

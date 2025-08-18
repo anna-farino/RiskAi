@@ -42,6 +42,9 @@ app.listen(port, async () => {
   }
   
   // Initialize auto-scrape schedulers after server starts
+  // TODO: Gradually transition from per-app schedulers to global scheduler
+  
+  // Initialize existing app-specific schedulers (for backward compatibility during transition)
   try {
     const { initializeScheduler: initThreatTracker } = await import('./apps/threat-tracker/services/scheduler.js');
     await initThreatTracker();
@@ -56,5 +59,14 @@ app.listen(port, async () => {
     console.log('✅ [SERVER] News Radar auto-scrape scheduler initialized');
   } catch (error) {
     console.error('❌ [SERVER] Error initializing News Radar scheduler:', error);
+  }
+
+  // Initialize new global services (Phase 2 implementation)
+  try {
+    const { initializeGlobalServices } = await import('./services/global-scraper/integration.js');
+    await initializeGlobalServices();
+    console.log('✅ [SERVER] Global scraping services initialized');
+  } catch (error) {
+    console.error('❌ [SERVER] Error initializing global services:', error);
   }
 });
