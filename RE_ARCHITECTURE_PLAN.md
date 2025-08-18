@@ -981,8 +981,7 @@ export class MigrationRollback {
 
 ### Database Optimization
 1. **Partitioning**: Partition articles table by month for better query performance
-2. **Caching**: Implement Redis caching for frequently accessed data
-3. **Connection Pooling**: Optimize database connection pool settings
+2. **Connection Pooling**: Optimize database connection pool settings
 
 ### Query Optimization
 ```sql
@@ -996,28 +995,6 @@ WHERE a.source_id = ANY(ARRAY[/* user's enabled sources */])
   AND to_tsvector('english', a.title || ' ' || a.content) @@ to_tsquery('english', 'keyword1 | keyword2')
 ORDER BY a.publish_date DESC
 LIMIT 50;
-```
-
-### Caching Strategy
-```typescript
-// Implement caching for expensive operations
-const cache = new Redis();
-
-async function getCachedArticles(userId: string, appContext: string) {
-  const cacheKey = `articles:${userId}:${appContext}`;
-  
-  // Check cache first
-  const cached = await cache.get(cacheKey);
-  if (cached) return JSON.parse(cached);
-  
-  // Fetch from database
-  const articles = await articleFilterService.getArticlesForUser(userId, appContext);
-  
-  // Cache for 5 minutes
-  await cache.setex(cacheKey, 300, JSON.stringify(articles));
-  
-  return articles;
-}
 ```
 
 ---
@@ -1077,9 +1054,9 @@ async function scrapeWithMetrics(source: Source) {
    - Parallel run of old and new systems during transition
 
 2. **Performance Degradation**
-   - Mitigation: Implement caching layer
-   - Database query optimization
+   - Mitigation: Database query optimization
    - Consider read replicas for heavy read operations
+   - Caching layer to be implemented in future phase
 
 3. **AI Processing Bottleneck**
    - Mitigation: Queue-based processing with rate limiting
