@@ -10,16 +10,17 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     const user = req.user as User;
     
-    // TODO: Implement proper admin role checking
-    // For now, this is a placeholder - you'll need to implement proper admin role verification
     if (!user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    // TODO: Check if user has admin role in your user system
-    // Example: if (!user.isAdmin || !user.roles.includes('admin')) {
-    //   return res.status(403).json({ error: 'Admin access required' });
-    // }
+    // Check if user has admin role
+    if (!user.isAdmin) {
+      return res.status(403).json({ 
+        error: 'Admin access required',
+        message: 'This endpoint requires administrator privileges'
+      });
+    }
     
     next();
   } catch (error: any) {
