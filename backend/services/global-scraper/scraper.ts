@@ -1,8 +1,7 @@
 // Global Scraper - Scrapes all sources globally without user-specific filtering
 import { db } from "backend/db/db";
-// TODO: Import from actual schema once integrated
-// import { globalSources, globalArticles } from "@shared/db/schema/global";
-import { eq, and } from "drizzle-orm";
+import { globalSources, globalArticles } from "@shared/db/schema/global";
+import { eq, and, sql } from "drizzle-orm";
 import { log } from "backend/utils/log";
 import { unifiedScraper } from 'backend/services/scraping/scrapers/main-scraper';
 import { StrategyLoader } from 'backend/services/scraping/strategies/strategy-loader';
@@ -250,7 +249,7 @@ async function updateSourceLastScraped(sourceId: string, success: boolean) {
       await db.update(globalSources)
         .set({
           lastScraped: new Date(),
-          consecutiveFailures: globalSources.consecutiveFailures + 1
+          consecutiveFailures: sql`${globalSources.consecutiveFailures} + 1`
         })
         .where(eq(globalSources.id, sourceId));
     }

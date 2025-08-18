@@ -12,7 +12,7 @@ import { log } from '../utils/log';
  */
 export async function getFilteredArticles(req: Request, res: Response) {
   try {
-    const userId = req.user?.userId; // Assuming auth middleware sets this
+    const userId = (req.user as any)?.sub || (req.user as any)?.id; // Auth0 uses 'sub' for user ID
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required' });
     }

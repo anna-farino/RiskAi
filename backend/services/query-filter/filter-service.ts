@@ -1,9 +1,8 @@
 // Query-time Filtering Service - Filters global articles based on user preferences
 import { db } from "backend/db/db";
-import { eq, and, or, inArray, ilike, desc, asc } from "drizzle-orm";
+import { eq, and, or, inArray, ilike, desc, asc, gte, lte, count } from "drizzle-orm";
 import { log } from "backend/utils/log";
-// TODO: Import actual tables once schema is integrated
-// import { globalArticles, globalSources, userSourcePreferences, userKeywords } from "@shared/db/schema/global";
+import { globalArticles, globalSources, userSourcePreferences, userKeywords } from "@shared/db/schema/global";
 
 interface FilterOptions {
   userId: string;
@@ -62,33 +61,17 @@ export class QueryFilterService {
     try {
       log(`[QueryFilter] Starting article filter for user ${options.userId} (${options.appContext})`, 'query-filter');
 
-      // TODO: Replace with actual implementation once schema is integrated
-      // For now, return placeholder structure
-      const placeholderResult: FilterResult = {
-        articles: [],
-        totalCount: 0,
-        hasMore: false,
-        filters: {
-          activeKeywords: options.keywords || [],
-          activeSources: options.sources || [],
-          appliedFilters: ['Database schema not yet integrated']
-        }
-      };
-
-      log(`[QueryFilter] Filter completed in ${Date.now() - startTime}ms - found 0 articles (placeholder)`, 'query-filter');
-      return placeholderResult;
-
-      /*
-      // ACTUAL IMPLEMENTATION (to be uncommented once schema is available):
-      
       // Step 1: Get user's source preferences
       const userSources = await this.getUserSourcePreferences(options.userId, options.appContext);
       
       // Step 2: Get user's keyword preferences
       const userKeywords = await this.getUserKeywords(options.userId, options.appContext);
       
-      // Step 3: Build base query
-      let query = db.select({
+      // Step 3: Build filters
+      const filters = this.buildFilterConditions(options, userSources, userKeywords);
+      
+      // Step 4: Build and execute query using a functional approach
+      let queryBuilder = db.select({
         id: globalArticles.id,
         title: globalArticles.title,
         content: globalArticles.content,
@@ -106,27 +89,35 @@ export class QueryFilterService {
       .from(globalArticles)
       .leftJoin(globalSources, eq(globalArticles.sourceId, globalSources.id));
 
-      // Step 4: Apply filters
-      const filters = this.buildFilterConditions(options, userSources, userKeywords);
+      // Apply filters conditionally
       if (filters.length > 0) {
-        query = query.where(and(...filters));
+        queryBuilder = queryBuilder.where(and(...filters));
       }
 
-      // Step 5: Apply sorting
-      query = this.applySorting(query, options);
-
-      // Step 6: Apply pagination
-      if (options.limit) {
-        query = query.limit(options.limit);
+      // Apply sorting
+      const sortOrder = options.sortOrder || 'desc';
+      if (options.sortBy === 'security_score' && options.appContext === 'threat_tracker') {
+        queryBuilder = sortOrder === 'desc'
+          ? queryBuilder.orderBy(desc(globalArticles.securityScore))
+          : queryBuilder.orderBy(asc(globalArticles.securityScore));
+      } else {
+        queryBuilder = sortOrder === 'desc'
+          ? queryBuilder.orderBy(desc(globalArticles.scrapedAt))
+          : queryBuilder.orderBy(asc(globalArticles.scrapedAt));
       }
+
+      // Apply pagination
       if (options.offset) {
-        query = query.offset(options.offset);
+        queryBuilder = queryBuilder.offset(options.offset);
+      }
+      if (options.limit) {
+        queryBuilder = queryBuilder.limit(options.limit);
       }
 
-      // Step 7: Execute query
-      const articles = await query;
+      // Execute query
+      const articles = await queryBuilder;
       
-      // Step 8: Calculate relevance scores and total count
+      // Step 5: Calculate relevance scores and total count
       const articlesWithRelevance = await this.calculateRelevanceScores(articles, userKeywords);
       const totalCount = await this.getTotalCount(filters);
 
@@ -145,7 +136,8 @@ export class QueryFilterService {
       log(`[QueryFilter] Filter completed in ${duration}ms - found ${articles.length} articles`, 'query-filter');
 
       return result;
-      */
+
+
 
     } catch (error) {
       log(`[QueryFilter] Filter failed for user ${options.userId}: ${error.message}`, 'error');
@@ -157,8 +149,6 @@ export class QueryFilterService {
    * Get user's active source preferences for app context
    */
   private async getUserSourcePreferences(userId: string, appContext: string): Promise<any[]> {
-    // TODO: Implement once schema is available
-    /*
     return await db.select({
       sourceId: userSourcePreferences.sourceId,
       name: globalSources.name,
@@ -171,16 +161,12 @@ export class QueryFilterService {
       eq(userSourcePreferences.appContext, appContext),
       eq(userSourcePreferences.isEnabled, true)
     ));
-    */
-    return [];
   }
 
   /**
    * Get user's active keywords for app context
    */
   private async getUserKeywords(userId: string, appContext: string): Promise<string[]> {
-    // TODO: Implement once schema is available
-    /*
     const keywords = await db.select({ term: userKeywords.term })
       .from(userKeywords)
       .where(and(
@@ -190,8 +176,6 @@ export class QueryFilterService {
       ));
     
     return keywords.map(k => k.term);
-    */
-    return [];
   }
 
   /**
@@ -203,7 +187,7 @@ export class QueryFilterService {
     // Source filtering - either user's preferred sources or explicitly provided sources
     const sourcesToFilter = options.sources || userSources.map(s => s.sourceId);
     if (sourcesToFilter.length > 0) {
-      // conditions.push(inArray(globalArticles.sourceId, sourcesToFilter));
+      conditions.push(inArray(globalArticles.sourceId, sourcesToFilter));
     }
 
     // Keyword filtering - either user's keywords or explicitly provided keywords
@@ -212,22 +196,22 @@ export class QueryFilterService {
       const keywordConditions = keywordsToFilter.map(keyword => {
         // Search in title, content, and detected keywords
         return or(
-          // ilike(globalArticles.title, `%${keyword}%`),
-          // ilike(globalArticles.content, `%${keyword}%`)
+          ilike(globalArticles.title, `%${keyword}%`),
+          ilike(globalArticles.content, `%${keyword}%`)
           // TODO: Also search in detectedKeywords JSON field
         );
       });
-      // conditions.push(or(...keywordConditions));
+      conditions.push(or(...keywordConditions));
     }
 
     // Cybersecurity filtering (for threat-tracker)
     if (options.appContext === 'threat_tracker') {
       if (!options.includeNonCybersecurity) {
-        // conditions.push(eq(globalArticles.isCybersecurity, true));
+        conditions.push(eq(globalArticles.isCybersecurity, true));
       }
       
       if (options.minSecurityScore) {
-        // conditions.push(gte(globalArticles.securityScore, options.minSecurityScore));
+        conditions.push(gte(globalArticles.securityScore, options.minSecurityScore));
       }
       
       if (options.threatCategories && options.threatCategories.length > 0) {
@@ -237,44 +221,17 @@ export class QueryFilterService {
 
     // Date filtering
     if (options.dateFrom) {
-      // conditions.push(gte(globalArticles.scrapedAt, options.dateFrom));
+      conditions.push(gte(globalArticles.scrapedAt, options.dateFrom));
     }
     
     if (options.dateTo) {
-      // conditions.push(lte(globalArticles.scrapedAt, options.dateTo));
+      conditions.push(lte(globalArticles.scrapedAt, options.dateTo));
     }
 
     return conditions;
   }
 
-  /**
-   * Apply sorting to query
-   */
-  private applySorting(query: any, options: FilterOptions): any {
-    const sortOrder = options.sortOrder || 'desc';
-    
-    switch (options.sortBy) {
-      case 'date':
-        return sortOrder === 'desc' 
-          ? query.orderBy(desc(/* globalArticles.scrapedAt */))
-          : query.orderBy(asc(/* globalArticles.scrapedAt */));
-      
-      case 'security_score':
-        if (options.appContext === 'threat_tracker') {
-          return sortOrder === 'desc'
-            ? query.orderBy(desc(/* globalArticles.securityScore */))
-            : query.orderBy(asc(/* globalArticles.securityScore */));
-        }
-        break;
-        
-      case 'relevance':
-        // TODO: Implement relevance-based sorting
-        break;
-    }
 
-    // Default: sort by date (newest first)
-    return query.orderBy(desc(/* globalArticles.scrapedAt */));
-  }
 
   /**
    * Calculate relevance scores based on keyword matches
@@ -312,16 +269,12 @@ export class QueryFilterService {
    * Get total count for pagination
    */
   private async getTotalCount(filters: any[]): Promise<number> {
-    // TODO: Implement once schema is available
-    /*
     const result = await db.select({ count: count() })
       .from(globalArticles)
       .leftJoin(globalSources, eq(globalArticles.sourceId, globalSources.id))
       .where(filters.length > 0 ? and(...filters) : undefined);
     
     return result[0]?.count || 0;
-    */
-    return 0;
   }
 
   /**

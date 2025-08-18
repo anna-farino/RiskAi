@@ -1,8 +1,7 @@
 // AI Article Analyzer - Handles cybersecurity detection and content analysis
 import { db } from "backend/db/db";
 import { eq, or, isNull, ne } from "drizzle-orm";
-// TODO: Import globalArticles from correct schema location after migration
-// Using temporary placeholder until schema is properly integrated
+import { globalArticles } from "@shared/db/schema/global";
 import { log } from "backend/utils/log";
 import OpenAI from 'openai';
 
@@ -31,9 +30,11 @@ export async function analyzeArticleWithAI(articleId: string): Promise<void> {
   try {
     log(`[AIAnalyzer] Starting analysis for article ${articleId}`, 'ai-analyzer');
 
-    // TODO: Replace with actual globalArticles table once schema is integrated
-    // For now, this is a placeholder implementation
-    throw new Error("Database schema not yet integrated - globalArticles table not available");
+    // Get article from database
+    const [article] = await db.select()
+      .from(globalArticles)
+      .where(eq(globalArticles.id, articleId))
+      .limit(1);
 
     if (!article) {
       throw new Error(`Article ${articleId} not found`);
