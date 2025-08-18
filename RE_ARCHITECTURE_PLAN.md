@@ -36,14 +36,7 @@ CREATE TABLE global_articles (
   analysisVersion TEXT, -- Track AI model version used
   
   -- Legacy fields for compatibility
-  detectedKeywords JSONB, -- Maintained but populated differently
-  
-  -- Indexes for performance
-  INDEX idx_publish_date (publishDate DESC),
-  INDEX idx_scraped_at (scrapedAt DESC),
-  INDEX idx_cybersecurity (isCybersecurity),
-  INDEX idx_source (sourceId),
-  INDEX idx_url_hash (md5(url))
+  detectedKeywords JSONB -- Maintained but populated differently
 );
 ```
 
@@ -70,9 +63,7 @@ CREATE TABLE global_sources (
   
   -- Metadata
   addedAt TIMESTAMP DEFAULT NOW(),
-  addedBy UUID REFERENCES users(id), -- Admin who added it
-  
-  INDEX idx_active_priority (isActive, priority DESC)
+  addedBy UUID REFERENCES users(id) -- Admin who added it
 );
 ```
 
@@ -98,8 +89,7 @@ CREATE TABLE user_keywords (
   isActive BOOLEAN DEFAULT TRUE,
   createdAt TIMESTAMP DEFAULT NOW(),
   
-  UNIQUE(userId, appContext, term),
-  INDEX idx_user_app (userId, appContext, isActive)
+  UNIQUE(userId, appContext, term)
 );
 ```
 
@@ -194,13 +184,6 @@ async function createUserPreferences() {
 ### 1.3 Database Performance Optimizations
 
 ```sql
--- Composite indexes for common query patterns
-CREATE INDEX idx_articles_date_cyber ON global_articles(publishDate DESC, isCybersecurity);
-CREATE INDEX idx_articles_source_date ON global_articles(sourceId, publishDate DESC);
-
--- Full-text search index
-CREATE INDEX idx_articles_fulltext ON global_articles USING gin(to_tsvector('english', title || ' ' || content));
-
 -- Materialized view for performance (optional)
 CREATE MATERIALIZED VIEW recent_cybersecurity_articles AS
 SELECT * FROM global_articles
@@ -998,9 +981,8 @@ export class MigrationRollback {
 
 ### Database Optimization
 1. **Partitioning**: Partition articles table by month for better query performance
-2. **Indexes**: Create appropriate indexes for common query patterns
-3. **Caching**: Implement Redis caching for frequently accessed data
-4. **Connection Pooling**: Optimize database connection pool settings
+2. **Caching**: Implement Redis caching for frequently accessed data
+3. **Connection Pooling**: Optimize database connection pool settings
 
 ### Query Optimization
 ```sql
