@@ -1,12 +1,12 @@
 // Global Scraping Scheduler - Runs every 3 hours for all sources
-import * as cron from 'node-cron';
+import cron from 'node-cron';
 import { log } from "backend/utils/log";
 import { runGlobalScrape } from './scraper';
 
 export class GlobalScrapingScheduler {
   private job: cron.ScheduledTask | null = null;
-  public isRunning = false;
-  public isInitialized = false;
+  private isRunning = false;
+  private isInitialized = false;
 
   async initialize() {
     if (this.isInitialized) {
@@ -26,6 +26,7 @@ export class GlobalScrapingScheduler {
         
         await this.runGlobalScrape();
       }, {
+        scheduled: false,
         timezone: "UTC"
       });
 

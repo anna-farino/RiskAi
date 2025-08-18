@@ -16,7 +16,6 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   verified: boolean("verified").default(false),
-  isAdmin: boolean("is_admin").default(false), // New field for admin access
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
