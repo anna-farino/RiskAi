@@ -89,8 +89,8 @@ adminRouter.post("/sources", requireAdmin, async (req, res) => {
     // Create new global source
     const newSource = await db.insert(globalSources)
       .values({
-        url: validated.url,
         name: validated.name,
+        url: validated.url,
         category: validated.category || 'general',
         priority: validated.priority,
         isDefault: validated.isDefault,
@@ -248,9 +248,9 @@ adminRouter.get("/scraping/status", requireAdmin, async (req, res) => {
     
     // Get current scraping status
     res.json({
-      isRunning: globalScrapingScheduler.isRunning || false,
-      isInitialized: globalScrapingScheduler.isInitialized || false,
+      isRunning: globalScrapingScheduler.isScrapingActive(),
       schedule: 'Every 3 hours (0 */3 * * *)',
+      nextRun: globalScrapingScheduler.getNextRun(),
       message: 'Global scraping scheduler status'
     });
     
@@ -350,6 +350,108 @@ adminRouter.get("/sources/:id/analytics", requireAdmin, async (req, res) => {
     console.error('[Admin] Error getting source analytics:', error);
     res.status(500).json({ 
       error: 'Failed to get source analytics',
+      message: error.message 
+    });
+  }
+});
+
+// Source Migration Management Endpoints
+adminRouter.get("/migration/status", requireAdmin, async (req, res) => {
+  reqLog(req, "GET /admin/migration/status");
+  try {
+    const { sourceMigrationService } = await import('backend/services/migration/source-migration');
+    
+    const status = await sourceMigrationService.getMigrationStatus();
+    
+    res.json({
+      status,
+      recommendedAction: status.hasRunMigration ? 
+        'Migration appears to have been run already' : 
+        'Migration has not been run yet - consider running migration',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error: any) {
+    console.error('[Admin] Error getting migration status:', error);
+    res.status(500).json({ 
+      error: 'Failed to get migration status',
+      message: error.message 
+    });
+  }
+});
+
+adminRouter.post("/migration/run", requireAdmin, async (req, res) => {
+  reqLog(req, "POST /admin/migration/run");
+  try {
+    const { sourceMigrationService } = await import('backend/services/migration/source-migration');
+    
+    // Check if migration has already been run
+    const status = await sourceMigrationService.getMigrationStatus();
+    if (status.hasRunMigration && status.globalSourcesCount > 0) {
+      return res.status(409).json({
+        error: 'Migration already completed',
+        message: 'Global sources already exist. Use rollback endpoint if you need to re-run migration.',
+        status
+      });
+    }
+
+    console.log('[Admin] Starting source migration...');
+    const result = await sourceMigrationService.migrateAllSources();
+    
+    if (result.success) {
+      console.log('[Admin] Source migration completed successfully');
+      res.json({
+        success: true,
+        message: 'Source migration completed successfully',
+        result
+      });
+    } else {
+      console.error('[Admin] Source migration completed with errors:', result.errors);
+      res.status(207).json({ // 207 Multi-Status for partial success
+        success: false,
+        message: 'Source migration completed with errors',
+        result
+      });
+    }
+    
+  } catch (error: any) {
+    console.error('[Admin] Error running migration:', error);
+    res.status(500).json({ 
+      error: 'Failed to run migration',
+      message: error.message 
+    });
+  }
+});
+
+adminRouter.post("/migration/rollback", requireAdmin, async (req, res) => {
+  reqLog(req, "POST /admin/migration/rollback");
+  try {
+    const { sourceMigrationService } = await import('backend/services/migration/source-migration');
+    
+    // Add confirmation check
+    const { confirm } = req.body;
+    if (confirm !== 'ROLLBACK_MIGRATION') {
+      return res.status(400).json({
+        error: 'Confirmation required',
+        message: 'Send { "confirm": "ROLLBACK_MIGRATION" } to confirm rollback'
+      });
+    }
+
+    console.log('[Admin] Starting migration rollback...');
+    const result = await sourceMigrationService.rollbackMigration();
+    
+    if (result.success) {
+      console.log('[Admin] Migration rollback completed successfully');
+    } else {
+      console.error('[Admin] Migration rollback failed:', result.message);
+    }
+    
+    res.json(result);
+    
+  } catch (error: any) {
+    console.error('[Admin] Error during migration rollback:', error);
+    res.status(500).json({ 
+      error: 'Failed to rollback migration',
       message: error.message 
     });
   }

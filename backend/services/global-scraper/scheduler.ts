@@ -1,5 +1,5 @@
 // Global Scraping Scheduler - Runs every 3 hours for all sources
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import { log } from "backend/utils/log";
 import { runGlobalScrape } from './scraper';
 
@@ -26,7 +26,6 @@ export class GlobalScrapingScheduler {
         
         await this.runGlobalScrape();
       }, {
-        scheduled: false,
         timezone: "UTC"
       });
 
