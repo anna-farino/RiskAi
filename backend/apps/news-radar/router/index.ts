@@ -20,53 +20,152 @@ export const newsRouter = Router()
 const activeScraping = new Map<string, boolean>();
 
 newsRouter.get("/sources", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  reqLog(req,"GET sources hit. userId=", userId)
-  const sources = await storage.getSources(userId);
-  res.json(sources);
-});
-
-newsRouter.post("/sources", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const source = insertSourceSchema.parse({
-    ...req.body,
-    userId
-  });
-  const created = await storage.createSource(source);
-  res.json(created);
-});
-
-newsRouter.patch("/sources/:id", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const id = req.params.id;
-  
-  // Check if source belongs to user
-  const source = await storage.getSource(id);
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
-  }
-  
-  const updated = await storage.updateSource(id, req.body);
-  res.json(updated);
-});
-
-newsRouter.delete("/sources/:id", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
-    const id = req.params.id;
+    reqLog(req, "GET sources hit. userId=", userId);
     
-    // Check if source belongs to user
-    const source = await storage.getSource(id);
-    if (!source || source.userId !== userId) {
-      return res.status(404).json({ message: "Source not found" });
+    // Import required modules
+    const { db } = await import('backend/db/db');
+    const { globalSources, userSourcePreferences } = await import('@shared/db/schema/global');
+    const { eq, and } = await import('drizzle-orm');
+    
+    // Get all global sources
+    const allSources = await db.select().from(globalSources).where(eq(globalSources.isActive, true));
+    
+    // Get user's preferences for News Radar
+    const userPrefs = await db.select()
+      .from(userSourcePreferences)
+      .where(
+        and(
+          eq(userSourcePreferences.userId, userId),
+          eq(userSourcePreferences.appContext, 'news_radar')
+        )
+      );
+    
+    // Create a map of source preferences
+    const prefsMap = new Map(userPrefs.map(p => [p.sourceId, p.isEnabled]));
+    
+    // Combine data - sources with user's preference status
+    const sourcesWithPreferences = allSources.map(source => ({
+      id: source.id,
+      name: source.name,
+      url: source.url,
+      category: source.category,
+      priority: source.priority,
+      isEnabled: prefsMap.get(source.id) ?? false, // Default to disabled if no preference set
+      isDefault: source.isDefault,
+      lastScraped: source.lastScraped,
+      lastSuccessfulScrape: source.lastSuccessfulScrape,
+      consecutiveFailures: source.consecutiveFailures
+    }));
+    
+    console.log(`[NewsRadar] Retrieved ${sourcesWithPreferences.length} global sources for user ${userId}`);
+    res.json(sourcesWithPreferences);
+    
+  } catch (error: any) {
+    console.error('[NewsRadar] Error getting sources:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve sources',
+      message: error.message 
+    });
+  }
+});
+
+// POST /sources - REMOVED in Phase 3
+// Users can no longer add sources - only admins can add global sources
+newsRouter.post("/sources", async (req, res) => {
+  res.status(403).json({ 
+    error: 'Adding sources is no longer allowed',
+    message: 'Sources are now managed globally by administrators. You can enable/disable existing sources using PUT /sources/:id/toggle.'
+  });
+});
+
+// PATCH /sources/:id - REMOVED in Phase 3  
+// Users can no longer modify sources - only toggle enable/disable
+newsRouter.patch("/sources/:id", async (req, res) => {
+  res.status(403).json({ 
+    error: 'Modifying sources is no longer allowed',
+    message: 'Sources are now managed globally. You can enable/disable sources using PUT /sources/:id/toggle.'
+  });
+});
+
+// DELETE /sources/:id - REMOVED in Phase 3
+// Users can no longer delete sources - only disable them
+newsRouter.delete("/sources/:id", async (req, res) => {
+  res.status(403).json({ 
+    error: 'Deleting sources is no longer allowed',
+    message: 'Sources are now managed globally. You can disable sources using PUT /sources/:id/toggle with isEnabled: false.'
+  });
+});
+
+// NEW Phase 3 endpoint: Toggle source preference
+newsRouter.put("/sources/:id/toggle", async (req, res) => {
+  try {
+    const userId = (req.user as User).id as string;
+    const sourceId = req.params.id;
+    const { isEnabled } = req.body;
+    
+    if (typeof isEnabled !== 'boolean') {
+      return res.status(400).json({ 
+        error: 'Invalid request',
+        message: 'isEnabled must be a boolean value'
+      });
     }
     
-    await storage.deleteSource(id);
-    // Return success object instead of empty response to better support optimistic UI updates
-    res.status(200).json({ success: true, id, message: "Source deleted successfully" });
-  } catch (error) {
-    console.error(error)
-    res.send(500)
+    // Import required modules
+    const { db } = await import('backend/db/db');
+    const { globalSources, userSourcePreferences } = await import('@shared/db/schema/global');
+    const { eq, and } = await import('drizzle-orm');
+    
+    // Check if the global source exists and is active
+    const globalSource = await db.select()
+      .from(globalSources)
+      .where(and(
+        eq(globalSources.id, sourceId),
+        eq(globalSources.isActive, true)
+      ))
+      .limit(1);
+    
+    if (globalSource.length === 0) {
+      return res.status(404).json({ 
+        error: 'Source not found',
+        message: 'The specified source does not exist or is not available'
+      });
+    }
+    
+    // Upsert user preference
+    await db.insert(userSourcePreferences)
+      .values({
+        userId,
+        sourceId,
+        appContext: 'news_radar',
+        isEnabled,
+        enabledAt: isEnabled ? new Date() : null
+      })
+      .onConflictDoUpdate({
+        target: ['userId', 'sourceId', 'appContext'],
+        set: { 
+          isEnabled,
+          enabledAt: isEnabled ? new Date() : null,
+          updatedAt: new Date()
+        }
+      });
+    
+    console.log(`[NewsRadar] User ${userId} ${isEnabled ? 'enabled' : 'disabled'} source ${sourceId}`);
+    
+    res.json({ 
+      success: true,
+      sourceId,
+      isEnabled,
+      message: `Source ${isEnabled ? 'enabled' : 'disabled'} successfully`
+    });
+    
+  } catch (error: any) {
+    console.error('[NewsRadar] Error toggling source:', error);
+    res.status(500).json({ 
+      error: 'Failed to update source preference',
+      message: error.message 
+    });
   }
 });
 
@@ -83,8 +182,16 @@ const bulkDeleteSourcesSchema = z.object({
   sourceIds: z.array(z.string().uuid()).min(1, "At least one source ID is required")
 });
 
-// Bulk add sources endpoint
+// Bulk add sources endpoint - DISABLED in Phase 3
 newsRouter.post("/sources/bulk-add", async (req, res) => {
+  res.status(403).json({ 
+    error: 'Bulk adding sources is no longer allowed',
+    message: 'Sources are now managed globally by administrators. You can enable/disable existing sources individually using PUT /sources/:id/toggle.'
+  });
+});
+
+// Original bulk add implementation preserved for reference but disabled
+newsRouter.post("/sources/bulk-add-DISABLED", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
     reqLog(req, "POST /sources/bulk-add", userId);
@@ -229,8 +336,16 @@ newsRouter.post("/sources/bulk-add", async (req, res) => {
   }
 });
 
-// Bulk delete sources endpoint
+// Bulk delete sources endpoint - DISABLED in Phase 3
 newsRouter.post("/sources/bulk-delete", async (req, res) => {
+  res.status(403).json({ 
+    error: 'Bulk deleting sources is no longer allowed',
+    message: 'Sources are now managed globally. You can disable sources individually using PUT /sources/:id/toggle with isEnabled: false.'
+  });
+});
+
+// Original bulk delete implementation preserved for reference but disabled  
+newsRouter.post("/sources/bulk-delete-DISABLED", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
     reqLog(req, "POST /sources/bulk-delete", userId);
@@ -385,64 +500,97 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
   res.status(200).json({ success: true, id, message: "Keyword deleted successfully" });
 });
 
-// Articles
+// Articles - Updated to use global filtering
 newsRouter.get("/articles", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  
-  // Parse query parameters for filtering
-  const { search, keywordIds, startDate, endDate } = req.query;
-  
-  // Prepare filter object
-  const filters: {
-    search?: string;
-    keywordIds?: string[];
-    startDate?: Date;
-    endDate?: Date;
-  } = {};
-  
-  // Add search filter if provided
-  if (search && typeof search === 'string') {
-    filters.search = search;
-  }
-  
-  // Parse keyword IDs (could be a single string or an array)
-  if (keywordIds) {
-    if (typeof keywordIds === 'string') {
-      // Single keyword ID as string
-      filters.keywordIds = [keywordIds];
-    } else if (Array.isArray(keywordIds)) {
-      // Array of keyword IDs
-      filters.keywordIds = keywordIds as string[];
+  try {
+    const userId = (req.user as User).id as string;
+    
+    // Parse query parameters for filtering
+    const { 
+      search, 
+      keywordIds, 
+      startDate, 
+      endDate,
+      page = '1',
+      limit = '50',
+      sortBy = 'date',
+      sortOrder = 'desc'
+    } = req.query;
+    
+    // Use global query filter service
+    const { queryFilterService } = await import('backend/services/query-filter/filter-service');
+    
+    // Parse date range filters
+    let dateFrom: Date | undefined;
+    let dateTo: Date | undefined;
+    
+    if (startDate && typeof startDate === 'string') {
+      try {
+        dateFrom = new Date(startDate);
+      } catch (error) {
+        console.error("Invalid startDate format:", error);
+      }
     }
-  }
-  
-  // Parse date range filters
-  if (startDate && typeof startDate === 'string') {
-    try {
-      filters.startDate = new Date(startDate);
-    } catch (error) {
-      console.error("Invalid startDate format:", error);
+    
+    if (endDate && typeof endDate === 'string') {
+      try {
+        dateTo = new Date(endDate);
+      } catch (error) {
+        console.error("Invalid endDate format:", error);
+      }
     }
-  }
-  
-  if (endDate && typeof endDate === 'string') {
-    try {
-      filters.endDate = new Date(endDate);
-    } catch (error) {
-      console.error("Invalid endDate format:", error);
+    
+    // Convert old keywordIds parameter to keywords array for backward compatibility
+    let keywords: string[] | undefined;
+    if (keywordIds) {
+      // For backward compatibility, we'll need to get the actual keyword terms
+      // This is a simplified implementation - in production you might want to support both approaches
+      if (typeof keywordIds === 'string') {
+        keywords = [keywordIds];
+      } else if (Array.isArray(keywordIds)) {
+        keywords = keywordIds as string[];
+      }
     }
+    
+    // Add search term to keywords if provided
+    if (search && typeof search === 'string') {
+      keywords = keywords ? [...keywords, search] : [search];
+    }
+    
+    // Call the new global filtering service
+    const result = await queryFilterService.filterArticles({
+      userId,
+      appContext: 'news_radar',
+      keywords,
+      dateFrom,
+      dateTo,
+      limit: parseInt(limit as string) || 50,
+      offset: ((parseInt(page as string) || 1) - 1) * (parseInt(limit as string) || 50),
+      sortBy: sortBy as 'date' | 'relevance',
+      sortOrder: sortOrder as 'asc' | 'desc'
+    });
+    
+    console.log(`[NewsRadar] Retrieved ${result.articles.length} filtered articles for user ${userId}`);
+    
+    // Return articles with pagination metadata
+    res.json({
+      articles: result.articles,
+      pagination: {
+        page: parseInt(page as string) || 1,
+        limit: parseInt(limit as string) || 50,
+        total: result.totalCount,
+        hasMore: result.hasMore
+      },
+      filters: result.filters
+    });
+    
+  } catch (error: any) {
+    console.error('[NewsRadar] Error getting articles:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve articles',
+      message: error.message 
+    });
   }
-  
-  console.log("Filter parameters:", filters);
-  
-  // Get filtered articles
-  const articles = await storage.getArticles(req, userId, filters);
-  console.log("Received filtered articles:", articles.length);
-  if (articles.length > 0) {
-    console.log("Filtered articles:", articles.length);
-  }
-  
-  res.json(articles);
 });
 
 newsRouter.delete("/articles/:id", async (req, res) => {
@@ -478,67 +626,20 @@ newsRouter.delete("/articles", async (req, res) => {
   }
 });
 
-// Stop scraping
+// Individual source scraping - DISABLED in Phase 3
 newsRouter.post("/sources/:id/stop", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const sourceId = req.params.id;
-  
-  // Check if source belongs to user
-  const source = await storage.getSource(sourceId);
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
-  }
-  
-  activeScraping.set(sourceId, false);
-  log(`[Scraping] Stopping scrape for source ID: ${sourceId}`, 'scraper');
-  res.json({ message: "Scraping stop signal sent" });
+  res.status(410).json({ 
+    error: 'Individual source scraping is no longer available',
+    message: 'Sources are now scraped automatically every 3 hours by the global scraping system. You can enable/disable sources using PUT /sources/:id/toggle to control which sources are included in your feed.'
+  });
 });
 
-// Scraping
+// Individual source scraping - DISABLED in Phase 3
 newsRouter.post("/sources/:id/scrape", async (req, res) => {
-  console.log("Scrape route hit")
-  const userId = (req.user as User).id as string;
-  console.log("User id", userId)
-  const sourceId = req.params.id;
-  console.log("Source id", sourceId)
-  const source = await storage.getSource(sourceId);
-  console.log("source", source)
-  
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
-  }
-
-  try {
-    // Use the updated scrapeSource function that handles all the scraping logic
-    const { processedCount, savedCount, newArticles } = await scrapeSource(sourceId);
-
-    // If there are new articles, send an email notification
-    if (newArticles.length > 0) {
-      try {
-        await sendNewArticlesEmail(userId, newArticles, source.name);
-        log(`[Email] Sent notification email for ${newArticles.length} new articles from ${source.name}`, 'scraper');
-      } catch (emailError) {
-        log(`[Email] Error sending notification: ${emailError}`, 'scraper');
-        // Continue processing - don't fail the request if email sending fails
-      }
-    }
-
-    log(`[Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`, 'scraper');
-    res.json({
-      message: "Scraping completed successfully",
-      stats: {
-        totalProcessed: processedCount,
-        totalSaved: savedCount,
-        newArticlesFound: newArticles.length
-      }
-    });
-  } catch (error: unknown) {
-    // Clear active flag on error
-    activeScraping.delete(sourceId);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    log(`[Scraping] Fatal error: ${errorMessage}`, 'scraper');
-    res.status(500).json({ message: errorMessage });
-  }
+  res.status(410).json({ 
+    error: 'Individual source scraping is no longer available',
+    message: 'Sources are now scraped automatically every 3 hours by the global scraping system. Fresh articles will appear automatically based on your enabled sources and keywords.'
+  });
 });
 
 // Background Jobs and Auto-Scraping

@@ -8,12 +8,12 @@ import {
   getGlobalSources,
   addGlobalSource
 } from '../../api/global-articles';
-import { authMiddleware } from '../../middleware/auth0middleware'; // Assuming this exists
+import { auth0middleware } from '../../middleware/auth0middleware';
 
 const router = Router();
 
 // All routes require authentication
-router.use(authMiddleware);
+router.use(auth0middleware);
 
 /**
  * GET /api/global/articles
@@ -74,4 +74,5 @@ router.get('/sources', getGlobalSources);
  */
 router.post('/sources', addGlobalSource);
 
+export { router as globalArticlesRouter };
 export default router;

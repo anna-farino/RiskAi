@@ -15,6 +15,7 @@ import { threatRouter } from 'backend/apps/threat-tracker/router';
 import { newsCapsuleRouter } from 'backend/apps/news-capsule/router';
 import { handlePopulateSampleData, handleCheckSampleDataStatus } from 'backend/handlers/populate-sample-data';
 import globalArticlesRouter from './routes/global-articles';
+import { adminRouter } from './routes/admin';
 import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 import { auth0middleware } from 'backend/middleware/auth0middleware';
@@ -64,6 +65,7 @@ router.use('/news-tracker', newsRouter)
 router.use('/threat-tracker', threatRouter)
 router.use('/news-capsule', newsCapsuleRouter)
 router.use('/global', globalArticlesRouter)
+router.use('/admin', adminRouter)
 
 router.post('/secrets', storeSecret)
 router.get('/secrets', getSecrets)
