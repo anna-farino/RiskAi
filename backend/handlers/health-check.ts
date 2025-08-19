@@ -11,13 +11,15 @@ export async function handleDatabaseHealthCheck(req: Request, res: Response) {
     await db.execute(sql`SELECT 1`);
     
     // Test 2: Check if RLS is properly configured
-    // This should fail without proper user context
+    // This should return 0 rows without proper user context
     let rlsEnforced = false;
     try {
-      await db.select().from(dbHealthCheck).limit(1);
+      const result = await db.select().from(dbHealthCheck).limit(1);
+      // RLS is working if query succeeds but returns no rows
+      rlsEnforced = result.length === 0;
     } catch (error) {
-      // Expected to fail - RLS is working
-      rlsEnforced = true;
+      // If query fails, RLS might be too restrictive or there's another issue
+      rlsEnforced = false;
     }
     
     // Test 3: Test with user context (simulating authenticated request)
