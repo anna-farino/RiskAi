@@ -41,20 +41,16 @@ app.listen(port, async () => {
     console.log('💻 [SERVER] Development mode: Proxying non-API requests to Vite dev server');
   }
   
-  // Initialize auto-scrape schedulers after server starts
+  // Phase 2.1: Initialize UNIFIED global scheduler (replaces separate app schedulers)
   try {
-    const { initializeScheduler: initThreatTracker } = await import('./apps/threat-tracker/services/scheduler.js');
-    await initThreatTracker();
-    console.log('✅ [SERVER] Threat Tracker auto-scrape scheduler initialized');
+    const { initializeGlobalScheduler } = await import('./services/global-scheduler.js');
+    await initializeGlobalScheduler();
+    console.log('✅ [SERVER] Unified global scheduler initialized (News Radar + Threat Tracker)');
   } catch (error) {
-    console.error('❌ [SERVER] Error initializing Threat Tracker scheduler:', error);
+    console.error('❌ [SERVER] Error initializing unified global scheduler:', error);
   }
   
-  try {
-    const { initializeScheduler: initNewsRadar } = await import('./apps/news-radar/services/scheduler.js');
-    await initNewsRadar();
-    console.log('✅ [SERVER] News Radar auto-scrape scheduler initialized');
-  } catch (error) {
-    console.error('❌ [SERVER] Error initializing News Radar scheduler:', error);
-  }
+  // DEPRECATED: Individual app schedulers are no longer used for global scraping
+  // The unified global scheduler handles both News Radar and Threat Tracker
+  // Keeping scheduler files for potential future per-user scheduling features
 });

@@ -48,7 +48,10 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 
 ### Phase 2: Global Scraping Infrastructure (Completed 2025-01-18)
 - **2.1 Background Jobs**: Removed userId and keyword dependencies from both News Radar and Threat Tracker
-- **2.1 Schedulers**: Updated to run globally every 3 hours instead of per-user scheduling
+- **2.1 Unified Global Scheduler**: Combined News Radar and Threat Tracker schedulers into single global scheduler
+  - Created `backend/services/global-scheduler.ts` that runs both app scrapers
+  - Runs every 3 hours globally (not per-user)
+  - Eliminates duplicate scraping that was occurring with separate schedulers
 - **2.1 API Routes**: Modified to work with global functions without userId parameters
 - **2.1 Article Processing**: All articles now saved globally without keyword filtering at scrape time
 - **2.2 AI Processing Pipeline**: Added cybersecurity detection and risk scoring during scraping
