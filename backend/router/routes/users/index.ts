@@ -1,8 +1,7 @@
 import { Router } from "express"
 import { verifyPermissions } from "../../../middleware/verify-permissions"
 import { handleEditUsersRoles, handleGetUsersRoles } from "../../../handlers/users-roles"
-import { handleSetMfa } from "backend/handlers/auth0/set-mfa"
-import { handleReadMfa } from "backend/handlers/auth0/read-mfa"
+import { handleSet2FA } from "backend/handlers/set-2fa"
 
 
 export const usersRouter = Router()
@@ -16,9 +15,6 @@ usersRouter.post('/:userId/roles/:roleName',
   handleEditUsersRoles
 )
 usersRouter.post('/:userId/2fa',
-  handleSetMfa
-)
-usersRouter.get('/:userId/2fa',
-  handleReadMfa
+  handleSet2FA
 )
 

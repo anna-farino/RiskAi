@@ -1,6 +1,11 @@
-// Global Schema - Re-architecture implementation
+// New Drizzle Schema Definitions for Re-Architecture
+// These schemas should be used to generate migration files
+
 import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, unique, primaryKey } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+
+// Import existing users table (reference only - already exists)
+// import { users } from './existing/users';
 
 // =====================================================
 // GLOBAL ARTICLES TABLE
@@ -18,7 +23,7 @@ export const globalArticles = pgTable('global_articles', {
   // AI Analysis Fields (New)
   isCybersecurity: boolean('is_cybersecurity').default(false),
   securityScore: integer('security_score'), // 0-100, only for cybersecurity articles
-  threatCategories: jsonb('threat_categories'), // Array of threat category strings
+  threatCategories: jsonb('threat_categories'), // {malware: true, ransomware: false, etc}
   
   // Metadata
   scrapedAt: timestamp('scraped_at').defaultNow(),
@@ -118,9 +123,83 @@ export const userSourcePreferencesRelations = relations(userSourcePreferences, (
 
 export type GlobalArticle = typeof globalArticles.$inferSelect;
 export type NewGlobalArticle = typeof globalArticles.$inferInsert;
+
 export type GlobalSource = typeof globalSources.$inferSelect;
 export type NewGlobalSource = typeof globalSources.$inferInsert;
+
 export type UserSourcePreference = typeof userSourcePreferences.$inferSelect;
 export type NewUserSourcePreference = typeof userSourcePreferences.$inferInsert;
+
 export type UserKeyword = typeof userKeywords.$inferSelect;
 export type NewUserKeyword = typeof userKeywords.$inferInsert;
+
+// =====================================================
+// MIGRATION NOTES
+// =====================================================
+
+/*
+MIGRATION STRATEGY:
+
+1. Create these new tables alongside existing ones
+2. Migrate data from existing tables:
+   - Combine 'articles' and 'threat_articles' into 'global_articles'
+   - Combine 'sources' and 'threat_sources' into 'global_sources'
+   - Create user_source_preferences from existing user-source relationships
+   - Migrate user keywords with new appContext field
+
+3. Data transformation requirements:
+   - Remove userId from articles during migration
+   - Deduplicate articles by URL
+   - Set isCybersecurity=false initially (will be updated by AI processor)
+   - Preserve all scraping configurations
+
+4. After migration verification:
+   - Update application code to use new tables
+   - Deprecate old tables
+   - Eventually drop old tables after confirming everything works
+
+IMPORTANT: 
+- Run AI analysis on migrated articles to populate cybersecurity flags
+- Ensure all users' source preferences are correctly mapped
+- Test query performance before switching to production
+*/
+
+// =====================================================
+// EXAMPLE QUERIES WITH NEW SCHEMA
+// =====================================================
+
+/*
+// Get articles for a user in News Radar
+SELECT a.* 
+FROM global_articles a
+WHERE a.source_id IN (
+  SELECT source_id 
+  FROM user_source_preferences 
+  WHERE user_id = $1 
+    AND app_context = 'news_radar' 
+    AND is_enabled = true
+)
+ORDER BY a.publish_date DESC;
+
+// Get cybersecurity articles for Threat Tracker
+SELECT a.* 
+FROM global_articles a
+WHERE a.is_cybersecurity = true
+  AND a.source_id IN (
+    SELECT source_id 
+    FROM user_source_preferences 
+    WHERE user_id = $1 
+      AND app_context = 'threat_tracker' 
+      AND is_enabled = true
+  )
+ORDER BY a.security_score DESC, a.publish_date DESC;
+
+// Apply keyword filtering (at query time)
+SELECT a.* 
+FROM global_articles a
+WHERE a.source_id IN (/* user's enabled sources */)
+  AND (
+    a.title ILIKE '%' || $keyword || '%' 
+    OR a.content ILIKE '%' || $keyword || '%'
+  );
+*/

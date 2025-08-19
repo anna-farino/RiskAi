@@ -19,159 +19,88 @@ function getUserId(req: any): string | undefined {
   return (req.user as User)?.id;
 }
 
-// Sources API - Updated for Phase 3 global sources
+// Sources API
 threatRouter.get("/sources", async (req, res) => {
   reqLog(req, "🔎 GET /sources");
   try {
     const userId = getUserId(req);
-    
-    // Import required modules
-    const { db } = await import('backend/db/db');
-    const { globalSources, userSourcePreferences } = await import('@shared/db/schema/global');
-    const { eq, and } = await import('drizzle-orm');
-    
-    // Get all active global sources
-    const allSources = await db.select().from(globalSources).where(eq(globalSources.isActive, true));
-    
-    // Get user's preferences for Threat Tracker
-    const userPrefs = await db.select()
-      .from(userSourcePreferences)
-      .where(
-        and(
-          eq(userSourcePreferences.userId, userId),
-          eq(userSourcePreferences.appContext, 'threat_tracker')
-        )
-      );
-    
-    // Create a map of source preferences
-    const prefsMap = new Map(userPrefs.map(p => [p.sourceId, p.isEnabled]));
-    
-    // Combine data - sources with user's preference status
-    const sourcesWithPreferences = allSources.map(source => ({
-      id: source.id,
-      name: source.name,
-      url: source.url,
-      category: source.category,
-      priority: source.priority,
-      isEnabled: prefsMap.get(source.id) ?? (source.isDefault === true), // Default sources enabled by default
-      isDefault: source.isDefault,
-      lastScraped: source.lastScraped,
-      lastSuccessfulScrape: source.lastSuccessfulScrape,
-      consecutiveFailures: source.consecutiveFailures
-    }));
-    
-    console.log(`[ThreatTracker] Retrieved ${sourcesWithPreferences.length} global sources for user ${userId}`);
-    res.json(sourcesWithPreferences);
-    
+    const user_sources = await storage.getSources(userId);
+    const default_sources = await storage.getDefaultSources(userId);
+    res.json([...user_sources, ...default_sources]);
   } catch (error: any) {
-    console.error('[ThreatTracker] Error fetching sources:', error);
-    res.status(500).json({ 
-      error: 'Failed to retrieve sources',
-      message: error.message 
-    });
+    console.error("Error fetching sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch sources" });
   }
 });
 
-// POST /sources - REMOVED in Phase 3
-// Users can no longer add sources - only admins can add global sources
 threatRouter.post("/sources", async (req, res) => {
-  reqLog(req, "POST /sources - BLOCKED");
-  res.status(403).json({ 
-    error: 'Adding sources is no longer allowed',
-    message: 'Sources are now managed globally by administrators. You can enable/disable existing sources using PUT /sources/:id/toggle.'
-  });
-});
-
-// PUT /sources/:id - REMOVED in Phase 3 (replaced with toggle endpoint)
-// Users can no longer modify sources - only toggle enable/disable
-threatRouter.put("/sources/:id", async (req, res) => {
-  reqLog(req, `PUT /sources/${req.params.id} - BLOCKED`);
-  res.status(403).json({ 
-    error: 'Modifying sources is no longer allowed',
-    message: 'Sources are now managed globally. You can enable/disable sources using PUT /sources/:id/toggle.'
-  });
-});
-
-// NEW Phase 3 endpoint: Toggle source preference
-threatRouter.put("/sources/:id/toggle", async (req, res) => {
-  reqLog(req, `PUT /sources/${req.params.id}/toggle`);
+  reqLog(req, "POST /sources");
   try {
     const userId = getUserId(req);
-    const sourceId = req.params.id;
-    const { isEnabled } = req.body;
     
-    if (typeof isEnabled !== 'boolean') {
-      return res.status(400).json({ 
-        error: 'Invalid request',
-        message: 'isEnabled must be a boolean value'
-      });
-    }
-    
-    // Import required modules
-    const { db } = await import('backend/db/db');
-    const { globalSources, userSourcePreferences } = await import('@shared/db/schema/global');
-    const { eq, and } = await import('drizzle-orm');
-    
-    // Check if the global source exists and is active
-    const globalSource = await db.select()
-      .from(globalSources)
-      .where(and(
-        eq(globalSources.id, sourceId),
-        eq(globalSources.isActive, true)
-      ))
-      .limit(1);
-    
-    if (globalSource.length === 0) {
-      return res.status(404).json({ 
-        error: 'Source not found',
-        message: 'The specified source does not exist or is not available'
-      });
-    }
-    
-    // Upsert user preference
-    await db.insert(userSourcePreferences)
-      .values({
-        userId,
-        sourceId,
-        appContext: 'threat_tracker',
-        isEnabled,
-        enabledAt: isEnabled ? new Date() : null
-      })
-      .onConflictDoUpdate({
-        target: ['userId', 'sourceId', 'appContext'],
-        set: { 
-          isEnabled,
-          enabledAt: isEnabled ? new Date() : null,
-          updatedAt: new Date()
-        }
-      });
-    
-    console.log(`[ThreatTracker] User ${userId} ${isEnabled ? 'enabled' : 'disabled'} source ${sourceId}`);
-    
-    res.json({ 
-      success: true,
-      sourceId,
-      isEnabled,
-      message: `Source ${isEnabled ? 'enabled' : 'disabled'} successfully`
+    // Validate the source data
+    const sourceData = insertThreatSourceSchema.parse({
+      ...req.body,
+      userId
     });
     
+    const source = await storage.createSource(sourceData);
+    res.status(201).json(source);
   } catch (error: any) {
-    console.error('[ThreatTracker] Error toggling source:', error);
-    res.status(500).json({ 
-      error: 'Failed to update source preference',
-      message: error.message 
-    });
+    console.error("Error creating source:", error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    res.status(500).json({ error: error.message || "Failed to create source" });
   }
 });
 
-// DELETE /sources/:id - REMOVED in Phase 3
-// Users can no longer delete sources - only disable them
+threatRouter.put("/sources/:id", async (req, res) => {
+  reqLog(req, `PUT /sources/${req.params.id}`);
+  try {
+    const sourceId = req.params.id;
+    const userId = getUserId(req);
+    
+    // Check if the source exists and belongs to the user
+    const existingSource = await storage.getSource(sourceId);
+    if (!existingSource) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    if (existingSource.userId && existingSource.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to update this source" });
+    }
+    
+    const updatedSource = await storage.updateSource(sourceId, req.body);
+    res.json(updatedSource);
+  } catch (error: any) {
+    console.error("Error updating source:", error);
+    res.status(500).json({ error: error.message || "Failed to update source" });
+  }
+});
+
 threatRouter.delete("/sources/:id", async (req, res) => {
-  reqLog(req, `DELETE /sources/${req.params.id} - BLOCKED`);
-  res.status(403).json({ 
-    error: 'Deleting sources is no longer allowed',
-    message: 'Sources are now managed globally. You can disable sources using PUT /sources/:id/toggle with isEnabled: false.'
-  });
+  reqLog(req, `DELETE /sources/${req.params.id}`);
+  try {
+    const sourceId = req.params.id;
+    const userId = getUserId(req);
+    
+    // Check if the source exists and belongs to the user
+    const existingSource = await storage.getSource(sourceId);
+    if (!existingSource) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    if (existingSource.userId && existingSource.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to delete this source" });
+    }
+    
+    await storage.deleteSource(sourceId);
+    res.json({ message: "Source deleted successfully"});
+  } catch (error: any) {
+    console.error("Error deleting source:", error);
+    res.status(500).json({ error: error.message || "Failed to delete source" });
+  }
 });
 
 // Bulk operations schemas
@@ -187,16 +116,8 @@ const bulkDeleteSourcesSchema = z.object({
   sourceIds: z.array(z.string().uuid()).min(1, "At least one source ID is required")
 });
 
-// Bulk add sources endpoint - DISABLED in Phase 3
+// Bulk add sources endpoint
 threatRouter.post("/sources/bulk-add", async (req, res) => {
-  res.status(403).json({ 
-    error: 'Bulk adding sources is no longer allowed',
-    message: 'Sources are now managed globally by administrators. You can enable/disable existing sources individually using PUT /sources/:id/toggle.'
-  });
-});
-
-// Original bulk add implementation preserved for reference but disabled
-threatRouter.post("/sources/bulk-add-DISABLED", async (req, res) => {
   try {
     const userId = getUserId(req);
     reqLog(req, "POST /sources/bulk-add", userId);
@@ -343,16 +264,8 @@ threatRouter.post("/sources/bulk-add-DISABLED", async (req, res) => {
   }
 });
 
-// Bulk delete sources endpoint - DISABLED in Phase 3  
+// Bulk delete sources endpoint
 threatRouter.post("/sources/bulk-delete", async (req, res) => {
-  res.status(403).json({ 
-    error: 'Bulk deleting sources is no longer allowed',
-    message: 'Sources are now managed globally. You can disable sources individually using PUT /sources/:id/toggle with isEnabled: false.'
-  });
-});
-
-// Original bulk delete implementation preserved for reference but disabled
-threatRouter.post("/sources/bulk-delete-DISABLED", async (req, res) => {
   try {
     const userId = getUserId(req);
     reqLog(req, "POST /sources/bulk-delete", userId);
@@ -621,106 +534,41 @@ threatRouter.get("/articles", async (req, res) => {
   try {
     const userId = getUserId(req);
     
-    // Parse query parameters for filtering
-    const {
+    // Parse filter parameters
+    const search = req.query.search as string | undefined;
+    const keywordIds = req.query.keywordIds 
+      ? Array.isArray(req.query.keywordIds) 
+        ? req.query.keywordIds as string[]
+        : [req.query.keywordIds as string]
+      : undefined;
+    
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    
+    if (req.query.startDate) {
+      startDate = new Date(req.query.startDate as string);
+    }
+    
+    if (req.query.endDate) {
+      endDate = new Date(req.query.endDate as string);
+    }
+    
+    // Get filtered articles
+    const articles = await storage.getArticles({
       search,
       keywordIds,
       startDate,
       endDate,
-      page = '1',
-      limit = '50',
-      sortBy = 'date',
-      sortOrder = 'desc',
-      minSecurityScore,
-      threatCategories,
-      includeNonCybersecurity = 'false'
-    } = req.query;
-    
-    // Use global query filter service
-    const { queryFilterService } = await import('backend/services/query-filter/filter-service');
-    
-    // Parse date range filters
-    let dateFrom: Date | undefined;
-    let dateTo: Date | undefined;
-    
-    if (startDate && typeof startDate === 'string') {
-      try {
-        dateFrom = new Date(startDate);
-      } catch (error) {
-        console.error("Invalid startDate format:", error);
-      }
-    }
-    
-    if (endDate && typeof endDate === 'string') {
-      try {
-        dateTo = new Date(endDate);
-      } catch (error) {
-        console.error("Invalid endDate format:", error);
-      }
-    }
-    
-    // Convert old keywordIds parameter to keywords array for backward compatibility
-    let keywords: string[] | undefined;
-    if (keywordIds) {
-      if (typeof keywordIds === 'string') {
-        keywords = [keywordIds];
-      } else if (Array.isArray(keywordIds)) {
-        keywords = keywordIds as string[];
-      }
-    }
-    
-    // Add search term to keywords if provided
-    if (search && typeof search === 'string') {
-      keywords = keywords ? [...keywords, search] : [search];
-    }
-    
-    // Parse threat categories
-    let threatCategoriesArray: string[] | undefined;
-    if (threatCategories && typeof threatCategories === 'string') {
-      threatCategoriesArray = threatCategories.split(',').map(t => t.trim());
-    }
-    
-    // Call the new global filtering service with threat-specific options
-    const result = await queryFilterService.filterArticles({
       userId,
-      appContext: 'threat_tracker',
-      keywords,
-      dateFrom,
-      dateTo,
-      limit: parseInt(limit as string) || 50,
-      offset: ((parseInt(page as string) || 1) - 1) * (parseInt(limit as string) || 50),
-      sortBy: sortBy as 'date' | 'security_score' | 'relevance',
-      sortOrder: sortOrder as 'asc' | 'desc',
-      minSecurityScore: minSecurityScore ? parseInt(minSecurityScore as string) : undefined,
-      threatCategories: threatCategoriesArray,
-      includeNonCybersecurity: includeNonCybersecurity === 'true'
+      limit
     });
     
-    console.log(`[ThreatTracker] Retrieved ${result.articles.length} filtered articles for user ${userId}`);
-    
-    // Return articles with pagination metadata and threat-specific filters
-    res.json({
-      articles: result.articles,
-      pagination: {
-        page: parseInt(page as string) || 1,
-        limit: parseInt(limit as string) || 50,
-        total: result.totalCount,
-        hasMore: result.hasMore
-      },
-      filters: result.filters,
-      threatSpecific: {
-        cybersecurityOnly: includeNonCybersecurity !== 'true',
-        minSecurityScore: minSecurityScore ? parseInt(minSecurityScore as string) : null,
-        threatCategories: threatCategoriesArray
-      }
-    });
-    
+    res.json(articles);
   } catch (error: any) {
-    console.error('[ThreatTracker] Error fetching articles:', error);
-    res.status(500).json({ 
-      error: 'Failed to retrieve articles',
-      message: error.message 
-    });
+    console.error("Error fetching articles:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch articles" });
   }
 });
 
@@ -851,40 +699,90 @@ threatRouter.get("/articles/marked-for-capsule", async (req, res) => {
   }
 });
 
-// Individual source scraping - DISABLED in Phase 3
+// Scraping API
 threatRouter.post("/scrape/source/:id", async (req, res) => {
-  reqLog(req, `POST /scrape/source/${req.params.id} - DISABLED`);
-  res.status(410).json({ 
-    error: 'Individual source scraping is no longer available',
-    message: 'Sources are now scraped automatically every 3 hours by the global scraping system. Fresh threat intelligence will appear automatically based on your enabled sources and keywords.'
-  });
+  reqLog(req, `POST /scrape/source/${req.params.id}`);
+  try {
+    const sourceId = req.params.id;
+    const userId = getUserId(req);
+    
+    // Check if the source exists and belongs to the user
+    const source = await storage.getSource(sourceId);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    if (source.userId && source.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to scrape this source" });
+    }
+    
+    // Scrape the source
+    const newArticles = await scrapeSource(source, userId);
+    
+    res.json({
+      message: `Successfully scraped source: ${source.name}`,
+      articleCount: newArticles ? newArticles.length : 0,
+      articles: newArticles
+    });
+  } catch (error: any) {
+    console.error("Error scraping source:", error);
+    res.status(500).json({ error: error.message || "Failed to scrape source" });
+  }
 });
 
-// User-specific scraping of all sources - DISABLED in Phase 3
 threatRouter.post("/scrape/all", async (req, res) => {
-  reqLog(req, "POST /scrape/all - DISABLED");
-  res.status(410).json({ 
-    error: 'User-specific scraping is no longer available',
-    message: 'All threat intelligence sources are now scraped automatically every 3 hours by the global system. Enable your preferred sources and keywords to customize your feed.'
-  });
+  reqLog(req, "POST /scrape/all");
+  try {
+    const userId = getUserId(req);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    // Check if this user's scrape job is already running
+    if (isUserJobRunning(userId)) {
+      return res.status(409).json({ error: "A scrape job is already running for this user" });
+    }
+    
+    // Start the scrape job for this user
+    const job = runGlobalScrapeJob(userId);
+    
+    res.json({
+      message: "Scrape job started for user",
+      job
+    });
+  } catch (error: any) {
+    console.error("Error starting scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to start scrape job" });
+  }
 });
 
-// Stop user scraping - DISABLED in Phase 3
 threatRouter.post("/scrape/stop", async (req, res) => {
-  reqLog(req, "POST /scrape/stop - DISABLED");
-  res.status(410).json({ 
-    error: 'User-specific scraping is no longer available',
-    message: 'Scraping is now handled automatically by the global system every 3 hours.'
-  });
+  reqLog(req, "POST /scrape/stop");
+  try {
+    const userId = getUserId(req);
+    const result = stopGlobalScrapeJob(userId);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error stopping scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to stop scrape job" });
+  }
 });
 
-// Scrape status check - DISABLED in Phase 3
 threatRouter.get("/scrape/status", async (req, res) => {
-  reqLog(req, "GET /scrape/status - DISABLED");
-  res.status(410).json({ 
-    error: 'User-specific scraping status is no longer available',
-    message: 'All sources are now scraped automatically every 3 hours by the global system. Check the global scraping statistics via admin endpoints.'
-  });
+  reqLog(req, "GET /scrape/status");
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    const isRunning = isUserJobRunning(userId);
+    res.json({ running: isRunning });
+  } catch (error: any) {
+    console.error("Error checking scrape job status:", error);
+    res.status(500).json({ error: error.message || "Failed to check scrape job status" });
+  }
 });
 
 // Auto-scrape settings API

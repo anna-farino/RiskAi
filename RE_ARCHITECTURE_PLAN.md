@@ -750,284 +750,170 @@ router.get('/admin/scraping/stats', requireAdmin, async (req, res) => {
 
 ---
 
-## Phase 4: Frontend Updates (Minimal Changes)
+## Phase 4: Frontend Updates
 **Timeline: Week 4**
 
-### Overview: Frontend Structure Remains Unchanged
-The frontend will maintain its existing structure with **two completely separate applications** (News Radar and Threat Tracker), each with their own dedicated pages for sources and keywords management. The UI and user experience will remain virtually identical - only the underlying data fetching logic changes.
+### 4.1 Source Management UI Changes
 
-### 4.1 Preserved Frontend Structure
-
-#### Existing App Separation (NO CHANGES)
-```
-frontend/src/pages/dashboard/
-├── news-radar/
-│   ├── index.tsx          // Main News Radar page (unchanged)
-│   ├── sources.tsx        // News Radar sources page (minor API update)
-│   ├── keywords.tsx       // News Radar keywords page (unchanged)
-│   └── articles.tsx       // News Radar articles display (unchanged)
-├── threat-tracker/
-│   ├── index.tsx          // Main Threat Tracker page (unchanged)
-│   ├── sources.tsx        // Threat Tracker sources page (minor API update)
-│   ├── keywords.tsx       // Threat Tracker keywords page (unchanged)
-│   └── articles.tsx       // Threat Tracker articles display (unchanged)
-```
-
-### 4.2 Source Management Pages (Minimal Changes Per App)
-
-#### News Radar Sources Page
 ```typescript
-// frontend/src/pages/dashboard/news-radar/sources.tsx
-// MINIMAL CHANGE: Remove "Add Source" button, everything else stays the same
+// frontend/src/pages/dashboard/SourceManager.tsx
 
-const NewsRadarSources = () => {
-  // Same UI structure, same layout
+// BEFORE: Add source button and form
+const SourceManager = () => {
+  const [showAddForm, setShowAddForm] = useState(false);
+  
+  return (
+    <div>
+      <Button onClick={() => setShowAddForm(true)}>Add Source</Button>
+      {showAddForm && <AddSourceForm />}
+      <SourceList />
+    </div>
+  );
+};
+
+// AFTER: Toggle sources only
+const SourceManager = () => {
   const { data: sources } = useQuery({
-    queryKey: ['news-radar-sources'], // App-specific query key
-    queryFn: () => api.get('/api/news-tracker/sources/available?app=news_radar')
+    queryKey: ['sources', 'available'],
+    queryFn: () => api.get('/sources/available')
   });
   
   const toggleSource = useMutation({
     mutationFn: ({ sourceId, isEnabled }) => 
-      api.put(`/api/news-tracker/sources/${sourceId}/toggle`, { 
-        appContext: 'news_radar', // Specify app context
+      api.put(`/sources/${sourceId}/toggle`, { 
+        appContext: getCurrentApp(),
         isEnabled 
-      })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['sources']);
+      queryClient.invalidateQueries(['articles']);
+    }
   });
   
   return (
-    <div className="p-6">
-      <h1>News Radar - Manage Sources</h1>
-      {/* ONLY CHANGE: Remove "Add New Source" button */}
-      {/* Everything else remains exactly the same */}
-      <div className="grid gap-2 mt-4">
-        {sources?.map(source => (
-          // Same source cards with toggle switches
-          <SourceCard key={source.id} source={source} onToggle={toggleSource} />
-        ))}
-      </div>
-    </div>
-  );
-};
-```
-
-#### Threat Tracker Sources Page
-```typescript
-// frontend/src/pages/dashboard/threat-tracker/sources.tsx
-// SEPARATE PAGE: Independent from News Radar sources
-
-const ThreatTrackerSources = () => {
-  // Completely separate page with its own state
-  const { data: sources } = useQuery({
-    queryKey: ['threat-tracker-sources'], // Different query key
-    queryFn: () => api.get('/api/threat-tracker/sources/available?app=threat_tracker')
-  });
-  
-  const toggleSource = useMutation({
-    mutationFn: ({ sourceId, isEnabled }) => 
-      api.put(`/api/threat-tracker/sources/${sourceId}/toggle`, { 
-        appContext: 'threat_tracker', // Different app context
-        isEnabled 
-      })
-  });
-  
-  return (
-    <div className="p-6">
-      <h1>Threat Tracker - Manage Sources</h1>
-      {/* Same UI as before, just no "Add" button */}
-      <div className="grid gap-2 mt-4">
-        {sources?.map(source => (
-          <SourceCard key={source.id} source={source} onToggle={toggleSource} />
-        ))}
-      </div>
-    </div>
-  );
-};
-```
-
-### 4.3 Keywords Management Pages (NO CHANGES)
-
-#### News Radar Keywords Page
-```typescript
-// frontend/src/pages/dashboard/news-radar/keywords.tsx
-// NO CHANGES NEEDED - Keywords work exactly the same
-
-const NewsRadarKeywords = () => {
-  // Everything stays exactly the same
-  const { data: keywords } = useQuery({
-    queryKey: ['news-radar-keywords'],
-    queryFn: () => api.get('/api/news-tracker/keywords')
-  });
-  
-  // Add, delete, toggle keywords - all unchanged
-  const addKeyword = useMutation({
-    mutationFn: (keyword) => 
-      api.post('/api/news-tracker/keywords', { 
-        term: keyword,
-        appContext: 'news_radar' // API now requires app context
-      })
-  });
-  
-  return (
-    <div className="p-6">
-      <h1>News Radar - Manage Keywords</h1>
-      {/* Exact same UI as before */}
-      <AddKeywordForm onAdd={addKeyword} />
-      <KeywordsList keywords={keywords} />
-    </div>
-  );
-};
-```
-
-#### Threat Tracker Keywords Page
-```typescript
-// frontend/src/pages/dashboard/threat-tracker/keywords.tsx
-// SEPARATE PAGE: Independent keywords for Threat Tracker
-
-const ThreatTrackerKeywords = () => {
-  // Completely separate keywords management
-  const { data: keywords } = useQuery({
-    queryKey: ['threat-tracker-keywords'],
-    queryFn: () => api.get('/api/threat-tracker/keywords')
-  });
-  
-  // Categories remain the same (threat, vendor, client, hardware)
-  const addKeyword = useMutation({
-    mutationFn: ({ term, category }) => 
-      api.post('/api/threat-tracker/keywords', { 
-        term,
-        category,
-        appContext: 'threat_tracker'
-      })
-  });
-  
-  return (
-    <div className="p-6">
-      <h1>Threat Tracker - Manage Keywords</h1>
-      {/* Same categorized keyword UI */}
-      <CategoryTabs />
-      <AddKeywordForm onAdd={addKeyword} />
-      <KeywordsList keywords={keywords} byCategory />
-    </div>
-  );
-};
-```
-
-### 4.4 Article Display Pages (NO UI CHANGES)
-
-#### News Radar Articles Display
-```typescript
-// frontend/src/pages/dashboard/news-radar/articles.tsx
-// NO VISUAL CHANGES - Same article cards, same layout
-
-const NewsRadarArticles = () => {
-  // API call updated but UI remains identical
-  const { data: articles } = useQuery({
-    queryKey: ['news-radar-articles'],
-    queryFn: () => api.get('/api/news-tracker/articles')
-    // Backend now filters based on user's enabled sources/keywords
-  });
-  
-  return (
-    <div className="p-6">
-      <h1>News Radar - Articles</h1>
-      {/* Exact same article display as before */}
-      <ArticleFilters /> {/* Date range, search - unchanged */}
-      <ArticleGrid articles={articles} />
-    </div>
-  );
-};
-```
-
-#### Threat Tracker Articles Display
-```typescript
-// frontend/src/pages/dashboard/threat-tracker/articles.tsx
-// NO VISUAL CHANGES - Same cards with security scores
-
-const ThreatTrackerArticles = () => {
-  // Only shows cybersecurity articles (filtered by backend)
-  const { data: articles } = useQuery({
-    queryKey: ['threat-tracker-articles'],
-    queryFn: () => api.get('/api/threat-tracker/articles')
-    // Backend returns only cybersecurity-flagged articles
-  });
-  
-  return (
-    <div className="p-6">
-      <h1>Threat Tracker - Security Articles</h1>
-      {/* Same UI with security scores displayed */}
-      <ArticleFilters />
-      <ArticleGrid 
-        articles={articles}
-        showSecurityScore={true} // Already showing scores
-        showThreatCategories={true} // Already showing categories
-      />
-    </div>
-  );
-};
-```
-
-### 4.5 Navigation Structure (UNCHANGED)
-
-```typescript
-// frontend/src/components/layout/DashboardLayout.tsx
-// NO CHANGES - Same navigation structure
-
-const DashboardLayout = () => {
-  return (
-    <div className="flex">
-      <Sidebar>
-        {/* Same navigation menu */}
-        <NavSection title="News Radar">
-          <NavLink to="/dashboard/news-radar">Dashboard</NavLink>
-          <NavLink to="/dashboard/news-radar/sources">Sources</NavLink>
-          <NavLink to="/dashboard/news-radar/keywords">Keywords</NavLink>
-          <NavLink to="/dashboard/news-radar/articles">Articles</NavLink>
-        </NavSection>
-        
-        <NavSection title="Threat Tracker">
-          <NavLink to="/dashboard/threat-tracker">Dashboard</NavLink>
-          <NavLink to="/dashboard/threat-tracker/sources">Sources</NavLink>
-          <NavLink to="/dashboard/threat-tracker/keywords">Keywords</NavLink>
-          <NavLink to="/dashboard/threat-tracker/articles">Articles</NavLink>
-        </NavSection>
-        
-        <NavSection title="News Capsule">
-          {/* News Capsule unchanged */}
-        </NavSection>
-      </Sidebar>
+    <div className="space-y-4">
+      <h2>Available News Sources</h2>
+      <p className="text-muted">
+        Enable or disable sources to customize your news feed
+      </p>
       
-      <MainContent>
-        <Outlet />
-      </MainContent>
+      <div className="grid gap-2">
+        {sources?.map(source => (
+          <div key={source.id} className="flex items-center justify-between p-3 border rounded">
+            <div>
+              <h3>{source.name}</h3>
+              <p className="text-sm text-muted">{source.url}</p>
+            </div>
+            <Switch
+              checked={source.isEnabled}
+              onCheckedChange={(checked) => 
+                toggleSource.mutate({ 
+                  sourceId: source.id, 
+                  isEnabled: checked 
+                })
+              }
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 ```
 
-### 4.6 Summary of Frontend Changes
+### 4.2 Article Display with Real-time Filtering
 
-#### What Changes (Minor):
-1. **Sources Pages**: Remove "Add Source" button (both apps)
-2. **API Endpoints**: Update to new backend endpoints
-3. **Query Parameters**: Add `appContext` to API calls
+```typescript
+// frontend/src/components/ArticleList.tsx
 
-#### What Stays Exactly the Same:
-1. **Two Separate Apps**: News Radar and Threat Tracker remain completely independent
-2. **Separate Pages**: Each app keeps its own sources, keywords, and articles pages
-3. **UI Components**: All existing components, layouts, and styles unchanged
-4. **Article Display**: Same article cards, grids, and security score displays
-5. **Keywords Management**: Add, delete, toggle keywords works identically
-6. **Navigation**: Same sidebar navigation structure
-7. **User Experience**: Users interact with the apps exactly as before
+const ArticleList = () => {
+  const [filters, setFilters] = useState({
+    keywords: [],
+    sources: [],
+    dateRange: null
+  });
+  
+  // Articles are now filtered server-side based on user preferences
+  const { data, isLoading } = useQuery({
+    queryKey: ['articles', filters],
+    queryFn: () => api.get('/articles', { params: filters })
+  });
+  
+  // Keywords are used for client-side highlighting
+  const userKeywords = useQuery({
+    queryKey: ['keywords', getCurrentApp()],
+    queryFn: () => api.get('/keywords')
+  });
+  
+  const highlightKeywords = (text: string) => {
+    if (!userKeywords.data) return text;
+    
+    const keywords = userKeywords.data
+      .filter(k => k.isActive)
+      .map(k => k.term);
+    
+    // Highlight matching keywords in the text
+    let highlighted = text;
+    keywords.forEach(keyword => {
+      const regex = new RegExp(`(${keyword})`, 'gi');
+      highlighted = highlighted.replace(regex, '<mark>$1</mark>');
+    });
+    
+    return highlighted;
+  };
+  
+  return (
+    <div>
+      <FilterBar onFilterChange={setFilters} />
+      
+      {isLoading ? (
+        <Skeleton />
+      ) : (
+        <div className="space-y-4">
+          {data?.articles.map(article => (
+            <ArticleCard
+              key={article.id}
+              article={article}
+              highlightedTitle={highlightKeywords(article.title)}
+              showSecurityScore={getCurrentApp() === 'threat_tracker'}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+```
 
-#### Implementation Note:
-The backend does all the heavy lifting of filtering articles based on:
-- User's enabled sources (per app)
-- User's active keywords (per app)
-- Cybersecurity flagging (for Threat Tracker only)
+### 4.3 App Context Switching
 
-The frontend simply displays what the backend returns, maintaining the exact same user experience.
+```typescript
+// frontend/src/context/AppContext.tsx
+
+const AppContext = createContext<{
+  currentApp: 'news_radar' | 'threat_tracker';
+  switchApp: (app: string) => void;
+}>(null);
+
+export const AppProvider = ({ children }) => {
+  const [currentApp, setCurrentApp] = useState('news_radar');
+  
+  // Switching apps changes the filtering context
+  const switchApp = (app: string) => {
+    setCurrentApp(app);
+    // Invalidate queries to refetch with new context
+    queryClient.invalidateQueries(['articles']);
+    queryClient.invalidateQueries(['sources']);
+    queryClient.invalidateQueries(['keywords']);
+  };
+  
+  return (
+    <AppContext.Provider value={{ currentApp, switchApp }}>
+      {children}
+    </AppContext.Provider>
+  );
+};
+```
 
 ---
 
