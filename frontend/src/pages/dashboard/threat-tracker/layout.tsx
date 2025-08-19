@@ -8,12 +8,12 @@ const buttons = [
     url: "/dashboard/threat/home",
   },
   {
-    label: "Sources",
-    url: "/dashboard/threat/sources",
-  },
-  {
     label: "Keywords",
     url: "/dashboard/threat/keywords",
+  },
+  {
+    label: "Sources",
+    url: "/dashboard/threat/sources",
   },
 ];
 
