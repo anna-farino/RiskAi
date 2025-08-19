@@ -528,15 +528,13 @@ export async function runGlobalScrapeJob() {
 // Stop the GLOBAL scrape job
 export function stopGlobalScrapeJob() {
   // Stop all active individual source scraping operations
+  let jobsStopped = 0;
   for (const [sourceId] of activeScraping) {
     activeScraping.set(sourceId, false);
+    jobsStopped++;
     log(`[Global ThreatTracker] Stopping active scraping for source ID: ${sourceId}`, "scraper");
   }
   
-  log(`[Global ThreatTracker] Global scrape job has been manually stopped`, "scraper");
-  return { success: true, message: `Global scrape job stopped successfully` };
-    
-    log(`[ThreatTracker] All scrape jobs have been manually stopped (${jobsStopped} jobs)`, "scraper");
-    return { success: true, message: `All scrape jobs stopped successfully (${jobsStopped} jobs)` };
-  }
+  log(`[Global ThreatTracker] All scrape jobs have been manually stopped (${jobsStopped} jobs)`, "scraper");
+  return { success: true, message: `All scrape jobs stopped successfully (${jobsStopped} jobs)` };
 }
