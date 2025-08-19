@@ -136,7 +136,7 @@ const BROWSER_ARGS = [
   '--disable-crashpad',
   '--disable-crash-reporter',
   '--disable-breakpad',
-  '--single-process',
+  // Removed --single-process as it can cause instability
   '--user-data-dir=/tmp/chrome-user-data',
   '--disk-cache-dir=/tmp/chrome-cache',
   '--force-crash-handler-disable',

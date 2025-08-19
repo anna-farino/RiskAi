@@ -68,9 +68,58 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     // Apply behavioral delay before navigation
     await performBehavioralDelay(options);
 
-    // Navigate to the page
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
-    const statusCode = response ? response.status() : 0;
+    // Navigate to the page with safer settings
+    let response;
+    let statusCode = 0;
+    
+    try {
+      // Use a shorter timeout and less strict wait condition for problematic sites
+      const isProblematicSite = url.includes('nytimes.com') || 
+                                url.includes('wsj.com') || 
+                                url.includes('bloomberg.com');
+      
+      const waitCondition = isProblematicSite ? 'domcontentloaded' : 'networkidle2';
+      const navTimeout = isProblematicSite ? 15000 : 30000;
+      
+      log(`[PuppeteerScraper] Navigating with ${waitCondition} (timeout: ${navTimeout}ms)`, "scraper");
+      
+      response = await page.goto(url, { 
+        waitUntil: waitCondition as any,
+        timeout: navTimeout 
+      });
+      statusCode = response ? response.status() : 0;
+      
+      // For problematic sites, wait a bit for content to load
+      if (isProblematicSite && response) {
+        log(`[PuppeteerScraper] Problematic site detected, waiting for content...`, "scraper");
+        await page.waitForTimeout(2000);
+      }
+      
+    } catch (navError: any) {
+      // Handle frame detachment specifically
+      if (navError.message?.includes('frame was detached') || 
+          navError.message?.includes('Frame detached')) {
+        log(`[PuppeteerScraper] Frame detached during navigation - site has anti-bot measures`, "scraper");
+        // Try to get whatever content we can
+        try {
+          const html = await page.content();
+          if (html && html.length > 1000) {
+            log(`[PuppeteerScraper] Retrieved partial content despite frame detachment`, "scraper");
+            return {
+              html,
+              success: true,
+              method: 'puppeteer',
+              responseTime: Date.now() - startTime,
+              statusCode: 200,
+              finalUrl: url
+            };
+          }
+        } catch (contentError) {
+          log(`[PuppeteerScraper] Could not retrieve content after frame detachment`, "scraper");
+        }
+      }
+      throw navError;
+    }
     
     log(`[PuppeteerScraper] Navigation completed. Status: ${statusCode}`, "scraper");
 
