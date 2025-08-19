@@ -35,6 +35,7 @@ async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]
 export interface IStorage {
   // Sources
   getSources(userId?: string): Promise<Source[]>;
+  getGlobalSources(): Promise<Source[]>; // Phase 3.1: Get global sources
   getSource(id: string): Promise<Source | undefined>;
   getAutoScrapeSources(userId?: string): Promise<Source[]>;
   createSource(source: InsertSource): Promise<Source>;
@@ -81,6 +82,13 @@ export class DatabaseStorage implements IStorage {
     } else {
       return await db.select().from(sources);
     }
+  }
+
+  // Phase 3.1: Get global sources (sources with no userId)
+  async getGlobalSources(): Promise<Source[]> {
+    return await db.select()
+      .from(sources)
+      .where(isNull(sources.userId));
   }
 
   async getSource(id: string): Promise<Source | undefined> {

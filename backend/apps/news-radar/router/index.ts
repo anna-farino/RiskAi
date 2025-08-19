@@ -19,55 +19,104 @@ export const newsRouter = Router()
 
 const activeScraping = new Map<string, boolean>();
 
+// Phase 3.1: Modified source endpoints - users can only enable/disable, not add/delete
+
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;
   reqLog(req,"GET sources hit. userId=", userId)
+  // Still return user's sources for backward compatibility
   const sources = await storage.getSources(userId);
   res.json(sources);
 });
 
-newsRouter.post("/sources", async (req, res) => {
+// NEW: Get all available global sources with user's enabled status
+newsRouter.get("/sources/available", async (req, res) => {
   const userId = (req.user as User).id as string;
-  const source = insertSourceSchema.parse({
-    ...req.body,
-    userId
-  });
-  const created = await storage.createSource(source);
-  res.json(created);
-});
-
-newsRouter.patch("/sources/:id", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const id = req.params.id;
+  reqLog(req, "GET /sources/available", userId);
   
-  // Check if source belongs to user
-  const source = await storage.getSource(id);
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
-  }
-  
-  const updated = await storage.updateSource(id, req.body);
-  res.json(updated);
-});
-
-newsRouter.delete("/sources/:id", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const id = req.params.id;
+    // Get all global sources (sources with no userId)
+    const globalSources = await storage.getGlobalSources();
     
-    // Check if source belongs to user
-    const source = await storage.getSource(id);
-    if (!source || source.userId !== userId) {
-      return res.status(404).json({ message: "Source not found" });
+    // Get user's enabled sources
+    const userSources = await storage.getSources(userId);
+    const userSourceUrls = new Set(userSources.map(s => s.url));
+    
+    // Mark which global sources are enabled for this user
+    const sourcesWithStatus = globalSources.map(source => ({
+      ...source,
+      isEnabled: userSourceUrls.has(source.url),
+      isGlobal: true
+    }));
+    
+    res.json(sourcesWithStatus);
+  } catch (error: any) {
+    console.error("Error fetching available sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch available sources" });
+  }
+});
+
+// NEW: Toggle source enabled/disabled for user
+newsRouter.put("/sources/:id/toggle", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  const sourceId = req.params.id;
+  const { isEnabled } = req.body;
+  
+  reqLog(req, `PUT /sources/${sourceId}/toggle`, { userId, isEnabled });
+  
+  try {
+    // Get the global source
+    const globalSource = await storage.getSource(sourceId);
+    if (!globalSource) {
+      return res.status(404).json({ error: "Source not found" });
     }
     
-    await storage.deleteSource(id);
-    // Return success object instead of empty response to better support optimistic UI updates
-    res.status(200).json({ success: true, id, message: "Source deleted successfully" });
-  } catch (error) {
-    console.error(error)
-    res.send(500)
+    if (isEnabled) {
+      // Enable: Create a user copy of the global source
+      const userSource = insertSourceSchema.parse({
+        url: globalSource.url,
+        name: globalSource.name,
+        includeInAutoScrape: globalSource.includeInAutoScrape,
+        scrapingConfig: globalSource.scrapingConfig,
+        userId
+      });
+      await storage.createSource(userSource);
+    } else {
+      // Disable: Remove user's copy if it exists
+      const userSources = await storage.getSources(userId);
+      const userSource = userSources.find(s => s.url === globalSource.url);
+      if (userSource) {
+        await storage.deleteSource(userSource.id);
+      }
+    }
+    
+    res.json({ success: true, sourceId, isEnabled });
+  } catch (error: any) {
+    console.error("Error toggling source:", error);
+    res.status(500).json({ error: error.message || "Failed to toggle source" });
   }
+});
+
+// DEPRECATED: Regular users can no longer create sources
+// Only admins can add sources to the global pool
+newsRouter.post("/sources", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Creating sources is no longer available. Please contact an admin to add new sources to the global pool." 
+  });
+});
+
+// DEPRECATED: Regular users can no longer update sources  
+newsRouter.patch("/sources/:id", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Updating sources is no longer available. Sources are managed globally by admins." 
+  });
+});
+
+// DEPRECATED: Regular users can no longer delete sources
+newsRouter.delete("/sources/:id", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Deleting sources is no longer available. You can disable sources instead." 
+  });
 });
 
 // Bulk operations schemas
@@ -84,7 +133,15 @@ const bulkDeleteSourcesSchema = z.object({
 });
 
 // Bulk add sources endpoint
+// DEPRECATED: Bulk operations no longer available
 newsRouter.post("/sources/bulk-add", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Bulk adding sources is no longer available. Sources are managed globally by admins." 
+  });
+});
+
+// Original bulk-add implementation (disabled)
+newsRouter.post("/sources/bulk-add-disabled", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
     reqLog(req, "POST /sources/bulk-add", userId);
@@ -229,8 +286,15 @@ newsRouter.post("/sources/bulk-add", async (req, res) => {
   }
 });
 
-// Bulk delete sources endpoint
+// DEPRECATED: Bulk delete no longer available  
 newsRouter.post("/sources/bulk-delete", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Bulk deleting sources is no longer available. You can disable sources instead." 
+  });
+});
+
+// Original bulk-delete implementation (disabled)
+newsRouter.post("/sources/bulk-delete-disabled", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
     reqLog(req, "POST /sources/bulk-delete", userId);
@@ -330,6 +394,94 @@ newsRouter.post("/sources/bulk-delete", async (req, res) => {
         notFound: []
       }
     });
+  }
+});
+
+// Phase 3.2: Admin endpoints for managing global sources
+// Admin: Get all global sources
+newsRouter.get("/admin/sources", async (req, res) => {
+  reqLog(req, "GET /admin/sources");
+  
+  // TODO: Add admin authentication check here
+  // For now, this is open - in production, check if user is admin
+  
+  try {
+    const globalSources = await storage.getGlobalSources();
+    res.json(globalSources);
+  } catch (error: any) {
+    console.error("Error fetching global sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch global sources" });
+  }
+});
+
+// Admin: Add new global source
+newsRouter.post("/admin/sources", async (req, res) => {
+  reqLog(req, "POST /admin/sources");
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = insertSourceSchema.parse({
+      ...req.body,
+      userId: null // Global sources have no userId
+    });
+    const created = await storage.createSource(source);
+    res.json(created);
+  } catch (error: any) {
+    console.error("Error creating global source:", error);
+    res.status(500).json({ error: error.message || "Failed to create global source" });
+  }
+});
+
+// Admin: Update global source
+newsRouter.patch("/admin/sources/:id", async (req, res) => {
+  const id = req.params.id;
+  reqLog(req, `PATCH /admin/sources/${id}`);
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = await storage.getSource(id);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Only allow updating global sources
+    if (source.userId) {
+      return res.status(403).json({ error: "Cannot update user-specific sources through admin endpoint" });
+    }
+    
+    const updated = await storage.updateSource(id, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Error updating global source:", error);
+    res.status(500).json({ error: error.message || "Failed to update global source" });
+  }
+});
+
+// Admin: Delete global source
+newsRouter.delete("/admin/sources/:id", async (req, res) => {
+  const id = req.params.id;
+  reqLog(req, `DELETE /admin/sources/${id}`);
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = await storage.getSource(id);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Only allow deleting global sources
+    if (source.userId) {
+      return res.status(403).json({ error: "Cannot delete user-specific sources through admin endpoint" });
+    }
+    
+    await storage.deleteSource(id);
+    res.json({ success: true, id, message: "Global source deleted successfully" });
+  } catch (error: any) {
+    console.error("Error deleting global source:", error);
+    res.status(500).json({ error: error.message || "Failed to delete global source" });
   }
 });
 

@@ -20,10 +20,13 @@ function getUserId(req: any): string | undefined {
 }
 
 // Sources API
+// Phase 3.1: Modified source endpoints - users can only enable/disable, not add/delete
+
 threatRouter.get("/sources", async (req, res) => {
   reqLog(req, "🔎 GET /sources");
   try {
     const userId = getUserId(req);
+    // Still return both user and default sources for backward compatibility
     const user_sources = await storage.getSources(userId);
     const default_sources = await storage.getDefaultSources(userId);
     res.json([...user_sources, ...default_sources]);
@@ -33,74 +36,94 @@ threatRouter.get("/sources", async (req, res) => {
   }
 });
 
+// NEW: Get all available global sources with user's enabled status
+threatRouter.get("/sources/available", async (req, res) => {
+  reqLog(req, "GET /sources/available");
+  try {
+    const userId = getUserId(req);
+    
+    // Get all default (global) sources
+    const defaultSources = await storage.getDefaultSources(userId);
+    
+    // Get user's enabled sources
+    const userSources = await storage.getSources(userId);
+    const userSourceUrls = new Set(userSources.map(s => s.url));
+    
+    // Mark which global sources are enabled for this user
+    const sourcesWithStatus = defaultSources.map(source => ({
+      ...source,
+      isEnabled: userSourceUrls.has(source.url),
+      isGlobal: true
+    }));
+    
+    res.json(sourcesWithStatus);
+  } catch (error: any) {
+    console.error("Error fetching available sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch available sources" });
+  }
+});
+
+// NEW: Toggle source enabled/disabled for user
+threatRouter.put("/sources/:id/toggle", async (req, res) => {
+  reqLog(req, `PUT /sources/${req.params.id}/toggle`);
+  try {
+    const sourceId = req.params.id;
+    const userId = getUserId(req);
+    const { isEnabled } = req.body;
+    
+    // Get the source (could be default or user source)
+    const source = await storage.getSource(sourceId);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    if (isEnabled) {
+      // Enable: Create a user copy if it's a default source
+      if (source.isDefault) {
+        const userSource = insertThreatSourceSchema.parse({
+          url: source.url,
+          name: source.name,
+          includeInAutoScrape: source.includeInAutoScrape,
+          scrapingConfig: source.scrapingConfig,
+          userId
+        });
+        await storage.createSource(userSource);
+      }
+    } else {
+      // Disable: Remove user's copy if it exists
+      const userSources = await storage.getSources(userId);
+      const userSource = userSources.find(s => s.url === source.url);
+      if (userSource) {
+        await storage.deleteSource(userSource.id);
+      }
+    }
+    
+    res.json({ success: true, sourceId, isEnabled });
+  } catch (error: any) {
+    console.error("Error toggling source:", error);
+    res.status(500).json({ error: error.message || "Failed to toggle source" });
+  }
+});
+
+// DEPRECATED: Regular users can no longer create sources
 threatRouter.post("/sources", async (req, res) => {
-  reqLog(req, "POST /sources");
-  try {
-    const userId = getUserId(req);
-    
-    // Validate the source data
-    const sourceData = insertThreatSourceSchema.parse({
-      ...req.body,
-      userId
-    });
-    
-    const source = await storage.createSource(sourceData);
-    res.status(201).json(source);
-  } catch (error: any) {
-    console.error("Error creating source:", error);
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
-    }
-    res.status(500).json({ error: error.message || "Failed to create source" });
-  }
+  return res.status(403).json({ 
+    error: "Creating sources is no longer available. Please contact an admin to add new sources to the global pool." 
+  });
 });
 
+// DEPRECATED: Regular users can no longer update sources
 threatRouter.put("/sources/:id", async (req, res) => {
-  reqLog(req, `PUT /sources/${req.params.id}`);
-  try {
-    const sourceId = req.params.id;
-    const userId = getUserId(req);
-    
-    // Check if the source exists and belongs to the user
-    const existingSource = await storage.getSource(sourceId);
-    if (!existingSource) {
-      return res.status(404).json({ error: "Source not found" });
-    }
-    
-    if (existingSource.userId && existingSource.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to update this source" });
-    }
-    
-    const updatedSource = await storage.updateSource(sourceId, req.body);
-    res.json(updatedSource);
-  } catch (error: any) {
-    console.error("Error updating source:", error);
-    res.status(500).json({ error: error.message || "Failed to update source" });
-  }
+  return res.status(403).json({ 
+    error: "Updating sources is no longer available. Sources are managed globally by admins." 
+  });
 });
 
+// DEPRECATED: Regular users can no longer delete sources
 threatRouter.delete("/sources/:id", async (req, res) => {
-  reqLog(req, `DELETE /sources/${req.params.id}`);
-  try {
-    const sourceId = req.params.id;
-    const userId = getUserId(req);
-    
-    // Check if the source exists and belongs to the user
-    const existingSource = await storage.getSource(sourceId);
-    if (!existingSource) {
-      return res.status(404).json({ error: "Source not found" });
-    }
-    
-    if (existingSource.userId && existingSource.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to delete this source" });
-    }
-    
-    await storage.deleteSource(sourceId);
-    res.json({ message: "Source deleted successfully"});
-  } catch (error: any) {
-    console.error("Error deleting source:", error);
-    res.status(500).json({ error: error.message || "Failed to delete source" });
-  }
+  return res.status(403).json({ 
+    error: "Deleting sources is no longer available. You can disable sources instead." 
+  });
 });
 
 // Bulk operations schemas
@@ -117,7 +140,15 @@ const bulkDeleteSourcesSchema = z.object({
 });
 
 // Bulk add sources endpoint
+// DEPRECATED: Bulk operations no longer available
 threatRouter.post("/sources/bulk-add", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Bulk adding sources is no longer available. Sources are managed globally by admins." 
+  });
+});
+
+// Original bulk-add implementation (disabled)
+threatRouter.post("/sources/bulk-add-disabled", async (req, res) => {
   try {
     const userId = getUserId(req);
     reqLog(req, "POST /sources/bulk-add", userId);
@@ -264,8 +295,15 @@ threatRouter.post("/sources/bulk-add", async (req, res) => {
   }
 });
 
-// Bulk delete sources endpoint
+// DEPRECATED: Bulk delete no longer available
 threatRouter.post("/sources/bulk-delete", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Bulk deleting sources is no longer available. You can disable sources instead." 
+  });
+});
+
+// Original bulk-delete implementation (disabled)
+threatRouter.post("/sources/bulk-delete-disabled", async (req, res) => {
   try {
     const userId = getUserId(req);
     reqLog(req, "POST /sources/bulk-delete", userId);
@@ -374,6 +412,95 @@ threatRouter.post("/sources/bulk-delete", async (req, res) => {
         notFound: []
       }
     });
+  }
+});
+
+// Phase 3.2: Admin endpoints for managing global sources
+// Admin: Get all default sources
+threatRouter.get("/admin/sources", async (req, res) => {
+  reqLog(req, "GET /admin/sources");
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    // Get all default sources
+    const defaultSources = await storage.getDefaultSources("admin");
+    res.json(defaultSources);
+  } catch (error: any) {
+    console.error("Error fetching default sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch default sources" });
+  }
+});
+
+// Admin: Add new default source
+threatRouter.post("/admin/sources", async (req, res) => {
+  reqLog(req, "POST /admin/sources");
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = insertThreatSourceSchema.parse({
+      ...req.body,
+      isDefault: true,
+      userId: null // Default sources have no userId
+    });
+    const created = await storage.createSource(source);
+    res.json(created);
+  } catch (error: any) {
+    console.error("Error creating default source:", error);
+    res.status(500).json({ error: error.message || "Failed to create default source" });
+  }
+});
+
+// Admin: Update default source
+threatRouter.patch("/admin/sources/:id", async (req, res) => {
+  const id = req.params.id;
+  reqLog(req, `PATCH /admin/sources/${id}`);
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = await storage.getSource(id);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Only allow updating default sources
+    if (!source.isDefault) {
+      return res.status(403).json({ error: "Cannot update user-specific sources through admin endpoint" });
+    }
+    
+    const updated = await storage.updateSource(id, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Error updating default source:", error);
+    res.status(500).json({ error: error.message || "Failed to update default source" });
+  }
+});
+
+// Admin: Delete default source
+threatRouter.delete("/admin/sources/:id", async (req, res) => {
+  const id = req.params.id;
+  reqLog(req, `DELETE /admin/sources/${id}`);
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = await storage.getSource(id);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Only allow deleting default sources
+    if (!source.isDefault) {
+      return res.status(403).json({ error: "Cannot delete user-specific sources through admin endpoint" });
+    }
+    
+    await storage.deleteSource(id);
+    res.json({ success: true, id, message: "Default source deleted successfully" });
+  } catch (error: any) {
+    console.error("Error deleting default source:", error);
+    res.status(500).json({ error: error.message || "Failed to delete default source" });
   }
 });
 
