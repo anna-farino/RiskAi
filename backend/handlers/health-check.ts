@@ -43,21 +43,21 @@ export async function handleDatabaseHealthCheck(req: Request, res: Response) {
     // Test 4: Write test (create a health check record)
     let writeTest = false;
     try {
-      await db.execute(sql`SELECT set_config('app.current_user_id', ${testUserId}, true)`);
-      
-      await db.insert(dbHealthCheck).values({
-        userId: testUserId,
-        checkName: 'automated-health-check',
-        lastUpdated: new Date()
-      }).onConflictDoNothing();
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT set_config('app.current_user_id', ${testUserId}, true)`);
+        
+        await tx.insert(dbHealthCheck).values({
+          userId: testUserId,
+          checkName: 'automated-health-check',
+          lastUpdated: new Date()
+        }).onConflictDoNothing();
+        
+        // Clean up the test record
+        await tx.delete(dbHealthCheck)
+          .where(sql`user_id = ${testUserId} AND check_name = 'automated-health-check'`);
+      });
       
       writeTest = true;
-      
-      // Clean up the test record
-      await db.delete(dbHealthCheck)
-        .where(sql`user_id = ${testUserId} AND check_name = 'automated-health-check'`);
-      
-      await db.execute(sql`SELECT set_config('app.current_user_id', '', true)`);
     } catch (error) {
       console.error('Write test failed:', error);
     }
