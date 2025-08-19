@@ -2,7 +2,7 @@ import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler, getSchedulerStatus, reinitializeScheduler } from "../services/scheduler";
+import { initializeScheduler, getSchedulerStatus } from "../services/scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -716,8 +716,8 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
       return res.status(403).json({ error: "Not authorized to scrape this source" });
     }
     
-    // Scrape the source
-    const newArticles = await scrapeSource(source, userId);
+    // Scrape the source (global - no userId needed)
+    const newArticles = await scrapeSource(source);
     
     res.json({
       message: `Successfully scraped source: ${source.name}`,
@@ -733,39 +733,30 @@ threatRouter.post("/scrape/source/:id", async (req, res) => {
 threatRouter.post("/scrape/all", async (req, res) => {
   reqLog(req, "POST /scrape/all");
   try {
-    const userId = getUserId(req);
+    // Global scrape no longer needs userId - runs for all sources
     
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    // Check if this user's scrape job is already running
-    if (isUserJobRunning(userId)) {
-      return res.status(409).json({ error: "A scrape job is already running for this user" });
-    }
-    
-    // Start the scrape job for this user
-    const job = runGlobalScrapeJob(userId);
+    // Start the global scrape job (no userId needed)
+    const job = runGlobalScrapeJob();
     
     res.json({
-      message: "Scrape job started for user",
+      message: "Global scrape job started",
       job
     });
   } catch (error: any) {
-    console.error("Error starting scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to start scrape job" });
+    console.error("Error starting global scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to start global scrape job" });
   }
 });
 
 threatRouter.post("/scrape/stop", async (req, res) => {
   reqLog(req, "POST /scrape/stop");
   try {
-    const userId = getUserId(req);
-    const result = stopGlobalScrapeJob(userId);
+    // Stop global scrape job (no userId needed)
+    const result = stopGlobalScrapeJob();
     res.json(result);
   } catch (error: any) {
-    console.error("Error stopping scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to stop scrape job" });
+    console.error("Error stopping global scrape job:", error);
+    res.status(500).json({ error: error.message || "Failed to stop global scrape job" });
   }
 });
 
@@ -785,13 +776,13 @@ threatRouter.get("/scrape/status", async (req, res) => {
   }
 });
 
-// Auto-scrape settings API
+// Auto-scrape settings API - now returns global scheduler status
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");
   try {
-    const userId = getUserId(req);
-    const settings = await getGlobalScrapeSchedule(userId);
-    res.json(settings);
+    // Return global scheduler status instead of per-user settings
+    const status = getSchedulerStatus();
+    res.json(status);
   } catch (error: any) {
     console.error("Error fetching auto-scrape settings:", error);
     res.status(500).json({ error: error.message || "Failed to fetch auto-scrape settings" });
@@ -801,22 +792,13 @@ threatRouter.get("/settings/auto-scrape", async (req, res) => {
 threatRouter.put("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "PUT /settings/auto-scrape");
   try {
-    const userId = getUserId(req);
-    const { enabled, interval } = req.body;
-    
-    // Validate the interval
-    if (interval && !Object.values(JobInterval).includes(interval)) {
-      return res.status(400).json({ error: "Invalid interval value" });
-    }
-    
-    // Update the schedule for this user
-    const settings = await updateGlobalScrapeSchedule(
-      Boolean(enabled), 
-      interval || JobInterval.DAILY,
-      userId
-    );
-    
-    res.json(settings);
+    // Global scheduler runs automatically every 3 hours
+    // This endpoint now just returns the current status
+    const status = getSchedulerStatus();
+    res.json({
+      message: "Global scheduler runs automatically every 3 hours",
+      status
+    });
   } catch (error: any) {
     console.error("Error updating auto-scrape settings:", error);
     res.status(500).json({ error: error.message || "Failed to update auto-scrape settings" });
@@ -838,7 +820,7 @@ threatRouter.get("/scheduler/status", async (req, res) => {
 threatRouter.post("/scheduler/reinitialize", async (req, res) => {
   reqLog(req, "POST /scheduler/reinitialize");
   try {
-    const result = await reinitializeScheduler();
+    const result = await initializeScheduler();
     const status = getSchedulerStatus();
     res.json({ 
       success: result, 

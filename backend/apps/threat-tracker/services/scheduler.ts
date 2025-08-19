@@ -3,223 +3,136 @@ import { runGlobalScrapeJob } from "./background-jobs";
 import { log } from "backend/utils/log";
 import { setInterval } from "timers";
 
-// Define job intervals in milliseconds (matching News Radar format)
-export enum JobInterval {
-  HOURLY = 60 * 60 * 1000,           // 1 hour
-  DAILY = 24 * 60 * 60 * 1000,       // 24 hours  
-  WEEKLY = 7 * 24 * 60 * 60 * 1000,  // 7 days
-  DISABLED = 0,                       // Disabled
-}
+// GLOBAL SCRAPING INTERVAL - Every 3 hours as per re-architecture plan
+const THREE_HOURS = 3 * 60 * 60 * 1000;
 
-// Track per-user scheduled job timers and metadata
-const userScheduledJobs = new Map<string, {
-  timer: NodeJS.Timeout;
-  interval: JobInterval;
-  lastRun: Date | null;
-  consecutiveFailures: number;
-  nextRunAt: Date;
-}>();
+// Global scheduler timer
+let globalSchedulerTimer: NodeJS.Timeout | null = null;
 
-// Simple timer tracking for cleanup
-const userTimers = new Map<string, NodeJS.Timeout>();
-
-// Global flag to prevent multiple scheduler initializations
+// Track global scheduler state
 let schedulerInitialized = false;
-let initializationAttempts = 0;
-const MAX_INITIALIZATION_ATTEMPTS = 3;
+let lastGlobalRun: Date | null = null;
+let consecutiveFailures = 0;
+let nextRunAt: Date | null = null;
 
 // Health check interval (every 5 minutes)
 const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000;
 let healthCheckTimer: NodeJS.Timeout | null = null;
 
-// Type definition for auto-scrape settings
+// Type definition for auto-scrape settings (kept for backward compatibility)
 export interface AutoScrapeSettings {
   enabled: boolean;
-  interval: JobInterval;
+  interval: number;
   lastRunAt?: string; // ISO timestamp of last job execution
 }
 
 /**
- * Get the auto-scrape schedule from settings for a specific user
+ * Initialize GLOBAL scheduler to run every 3 hours
  */
-export async function getGlobalScrapeSchedule(userId?: string): Promise<AutoScrapeSettings> {
+export async function initializeScheduler(): Promise<boolean> {
   try {
-    const setting = await storage.getSetting("auto-scrape", userId);
-    
-    if (!setting || !setting.value) {
-      // Default settings if not found
-      return {
-        enabled: false,
-        interval: JobInterval.DAILY,
-      };
+    log(`[Global ThreatTracker] Starting global scheduler initialization (3-hour intervals)`, "scheduler");
+
+    // Clear any existing global timer
+    if (globalSchedulerTimer) {
+      clearInterval(globalSchedulerTimer);
+      globalSchedulerTimer = null;
+      log(`[Global ThreatTracker] Cleared existing global timer`, "scheduler");
     }
     
-    // Handle both old format (without lastRunAt) and new format (with lastRunAt)
-    const settingValue = setting.value as any;
-    
-    return {
-      enabled: settingValue.enabled || false,
-      interval: settingValue.interval || JobInterval.DAILY,
-      lastRunAt: settingValue.lastRunAt || undefined,
-    };
-  } catch (error: any) {
-    log(`[ThreatTracker] Error getting auto-scrape schedule: ${error.message}`, "scheduler-error");
-    console.error("Error getting auto-scrape schedule:", error);
-    
-    // Return default settings on error
-    return {
-      enabled: false,
-      interval: JobInterval.DAILY,
-    };
-  }
-}
-
-/**
- * Update the auto-scrape schedule for a specific user (preserves lastRunAt)
- */
-export async function updateGlobalScrapeSchedule(enabled: boolean, interval: JobInterval, userId: string): Promise<AutoScrapeSettings> {
-  try {
-    // Get existing settings to preserve lastRunAt
-    const existingSettings = await getGlobalScrapeSchedule(userId);
-    
-    // Create new settings preserving lastRunAt from existing settings
-    const newSettings: AutoScrapeSettings = {
-      enabled,
-      interval,
-      lastRunAt: existingSettings.lastRunAt, // Preserve existing lastRunAt
-    };
-    
-    await storage.upsertSetting("auto-scrape", newSettings, userId);
-    
-    // Update the user's specific scheduler
-    if (enabled && interval !== JobInterval.DISABLED) {
-      scheduleUserScrapeJob(userId, interval);
-    } else {
-      clearUserScrapeJob(userId);
+    // Clear existing health check timer
+    if (healthCheckTimer) {
+      clearInterval(healthCheckTimer);
+      healthCheckTimer = null;
     }
     
-    return newSettings;
+    // Reset initialization flag
+    schedulerInitialized = false;
+    
+    // Calculate next run time
+    nextRunAt = new Date(Date.now() + THREE_HOURS);
+    
+    // Set up global timer to run every 3 hours
+    globalSchedulerTimer = setInterval(async () => {
+      await executeGlobalScrapeJob();
+    }, THREE_HOURS);
+    
+    // Run an initial scrape job immediately
+    log(`[Global ThreatTracker] Running initial global scrape job`, "scheduler");
+    await executeGlobalScrapeJob();
+    
+    schedulerInitialized = true;
+    log(`[Global ThreatTracker] Global scheduler initialized - will run every 3 hours. Next run at: ${nextRunAt.toISOString()}`, "scheduler");
+    return true;
   } catch (error: any) {
-    log(`[ThreatTracker] Error updating auto-scrape schedule: ${error.message}`, "scheduler-error");
-    console.error("Error updating auto-scrape schedule:", error);
-    throw error;
+    log(`[Global ThreatTracker] Error initializing global scheduler: ${error.message}`, "scheduler-error");
+    console.error("Error initializing global scheduler:", error);
+    schedulerInitialized = false;
+    return false;
   }
 }
 
 /**
- * Update only the lastRunAt timestamp without changing updated_at
+ * Stop the global scheduler
  */
-export async function updateLastRunAt(userId: string, timestamp: Date): Promise<void> {
-  try {
-    // Get current settings
-    const currentSettings = await getGlobalScrapeSchedule(userId);
-    
-    // Update only lastRunAt
-    const updatedSettings: AutoScrapeSettings = {
-      ...currentSettings,
-      lastRunAt: timestamp.toISOString(),
-    };
-    
-    // Use upsertSetting to update the value while preserving the updated_at timestamp
-    await storage.upsertSetting("auto-scrape", updatedSettings, userId);
-    
-    log(`[ThreatTracker] Updated lastRunAt for user ${userId} to ${timestamp.toISOString()}`, "scheduler");
-  } catch (error: any) {
-    log(`[ThreatTracker] Error updating lastRunAt for user ${userId}: ${error.message}`, "scheduler-error");
-    console.error("Error updating lastRunAt:", error);
-  }
-}
-
-
-
-/**
- * Schedule an auto-scrape job for a specific user with enhanced error handling
- */
-function scheduleUserScrapeJob(userId: string, interval: JobInterval, initialDelay?: number): void {
-  // Clear existing job for this user if it exists
-  clearUserScrapeJob(userId);
-  
-  // Now interval is already in milliseconds
-  if (interval <= 0) {
-    log(`[ThreatTracker] Invalid interval for user ${userId}, not scheduling`, "scheduler");
-    return;
+export function stopGlobalScheduler(): void {
+  if (globalSchedulerTimer) {
+    clearInterval(globalSchedulerTimer);
+    globalSchedulerTimer = null;
+    log(`[Global ThreatTracker] Global scheduler stopped`, "scheduler");
   }
   
-  const delay = initialDelay || interval;
-  const nextRunAt = new Date(Date.now() + delay);
+  if (healthCheckTimer) {
+    clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
   
-  // Schedule first run with custom delay, then regular intervals
-  const timer = setTimeout(async () => {
-    // Run the initial job
-    await executeScheduledJob(userId, interval);
-    
-    // Now schedule regular intervals
-    const regularTimer = setInterval(async () => {
-      await executeScheduledJob(userId, interval);
-    }, interval);
-    
-    // Update the stored timer reference
-    userTimers.set(userId, regularTimer);
-    if (userScheduledJobs.has(userId)) {
-      const jobMeta = userScheduledJobs.get(userId)!;
-      jobMeta.timer = regularTimer;
-    }
-  }, delay);
-  
-  // Store job metadata and timer reference
-  userScheduledJobs.set(userId, {
-    timer,
-    interval,
-    lastRun: null,
-    consecutiveFailures: 0,
-    nextRunAt,
-  });
-  userTimers.set(userId, timer);
-  
-  log(`[ThreatTracker] Scheduled auto-scrape for user ${userId} with interval: ${interval}ms, next run at: ${nextRunAt.toISOString()}`, "scheduler");
+  schedulerInitialized = false;
 }
 
 /**
- * Execute a scheduled scraping job for a user
+ * Get scheduler status information
  */
-async function executeScheduledJob(userId: string, interval: JobInterval): Promise<void> {
-  const jobMeta = userScheduledJobs.get(userId);
-  if (!jobMeta) return;
-  
-  log(`[ThreatTracker] Running scheduled scrape job for user ${userId} (interval: ${interval}ms)`, "scheduler");
+export function getSchedulerStatus(): {
+  initialized: boolean;
+  lastRun: Date | null;
+  nextRun: Date | null;
+  consecutiveFailures: number;
+} {
+  return {
+    initialized: schedulerInitialized,
+    lastRun: lastGlobalRun,
+    nextRun: nextRunAt,
+    consecutiveFailures,
+  };
+}
+
+/**
+ * Execute the global scrape job
+ */
+async function executeGlobalScrapeJob(): Promise<void> {
+  log(`[Global ThreatTracker] Running global scrape job`, "scheduler");
   
   try {
-    const result = await runGlobalScrapeJob(userId);
+    const result = await runGlobalScrapeJob(); // No userId parameter - runs globally
     
-    // Update job metadata on success
-    const now = new Date();
-    jobMeta.lastRun = now;
-    jobMeta.consecutiveFailures = 0;
-    jobMeta.nextRunAt = new Date(Date.now() + interval);
+    // Update global metadata on success
+    lastGlobalRun = new Date();
+    consecutiveFailures = 0;
+    nextRunAt = new Date(Date.now() + THREE_HOURS);
     
-    // Update only the lastRunAt timestamp (preserves updated_at for user setting changes)
-    await updateLastRunAt(userId, now);
-    
-    log(`[ThreatTracker] Completed scheduled scrape for user ${userId}: ${result.message}`, "scheduler");
+    log(`[Global ThreatTracker] Completed global scrape: ${result.message}`, "scheduler");
   } catch (error: any) {
-    // Update job metadata on failure
-    jobMeta.consecutiveFailures++;
-    jobMeta.nextRunAt = new Date(Date.now() + interval);
+    // Update metadata on failure
+    consecutiveFailures++;
+    nextRunAt = new Date(Date.now() + THREE_HOURS);
     
-    log(`[ThreatTracker] Error in scheduled scrape job for user ${userId} (failure #${jobMeta.consecutiveFailures}): ${error.message}`, "scheduler-error");
-    console.error(`[ThreatTracker] Scheduled scrape error for user ${userId}:`, error);
+    log(`[Global ThreatTracker] Error in global scrape job (failure #${consecutiveFailures}): ${error.message}`, "scheduler-error");
+    console.error(`[Global ThreatTracker] Global scrape error:`, error);
     
-    // If too many consecutive failures, disable the job and notify
-    if (jobMeta.consecutiveFailures >= 5) {
-      log(`[ThreatTracker] Disabling auto-scrape for user ${userId} after ${jobMeta.consecutiveFailures} consecutive failures`, "scheduler-error");
-      clearUserScrapeJob(userId);
-      
-      // Update settings to disable auto-scrape (this will update updated_at since it's a user setting change)
-      try {
-        await updateGlobalScrapeSchedule(false, interval, userId);
-      } catch (settingsError: any) {
-        log(`[ThreatTracker] Failed to disable auto-scrape setting for user ${userId}: ${settingsError.message}`, "scheduler-error");
-      }
+    // If too many consecutive failures, log warning but keep trying
+    if (consecutiveFailures >= 5) {
+      log(`[Global ThreatTracker] WARNING: Global scrape has failed ${consecutiveFailures} times consecutively`, "scheduler-error");
     }
   }
 }

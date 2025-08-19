@@ -2,7 +2,7 @@ import { articles, insertKeywordSchema, insertSourceSchema } from "@shared/db/sc
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
+import { initializeScheduler, getSchedulerStatus } from "../services/scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -544,8 +544,7 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
 // Background Jobs and Auto-Scraping
 newsRouter.post("/jobs/scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    
+    // Global scrape no longer needs userId
     if (isGlobalJobRunning()) {
       return res.status(400).json({ 
         success: false, 
@@ -553,7 +552,7 @@ newsRouter.post("/jobs/scrape", async (req, res) => {
       });
     }
     
-    const result = await runGlobalScrapeJob(userId);
+    const result = await runGlobalScrapeJob(); // No userId - runs globally
     res.json(result);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -627,12 +626,12 @@ newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
   }
 });
 
-// User-specific auto-scrape settings
+// Global auto-scrape settings (now returns global scheduler status)
 newsRouter.get("/settings/auto-scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const settings = await getGlobalScrapeSchedule(userId);
-    res.json(settings);
+    // Return global scheduler status
+    const status = getSchedulerStatus();
+    res.json(status);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ message: errorMessage });
@@ -641,17 +640,13 @@ newsRouter.get("/settings/auto-scrape", async (req, res) => {
 
 newsRouter.post("/settings/auto-scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const schema = z.object({
-      enabled: z.boolean(),
-      interval: z.nativeEnum(JobInterval)
+    // Global scheduler runs automatically every 3 hours
+    // This endpoint now just returns the current status
+    const status = getSchedulerStatus();
+    res.json({
+      message: "Global scheduler runs automatically every 3 hours",
+      status
     });
-    
-    const { enabled, interval } = schema.parse(req.body);
-    await updateGlobalScrapeSchedule(enabled, interval, userId);
-    
-    const settings = await getGlobalScrapeSchedule(userId);
-    res.json(settings);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ message: errorMessage });

@@ -29,7 +29,7 @@ export const activeScraping = new Map<string, boolean>();
 let globalJobRunning = false;
 
 /**
- * Scrape a specific source
+ * Scrape a specific source - GLOBAL VERSION (no userId/keyword filtering)
  */
 export async function scrapeSource(
   sourceId: string,
@@ -47,45 +47,32 @@ export async function scrapeSource(
   activeScraping.set(sourceId, true);
 
   try {
-    // Handle the case where userId might be null
-    // Since TypeScript is complaining about null vs undefined, let's explicitly check and handle
-    // Store userId in a variable that's accessible throughout the function
-    const userId = source.userId === null ? undefined : source.userId;
-
     // Step 1: Initial scraping setup
-    log(`[Scraping] Starting scrape for source: ${source.url}`, "scraper");
-    log(`[Scraping] Source ID: ${sourceId}, Name: ${source.name}`, "scraper");
+    log(`[Global Scraping] Starting scrape for source: ${source.url}`, "scraper");
+    log(`[Global Scraping] Source ID: ${sourceId}, Name: ${source.name}`, "scraper");
 
-    // Create error context for source scraping operations
-    const sourceErrorContext = createNewsRadarContext(userId, sourceId, source.url, source.name);
+    // Create error context for source scraping operations (no userId for global scraping)
+    const sourceErrorContext = createNewsRadarContext(undefined, sourceId, source.url, source.name);
 
     // Step 2: Extract article links using unified scraping service
-    log(`[Scraping] Using unified scraping service for link extraction`, "scraper");
+    log(`[Global Scraping] Using unified scraping service for link extraction`, "scraper");
     // Use scrapeSourceUrl which already includes the news-radar context
     const articleLinks = await scrapingService.scrapeSourceUrl(source.url);
     log(
-      `[Scraping] Found ${articleLinks.length} potential article links`,
+      `[Global Scraping] Found ${articleLinks.length} potential article links`,
       "scraper",
     );
 
     if (articleLinks.length === 0) {
-      log(`[Scraping] No article links found, aborting`, "scraper");
+      log(`[Global Scraping] No article links found, aborting`, "scraper");
       throw new Error("No article links found");
     }
 
     // Use source's existing scraping config (unified service handles structure detection internally)
     const scrapingConfig = source.scrapingConfig;
 
-    // Step 5: Get active keywords for this user
-    const keywords = await storage.getKeywords(userId);
-    const activeKeywords = keywords.filter((k) => k.active).map((k) => k.term);
-    log(
-      `[Scraping] Using ${activeKeywords.length} active keywords for content analysis: ${activeKeywords.join(", ")}`,
-      "scraper",
-    );
-
-    // Step 6: Process articles
-    log(`[Scraping] Starting batch processing of articles`, "scraper");
+    // Step 3: Process articles (no keyword filtering - save ALL articles)
+    log(`[Global Scraping] Starting batch processing of articles`, "scraper");
     let processedCount = 0;
     let savedCount = 0;
     const newArticles: Article[] = [];
@@ -94,24 +81,24 @@ export async function scrapeSource(
       // Check if scraping should continue
       if (!activeScraping.get(sourceId)) {
         log(
-          `[Scraping] Stopping scrape for source ID: ${sourceId} as requested`,
+          `[Global Scraping] Stopping scrape for source ID: ${sourceId} as requested`,
           "scraper",
         );
         break;
       }
 
       // Create error context for this article processing - declare outside try block
-      const errorContext = createNewsRadarContext(userId, sourceId, source.url, source.name);
+      const errorContext = createNewsRadarContext(undefined, sourceId, source.url, source.name);
 
       try {
         log(
-          `[Scraping] Processing article ${++processedCount}/${articleLinks.length}: ${link}`,
+          `[Global Scraping] Processing article ${++processedCount}/${articleLinks.length}: ${link}`,
           "scraper",
         );
         
         // Check stop signal before processing
         if (!activeScraping.get(sourceId)) {
-          log(`[Scraping] Stop signal received, aborting article processing: ${link}`, "scraper");
+          log(`[Global Scraping] Stop signal received, aborting article processing: ${link}`, "scraper");
           break;
         }
         
@@ -133,126 +120,65 @@ export async function scrapeSource(
           article = await scrapingService.scrapeArticleUrl(link, undefined);
         }
         log(
-          `[Scraping] Article extracted successfully: "${article.title}"`,
+          `[Global Scraping] Article extracted successfully: "${article.title}"`,
           "scraper",
         );
 
-        // First check title for keyword matches - using flexible word boundary check
-        const titleKeywordMatches = activeKeywords.filter((keyword) => {
-          // Create a regex with word boundaries that handles plurals and variations
-          // Allow for common word endings (s, es, ed, ing, etc.)
-          const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const keywordRegex = new RegExp(`\\b${escapedKeyword}s?\\b`, "i");
-
-          // Log the keyword being checked (for debugging)
-          log(`[Scraping] Checking keyword: "${keyword}" in title`, "scraper");
-
-          return keywordRegex.test(article.title);
-        });
-
-        if (titleKeywordMatches.length > 0) {
-          log(
-            `[Scraping] Keywords found in title: ${titleKeywordMatches.join(", ")}`,
-            "scraper",
-          );
-        }
-
         // Check stop signal before expensive OpenAI operation
         if (!activeScraping.get(sourceId)) {
-          log(`[Scraping] Stop signal received, aborting OpenAI analysis for article: ${link}`, "scraper");
+          log(`[Global Scraping] Stop signal received, aborting OpenAI analysis for article: ${link}`, "scraper");
           break;
         }
 
-        // Analyze content with OpenAI
-        log(`[Scraping] Analyzing article content with OpenAI`, "scraper");
+        // Analyze content with OpenAI (no keyword filtering - just get summary and analysis)
+        log(`[Global Scraping] Analyzing article content with OpenAI`, "scraper");
         const analysis = await analyzeContent(
           article.content,
-          activeKeywords,
+          [], // No keywords for global scraping
           article.title,
         );
 
-        // Validate OpenAI's detected keywords against our active keywords
-        // This is a second layer of validation to ensure OpenAI isn't returning false positives
-        const validatedOpenAIKeywords = analysis.detectedKeywords.filter(
-          (detectedKeyword) => {
-            // Only accept keywords that are in our active keywords list (case-insensitive match)
-            const isInActiveKeywords = activeKeywords.some(
-              (activeKeyword) =>
-                activeKeyword.toLowerCase() === detectedKeyword.toLowerCase(),
-            );
+        // Check if article with this URL already exists in the global database
+        const existingArticle = await storage.getArticleByUrl(link, undefined); // No userId for global check
 
-            if (!isInActiveKeywords) {
-              log(
-                `[Scraping] Filtering out invalid keyword match from OpenAI: "${detectedKeyword}"`,
-                "scraper",
-              );
-            }
-
-            return isInActiveKeywords;
-          },
-        );
-
-        // Combine unique keywords from both title and content analysis
-        // Combine arrays then filter duplicates manually
-        const combinedKeywords = [
-          ...titleKeywordMatches,
-          ...validatedOpenAIKeywords,
-        ];
-        const allKeywords = combinedKeywords.filter(
-          (value, index, self) => self.indexOf(value) === index,
-        );
-
-        if (allKeywords.length > 0) {
+        if (existingArticle) {
           log(
-            `[Scraping] Total keywords detected: ${allKeywords.join(", ")}`,
+            `[Global Scraping] Article with URL ${link} already exists in global database, skipping`,
             "scraper",
           );
-
-          // Check if article with this URL already exists in the database for this user
-          const existingArticle = await storage.getArticleByUrl(link, userId);
-
-          if (existingArticle) {
-            log(
-              `[Scraping] Article with URL ${link} already exists in database, skipping`,
-              "scraper",
-            );
-          } else {
-            log(
-              "Article doesn't already exists",
-              "scraper"
-            )
-            const newArticle = await storage.createArticle({
-                sourceId,
-                userId, // Include the userId from the source
-                title: article.title,
-                content: article.content,
-                url: link,
-                author: article.author || null,
-                publishDate: article.publishDate || new Date(), // Use extracted date or current date as fallback
-                summary: analysis.summary,
-                relevanceScore: analysis.relevanceScore,
-                detectedKeywords: allKeywords,
-              },
-              userId
-            );
-
-            // Add the newly saved article to our collection for email notification
-            newArticles.push(newArticle);
-
-            savedCount++;
-            log(
-              `[Scraping] Article saved to database with ${allKeywords.length} keyword matches`,
-              "scraper",
-            );
-          }
         } else {
           log(
-            `[Scraping] No relevant keywords found in title or content`,
+            `[Global Scraping] Saving new article to global database`,
+            "scraper"
+          );
+          
+          // Save ALL articles to global database (no keyword filtering)
+          const newArticle = await storage.createArticle({
+              sourceId,
+              userId: undefined, // No userId for global articles
+              title: article.title,
+              content: article.content,
+              url: link,
+              author: article.author || null,
+              publishDate: article.publishDate || new Date(), // Use extracted date or current date as fallback
+              summary: analysis.summary,
+              relevanceScore: analysis.relevanceScore,
+              detectedKeywords: [], // No keywords for global articles (will be filled by AI later)
+            },
+            undefined // No userId for global articles
+          );
+
+          // Add the newly saved article to our collection
+          newArticles.push(newArticle);
+
+          savedCount++;
+          log(
+            `[Global Scraping] Article saved to global database`,
             "scraper",
           );
         }
       } catch (error) {
-        log(`[Scraping] Error processing article ${link}: ERROR:${error}, ERROR STACK: ${error.stack}`, "scraper");
+        log(`[Global Scraping] Error processing article ${link}: ERROR:${error}, ERROR STACK: ${error.stack}`, "scraper");
         
         // Log detailed error with context
         if (error instanceof Error) {
@@ -264,7 +190,7 @@ export async function scrapeSource(
             'article-scraping', // extractionStep
             {
               step: 'article-processing-in-background-job',
-              operation: 'news-radar-background-article-scraping',
+              operation: 'news-radar-global-article-scraping',
               processedCount,
               totalArticles: articleLinks.length,
               hasScrapingConfig: !!scrapingConfig,
@@ -283,7 +209,7 @@ export async function scrapeSource(
     activeScraping.delete(sourceId);
 
     log(
-      `[Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`,
+      `[Global Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`,
       "scraper",
     );
     return { processedCount, savedCount, newArticles };
@@ -292,19 +218,18 @@ export async function scrapeSource(
     activeScraping.delete(sourceId);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
-    log(`[Scraping] Fatal error: ${errorMessage}`, "scraper");
+    log(`[Global Scraping] Fatal error: ${errorMessage}`, "scraper");
     
     // Log detailed error with context
     if (error instanceof Error) {
-      const userId = source.userId === null ? undefined : source.userId;
-      const errorContext = createNewsRadarContext(userId, sourceId, source.url, source.name);
+      const errorContext = createNewsRadarContext(undefined, sourceId, source.url, source.name);
       await logBackgroundJobError(
         error,
         errorContext,
-        'source-scraping-job', // jobType string
+        'global-source-scraping-job', // jobType string
         {
-          step: 'source-scraping-background-job',
-          operation: 'news-radar-source-processing',
+          step: 'global-source-scraping-background-job',
+          operation: 'news-radar-global-source-processing',
           errorOccurredAt: new Date().toISOString(),
         }
       );
@@ -476,12 +401,9 @@ export async function sendNewArticlesEmail(
 }
 
 /**
- * Run the global scraping job for all eligible sources
- * @param userId The ID of the user whose sources should be scraped
+ * Run the global scraping job for ALL eligible sources (no user filtering)
  */
-export async function runGlobalScrapeJob(
-  userId: string,
-)
+export async function runGlobalScrapeJob()
 : Promise<{
   success: boolean;
   message: string;
@@ -505,14 +427,14 @@ export async function runGlobalScrapeJob(
 
   try {
     log(
-      `[Background Job] Starting global scrape job for user ${userId}`,
+      `[Global Background Job] Starting global scrape job for ALL sources`,
       "scraper",
     );
 
-    // Get all sources that are active and included in auto-scrape for this user
-    const sources = await storage.getAutoScrapeSources(userId);
+    // Get ALL sources that are active and included in auto-scrape (no user filtering)
+    const sources = await storage.getAutoScrapeSources(undefined);
     log(
-      `[Background Job] Found ${sources.length} sources for auto-scraping for user ${userId}`,
+      `[Global Background Job] Found ${sources.length} sources for global auto-scraping`,
       "scraper",
     );
 
@@ -532,18 +454,18 @@ export async function runGlobalScrapeJob(
     for (const source of sources) {
       // Check if job has been stopped before processing next source
       if (!globalJobRunning) {
-        log(`[Background Job] Global scrape job was stopped, aborting remaining sources`, "scraper");
+        log(`[Global Background Job] Global scrape job was stopped, aborting remaining sources`, "scraper");
         break;
       }
 
-      log(`[Background Job] Processing source: ${source.name}`, "scraper");
+      log(`[Global Background Job] Processing source: ${source.name}`, "scraper");
 
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
           source.id,
         );
 
-        // Add source information to each new article for email notification grouping
+        // Add source information to each new article
         const sourcedArticles = newArticles.map((article) => ({
           ...article,
           _sourceName: source.name,
@@ -559,18 +481,18 @@ export async function runGlobalScrapeJob(
           saved: savedCount,
         });
 
-        log(`[Background Job] Completed source: ${source.name}`, "scraper");
+        log(`[Global Background Job] Completed source: ${source.name}`, "scraper");
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
         log(
-          `[Background Job] Error scraping source ${source.name}: ${errorMessage}`,
+          `[Global Background Job] Error scraping source ${source.name}: ${errorMessage}`,
           "scraper",
         );
         
         // Log detailed error with context
         if (error instanceof Error) {
-          const errorContext = createNewsRadarContext(userId, source.id, source.url, source.name);
+          const errorContext = createNewsRadarContext(undefined, source.id, source.url, source.name);
           await logBackgroundJobError(
             error,
             errorContext,
@@ -593,45 +515,32 @@ export async function runGlobalScrapeJob(
       }
     }
 
-    // Send consolidated email notification at the end if new articles were found
-    if (allNewArticles.length > 0) {
-      try {
-        await sendNewArticlesEmail(userId, allNewArticles, undefined, true);
-        log(
-          `[Email] Sent consolidated notification email for ${allNewArticles.length} new articles across ${sources.length} sources`,
-          "scraper",
-        );
-      } catch (emailError) {
-        log(`[Email] Error sending consolidated notification: ${emailError}`, "scraper");
-        // Continue processing - don't fail the job if email sending fails
-      }
-    } else {
-      log(`[Email] No new articles found, no notifications sent`, "scraper");
-    }
+    // No email notifications for global scraping (will be handled differently)
+    log(`[Global Background Job] Processed ${allNewArticles.length} new articles across ${sources.length} sources`, "scraper");
 
     log(
-      `[Background Job] Global scrape job completed. Processed ${sources.length} sources.`,
+      `[Global Background Job] Global scrape job completed. Processed ${sources.length} sources.`,
       "scraper",
     );
     globalJobRunning = false;
 
     return {
       success: true,
-      message: `Global scrape job completed. Processed ${sources.length} sources.`,
+      message: `Global scrape job completed. Processed ${sources.length} sources, found ${allNewArticles.length} new articles.`,
       results,
     };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     log(
-      `[Background Job] Fatal error in global scrape job: ${errorMessage}`,
+      `[Global Background Job] Fatal error in global scrape job: ${errorMessage}`,
       "scraper",
     );
     
     // Log detailed error with context
     if (error instanceof Error) {
       const errorContext = createNewsRadarContext(
-        userId, 
+        undefined, 
         'global-job', 
         'global-scrape-operation', 
         'Global Scrape Job'

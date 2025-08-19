@@ -23,9 +23,10 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 - **Authentication**: JWT with CSRF protection
 - **Web Scraping**: Puppeteer with stealth plugins
 - **AI Integration**: OpenAI API
-- **Background Jobs**: Custom scheduler system
+- **Background Jobs**: Global scheduler system (runs every 3 hours)
 
 ### Core Architectural Decisions
+- **Global Scraping Infrastructure** (Updated 2025-01-18): Transformed from per-user to global scraping system. All sources are scraped every 3 hours globally, with articles saved to a shared pool. Users apply query-time filtering to see relevant content.
 - **Unified Scraping System**: Centralized, app-agnostic scraping logic handles content extraction, link identification, and bot protection. It employs a hybrid approach (HTTP-first with intelligent Puppeteer fallback) and a 3-step workflow for efficiency.
 - **AI-Powered Analysis**: Leverages OpenAI for content summarization, keyword detection, relevance scoring, and security scoring, dynamically adapting prompts for specific tasks.
 - **Robust Data Handling**: Drizzle ORM manages various data schemas (user, news, threats, reports), ensuring structured storage and retrieval.
@@ -42,4 +43,13 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 - **Browser Automation**: Chromium (via Nix packages)
 - **NPM Packages**: `puppeteer`, `puppeteer-extra`, `puppeteer-extra-plugin-stealth`, `rebrowser-puppeteer`, `cheerio`, `openai`, `drizzle-orm`, `drizzle-kit`, `argon2`, `csrf-csrf`, `uuid`, `docx`, `jspdf`, `@sendgrid/mail`
 - **External APIs**: OpenAI, SendGrid
+
+## Recent Architecture Changes (January 2025)
+
+### Phase 2: Global Scraping Infrastructure (Completed 2025-01-18)
+- **Background Jobs**: Removed userId and keyword dependencies from both News Radar and Threat Tracker
+- **Schedulers**: Updated to run globally every 3 hours instead of per-user scheduling
+- **API Routes**: Modified to work with global functions without userId parameters
+- **Article Processing**: All articles now saved globally without keyword filtering at scrape time
+- **Query-time Filtering**: Users' keywords and preferences applied when viewing articles, not during collection
 ```
