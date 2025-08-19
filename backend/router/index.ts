@@ -18,6 +18,7 @@ import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 import { auth0middleware } from 'backend/middleware/auth0middleware';
 import { handleChangePassword } from 'backend/handlers/auth0/change-password';
+import { handleDatabaseHealthCheck } from 'backend/handlers/health-check';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
@@ -33,6 +34,9 @@ router.get('/test', limiter, handleTest)
 //router.get('/test-articles', testArticles)
 
 router.get('/test-datadome-bypass', testDatadomeBypass)
+
+// HEALTH CHECKS (unprotected)
+router.get('/health/database', handleDatabaseHealthCheck)
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
