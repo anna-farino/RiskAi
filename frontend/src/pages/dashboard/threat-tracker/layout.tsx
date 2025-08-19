@@ -24,7 +24,7 @@ export default function ThreatLayout() {
   // Check if we're on mobile for responsive rendering
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 640);
+      setIsMobile(window.innerWidth < 1024);
     };
 
     handleResize();
