@@ -667,80 +667,407 @@ router.get('/admin/scraping/stats', requireAdmin, async (req, res) => {
 ## Phase 4: Frontend Updates
 **Timeline: Week 4**
 
+### Overview of Frontend Changes
+
+The frontend updates will modify existing pages in each app (News Radar, Threat Tracker, News Capsule) to work with the new global scraping system. The key principle is **minimal visual disruption** - users should see familiar interfaces with enhanced capabilities.
+
 ### 4.1 Source Management UI Changes
 
+#### Files to Modify:
+- `frontend/src/pages/dashboard/news-radar/sources.tsx`
+- `frontend/src/pages/dashboard/threat-tracker/sources.tsx`
+
+#### Key Changes:
+
+**REMOVE these features:**
 ```typescript
-// frontend/src/pages/dashboard/SourceManager.tsx
+// Remove ability to add new sources
+const addSource = useMutation({...}) // DELETE THIS
 
-// BEFORE: Add source button and form
-const SourceManager = () => {
-  const [showAddForm, setShowAddForm] = useState(false);
-  
-  return (
-    <div>
-      <Button onClick={() => setShowAddForm(true)}>Add Source</Button>
-      {showAddForm && <AddSourceForm />}
-      <SourceList />
-    </div>
-  );
-};
+// Remove source editing
+const editSource = useMutation({...}) // DELETE THIS  
 
-// AFTER: Toggle sources only
-const SourceManager = () => {
-  const { data: sources } = useQuery({
-    queryKey: ['sources', 'available'],
-    queryFn: () => api.get('/sources/available')
-  });
-  
-  const toggleSource = useMutation({
-    mutationFn: ({ sourceId, isEnabled }) => 
-      api.put(`/sources/${sourceId}/toggle`, { 
-        appContext: getCurrentApp(),
+// Remove source deletion
+const deleteSource = useMutation({...}) // DELETE THIS
+
+// Remove individual source scraping
+const scrapeSource = useMutation({...}) // DELETE THIS
+
+// Remove Add Source form UI
+<Dialog>
+  <DialogTrigger><Plus /> Add Source</DialogTrigger>
+  <DialogContent>...</DialogContent>
+</Dialog> // DELETE THIS SECTION
+
+// Remove Edit/Delete buttons in source list
+<Button onClick={() => editSource(id)}>Edit</Button> // DELETE
+<Button onClick={() => deleteSource(id)}>Delete</Button> // DELETE
+```
+
+**ADD these features:**
+```typescript
+// New endpoint to get all global sources with user preferences
+const sources = useQuery({
+  queryKey: ['/api/news-tracker/sources/available', appContext],
+  queryFn: async () => {
+    const response = await fetchWithAuth('/api/news-tracker/sources/available?app=' + appContext);
+    return response.json();
+    // Returns: { id, name, url, category, articleCount, lastScraped, isEnabled }
+  }
+});
+
+// Toggle source on/off for current app
+const toggleSource = useMutation({
+  mutationFn: async ({ sourceId, isEnabled }) => {
+    return fetchWithAuth(`/api/news-tracker/sources/${sourceId}/toggle`, {
+      method: 'PUT',
+      body: JSON.stringify({ 
+        appContext: 'news_radar', // or 'threat_tracker'
         isEnabled 
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['sources']);
-      queryClient.invalidateQueries(['articles']);
-    }
-  });
-  
-  return (
-    <div className="space-y-4">
-      <h2>Available News Sources</h2>
-      <p className="text-muted">
-        Enable or disable sources to customize your news feed
-      </p>
-      
-      <div className="grid gap-2">
-        {sources?.map(source => (
-          <div key={source.id} className="flex items-center justify-between p-3 border rounded">
-            <div>
-              <h3>{source.name}</h3>
-              <p className="text-sm text-muted">{source.url}</p>
+      })
+    });
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries(['articles']);
+  }
+});
+
+// Update the source display to group by category
+const sourcesByCategory = useMemo(() => {
+  return sources.data?.reduce((acc, source) => {
+    const category = source.category || 'General';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(source);
+    return acc;
+  }, {});
+}, [sources.data]);
+
+// New UI showing toggleable sources grouped by category
+return (
+  <div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Available News Sources</CardTitle>
+        <CardDescription>
+          Enable or disable sources to customize your news feed.
+          Articles are collected automatically every 3 hours.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {Object.entries(sourcesByCategory).map(([category, sources]) => (
+          <div key={category}>
+            <h3 className="font-semibold mb-2">{category}</h3>
+            <div className="space-y-2 mb-4">
+              {sources.map(source => (
+                <div className="flex items-center justify-between p-3 border rounded">
+                  <div className="flex-1">
+                    <div className="font-medium">{source.name}</div>
+                    <div className="text-sm text-muted">{source.url}</div>
+                    <div className="text-xs text-muted mt-1">
+                      {source.articleCount} articles • Last updated {source.lastScraped}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={source.isEnabled}
+                    onCheckedChange={(checked) => 
+                      toggleSource.mutate({ sourceId: source.id, isEnabled: checked })
+                    }
+                  />
+                </div>
+              ))}
             </div>
-            <Switch
-              checked={source.isEnabled}
-              onCheckedChange={(checked) => 
-                toggleSource.mutate({ 
-                  sourceId: source.id, 
-                  isEnabled: checked 
-                })
-              }
-            />
           </div>
         ))}
-      </div>
+      </CardContent>
+    </Card>
+    
+    {/* Remove the auto-scrape settings section - it's now global */}
+  </div>
+);
+```
+
+### 4.2 Keywords Management Updates
+
+#### Files to Modify:
+- `frontend/src/pages/dashboard/news-radar/keywords.tsx`
+- `frontend/src/pages/dashboard/threat-tracker/keywords.tsx`
+
+#### Key Changes:
+
+Keywords remain user-specific but their purpose changes from triggering scraping to filtering/highlighting articles.
+
+**UPDATE the UI messaging:**
+```typescript
+// Change the page description
+<CardDescription>
+  {/* OLD: "Add keywords to track specific topics in your news sources" */}
+  NEW: "Add keywords to filter and highlight articles from the global news pool"
+</CardDescription>
+
+// Add informational banner explaining the new behavior
+<Alert className="mb-4">
+  <Info className="h-4 w-4" />
+  <AlertTitle>How Keywords Work</AlertTitle>
+  <AlertDescription>
+    Keywords help you filter and discover relevant articles from all available sources.
+    Articles containing your keywords will be highlighted for easy identification.
+    The system automatically collects all articles - keywords help you find what matters to you.
+  </AlertDescription>
+</Alert>
+
+// Keep existing add/delete/toggle functionality but update tooltips
+<HelpCircle className="h-4 w-4" />
+<span className="text-sm text-muted">
+  Keywords filter articles in real-time. Active keywords are highlighted in article text.
+</span>
+
+// Show keyword match statistics
+{keywords.data?.map(keyword => (
+  <div className="flex items-center justify-between">
+    <div>
+      <span>{keyword.term}</span>
+      <Badge variant="secondary" className="ml-2">
+        {keyword.matchCount || 0} matches today
+      </Badge>
     </div>
+    <Switch checked={keyword.active} />
+  </div>
+))}
+```
+
+### 4.3 Article List (Home) Pages Updates
+
+#### Files to Modify:
+- `frontend/src/pages/dashboard/news-radar/home.tsx`
+- `frontend/src/pages/dashboard/threat-tracker/home.tsx`
+
+#### Key Principle: **Minimal Visual Changes**
+The article display should look virtually identical to users, but data comes from filtered global pool instead of user-specific scraping.
+
+**UPDATE data fetching:**
+```typescript
+// OLD: Fetch user-specific articles
+const articles = useQuery({
+  queryKey: ["/api/news-tracker/articles"],
+  queryFn: () => fetchWithAuth("/api/news-tracker/articles")
+});
+
+// NEW: Fetch filtered articles from global pool
+const articles = useQuery({
+  queryKey: ["/api/news-tracker/articles", { 
+    page: currentPage,
+    search: searchTerm,
+    keywords: selectedKeywordIds,
+    dateFrom: dateRange.startDate,
+    dateTo: dateRange.endDate
+  }],
+  queryFn: async () => {
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      limit: articlesPerPage.toString(),
+      ...(searchTerm && { search: searchTerm }),
+      ...(selectedKeywordIds.length && { keywords: selectedKeywordIds.join(',') }),
+      ...(dateRange.startDate && { dateFrom: dateRange.startDate.toISOString() }),
+      ...(dateRange.endDate && { dateTo: dateRange.endDate.toISOString() })
+    });
+    
+    const response = await fetchWithAuth(`/api/news-tracker/articles?${params}`);
+    const data = await response.json();
+    return {
+      articles: data.articles,
+      total: data.total,
+      filtered: data.filtered
+    };
+  }
+});
+
+// ADD article count indicators
+<div className="flex items-center justify-between mb-4">
+  <h2 className="text-2xl font-bold">Articles</h2>
+  <div className="text-sm text-muted">
+    Showing {articles.data?.filtered || 0} of {articles.data?.total || 0} available articles
+  </div>
+</div>
+
+// Remove "Scan All Sources" button - it's automatic now
+// DELETE: <Button onClick={scanAllSources}><Play /> Scan All Sources</Button>
+
+// Update the auto-scrape status to show global scraping status
+<Badge variant={autoScrapeStatus.data?.running ? "default" : "secondary"}>
+  {autoScrapeStatus.data?.running 
+    ? "Global scraping in progress..." 
+    : `Next scrape: ${autoScrapeStatus.data?.nextRun || 'in 3 hours'}`}
+</Badge>
+```
+
+**For Threat Tracker specifically, ADD security indicators:**
+```typescript
+// In threat-tracker/home.tsx, update ThreatArticleCard component usage
+<ThreatArticleCard
+  article={article}
+  // NEW: Show security score if available
+  showSecurityScore={true}
+  securityScore={article.securityScore}
+  threatCategories={article.threatCategories}
+/>
+
+// Add security score badge to ThreatArticleCard component
+{showSecurityScore && article.securityScore && (
+  <Badge 
+    variant={
+      article.securityScore > 75 ? "destructive" :
+      article.securityScore > 50 ? "warning" :
+      article.securityScore > 25 ? "secondary" :
+      "default"
+    }
+  >
+    Risk: {article.securityScore}/100
+  </Badge>
+)}
+
+// Add threat category tags
+{article.threatCategories && (
+  <div className="flex flex-wrap gap-1 mt-2">
+    {Object.entries(article.threatCategories)
+      .filter(([_, value]) => value)
+      .map(([category]) => (
+        <Badge key={category} variant="outline" className="text-xs">
+          {category}
+        </Badge>
+      ))
+    }
+  </div>
+)}
+```
+
+### 4.4 News Capsule Application Updates
+
+#### Files to Modify:
+- `frontend/src/pages/dashboard/news-capsule/research.tsx`
+- `frontend/src/pages/dashboard/news-capsule/reports.tsx`
+
+News Capsule pulls articles from both News Radar and Threat Tracker, so it needs to work with the new global system.
+
+**UPDATE research page to pull from global articles:**
+```typescript
+// In news-capsule/research.tsx
+// Update the article fetching to pull from global pool
+const fetchArticlesForResearch = async () => {
+  // Get articles from both news and threat contexts
+  const newsArticles = await fetchWithAuth('/api/news-tracker/articles?limit=100');
+  const threatArticles = await fetchWithAuth('/api/threat-tracker/articles?limit=100');
+  
+  // Combine and deduplicate
+  const allArticles = [...newsArticles.articles, ...threatArticles.articles];
+  const uniqueArticles = Array.from(
+    new Map(allArticles.map(a => [a.globalId || a.id, a])).values()
   );
+  
+  return uniqueArticles;
 };
 ```
 
-### 4.2 Article Display with Real-time Filtering
+### 4.5 Component Updates
+
+#### ArticleCard Component Updates
+```typescript
+// Update frontend/src/components/ui/article-card.tsx
+// Add keyword highlighting functionality
+
+interface ArticleCardProps {
+  article: Article;
+  keywords?: string[];
+  showHighlight?: boolean;
+  showStats?: boolean;
+}
+
+const highlightText = (text: string, keywords: string[]) => {
+  if (!keywords?.length) return text;
+  
+  let highlighted = text;
+  keywords.forEach(keyword => {
+    const regex = new RegExp(`(${keyword})`, 'gi');
+    highlighted = highlighted.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+  });
+  return highlighted;
+};
+
+// In the component render
+<CardTitle>
+  {showHighlight 
+    ? <span dangerouslySetInnerHTML={{ __html: highlightText(article.title, keywords) }} />
+    : article.title
+  }
+</CardTitle>
+```
+
+### 4.6 State Management Updates
+
+No major changes needed to Zustand stores, but update types to reflect new data structure:
 
 ```typescript
-// frontend/src/components/ArticleList.tsx
+// Update types in store if needed
+interface ArticleStore {
+  articles: GlobalArticle[]; // Changed from Article[]
+  totalCount: number;
+  filteredCount: number;
+  lastGlobalScrapeTime: Date | null;
+}
+```
 
-const ArticleList = () => {
+### 4.7 Summary of Frontend Phase Changes
+
+#### What Users Will Notice:
+1. **Sources Page**: Can only enable/disable sources (no add/edit/delete)
+2. **Keywords Page**: Same functionality but new explanation of filtering vs scraping
+3. **Article Lists**: Virtually identical but shows "X of Y articles" indicator
+4. **Performance**: Potentially faster as no individual scraping needed
+5. **Threat Tracker**: New security scores and threat category badges
+
+#### What Users Won't Notice:
+1. Data comes from global pool instead of user-specific tables
+2. Filtering happens server-side with user preferences
+3. Articles are pre-analyzed by AI
+4. No more per-user scraping jobs
+
+#### Migration Messaging:
+Add a one-time banner after deployment:
+```typescript
+// Add to Dashboard.tsx or app root
+{showMigrationNotice && (
+  <Alert className="mb-4">
+    <Info className="h-4 w-4" />
+    <AlertTitle>System Upgraded!</AlertTitle>
+    <AlertDescription>
+      We've upgraded to a more powerful article collection system. 
+      All sources now update automatically every 3 hours with AI-powered analysis.
+      Your keywords now help filter and highlight relevant content from a much larger pool of articles.
+      <Button size="sm" variant="ghost" onClick={() => setShowMigrationNotice(false)}>
+        Got it
+      </Button>
+    </AlertDescription>
+  </Alert>
+)}
+```
+
+---
+
+### 4.8 Testing Checklist for Frontend
+
+Before marking Phase 4 complete, verify:
+
+- [ ] Source toggles work correctly per app context
+- [ ] Keywords filter articles in real-time
+- [ ] Article counts show filtered vs total
+- [ ] Pagination works with new data structure  
+- [ ] Search functionality works across global articles
+- [ ] Threat Tracker shows security scores
+- [ ] News Capsule can access articles from both apps
+- [ ] No "Add Source" functionality remains
+- [ ] Auto-scrape controls are removed
+- [ ] Global scrape status shows correctly
+
+---
   const [filters, setFilters] = useState({
     keywords: [],
     sources: [],
