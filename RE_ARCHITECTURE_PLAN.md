@@ -940,34 +940,7 @@ const articles = useQuery({
 )}
 ```
 
-### 4.4 News Capsule Application Updates
-
-#### Files to Modify:
-- `frontend/src/pages/dashboard/news-capsule/research.tsx`
-- `frontend/src/pages/dashboard/news-capsule/reports.tsx`
-
-News Capsule pulls articles from both News Radar and Threat Tracker, so it needs to work with the new global system.
-
-**UPDATE research page to pull from global articles:**
-```typescript
-// In news-capsule/research.tsx
-// Update the article fetching to pull from global pool
-const fetchArticlesForResearch = async () => {
-  // Get articles from both news and threat contexts
-  const newsArticles = await fetchWithAuth('/api/news-tracker/articles?limit=100');
-  const threatArticles = await fetchWithAuth('/api/threat-tracker/articles?limit=100');
-  
-  // Combine and deduplicate
-  const allArticles = [...newsArticles.articles, ...threatArticles.articles];
-  const uniqueArticles = Array.from(
-    new Map(allArticles.map(a => [a.globalId || a.id, a])).values()
-  );
-  
-  return uniqueArticles;
-};
-```
-
-### 4.5 Component Updates
+### 4.4 Component Updates
 
 #### ArticleCard Component Updates
 ```typescript
@@ -1001,7 +974,7 @@ const highlightText = (text: string, keywords: string[]) => {
 </CardTitle>
 ```
 
-### 4.6 State Management Updates
+### 4.5 State Management Updates
 
 No major changes needed to Zustand stores, but update types to reflect new data structure:
 
@@ -1015,7 +988,7 @@ interface ArticleStore {
 }
 ```
 
-### 4.7 Summary of Frontend Phase Changes
+### 4.6 Summary of Frontend Phase Changes
 
 #### What Users Will Notice:
 1. **Sources Page**: Can only enable/disable sources (no add/edit/delete)
@@ -1052,7 +1025,7 @@ Add a one-time banner after deployment:
 
 ---
 
-### 4.8 Testing Checklist for Frontend
+### 4.7 Testing Checklist for Frontend
 
 Before marking Phase 4 complete, verify:
 
