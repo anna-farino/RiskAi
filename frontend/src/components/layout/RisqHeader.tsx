@@ -117,7 +117,7 @@ export function RisqHeader() {
           </div>
           
           {/* Mobile navigation - repositioned to far right */}
-          <div className="flex items-center md:hidden ml-1.5 pl-1.5 border-l border-[#BF00FF]/20">
+          <div className="flex items-center lg:hidden ml-1.5 pl-1.5 border-l border-[#BF00FF]/20">
             <MobileNavigation />
           </div>
         </div>

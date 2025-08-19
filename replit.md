@@ -34,6 +34,8 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 - **Modular Design**: Emphasizes componentization and a strategy pattern to allow app-specific analysis while sharing core scraping functionalities, promoting maintainability and reducing redundancy.
 - **Error Handling**: Comprehensive error logging for scraping operations, including network, parsing, and AI errors, with detailed context.
 - **UI/UX**: Consistent Material Design principles, including accessible checkbox implementations and streamlined bulk operation patterns with visual feedback.
+- **Unified Navigation**: Comprehensive collapsible navigation system with unified button designs, hardware-accelerated animations, and modern card-style sub-navigation items featuring gradient backgrounds and brand-colored edge highlights. Updated January 2025 with RisqWidget card styling including backdrop blur, brand-colored shadows, and consistent spacing.
+- **Enhanced Login Experience**: RisqWidget-inspired hero card design with animated feature highlights, unified brand styling, and progressive disclosure patterns that showcase platform capabilities before authentication.
 
 ## External Dependencies
 

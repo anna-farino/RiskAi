@@ -8,13 +8,7 @@ export default function Home() {
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 mb-4">
         <div className="flex flex-col gap-4">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
-            <span className="bg-gradient-to-r from-[#BF00FF] via-[#BF00FF]/90 to-[#00FFFF] bg-clip-text text-transparent" 
-                  style={{ 
-                    backgroundImage: 'linear-gradient(to right, #BF00FF, #BF00FF 40%, #00FFFF)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
+            <span className="text-white">
               News Capsule
             </span>
           </h1>
