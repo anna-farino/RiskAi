@@ -2,7 +2,46 @@
 ## From User-Specific to Global Shared Scraping Infrastructure
 
 ### Executive Summary
-This plan outlines the transformation of our current user-specific article scraping system into a global, shared infrastructure that collects all articles and allows users to filter them at query time. The re-architecture maintains all existing scraping capabilities while significantly changing the data model and processing pipeline.
+This plan outlines the transformation of our current user-specific article scraping system into a global, shared infrastructure that collects all articles and allows users to filter them at query time. 
+
+**Key Approach: Modify existing files, NOT create new ones**
+- We will modify existing scraping services in-place
+- Only remove userID and keyword constraints from scraping logic
+- Keep ALL other scraping functionality exactly as-is (bot detection, extraction, error handling)
+- No backwards compatibility concerns - direct migration to new system
+
+---
+
+## Summary of File Modifications
+
+### Files to Modify (NOT create new):
+1. **Scraping Services**
+   - `backend/apps/news-radar/scraper.ts` - Remove userId, keywords
+   - `backend/apps/threat-tracker/scraper.ts` - Remove userId, keywords  
+   - `backend/services/scraping/*` - Remove userId, keywords
+   - `backend/apps/*/scheduler.ts` - Change to global 3-hour schedule
+
+2. **Database Queries**
+   - `backend/apps/news-radar/queries/*` - Update to use global tables
+   - `backend/apps/threat-tracker/queries/*` - Update to use global tables
+   - `backend/storage.ts` - Update to use global tables
+
+3. **API Routes**
+   - `backend/apps/news-radar/router/*` - Update for filtering
+   - `backend/apps/threat-tracker/router/*` - Update for filtering
+
+4. **OpenAI Services**
+   - `backend/services/openai.ts` - Add cybersecurity detection methods
+   - `backend/apps/*/openai.ts` - Add security scoring methods
+
+### What Stays EXACTLY the Same:
+- All bot detection and bypass mechanisms
+- All content extraction logic
+- All error handling and logging
+- All scraping strategies (Puppeteer, CycleTLS, HTTP)
+- All URL pattern detection
+- All date extraction logic
+- All existing OpenAI prompts (just add new ones)
 
 ---
 
@@ -202,20 +241,24 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## Phase 2: Backend Service Re-Architecture
+## Phase 2: Backend Service Modifications
 **Timeline: Week 2-3**
 
-### 2.1 Global Scraping Service
+### 2.1 Modify Existing Scraping Services
 
-#### New Scraping Scheduler
+#### Update Existing Schedulers (NOT create new ones)
 ```typescript
-// backend/services/global-scraper/scheduler.ts
-export class GlobalScrapingScheduler {
+// MODIFY: backend/apps/news-radar/scheduler.ts
+// MODIFY: backend/apps/threat-tracker/scheduler.ts
+// Combine into single global scheduler that runs every 3 hours
+
+export class ScrapingScheduler {
   private job: cron.ScheduledTask;
   private isRunning = false;
   
   async initialize() {
-    // Run every 3 hours
+    // Change from user-specific to global schedule
+    // Run every 3 hours instead of user-defined intervals
     this.job = cron.schedule('0 */3 * * *', async () => {
       if (this.isRunning) {
         console.log('Previous scraping job still running, skipping...');
@@ -234,242 +277,113 @@ export class GlobalScrapingScheduler {
     const startTime = Date.now();
     
     try {
-      // Get all active sources ordered by priority
+      // Get all active sources from global table
       const sources = await db.select()
         .from(globalSources)
         .where(eq(globalSources.isActive, true))
         .orderBy(desc(globalSources.priority));
       
-      // Process in parallel with concurrency limit
-      const results = await pLimit(5)(
-        sources.map(source => () => this.scrapeSource(source))
-      );
+      // Use existing scraping logic with minimal changes
+      for (const source of sources) {
+        await this.scrapeSource(source);
+      }
       
-      // Log statistics
+      // Log statistics (existing logging logic)
       const stats = {
         duration: Date.now() - startTime,
-        sourcesProcessed: results.length,
-        articlesScraped: results.reduce((sum, r) => sum + r.articles, 0),
-        failures: results.filter(r => !r.success).length
+        sourcesProcessed: sources.length
       };
       
-      await this.logScrapingRun(stats);
+      console.log('Global scraping completed', stats);
       
     } finally {
       this.isRunning = false;
     }
   }
+}
+```
+
+#### Modify Existing Scraper Files
+```typescript
+// MODIFY: backend/apps/news-radar/scraper.ts
+// MODIFY: backend/apps/threat-tracker/scraper.ts
+// MODIFY: backend/services/scraping/*
+
+// Changes to make in existing scraper files:
+// 1. REMOVE: userId parameter from all scraping functions
+// 2. REMOVE: Keyword filtering logic during scraping
+// 3. REMOVE: User-specific article saving
+// 4. KEEP: All bot detection bypass logic
+// 5. KEEP: All content extraction logic
+// 6. KEEP: All error handling
+// 7. KEEP: All scraping strategies (Puppeteer, CycleTLS, HTTP)
+
+// Example of changes in existing scraper:
+export async function scrapeSource(source: GlobalSource) {
+  // REMOVE THIS:
+  // const keywords = await getUserKeywords(userId);
+  // const relevantArticles = filterByKeywords(articles, keywords);
   
-  private async scrapeSource(source: GlobalSource) {
-    try {
-      // Use existing scraping logic WITHOUT keyword filtering
-      const articleLinks = await scrapingService.scrapeSourceUrl(source.url);
-      
-      const articles = [];
-      for (const link of articleLinks) {
-        const article = await scrapingService.scrapeArticleUrl(link, {
-          titleSelector: source.scrapingConfig?.titleSelector,
-          contentSelector: source.scrapingConfig?.contentSelector
-        });
-        
-        if (article) {
-          // Save immediately without keyword checking
-          const saved = await this.saveArticle(article, source.id);
-          if (saved) articles.push(saved);
-        }
-      }
-      
-      // Update source last scraped time
-      await db.update(globalSources)
-        .set({ 
-          lastScraped: new Date(),
-          lastSuccessfulScrape: new Date(),
-          consecutiveFailures: 0
-        })
-        .where(eq(globalSources.id, source.id));
-      
-      return { success: true, articles: articles.length };
-      
-    } catch (error) {
-      // Increment failure counter
-      await db.update(globalSources)
-        .set({ 
-          consecutiveFailures: sql`consecutive_failures + 1`,
-          lastScraped: new Date()
-        })
-        .where(eq(globalSources.id, source.id));
-      
-      return { success: false, error: error.message };
-    }
-  }
+  // KEEP ALL OF THIS:
+  const articleLinks = await extractArticleLinks(source.url);
+  const articles = await scrapeArticles(articleLinks);
   
-  private async saveArticle(articleData: any, sourceId: string) {
-    try {
-      // Check if article already exists (by URL)
-      const existing = await db.select()
-        .from(globalArticles)
-        .where(eq(globalArticles.url, articleData.url))
-        .limit(1);
-      
-      if (existing.length > 0) {
-        return null; // Skip duplicates
-      }
-      
-      // Insert new article
-      const [article] = await db.insert(globalArticles)
-        .values({
-          sourceId,
-          title: articleData.title,
-          content: articleData.content,
-          url: articleData.url,
-          author: articleData.author,
-          publishDate: articleData.publishDate,
-          summary: null, // Will be generated by AI processor
-          isCybersecurity: false, // Will be determined by AI
-          scrapedAt: new Date()
-        })
-        .returning();
-      
-      // Queue for AI processing
-      await this.queueForAIProcessing(article.id);
-      
-      return article;
-      
-    } catch (error) {
-      console.error('Error saving article:', error);
-      return null;
-    }
+  // CHANGE: Save to global table instead of user-specific
+  for (const article of articles) {
+    await db.insert(globalArticles).values({
+      ...article,
+      sourceId: source.id,
+      // No userId field
+    });
   }
 }
 ```
 
 ### 2.2 AI Processing Pipeline
 
-#### Article Analysis Service
+#### Modify Existing OpenAI Service
 ```typescript
-// backend/services/ai-processor/analyzer.ts
-export class ArticleAnalyzer {
-  private processingQueue: Queue;
+// MODIFY: backend/services/openai.ts
+// MODIFY: backend/apps/news-radar/openai.ts
+// MODIFY: backend/apps/threat-tracker/openai.ts
+
+// Add new analysis functions to existing OpenAI service
+export class OpenAIService {
+  // KEEP: All existing functionality
+  // ADD: New cybersecurity detection methods
   
-  constructor() {
-    // Initialize processing queue with rate limiting
-    this.processingQueue = new Queue('article-analysis', {
-      concurrency: 3, // Process 3 articles simultaneously
-      interval: 1000, // Rate limit for OpenAI API
-      intervalCap: 5
-    });
-  }
-  
-  async processArticle(articleId: string) {
-    const article = await db.select()
-      .from(globalArticles)
-      .where(eq(globalArticles.id, articleId))
-      .limit(1);
-    
-    if (!article[0]) return;
-    
-    // Step 1: Generate summary (for all articles)
-    const summary = await this.generateSummary(article[0]);
-    
-    // Step 2: Check if cybersecurity related
-    const cybersecurityAnalysis = await this.analyzeCybersecurity(article[0]);
-    
-    // Step 3: If cybersecurity, calculate risk score
-    let securityScore = null;
-    let threatCategories = null;
-    
-    if (cybersecurityAnalysis.isCybersecurity) {
-      const riskAnalysis = await this.calculateSecurityRisk(article[0]);
-      securityScore = riskAnalysis.score;
-      threatCategories = riskAnalysis.categories;
-    }
-    
-    // Update article with analysis results
-    await db.update(globalArticles)
-      .set({
-        summary,
-        isCybersecurity: cybersecurityAnalysis.isCybersecurity,
-        securityScore,
-        threatCategories,
-        lastAnalyzedAt: new Date(),
-        analysisVersion: 'v1.0'
-      })
-      .where(eq(globalArticles.id, articleId));
-  }
-  
-  private async analyzeCybersecurity(article: Article): Promise<{
+  // ADD: New method to check if article is cybersecurity related
+  async analyzeCybersecurity(article: GlobalArticle): Promise<{
     isCybersecurity: boolean;
     confidence: number;
-    indicators: string[];
   }> {
-    const prompt = `
-      Analyze if this article is related to cybersecurity, IT vulnerabilities, or threats.
-      
-      Title: ${article.title}
-      Content: ${article.content.substring(0, 2000)}
-      
-      Return JSON with:
-      - isCybersecurity: boolean
-      - confidence: 0-100
-      - indicators: array of keywords/phrases that indicate cybersecurity relevance
-    `;
-    
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
-    });
-    
-    return JSON.parse(response.choices[0].message.content);
+    // Use existing OpenAI configuration and methods
+    // Just add new prompt for cybersecurity detection
+    const prompt = `Analyze if this is cybersecurity related...`;
+    return await this.callOpenAI(prompt);
   }
   
-  private async calculateSecurityRisk(article: Article): Promise<{
+  // ADD: Security risk scoring for cybersecurity articles
+  async calculateSecurityRisk(article: GlobalArticle): Promise<{
     score: number;
     categories: object;
-    severity: string;
   }> {
-    const prompt = `
-      Calculate security risk score for this cybersecurity article.
-      
-      Title: ${article.title}
-      Content: ${article.content.substring(0, 3000)}
-      
-      Return JSON with:
-      - score: 0-100 (0=low risk, 100=critical)
-      - categories: {
-          malware: boolean,
-          ransomware: boolean,
-          dataBrearch: boolean,
-          zeroDay: boolean,
-          supplyChain: boolean,
-          other: string[]
-        }
-      - severity: "low" | "medium" | "high" | "critical"
-      
-      Consider factors like:
-      - Exploit availability
-      - Affected systems scope
-      - Potential impact
-      - Active exploitation status
-    `;
-    
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
-    });
-    
-    return JSON.parse(response.choices[0].message.content);
-  }
+    // Use existing OpenAI infrastructure
+    const prompt = `Calculate security risk score...`;
+    return await this.callOpenAI(prompt);
 }
 ```
 
 ### 2.3 Query-Time Filtering Implementation
 
-#### New Article Retrieval Service
+#### Modify Existing Storage/Query Services
 ```typescript
-// backend/services/article-query/filter.ts
-export class ArticleFilterService {
+// MODIFY: backend/apps/news-radar/queries/news-tracker/*.ts
+// MODIFY: backend/apps/threat-tracker/queries/threat-tracker/*.ts
+// MODIFY: backend/storage.ts (if using storage pattern)
+
+// Update existing query functions to filter from global tables
+export class ArticleQueryService {
   async getArticlesForUser(
     userId: string,
     appContext: 'news_radar' | 'threat_tracker',
