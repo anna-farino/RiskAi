@@ -98,13 +98,16 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     } catch (navError: any) {
       // Handle frame detachment specifically
       if (navError.message?.includes('frame was detached') || 
-          navError.message?.includes('Frame detached')) {
-        log(`[PuppeteerScraper] Frame detached during navigation - site has anti-bot measures`, "scraper");
-        // Try to get whatever content we can
+          navError.message?.includes('Frame detached') ||
+          navError.message?.includes('Navigating frame was detached')) {
+        log(`[PuppeteerScraper] Frame detached during navigation - attempting recovery`, "scraper");
+        
+        // Try alternative navigation methods
         try {
-          const html = await page.content();
+          // Method 1: Try to get current content
+          const html = await page.content().catch(() => '');
           if (html && html.length > 1000) {
-            log(`[PuppeteerScraper] Retrieved partial content despite frame detachment`, "scraper");
+            log(`[PuppeteerScraper] Retrieved content via page.content() despite frame detachment`, "scraper");
             return {
               html,
               success: true,
@@ -114,10 +117,61 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
               finalUrl: url
             };
           }
-        } catch (contentError) {
-          log(`[PuppeteerScraper] Could not retrieve content after frame detachment`, "scraper");
+          
+          // Method 2: Try evaluate to get innerHTML
+          const evaluatedHtml = await page.evaluate(() => document.documentElement.outerHTML).catch(() => '');
+          if (evaluatedHtml && evaluatedHtml.length > 1000) {
+            log(`[PuppeteerScraper] Retrieved content via evaluate despite frame detachment`, "scraper");
+            return {
+              html: evaluatedHtml,
+              success: true,
+              method: 'puppeteer',
+              responseTime: Date.now() - startTime,
+              statusCode: 200,
+              finalUrl: url
+            };
+          }
+          
+          // Method 3: Create new page and retry with different strategy
+          log(`[PuppeteerScraper] Creating new page for retry with stealth navigation`, "scraper");
+          await page.close().catch(() => {});
+          
+          page = await setupArticlePage({
+            headers: options?.customHeaders || browserProfile.headers,
+            timeouts: { navigation: 10000, default: 10000 }
+          });
+          
+          // Apply maximum stealth
+          await applyEnhancedFingerprinting(page, browserProfile);
+          
+          // Try navigation with minimal wait
+          const retryResponse = await page.goto(url, { 
+            waitUntil: 'domcontentloaded',
+            timeout: 10000 
+          }).catch(() => null);
+          
+          if (retryResponse || page.url() !== 'about:blank') {
+            await page.waitForTimeout(1000);
+            const retryHtml = await page.content().catch(() => '');
+            if (retryHtml && retryHtml.length > 500) {
+              log(`[PuppeteerScraper] Successfully retrieved content on retry`, "scraper");
+              return {
+                html: retryHtml,
+                success: true,
+                method: 'puppeteer',
+                responseTime: Date.now() - startTime,
+                statusCode: retryResponse?.status() || 200,
+                finalUrl: page.url()
+              };
+            }
+          }
+          
+        } catch (recoveryError: any) {
+          log(`[PuppeteerScraper] Recovery attempt failed: ${recoveryError.message}`, "scraper");
         }
       }
+      
+      // For other navigation errors, still throw
       throw navError;
     }
     

@@ -78,13 +78,6 @@ export async function scrapeSource(
     let savedCount = 0;
     const newArticles: Article[] = [];
 
-    // Sites that consistently cause browser crashes - skip them
-    const problematicSites = [
-      'nytimes.com',
-      'wsj.com',
-      'bloomberg.com'
-    ];
-    
     for (const link of articleLinks) {
       // Check if scraping should continue
       if (!activeScraping.get(sourceId)) {
@@ -93,17 +86,6 @@ export async function scrapeSource(
           "scraper",
         );
         break;
-      }
-
-      // Skip problematic sites that crash the browser
-      const isProblematicSite = problematicSites.some(site => link.includes(site));
-      if (isProblematicSite) {
-        log(
-          `[Global Scraping] Skipping problematic site to prevent browser crash: ${link}`,
-          "scraper",
-        );
-        processedCount++;
-        continue;
       }
 
       // Create error context for this article processing - declare outside try block

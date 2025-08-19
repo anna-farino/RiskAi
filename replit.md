@@ -70,6 +70,12 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - When userId is undefined (global scraping), articles insert into `global_articles` table
   - When userId is provided (user-specific), articles still use legacy tables
   - Proper type mapping ensures compatibility with existing code
+- **2.4 Enhanced Anti-Bot Protection** (Completed 2025-01-18): Dynamic scraper resilience
+  - Advanced fingerprint spoofing with 20+ browser property overrides
+  - Multi-layer frame detachment recovery (3 fallback methods)
+  - Smart navigation strategy for heavily protected sites
+  - No blacklisting - scraper dynamically adapts to bypass protection
+  - Automatic browser restart and retry logic on failures
 
 ### Phase 3: Query-time Filtering (Completed 2025-01-18)
 - **User Filtering**: Keywords and preferences applied when viewing articles, not during collection

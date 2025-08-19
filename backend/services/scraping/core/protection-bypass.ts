@@ -1091,63 +1091,185 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
     // Set headers
     await page.setExtraHTTPHeaders(profile.headers);
     
-    // JavaScript environment patching
+    // JavaScript environment patching - ENHANCED for NYTimes/WSJ/Bloomberg
     await page.evaluateOnNewDocument(() => {
-      // Override webdriver detection
+      // Delete telltale properties
+      delete navigator.__proto__.webdriver;
+      
+      // Override webdriver detection with property descriptor
       Object.defineProperty(navigator, 'webdriver', {
-        get: () => undefined,
+        get: () => false,
+        configurable: true,
+        enumerable: true
       });
       
-      // Override automation detection
+      // Override automation detection with full Chrome object
       window.chrome = {
-        runtime: {},
-        loadTimes: function() {},
-        csi: function() {},
-        app: {}
+        runtime: {
+          connect: () => {},
+          sendMessage: () => {},
+          onMessage: { addListener: () => {} }
+        },
+        loadTimes: function() {
+          return {
+            commitLoadTime: Date.now() / 1000,
+            connectionInfo: "http/1.1",
+            finishDocumentLoadTime: Date.now() / 1000,
+            finishLoadTime: Date.now() / 1000,
+            firstPaintAfterLoadTime: 0,
+            firstPaintTime: Date.now() / 1000,
+            navigationType: "Other",
+            npnNegotiatedProtocol: "unknown",
+            requestTime: Date.now() / 1000,
+            startLoadTime: Date.now() / 1000,
+            wasAlternateProtocolAvailable: false,
+            wasFetchedViaSpdy: false,
+            wasNpnNegotiated: false
+          };
+        },
+        csi: function() { return { onloadT: Date.now(), startE: Date.now() - 1000 }; },
+        app: {
+          isInstalled: false,
+          InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+          RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' }
+        }
       };
       
-      // Override WebGL fingerprinting
+      // Override navigator.permissions
+      const originalQuery = navigator.permissions.query;
+      navigator.permissions.query = async (parameters) => {
+        if (parameters.name === 'notifications') {
+          return Promise.resolve({ state: 'denied' });
+        }
+        return originalQuery(parameters);
+      };
+      
+      // Override WebGL fingerprinting with realistic values
       const getParameter = WebGLRenderingContext.prototype.getParameter;
       WebGLRenderingContext.prototype.getParameter = function(parameter) {
         if (parameter === 37445) return 'Intel Inc.';
         if (parameter === 37446) return 'Intel(R) Iris(TM) Graphics 6100';
+        if (parameter === 7937) return 'WebKit WebGL';
+        if (parameter === 35724) return 'WebKit';
+        if (parameter === 37422) return 8;
+        if (parameter === 7936) return 'ANGLE (Intel, Intel(R) Iris(TM) Graphics 6100, OpenGL 4.1)';
+        if (parameter === 7938) return 'WebGL 1.0 (OpenGL ES 2.0 Chromium)';
         return getParameter.call(this, parameter);
       };
       
-      // Override canvas fingerprinting
+      // Override canvas fingerprinting with realistic noise
       const getContext = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function(type, ...args) {
-        if (type === '2d') {
+        if (type === '2d' || type === 'webgl' || type === 'experimental-webgl') {
           const context = getContext.call(this, type, ...args);
-          const originalGetImageData = context.getImageData;
-          context.getImageData = function(x, y, width, height) {
-            const imageData = originalGetImageData.call(this, x, y, width, height);
-            // Add slight noise to canvas data
-            for (let i = 0; i < imageData.data.length; i += 4) {
-              imageData.data[i] += Math.floor(Math.random() * 3) - 1;
-            }
-            return imageData;
-          };
+          if (context && type === '2d') {
+            const originalGetImageData = context.getImageData;
+            context.getImageData = function(x, y, width, height) {
+              const imageData = originalGetImageData.call(this, x, y, width, height);
+              // Add imperceptible noise
+              for (let i = 0; i < imageData.data.length; i += 100) {
+                imageData.data[i] = imageData.data[i] + (Math.random() < 0.5 ? -1 : 1);
+              }
+              return imageData;
+            };
+          }
           return context;
         }
         return getContext.call(this, type, ...args);
       };
       
-      // Override plugin detection
+      // Override plugin detection with realistic plugin list
       Object.defineProperty(navigator, 'plugins', {
-        get: () => [
-          {
-            0: {
-              type: "application/x-google-chrome-pdf",
-              suffixes: "pdf",
-              description: "Portable Document Format"
+        get: () => {
+          const pluginArray = [
+            {
+              0: { type: "application/x-google-chrome-pdf", suffixes: "pdf", description: "Portable Document Format", enabledPlugin: {} },
+              description: "Portable Document Format",
+              filename: "internal-pdf-viewer",
+              length: 1,
+              name: "Chrome PDF Plugin"
             },
-            description: "Portable Document Format",
-            filename: "internal-pdf-viewer",
-            length: 1,
-            name: "Chrome PDF Plugin"
-          }
-        ]
+            {
+              0: { type: "application/pdf", suffixes: "pdf", description: "Portable Document Format", enabledPlugin: {} },
+              description: "Portable Document Format",
+              filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
+              length: 1,
+              name: "Chrome PDF Viewer"
+            },
+            {
+              0: { type: "application/x-nacl", suffixes: "", description: "Native Client Executable", enabledPlugin: {} },
+              1: { type: "application/x-pnacl", suffixes: "", description: "Portable Native Client Executable", enabledPlugin: {} },
+              description: "",
+              filename: "internal-nacl-plugin",
+              length: 2,
+              name: "Native Client"
+            }
+          ];
+          pluginArray.__proto__ = PluginArray.prototype;
+          return pluginArray;
+        },
+        configurable: true,
+        enumerable: true
+      });
+      
+      // Override navigator.languages
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+        configurable: true,
+        enumerable: true
+      });
+      
+      // Override navigator.platform
+      Object.defineProperty(navigator, 'platform', {
+        get: () => 'Win32',
+        configurable: true,
+        enumerable: true
+      });
+      
+      // Override screen dimensions
+      Object.defineProperty(screen, 'availWidth', { get: () => 1920 });
+      Object.defineProperty(screen, 'availHeight', { get: () => 1040 });
+      Object.defineProperty(screen, 'width', { get: () => 1920 });
+      Object.defineProperty(screen, 'height', { get: () => 1080 });
+      Object.defineProperty(screen, 'colorDepth', { get: () => 24 });
+      Object.defineProperty(screen, 'pixelDepth', { get: () => 24 });
+      
+      // Override hardwareConcurrency
+      Object.defineProperty(navigator, 'hardwareConcurrency', {
+        get: () => 8,
+        configurable: true,
+        enumerable: true
+      });
+      
+      // Override deviceMemory
+      Object.defineProperty(navigator, 'deviceMemory', {
+        get: () => 8,
+        configurable: true,
+        enumerable: true
+      });
+      
+      // Prevent CDP detection
+      if (window.chrome && window.chrome.runtime) {
+        window.chrome.runtime.id = undefined;
+      }
+      
+      // Override toString methods to appear native
+      window.chrome.loadTimes.toString = () => 'function loadTimes() { [native code] }';
+      window.chrome.csi.toString = () => 'function csi() { [native code] }';
+      
+      // Disable Notification API
+      window.Notification = undefined;
+      
+      // Override connection info
+      Object.defineProperty(navigator, 'connection', {
+        get: () => ({
+          rtt: 100,
+          downlink: 10,
+          effectiveType: '4g',
+          saveData: false
+        }),
+        configurable: true,
+        enumerable: true
       });
     });
     
