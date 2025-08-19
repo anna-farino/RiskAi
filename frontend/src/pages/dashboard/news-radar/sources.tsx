@@ -1233,7 +1233,7 @@ export default function Sources() {
   return (
     <div
       className={cn(
-        "flex flex-col pb-16 sm:pb-20 sm:px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto w-full min-w-0",
+        "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
       )}
     >
       {/* Delete confirmation dialog */}
@@ -1333,378 +1333,234 @@ export default function Sources() {
       </Dialog>
 
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
-          <div className="flex flex-col gap-0.5 sm:gap-1 lg:gap-2">
-            <h1 className="text-4xl sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold tracking-tight text-white">
-              News Sources
-            </h1>
-            <p className="sm:text-sm lg:text-base text-slate-300">
-              Manage news sources and control updates
-            </p>
-          </div>
-          
-          {/* Bulk Operations Toolbar */}
-          {selectedSources.size > 0 && (
-            <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
-              <span className="text-sm text-slate-300">
-                {selectedSources.size} selected
-              </span>
-              <Button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteSources.isPending}
-                size="sm"
-                variant="destructive"
-                className="h-7 px-2 text-xs"
-              >
-                {bulkDeleteSources.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3" />
-                )}
-                Delete Selected
-              </Button>
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                News Sources
+              </h1>
+              <p className="text-sm text-slate-300">
+                Manage news sources and control updates
+              </p>
             </div>
-          )}
-        </div>
-
-        {/* Instructions Section */}
-        <div className="mb-0">
-          <Collapsible
-            open={!isInstructionsCollapsed}
-            onOpenChange={(open) => setIsInstructionsCollapsed(!open)}
-          >
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 mb-0 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
-                {isInstructionsCollapsed ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                <ListChecks className="h-4 w-4 text-blue-600" />
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  How to Use News Radar Sources
-                </h3>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 pl-6">
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">
-                      1. Configure Auto-Updates
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Enable automatic news collection with hourly, daily, or
-                      weekly intervals for continuous monitoring.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">
-                      2. Manage News Sources
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Default news sources are provided. Add custom RSS feeds or
-                      news sites, and toggle inclusion in auto-updates.
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">
-                      3. Manual Collection
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Use "Scan All Sources Now" for immediate article
-                      collection or update individual sources as needed.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">
-                      4. Filter by Keywords
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Visit the Keywords page to manage terms that help filter
-                      and categorize collected news articles.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-
-        {/* Auto-scrape configuration card */}
-        <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
-          <CardHeader>
-            <CardTitle className="flex items-center text-white">
-              <Clock className="mr-2 h-5 w-5" />
-              Auto-Update Configuration
-            </CardTitle>
-            <CardDescription className="text-slate-300">
-              Configure automatic updating to stay on top of the latest
-              information
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="auto-scrape"
-                  checked={
-                    optimisticAutoScrapeEnabled !== null
-                      ? optimisticAutoScrapeEnabled
-                      : !!autoScrapeSettings.data?.enabled
-                  }
-                  onCheckedChange={(checked) => {
-                    const currentInterval =
-                      optimisticAutoScrapeInterval !== null
-                        ? optimisticAutoScrapeInterval
-                        : (autoScrapeSettings.data?.interval ??
-                          JobInterval.DAILY);
-                    updateAutoScrapeSettings.mutate({
-                      enabled: checked,
-                      interval: currentInterval,
-                    });
-                  }}
-                  disabled={updateAutoScrapeSettings.isPending}
-                />
-                <div className="grid gap-0.5">
-                  <label
-                    htmlFor="auto-scrape"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                  >
-                    {(
-                      optimisticAutoScrapeEnabled !== null
-                        ? optimisticAutoScrapeEnabled
-                        : !!autoScrapeSettings.data?.enabled
-                    )
-                      ? "Enabled"
-                      : "Disabled"}
-                  </label>
-                  <p className="text-xs text-slate-400">
-                    {(
-                      optimisticAutoScrapeEnabled !== null
-                        ? optimisticAutoScrapeEnabled
-                        : !!autoScrapeSettings.data?.enabled
-                    )
-                      ? `Auto-update runs ${intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval]?.toLowerCase() || "daily"}`
-                      : "Enable to automatically update sources for new articles"}
-                  </p>
-                </div>
-                {updateAutoScrapeSettings.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant={
-                    (optimisticAutoScrapeInterval !== null
-                      ? optimisticAutoScrapeInterval
-                      : autoScrapeSettings.data?.interval) ===
-                    JobInterval.HOURLY
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => {
-                    const currentEnabled =
-                      optimisticAutoScrapeEnabled !== null
-                        ? optimisticAutoScrapeEnabled
-                        : !!autoScrapeSettings.data?.enabled;
-                    updateAutoScrapeSettings.mutate({
-                      enabled: currentEnabled,
-                      interval: JobInterval.HOURLY,
-                    });
-                  }}
-                  disabled={
-                    !(optimisticAutoScrapeEnabled !== null
-                      ? optimisticAutoScrapeEnabled
-                      : autoScrapeSettings.data?.enabled) ||
-                    updateAutoScrapeSettings.isPending
-                  }
-                  className="text-white border-slate-600 hover:bg-slate-700"
-                >
-                  {updateAutoScrapeSettings.isPending && (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  )}
-                  Hourly
-                </Button>
-                <Button
-                  variant={
-                    (optimisticAutoScrapeInterval !== null
-                      ? optimisticAutoScrapeInterval
-                      : autoScrapeSettings.data?.interval) === JobInterval.DAILY
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => {
-                    const currentEnabled =
-                      optimisticAutoScrapeEnabled !== null
-                        ? optimisticAutoScrapeEnabled
-                        : !!autoScrapeSettings.data?.enabled;
-                    updateAutoScrapeSettings.mutate({
-                      enabled: currentEnabled,
-                      interval: JobInterval.DAILY,
-                    });
-                  }}
-                  disabled={
-                    !(optimisticAutoScrapeEnabled !== null
-                      ? optimisticAutoScrapeEnabled
-                      : autoScrapeSettings.data?.enabled) ||
-                    updateAutoScrapeSettings.isPending
-                  }
-                >
-                  {updateAutoScrapeSettings.isPending && (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  )}
-                  Daily
-                </Button>
-                <Button
-                  variant={
-                    (optimisticAutoScrapeInterval !== null
-                      ? optimisticAutoScrapeInterval
-                      : autoScrapeSettings.data?.interval) ===
-                    JobInterval.WEEKLY
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => {
-                    const currentEnabled =
-                      optimisticAutoScrapeEnabled !== null
-                        ? optimisticAutoScrapeEnabled
-                        : !!autoScrapeSettings.data?.enabled;
-                    updateAutoScrapeSettings.mutate({
-                      enabled: currentEnabled,
-                      interval: JobInterval.WEEKLY,
-                    });
-                  }}
-                  disabled={
-                    !(optimisticAutoScrapeEnabled !== null
-                      ? optimisticAutoScrapeEnabled
-                      : autoScrapeSettings.data?.enabled) ||
-                    updateAutoScrapeSettings.isPending
-                  }
-                  className="text-white border-slate-600 hover:bg-slate-700"
-                >
-                  {updateAutoScrapeSettings.isPending && (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  )}
-                  Weekly
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <div className="text-sm text-slate-400">
-              {autoScrapeStatus?.data?.running ? (
-                <span className="flex items-center text-primary">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Scan is currently running...
+            
+            {/* Bulk Operations Toolbar */}
+            {selectedSources.size > 0 && (
+              <div className="flex items-center gap-2 bg-slate-800/70 border border-slate-700/50 rounded-lg px-3 py-2">
+                <span className="text-sm text-slate-300">
+                  {selectedSources.size} selected
                 </span>
-              ) : null}
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
-
-      {/* News Sources Management Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-        <div className="lg:col-span-3 xl:col-span-2 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 sm:p-4 lg:p-6">
-          <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:gap-4">
-            <div className="flex items-center justify-between mb-1 sm:mb-2">
-              <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
-                Add News Source
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-1 sm:mb-2">
-              <div>
-                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">
-                  Source Name *
-                </label>
-                <Input
-                  placeholder="E.g., Tech News Daily"
-                  {...form.register("name", {
-                    required: "Source name is required",
-                    validate: (value) =>
-                      value?.trim() !== "" || "Source name cannot be empty"
-                  })}
-                  className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
-                  required
-                />
-                {form.formState.errors.name && (
-                  <p className="text-xs text-red-400 mt-1">
-                    {form.formState.errors.name.message}
-                  </p>
-                )}
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteSources.isPending}
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 px-2 text-xs"
+                >
+                  {bulkDeleteSources.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                  Delete Selected
+                </Button>
               </div>
-              <div>
-                <label className="text-xs sm:text-sm text-slate-400 mb-1 sm:mb-1.5 block">
-                  Source URL *
-                </label>
-                <Input
-                  placeholder="https://example.com"
-                  type="url"
-                  {...form.register("url", {
-                    required: "Source URL is required",
-                    validate: (value) =>
-                      value?.trim() !== "" || "Source URL cannot be empty",
-                  })}
-                  className="h-8 sm:h-9 lg:h-10 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
-                  required
-                />
-                {form.formState.errors.url && (
-                  <p className="text-xs text-red-400 mt-1">
-                    {form.formState.errors.url.message}
-                  </p>
-                )}
+            )}
+          </div>
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* How To Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ListChecks className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">How to Use Sources</span>
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <p>• Configure auto-updates with intervals</p>
+                  <p>• Add custom RSS feeds or news sites</p>
+                  <p>• Use manual scan for immediate collection</p>
+                  <p>• Filter articles with keyword management</p>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-row gap-2">
-              <Button
-                type="submit"
-                disabled={addSource.isPending || !form.formState.isValid}
-                className="flex-1 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {addSource.isPending ? (
-                  <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                )}
-                <span className="hidden xs:inline">Add Source</span>
-                <span className="xs:hidden">Add</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setBulkAddDialogOpen(true)}
-                className="flex-1 border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm"
-              >
-                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline">Bulk Add Sources</span>
-                <span className="xs:hidden">Bulk Add</span>
-              </Button>
-              <Button
-                type="button"
-                onClick={toggleBulkDeleteMode}
-                className={cn(
-                  "flex-1 h-8 sm:h-9 lg:h-10 px-3 sm:px-4 text-sm transition-colors font-medium",
-                  isBulkDeleteMode 
-                    ? "border border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
-                    : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                )}
-                title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
-              >
-                <span className="mr-1 sm:mr-2 text-lg leading-none">−</span>
-                <span className="hidden xs:inline">Bulk Delete</span>
-                <span className="xs:hidden">Bulk Delete</span>
-              </Button>
+            {/* Auto Update Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">Auto-Update Status</span>
+                </div>
+                <p className="text-xs text-slate-300 mb-3">
+                  Automatically scan news sources at regular intervals to keep content fresh and up-to-date.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="auto-scrape"
+                      checked={
+                        optimisticAutoScrapeEnabled !== null
+                          ? optimisticAutoScrapeEnabled
+                          : !!autoScrapeSettings.data?.enabled
+                      }
+                      onCheckedChange={(checked) => {
+                        const currentInterval =
+                          optimisticAutoScrapeInterval !== null
+                            ? optimisticAutoScrapeInterval
+                            : (autoScrapeSettings.data?.interval ?? JobInterval.DAILY);
+                        updateAutoScrapeSettings.mutate({
+                          enabled: checked,
+                          interval: currentInterval,
+                        });
+                      }}
+                      disabled={updateAutoScrapeSettings.isPending}
+                      className="data-[state=checked]:bg-green-500 scale-75"
+                    />
+                    <div className="text-xs">
+                      <span className="text-slate-300">
+                        {(
+                          optimisticAutoScrapeEnabled !== null
+                            ? optimisticAutoScrapeEnabled
+                            : !!autoScrapeSettings.data?.enabled
+                        )
+                          ? "Enabled"
+                          : "Disabled"}
+                      </span>
+                      <p className="text-slate-400 text-xs">
+                        {(
+                          optimisticAutoScrapeEnabled !== null
+                            ? optimisticAutoScrapeEnabled
+                            : !!autoScrapeSettings.data?.enabled
+                        )
+                          ? `Runs ${intervalLabels[(optimisticAutoScrapeInterval !== null ? optimisticAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || "daily"}`.toLowerCase()
+                          : "Enable for automatic updates"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    {[
+                      { interval: JobInterval.HOURLY, label: 'Hourly' },
+                      { interval: JobInterval.DAILY, label: 'Daily' },
+                      { interval: JobInterval.WEEKLY, label: 'Weekly' }
+                    ].map(({ interval, label }) => (
+                      <Button
+                        key={interval}
+                        variant={
+                          (optimisticAutoScrapeInterval !== null
+                            ? optimisticAutoScrapeInterval
+                            : autoScrapeSettings.data?.interval) === interval
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() => {
+                          const currentEnabled =
+                            optimisticAutoScrapeEnabled !== null
+                              ? optimisticAutoScrapeEnabled
+                              : !!autoScrapeSettings.data?.enabled;
+                          updateAutoScrapeSettings.mutate({
+                            enabled: currentEnabled,
+                            interval: interval,
+                          });
+                        }}
+                        disabled={
+                          !(optimisticAutoScrapeEnabled !== null
+                            ? optimisticAutoScrapeEnabled
+                            : autoScrapeSettings.data?.enabled) ||
+                          updateAutoScrapeSettings.isPending
+                        }
+                        className="text-xs h-7 px-2 border-slate-600 hover:bg-slate-700"
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  {autoScrapeStatus?.data?.running && (
+                    <div className="text-xs text-slate-400 text-center">
+                      <span className="flex items-center justify-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Scanning...
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </form>
+
+            {/* Add Source Section */}
+            <div className="lg:col-span-4">
+              <form onSubmit={onSubmit} className="space-y-2">
+                <div className="p-3 bg-slate-800/40 rounded-lg border border-purple-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plus className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm font-medium text-purple-300">Add Source</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Source name"
+                      {...form.register("name", {
+                        required: "Source name is required",
+                        validate: (value) =>
+                          value?.trim() !== "" || "Source name cannot be empty"
+                      })}
+                      className="h-8 text-xs bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <Input
+                      placeholder="https://example.com"
+                      type="url"
+                      {...form.register("url", {
+                        required: "Source URL is required",
+                        validate: (value) =>
+                          value?.trim() !== "" || "Source URL cannot be empty",
+                      })}
+                      className="h-8 text-xs bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <div className="grid grid-cols-3 gap-1">
+                      <Button
+                        type="submit"
+                        disabled={addSource.isPending || !form.formState.isValid}
+                        className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-2"
+                      >
+                        {addSource.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Plus className="h-3 w-3" />
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBulkAddDialogOpen(true)}
+                        className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 text-xs px-3"
+                        title="Add multiple sources at once from URLs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Bulk Add
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={toggleBulkDeleteMode}
+                        className={cn(
+                          "h-8 text-xs px-2 transition-colors",
+                          isBulkDeleteMode 
+                            ? "border border-red-500 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-500"
+                            : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        )}
+                        title={isBulkDeleteMode ? "Exit Bulk Delete Mode" : "Enter Bulk Delete Mode"}
+                      >
+                        <span className="text-lg leading-none">−</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
 
