@@ -50,20 +50,19 @@ const NavItem = ({ href, icon, children, active, isChild = false }: NavItemProps
   <Link
     to={href}
     className={cn(
-      "flex items-center gap-3 rounded-md py-2.5 text-sm transition-colors",
+      "flex items-center gap-3 rounded-lg py-2.5 text-sm transition-all duration-300",
       isChild 
-        ? "ml-6 pl-4 border-l border-[#BF00FF]/20 relative" 
-        : "px-3",
+        ? "ml-4 mr-2 px-3 bg-gradient-to-b backdrop-blur-sm border shadow-sm" 
+        : "px-3 bg-gradient-to-b backdrop-blur-sm border shadow-sm",
       active 
         ? isChild
-          ? "bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/5 text-white shadow-inner" 
-          : "bg-gradient-to-r from-[#BF00FF]/30 to-[#00FFFF]/10 text-white shadow-inner"
-        : "text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-[#BF00FF]/15 hover:to-[#00FFFF]/10 transition-all duration-200"
+          ? "from-[#300A45]/60 to-black/60 border-[#BF00FF]/40 text-white shadow-lg shadow-[#BF00FF]/10" 
+          : "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
+        : isChild
+          ? "from-slate-900/30 to-slate-800/20 border-slate-700/30 text-gray-300 hover:text-white hover:from-[#300A45]/40 hover:to-black/40 hover:border-[#BF00FF]/25 hover:shadow-md hover:shadow-[#BF00FF]/5"
+          : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
     )}
   >
-    {isChild && (
-      <div className="absolute left-0 top-0 w-[1px] h-full bg-gradient-to-b from-[#BF00FF]/30 to-[#00FFFF]/30"></div>
-    )}
     <div className="relative">
       {icon}
     </div>
@@ -79,7 +78,11 @@ const NavGroup = ({ title, children, defaultOpen = false }: NavGroupProps) => {
       <CollapsibleTrigger asChild>
         <Button 
           variant="ghost" 
-          className="flex w-full items-center justify-between py-1 px-2 text-sm text-gray-400 hover:text-[#BF00FF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 transition-all duration-200 rounded-md"
+          className={cn(
+            "flex w-full items-center justify-between py-2 px-3 text-sm transition-all duration-300 rounded-lg",
+            "bg-gradient-to-b from-slate-900/20 to-slate-800/10 backdrop-blur-sm border border-slate-700/20 shadow-sm",
+            "text-gray-400 hover:text-[#BF00FF] hover:from-[#300A45]/40 hover:to-black/40 hover:border-[#BF00FF]/25 hover:shadow-md hover:shadow-[#BF00FF]/5"
+          )}
         >
           <span className="font-medium">{title}</span>
           {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -109,10 +112,49 @@ export const MainNavigation = ({ className }: { className?: string }) => {
     return pathname.startsWith(path) && path !== '/dashboard';
   };
 
+  // Check if user is on any News Radar page for auto-expand
+  const isOnNewsRadarPage = pathname.startsWith('/dashboard/news');
+  
+  // Check if user is on any Threat Tracker page for auto-expand
+  const isOnThreatTrackerPage = pathname.startsWith('/dashboard/threat');
+  
+  // Check if user is on any News Capsule page for auto-expand
+  const isOnNewsCapsulePage = pathname.startsWith('/dashboard/news-capsule');
+  
+  // State for News Radar collapse/expand with smart defaults
+  const [newsRadarExpanded, setNewsRadarExpanded] = useState(isOnNewsRadarPage);
+  
+  // State for Threat Tracker collapse/expand with smart defaults
+  const [threatTrackerExpanded, setThreatTrackerExpanded] = useState(isOnThreatTrackerPage);
+  
+  // State for News Capsule collapse/expand with smart defaults
+  const [newsCapsuleExpanded, setNewsCapsuleExpanded] = useState(isOnNewsCapsulePage);
+  
+  // Auto-expand when navigating to News Radar pages
+  useEffect(() => {
+    if (isOnNewsRadarPage) {
+      setNewsRadarExpanded(true);
+    }
+  }, [isOnNewsRadarPage]);
+  
+  // Auto-expand when navigating to Threat Tracker pages
+  useEffect(() => {
+    if (isOnThreatTrackerPage) {
+      setThreatTrackerExpanded(true);
+    }
+  }, [isOnThreatTrackerPage]);
+  
+  // Auto-expand when navigating to News Capsule pages
+  useEffect(() => {
+    if (isOnNewsCapsulePage) {
+      setNewsCapsuleExpanded(true);
+    }
+  }, [isOnNewsCapsulePage]);
+
   const NavigationContent = () => (
     <div className="flex flex-col gap-2 py-2">
       <div className="px-3 py-2">
-        <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
+        <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
           Your RisqAi Toolkit
         </h2>
         <p className="text-sm text-gray-400 leading-tight">
@@ -120,7 +162,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         </p>
       </div>
 
-      <div className="px-3 py-1 space-y-1">
+      <div className="px-3 py-1 space-y-2">
         <NavItem 
           href="/dashboard" 
           icon={<LayoutDashboard size={18} className="text-white" />} 
@@ -129,93 +171,167 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           Dashboard
         </NavItem>
         
-        {/* News Radar parent */}
-        <NavItem 
-          href="/dashboard/news/home" 
-          icon={<Newspaper size={20} className="text-[#BF00FF]" />} 
-          active={isActive('/dashboard/news/home')}
-        >
-          News Radar
-        </NavItem>
+        {/* News Radar collapsible section */}
+        <div className="space-y-1">
+          <Collapsible open={newsRadarExpanded} onOpenChange={setNewsRadarExpanded} className="w-full">
+            <div className="flex items-center">
+              <div className={cn(
+                "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                isActive('/dashboard/news/home')
+                  ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
+                  : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
+              )}>
+                <Link to="/dashboard/news/home" className="flex items-center gap-3 flex-1">
+                  <div className="relative">
+                    <Newspaper size={20} className="text-[#BF00FF]" />
+                  </div>
+                  <span className="font-medium">News Radar</span>
+                </Link>
+                <CollapsibleTrigger asChild>
+                  <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
+                    {newsRadarExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </CollapsibleTrigger>
+              </div>
+            </div>
+            
+            <CollapsibleContent 
+              className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                willChange: 'height',
+                transform: 'translateZ(0)' // Force hardware acceleration
+              }}
+            >
+              <NavItem 
+                href="/dashboard/news/keywords" 
+                icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />} 
+                active={isActive('/dashboard/news/keywords')}
+                isChild={true}
+              >
+                Keywords
+              </NavItem>
+              
+              <NavItem 
+                href="/dashboard/news/sources" 
+                icon={<Search size={16} className="text-[#BF00FF]/60" />} 
+                active={isActive('/dashboard/news/sources')}
+                isChild={true}
+              >
+                Sources
+              </NavItem>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+        
+        {/* Threat Tracker collapsible section */}
+        <div className="space-y-1">
+          <Collapsible open={threatTrackerExpanded} onOpenChange={setThreatTrackerExpanded} className="w-full">
+            <div className="flex items-center">
+              <div className={cn(
+                "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                isActive('/dashboard/threat/home')
+                  ? "from-[#300A45]/80 to-black/80 border-[#00FFFF]/30 text-white shadow-lg shadow-[#00FFFF]/15"
+                  : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#00FFFF]/30 hover:shadow-lg hover:shadow-[#00FFFF]/10"
+              )}>
+                <Link to="/dashboard/threat/home" className="flex items-center gap-3 flex-1">
+                  <div className="relative">
+                    <ShieldAlert size={20} className="text-[#00FFFF]" />
+                  </div>
+                  <span className="font-medium">Threat Tracker</span>
+                </Link>
+                <CollapsibleTrigger asChild>
+                  <button className="text-gray-400 group-hover:text-[#00FFFF] transition-colors p-1 hover:bg-[#00FFFF]/10 rounded">
+                    {threatTrackerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </CollapsibleTrigger>
+              </div>
+            </div>
+            
+            <CollapsibleContent 
+              className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                willChange: 'height',
+                transform: 'translateZ(0)' // Force hardware acceleration
+              }}
+            >
+              <NavItem 
+                href="/dashboard/threat/keywords" 
+                icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />} 
+                active={isActive('/dashboard/threat/keywords')}
+                isChild={true}
+              >
+                Keywords
+              </NavItem>
+              
+              <NavItem 
+                href="/dashboard/threat/sources" 
+                icon={<Search size={16} className="text-[#00FFFF]/60" />} 
+                active={isActive('/dashboard/threat/sources')}
+                isChild={true}
+              >
+                Sources
+              </NavItem>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
 
-        <NavItem 
-          href="/dashboard/news/keywords" 
-          icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />} 
-          active={isActive('/dashboard/news/keywords')}
-          isChild={true}
-        >
-          Keywords
-        </NavItem>
-        
-        {/* News Radar children */}
-        <NavItem 
-          href="/dashboard/news/sources" 
-          icon={<Search size={16} className="text-[#BF00FF]/60" />} 
-          active={isActive('/dashboard/news/sources')}
-          isChild={true}
-        >
-          Sources
-        </NavItem>
-        
-        {/* Threat Tracker parent */}
-        <NavItem 
-          href="/dashboard/threat/home" 
-          icon={<ShieldAlert size={20} className="text-[#00FFFF]" />}
-          active={isActive('/dashboard/threat/home')}
-        >
-          Threat Tracker
-        </NavItem>
-
-        <NavItem 
-          href="/dashboard/threat/keywords" 
-          icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />} 
-          active={isActive('/dashboard/threat/keywords')}
-          isChild={true}
-        >
-          Keywords
-        </NavItem>
-        
-        {/* Threat Tracker children */}
-        <NavItem 
-          href="/dashboard/threat/sources" 
-          icon={<Search size={16} className="text-[#00FFFF]/60" />} 
-          active={isActive('/dashboard/threat/sources')}
-          isChild={true}
-        >
-          Sources
-        </NavItem>
-      </div>
-
-      <div className="px-3 py-1 space-y-1">
-        {/* News Capsule parent */}
-        <NavItem 
-          href="/dashboard/news-capsule/home" 
-          icon={<Radar size={20} className="text-[#BF00FF]" />} 
-          active={isActive('/dashboard/news-capsule/home')}
-        >
-          News Capsule
-        </NavItem>
-        
-        {/* News Capsule children */}
-        <NavItem 
-          href="/dashboard/news-capsule/research" 
-          icon={<Search size={16} className="text-[#BF00FF]/60" />} 
-          active={isActive('/dashboard/news-capsule/research')}
-          isChild={true}
-        >
-          Research
-        </NavItem>
-        
-        <NavItem 
-          href="/dashboard/news-capsule/reports" 
-          icon={<FileText size={16} className="text-[#BF00FF]/60" />} 
-          active={isActive('/dashboard/news-capsule/reports')}
-          isChild={true}
-        >
-          Executive Reports
-        </NavItem>
-        
-        <div className="mt-4"></div>
+        {/* News Capsule collapsible section */}
+        <div className="space-y-1">
+          <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
+            <div className="flex items-center">
+              <div className={cn(
+                "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                isActive('/dashboard/news-capsule/home')
+                  ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
+                  : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
+              )}>
+                <Link to="/dashboard/news-capsule/home" className="flex items-center gap-3 flex-1">
+                  <div className="relative">
+                    <Radar size={20} className="text-[#BF00FF]" />
+                  </div>
+                  <span className="font-medium">News Capsule</span>
+                </Link>
+                <CollapsibleTrigger asChild>
+                  <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
+                    {newsCapsuleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </CollapsibleTrigger>
+              </div>
+            </div>
+            
+            <CollapsibleContent 
+              className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                willChange: 'height',
+                transform: 'translateZ(0)' // Force hardware acceleration
+              }}
+            >
+              <NavItem 
+                href="/dashboard/news-capsule/research" 
+                icon={<Search size={16} className="text-[#BF00FF]/60" />} 
+                active={isActive('/dashboard/news-capsule/research')}
+                isChild={true}
+              >
+                Research
+              </NavItem>
+              
+              <NavItem 
+                href="/dashboard/news-capsule/reports" 
+                icon={<FileText size={16} className="text-[#BF00FF]/60" />} 
+                active={isActive('/dashboard/news-capsule/reports')}
+                isChild={true}
+              >
+                Executive Reports
+              </NavItem>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
         
         <NavItem 
           href="/dashboard/settings" 
@@ -239,13 +355,52 @@ export const MobileNavigation = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
+  // Check if user is on any News Radar page for auto-expand
+  const isOnNewsRadarPage = location.pathname.startsWith('/dashboard/news');
+  
+  // Check if user is on any Threat Tracker page for auto-expand
+  const isOnThreatTrackerPage = location.pathname.startsWith('/dashboard/threat');
+  
+  // Check if user is on any News Capsule page for auto-expand
+  const isOnNewsCapsulePage = location.pathname.startsWith('/dashboard/news-capsule');
+  
+  // State for News Radar collapse/expand with smart defaults
+  const [newsRadarExpanded, setNewsRadarExpanded] = useState(isOnNewsRadarPage);
+  
+  // State for Threat Tracker collapse/expand with smart defaults
+  const [threatTrackerExpanded, setThreatTrackerExpanded] = useState(isOnThreatTrackerPage);
+  
+  // State for News Capsule collapse/expand with smart defaults
+  const [newsCapsuleExpanded, setNewsCapsuleExpanded] = useState(isOnNewsCapsulePage);
+  
+  // Auto-expand when navigating to News Radar pages
+  useEffect(() => {
+    if (isOnNewsRadarPage) {
+      setNewsRadarExpanded(true);
+    }
+  }, [isOnNewsRadarPage]);
+  
+  // Auto-expand when navigating to Threat Tracker pages
+  useEffect(() => {
+    if (isOnThreatTrackerPage) {
+      setThreatTrackerExpanded(true);
+    }
+  }, [isOnThreatTrackerPage]);
+  
+  // Auto-expand when navigating to News Capsule pages
+  useEffect(() => {
+    if (isOnNewsCapsulePage) {
+      setNewsCapsuleExpanded(true);
+    }
+  }, [isOnNewsCapsulePage]);
+
   // Close sheet when location changes (i.e., when a link is clicked)
   useEffect(() => {
     setOpen(false);
   }, [location]);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <div className="p-[1px] bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] rounded-[5px]">
@@ -260,7 +415,7 @@ export const MobileNavigation = () => {
         <SheetContent side="left" className="w-72 border-[#BF00FF]/20 bg-black/95 p-0 flex flex-col">
           <div className="flex-shrink-0 pt-2 pb-4"> {/* Fixed header section */}
             <div className="px-3 py-2">
-              <h2 className="mb-2 text-lg font-semibold tracking-tight bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] bg-clip-text text-transparent">
+              <h2 className="mb-2 text-lg font-semibold tracking-tight text-white">
                 Your RisqAi Toolkit
               </h2>
               <p className="text-sm text-gray-400 leading-tight">
@@ -274,7 +429,7 @@ export const MobileNavigation = () => {
             scrollbarWidth: 'thin',
             scrollbarColor: '#BF00FF40 transparent'
           }}>
-            <div className="px-3 py-1 space-y-1 pb-6">
+            <div className="px-3 py-1 space-y-2 pb-6">
                 <NavItem 
                   href="/dashboard" 
                   icon={<LayoutDashboard size={18} className="text-white" />} 
@@ -283,89 +438,167 @@ export const MobileNavigation = () => {
                   Dashboard
                 </NavItem>
                 
-                {/* News Radar parent */}
-                <NavItem 
-                  href="/dashboard/news/home" 
-                  icon={<Newspaper size={20} className="text-[#BF00FF]" />} 
-                  active={location.pathname.startsWith('/dashboard/news')}
-                >
-                  News Radar
-                </NavItem>
-                
-                {/* News Radar children */}
-                <NavItem 
-                  href="/dashboard/news/keywords" 
-                  icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />}
-                  active={location.pathname.includes('/dashboard/news/keywords')}
-                  isChild={true}
-                >
-                  Keywords
-                </NavItem>
+                {/* News Radar collapsible section */}
+                <div className="space-y-1">
+                  <Collapsible open={newsRadarExpanded} onOpenChange={setNewsRadarExpanded} className="w-full">
+                    <div className="flex items-center">
+                      <div className={cn(
+                        "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                        (location.pathname === '/dashboard/news/home' || location.pathname === '/dashboard/news')
+                          ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
+                          : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
+                      )}>
+                        <Link to="/dashboard/news/home" className="flex items-center gap-3 flex-1">
+                          <div className="relative">
+                            <Newspaper size={20} className="text-[#BF00FF]" />
+                          </div>
+                          <span className="font-medium">News Radar</span>
+                        </Link>
+                        <CollapsibleTrigger asChild>
+                          <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
+                            {newsRadarExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                        </CollapsibleTrigger>
+                      </div>
+                    </div>
+                    
+                    <CollapsibleContent 
+                      className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+                      style={{
+                        WebkitOverflowScrolling: 'touch',
+                        willChange: 'height',
+                        transform: 'translateZ(0)' // Force hardware acceleration
+                      }}
+                    >
+                      <NavItem 
+                        href="/dashboard/news/keywords" 
+                        icon={<AlertTriangle size={16} className="text-[#BF00FF]/60" />}
+                        active={location.pathname.includes('/dashboard/news/keywords')}
+                        isChild={true}
+                      >
+                        Keywords
+                      </NavItem>
+                    
+                      <NavItem 
+                        href="/dashboard/news/sources" 
+                        icon={<Search size={16} className="text-[#BF00FF]/60" />}
+                        active={location.pathname.includes('/dashboard/news/sources')}
+                        isChild={true}
+                      >
+                        Sources
+                      </NavItem>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
               
-                <NavItem 
-                  href="/dashboard/news/sources" 
-                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
-                  active={location.pathname.includes('/dashboard/news/sources')}
-                  isChild={true}
-                >
-                  News Sources
-                </NavItem>
+                {/* Threat Tracker collapsible section */}
+                <div className="space-y-1">
+                  <Collapsible open={threatTrackerExpanded} onOpenChange={setThreatTrackerExpanded} className="w-full">
+                    <div className="flex items-center">
+                      <div className={cn(
+                        "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                        location.pathname.startsWith('/dashboard/threat')
+                          ? "from-[#300A45]/80 to-black/80 border-[#00FFFF]/30 text-white shadow-lg shadow-[#00FFFF]/15"
+                          : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#00FFFF]/30 hover:shadow-lg hover:shadow-[#00FFFF]/10"
+                      )}>
+                        <Link to="/dashboard/threat/home" className="flex items-center gap-3 flex-1">
+                          <div className="relative">
+                            <ShieldAlert size={20} className="text-[#00FFFF]" />
+                          </div>
+                          <span className="font-medium">Threat Tracker</span>
+                        </Link>
+                        <CollapsibleTrigger asChild>
+                          <button className="text-gray-400 group-hover:text-[#00FFFF] transition-colors p-1 hover:bg-[#00FFFF]/10 rounded">
+                            {threatTrackerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                        </CollapsibleTrigger>
+                      </div>
+                    </div>
+                    
+                    <CollapsibleContent 
+                      className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+                      style={{
+                        WebkitOverflowScrolling: 'touch',
+                        willChange: 'height',
+                        transform: 'translateZ(0)' // Force hardware acceleration
+                      }}
+                    >
+                      <NavItem 
+                        href="/dashboard/threat/keywords" 
+                        icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />}
+                        active={location.pathname.includes('/dashboard/threat/keywords')}
+                        isChild={true}
+                      >
+                        Keywords
+                      </NavItem>
+                    
+                      <NavItem 
+                        href="/dashboard/threat/sources" 
+                        icon={<Search size={16} className="text-[#00FFFF]/60" />}
+                        active={location.pathname.includes('/dashboard/threat/sources')}
+                        isChild={true}
+                      >
+                        Sources
+                      </NavItem>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
               
-                {/* Threat Tracker parent */}
-                <NavItem 
-                  href="/dashboard/threat/home" 
-                  icon={<ShieldAlert size={20} className="text-[#00FFFF]" />}
-                  active={location.pathname.startsWith('/dashboard/threat')}
-                >
-                  Threat Tracker
-                </NavItem>
-                
-                {/* Threat Tracker children */}
-                <NavItem 
-                  href="/dashboard/threat/keywords" 
-                  icon={<AlertTriangle size={16} className="text-[#00FFFF]/60" />}
-                  active={location.pathname.includes('/dashboard/threat/keywords')}
-                  isChild={true}
-                >
-                  Keywords
-                </NavItem>
-              
-                <NavItem 
-                  href="/dashboard/threat/sources" 
-                  icon={<Search size={16} className="text-[#00FFFF]/60" />}
-                  active={location.pathname.includes('/dashboard/threat/sources')}
-                  isChild={true}
-                >
-                  Sources
-                </NavItem>
-              
-                {/* News Capsule parent */}
-                <NavItem 
-                  href="/dashboard/news-capsule/home" 
-                  icon={<Radar size={20} className="text-[#BF00FF]" />} 
-                  active={location.pathname.startsWith('/dashboard/news-capsule')}
-                >
-                  News Capsule
-                </NavItem>
-                
-                {/* News Capsule children */}
-                <NavItem 
-                  href="/dashboard/news-capsule/research" 
-                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
-                  active={location.pathname.includes('/dashboard/news-capsule/research')}
-                  isChild={true}
-                >
-                  Research
-                </NavItem>
-                
-                <NavItem 
-                  href="/dashboard/news-capsule/reports" 
-                  icon={<FileText size={16} className="text-[#BF00FF]/60" />}
-                  active={location.pathname.includes('/dashboard/news-capsule/reports')}
-                  isChild={true}
-                >
-                  Executive Reports
-                </NavItem>
+                {/* News Capsule collapsible section */}
+                <div className="space-y-1">
+                  <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
+                    <div className="flex items-center">
+                      <div className={cn(
+                        "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                        location.pathname.startsWith('/dashboard/news-capsule')
+                          ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
+                          : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
+                      )}>
+                        <Link to="/dashboard/news-capsule/home" className="flex items-center gap-3 flex-1">
+                          <div className="relative">
+                            <Radar size={20} className="text-[#BF00FF]" />
+                          </div>
+                          <span className="font-medium">News Capsule</span>
+                        </Link>
+                        <CollapsibleTrigger asChild>
+                          <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
+                            {newsCapsuleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                        </CollapsibleTrigger>
+                      </div>
+                    </div>
+                    
+                    <CollapsibleContent 
+                      className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+                      style={{
+                        WebkitOverflowScrolling: 'touch',
+                        willChange: 'height',
+                        transform: 'translateZ(0)' // Force hardware acceleration
+                      }}
+                    >
+                      <NavItem 
+                        href="/dashboard/news-capsule/research" 
+                        icon={<Search size={16} className="text-[#BF00FF]/60" />}
+                        active={location.pathname.includes('/dashboard/news-capsule/research')}
+                        isChild={true}
+                      >
+                        Research
+                      </NavItem>
+                      
+                      <NavItem 
+                        href="/dashboard/news-capsule/reports" 
+                        icon={<FileText size={16} className="text-[#BF00FF]/60" />}
+                        active={location.pathname.includes('/dashboard/news-capsule/reports')}
+                        isChild={true}
+                      >
+                        Executive Reports
+                      </NavItem>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
                 
                 <NavItem 
                   href="/dashboard/settings" 
