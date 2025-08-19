@@ -15,7 +15,7 @@ import {
   articles, 
 } from "@shared/db/schema/news-tracker/index";
 import { db, pool } from "backend/db/db";
-import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
+import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc, inArray } from "drizzle-orm";
 import { Request } from "express";
 import { userInfo } from "os";
 import { encrypt, decrypt } from "backend/utils/encryption";
@@ -258,51 +258,77 @@ export class DatabaseStorage implements IStorage {
       search?: string, 
       keywordIds?: string[],
       startDate?: Date,
-      endDate?: Date
+      endDate?: Date,
+      page?: number,
+      limit?: number
     },
   ): Promise<Article[]> {
     const searchTerm = filters?.search?.trim() ?? null;
     const startDate  = filters?.startDate   ?? null;
     const endDate    = filters?.endDate     ?? null;
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 50;
 
-    const rows = await withUserContext(
-      userId,
-      async (db) => db
-        .select({
-          id: articles.id,
-          sourceId: articles.sourceId,
-          title: articles.title,
-          content: articles.content,
-          url: articles.url,
-          author: articles.author,
-          publishDate: articles.publishDate,
-          summary: articles.summary,
-          relevanceScore: articles.relevanceScore,
-          detectedKeywords: articles.detectedKeywords,
-          userId: articles.userId,
-          sourceName: sources.name,
-        })
-        .from(articles)
-        .leftJoin(sources, eq(articles.sourceId, sources.id))
-        .where(
-          and(
-            eq(articles.userId, userId),
-            searchTerm
-              ? or(
-                  ilike(articles.title, `%${searchTerm}%`),
-                  ilike(articles.content, `%${searchTerm}%`)
-                )
-              : sql`TRUE`,
-            startDate
-              ? gte(articles.publishDate, startDate)
-              : sql`TRUE`,
-            endDate
-              ? lte(articles.publishDate, endDate)
-              : sql`TRUE`,
-          )
+    // Phase 3: Query-time filtering from global article pool
+    // Step 1: Get user's enabled sources (for now, all user sources are considered enabled)
+    const userSources = await this.getSources(userId);
+    const sourceIds = userSources.map(s => s.id);
+
+    // Step 2: Get user's active keywords for filtering
+    const userKeywords = await this.getKeywords(userId);
+    const activeKeywords = userKeywords
+      .filter(k => k.active !== false)
+      .map(k => k.term.toLowerCase());
+
+    // Step 3: Query global articles (no userId filter)
+    const query = db
+      .select({
+        id: articles.id,
+        sourceId: articles.sourceId,
+        title: articles.title,
+        content: articles.content,
+        url: articles.url,
+        author: articles.author,
+        publishDate: articles.publishDate,
+        summary: articles.summary,
+        relevanceScore: articles.relevanceScore,
+        detectedKeywords: articles.detectedKeywords,
+        userId: articles.userId,
+        sourceName: sources.name,
+      })
+      .from(articles)
+      .leftJoin(sources, eq(articles.sourceId, sources.id))
+      .where(
+        and(
+          // Filter by user's sources only
+          sourceIds.length > 0 ? inArray(articles.sourceId, sourceIds) : sql`FALSE`,
+          searchTerm
+            ? or(
+                ilike(articles.title, `%${searchTerm}%`),
+                ilike(articles.content, `%${searchTerm}%`)
+              )
+            : sql`TRUE`,
+          startDate
+            ? gte(articles.publishDate, startDate)
+            : sql`TRUE`,
+          endDate
+            ? lte(articles.publishDate, endDate)
+            : sql`TRUE`,
         )
-        .orderBy(desc(articles.publishDate))
-    )
+      )
+      .orderBy(desc(articles.publishDate))
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const rows = await query;
+
+    // Step 4: Apply keyword filtering (in memory for now)
+    if (activeKeywords.length > 0) {
+      return rows.filter(article => {
+        const searchText = `${article.title} ${article.content}`.toLowerCase();
+        return activeKeywords.some(keyword => searchText.includes(keyword));
+      });
+    }
 
     return rows;
   }

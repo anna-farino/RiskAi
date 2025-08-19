@@ -528,7 +528,7 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
   }
 });
 
-// Articles API
+// Articles API - Phase 3: Updated to support pagination and global pool filtering
 threatRouter.get("/articles", async (req, res) => {
   reqLog(req, "GET /articles");
   try {
@@ -543,6 +543,7 @@ threatRouter.get("/articles", async (req, res) => {
       : undefined;
     
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
     
     let startDate: Date | undefined;
     let endDate: Date | undefined;
@@ -555,14 +556,15 @@ threatRouter.get("/articles", async (req, res) => {
       endDate = new Date(req.query.endDate as string);
     }
     
-    // Get filtered articles
+    // Get filtered articles from global pool
     const articles = await storage.getArticles({
       search,
       keywordIds,
       startDate,
       endDate,
       userId,
-      limit
+      limit,
+      page
     });
     
     res.json(articles);

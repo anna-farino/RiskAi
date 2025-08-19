@@ -71,6 +71,7 @@ export interface IStorage {
     endDate?: Date;
     userId?: string;
     limit?: number;
+    page?: number;
   }): Promise<ThreatArticle[]>;
   createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
   updateArticle(
@@ -583,15 +584,32 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId, limit } = options;
-      let query = db.select().from(threatArticles);
+      const { search, keywordIds, startDate, endDate, userId, limit, page } = options;
+      const pageNum = page || 1;
+      const pageSize = limit || 50;
+
+      // Phase 3: Query-time filtering from global article pool
+      // Step 1: Get user's enabled sources (all user sources for now)
+      const userSources = await storage.getSources(userId);
+      const defaultSources = await storage.getDefaultSources(userId);
+      const allSources = [...userSources, ...defaultSources];
+      const sourceIds = allSources.map(s => s.id);
+
+      // Step 2: Get user's active keywords for filtering
+      const userKeywords = await storage.getKeywords(undefined, userId);
+      const activeKeywords = userKeywords
+        .filter(k => k.active !== false)
+        .map(k => k.term.toLowerCase());
 
       // Build WHERE clause based on search parameters
       const conditions = [];
 
-      // CRITICAL FIX: Always filter by user - this ensures user isolation
-      if (userId) {
-        conditions.push(eq(threatArticles.userId, userId));
+      // Filter by user's sources only (no userId filter on articles)
+      if (sourceIds.length > 0) {
+        conditions.push(inArray(threatArticles.sourceId, sourceIds));
+      } else {
+        // If user has no sources, return empty results
+        return [];
       }
 
       // Add search term filter
@@ -660,22 +678,41 @@ export const storage: IStorage = {
         conditions.push(sql`${threatArticles.publishDate} <= ${endDate}`);
       }
 
-      // Apply conditions if any exist
-      if (conditions.length > 0) {
-        (query as any) = query.where(and(...conditions));
-      }
-
-      // Default ordering: use publish date if available, otherwise use scrape date, then scrape date for tie-breaking
-      const orderedQuery = query.orderBy(
-        desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
-        desc(threatArticles.scrapeDate)
-      );
-
-      // Add limit if specified
-      const finalQuery = limit ? orderedQuery.limit(limit) : orderedQuery;
+      // Build the query for global articles with proper chaining
+      const baseQuery = db.select().from(threatArticles);
+      
+      // Apply conditions and build complete query
+      const finalQuery = conditions.length > 0 
+        ? baseQuery
+            .where(and(...conditions))
+            .orderBy(
+              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
+              desc(threatArticles.scrapeDate)
+            )
+            .limit(pageSize)
+            .offset((pageNum - 1) * pageSize)
+        : baseQuery
+            .orderBy(
+              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
+              desc(threatArticles.scrapeDate)
+            )
+            .limit(pageSize)
+            .offset((pageNum - 1) * pageSize);
 
       // Execute the query
       const result = await finalQuery.execute();
+
+      // Step 3: Apply keyword filtering (in memory for now)
+      if (activeKeywords.length > 0) {
+        return result.filter(article => {
+          const searchText = `${article.title} ${article.content}`.toLowerCase();
+          const detectedKeywordsText = JSON.stringify(article.detectedKeywords || {}).toLowerCase();
+          return activeKeywords.some(keyword => 
+            searchText.includes(keyword) || detectedKeywordsText.includes(keyword)
+          );
+        });
+      }
+
       return result;
     } catch (error) {
       console.error("Error fetching threat articles:", error);

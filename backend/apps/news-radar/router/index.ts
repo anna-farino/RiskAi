@@ -385,19 +385,21 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
   res.status(200).json({ success: true, id, message: "Keyword deleted successfully" });
 });
 
-// Articles
+// Articles - Phase 3: Updated to support pagination and global pool filtering
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
   
-  // Parse query parameters for filtering
-  const { search, keywordIds, startDate, endDate } = req.query;
+  // Parse query parameters for filtering and pagination
+  const { search, keywordIds, startDate, endDate, page, limit } = req.query;
   
-  // Prepare filter object
+  // Prepare filter object with pagination
   const filters: {
     search?: string;
     keywordIds?: string[];
     startDate?: Date;
     endDate?: Date;
+    page?: number;
+    limit?: number;
   } = {};
   
   // Add search filter if provided
@@ -431,6 +433,15 @@ newsRouter.get("/articles", async (req, res) => {
     } catch (error) {
       console.error("Invalid endDate format:", error);
     }
+  }
+  
+  // Parse pagination parameters
+  if (page && typeof page === 'string') {
+    filters.page = parseInt(page, 10);
+  }
+  
+  if (limit && typeof limit === 'string') {
+    filters.limit = parseInt(limit, 10);
   }
   
   console.log("Filter parameters:", filters);
