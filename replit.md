@@ -46,6 +46,11 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 
 ## Recent Architecture Changes (January 2025)
 
+### Phase 1: Data Migration (Completed 2025-01-18)
+- Successfully migrated 453 unique articles from 688 total (235 duplicates removed)
+- Migrated 95 global sources and 259 user preferences
+- All data preserved with proper foreign key relationships
+
 ### Phase 2: Global Scraping Infrastructure (Completed 2025-01-18)
 - **2.1 Background Jobs**: Removed userId and keyword dependencies from both News Radar and Threat Tracker
 - **2.1 Unified Global Scheduler**: Combined News Radar and Threat Tracker schedulers into single global scheduler
@@ -60,6 +65,11 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - Risk scores calculated for identified cybersecurity articles
   - Metadata stored in existing `detectedKeywords` field (no schema changes)
   - Threat Tracker now filters to show only cybersecurity articles
+- **2.3 Storage Layer Update**: Modified storage to use global_articles table for global scraping
+  - Updated `createArticle` methods in both News Radar and Threat Tracker
+  - When userId is undefined (global scraping), articles insert into `global_articles` table
+  - When userId is provided (user-specific), articles still use legacy tables
+  - Proper type mapping ensures compatibility with existing code
 
 ### Phase 3: Query-time Filtering (Completed 2025-01-18)
 - **User Filtering**: Keywords and preferences applied when viewing articles, not during collection

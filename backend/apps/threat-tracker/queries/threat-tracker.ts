@@ -779,11 +779,40 @@ export const storage: IStorage = {
       markedForCapsule?: boolean;
   }) => {
     try {
-      // CRITICAL FIX: Ensure userId is always provided when creating articles
+      // For global scraping (no userId), insert into global_articles table
       if (!article.userId) {
-        throw new Error("Article must be associated with a user");
+        // Import global_articles table  
+        const { globalArticles } = await import('@shared/db/schema/global-tables');
+        
+        const [created] = await db
+          .insert(globalArticles)
+          .values({
+            sourceId: article.sourceId,
+            title: article.title,
+            content: article.content,
+            url: article.url,
+            author: article.author,
+            publishDate: article.publishDate,
+            summary: article.summary,
+            detectedKeywords: article.detectedKeywords,
+            securityScore: article.securityScore ? parseInt(article.securityScore) : null,
+            isCybersecurity: true, // Threat tracker articles are always cybersecurity
+            scrapedAt: new Date(),
+          })
+          .returning();
+        
+        // Map back to ThreatArticle type for compatibility
+        return {
+          ...created,
+          userId: null,
+          relevanceScore: article.relevanceScore,
+          markedForCapsule: article.markedForCapsule || false,
+          scrapeDate: created.scrapedAt,
+          securityScore: created.securityScore ? created.securityScore.toString() : null,
+        } as ThreatArticle;
       }
 
+      // For user-specific articles, use the old table
       const results = await db
         .insert(threatArticles)
         .values(article)

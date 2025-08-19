@@ -62,7 +62,7 @@ export interface IStorage {
   ): Promise<Article[]>;
   getArticle(id: string, userId: string): Promise<Article | undefined>;
   getArticleByUrl(url: string, userId: string): Promise<Article | undefined>;
-  createArticle(article: InsertArticle, userId: string): Promise<Article>;
+  createArticle(article: InsertArticle, userId?: string): Promise<Article>;
   deleteArticle(id: string, userId: string): Promise<void>;
   deleteAllArticles(userId: string): Promise<number>; // Returns count of deleted articles
 
@@ -366,7 +366,39 @@ export class DatabaseStorage implements IStorage {
     return data.length > 0 ? data[0] : undefined;
   }
 
-  async createArticle(article: InsertArticle, userId: string): Promise<Article> {
+  async createArticle(article: InsertArticle, userId?: string): Promise<Article> {
+    // For global scraping (no userId), insert into global_articles table
+    if (!userId) {
+      // Import global_articles table (add this import at the top of the file)
+      const { globalArticles } = await import('@shared/db/schema/global-tables');
+      
+      const [created] = await db
+        .insert(globalArticles)
+        .values({
+          sourceId: article.sourceId,
+          title: article.title,
+          content: article.content,
+          url: article.url,
+          author: article.author,
+          publishDate: article.publishDate,
+          summary: article.summary,
+          detectedKeywords: article.detectedKeywords,
+          securityScore: (article as any).securityScore ? parseInt((article as any).securityScore) : null,
+          isCybersecurity: Array.isArray(article.detectedKeywords) && 
+            article.detectedKeywords.some((kw: string) => kw === '_cyber:true'),
+          scrapedAt: new Date(),
+        })
+        .returning();
+      
+      // Map back to Article type for compatibility
+      return {
+        ...created,
+        userId: null,
+        relevanceScore: article.relevanceScore,
+      } as Article;
+    }
+    
+    // For user-specific articles, use the old table with RLS
     const [created] = await withUserContext(
       userId,
       async (db) => db
