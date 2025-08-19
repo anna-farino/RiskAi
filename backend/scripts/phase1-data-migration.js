@@ -23,11 +23,15 @@ async function migrateArticles() {
   console.log('🔄 Starting article migration...');
   
   try {
-    // 1. Migrate threat_articles first (688 articles)
+    // 1. Migrate threat_articles first (688 articles) - map source IDs properly
     const threatArticles = await db.execute(sql`
-      SELECT id, source_id, title, content, url, author, publish_date, 
-             summary, detected_keywords, scrape_date, security_score
-      FROM threat_articles
+      SELECT 
+        ta.id, ta.title, ta.content, ta.url, ta.author, ta.publish_date, 
+        ta.summary, ta.detected_keywords, ta.scrape_date, ta.security_score,
+        gs.id as new_source_id
+      FROM threat_articles ta
+      JOIN threat_sources ts ON ta.source_id = ts.id
+      JOIN global_sources gs ON ts.url = gs.url
     `);
     
     console.log(`Found ${threatArticles.length} threat articles to migrate`);
@@ -56,7 +60,7 @@ async function migrateArticles() {
             source_id, title, content, url, author, publish_date, 
             summary, detected_keywords, scraped_at, is_cybersecurity, security_score
           ) VALUES (
-            ${article.source_id}, ${article.title}, ${article.content}, 
+            ${article.new_source_id}, ${article.title}, ${article.content}, 
             ${article.url}, ${article.author}, ${publishDate},
             ${article.summary}, ${detectedKeywords}, ${scrapedAt},
             ${true}, ${securityScore}
@@ -79,11 +83,15 @@ async function migrateArticles() {
       }
     }
     
-    // 2. Migrate regular articles (currently 0, but keep logic for future)
+    // 2. Migrate regular articles (currently 0, but keep logic for future) - map source IDs properly
     const regularArticles = await db.execute(sql`
-      SELECT id, source_id, title, content, url, author, publish_date, 
-             summary, detected_keywords, relevance_score
-      FROM articles
+      SELECT 
+        a.id, a.title, a.content, a.url, a.author, a.publish_date, 
+        a.summary, a.detected_keywords, a.relevance_score,
+        gs.id as new_source_id
+      FROM articles a
+      JOIN sources s ON a.source_id = s.id
+      JOIN global_sources gs ON s.url = gs.url
     `);
     
     console.log(`Found ${regularArticles.length} regular articles to migrate`);
@@ -100,7 +108,7 @@ async function migrateArticles() {
             source_id, title, content, url, author, publish_date, 
             summary, detected_keywords, scraped_at, is_cybersecurity, security_score
           ) VALUES (
-            ${article.source_id}, ${article.title}, ${article.content}, 
+            ${article.new_source_id}, ${article.title}, ${article.content}, 
             ${article.url}, ${article.author}, ${publishDate},
             ${article.summary}, ${detectedKeywords}, ${scrapedAt},
             ${false}, ${null}
