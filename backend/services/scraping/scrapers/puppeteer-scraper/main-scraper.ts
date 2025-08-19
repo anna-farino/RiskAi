@@ -212,6 +212,28 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       };
     }
     
+    // Check for browser disconnection errors
+    const isBrowserError = error.message?.includes('Navigating frame was detached') ||
+                          error.message?.includes('Protocol error') ||
+                          error.message?.includes('Connection closed') ||
+                          error.message?.includes('Target closed') ||
+                          error.message?.includes('Browser disconnected');
+    
+    if (isBrowserError) {
+      log(`[PuppeteerScraper] Browser disconnection detected: ${error.message}`, "scraper-error");
+      
+      // Import BrowserManager for restart
+      const { BrowserManager } = await import('../../core/browser-manager');
+      
+      try {
+        log(`[PuppeteerScraper] Attempting to restart browser for recovery`, "scraper");
+        await BrowserManager.restartBrowser();
+        log(`[PuppeteerScraper] Browser restarted successfully`, "scraper");
+      } catch (restartError: any) {
+        log(`[PuppeteerScraper] Failed to restart browser: ${restartError.message}`, "scraper-error");
+      }
+    }
+    
     log(`[PuppeteerScraper] Error during Puppeteer scraping: ${error.message}`, "scraper-error");
     
     return {

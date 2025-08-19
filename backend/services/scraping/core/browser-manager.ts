@@ -141,7 +141,10 @@ const BROWSER_ARGS = [
   '--disk-cache-dir=/tmp/chrome-cache',
   '--force-crash-handler-disable',
   '--crash-handler-disabled',
-  '--disable-crash-handler'
+  '--disable-crash-handler',
+  // Memory management to prevent crashes
+  '--max-old-space-size=1024',
+  '--js-flags=--max-old-space-size=1024'
 ];
 
 // Chrome path will be determined dynamically when browser is launched

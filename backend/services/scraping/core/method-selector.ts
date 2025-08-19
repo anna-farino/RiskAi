@@ -49,20 +49,50 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
   
   // Only use Puppeteer if HTTP truly failed or returned insufficient content
   log(`[SimpleScraper] HTTP insufficient (success: ${httpResult.success}, length: ${httpResult.html.length}), using Puppeteer fallback`, "scraper");
-  const puppeteerResult = await scrapeWithPuppeteer(url, {
-    timeout: 60000,
-    isArticlePage: isArticle,
-    handleHTMX: !isArticle,
-    scrollToLoad: !isArticle,
-    protectionBypass: true
-  });
   
-  if (!puppeteerResult.success) {
-    throw new Error(`Both HTTP and Puppeteer failed for: ${url}`);
+  // Retry Puppeteer up to 2 times if browser disconnection occurs
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const puppeteerResult = await scrapeWithPuppeteer(url, {
+        timeout: 60000,
+        isArticlePage: isArticle,
+        handleHTMX: !isArticle,
+        scrollToLoad: !isArticle,
+        protectionBypass: true
+      });
+      
+      if (puppeteerResult.success) {
+        log(`[SimpleScraper] Puppeteer successful on attempt ${attempt} (${puppeteerResult.html.length} chars)`, "scraper");
+        return { html: puppeteerResult.html, method: 'puppeteer' };
+      }
+      
+      // If Puppeteer didn't succeed but didn't throw, save the error
+      lastError = new Error(`Puppeteer returned unsuccessful result`);
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if this is a browser disconnection error
+      const isBrowserError = error.message?.includes('Navigating frame was detached') ||
+                            error.message?.includes('Protocol error') ||
+                            error.message?.includes('Connection closed') ||
+                            error.message?.includes('Target closed') ||
+                            error.message?.includes('Browser disconnected');
+      
+      if (isBrowserError && attempt < 2) {
+        log(`[SimpleScraper] Browser error on attempt ${attempt}, will retry: ${error.message}`, "scraper");
+        // Give browser time to restart (handled in puppeteer-scraper)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        continue;
+      }
+      
+      // For non-browser errors or final attempt, break the loop
+      break;
+    }
   }
   
-  log(`[SimpleScraper] Puppeteer successful (${puppeteerResult.html.length} chars)`, "scraper");
-  return { html: puppeteerResult.html, method: 'puppeteer' };
+  // If we got here, all attempts failed
+  throw new Error(`Both HTTP and Puppeteer failed for: ${url}${lastError ? ` - ${lastError.message}` : ''}`);
 }
 
 /**
