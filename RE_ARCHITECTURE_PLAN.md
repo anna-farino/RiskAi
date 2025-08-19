@@ -246,7 +246,7 @@ $$ LANGUAGE plpgsql;
 
 ### 2.1 Modify Existing Scraping Services
 
-#### Update Existing Schedulers (NOT create new ones)
+#### Combine Existing Schedulers (NOT create new ones)
 ```typescript
 // MODIFY: backend/apps/news-radar/scheduler.ts
 // MODIFY: backend/apps/threat-tracker/scheduler.ts
