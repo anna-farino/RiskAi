@@ -157,7 +157,7 @@ export default function Sources() {
 
   // Initialize the form
   const form = useForm<SourceFormValues>({
-    resolver: zodResolver(sourceFormSchema),
+    resolver: zodResolver(sourceFormSchema) as any,
     defaultValues: {
       name: "",
       url: "",
@@ -773,14 +773,9 @@ export default function Sources() {
       });
 
       // Force refetch to guarantee UI refresh
-      const updatedSources = await queryClient.refetchQueries({
+      await queryClient.refetchQueries({
         queryKey: ["/api/threat-tracker/sources"],
       });
-
-      // Sync local state with fresh data from server
-      if (updatedSources && updatedSources[0]?.data) {
-        setLocalSources(updatedSources[0].data);
-      }
 
       // Show detailed results
       if (summary.successful > 0) {
@@ -1062,270 +1057,204 @@ export default function Sources() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 lg:gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Tracking Sources
-          </h1>
-          <p className="text-muted-foreground">
-            Manage sources for threat monitoring and configure auto-update
-            settings.
-          </p>
+    <div
+      className={cn(
+        "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                Threat Sources
+              </h1>
+              <p className="text-sm text-slate-300">
+                Manage sources for threat monitoring and auto-update settings
+              </p>
+            </div>
+          </div>
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* How To Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ListChecks className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">How to Use Sources</span>
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <p>• Configure auto-updates for continuous monitoring</p>
+                  <p>• Add custom sources or manage defaults</p>
+                  <p>• Use manual scans for immediate updates</p>
+                  <p>• Keywords help filter relevant threats</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Auto-Update Controls */}
+            <div className="lg:col-span-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">Auto-Update Status</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="auto-scrape-toolbar"
+                      checked={
+                        localAutoScrapeEnabled !== null
+                          ? localAutoScrapeEnabled
+                          : autoScrapeSettings.data?.enabled || false
+                      }
+                      onCheckedChange={handleToggleAutoScrape}
+                      disabled={updateAutoScrapeSettings.isPending}
+                      className="scale-75"
+                    />
+                    <div className="text-xs">
+                      <span className="text-slate-300">
+                        {(
+                          localAutoScrapeEnabled !== null
+                            ? localAutoScrapeEnabled
+                            : autoScrapeSettings.data?.enabled || false
+                        )
+                          ? "Enabled"
+                          : "Disabled"}
+                      </span>
+                      <p className="text-slate-400 text-xs">
+                        {(
+                          localAutoScrapeEnabled !== null
+                            ? localAutoScrapeEnabled
+                            : autoScrapeSettings.data?.enabled || false
+                        )
+                          ? `Runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || "daily"}`
+                          : "Enable for automatic updates"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant={
+                        (localAutoScrapeInterval !== null
+                          ? localAutoScrapeInterval
+                          : autoScrapeSettings.data?.interval) === JobInterval.HOURLY
+                          ? "default"
+                          : "outline"
+                      }
+                      size="sm"
+                      onClick={() =>
+                        handleChangeAutoScrapeInterval(JobInterval.HOURLY)
+                      }
+                      disabled={
+                        !(localAutoScrapeEnabled !== null
+                          ? localAutoScrapeEnabled
+                          : autoScrapeSettings.data?.enabled) ||
+                        updateAutoScrapeSettings.isPending
+                      }
+                      className="h-6 px-2 text-xs"
+                    >
+                      Hourly
+                    </Button>
+                    <Button
+                      variant={
+                        (localAutoScrapeInterval !== null
+                          ? localAutoScrapeInterval
+                          : autoScrapeSettings.data?.interval) === JobInterval.DAILY
+                          ? "default"
+                          : "outline"
+                      }
+                      size="sm"
+                      onClick={() =>
+                        handleChangeAutoScrapeInterval(JobInterval.DAILY)
+                      }
+                      disabled={
+                        !(localAutoScrapeEnabled !== null
+                          ? localAutoScrapeEnabled
+                          : autoScrapeSettings.data?.enabled) ||
+                        updateAutoScrapeSettings.isPending
+                      }
+                      className="h-6 px-2 text-xs"
+                    >
+                      Daily
+                    </Button>
+                    <Button
+                      variant={
+                        (localAutoScrapeInterval !== null
+                          ? localAutoScrapeInterval
+                          : autoScrapeSettings.data?.interval) === JobInterval.WEEKLY
+                          ? "default"
+                          : "outline"
+                      }
+                      size="sm"
+                      onClick={() =>
+                        handleChangeAutoScrapeInterval(JobInterval.WEEKLY)
+                      }
+                      disabled={
+                        !(localAutoScrapeEnabled !== null
+                          ? localAutoScrapeEnabled
+                          : autoScrapeSettings.data?.enabled) ||
+                        updateAutoScrapeSettings.isPending
+                      }
+                      className="h-6 px-2 text-xs"
+                    >
+                      Weekly
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="lg:col-span-4">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plus className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Actions</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={() => setSourceDialogOpen(true)}
+                    size="sm"
+                    className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] text-xs h-7"
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add Source
+                  </Button>
+                  <Button
+                    onClick={() => scrapeAllSources.mutate()}
+                    disabled={scrapeAllSources.isPending}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs h-7"
+                  >
+                    {scrapeAllSources.isPending && (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    )}
+                    Scan All Now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-
       </div>
-
-      {/* Instructions Section */}
-      <div className="mb-0">
-        <Collapsible
-          open={!isInstructionsCollapsed}
-          onOpenChange={(open) => setIsInstructionsCollapsed(!open)}
-        >
-          <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 mb-0 bg-muted/50 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
-              {isInstructionsCollapsed ? (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <ListChecks className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-medium text-muted-foreground">
-                How to Use Threat Sources
-              </h3>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 pl-6">
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    1. Configure Auto-Updates
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Enable automatic scanning to stay current with threats.
-                    Choose hourly, daily, or weekly updates.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    2. Manage Sources
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Default cybersecurity sources are provided. Add custom
-                    sources or enable/disable existing ones.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    3. Manual Updates
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Use "Scan All Sources Now" for immediate scanning or update
-                    individual sources as needed.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm mb-1">
-                    4. Monitor Keywords
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Visit the Keywords page to manage threat terms, vendors, and
-                    hardware for targeted monitoring.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Auto-scrape settings card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
-            Auto-Update Configuration
-          </CardTitle>
-          <CardDescription>
-            Configure automatic updates to stay on top of security
-            vulnerabilities
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="auto-scrape"
-                checked={
-                  localAutoScrapeEnabled !== null
-                    ? localAutoScrapeEnabled
-                    : autoScrapeSettings.data?.enabled || false
-                }
-                onCheckedChange={handleToggleAutoScrape}
-                disabled={updateAutoScrapeSettings.isPending}
-              />
-              <div className="grid gap-0.5">
-                <label
-                  htmlFor="auto-scrape"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {(
-                    localAutoScrapeEnabled !== null
-                      ? localAutoScrapeEnabled
-                      : autoScrapeSettings.data?.enabled || false
-                  )
-                    ? "Enabled"
-                    : "Disabled"}
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  {(
-                    localAutoScrapeEnabled !== null
-                      ? localAutoScrapeEnabled
-                      : autoScrapeSettings.data?.enabled || false
-                  )
-                    ? `Auto-scrape runs ${intervalLabels[(localAutoScrapeInterval !== null ? localAutoScrapeInterval : autoScrapeSettings.data?.interval) as JobInterval] || "daily"}`
-                    : "Enable to automatically update sources for new threats"}
-                </p>
-              </div>
-              {updateAutoScrapeSettings.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant={
-                  (localAutoScrapeInterval !== null
-                    ? localAutoScrapeInterval
-                    : autoScrapeSettings.data?.interval) === JobInterval.HOURLY
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  handleChangeAutoScrapeInterval(JobInterval.HOURLY)
-                }
-                disabled={
-                  !(localAutoScrapeEnabled !== null
-                    ? localAutoScrapeEnabled
-                    : autoScrapeSettings.data?.enabled) ||
-                  updateAutoScrapeSettings.isPending
-                }
-              >
-                {updateAutoScrapeSettings.isPending && (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                )}
-                Hourly
-              </Button>
-              <Button
-                variant={
-                  (localAutoScrapeInterval !== null
-                    ? localAutoScrapeInterval
-                    : autoScrapeSettings.data?.interval) === JobInterval.DAILY
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  handleChangeAutoScrapeInterval(JobInterval.DAILY)
-                }
-                disabled={
-                  !(localAutoScrapeEnabled !== null
-                    ? localAutoScrapeEnabled
-                    : autoScrapeSettings.data?.enabled) ||
-                  updateAutoScrapeSettings.isPending
-                }
-              >
-                {updateAutoScrapeSettings.isPending && (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                )}
-                Daily
-              </Button>
-              <Button
-                variant={
-                  (localAutoScrapeInterval !== null
-                    ? localAutoScrapeInterval
-                    : autoScrapeSettings.data?.interval) === JobInterval.WEEKLY
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  handleChangeAutoScrapeInterval(JobInterval.WEEKLY)
-                }
-                disabled={
-                  !(localAutoScrapeEnabled !== null
-                    ? localAutoScrapeEnabled
-                    : autoScrapeSettings.data?.enabled) ||
-                  updateAutoScrapeSettings.isPending
-                }
-              >
-                {updateAutoScrapeSettings.isPending && (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                )}
-                Weekly
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <div className="text-sm text-muted-foreground">
-            {scrapeJobRunning ? (
-              <span className="flex items-center text-primary">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scan is currently running...
-              </span>
-            ) : null}
-          </div>
-        </CardFooter>
-      </Card>
 
       {/* Sources card */}
       <Card>
-        <CardHeader className="flex flex-row gap-4 items-center justify-between">
+        <CardHeader>
           <div className="flex flex-col gap-2">
-            <CardDescription className="hidden sm:block">
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[#BF00FF]" />
+              Sources
+            </CardTitle>
+            <CardDescription>
               Websites to monitor for security threat information. Default
               sources are provided for all users and cannot be deleted, but can
               be enabled/disabled.
             </CardDescription>
-          </div>
-
-          <div className="flex gap-2 items-center">
-            <Button
-              onClick={() => {
-                if (scrapeJobRunning || checkScrapeStatus?.data?.running) {
-                  stopScrapeJob.mutate();
-                } else {
-                  scrapeAllSources.mutate();
-                }
-              }}
-              disabled={
-                (scrapeAllSources.isPending && !stopScrapeJob.isPending) ||
-                (stopScrapeJob.isPending && !scrapeAllSources.isPending) ||
-                localSources.length === 0
-              }
-              className={
-                scrapeJobRunning || checkScrapeStatus?.data?.running
-                  ? "bg-red-600 hover:bg-red-600/80 text-white"
-                  : "bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-              }
-            >
-              {scrapeAllSources.isPending || stopScrapeJob.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : scrapeJobRunning || checkScrapeStatus?.data?.running ? (
-                <X className="mr-2 h-4 w-4" />
-              ) : (
-                <PlayCircle className="mr-2 h-4 w-4" />
-              )}
-              {scrapeJobRunning || checkScrapeStatus?.data?.running
-                ? "Stop Scan"
-                : "Scan All Sources Now"}
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col overflow-x-scroll">

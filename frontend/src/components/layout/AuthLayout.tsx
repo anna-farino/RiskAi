@@ -14,7 +14,7 @@ export default function AuthLayout({
       {false && <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>}
-      <div className="w-full max-w-md flex flex-col items-center px-4 sm:px-0">
+      <div className="w-full max-w-md flex flex-col items-center px-3 xs:px-4 sm:px-0">
         <div className="w-full">
           {children}
         </div>
