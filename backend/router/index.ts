@@ -22,6 +22,12 @@ import { handleChangePassword } from 'backend/handlers/auth0/change-password';
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
 
+router.use((req: Request, _: Response, next: NextFunction)=>{
+  //console.log("Server hit")
+  //console.log("req.headers.authorization", req.headers.authorization)
+  next()
+})
+
 // TEST route
 router.get('/test', limiter, handleTest)
 //router.get('/test-articles', testArticles)
