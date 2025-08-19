@@ -2,6 +2,7 @@ import { scrapingService } from "./scraper";
 import { storage } from "../queries/news-tracker";
 import { log } from "backend/utils/log";
 import { analyzeContent } from "./openai";
+import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai"; // Phase 2.2: AI Processing
 import type { ScrapingConfig as NewsRadarConfig } from "@shared/db/schema/news-tracker/types";
 
 import { sendEmailJs } from "backend/utils/sendEmailJs";
@@ -152,6 +153,34 @@ export async function scrapeSource(
             "scraper"
           );
           
+          // Phase 2.2: Analyze if article is cybersecurity-related
+          log(`[Global Scraping] Analyzing cybersecurity relevance with AI`, "scraper");
+          const cyberAnalysis = await analyzeCybersecurity({
+            title: article.title,
+            content: article.content,
+            url: link
+          });
+          
+          // If it's cybersecurity-related, calculate the risk score
+          let securityScore = "0";
+          if (cyberAnalysis.isCybersecurity) {
+            log(`[Global Scraping] Article identified as cybersecurity-related (confidence: ${cyberAnalysis.confidence})`, "scraper");
+            const riskAnalysis = await calculateSecurityRisk({
+              title: article.title,
+              content: article.content,
+              detectedKeywords: analysis.detectedKeywords
+            });
+            securityScore = riskAnalysis.score.toString();
+            log(`[Global Scraping] Security risk score: ${securityScore} (${riskAnalysis.severity})`, "scraper");
+          }
+          
+          // Store cybersecurity metadata in detectedKeywords array
+          // Format: ["_cyber:true", "_confidence:0.95", "category1", "category2", ...]
+          const keywordsWithMeta = [
+            ...(cyberAnalysis.isCybersecurity ? [`_cyber:true`, `_confidence:${cyberAnalysis.confidence}`] : [`_cyber:false`]),
+            ...(cyberAnalysis.categories || [])
+          ];
+          
           // Save ALL articles to global database (no keyword filtering)
           const newArticle = await storage.createArticle({
               sourceId,
@@ -163,7 +192,8 @@ export async function scrapeSource(
               publishDate: article.publishDate || new Date(), // Use extracted date or current date as fallback
               summary: analysis.summary,
               relevanceScore: analysis.relevanceScore,
-              detectedKeywords: [], // No keywords for global articles (will be filled by AI later)
+              detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
+              securityScore: securityScore, // This field exists for threat scoring
             },
             undefined // No userId for global articles
           );

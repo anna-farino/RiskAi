@@ -612,6 +612,12 @@ export const storage: IStorage = {
         return [];
       }
 
+      // Phase 2.2: Filter for cybersecurity articles only
+      // Check if detectedKeywords contains "_cyber:true"
+      conditions.push(
+        sql`${threatArticles.detectedKeywords}->>'_cyber' = 'true'`
+      );
+
       // Add search term filter
       if (search && search.trim().length > 0) {
         const searchTerm = search.trim();

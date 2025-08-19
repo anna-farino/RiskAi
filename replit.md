@@ -47,9 +47,18 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 ## Recent Architecture Changes (January 2025)
 
 ### Phase 2: Global Scraping Infrastructure (Completed 2025-01-18)
-- **Background Jobs**: Removed userId and keyword dependencies from both News Radar and Threat Tracker
-- **Schedulers**: Updated to run globally every 3 hours instead of per-user scheduling
-- **API Routes**: Modified to work with global functions without userId parameters
-- **Article Processing**: All articles now saved globally without keyword filtering at scrape time
-- **Query-time Filtering**: Users' keywords and preferences applied when viewing articles, not during collection
+- **2.1 Background Jobs**: Removed userId and keyword dependencies from both News Radar and Threat Tracker
+- **2.1 Schedulers**: Updated to run globally every 3 hours instead of per-user scheduling
+- **2.1 API Routes**: Modified to work with global functions without userId parameters
+- **2.1 Article Processing**: All articles now saved globally without keyword filtering at scrape time
+- **2.2 AI Processing Pipeline**: Added cybersecurity detection and risk scoring during scraping
+  - Added `analyzeCybersecurity()` and `calculateSecurityRisk()` methods to OpenAI service
+  - Articles automatically analyzed and flagged as cybersecurity-related during scraping
+  - Risk scores calculated for identified cybersecurity articles
+  - Metadata stored in existing `detectedKeywords` field (no schema changes)
+  - Threat Tracker now filters to show only cybersecurity articles
+
+### Phase 3: Query-time Filtering (Completed 2025-01-18)
+- **User Filtering**: Keywords and preferences applied when viewing articles, not during collection
+- **Cybersecurity Filter**: Threat Tracker only displays articles flagged as cybersecurity-related
 ```

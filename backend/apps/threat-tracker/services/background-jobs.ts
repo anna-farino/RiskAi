@@ -1,6 +1,7 @@
 import { storage } from "../queries/threat-tracker";
 import { analyzeContent } from "./openai";
 import { scrapingService } from "./scraper";
+import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai"; // Phase 2.2: AI Processing
 
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
@@ -165,6 +166,36 @@ async function processArticle(
 
     log(`[Global ThreatTracker] Storing the article. Author: ${articleData.author}, title: ${articleData.title}, sourceId: ${sourceId}`);
 
+    // Phase 2.2: Analyze if article is cybersecurity-related
+    log(`[Global ThreatTracker] Analyzing cybersecurity relevance with AI`, "scraper");
+    const cyberAnalysis = await analyzeCybersecurity({
+      title: articleData.title,
+      content: articleData.content,
+      url: articleUrl
+    });
+    
+    // Calculate the risk score for cybersecurity articles
+    let securityScore = analysis.severityScore?.toString() || "0";
+    if (cyberAnalysis.isCybersecurity) {
+      log(`[Global ThreatTracker] Article identified as cybersecurity-related (confidence: ${cyberAnalysis.confidence})`, "scraper");
+      const riskAnalysis = await calculateSecurityRisk({
+        title: articleData.title,
+        content: articleData.content,
+        detectedKeywords: analysis.detectedKeywords
+      });
+      securityScore = riskAnalysis.score.toString();
+      log(`[Global ThreatTracker] Security risk score: ${securityScore} (${riskAnalysis.severity})`, "scraper");
+    }
+
+    // Store cybersecurity metadata in detectedKeywords object
+    // Add special keys for cybersecurity detection
+    const keywordsWithMeta = {
+      ...analysis.detectedKeywords,
+      _cyber: cyberAnalysis.isCybersecurity ? "true" : "false",
+      _confidence: cyberAnalysis.confidence.toString(),
+      _categories: (cyberAnalysis.categories || []).join(",")
+    };
+
     // Store the article in the GLOBAL database (no userId)
     const newArticle = await storage.createArticle({
       sourceId,
@@ -175,8 +206,8 @@ async function processArticle(
       publishDate: publishDate,
       summary: analysis.summary,
       relevanceScore: analysis.relevanceScore.toString(),
-      securityScore: analysis.severityScore?.toString() || "0", // Add severity score
-      detectedKeywords: {}, // Empty keywords for global articles (will be filled by AI later)
+      securityScore: securityScore, // Use calculated security score
+      detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
       userId: undefined, // No userId for global articles
     });
 
