@@ -19,6 +19,7 @@ import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc, inArray } from "d
 import { Request } from "express";
 import { userInfo } from "os";
 import { encrypt, decrypt } from "backend/utils/encryption";
+import { log } from "backend/utils/log";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -354,7 +355,29 @@ export class DatabaseStorage implements IStorage {
     return data.length > 0 ? data[0] : undefined;
   }
 
-  async getArticleByUrl(url: string, userId: string): Promise<Article | undefined> {
+  async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
+    // For global scraping (no userId), check the global_articles table
+    if (!userId) {
+      const { globalArticles } = await import('@shared/db/schema/global-tables');
+      
+      const [globalArticle] = await db
+        .select()
+        .from(globalArticles)
+        .where(eq(globalArticles.url, url))
+        .limit(1);
+      
+      if (globalArticle) {
+        // Map back to Article type for compatibility
+        return {
+          ...globalArticle,
+          userId: null,
+          relevanceScore: null,
+        } as Article;
+      }
+      return undefined;
+    }
+    
+    // For user-specific queries, use the regular articles table with RLS
     const data = await withUserContext(
       userId,
       async (db) => db
@@ -369,13 +392,71 @@ export class DatabaseStorage implements IStorage {
   async createArticle(article: InsertArticle, userId?: string): Promise<Article> {
     // For global scraping (no userId), insert into global_articles table
     if (!userId) {
-      // Import global_articles table (add this import at the top of the file)
-      const { globalArticles } = await import('@shared/db/schema/global-tables');
+      // Import global tables
+      const { globalArticles, globalSources } = await import('@shared/db/schema/global-tables');
+      
+      // Get the source URL from the regular sources table
+      const originalSource = await this.getSource(article.sourceId);
+      if (!originalSource) {
+        throw new Error(`Source with ID ${article.sourceId} not found`);
+      }
+      
+      // Find the corresponding global source by URL
+      const [globalSource] = await db
+        .select({ id: globalSources.id })
+        .from(globalSources)
+        .where(eq(globalSources.url, originalSource.url))
+        .limit(1);
+      
+      if (!globalSource) {
+        // If no global source exists, create one
+        const [newGlobalSource] = await db
+          .insert(globalSources)
+          .values({
+            url: originalSource.url,
+            name: originalSource.name,
+            category: 'general',
+            isActive: true,
+            isDefault: false,
+            priority: 50,
+            scrapingConfig: originalSource.scrapingConfig,
+            addedAt: new Date(),
+            consecutiveFailures: 0
+          })
+          .returning({ id: globalSources.id });
+        
+        log(`[News Radar] Created new global source for URL: ${originalSource.url}`, "scraper");
+        
+        const [created] = await db
+          .insert(globalArticles)
+          .values({
+            sourceId: newGlobalSource.id,
+            title: article.title,
+            content: article.content,
+            url: article.url,
+            author: article.author,
+            publishDate: article.publishDate,
+            summary: article.summary,
+            detectedKeywords: article.detectedKeywords,
+            securityScore: (article as any).securityScore ? parseInt((article as any).securityScore) : null,
+            isCybersecurity: Array.isArray(article.detectedKeywords) && 
+              article.detectedKeywords.some((kw: string) => kw === '_cyber:true'),
+            scrapedAt: new Date(),
+          })
+          .returning();
+        
+        // Map back to Article type for compatibility
+        return {
+          ...created,
+          userId: null,
+          relevanceScore: article.relevanceScore,
+        } as Article;
+      }
       
       const [created] = await db
         .insert(globalArticles)
         .values({
-          sourceId: article.sourceId,
+          sourceId: globalSource.id,
           title: article.title,
           content: article.content,
           url: article.url,

@@ -182,7 +182,8 @@ export async function scrapeSource(
           ];
           
           // Save ALL articles to global database (no keyword filtering)
-          const newArticle = await storage.createArticle({
+          // Pass securityScore in detectedKeywords array as metadata
+          const articleData: any = {
               sourceId,
               userId: undefined, // No userId for global articles
               title: article.title,
@@ -193,8 +194,13 @@ export async function scrapeSource(
               summary: analysis.summary,
               relevanceScore: analysis.relevanceScore,
               detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
-              securityScore: securityScore, // This field exists for threat scoring
-            },
+          };
+          
+          // Add securityScore as a separate field that will be handled in createArticle
+          articleData.securityScore = securityScore;
+          
+          const newArticle = await storage.createArticle(
+            articleData,
             undefined // No userId for global articles
           );
 
