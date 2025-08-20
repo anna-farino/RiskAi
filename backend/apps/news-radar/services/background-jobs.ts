@@ -9,7 +9,7 @@ import { sendEmailJs } from "backend/utils/sendEmailJs";
 import { db } from "backend/db/db";
 import { users } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
-import type { Article } from "@shared/db/schema/news-tracker/index";
+import type { Article, Source } from "@shared/db/schema/news-tracker/index";
 import dotenvConfig from "backend/utils/dotenv-config";
 import dotenv from "dotenv";
 import { Request } from 'express';
@@ -33,16 +33,24 @@ let globalJobRunning = false;
  * Scrape a specific source - GLOBAL VERSION (no userId/keyword filtering)
  */
 export async function scrapeSource(
-  sourceId: string,
+  sourceIdOrSource: string | Source,
 ): Promise<{
   processedCount: number;
   savedCount: number;
   newArticles: Article[];
 }> {
-  const source = await storage.getSource(sourceId);
+  // If a source object is passed directly (global scraping), use it
+  // Otherwise look it up from the regular sources table (user-specific scraping)
+  const source = typeof sourceIdOrSource === 'string' 
+    ? await storage.getSource(sourceIdOrSource)
+    : sourceIdOrSource;
+    
   if (!source) {
+    const sourceId = typeof sourceIdOrSource === 'string' ? sourceIdOrSource : sourceIdOrSource.id;
     throw new Error(`Source with ID ${sourceId} not found`);
   }
+  
+  const sourceId = source.id;
 
   // Set active flag for this source
   activeScraping.set(sourceId, true);
@@ -498,7 +506,7 @@ export async function runGlobalScrapeJob()
 
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
-          source.id,
+          source, // Pass the full source object for global scraping
         );
 
         // Add source information to each new article
