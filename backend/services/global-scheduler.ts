@@ -5,8 +5,7 @@
  */
 
 import { log } from "backend/utils/log";
-import { runGlobalScrapeJob as runNewsRadarScrape } from "../apps/news-radar/services/background-jobs";
-import { runGlobalScrapeJob as runThreatTrackerScrape } from "../apps/threat-tracker/services/background-jobs";
+import { runUnifiedGlobalScraping } from "./global-scraping/global-scraper";
 
 // GLOBAL SCRAPING INTERVAL - Every 3 hours as per re-architecture plan
 const THREE_HOURS = 3 * 60 * 60 * 1000;
@@ -76,23 +75,19 @@ async function executeUnifiedGlobalScrape(): Promise<void> {
   log(`[GLOBAL SCHEDULER] Starting unified global scrape job`, "scheduler");
   
   try {
-    // Run News Radar global scraping
-    log(`[GLOBAL SCHEDULER] Starting News Radar global scraping`, "scheduler");
-    const newsRadarResult = await runNewsRadarScrape();
+    // Run unified global scraping for both News Radar and Threat Tracker
+    log(`[GLOBAL SCHEDULER] Starting unified global scraping for all apps`, "scheduler");
+    const result = await runUnifiedGlobalScraping();
     
-    // Calculate News Radar totals from results array
-    const newsRadarTotals = newsRadarResult.results?.reduce((acc, r) => ({
+    // Extract statistics from unified result
+    const newsRadarTotals = result.newsRadarResults?.results?.reduce((acc: any, r: any) => ({
       processed: acc.processed + r.processed,
       saved: acc.saved + r.saved
     }), { processed: 0, saved: 0 }) || { processed: 0, saved: 0 };
     
-    log(`[GLOBAL SCHEDULER] News Radar scraping completed: ${newsRadarTotals.processed} articles processed, ${newsRadarTotals.saved} saved`, "scheduler");
+    const threatTrackerCount = result.threatTrackerResults?.newArticles?.length || 0;
     
-    // Run Threat Tracker global scraping
-    log(`[GLOBAL SCHEDULER] Starting Threat Tracker global scraping`, "scheduler");
-    const threatTrackerResult = await runThreatTrackerScrape();
-    const threatTrackerCount = threatTrackerResult.newArticles?.length || 0;
-    log(`[GLOBAL SCHEDULER] Threat Tracker scraping completed: ${threatTrackerCount} new articles found`, "scheduler");
+    log(`[GLOBAL SCHEDULER] Unified scraping completed: News Radar - ${newsRadarTotals.processed} processed, ${newsRadarTotals.saved} saved; Threat Tracker - ${threatTrackerCount} articles`, "scheduler");
     
     // Update state
     lastGlobalRun = new Date();
@@ -105,15 +100,14 @@ async function executeUnifiedGlobalScrape(): Promise<void> {
     
     // Log combined statistics
     const stats = {
+      success: result.success,
+      message: result.message,
       newsRadar: {
         processed: newsRadarTotals.processed,
-        saved: newsRadarTotals.saved,
-        success: newsRadarResult.success,
-        message: newsRadarResult.message
+        saved: newsRadarTotals.saved
       },
       threatTracker: {
-        saved: threatTrackerCount,
-        message: threatTrackerResult.message
+        saved: threatTrackerCount
       },
       duration: duration,
       nextRun: nextRunAt.toISOString()

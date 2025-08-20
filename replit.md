@@ -77,7 +77,17 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - No blacklisting - scraper dynamically adapts to bypass protection
   - Automatic browser restart and retry logic on failures
 
-### Phase 3: Query-time Filtering (Completed 2025-01-18)
-- **User Filtering**: Keywords and preferences applied when viewing articles, not during collection
-- **Cybersecurity Filter**: Threat Tracker only displays articles flagged as cybersecurity-related
+### Phase 3: Unified Global Scraping System (Completed 2025-01-20)
+- **3.1 Unified Global Scraper**: Created single unified scraper that replaces app-specific background jobs
+  - Created `backend/services/global-scraping/global-scraper.ts` containing all global scraping logic
+  - Migrated code exactly as it appeared in deprecated app-specific background-jobs files
+  - Processes both News Radar and Threat Tracker sources in one unified job
+  - Eliminated duplicate scheduler runs and source lookup errors
+- **3.2 Global Scheduler Update**: Modified to use unified scraper
+  - Updated `backend/services/global-scheduler.ts` to call unified scraper
+  - Single background job runs every 3 hours for all sources
+  - No longer uses old app-specific background-jobs files
+- **3.3 Query-time Filtering** (Completed 2025-01-18)
+  - **User Filtering**: Keywords and preferences applied when viewing articles, not during collection
+  - **Cybersecurity Filter**: Threat Tracker only displays articles flagged as cybersecurity-related
 ```
