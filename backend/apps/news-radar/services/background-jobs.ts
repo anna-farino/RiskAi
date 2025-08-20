@@ -33,16 +33,14 @@ let globalJobRunning = false;
  * Scrape a specific source - GLOBAL VERSION (no userId/keyword filtering)
  */
 export async function scrapeSource(
-  sourceId: string,
+  source: any, // Accept full source object instead of just ID
 ): Promise<{
   processedCount: number;
   savedCount: number;
   newArticles: Article[];
 }> {
-  const source = await storage.getSource(sourceId);
-  if (!source) {
-    throw new Error(`Source with ID ${sourceId} not found`);
-  }
+  // No longer need to look up source - we already have it
+  const sourceId = source.id;
 
   // Set active flag for this source
   activeScraping.set(sourceId, true);
@@ -498,7 +496,7 @@ export async function runGlobalScrapeJob()
 
       try {
         const { processedCount, savedCount, newArticles } = await scrapeSource(
-          source.id,
+          source, // Pass full source object instead of just ID
         );
 
         // Add source information to each new article

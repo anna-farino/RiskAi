@@ -2,7 +2,8 @@ import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
-import { initializeScheduler, getSchedulerStatus } from "../services/scheduler";
+// Using global scheduler from backend/services/global-scheduler.ts
+import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -910,7 +911,7 @@ threatRouter.get("/settings/auto-scrape", async (req, res) => {
   reqLog(req, "GET /settings/auto-scrape");
   try {
     // Return global scheduler status instead of per-user settings
-    const status = getSchedulerStatus();
+    const status = getGlobalSchedulerStatus();
     res.json(status);
   } catch (error: any) {
     console.error("Error fetching auto-scrape settings:", error);
@@ -923,7 +924,7 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
   try {
     // Global scheduler runs automatically every 3 hours
     // This endpoint now just returns the current status
-    const status = getSchedulerStatus();
+    const status = getGlobalSchedulerStatus();
     res.json({
       message: "Global scheduler runs automatically every 3 hours",
       status
@@ -938,7 +939,7 @@ threatRouter.put("/settings/auto-scrape", async (req, res) => {
 threatRouter.get("/scheduler/status", async (req, res) => {
   reqLog(req, "GET /scheduler/status");
   try {
-    const status = getSchedulerStatus();
+    const status = getGlobalSchedulerStatus();
     res.json(status);
   } catch (error: any) {
     console.error("Error fetching scheduler status:", error);
@@ -949,16 +950,16 @@ threatRouter.get("/scheduler/status", async (req, res) => {
 threatRouter.post("/scheduler/reinitialize", async (req, res) => {
   reqLog(req, "POST /scheduler/reinitialize");
   try {
-    const result = await initializeScheduler();
-    const status = getSchedulerStatus();
+    // Global scheduler is managed at the application level
+    const status = getGlobalSchedulerStatus();
     res.json({ 
-      success: result, 
-      message: result ? "Scheduler reinitialized successfully" : "Failed to reinitialize scheduler",
+      success: false, 
+      message: "Global scheduler is managed at the application level and cannot be reinitialized from individual apps",
       status
     });
   } catch (error: any) {
-    console.error("Error reinitializing scheduler:", error);
-    res.status(500).json({ error: error.message || "Failed to reinitialize scheduler" });
+    console.error("Error fetching scheduler status:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch scheduler status" });
   }
 });
 

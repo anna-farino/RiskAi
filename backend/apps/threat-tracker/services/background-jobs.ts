@@ -31,15 +31,11 @@ export function isUserJobRunning(userId: string) {
  */
 async function processArticle(
   articleUrl: string,
-  sourceId: string,
+  source: any, // Accept full source object instead of just sourceId
   htmlStructure: any,
 ) {
-  // Get source information for error context (outside try block for catch access)
-  const source = await storage.getSource(sourceId);
-  if (!source) {
-    log(`[Global ThreatTracker] Source not found: ${sourceId}`, "scraper-error");
-    return null;
-  }
+  // No longer need to look up source - we already have it
+  const sourceId = source.id;
   
   // Create error context for article processing (no userId for global scraping)
   const errorContext = createThreatTrackerContext(undefined, sourceId, source.url, source.name);
@@ -354,7 +350,7 @@ export async function scrapeSource(source: ThreatSource) {
       );
       const firstArticleResult = await processArticle(
         firstArticleUrl,
-        source.id,
+        source, // Pass full source object instead of just ID
         htmlStructure, // No userId and keywords for global processing
       );
 
@@ -380,7 +376,7 @@ export async function scrapeSource(source: ThreatSource) {
 
       const articleResult = await processArticle(
         processedLinks[i],
-        source.id,
+        source, // Pass full source object instead of just ID
         htmlStructure, // This can be null, and that's OK - unified scraper will handle AI detection
       );
 

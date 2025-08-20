@@ -2,7 +2,8 @@ import { articles, insertKeywordSchema, insertSourceSchema } from "@shared/db/sc
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
-import { initializeScheduler, getSchedulerStatus } from "../services/scheduler";
+// Using global scheduler from backend/services/global-scheduler.ts
+import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -793,7 +794,7 @@ newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
 newsRouter.get("/settings/auto-scrape", async (req, res) => {
   try {
     // Return global scheduler status
-    const status = getSchedulerStatus();
+    const status = getGlobalSchedulerStatus();
     res.json(status);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -805,7 +806,7 @@ newsRouter.post("/settings/auto-scrape", async (req, res) => {
   try {
     // Global scheduler runs automatically every 3 hours
     // This endpoint now just returns the current status
-    const status = getSchedulerStatus();
+    const status = getGlobalSchedulerStatus();
     res.json({
       message: "Global scheduler runs automatically every 3 hours",
       status
