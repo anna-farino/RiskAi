@@ -8,10 +8,14 @@ import { log } from "backend/utils/log";
 import { Article, Source } from "@shared/db/schema/news-tracker";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
 import { db } from "backend/db/db";
-import { scrapingService as newsRadarScrapingService } from "backend/apps/news-radar/services/scraper";
-import { scrapingService as threatTrackerScrapingService } from "backend/apps/threat-tracker/services/scraper";
+// Direct import of core scraping services
+import { unifiedScraper } from "backend/services/scraping/scrapers/main-scraper";
+import { StrategyLoader } from "backend/services/scraping/strategies/strategy-loader";
+import { detectHtmlStructure } from "backend/services/scraping/extractors/structure-detection/structure-detector";
+// AI services
 import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai";
 import { analyzeContent } from "../../apps/news-radar/services/openai";
+// Error logging
 import { 
   logSourceScrapingError, 
   logArticleScrapingError,
@@ -24,6 +28,10 @@ import {
 // Import storage from both apps (we'll need both for now)
 import { storage as newsRadarStorage } from "../../apps/news-radar/queries/news-tracker";
 import { storage as threatTrackerStorage } from "../../apps/threat-tracker/queries/threat-tracker";
+
+// Create app-specific contexts using StrategyLoader
+const newsRadarContext = StrategyLoader.createContext('news-radar');
+const threatTrackerContext = StrategyLoader.createContext('threat-tracker');
 
 // Track active scraping processes
 const activeScraping = new Map<string, boolean>();
@@ -58,8 +66,8 @@ async function scrapeNewsRadarSource(
 
     // Step 2: Extract article links using unified scraping service
     log(`[Global Scraping] Using unified scraping service for link extraction`, "scraper");
-    // Use scrapeSourceUrl which already includes the news-radar context
-    const articleLinks = await newsRadarScrapingService.scrapeSourceUrl(source.url);
+    // Use scrapeSourceUrl with news-radar context
+    const articleLinks = await unifiedScraper.scrapeSourceUrl(source.url, { context: newsRadarContext });
     log(
       `[Global Scraping] Found ${articleLinks.length} potential article links`,
       "scraper",
@@ -104,7 +112,7 @@ async function scrapeNewsRadarSource(
         }
 
         // Scrape article content using unified service
-        const articleContent = await newsRadarScrapingService.scrapeArticleUrl(link, scrapingConfig);
+        const articleContent = await unifiedScraper.scrapeArticleUrl(link, scrapingConfig, newsRadarContext);
 
         if (!articleContent || !articleContent.content) {
           log(`[Global Scraping] No content extracted from: ${link}`, "scraper");
@@ -148,7 +156,7 @@ async function scrapeNewsRadarSource(
           content: articleContent.content,
           url: link,
           author: articleContent.author || "Unknown",
-          publishDate: articleContent.publishedDate || new Date(),
+          publishDate: articleContent.publishDate || new Date(),
           summary: analysis.summary || "",
           detectedKeywords: detectedKeywords,
           relevanceScore: 100, // Global articles always get max relevance
@@ -255,8 +263,8 @@ async function processThreatArticle(
     // Early content extraction to get title for additional duplicate checking
     // Only pass htmlStructure if it's not null - let unified scraper handle AI detection automatically
     const articleContent = htmlStructure 
-      ? await threatTrackerScrapingService.scrapeArticleUrl(articleUrl, htmlStructure)
-      : await threatTrackerScrapingService.scrapeArticleUrl(articleUrl, undefined);
+      ? await unifiedScraper.scrapeArticleUrl(articleUrl, htmlStructure, threatTrackerContext)
+      : await unifiedScraper.scrapeArticleUrl(articleUrl, undefined, threatTrackerContext);
     
     // Check stop signal after HTML fetching
     if (!activeScraping.get(sourceId)) {
@@ -310,10 +318,10 @@ async function processThreatArticle(
       content: articleContent.content,
       url: articleUrl,
       author: articleContent.author || "Unknown",
-      publishDate: articleContent.publishedDate || new Date(),
+      publishDate: articleContent.publishDate || new Date(),
       summary: analysis.summary || "",
       detectedKeywords: [...(analysis.detectedKeywords || []), '_cyber:true'],
-      relevanceScore: 100, // Global articles always get max relevance
+      relevanceScore: 100 as any, // Global articles always get max relevance - type workaround
     }); // No userId for global scraping
 
     log(
@@ -366,8 +374,8 @@ async function scrapeThreatSource(source: ThreatSource) {
   const errorContext = createThreatTrackerContext(undefined, source.id, source.url, source.name);
 
   try {
-    // Use scrapeSourceUrl which already includes the threat-tracker context
-    const processedLinks = await threatTrackerScrapingService.scrapeSourceUrl(source.url);
+    // Use scrapeSourceUrl with threat-tracker context
+    const processedLinks = await unifiedScraper.scrapeSourceUrl(source.url, { context: threatTrackerContext });
 
     log(
       `[Global ThreatTracker] Found ${processedLinks.length} processed links from source ${source.name}`,
@@ -402,8 +410,8 @@ async function scrapeThreatSource(source: ThreatSource) {
         "scraper",
       );
       try {
-        // Use the unified scraper's structure detection
-        const structureResult = await threatTrackerScrapingService.detectArticleStructure(firstArticleUrl);
+        // Use the structure detection directly with threat-tracker context
+        const structureResult = await detectHtmlStructure(firstArticleUrl, undefined, threatTrackerContext);
         
         if (structureResult && structureResult.structure) {
           htmlStructure = structureResult.structure;

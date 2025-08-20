@@ -87,7 +87,14 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - Updated `backend/services/global-scheduler.ts` to call unified scraper
   - Single background job runs every 3 hours for all sources
   - No longer uses old app-specific background-jobs files
-- **3.3 Query-time Filtering** (Completed 2025-01-18)
+- **3.3 Direct Core Service Integration**: Refactored to use core scraping services directly
+  - Removed dependency on app-specific scraper wrappers
+  - Global scraper now imports `unifiedScraper` directly from `backend/services/scraping/scrapers/main-scraper`
+  - Uses `StrategyLoader` to create app-specific contexts (news-radar and threat-tracker)
+  - Passes contexts directly to unified scraper methods for proper app-specific behavior
+  - Uses `detectHtmlStructure` directly from core services instead of through app wrappers
+  - Cleaner architecture with direct dependencies and fewer function call layers
+- **3.4 Query-time Filtering** (Completed 2025-01-18)
   - **User Filtering**: Keywords and preferences applied when viewing articles, not during collection
   - **Cybersecurity Filter**: Threat Tracker only displays articles flagged as cybersecurity-related
 ```
