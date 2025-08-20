@@ -85,11 +85,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Phase 3.1: Get global sources (sources with no userId)
+  // Phase 3.1: Get global sources from global_sources table
   async getGlobalSources(): Promise<Source[]> {
-    return await db.select()
-      .from(sources)
-      .where(isNull(sources.userId));
+    const { globalSources } = await import('@shared/db/schema/global-tables');
+    
+    const globalSourcesList = await db.select({
+      id: globalSources.id,
+      userId: sql<string | null>`NULL`,
+      url: globalSources.url,
+      name: globalSources.name,
+      active: globalSources.isActive,
+      includeInAutoScrape: sql<boolean>`TRUE`, // All global sources are auto-scraped
+      lastScraped: globalSources.lastScraped,
+      scrapingConfig: globalSources.scrapingConfig,
+      createdAt: globalSources.addedAt,
+      updatedAt: globalSources.addedAt
+    })
+    .from(globalSources)
+    .where(eq(globalSources.isActive, true));
+    
+    return globalSourcesList as Source[];
   }
 
   async getSource(id: string): Promise<Source | undefined> {
@@ -393,70 +408,13 @@ export class DatabaseStorage implements IStorage {
     // For global scraping (no userId), insert into global_articles table
     if (!userId) {
       // Import global tables
-      const { globalArticles, globalSources } = await import('@shared/db/schema/global-tables');
+      const { globalArticles } = await import('@shared/db/schema/global-tables');
       
-      // Get the source URL from the regular sources table
-      const originalSource = await this.getSource(article.sourceId);
-      if (!originalSource) {
-        throw new Error(`Source with ID ${article.sourceId} not found`);
-      }
-      
-      // Find the corresponding global source by URL
-      const [globalSource] = await db
-        .select({ id: globalSources.id })
-        .from(globalSources)
-        .where(eq(globalSources.url, originalSource.url))
-        .limit(1);
-      
-      if (!globalSource) {
-        // If no global source exists, create one
-        const [newGlobalSource] = await db
-          .insert(globalSources)
-          .values({
-            url: originalSource.url,
-            name: originalSource.name,
-            category: 'general',
-            isActive: true,
-            isDefault: false,
-            priority: 50,
-            scrapingConfig: originalSource.scrapingConfig,
-            addedAt: new Date(),
-            consecutiveFailures: 0
-          })
-          .returning({ id: globalSources.id });
-        
-        log(`[News Radar] Created new global source for URL: ${originalSource.url}`, "scraper");
-        
-        const [created] = await db
-          .insert(globalArticles)
-          .values({
-            sourceId: newGlobalSource.id,
-            title: article.title,
-            content: article.content,
-            url: article.url,
-            author: article.author,
-            publishDate: article.publishDate,
-            summary: article.summary,
-            detectedKeywords: article.detectedKeywords,
-            securityScore: (article as any).securityScore ? parseInt((article as any).securityScore) : null,
-            isCybersecurity: Array.isArray(article.detectedKeywords) && 
-              article.detectedKeywords.some((kw: string) => kw === '_cyber:true'),
-            scrapedAt: new Date(),
-          })
-          .returning();
-        
-        // Map back to Article type for compatibility
-        return {
-          ...created,
-          userId: null,
-          relevanceScore: article.relevanceScore,
-        } as Article;
-      }
-      
+      // Directly use the source_id from global_sources (no mapping needed)
       const [created] = await db
         .insert(globalArticles)
         .values({
-          sourceId: globalSource.id,
+          sourceId: article.sourceId, // Already from global_sources table
           title: article.title,
           content: article.content,
           url: article.url,

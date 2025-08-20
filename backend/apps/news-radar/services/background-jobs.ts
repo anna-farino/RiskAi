@@ -467,10 +467,10 @@ export async function runGlobalScrapeJob()
       "scraper",
     );
 
-    // Get ALL sources that are active and included in auto-scrape (no user filtering)
-    const sources = await storage.getAutoScrapeSources(undefined);
+    // Get sources directly from global_sources table for global scraping
+    const sources = await storage.getGlobalSources();
     log(
-      `[Global Background Job] Found ${sources.length} sources for global auto-scraping`,
+      `[Global Background Job] Found ${sources.length} global sources for auto-scraping`,
       "scraper",
     );
 
