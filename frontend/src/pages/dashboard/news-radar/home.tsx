@@ -149,13 +149,6 @@ export default function NewsHome() {
         const queryString = buildQueryString();
         const url = `/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
         
-        console.log("Fetching articles with URL:", url);
-        console.log("Filter parameters:", {
-          search: searchTerm,
-          keywordIds: selectedKeywordIds,
-          ...dateRange
-        });
-        
         const response = await fetchWithAuth(url, {
           method: "GET",
         });

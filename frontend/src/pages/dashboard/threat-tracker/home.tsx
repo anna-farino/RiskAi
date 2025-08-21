@@ -484,7 +484,6 @@ export default function ThreatHome() {
 
         try {
           const data = await response.json();
-          console.log("Stop job succeeded with data:", data);
           return data || { success: true, message: "Scan stopped" };
         } catch (e) {
           console.log("No JSON response, assuming success");
