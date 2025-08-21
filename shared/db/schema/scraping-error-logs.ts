@@ -29,7 +29,7 @@ export const errorTypeEnum = pgEnum('error_type', [
 
 export const scrapingErrorLogs = pgTable('scraping_error_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  userId: uuid('user_id').references(() => users.id),
   sourceId: text('source_id'),
   sourceUrl: text('source_url').notNull(),
   appType: appTypeEnum('app_type').notNull(),
