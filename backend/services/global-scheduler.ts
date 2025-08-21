@@ -75,45 +75,43 @@ async function executeUnifiedGlobalScrape(): Promise<void> {
   log(`[GLOBAL SCHEDULER] Starting unified global scrape job`, "scheduler");
   
   try {
-    // Run unified global scraping for both News Radar and Threat Tracker
-    log(`[GLOBAL SCHEDULER] Starting unified global scraping for all apps`, "scheduler");
+    // Run unified global scraping for all sources
+    log(`[GLOBAL SCHEDULER] Starting unified global scraping for all sources`, "scheduler");
     const result = await runUnifiedGlobalScraping();
     
-    // Extract statistics from unified result
-    const newsRadarTotals = result.newsRadarResults?.results?.reduce((acc: any, r: any) => ({
-      processed: acc.processed + r.processed,
-      saved: acc.saved + r.saved
-    }), { processed: 0, saved: 0 }) || { processed: 0, saved: 0 };
-    
-    const threatTrackerCount = result.threatTrackerResults?.newArticles?.length || 0;
-    
-    log(`[GLOBAL SCHEDULER] Unified scraping completed: News Radar - ${newsRadarTotals.processed} processed, ${newsRadarTotals.saved} saved; Threat Tracker - ${threatTrackerCount} articles`, "scheduler");
+    // Log the scraping results
+    if (result.success) {
+      log(`[GLOBAL SCHEDULER] Unified scraping completed: ${result.totalProcessed} articles processed, ${result.totalSaved} articles saved`, "scheduler");
+      
+      // Log per-source statistics
+      const successfulSources = result.sourceResults.filter(r => r.savedCount > 0);
+      log(`[GLOBAL SCHEDULER] Successful sources: ${successfulSources.length}/${result.sourceResults.length}`, "scheduler");
+    } else {
+      log(`[GLOBAL SCHEDULER] Unified scraping failed: ${result.message}`, "scheduler-error");
+    }
     
     // Update state
     lastGlobalRun = new Date();
     nextRunAt = new Date(Date.now() + THREE_HOURS);
-    consecutiveFailures = 0;
+    consecutiveFailures = result.success ? 0 : consecutiveFailures + 1;
     
     const duration = Date.now() - startTime;
-    log(`[GLOBAL SCHEDULER] Unified global scrape completed successfully in ${duration}ms`, "scheduler");
+    log(`[GLOBAL SCHEDULER] Unified global scrape ${result.success ? 'completed' : 'failed'} in ${duration}ms`, "scheduler");
     log(`[GLOBAL SCHEDULER] Next run scheduled at: ${nextRunAt.toISOString()}`, "scheduler");
     
     // Log combined statistics
     const stats = {
       success: result.success,
       message: result.message,
-      newsRadar: {
-        processed: newsRadarTotals.processed,
-        saved: newsRadarTotals.saved
-      },
-      threatTracker: {
-        saved: threatTrackerCount
-      },
+      totalProcessed: result.totalProcessed,
+      totalSaved: result.totalSaved,
+      sourcesCount: result.sourceResults.length,
+      successfulSources: result.sourceResults.filter(r => r.savedCount > 0).length,
       duration: duration,
       nextRun: nextRunAt.toISOString()
     };
     
-    log(`[GLOBAL SCHEDULER] Combined statistics: ${JSON.stringify(stats)}`, "scheduler");
+    log(`[GLOBAL SCHEDULER] Statistics: ${JSON.stringify(stats)}`, "scheduler");
     
   } catch (error: any) {
     consecutiveFailures++;
@@ -153,7 +151,7 @@ export function getGlobalSchedulerStatus() {
     nextRun: nextRunAt?.toISOString() || null,
     consecutiveFailures,
     intervalHours: 3,
-    apps: ['news-radar', 'threat-tracker']
+    description: 'Unified global scraper - all sources processed identically with AI categorization'
   };
 }
 

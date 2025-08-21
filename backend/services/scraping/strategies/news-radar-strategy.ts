@@ -15,14 +15,16 @@ export class NewsRadarStrategy implements AppScrapingStrategy {
       },
       extractionOptions: {
         maxLinks: 50,
-        minLinkTextLength: 15,
+        minLinkTextLength: 15
+      },
+      linkPatterns: {
         includePatterns: [
-          '/article/', '/news/', '/story/', '/post/', '/blog/',
-          '/analysis/', '/opinion/', '/feature/', '/report/'
+          /\/article\//i, /\/news\//i, /\/story\//i, /\/post\//i, /\/blog\//i,
+          /\/analysis\//i, /\/opinion\//i, /\/feature\//i, /\/report\//i
         ],
         excludePatterns: [
-          '/tag/', '/category/', '/author/', '/search/',
-          '/login/', '/register/', '/subscribe/', '/about/'
+          /\/tag\//i, /\/category\//i, /\/author\//i, /\/search\//i,
+          /\/login\//i, /\/register\//i, /\/subscribe\//i, /\/about\//i
         ]
       }
     };

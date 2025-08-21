@@ -97,4 +97,28 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 - **3.4 Query-time Filtering** (Completed 2025-01-18)
   - **User Filtering**: Keywords and preferences applied when viewing articles, not during collection
   - **Cybersecurity Filter**: Threat Tracker only displays articles flagged as cybersecurity-related
+
+### Phase 4: Unified Global Strategy (Completed 2025-01-20)
+- **4.1 Single Global Strategy**: Replaced dual app-specific strategies with unified approach
+  - Created `backend/services/scraping/strategies/global-strategy.ts` for all global scraping
+  - Combines best patterns from both news and security scraping (comprehensive URL patterns)
+  - Aggressive link extraction (100 max links) since we run every 3 hours globally
+  - No app-specific filtering - all articles saved with AI categorization as metadata
+- **4.2 Simplified Global Scraper**: Refactored to use single scraping function
+  - Replaced separate `scrapeNewsRadarSource()` and `scrapeThreatTrackerSource()` functions
+  - Single `scrapeGlobalSource()` function processes all sources identically
+  - Direct database operations to `globalArticles` and `globalSources` tables
+  - Removed dependencies on app-specific storage modules
+- **4.3 AI Categorization as Metadata**: All articles saved, categorization added as metadata
+  - Every article undergoes AI analysis for content summarization and keyword detection
+  - Cybersecurity detection adds `isCybersecurity` boolean flag
+  - Security risk scoring (0-100) calculated for cybersecurity articles only
+  - `detectedKeywords` array includes `_cyber:true` flag for cybersecurity content
+  - No filtering at scrape time - all content preserved for query-time filtering
+- **4.4 Architecture Benefits**:
+  - **Simpler**: One strategy, one scraping function, one storage approach
+  - **More efficient**: No duplicate logic or unnecessary context switching
+  - **Easier maintenance**: Single place to update scraping logic
+  - **Consistent**: All sources treated equally with AI determining categorization
+  - **Future-proof**: Easy to add new categorizations without changing scraping logic
 ```

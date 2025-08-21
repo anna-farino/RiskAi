@@ -43,8 +43,7 @@ function createGlobalContext(sourceId?: string, sourceUrl?: string, sourceName?:
     sourceId,
     sourceUrl,
     sourceName,
-    keywords: [],
-    appType: 'global'
+    appType: 'news-radar' // Use news-radar as default for global scraping
   };
 }
 
@@ -97,9 +96,9 @@ async function scrapeGlobalSource(
           scrapingConfig = structureResult.structure;
           // Save the detected structure for future use
           await db
-            .update(global_sources)
+            .update(globalSources)
             .set({ scrapingConfig: scrapingConfig })
-            .where(eq(global_sources.id, sourceId));
+            .where(eq(globalSources.id, sourceId));
           log(`[Global Scraping] Structure detected and saved`, "scraper");
         }
       } catch (error) {
@@ -127,11 +126,11 @@ async function scrapeGlobalSource(
         processedCount++;
         log(`[Global Scraping] Processing article ${processedCount}/${articleLinks.length}: ${link}`, "scraper");
 
-        // Check if article already exists in global_articles table
+        // Check if article already exists in globalArticles table
         const existingArticles = await db
           .select()
-          .from(global_articles)
-          .where(eq(global_articles.url, link))
+          .from(globalArticles)
+          .where(eq(globalArticles.url, link))
           .limit(1);
         
         if (existingArticles.length > 0) {
@@ -178,9 +177,9 @@ async function scrapeGlobalSource(
           detectedKeywords.push('_cyber:true');
         }
 
-        // Step 5: Save article to global_articles table
+        // Step 5: Save article to globalArticles table
         const [savedArticle] = await db
-          .insert(global_articles)
+          .insert(globalArticles)
           .values({
             sourceId: sourceId,
             title: articleContent.title || "Untitled",
@@ -190,7 +189,7 @@ async function scrapeGlobalSource(
             publishDate: articleContent.publishDate || new Date(),
             summary: analysis.summary || "",
             detectedKeywords: detectedKeywords,
-            relevanceScore: 100, // Global articles always get max relevance
+            isCybersecurity: isCybersecurity, // Mark if it's a cybersecurity article
             securityScore: securityScore, // Add security score if it's a cybersecurity article
           })
           .returning();
@@ -223,11 +222,11 @@ async function scrapeGlobalSource(
       }
     }
 
-    // Update source's lastScraped timestamp in global_sources table
+    // Update source's lastScraped timestamp in globalSources table
     await db
-      .update(global_sources)
+      .update(globalSources)
       .set({ lastScraped: new Date() })
-      .where(eq(global_sources.id, sourceId));
+      .where(eq(globalSources.id, sourceId));
 
     log(
       `[Global Scraping] Completed source ${source.name}: ${processedCount} processed, ${savedCount} saved`,
@@ -297,11 +296,11 @@ export async function runUnifiedGlobalScraping(): Promise<{
   try {
     log(`[UNIFIED GLOBAL] Starting unified global scraping job`, "scraper");
 
-    // Get all sources from global_sources table
+    // Get all sources from globalSources table
     const sources = await db
       .select()
-      .from(global_sources)
-      .orderBy(global_sources.name);
+      .from(globalSources)
+      .orderBy(globalSources.name);
     
     log(`[UNIFIED GLOBAL] Found ${sources.length} global sources to scrape`, "scraper");
 
