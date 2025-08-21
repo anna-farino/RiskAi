@@ -183,7 +183,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       log(`[ProtectionBypass] DataDome challenge detected, actively solving...`, "scraper");
       
       // Wait for DataDome script to initialize
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Execute DataDome challenge solver immediately
       log(`[ProtectionBypass] Executing DataDome challenge solver...`, "scraper");
@@ -248,7 +248,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       await performEnhancedHumanActions(page);
       
       // Wait for challenge processing
-      await page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Active challenge solving with multiple attempts
       let challengeCompleted = false;

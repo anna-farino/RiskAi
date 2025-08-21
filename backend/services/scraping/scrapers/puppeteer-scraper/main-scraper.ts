@@ -92,7 +92,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       // For problematic sites, wait a bit for content to load
       if (isProblematicSite && response) {
         log(`[PuppeteerScraper] Problematic site detected, waiting for content...`, "scraper");
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
     } catch (navError: any) {
@@ -151,7 +151,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
           }).catch(() => null);
           
           if (retryResponse || page.url() !== 'about:blank') {
-            await page.waitForTimeout(1000);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             const retryHtml = await page.content().catch(() => '');
             if (retryHtml && retryHtml.length > 500) {
               log(`[PuppeteerScraper] Successfully retrieved content on retry`, "scraper");

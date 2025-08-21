@@ -121,4 +121,15 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - **Easier maintenance**: Single place to update scraping logic
   - **Consistent**: All sources treated equally with AI determining categorization
   - **Future-proof**: Easy to add new categorizations without changing scraping logic
+
+### Phase 5: Critical Bug Fixes (Completed 2025-01-21)
+- **5.1 Unified Storage Implementation**: Successfully migrated both applications to use unified storage service
+  - Updated News Radar and Threat Tracker routers to use `UnifiedStorageService`
+  - Populated `user_source_preferences` table with 171 preferences (147 News Radar, 24 Threat Tracker)
+  - Users can now access articles from global_articles through query-time filtering
+- **5.2 Puppeteer Compatibility Fix**: Resolved DataDome bypass failures due to deprecated API usage
+  - Fixed "page.waitForTimeout is not a function" error across all scraping components
+  - Replaced deprecated `page.waitForTimeout()` with modern `setTimeout` wrapped in Promise
+  - Enhanced DataDome bypass robustness with proper error handling and validation
+  - Fixed scraper compatibility issues in main-scraper.ts and protection-bypass.ts
 ```
