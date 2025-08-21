@@ -1,4 +1,4 @@
-import { Request, Router, Response } from 'express';
+import { Request, Router, Response, NextFunction } from 'express';
 import { verifyToken } from '../middleware';
 import { verifyPermissions } from '../middleware/verify-permissions';
 import { handleTest } from '../handlers/test';
@@ -18,6 +18,7 @@ import { auth0CheckJwt, jwtErrorHandler } from 'backend/middleware/auth0';
 import { testDatadomeBypass } from 'backend/handlers/test-datadome';
 import { auth0middleware } from 'backend/middleware/auth0middleware';
 import { handleChangePassword } from 'backend/handlers/auth0/change-password';
+// import { handleMigrateUserPreferences } from 'backend/handlers/migrate-preferences';
 
 const limiter = rateLimit(rateLimitConfig)
 const router = Router();
@@ -67,6 +68,9 @@ router.delete('/secrets', deleteSecrets)
 
 // DEV only
 router.get('/roles', verifyPermissions('roles:view'), handleGetRoles)
+
+// Migration endpoint (temporary - for Phase 5 migration)
+// router.post('/migrate-preferences', handleMigrateUserPreferences);
 
 // Sample Data Population API endpoints
 router.get('/sample-data/status', 

@@ -1,6 +1,7 @@
 import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/schema/threat-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
+import { unifiedStorage } from "backend/services/unified-storage";
 import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
 // Using global scheduler from backend/services/global-scheduler.ts
 import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
@@ -27,10 +28,9 @@ threatRouter.get("/sources", async (req, res) => {
   reqLog(req, "🔎 GET /sources");
   try {
     const userId = getUserId(req);
-    // Still return both user and default sources for backward compatibility
-    const user_sources = await storage.getSources(userId);
-    const default_sources = await storage.getDefaultSources(userId);
-    res.json([...user_sources, ...default_sources]);
+    // Use unified storage to get user's enabled sources from global pool
+    const sources = await unifiedStorage.getUserEnabledSources(userId, 'threat-tracker');
+    res.json(sources);
   } catch (error: any) {
     console.error("Error fetching sources:", error);
     res.status(500).json({ error: error.message || "Failed to fetch sources" });
@@ -43,21 +43,16 @@ threatRouter.get("/sources/available", async (req, res) => {
   try {
     const userId = getUserId(req);
     
-    // Get all default (global) sources
-    const defaultSources = await storage.getDefaultSources(userId);
+    // Use unified storage to get all sources with user's enabled status
+    const sourcesWithStatus = await unifiedStorage.getAllSourcesWithStatus(userId, 'threat-tracker');
     
-    // Get user's enabled sources
-    const userSources = await storage.getSources(userId);
-    const userSourceUrls = new Set(userSources.map(s => s.url));
-    
-    // Mark which global sources are enabled for this user
-    const sourcesWithStatus = defaultSources.map(source => ({
+    // Add isGlobal flag for backward compatibility
+    const sourcesWithGlobalFlag = sourcesWithStatus.map(source => ({
       ...source,
-      isEnabled: userSourceUrls.has(source.url),
       isGlobal: true
     }));
     
-    res.json(sourcesWithStatus);
+    res.json(sourcesWithGlobalFlag);
   } catch (error: any) {
     console.error("Error fetching available sources:", error);
     res.status(500).json({ error: error.message || "Failed to fetch available sources" });
@@ -72,32 +67,14 @@ threatRouter.put("/sources/:id/toggle", async (req, res) => {
     const userId = getUserId(req);
     const { isEnabled } = req.body;
     
-    // Get the source (could be default or user source)
-    const source = await storage.getSource(sourceId);
+    // Get the global source
+    const source = await unifiedStorage.getSource(sourceId);
     if (!source) {
       return res.status(404).json({ error: "Source not found" });
     }
     
-    if (isEnabled) {
-      // Enable: Create a user copy if it's a default source
-      if (source.isDefault) {
-        const userSource = insertThreatSourceSchema.parse({
-          url: source.url,
-          name: source.name,
-          includeInAutoScrape: source.includeInAutoScrape,
-          scrapingConfig: source.scrapingConfig,
-          userId
-        });
-        await storage.createSource(userSource);
-      }
-    } else {
-      // Disable: Remove user's copy if it exists
-      const userSources = await storage.getSources(userId);
-      const userSource = userSources.find(s => s.url === source.url);
-      if (userSource) {
-        await storage.deleteSource(userSource.id);
-      }
-    }
+    // Use unified storage to toggle the preference (no data duplication)
+    await unifiedStorage.toggleSourcePreference(userId, sourceId, 'threat-tracker', isEnabled);
     
     res.json({ success: true, sourceId, isEnabled });
   } catch (error: any) {
@@ -656,7 +633,7 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
   }
 });
 
-// Articles API - Phase 3: Updated to support pagination and global pool filtering
+// Articles API - Phase 5: Using unified storage to read from global_articles
 threatRouter.get("/articles", async (req, res) => {
   reqLog(req, "GET /articles");
   try {
@@ -664,14 +641,8 @@ threatRouter.get("/articles", async (req, res) => {
     
     // Parse filter parameters
     const search = req.query.search as string | undefined;
-    const keywordIds = req.query.keywordIds 
-      ? Array.isArray(req.query.keywordIds) 
-        ? req.query.keywordIds as string[]
-        : [req.query.keywordIds as string]
-      : undefined;
-    
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-    const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     
     let startDate: Date | undefined;
     let endDate: Date | undefined;
@@ -684,16 +655,18 @@ threatRouter.get("/articles", async (req, res) => {
       endDate = new Date(req.query.endDate as string);
     }
     
-    // Get filtered articles from global pool
-    const articles = await storage.getArticles({
-      search,
-      keywordIds,
+    // Prepare filter object for unified storage
+    const filter = {
+      searchTerm: search,
       startDate,
       endDate,
-      userId,
       limit,
-      page
-    });
+      offset: (page - 1) * limit
+    };
+    
+    // Use unified storage to get articles from global_articles table
+    // Threat tracker only shows cybersecurity articles (handled by unified storage)
+    const articles = await unifiedStorage.getUserArticles(userId, 'threat-tracker', filter);
     
     res.json(articles);
   } catch (error: any) {

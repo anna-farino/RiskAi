@@ -1,6 +1,7 @@
 import { articles, insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
+import { unifiedStorage } from "backend/services/unified-storage";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
 // Using global scheduler from backend/services/global-scheduler.ts
 import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
@@ -25,8 +26,8 @@ const activeScraping = new Map<string, boolean>();
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;
   reqLog(req,"GET sources hit. userId=", userId)
-  // Still return user's sources for backward compatibility
-  const sources = await storage.getSources(userId);
+  // Use unified storage to get user's enabled sources from global pool
+  const sources = await unifiedStorage.getUserEnabledSources(userId, 'news-radar');
   res.json(sources);
 });
 
@@ -36,21 +37,16 @@ newsRouter.get("/sources/available", async (req, res) => {
   reqLog(req, "GET /sources/available", userId);
   
   try {
-    // Get all global sources (sources with no userId)
-    const globalSources = await storage.getGlobalSources();
+    // Use unified storage to get all sources with user's enabled status
+    const sourcesWithStatus = await unifiedStorage.getAllSourcesWithStatus(userId, 'news-radar');
     
-    // Get user's enabled sources
-    const userSources = await storage.getSources(userId);
-    const userSourceUrls = new Set(userSources.map(s => s.url));
-    
-    // Mark which global sources are enabled for this user
-    const sourcesWithStatus = globalSources.map(source => ({
+    // Add isGlobal flag for backward compatibility
+    const sourcesWithGlobalFlag = sourcesWithStatus.map(source => ({
       ...source,
-      isEnabled: userSourceUrls.has(source.url),
       isGlobal: true
     }));
     
-    res.json(sourcesWithStatus);
+    res.json(sourcesWithGlobalFlag);
   } catch (error: any) {
     console.error("Error fetching available sources:", error);
     res.status(500).json({ error: error.message || "Failed to fetch available sources" });
@@ -67,29 +63,13 @@ newsRouter.put("/sources/:id/toggle", async (req, res) => {
   
   try {
     // Get the global source
-    const globalSource = await storage.getSource(sourceId);
+    const globalSource = await unifiedStorage.getSource(sourceId);
     if (!globalSource) {
       return res.status(404).json({ error: "Source not found" });
     }
     
-    if (isEnabled) {
-      // Enable: Create a user copy of the global source
-      const userSource = insertSourceSchema.parse({
-        url: globalSource.url,
-        name: globalSource.name,
-        includeInAutoScrape: globalSource.includeInAutoScrape,
-        scrapingConfig: globalSource.scrapingConfig,
-        userId
-      });
-      await storage.createSource(userSource);
-    } else {
-      // Disable: Remove user's copy if it exists
-      const userSources = await storage.getSources(userId);
-      const userSource = userSources.find(s => s.url === globalSource.url);
-      if (userSource) {
-        await storage.deleteSource(userSource.id);
-      }
-    }
+    // Use unified storage to toggle the preference (no data duplication)
+    await unifiedStorage.toggleSourcePreference(userId, sourceId, 'news-radar', isEnabled);
     
     res.json({ success: true, sourceId, isEnabled });
   } catch (error: any) {
@@ -538,43 +518,31 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
   res.status(200).json({ success: true, id, message: "Keyword deleted successfully" });
 });
 
-// Articles - Phase 3: Updated to support pagination and global pool filtering
+// Articles - Phase 5: Using unified storage to read from global_articles
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
   
   // Parse query parameters for filtering and pagination
   const { search, keywordIds, startDate, endDate, page, limit } = req.query;
   
-  // Prepare filter object with pagination
-  const filters: {
-    search?: string;
-    keywordIds?: string[];
+  // Prepare filter object for unified storage
+  const filter: {
+    searchTerm?: string;
     startDate?: Date;
     endDate?: Date;
-    page?: number;
     limit?: number;
+    offset?: number;
   } = {};
   
   // Add search filter if provided
   if (search && typeof search === 'string') {
-    filters.search = search;
-  }
-  
-  // Parse keyword IDs (could be a single string or an array)
-  if (keywordIds) {
-    if (typeof keywordIds === 'string') {
-      // Single keyword ID as string
-      filters.keywordIds = [keywordIds];
-    } else if (Array.isArray(keywordIds)) {
-      // Array of keyword IDs
-      filters.keywordIds = keywordIds as string[];
-    }
+    filter.searchTerm = search;
   }
   
   // Parse date range filters
   if (startDate && typeof startDate === 'string') {
     try {
-      filters.startDate = new Date(startDate);
+      filter.startDate = new Date(startDate);
     } catch (error) {
       console.error("Invalid startDate format:", error);
     }
@@ -582,31 +550,31 @@ newsRouter.get("/articles", async (req, res) => {
   
   if (endDate && typeof endDate === 'string') {
     try {
-      filters.endDate = new Date(endDate);
+      filter.endDate = new Date(endDate);
     } catch (error) {
       console.error("Invalid endDate format:", error);
     }
   }
   
   // Parse pagination parameters
-  if (page && typeof page === 'string') {
-    filters.page = parseInt(page, 10);
+  const pageNum = page && typeof page === 'string' ? parseInt(page, 10) : 1;
+  const limitNum = limit && typeof limit === 'string' ? parseInt(limit, 10) : 50;
+  
+  filter.limit = limitNum;
+  filter.offset = (pageNum - 1) * limitNum;
+  
+  console.log("Filter parameters:", filter);
+  
+  try {
+    // Use unified storage to get articles from global_articles table
+    const articles = await unifiedStorage.getUserArticles(userId, 'news-radar', filter);
+    console.log("Received articles from global pool:", articles.length);
+    
+    res.json(articles);
+  } catch (error: any) {
+    console.error("Error fetching articles:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch articles" });
   }
-  
-  if (limit && typeof limit === 'string') {
-    filters.limit = parseInt(limit, 10);
-  }
-  
-  console.log("Filter parameters:", filters);
-  
-  // Get filtered articles
-  const articles = await storage.getArticles(req, userId, filters);
-  console.log("Received filtered articles:", articles.length);
-  if (articles.length > 0) {
-    console.log("Filtered articles:", articles.length);
-  }
-  
-  res.json(articles);
 });
 
 newsRouter.delete("/articles/:id", async (req, res) => {
