@@ -146,8 +146,6 @@ export class DatabaseStorage implements IStorage {
           .from(keywords)
           .where(eq(keywords.userId, userId))
       );
-      console.log(encryptedKeywords) 
-      // Decrypt the term field for each keyword
       return encryptedKeywords.map(keyword => ({
         ...keyword,
         term: decrypt(keyword.term)
