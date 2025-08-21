@@ -98,7 +98,11 @@ function sanitizeSelector(selector: string | null): string | undefined {
     return undefined;
   }
 
-  let cleaned = selector.trim();
+  // Ensure selector is a string and not empty after trim
+  let cleaned = String(selector).trim();
+  if (!cleaned || cleaned.length === 0) {
+    return undefined;
+  }
 
   // Remove jQuery pseudo-selectors that don't work in standard CSS
   cleaned = cleaned.replace(/:contains\([^)]*\)/g, "");
@@ -267,15 +271,29 @@ Return valid JSON only:
       );
     }
 
-    // Sanitize and validate selectors
+    // Validate that result is an object and has expected properties
+    if (!result || typeof result !== 'object') {
+      log(
+        `[StructureDetector] AI response is not a valid object: ${typeof result}`,
+        "scraper-error",
+      );
+      throw new Error('AI response is not a valid object');
+    }
+
+    log(
+      `[StructureDetector] Raw selectors from AI - title: ${result?.titleSelector}, content: ${result?.contentSelector}, author: ${result?.authorSelector}, date: ${result?.dateSelector}`,
+      "scraper",
+    );
+
+    // Sanitize and validate selectors with proper error handling
     const sanitized: AIStructureResult = {
-      titleSelector: sanitizeSelector(result.titleSelector) || "h1",
-      contentSelector: sanitizeSelector(result.contentSelector) || "article",
-      authorSelector: sanitizeSelector(result.authorSelector),
-      dateSelector: sanitizeSelector(result.dateSelector),
+      titleSelector: sanitizeSelector(result?.titleSelector) || "h1",
+      contentSelector: sanitizeSelector(result?.contentSelector) || "article",
+      authorSelector: sanitizeSelector(result?.authorSelector),
+      dateSelector: sanitizeSelector(result?.dateSelector),
       confidence: Math.min(
         1.0,
-        Math.max(0.1, parseFloat(result.confidence) || 0.8),
+        Math.max(0.1, parseFloat(result?.confidence) || 0.8),
       ),
     };
 
