@@ -10,13 +10,11 @@ export function useFetch() {
   return async (url: string, options: RequestInit = {}) => {
     let accessToken = "";
     try {
-      console.log("Attempting to get access token with audience:", audience);
       accessToken = await getAccessTokenSilently({
         authorizationParams: {
           audience
         }
       })
-      console.log("Successfully got access token, length:", accessToken.length);
     } catch(error) {
       console.error("Failed to get Auth0 token:", (error as any).message.toString())
       console.error("Error details:", error);

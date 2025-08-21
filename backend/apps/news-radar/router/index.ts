@@ -437,7 +437,6 @@ newsRouter.get("/articles", async (req, res) => {
   
   // Get filtered articles
   const articles = await storage.getArticles(req, userId, filters);
-  console.log("Received filtered articles:", articles.length);
   if (articles.length > 0) {
     console.log("Filtered articles:", articles.length);
   }
