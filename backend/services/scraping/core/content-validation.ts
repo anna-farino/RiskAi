@@ -1,10 +1,5 @@
 import * as cheerio from 'cheerio';
 import { log } from "backend/utils/log";
-import { 
-  getValidationConfigForDomain, 
-  isErrorPage, 
-  validateExtractedLinks 
-} from './validation-config';
 
 export interface ContentValidationResult {
   isLegitimate: boolean;
@@ -25,46 +20,21 @@ export interface LinkQualityResult {
 
 /**
  * Advanced content validation to detect protection pages, error pages, and minimal content
- * Enhanced with configurable thresholds and domain-specific rules
  */
 export function validateContentLegitimacy(
   html: string, 
   title: string, 
   content: string, 
-  extractedLinks: any[] = [],
-  url: string = ''
+  extractedLinks: any[] = []
 ): ContentValidationResult {
   const issues: string[] = [];
   let confidence = 1.0;
   let protectionType: ContentValidationResult['protectionType'] = 'none';
   
-  // Get validation config for this domain
-  const config = getValidationConfigForDomain(url);
-  
   // Load HTML for analysis
   const $ = cheerio.load(html);
   
-  log(`[ContentValidation] Validating content for ${url} - title: ${title.length} chars, content: ${content.length} chars, links: ${extractedLinks.length}`, "scraper");
-  
-  // First, check if this is an error page using our enhanced detection
-  const errorCheck = isErrorPage(content, url);
-  if (errorCheck.isError) {
-    issues.push(`Error page detected: ${errorCheck.type} (confidence: ${errorCheck.confidence})`);
-    confidence -= errorCheck.confidence;
-    protectionType = errorCheck.type === 'cloudflare_error' ? 'cloudflare' : 'error_page';
-    
-    // If high confidence error page, no need for further checks
-    if (errorCheck.confidence > 0.8) {
-      log(`[ContentValidation] High confidence error page detected: ${errorCheck.type}`, "scraper");
-      return {
-        isLegitimate: false,
-        confidence: 1 - errorCheck.confidence,
-        issues,
-        protectionType,
-        recommendedAction: 'retry_different_method'
-      };
-    }
-  }
+  log(`[ContentValidation] Validating content legitimacy - title: ${title.length} chars, content: ${content.length} chars, links: ${extractedLinks.length}`, "scraper");
 
   // 1. Check for explicit protection/error indicators in title
   const protectionTitlePatterns = [
@@ -124,10 +94,10 @@ export function validateContentLegitimacy(
     }
   }
 
-  // 3. Check for minimal content using configured thresholds
-  if (content.length < config.minContentLength) {
-    issues.push(`Minimal content detected: ${content.length} < ${config.minContentLength} characters`);
-    confidence -= 0.4;
+  // 3. Check for minimal content
+  if (content.length < 500) {
+    issues.push(`Minimal content detected: ${content.length} characters`);
+    confidence -= 0.3;
     if (protectionType === 'none') {
       protectionType = 'minimal_content';
     }
@@ -158,33 +128,38 @@ export function validateContentLegitimacy(
     }
   }
 
-  // 5. Validate extracted links using enhanced validation
-  const linkValidation = validateExtractedLinks(extractedLinks, url);
-  if (!linkValidation.isValid) {
-    issues.push(...linkValidation.issues);
-    confidence -= 0.4;
-  }
-  
-  // Check link quality score
+  // 5. Check extracted links quality
   const linkQuality = assessLinkQuality(extractedLinks);
-  if (linkQuality.qualityScore < config.minQualityScore) {
-    issues.push(`Poor link quality: ${linkQuality.qualityScore.toFixed(2)} < ${config.minQualityScore}`);
+  if (linkQuality.qualityScore < 0.3) {
+    issues.push(`Poor link quality: ${linkQuality.qualityScore.toFixed(2)} score`);
     confidence -= 0.3;
   }
-  
-  // 6. Check for high error link ratio
-  if (linkValidation.errorRatio > config.maxErrorLinkRatio) {
-    issues.push(`High error link ratio: ${(linkValidation.errorRatio * 100).toFixed(1)}%`);
-    confidence -= 0.5;
+
+  // 6. Check for error page URLs in links
+  const errorUrlPatterns = [
+    /error.*landing/i,
+    /5xx.*error/i,
+    /404.*page/i,
+    /access.*denied/i,
+    /blocked.*page/i
+  ];
+
+  const hasErrorUrls = extractedLinks.some(link => 
+    errorUrlPatterns.some(pattern => pattern.test(link.href || ''))
+  );
+
+  if (hasErrorUrls) {
+    issues.push(`Error page URLs detected in extracted links`);
+    confidence -= 0.4;
     if (protectionType === 'none') {
       protectionType = 'error_page';
     }
   }
-  
+
   // 7. Check for too few legitimate links
-  if (extractedLinks.length < config.minLinkCount) {
-    issues.push(`Too few links: ${extractedLinks.length} < ${config.minLinkCount}`);
-    confidence -= 0.3;
+  if (extractedLinks.length > 0 && extractedLinks.length < 5) {
+    issues.push(`Very few links extracted: ${extractedLinks.length}`);
+    confidence -= 0.2;
   }
 
   // 8. Meta and script analysis
@@ -196,30 +171,18 @@ export function validateContentLegitimacy(
     confidence -= 0.2;
   }
 
-  // Apply domain-specific validation if available
-  const domainRule = config.domainRules.get(new URL(url).hostname.replace('www.', ''));
-  if (domainRule && domainRule.customValidation) {
-    const customResult = domainRule.customValidation(content, extractedLinks);
-    if (!customResult) {
-      issues.push('Failed domain-specific validation');
-      confidence -= 0.3;
-    }
-  }
-  
-  // Determine final assessment using configured thresholds
-  const isLegitimate = confidence > config.minConfidenceScore && issues.length < 3;
+  // Determine final assessment
+  const isLegitimate = confidence > 0.4 && issues.length < 3;
   
   let recommendedAction: ContentValidationResult['recommendedAction'];
   if (isLegitimate) {
     recommendedAction = 'proceed';
-  } else if (confidence > 0.3 && protectionType === 'cloudflare') {
+  } else if (confidence > 0.2 && protectionType === 'cloudflare') {
     recommendedAction = 'retry_different_method';
   } else if (protectionType === 'minimal_content' || protectionType === 'error_page') {
     recommendedAction = 'retry_with_delay';
-  } else if (protectionType === 'cloudflare' && errorCheck.confidence > 0.7) {
-    recommendedAction = 'abort'; // High confidence Cloudflare error - abort
   } else {
-    recommendedAction = 'retry_different_method';
+    recommendedAction = 'abort';
   }
 
   log(`[ContentValidation] Validation result - legitimate: ${isLegitimate}, confidence: ${confidence.toFixed(2)}, issues: ${issues.length}, protection: ${protectionType}`, "scraper");
