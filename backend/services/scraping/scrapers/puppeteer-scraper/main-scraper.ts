@@ -32,6 +32,65 @@ export interface PuppeteerScrapingOptions extends EnhancedScrapingOptions {
 }
 
 /**
+ * Wait for preloader to complete and content to fully load
+ * URL-agnostic approach that works with various preloader patterns
+ */
+async function waitForPreloaderComplete(page: Page): Promise<void> {
+  const maxWaitTime = 30000; // 30 seconds maximum
+  const startTime = Date.now();
+  
+  try {
+    // Strategy 1: Wait for preloader elements to disappear
+    await page.waitForFunction(() => {
+      const preloaderSelectors = [
+        '.loader', '.loading', '.preloader', '.spinner', 
+        '#loader', '#loading', '#preloader', '#spinner',
+        '[class*="load"]', '[class*="spin"]', '[id*="load"]', '[id*="spin"]'
+      ];
+      
+      const visiblePreloaders = preloaderSelectors.some(selector => {
+        const elements = document.querySelectorAll(selector);
+        return Array.from(elements).some(el => {
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        });
+      });
+      
+      return !visiblePreloaders; // Return true when no visible preloaders
+    }, { timeout: 15000 }).catch(() => {
+      log(`[PuppeteerScraper] Preloader element wait timeout, continuing...`, "scraper");
+    });
+    
+    // Strategy 2: Wait for content containers to appear and stabilize
+    await page.waitForFunction(() => {
+      const contentSelectors = ['main', '.content', '.main-content', '#content', '.container', '.wrapper'];
+      const hasContent = contentSelectors.some(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        return style.display !== 'none' && element.children.length > 0;
+      });
+      
+      // Also check for a reasonable number of links as a content indicator
+      const linkCount = document.querySelectorAll('a[href]').length;
+      return hasContent && linkCount > 5;
+    }, { timeout: 10000 }).catch(() => {
+      log(`[PuppeteerScraper] Content appearance wait timeout, continuing...`, "scraper");
+    });
+    
+    // Strategy 3: Wait for additional resources to load (images, scripts, etc.)
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Give 3 seconds for additional resources
+    
+    const totalWaitTime = Date.now() - startTime;
+    log(`[PuppeteerScraper] Preloader wait completed in ${totalWaitTime}ms`, "scraper");
+    
+  } catch (error: any) {
+    log(`[PuppeteerScraper] Preloader wait error: ${error.message}`, "scraper");
+    // Don't throw - continue with scraping even if preloader detection fails
+  }
+}
+
+/**
  * Main Puppeteer scraping function
  * Consolidates Puppeteer scraping logic from all three apps
  */
@@ -268,24 +327,58 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
              !!document.querySelector('[data-hx-get], [data-hx-post], [data-hx-trigger]');
     });
     
-    // Do dynamic content loading if we have minimal content OR HTMX is detected
+    // Detect preloader patterns on the page
+    const preloaderDetected = await page.evaluate(() => {
+      // Common preloader selectors and patterns
+      const preloaderSelectors = [
+        '.loader', '.loading', '.preloader', '.spinner', 
+        '#loader', '#loading', '#preloader', '#spinner',
+        '[class*="load"]', '[class*="spin"]', '[id*="load"]', '[id*="spin"]'
+      ];
+      
+      const hasPreloaderElements = preloaderSelectors.some(selector => {
+        const elements = document.querySelectorAll(selector);
+        return Array.from(elements).some(el => {
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden';
+        });
+      });
+      
+      // Check for preloader text content
+      const bodyText = document.body.textContent || '';
+      const hasPreloaderText = /loading|please wait|getting ready/i.test(bodyText);
+      
+      // Check for common preloader JavaScript patterns
+      const hasPreloaderJS = !!(window as any).showLoader || 
+                           !!(window as any).hideLoader ||
+                           !!(window as any).loadContent ||
+                           document.querySelector('script[src*="loader"]') ||
+                           document.querySelector('script[src*="preload"]');
+      
+      return hasPreloaderElements || hasPreloaderText || hasPreloaderJS;
+    });
+    
+    // Determine what type of dynamic content loading is needed
     const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
-    const needsDynamicLoading = hasMinimalContent || htmxDetected;
+    const needsDynamicLoading = hasMinimalContent || htmxDetected || preloaderDetected;
     
     if (needsDynamicLoading) {
-      log(`[PuppeteerScraper] Dynamic loading needed - minimal content: ${hasMinimalContent} (${contentLength} chars), HTMX detected: ${htmxDetected}`, "scraper");
+      log(`[PuppeteerScraper] Dynamic loading needed - minimal content: ${hasMinimalContent} (${contentLength} chars), HTMX detected: ${htmxDetected}, preloader detected: ${preloaderDetected}`, "scraper");
       
-      // Handle HTMX content loading if requested AND HTMX is detected
+      // Handle HTMX content loading ONLY if HTMX is actually detected
       if (options?.handleHTMX && htmxDetected) {
         log(`[PuppeteerScraper] HTMX detected on page, loading HTMX content`, "scraper");
         await handleHTMXContent(page, url);
-      } else if (options?.handleHTMX && hasMinimalContent) {
-        // Still try HTMX handler for minimal content pages even without explicit HTMX detection
-        log(`[PuppeteerScraper] Minimal content detected, attempting HTMX extraction`, "scraper");
-        await handleHTMXContent(page, url);
       }
-
-      if (options?.scrollToLoad) {
+      
+      // Handle preloader sites with intelligent waiting
+      if (preloaderDetected) {
+        log(`[PuppeteerScraper] Preloader detected, waiting for content to load...`, "scraper");
+        await waitForPreloaderComplete(page);
+      }
+      
+      // For sites with minimal content but no specific patterns, use scroll loading
+      if (options?.scrollToLoad && (hasMinimalContent || preloaderDetected)) {
         await handleDynamicContent(page);
       }
       
