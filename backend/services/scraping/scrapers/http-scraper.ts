@@ -27,6 +27,7 @@ export interface ScrapingResult {
   protectionDetected?: ProtectionInfo;
   statusCode?: number;
   finalUrl?: string;
+  requiresPuppeteer?: boolean;
 }
 
 // Cookie jar for session persistence

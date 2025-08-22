@@ -1,13 +1,7 @@
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import type { Browser, Page } from 'rebrowser-puppeteer';
+import puppeteer, { type Browser, type Page } from 'rebrowser-puppeteer';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import { log } from "backend/utils/log";
-import vanillaPuppeteer from 'rebrowser-puppeteer';
-
-// Add stealth plugin to avoid detection
-puppeteer.use(StealthPlugin());
 
 /**
  * Find Chrome executable path for Puppeteer
@@ -100,7 +94,7 @@ function findChromePath(): string {
 
   // If all else fails, use Puppeteer's bundled Chromium
   try {
-    const chrome = vanillaPuppeteer.executablePath();
+    const chrome = puppeteer.executablePath();
     log(`[BrowserManager][findChromePath] Using Puppeteer's bundled Chromium: ${chrome}`, "scraper");
     return chrome;
   } catch (e) {

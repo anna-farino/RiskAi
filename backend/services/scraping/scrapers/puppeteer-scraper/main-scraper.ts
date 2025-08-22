@@ -245,7 +245,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     }
 
     // Extract content first to check if we already have good content
-    const html = await page.content();
+    let html = await page.content();
     const contentLength = html.length;
     
     log(`[PuppeteerScraper] Initial content extracted (${contentLength} chars)`, "scraper");
