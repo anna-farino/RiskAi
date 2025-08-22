@@ -315,8 +315,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         validation.isErrorPage = dynamicValidation.isErrorPage;
         
         // Return with dynamic content
-        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && 
-                         (dynamicValidation.linkCount >= 10 || (htmxDetected && dynamicValidation.linkCount >= 5));
+        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && dynamicValidation.linkCount >= 10;
         
         return {
           html: dynamicHtml,
