@@ -242,9 +242,33 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Warning: Response status is not OK: ${statusCode}`, "scraper");
       
       if (statusCode === 401) {
-        log(`[PuppeteerScraper] 401 Unauthorized - likely paywall or authentication required`, "scraper");
-        // For paywall sites, we'll still try to extract any visible content
-        // Sometimes paywall sites show partial content or article previews
+        log(`[PuppeteerScraper] 401 Unauthorized - attempting paywall bypass strategies`, "scraper");
+        
+        // Strategy 1: Try search engine bot user agent
+        try {
+          await page.setUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)');
+          await page.setExtraHTTPHeaders({
+            'From': 'googlebot(at)google.com',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          });
+          
+          log(`[PuppeteerScraper] Retrying with Googlebot user agent for paywall bypass`, "scraper");
+          await page.reload({ waitUntil: 'networkidle2', timeout: 15000 });
+          
+          // Check if this improved the content
+          const retryHtml = await page.content();
+          const retryLinks = (retryHtml.match(/<a[^>]+href=/g) || []).length;
+          
+          if (retryLinks >= 10) {
+            log(`[PuppeteerScraper] Paywall bypass successful with Googlebot (${retryLinks} links)`, "scraper");
+            // We'll need to re-extract content later since this is before html declaration
+            // Just log success for now - the improved content will be picked up by normal extraction
+          } else {
+            log(`[PuppeteerScraper] Googlebot bypass insufficient (${retryLinks} links), continuing with original content`, "scraper");
+          }
+        } catch (bypassError: any) {
+          log(`[PuppeteerScraper] Paywall bypass attempt failed: ${bypassError.message}`, "scraper");
+        }
       } else if (statusCode === 403) {
         log(`[PuppeteerScraper] 403 Forbidden - site blocking access`, "scraper");
       } else if (statusCode === 503) {
@@ -427,12 +451,11 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         validation.isValid = dynamicValidation.isValid;
         validation.isErrorPage = dynamicValidation.isErrorPage;
         
-        // Return with dynamic content (flexible success criteria for paywall sites)
-        const minLinksRequired = statusCode === 401 ? 5 : 10; // Lower requirement for paywall sites
-        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && dynamicValidation.linkCount >= minLinksRequired;
+        // Return with dynamic content - maintain 10 link requirement for source pages
+        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && dynamicValidation.linkCount >= 10;
         
-        if (statusCode === 401 && dynamicValidation.linkCount >= 5) {
-          log(`[PuppeteerScraper] Paywall site: accepting ${dynamicValidation.linkCount} links (reduced threshold)`, "scraper");
+        if (statusCode === 401) {
+          log(`[PuppeteerScraper] Paywall detected (${dynamicValidation.linkCount} links) - may need enhanced bypass`, "scraper");
         }
         
         return {
@@ -452,12 +475,11 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     log(`[PuppeteerScraper] Content extraction completed successfully (${validation.linkCount} links, ${validation.confidence}% confidence)`, "scraper");
 
-    // Mark as failed if content validation failed completely (flexible criteria for paywall sites)
-    const minLinksRequired = statusCode === 401 ? 5 : 10; // Lower requirement for paywall sites
-    const isSuccess = validation.isValid && !validation.isErrorPage && validation.linkCount >= minLinksRequired;
+    // Mark as failed if content validation failed completely - maintain 10 link requirement
+    const isSuccess = validation.isValid && !validation.isErrorPage && validation.linkCount >= 10;
     
-    if (statusCode === 401 && validation.linkCount >= 5) {
-      log(`[PuppeteerScraper] Paywall site: accepting ${validation.linkCount} links (reduced threshold)`, "scraper");
+    if (statusCode === 401) {
+      log(`[PuppeteerScraper] Paywall detected (${validation.linkCount} links) - source page access blocked`, "scraper");
     }
 
     return {
