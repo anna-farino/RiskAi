@@ -165,13 +165,6 @@ export async function performCycleTLSRequest(
       // Fallback to regular fetch with similar headers
       log(`[ProtectionBypass] Using fallback fetch request (CycleTLS not available)`, "scraper");
       
-      // Add warning that this will likely fail on Cloudflare-protected sites
-      if (url.includes('cybersecuritydive.com') || 
-          url.includes('securityweek.com') || 
-          url.includes('darkreading.com')) {
-        log(`[ProtectionBypass] WARNING: Known Cloudflare site, fetch will likely fail. Puppeteer fallback recommended.`, "scraper");
-      }
-      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
       
@@ -200,20 +193,6 @@ export async function performCycleTLSRequest(
         }
         
         log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
-        
-        // Quick Cloudflare detection in response
-        if (responseBody.includes('cf-browser-verification') || 
-            responseBody.includes('Checking your browser')) {
-          log(`[ProtectionBypass] Cloudflare challenge detected in response, marking as failed`, "scraper");
-          return {
-            success: false,
-            status: response.status,
-            headers: responseHeaders,
-            body: responseBody,
-            cookies: responseCookies,
-            error: 'Cloudflare challenge page'
-          };
-        }
         
         return {
           success: response.ok,
