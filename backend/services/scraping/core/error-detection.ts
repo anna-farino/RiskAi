@@ -83,12 +83,27 @@ export async function validateContent(html: string, url?: string): Promise<Valid
   }
 
   // Count links (minimum 10 required for valid content)
-  const allLinks = $('a[href]').toArray();
-  const validLinks = allLinks.filter(el => {
+  // Include both standard links AND HTMX navigation elements
+  const standardLinks = $('a[href]').toArray();
+  const htmxLinks = $('[hx-get], [hx-post], [data-hx-get], [data-hx-post]').toArray();
+  
+  const validStandardLinks = standardLinks.filter(el => {
     const href = $(el).attr('href');
     return href && !href.startsWith('#') && href !== '/' && href !== '';
   });
-  result.linkCount = validLinks.length;
+  
+  const validHtmxLinks = htmxLinks.filter(el => {
+    const hxUrl = $(el).attr('hx-get') || $(el).attr('hx-post') || 
+                  $(el).attr('data-hx-get') || $(el).attr('data-hx-post');
+    // Filter out navigation/UI elements
+    return hxUrl && !hxUrl.includes('search') && !hxUrl.includes('filter') && 
+           !hxUrl.includes('login') && !hxUrl.includes('signup') &&
+           hxUrl !== '/' && hxUrl !== '';
+  });
+  
+  // Count unique navigation elements (some might have both href and hx-get)
+  const allValidLinks = new Set([...validStandardLinks, ...validHtmxLinks]);
+  result.linkCount = allValidLinks.size;
 
   // Check for error indicators in title
   const title = $('title').text().toLowerCase();

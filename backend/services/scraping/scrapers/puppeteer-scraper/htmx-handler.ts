@@ -109,8 +109,21 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
         // Get screen size info for headers
         const screenType = window.innerWidth < 768 ? 'M' : 'D';
 
+        // Extract context from current URL (e.g., /media/cybersecurity/ -> cybersecurity)
+        const pathSegments = currentUrl.split('/').filter(s => s);
+        const contextKeyword = pathSegments[pathSegments.length - 1] || pathSegments[pathSegments.length - 2];
+        console.log(`🎯 Context keyword from URL: ${contextKeyword}`);
+        
         // Prioritize main content endpoint first (most likely to have contextual content)
         const prioritizedEndpoints = allEndpoints.sort((a, b) => {
+          // Highest priority: endpoints containing the context keyword
+          if (contextKeyword && contextKeyword !== 'media') {
+            const aHasContext = a.toLowerCase().includes(contextKeyword.toLowerCase());
+            const bHasContext = b.toLowerCase().includes(contextKeyword.toLowerCase());
+            if (aHasContext && !bHasContext) return -1;
+            if (!aHasContext && bHasContext) return 1;
+          }
+          
           // Prioritize /media/items/ endpoints first
           if (a.includes('/media/items/') && !b.includes('/media/items/')) return -1;
           if (!a.includes('/media/items/') && b.includes('/media/items/')) return 1;
@@ -150,7 +163,14 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
                 document.body.appendChild(container);
                 totalContentLoaded += html.length;
                 
-                console.log(`✅ Loaded ${html.length} chars from ${endpoint}`);
+                // Count links in the loaded content
+                const loadedLinks = container.querySelectorAll('a[href]');
+                const validLoadedLinks = Array.from(loadedLinks).filter(link => {
+                  const href = link.getAttribute('href');
+                  return href && href !== '#' && href !== '/' && href !== '';
+                });
+                
+                console.log(`✅ Loaded ${html.length} chars from ${endpoint}, found ${validLoadedLinks.length} links`);
                 
                 // Wait for DOM to update after injection
                 await new Promise(resolve => setTimeout(resolve, 500));

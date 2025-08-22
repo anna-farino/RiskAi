@@ -298,23 +298,36 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       // Validate dynamic content
       const dynamicValidation = await validateContent(dynamicHtml, url);
       
-      // Use the dynamic content if it's significantly better and has valid content
-      const dynamicIsBetter = dynamicContentLength > contentLength * 1.5 && 
-                             dynamicValidation.linkCount >= validation.linkCount &&
-                             dynamicValidation.confidence >= validation.confidence;
+      // For HTMX sites, always use the enriched DOM if we loaded HTMX content
+      // Otherwise, check if dynamic content is significantly better
+      const shouldUseDynamic = htmxDetected || 
+                              (dynamicValidation.linkCount > validation.linkCount) ||
+                              (dynamicContentLength > contentLength * 1.2 && dynamicValidation.linkCount >= validation.linkCount);
       
-      if (dynamicIsBetter) {
-        log(`[PuppeteerScraper] Dynamic content provided significant improvement (${dynamicValidation.linkCount} links, ${dynamicValidation.confidence}% confidence), using dynamic version`, "scraper");
+      if (shouldUseDynamic) {
+        log(`[PuppeteerScraper] Using dynamic content (${dynamicValidation.linkCount} links, ${dynamicValidation.confidence}% confidence, HTMX: ${htmxDetected})`, "scraper");
+        
+        // Update references to use dynamic content
+        html = dynamicHtml;
+        validation.linkCount = dynamicValidation.linkCount;
+        validation.confidence = dynamicValidation.confidence;
+        validation.isValid = dynamicValidation.isValid;
+        validation.isErrorPage = dynamicValidation.isErrorPage;
+        
+        // Return with dynamic content
+        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && 
+                         (dynamicValidation.linkCount >= 10 || (htmxDetected && dynamicValidation.linkCount >= 5));
+        
         return {
           html: dynamicHtml,
-          success: true,
+          success: isSuccess,
           method: 'puppeteer',
           responseTime: Date.now() - startTime,
           statusCode,
           finalUrl: page.url()
         };
       } else {
-        log(`[PuppeteerScraper] Dynamic content did not provide significant improvement, using original`, "scraper");
+        log(`[PuppeteerScraper] Dynamic content did not provide improvement (original: ${validation.linkCount} links, dynamic: ${dynamicValidation.linkCount} links)`, "scraper");
       }
     } else {
       log(`[PuppeteerScraper] Substantial content already extracted (${contentLength} chars), skipping dynamic loading`, "scraper");
