@@ -5,7 +5,10 @@ import {
   performTLSRequest,
   getRandomBrowserProfile,
   EnhancedScrapingOptions,
+  performCycleTLSRequest,
+  performPreflightCheck,
 } from "../core/protection-bypass";
+import { validateContent, needsRescraping, isRateLimited } from "../core/error-detection";
 
 export interface HTTPScrapingOptions extends EnhancedScrapingOptions {
   maxRetries?: number;
@@ -149,6 +152,38 @@ export async function scrapeWithHTTP(
 
   log(`[HTTPScraper] Starting HTTP scraping for: ${url}`, "scraper");
 
+  // Perform pre-flight check with CycleTLS
+  const preflightResult = await performPreflightCheck(url);
+  if (preflightResult.protectionDetected) {
+    log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
+    
+    // Try CycleTLS first for protected sites
+    const cycleTLSResult = await performCycleTLSRequest(url, {
+      method: 'GET',
+      tlsVersion: 'chrome_122',
+      timeout: 30000,
+      cookies: preflightResult.cookies
+    });
+    
+    if (cycleTLSResult.success && cycleTLSResult.body) {
+      const validation = await validateContent(cycleTLSResult.body, url);
+      
+      if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
+        log(`[HTTPScraper] CycleTLS successful with ${validation.linkCount} links`, "scraper");
+        return {
+          html: cycleTLSResult.body,
+          success: true,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: cycleTLSResult.status,
+          finalUrl: url
+        };
+      }
+      
+      log(`[HTTPScraper] CycleTLS validation failed: ${validation.errorIndicators.join(', ')}`, "scraper");
+    }
+  }
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       log(`[HTTPScraper] Attempt ${attempt}/${maxRetries}`, "scraper");
@@ -274,9 +309,33 @@ export async function scrapeWithHTTP(
           // Handle 403 Forbidden as potential bot protection
           if (response.status === 403) {
             log(
-              `[HTTPScraper] 403 Forbidden detected, likely bot protection`,
+              `[HTTPScraper] 403 Forbidden detected, trying CycleTLS with different fingerprint`,
               "scraper",
             );
+            
+            // Try CycleTLS with different fingerprint
+            const cycleTLSRetry = await performCycleTLSRequest(url, {
+              method: 'GET',
+              tlsVersion: 'chrome_120',
+              timeout: 30000
+            });
+            
+            if (cycleTLSRetry.success && cycleTLSRetry.body) {
+              const validation = await validateContent(cycleTLSRetry.body, url);
+              
+              if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
+                log(`[HTTPScraper] CycleTLS bypass successful on 403`, "scraper");
+                return {
+                  html: cycleTLSRetry.body,
+                  success: true,
+                  method: "http",
+                  responseTime: Date.now() - startTime,
+                  statusCode: 200,
+                  finalUrl: url
+                };
+              }
+            }
+            
             return {
               html: "",
               success: false,
@@ -360,9 +419,53 @@ export async function scrapeWithHTTP(
           );
         }
 
-        // Success case - let extraction logic determine if content is usable
+        // Validate content before returning success
+        const validation = await validateContent(html, url);
+        
+        if (!validation.isValid || validation.isErrorPage || validation.linkCount < 10) {
+          log(
+            `[HTTPScraper] Content validation failed: ${validation.errorIndicators.join(', ')}, links: ${validation.linkCount}`,
+            "scraper",
+          );
+          
+          // Try CycleTLS as fallback
+          const cycleTLSFallback = await performCycleTLSRequest(url, {
+            method: 'GET',
+            tlsVersion: 'chrome_121',
+            timeout: 30000
+          });
+          
+          if (cycleTLSFallback.success && cycleTLSFallback.body) {
+            const fallbackValidation = await validateContent(cycleTLSFallback.body, url);
+            
+            if (fallbackValidation.isValid && !fallbackValidation.isErrorPage && fallbackValidation.linkCount >= 10) {
+              log(`[HTTPScraper] CycleTLS fallback successful with ${fallbackValidation.linkCount} links`, "scraper");
+              return {
+                html: cycleTLSFallback.body,
+                success: true,
+                method: "http",
+                responseTime: Date.now() - startTime,
+                statusCode: 200,
+                finalUrl: url
+              };
+            }
+          }
+          
+          // Return with success: false if validation failed
+          return {
+            html,
+            success: false,
+            method: "http",
+            responseTime: Date.now() - startTime,
+            protectionDetected: protectionInfo,
+            statusCode: response.status,
+            finalUrl: response.url,
+          };
+        }
+        
+        // Success case - content validated
         log(
-          `[HTTPScraper] Successfully retrieved content (${html.length} chars)`,
+          `[HTTPScraper] Successfully retrieved and validated content (${html.length} chars, ${validation.linkCount} links)`,
           "scraper",
         );
         return {

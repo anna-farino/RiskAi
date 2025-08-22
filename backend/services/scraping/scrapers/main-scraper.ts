@@ -4,6 +4,7 @@ import { extractPublishDate } from '../extractors/content-extraction/date-extrac
 // Cache system now integrated into structure-detector.ts
 import { getContent } from '../core/method-selector';
 import { detectHtmlStructure } from '../extractors/structure-detection/structure-detector';
+import { validateContent } from '../core/error-detection';
 import { 
   extractContentWithSelectors 
 } from '../extractors/content-extraction/content-extractor';
@@ -40,6 +41,18 @@ export class StreamlinedUnifiedScraper {
 
       // Step 1: Get content (HTTP or Puppeteer)
       const contentResult = await getContent(url, true);
+
+      // Validate content quality
+      const validation = await validateContent(contentResult.html, url);
+      
+      if (!validation.isValid || validation.isErrorPage) {
+        log(`[SimpleScraper] Content validation failed: ${validation.errorIndicators.join(', ')}, confidence: ${validation.confidence}%`, "scraper");
+        // Continue anyway but log the issue
+      }
+      
+      if (validation.linkCount < 10) {
+        log(`[SimpleScraper] Warning: Only ${validation.linkCount} links found (minimum 10 recommended)`, "scraper");
+      }
 
       // Both HTTP and Puppeteer content need the same complete processing pipeline
       // Puppeteer is just a different way to get the HTML - the processing should be identical
@@ -113,13 +126,18 @@ export class StreamlinedUnifiedScraper {
         }
       }
 
+      // Adjust confidence based on validation results
+      const adjustedConfidence = validation.isValid ? 
+        (extracted.confidence || 0.9) : 
+        Math.min((extracted.confidence || 0.9) * (validation.confidence / 100), 0.5);
+
       const result: ArticleContent = {
         title: extracted.title || '',
         content: extracted.content || '',
         author: extracted.author,
         publishDate,
         extractionMethod: `${contentResult.method}_${extracted.extractionMethod || 'selectors'}`,
-        confidence: extracted.confidence || 0.9
+        confidence: adjustedConfidence
       };
 
       log(`[SimpleScraper] Final extraction result (title=${result.title.length} chars, content=${result.content.length} chars, method=${result.extractionMethod}, confidence=${result.confidence})`, "scraper");

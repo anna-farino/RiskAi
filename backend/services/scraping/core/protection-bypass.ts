@@ -22,6 +22,217 @@ async function getCycleTLSInstance() {
   }
 }
 
+/**
+ * Chrome TLS fingerprint configurations
+ */
+const TLS_FINGERPRINTS = {
+  chrome_122: {
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+  },
+  chrome_121: {
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+  },
+  chrome_120: {
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  }
+};
+
+/**
+ * Performs a CycleTLS request with specified TLS fingerprint
+ */
+export async function performCycleTLSRequest(
+  url: string,
+  options: {
+    method?: 'GET' | 'HEAD' | 'POST';
+    tlsVersion?: 'chrome_122' | 'chrome_121' | 'chrome_120';
+    headers?: Record<string, string>;
+    body?: string;
+    timeout?: number;
+    cookies?: string[];
+  } = {}
+): Promise<{
+  success: boolean;
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+  cookies?: string[];
+  error?: string;
+}> {
+  const {
+    method = 'GET',
+    tlsVersion = 'chrome_122',
+    headers = {},
+    body,
+    timeout = 30000,
+    cookies = []
+  } = options;
+
+  try {
+    const cycletls = await getCycleTLSInstance();
+    const fingerprint = TLS_FINGERPRINTS[tlsVersion];
+    
+    log(`[ProtectionBypass] Performing CycleTLS ${method} request with ${tlsVersion} fingerprint`, "scraper");
+
+    // Build headers with proper Chrome headers
+    const requestHeaders = {
+      'User-Agent': fingerprint.userAgent,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
+      ...headers
+    };
+
+    // Add cookies if provided
+    if (cookies.length > 0) {
+      requestHeaders['Cookie'] = cookies.join('; ');
+    }
+
+    const response = await cycletls.request(url, {
+      method,
+      headers: requestHeaders,
+      body,
+      ja3: fingerprint.ja3,
+      userAgent: fingerprint.userAgent,
+      timeout,
+      disableRedirect: false,
+      headerOrder: [
+        'accept',
+        'accept-language',
+        'accept-encoding',
+        'cache-control',
+        'pragma',
+        'sec-ch-ua',
+        'sec-ch-ua-mobile',
+        'sec-ch-ua-platform',
+        'sec-fetch-dest',
+        'sec-fetch-mode',
+        'sec-fetch-site',
+        'sec-fetch-user',
+        'upgrade-insecure-requests',
+        'user-agent'
+      ]
+    });
+
+    // Extract cookies from response headers
+    const responseCookies: string[] = [];
+    if (response.headers['set-cookie']) {
+      const setCookies = Array.isArray(response.headers['set-cookie']) 
+        ? response.headers['set-cookie'] 
+        : [response.headers['set-cookie']];
+      responseCookies.push(...setCookies);
+    }
+
+    log(`[ProtectionBypass] CycleTLS request completed: ${response.status}`, "scraper");
+
+    return {
+      success: response.status >= 200 && response.status < 400,
+      status: response.status,
+      headers: response.headers,
+      body: response.body,
+      cookies: responseCookies
+    };
+  } catch (error: any) {
+    log(`[ProtectionBypass] CycleTLS request failed: ${error.message}`, "scraper-error");
+    return {
+      success: false,
+      status: 0,
+      headers: {},
+      body: '',
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Performs a pre-flight check using CycleTLS to detect protection
+ */
+export async function performPreflightCheck(url: string): Promise<{
+  protectionDetected: boolean;
+  protectionType?: string;
+  requiresPuppeteer: boolean;
+  cookies?: string[];
+  headers?: Record<string, string>;
+}> {
+  log(`[ProtectionBypass] Performing pre-flight check for ${url}`, "scraper");
+
+  // Try HEAD request first for efficiency
+  const headResponse = await performCycleTLSRequest(url, {
+    method: 'HEAD',
+    tlsVersion: 'chrome_122',
+    timeout: 10000
+  });
+
+  // Check for immediate protection indicators
+  if (!headResponse.success || headResponse.status === 403 || headResponse.status === 503) {
+    log(`[ProtectionBypass] Pre-flight detected protection (status: ${headResponse.status})`, "scraper");
+    
+    // Try GET request with different fingerprint
+    const getResponse = await performCycleTLSRequest(url, {
+      method: 'GET',
+      tlsVersion: 'chrome_120',
+      timeout: 15000
+    });
+
+    // Analyze response for protection type
+    const protectionType = analyzeProtectionType(getResponse);
+    
+    return {
+      protectionDetected: true,
+      protectionType,
+      requiresPuppeteer: protectionType !== 'none',
+      cookies: getResponse.cookies,
+      headers: getResponse.headers
+    };
+  }
+
+  return {
+    protectionDetected: false,
+    requiresPuppeteer: false,
+    cookies: headResponse.cookies,
+    headers: headResponse.headers
+  };
+}
+
+/**
+ * Analyzes response to determine protection type
+ */
+function analyzeProtectionType(response: {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+}): string {
+  const headerStr = JSON.stringify(response.headers).toLowerCase();
+  const bodyLower = response.body.toLowerCase();
+
+  if (headerStr.includes('cloudflare') || bodyLower.includes('cloudflare')) {
+    return 'cloudflare';
+  }
+  if (headerStr.includes('datadome') || bodyLower.includes('datadome')) {
+    return 'datadome';
+  }
+  if (headerStr.includes('incapsula') || bodyLower.includes('incapsula')) {
+    return 'incapsula';
+  }
+  if (response.status === 403 || response.status === 503) {
+    return 'generic';
+  }
+  
+  return 'none';
+}
+
 export interface ProtectionInfo {
   hasProtection: boolean;
   type: 'datadome' | 'cloudflare' | 'incapsula' | 'captcha' | 'rate_limit' | 'cookie_check' | 'generic' | 'none';

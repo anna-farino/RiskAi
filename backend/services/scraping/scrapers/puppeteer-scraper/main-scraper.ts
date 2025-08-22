@@ -1,6 +1,7 @@
 import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import { setupArticlePage, setupSourcePage } from '../../core/page-setup';
+import { validateContent } from '../../core/error-detection';
 import { 
   bypassProtection, 
   ProtectionInfo, 
@@ -248,6 +249,17 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     const contentLength = html.length;
     
     log(`[PuppeteerScraper] Initial content extracted (${contentLength} chars)`, "scraper");
+    
+    // Validate content quality
+    const validation = await validateContent(html, url);
+    
+    if (!validation.isValid || validation.isErrorPage) {
+      log(`[PuppeteerScraper] Content validation warning: ${validation.errorIndicators.join(', ')}, confidence: ${validation.confidence}%`, "scraper");
+    }
+    
+    if (validation.linkCount < 10) {
+      log(`[PuppeteerScraper] Warning: Only ${validation.linkCount} links found (minimum 10 recommended)`, "scraper");
+    }
 
     // Only do dynamic content loading if we have minimal content
     const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
@@ -271,9 +283,16 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       
       log(`[PuppeteerScraper] Dynamic content loading completed (${dynamicContentLength} chars)`, "scraper");
       
-      // Use the dynamic content if it's significantly better
-      if (dynamicContentLength > contentLength * 1.5) {
-        log(`[PuppeteerScraper] Dynamic content provided significant improvement, using dynamic version`, "scraper");
+      // Validate dynamic content
+      const dynamicValidation = await validateContent(dynamicHtml, url);
+      
+      // Use the dynamic content if it's significantly better and has valid content
+      const dynamicIsBetter = dynamicContentLength > contentLength * 1.5 && 
+                             dynamicValidation.linkCount >= validation.linkCount &&
+                             dynamicValidation.confidence >= validation.confidence;
+      
+      if (dynamicIsBetter) {
+        log(`[PuppeteerScraper] Dynamic content provided significant improvement (${dynamicValidation.linkCount} links, ${dynamicValidation.confidence}% confidence), using dynamic version`, "scraper");
         return {
           html: dynamicHtml,
           success: true,
@@ -289,11 +308,14 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Substantial content already extracted (${contentLength} chars), skipping dynamic loading`, "scraper");
     }
 
-    log(`[PuppeteerScraper] Content extraction completed successfully`, "scraper");
+    log(`[PuppeteerScraper] Content extraction completed successfully (${validation.linkCount} links, ${validation.confidence}% confidence)`, "scraper");
+
+    // Mark as failed if content validation failed completely
+    const isSuccess = validation.isValid && !validation.isErrorPage && validation.linkCount >= 10;
 
     return {
       html,
-      success: true,
+      success: isSuccess,
       method: 'puppeteer',
       responseTime: Date.now() - startTime,
       statusCode,
