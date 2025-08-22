@@ -46,8 +46,27 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
     if (needsDynamicLoading) {
       log(`[PuppeteerScraper] Dynamic content loading needed, handling...`, "scraper");
 
-      // Wait longer for initial content to load on dynamic sites
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Smart wait for initial content to stabilize
+      log(`[PuppeteerScraper] Waiting for initial content to stabilize...`, "scraper");
+      
+      // Wait for network to be idle or timeout after 5 seconds
+      try {
+        await Promise.race([
+          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {}),
+          new Promise(resolve => setTimeout(resolve, 5000))
+        ]);
+      } catch (e) {
+        // Timeout is okay, we'll proceed anyway
+        log(`[PuppeteerScraper] Network idle timeout reached, proceeding`, "scraper");
+      }
+      
+      // Additional wait for HTMX to initialize
+      try {
+        await page.waitForFunction(() => (window as any).htmx, { timeout: 3000 });
+        log(`[PuppeteerScraper] HTMX framework detected and initialized`, "scraper");
+      } catch (e) {
+        // HTMX might not be present or might initialize differently
+      }
 
       // Manually fetch common HTMX endpoints
       const currentUrl = sourceUrl || page.url();
@@ -56,8 +75,19 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
       const htmxContentLoaded = await safePageEvaluate(page, async (baseUrl, currentUrl) => {
         let totalContentLoaded = 0;
 
-        // Actual working HTMX endpoints discovered from Foorilla analysis
-        const endpoints = [
+        // First, discover HTMX endpoints from the page itself
+        const pageEndpoints = new Set<string>();
+        document.querySelectorAll('[hx-get], [data-hx-get]').forEach(el => {
+          const endpoint = el.getAttribute('hx-get') || el.getAttribute('data-hx-get');
+          if (endpoint && endpoint.startsWith('/')) {
+            pageEndpoints.add(endpoint);
+          }
+        });
+        
+        console.log(`🔍 Found ${pageEndpoints.size} HTMX endpoints on page: ${Array.from(pageEndpoints).join(', ')}`);
+
+        // Combine page-discovered endpoints with known working endpoints
+        const knownEndpoints = [
           '/media/items/',           // Main content endpoint (confirmed working with contextual filtering)
           '/media/items/top/',       // Top items (confirmed working)
           '/media/items/followed/',  // Followed items (confirmed working)
@@ -67,6 +97,9 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
           '/media/sources/following/', // Following sources (confirmed working)
           '/media/filter/',          // Filter endpoint (confirmed working)
         ];
+        
+        // Merge and deduplicate endpoints, prioritizing page-discovered ones
+        const allEndpoints = [...new Set([...pageEndpoints, ...knownEndpoints])];
 
         // Get CSRF token if available
         const csrfToken = 
@@ -77,16 +110,15 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
         const screenType = window.innerWidth < 768 ? 'M' : 'D';
 
         // Prioritize main content endpoint first (most likely to have contextual content)
-        const prioritizedEndpoints = [
-          '/media/items/',           // Main content - try this first
-          '/media/items/top/',       // Secondary content options
-          '/media/items/followed/',
-          '/topics/media/',          // Topics sidebar with contextual content
-          '/media/items/saved/',
-          '/media/sources/',
-          '/media/sources/following/',
-          '/media/filter/',
-        ];
+        const prioritizedEndpoints = allEndpoints.sort((a, b) => {
+          // Prioritize /media/items/ endpoints first
+          if (a.includes('/media/items/') && !b.includes('/media/items/')) return -1;
+          if (!a.includes('/media/items/') && b.includes('/media/items/')) return 1;
+          // Then topics
+          if (a.includes('/topics/') && !b.includes('/topics/')) return -1;
+          if (!a.includes('/topics/') && b.includes('/topics/')) return 1;
+          return 0;
+        });
 
         for (const endpoint of prioritizedEndpoints) {
           try {
@@ -119,6 +151,9 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
                 totalContentLoaded += html.length;
                 
                 console.log(`✅ Loaded ${html.length} chars from ${endpoint}`);
+                
+                // Wait for DOM to update after injection
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
                 // If main content endpoint loaded successfully with good content, we can stop
                 if (endpoint === '/media/items/' && html.length > 10000) {

@@ -261,15 +261,27 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Warning: Only ${validation.linkCount} links found (minimum 10 recommended)`, "scraper");
     }
 
-    // Only do dynamic content loading if we have minimal content
-    const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
+    // Detect HTMX presence on the page
+    const htmxDetected = await page.evaluate(() => {
+      return !!(window as any).htmx || 
+             !!document.querySelector('[hx-get], [hx-post], [hx-trigger], script[src*="htmx"]') ||
+             !!document.querySelector('[data-hx-get], [data-hx-post], [data-hx-trigger]');
+    });
     
-    if (hasMinimalContent) {
-      log(`[PuppeteerScraper] Minimal content detected (${contentLength} chars), attempting dynamic loading`, "scraper");
+    // Do dynamic content loading if we have minimal content OR HTMX is detected
+    const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
+    const needsDynamicLoading = hasMinimalContent || htmxDetected;
+    
+    if (needsDynamicLoading) {
+      log(`[PuppeteerScraper] Dynamic loading needed - minimal content: ${hasMinimalContent} (${contentLength} chars), HTMX detected: ${htmxDetected}`, "scraper");
       
-      // Handle dynamic content loading if requested
-      if (options?.handleHTMX) {
-        log(`[PuppeteerScraper] Dynamic content detected, using advanced HTMX extraction`, "scraper");
+      // Handle HTMX content loading if requested AND HTMX is detected
+      if (options?.handleHTMX && htmxDetected) {
+        log(`[PuppeteerScraper] HTMX detected on page, loading HTMX content`, "scraper");
+        await handleHTMXContent(page, url);
+      } else if (options?.handleHTMX && hasMinimalContent) {
+        // Still try HTMX handler for minimal content pages even without explicit HTMX detection
+        log(`[PuppeteerScraper] Minimal content detected, attempting HTMX extraction`, "scraper");
         await handleHTMXContent(page, url);
       }
 

@@ -208,8 +208,37 @@ export class StreamlinedUnifiedScraper {
           log(`[SimpleScraper] Navigating to ${url} for advanced extraction`, "scraper");
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
           
-          // Use the advanced HTMX extraction
+          // Check if page has HTMX and load HTMX content first
+          const htmxDetected = await page.evaluate(() => {
+            return !!(window as any).htmx || 
+                   !!document.querySelector('[hx-get], [hx-post], [hx-trigger], script[src*="htmx"]') ||
+                   !!document.querySelector('[data-hx-get], [data-hx-post], [data-hx-trigger]');
+          });
+          
+          if (htmxDetected) {
+            log(`[SimpleScraper] HTMX detected on source page, loading HTMX content before extraction`, "scraper");
+            const { handleHTMXContent } = await import('../scrapers/puppeteer-scraper/htmx-handler');
+            await handleHTMXContent(page, url);
+            log(`[SimpleScraper] HTMX content loaded, proceeding with link extraction`, "scraper");
+          }
+          
+          // Now extract links from the enriched DOM
           const articleLinks = await extractArticleLinksFromPage(page, url, extractionOptions);
+          
+          // Validate we have enough links after HTMX processing
+          if (articleLinks.length < 10 && htmxDetected) {
+            log(`[SimpleScraper] Warning: Only ${articleLinks.length} links found after HTMX loading (minimum 10 expected)`, "scraper");
+            
+            // Try one more time with a longer wait
+            log(`[SimpleScraper] Attempting additional HTMX content loading with longer wait`, "scraper");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const retryLinks = await extractArticleLinksFromPage(page, url, extractionOptions);
+            
+            if (retryLinks.length > articleLinks.length) {
+              log(`[SimpleScraper] Retry successful: ${retryLinks.length} links found`, "scraper");
+              return retryLinks;
+            }
+          }
           
           log(`[SimpleScraper] Advanced HTMX extraction completed: ${articleLinks.length} links found`, "scraper");
           return articleLinks;
