@@ -7,18 +7,33 @@ import { createCursor } from 'ghost-cursor';
 
 // Initialize CycleTLS instance
 let cycleTLSInstance: any = null;
+let cycleTLSAvailable: boolean | null = null;
 
 async function getCycleTLSInstance() {
+  // If we already know CycleTLS is not available, return null
+  if (cycleTLSAvailable === false) {
+    return null;
+  }
+  
   try {
     if (!cycleTLSInstance) {
       log(`[ProtectionBypass] Initializing CycleTLS instance...`, "scraper");
-      cycleTLSInstance = await initCycleTLS();
-      log(`[ProtectionBypass] CycleTLS instance initialized successfully`, "scraper");
+      const instance = await initCycleTLS();
+      
+      // Check if the instance has the expected API
+      if (instance && typeof instance === 'object') {
+        cycleTLSInstance = instance;
+        cycleTLSAvailable = true;
+        log(`[ProtectionBypass] CycleTLS instance initialized successfully`, "scraper");
+      } else {
+        throw new Error('CycleTLS instance does not have expected structure');
+      }
     }
     return cycleTLSInstance;
   } catch (error: any) {
-    log(`[ProtectionBypass] Failed to initialize CycleTLS: ${error.message}`, "scraper-error");
-    throw error;
+    log(`[ProtectionBypass] CycleTLS not available, using fallback: ${error.message}`, "scraper");
+    cycleTLSAvailable = false;
+    return null;
   }
 }
 
@@ -74,8 +89,6 @@ export async function performCycleTLSRequest(
     const cycletls = await getCycleTLSInstance();
     const fingerprint = TLS_FINGERPRINTS[tlsVersion];
     
-    log(`[ProtectionBypass] Performing CycleTLS ${method} request with ${tlsVersion} fingerprint`, "scraper");
-
     // Build headers with proper Chrome headers
     const requestHeaders = {
       'User-Agent': fingerprint.userAgent,
@@ -100,50 +113,99 @@ export async function performCycleTLSRequest(
       requestHeaders['Cookie'] = cookies.join('; ');
     }
 
-    const response = await cycletls.request(url, {
-      method,
-      headers: requestHeaders,
-      body,
-      ja3: fingerprint.ja3,
-      userAgent: fingerprint.userAgent,
-      timeout,
-      disableRedirect: false,
-      headerOrder: [
-        'accept',
-        'accept-language',
-        'accept-encoding',
-        'cache-control',
-        'pragma',
-        'sec-ch-ua',
-        'sec-ch-ua-mobile',
-        'sec-ch-ua-platform',
-        'sec-fetch-dest',
-        'sec-fetch-mode',
-        'sec-fetch-site',
-        'sec-fetch-user',
-        'upgrade-insecure-requests',
-        'user-agent'
-      ]
-    });
+    // If CycleTLS is available, use it
+    if (cycletls && typeof cycletls.request === 'function') {
+      log(`[ProtectionBypass] Using CycleTLS ${method} request with ${tlsVersion} fingerprint`, "scraper");
+      
+      const response = await cycletls.request(url, {
+        method,
+        headers: requestHeaders,
+        body,
+        ja3: fingerprint.ja3,
+        userAgent: fingerprint.userAgent,
+        timeout,
+        disableRedirect: false,
+        headerOrder: [
+          'accept',
+          'accept-language',
+          'accept-encoding',
+          'cache-control',
+          'pragma',
+          'sec-ch-ua',
+          'sec-ch-ua-mobile',
+          'sec-ch-ua-platform',
+          'sec-fetch-dest',
+          'sec-fetch-mode',
+          'sec-fetch-site',
+          'sec-fetch-user',
+          'upgrade-insecure-requests',
+          'user-agent'
+        ]
+      });
 
-    // Extract cookies from response headers
-    const responseCookies: string[] = [];
-    if (response.headers['set-cookie']) {
-      const setCookies = Array.isArray(response.headers['set-cookie']) 
-        ? response.headers['set-cookie'] 
-        : [response.headers['set-cookie']];
-      responseCookies.push(...setCookies);
+      // Extract cookies from response headers
+      const responseCookies: string[] = [];
+      if (response.headers['set-cookie']) {
+        const setCookies = Array.isArray(response.headers['set-cookie']) 
+          ? response.headers['set-cookie'] 
+          : [response.headers['set-cookie']];
+        responseCookies.push(...setCookies);
+      }
+
+      log(`[ProtectionBypass] CycleTLS request completed: ${response.status}`, "scraper");
+
+      return {
+        success: response.status >= 200 && response.status < 400,
+        status: response.status,
+        headers: response.headers,
+        body: response.body,
+        cookies: responseCookies
+      };
+    } else {
+      // Fallback to regular fetch with similar headers
+      log(`[ProtectionBypass] Using fallback fetch request (CycleTLS not available)`, "scraper");
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: requestHeaders,
+          body,
+          signal: controller.signal,
+          redirect: 'follow'
+        });
+        
+        clearTimeout(timeoutId);
+        
+        const responseBody = await response.text();
+        const responseHeaders: Record<string, string> = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+        
+        // Extract cookies from response headers
+        const responseCookies: string[] = [];
+        const setCookie = response.headers.get('set-cookie');
+        if (setCookie) {
+          responseCookies.push(setCookie);
+        }
+        
+        log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
+        
+        return {
+          success: response.ok,
+          status: response.status,
+          headers: responseHeaders,
+          body: responseBody,
+          cookies: responseCookies
+        };
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
     }
-
-    log(`[ProtectionBypass] CycleTLS request completed: ${response.status}`, "scraper");
-
-    return {
-      success: response.status >= 200 && response.status < 400,
-      status: response.status,
-      headers: response.headers,
-      body: response.body,
-      cookies: responseCookies
-    };
   } catch (error: any) {
     log(`[ProtectionBypass] CycleTLS request failed: ${error.message}`, "scraper-error");
     return {
@@ -1045,6 +1107,20 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
     const cycleTLS = await getCycleTLSInstance();
     const profile = options.browserProfile || getRandomBrowserProfile();
     
+    // If CycleTLS is not available, fallback to performCycleTLSRequest
+    if (!cycleTLS) {
+      log(`[ProtectionBypass] CycleTLS not available, using fallback method`, "scraper");
+      const fallbackResponse = await performCycleTLSRequest(url, {
+        method: 'GET',
+        tlsVersion: 'chrome_122',
+        headers: profile.headers,
+        timeout: 30000,
+        cookies: options.sessionCookies
+      });
+      
+      return fallbackResponse.body || '';
+    }
+    
     // Initial request to get cookies and session
     const initialOptions = {
       ja3: profile.ja3,
@@ -1062,7 +1138,12 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
     };
 
     log(`[ProtectionBypass] Sending initial CycleTLS request with JA3: ${initialOptions.ja3.substring(0, 50)}...`, "scraper");
-    const initialResponse = await cycleTLS(url, initialOptions, 'get');
+    
+    // Use the correct CycleTLS API
+    const initialResponse = await cycleTLS.request(url, {
+      ...initialOptions,
+      method: 'GET'
+    });
     
     log(`[ProtectionBypass] Initial response: status=${initialResponse.status}, cookies=${initialResponse.headers?.['set-cookie']?.length || 0}`, "scraper");
     
@@ -1096,7 +1177,10 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
             cookieJar: true
           };
           
-          const challengeResponse = await cycleTLS(challengeUrl, challengeOptions, 'get');
+          const challengeResponse = await cycleTLS.request(challengeUrl, {
+            ...challengeOptions,
+            method: 'GET'
+          });
           log(`[ProtectionBypass] Challenge solver response: ${challengeResponse.status}`, "scraper");
           
           // Extract cookies from challenge response
@@ -1115,7 +1199,10 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
               }
             };
             
-            const retryResponse = await cycleTLS(url, retryOptions, 'get');
+            const retryResponse = await cycleTLS.request(url, {
+              ...retryOptions,
+              method: 'GET'
+            });
             
             if (retryResponse.status === 200) {
               log(`[ProtectionBypass] Bypass successful with DataDome cookie (${retryResponse.body.length} chars)`, "scraper");
@@ -1144,7 +1231,10 @@ export async function performTLSRequest(url: string, options: EnhancedScrapingOp
           cookieJar: true
         };
         
-        const fallbackResponse = await cycleTLS(url, fallbackOptions, 'get');
+        const fallbackResponse = await cycleTLS.request(url, {
+          ...fallbackOptions,
+          method: 'GET'
+        });
         if (fallbackResponse.status === 200) {
           log(`[ProtectionBypass] Profile rotation successful with ${fallbackProfile.deviceType} profile (${fallbackResponse.body.length} chars)`, "scraper");
           return fallbackResponse.body;
