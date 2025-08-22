@@ -237,8 +237,19 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     
     log(`[PuppeteerScraper] Navigation completed. Status: ${statusCode}`, "scraper");
 
+    // Handle specific status codes with appropriate strategies
     if (response && !response.ok()) {
       log(`[PuppeteerScraper] Warning: Response status is not OK: ${statusCode}`, "scraper");
+      
+      if (statusCode === 401) {
+        log(`[PuppeteerScraper] 401 Unauthorized - likely paywall or authentication required`, "scraper");
+        // For paywall sites, we'll still try to extract any visible content
+        // Sometimes paywall sites show partial content or article previews
+      } else if (statusCode === 403) {
+        log(`[PuppeteerScraper] 403 Forbidden - site blocking access`, "scraper");
+      } else if (statusCode === 503) {
+        log(`[PuppeteerScraper] 503 Service Unavailable - site temporarily down or overloaded`, "scraper");
+      }
     }
 
     // Wait for page to stabilize with behavioral delay
@@ -327,36 +338,45 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
              !!document.querySelector('[data-hx-get], [data-hx-post], [data-hx-trigger]');
     });
     
-    // Detect preloader patterns on the page
+    // Detect preloader patterns on the page (with error handling)
     const preloaderDetected = await page.evaluate(() => {
-      // Common preloader selectors and patterns
-      const preloaderSelectors = [
-        '.loader', '.loading', '.preloader', '.spinner', 
-        '#loader', '#loading', '#preloader', '#spinner',
-        '[class*="load"]', '[class*="spin"]', '[id*="load"]', '[id*="spin"]'
-      ];
-      
-      const hasPreloaderElements = preloaderSelectors.some(selector => {
-        const elements = document.querySelectorAll(selector);
-        return Array.from(elements).some(el => {
-          const style = window.getComputedStyle(el);
-          return style.display !== 'none' && style.visibility !== 'hidden';
+      try {
+        // Common preloader selectors and patterns
+        const preloaderSelectors = [
+          '.loader', '.loading', '.preloader', '.spinner', 
+          '#loader', '#loading', '#preloader', '#spinner',
+          '[class*="load"]', '[class*="spin"]', '[id*="load"]', '[id*="spin"]'
+        ];
+        
+        const hasPreloaderElements = preloaderSelectors.some(selector => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            return Array.from(elements).some(el => {
+              const style = window.getComputedStyle(el);
+              return style.display !== 'none' && style.visibility !== 'hidden';
+            });
+          } catch (e) {
+            return false;
+          }
         });
-      });
-      
-      // Check for preloader text content
-      const bodyText = document.body.textContent || '';
-      const hasPreloaderText = /loading|please wait|getting ready/i.test(bodyText);
-      
-      // Check for common preloader JavaScript patterns
-      const hasPreloaderJS = !!(window as any).showLoader || 
-                           !!(window as any).hideLoader ||
-                           !!(window as any).loadContent ||
-                           document.querySelector('script[src*="loader"]') ||
-                           document.querySelector('script[src*="preload"]');
-      
-      return hasPreloaderElements || hasPreloaderText || hasPreloaderJS;
-    });
+        
+        // Check for preloader text content
+        const bodyText = document.body?.textContent || '';
+        const hasPreloaderText = /loading|please wait|getting ready/i.test(bodyText);
+        
+        // Check for common preloader JavaScript patterns
+        const hasPreloaderJS = !!(window as any).showLoader || 
+                             !!(window as any).hideLoader ||
+                             !!(window as any).loadContent ||
+                             !!document.querySelector('script[src*="loader"]') ||
+                             !!document.querySelector('script[src*="preload"]');
+        
+        return hasPreloaderElements || hasPreloaderText || hasPreloaderJS;
+      } catch (error) {
+        console.error('Preloader detection error:', error);
+        return false; // Default to false on error
+      }
+    }).catch(() => false); // Ensure we always return a boolean
     
     // Determine what type of dynamic content loading is needed
     const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
@@ -407,8 +427,13 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         validation.isValid = dynamicValidation.isValid;
         validation.isErrorPage = dynamicValidation.isErrorPage;
         
-        // Return with dynamic content
-        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && dynamicValidation.linkCount >= 10;
+        // Return with dynamic content (flexible success criteria for paywall sites)
+        const minLinksRequired = statusCode === 401 ? 5 : 10; // Lower requirement for paywall sites
+        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && dynamicValidation.linkCount >= minLinksRequired;
+        
+        if (statusCode === 401 && dynamicValidation.linkCount >= 5) {
+          log(`[PuppeteerScraper] Paywall site: accepting ${dynamicValidation.linkCount} links (reduced threshold)`, "scraper");
+        }
         
         return {
           html: dynamicHtml,
@@ -427,8 +452,13 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     log(`[PuppeteerScraper] Content extraction completed successfully (${validation.linkCount} links, ${validation.confidence}% confidence)`, "scraper");
 
-    // Mark as failed if content validation failed completely
-    const isSuccess = validation.isValid && !validation.isErrorPage && validation.linkCount >= 10;
+    // Mark as failed if content validation failed completely (flexible criteria for paywall sites)
+    const minLinksRequired = statusCode === 401 ? 5 : 10; // Lower requirement for paywall sites
+    const isSuccess = validation.isValid && !validation.isErrorPage && validation.linkCount >= minLinksRequired;
+    
+    if (statusCode === 401 && validation.linkCount >= 5) {
+      log(`[PuppeteerScraper] Paywall site: accepting ${validation.linkCount} links (reduced threshold)`, "scraper");
+    }
 
     return {
       html,

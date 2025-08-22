@@ -162,49 +162,121 @@ export async function performCycleTLSRequest(
         cookies: responseCookies
       };
     } else {
-      // Fallback to regular fetch with similar headers
-      log(`[ProtectionBypass] Using fallback fetch request (CycleTLS not available)`, "scraper");
+      // Enhanced fallback with multiple strategies when CycleTLS is unavailable
+      log(`[ProtectionBypass] Using enhanced fallback fetch request (CycleTLS not available)`, "scraper");
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      try {
-        const response = await fetch(url, {
-          method,
-          headers: requestHeaders,
-          body,
-          signal: controller.signal,
-          redirect: 'follow'
-        });
-        
-        clearTimeout(timeoutId);
-        
-        const responseBody = await response.text();
-        const responseHeaders: Record<string, string> = {};
-        response.headers.forEach((value, key) => {
-          responseHeaders[key] = value;
-        });
-        
-        // Extract cookies from response headers
-        const responseCookies: string[] = [];
-        const setCookie = response.headers.get('set-cookie');
-        if (setCookie) {
-          responseCookies.push(setCookie);
+      const fallbackStrategies = [
+        // Strategy 1: Standard browser headers
+        {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        },
+        // Strategy 2: Search engine bot headers for paywall bypass
+        {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en',
+          'Accept-Encoding': 'gzip, deflate'
+        },
+        // Strategy 3: Mobile browser headers
+        {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'DNT': '1',
+          'Connection': 'keep-alive'
         }
-        
-        log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
-        
-        return {
-          success: response.ok,
-          status: response.status,
-          headers: responseHeaders,
-          body: responseBody,
-          cookies: responseCookies
-        };
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        throw fetchError;
+      ];
+
+      let lastError: any = null;
+      
+      for (let strategyIndex = 0; strategyIndex < fallbackStrategies.length; strategyIndex++) {
+        try {
+          const strategyHeaders = { ...fallbackStrategies[strategyIndex], ...requestHeaders };
+          
+          log(`[ProtectionBypass] Trying fallback strategy ${strategyIndex + 1}/${fallbackStrategies.length}`, "scraper");
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+          
+          try {
+            const response = await fetch(url, {
+              method,
+              headers: strategyHeaders,
+              body,
+              signal: controller.signal,
+              redirect: 'follow'
+            });
+            
+            clearTimeout(timeoutId);
+            
+            const responseBody = await response.text();
+            const responseHeaders: Record<string, string> = {};
+            response.headers.forEach((value, key) => {
+              responseHeaders[key] = value;
+            });
+            
+            // Extract cookies from response headers
+            const responseCookies: string[] = [];
+            const setCookie = response.headers.get('set-cookie');
+            if (setCookie) {
+              responseCookies.push(setCookie);
+            }
+            
+            log(`[ProtectionBypass] Fallback strategy ${strategyIndex + 1} completed: ${response.status}`, "scraper");
+            
+            const result = {
+              success: response.ok,
+              status: response.status,
+              headers: responseHeaders,
+              body: responseBody,
+              cookies: responseCookies
+            };
+            
+            // If we get a successful response or it's the last strategy, return the result
+            if (response.ok || strategyIndex === fallbackStrategies.length - 1) {
+              if (response.status === 401) {
+                log(`[ProtectionBypass] 401 response persists - likely paywall or authentication required`, "scraper");
+              }
+              return result;
+            }
+            
+            // If this strategy failed but we have more, try the next one
+            if (!response.ok && strategyIndex < fallbackStrategies.length - 1) {
+              log(`[ProtectionBypass] Strategy ${strategyIndex + 1} failed (${response.status}), trying next strategy`, "scraper");
+              continue;
+            }
+            
+            return result;
+            
+          } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            lastError = fetchError;
+            log(`[ProtectionBypass] Strategy ${strategyIndex + 1} fetch error: ${fetchError.message}`, "scraper");
+            
+            // If this is the last strategy, throw the error
+            if (strategyIndex === fallbackStrategies.length - 1) {
+              throw fetchError;
+            }
+          }
+        } catch (strategyError: any) {
+          lastError = strategyError;
+          log(`[ProtectionBypass] Strategy ${strategyIndex + 1} error: ${strategyError.message}`, "scraper");
+        }
       }
+      
+      // If all strategies failed, throw the last error
+      throw lastError || new Error('All fallback strategies failed');
     }
   } catch (error: any) {
     log(`[ProtectionBypass] CycleTLS request failed: ${error.message}`, "scraper-error");
@@ -237,9 +309,14 @@ export async function performPreflightCheck(url: string): Promise<{
     timeout: 10000
   });
 
-  // Check for immediate protection indicators
-  if (!headResponse.success || headResponse.status === 403 || headResponse.status === 503) {
+  // Check for immediate protection indicators (including 401 for paywalls)
+  if (!headResponse.success || headResponse.status === 403 || headResponse.status === 503 || headResponse.status === 401) {
     log(`[ProtectionBypass] Pre-flight detected protection (status: ${headResponse.status})`, "scraper");
+    
+    // For 401 responses, this might be a paywall - still try but with different approach
+    if (headResponse.status === 401) {
+      log(`[ProtectionBypass] 401 detected - likely paywall or authentication required`, "scraper");
+    }
     
     // Try GET request with different fingerprint
     const getResponse = await performCycleTLSRequest(url, {
@@ -461,58 +538,75 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       // Execute DataDome challenge solver immediately
       log(`[ProtectionBypass] Executing DataDome challenge solver...`, "scraper");
       
-      // Inject DataDome solver script
+      // Inject DataDome solver script with comprehensive error handling
       const solverResult = await page.evaluate(() => {
-        // Create a promise to track DataDome initialization
-        return new Promise((resolve) => {
-          let checkCount = 0;
-          const maxChecks = 20;
-          
-          const checkDataDome = () => {
-            checkCount++;
+        try {
+          // Create a promise to track DataDome initialization
+          return new Promise((resolve) => {
+            let checkCount = 0;
+            const maxChecks = 20;
             
-            // Check if DataDome has initialized
-            const ddScript = document.querySelector('script[data-cfasync="false"]');
-            const ddVarMatch = ddScript?.textContent?.match(/var dd=({[^}]+})/);
-            
-            if (ddVarMatch && ddVarMatch[1]) {
+            const checkDataDome = () => {
               try {
-                // Extract DataDome configuration
-                const ddConfig = JSON.parse(ddVarMatch[1].replace(/'/g, '"'));
-                console.log('DataDome config found:', ddConfig);
+                checkCount++;
                 
-                // DataDome expects certain behaviors
-                // 1. Mouse movement
-                for (let i = 0; i < 10; i++) {
-                  const evt = new MouseEvent('mousemove', {
-                    clientX: Math.random() * window.innerWidth,
-                    clientY: Math.random() * window.innerHeight,
-                    bubbles: true
-                  });
-                  document.dispatchEvent(evt);
+                // Check if DataDome has initialized
+                const ddScript = document.querySelector('script[data-cfasync="false"]');
+                const ddVarMatch = ddScript?.textContent?.match(/var dd=({[^}]+})/);
+                
+                if (ddVarMatch && ddVarMatch[1]) {
+                  try {
+                    // Extract DataDome configuration
+                    const ddConfig = JSON.parse(ddVarMatch[1].replace(/'/g, '"'));
+                    console.log('DataDome config found:', ddConfig);
+                    
+                    // DataDome expects certain behaviors
+                    // 1. Mouse movement
+                    for (let i = 0; i < 10; i++) {
+                      const evt = new MouseEvent('mousemove', {
+                        clientX: Math.random() * window.innerWidth,
+                        clientY: Math.random() * window.innerHeight,
+                        bubbles: true
+                      });
+                      document.dispatchEvent(evt);
+                    }
+                    
+                    // 2. Window focus
+                    window.focus();
+                    if (typeof document.hasFocus === 'undefined') {
+                      document.hasFocus = () => true;
+                    }
+                    
+                    // 3. User interaction timing
+                    if (typeof window._datadome_started === 'undefined') {
+                      window._datadome_started = Date.now() - Math.floor(Math.random() * 3000 + 2000);
+                    }
+                    
+                    resolve({ success: true, config: ddConfig });
+                  } catch (parseError) {
+                    console.error('DataDome parse error:', parseError);
+                    resolve({ success: false, error: parseError.message });
+                  }
+                } else if (checkCount >= maxChecks) {
+                  resolve({ success: false, error: 'DataDome config not found after ' + maxChecks + ' attempts' });
+                } else {
+                  setTimeout(checkDataDome, 100);
                 }
-                
-                // 2. Window focus
-                window.focus();
-                document.hasFocus = () => true;
-                
-                // 3. User interaction timing
-                window._datadome_started = Date.now() - Math.floor(Math.random() * 3000 + 2000);
-                
-                resolve({ success: true, config: ddConfig });
-              } catch (e) {
-                console.error('DataDome parse error:', e);
-                resolve({ success: false, error: e.message });
+              } catch (checkError) {
+                console.error('DataDome check error:', checkError);
+                resolve({ success: false, error: 'DataDome check failed: ' + checkError.message });
               }
-            } else if (checkCount >= maxChecks) {
-              resolve({ success: false, error: 'DataDome config not found' });
-            } else {
-              setTimeout(checkDataDome, 100);
-            }
-          };
-          
-          checkDataDome();
-        });
+            };
+            
+            checkDataDome();
+          });
+        } catch (mainError) {
+          console.error('DataDome solver initialization error:', mainError);
+          return { success: false, error: 'Solver initialization failed: ' + mainError.message };
+        }
+      }).catch((evalError) => {
+        log(`[ProtectionBypass] DataDome solver evaluation error: ${evalError.message}`, "scraper-error");
+        return { success: false, error: 'Evaluation failed: ' + evalError.message };
       });
       
       log(`[ProtectionBypass] DataDome solver result: ${JSON.stringify(solverResult)}`, "scraper");
