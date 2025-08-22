@@ -1,4 +1,47 @@
-# Scraper Enhancement Plan
+# Scraper Enhancement Plan (REVISED)
+
+## Update: Existing HTMX Infrastructure Discovery
+
+We have TWO robust HTMX handling systems already in place:
+
+### 1. HTMX Content Handler (`backend/services/scraping/scrapers/puppeteer-scraper/htmx-handler.ts`)
+- **Purpose**: Loads HTMX content into the page
+- **Features**:
+  - Foorilla-specific endpoints already mapped and confirmed working
+  - Contextual filtering using `HX-Current-URL` header
+  - CSRF token handling
+  - Prioritized endpoint loading (main content first)
+  - Step-by-step content injection
+- **When Used**: Called from puppeteer-scraper when `options.handleHTMX = true` AND content < 50KB
+- **Issue**: Only runs when content is minimal, missing HTMX sites with larger initial HTML
+
+### 2. Multi-Step HTMX Link Extractor (`backend/services/scraping/extractors/link-extraction/puppeteer-link-handler.ts` lines 240-830)
+- **Purpose**: Extracts links from HTMX-powered pages
+- **Features**:
+  - Step 1: Loads all HTMX content by triggering elements and fetching endpoints
+  - Step 2: Extracts article URLs from loaded content (including HTMX click handlers)
+  - Step 3: Processes articles without URLs (attempts URL resolution)
+  - Handles common HTMX patterns for sites like Foorilla
+  - Injects fetched content into DOM for extraction
+- **When Used**: Called via `extractArticleLinksFromPage` when dynamic content is detected
+- **Currently Active**: YES - being used in main-scraper.ts for dynamic sites
+
+### Current Flow
+```
+main-scraper.ts 
+  → detects dynamic content
+  → calls extractArticleLinksFromPage (dynamic-content-handler.ts)
+  → calls extractLinksFromPage (puppeteer-link-handler.ts)
+  → executes multi-step HTMX extraction
+```
+
+## Revised Problem Analysis
+
+The issue is NOT missing functionality but integration and invocation problems:
+
+1. **HTMX Content Handler** runs conditionally based on content size, not HTMX detection
+2. **Multi-Step Link Extractor** is active but may not coordinate with content handler
+3. **Both systems** work independently instead of complementing each other
 
 ## Current Issues Diagnosed
 
@@ -22,23 +65,40 @@
 - Lazy-loaded articles
 - Client-side rendered content
 
-## Enhancement Options
+## Enhancement Options (REVISED)
 
-### Option 1: Enhanced HTMX Handler
-**Priority: HIGH**
+### Option 1: Fix and Optimize Existing HTMX Systems
+**Priority: CRITICAL**
+
+We should NOT create new HTMX handlers but fix the existing ones:
+
+#### A. Fix HTMX Content Handler Invocation
 ```javascript
-// Improvements needed:
-1. Detect HTMX framework presence
-2. Trigger HTMX events programmatically
-3. Wait for HTMX content to load
-4. Extract dynamically loaded links
+// Current problem:
+if (hasMinimalContent && options?.handleHTMX) // Only runs for small pages
+
+// Fix:
+const htmxDetected = await page.evaluate(() => 
+  !!(window as any).htmx || 
+  !!document.querySelector('[hx-get], [hx-post], script[src*="htmx"]')
+);
+if (options?.handleHTMX && (hasMinimalContent || htmxDetected))
 ```
 
-**Implementation Strategy**:
-- Add HTMX event listeners (`htmx:afterSwap`, `htmx:load`)
-- Programmatically trigger HTMX requests
-- Wait for content containers to populate
-- Extract links from dynamically loaded content
+#### B. Coordinate Both HTMX Systems
+```javascript
+// Ensure both systems work together:
+1. Content Handler loads HTMX content first
+2. Link Extractor then processes the enriched DOM
+3. Validate results meet minimum requirements
+```
+
+#### C. Enhance Context Preservation
+```javascript
+// For /media/cybersecurity pages:
+const fullContextUrl = page.url(); // Full path, not just base
+headers['HX-Current-URL'] = fullContextUrl; // Pass context to HTMX
+```
 
 ### Option 2: Intelligent Wait Strategies
 **Priority: HIGH**
@@ -131,12 +191,13 @@ Create a dedicated module for HTMX sites with:
 4. Track site-specific failure patterns
 ```
 
-## Recommended Implementation Order
+## Recommended Implementation Order (REVISED)
 
-### Phase 1: HTMX Enhancement (1-2 days)
-1. Implement HTMX event detection and waiting
-2. Add programmatic HTMX triggering
-3. Test with foorilla.com and similar sites
+### Phase 1: Fix Existing HTMX Systems (1 day)
+1. Fix HTMX Content Handler invocation logic (remove content size restriction)
+2. Ensure proper context preservation for filtered URLs
+3. Coordinate Content Handler and Link Extractor execution
+4. Test with foorilla.com/media/cybersecurity
 
 ### Phase 2: Intelligent Waiting (1 day)
 1. Implement smart wait strategies
@@ -207,6 +268,23 @@ Create a dedicated module for HTMX sites with:
 3. **External Scraping Service**: Use services like ScraperAPI for difficult sites
 4. **Site-Specific Adapters**: Create custom scrapers for high-value sources
 
-## Conclusion
+## Conclusion (REVISED)
 
-The primary focus should be on enhancing HTMX handling and implementing intelligent wait strategies. This will significantly improve success rates for modern JavaScript-heavy news sites. The multi-stage pipeline approach will ensure efficient resource usage while maintaining high success rates.
+The discovery of existing robust HTMX infrastructure changes our approach significantly:
+
+1. **We have the tools** - Both HTMX Content Handler and Multi-Step Link Extractor are well-designed and functional
+2. **The problem is integration** - These systems need to work together and be invoked properly
+3. **Focus on fixes, not new features** - Optimize what we have rather than building new systems
+
+### Key Fixes Needed:
+1. **Invocation Logic**: HTMX Content Handler should run based on HTMX detection, not just content size
+2. **Context Preservation**: Ensure full URL paths are passed for contextual filtering
+3. **System Coordination**: Content Handler should enrich DOM before Link Extractor processes it
+4. **Validation**: Add robust checks to ensure minimum link requirements are met
+
+### Expected Outcome:
+With these fixes, sites like foorilla.com/media/cybersecurity should properly:
+- Load HTMX content with correct context
+- Extract cybersecurity-specific articles
+- Meet the minimum 10-link requirement
+- Handle various HTMX patterns effectively
