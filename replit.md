@@ -132,4 +132,11 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - Replaced deprecated `page.waitForTimeout()` with modern `setTimeout` wrapped in Promise
   - Enhanced DataDome bypass robustness with proper error handling and validation
   - Fixed scraper compatibility issues in main-scraper.ts and protection-bypass.ts
+- **5.3 Protocol Timeout Optimization**: Resolved Puppeteer protocol timeouts in resource-constrained environments
+  - Implemented progressive timeout strategy (10min → 30min with retries)
+  - Added 20+ Chrome optimization flags to reduce memory usage
+  - Reduced memory limit from 1GB to 512MB to prevent OOM errors
+  - Implemented page pooling to limit concurrent pages to 5 maximum
+  - Added automatic browser reset on protocol errors for recovery
+  - Enhanced retry logic with exponential backoff for resilience
 ```

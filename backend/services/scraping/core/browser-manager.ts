@@ -111,6 +111,7 @@ function findChromePath(): string {
 
 /**
  * Unified browser configuration combining best practices from all apps
+ * Enhanced for resource-constrained environments like Replit
  */
 const BROWSER_ARGS = [
   '--no-sandbox',
@@ -142,9 +143,28 @@ const BROWSER_ARGS = [
   '--force-crash-handler-disable',
   '--crash-handler-disabled',
   '--disable-crash-handler',
-  // Memory management to prevent crashes
-  '--max-old-space-size=1024',
-  '--js-flags=--max-old-space-size=1024'
+  // Enhanced memory management for Replit
+  '--max-old-space-size=512',  // Reduced from 1024 to prevent OOM
+  '--js-flags=--max-old-space-size=512',
+  // Additional optimizations for resource-constrained environments
+  '--disable-background-networking',
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding',
+  '--disable-features=TranslateUI',
+  '--disable-ipc-flooding-protection',
+  '--disable-component-extensions-with-background-pages',
+  '--disable-default-apps',
+  '--disable-sync',
+  '--metrics-recording-only',
+  '--no-pings',
+  '--disable-domain-reliability',
+  '--disable-features=InterestFeedContentSuggestions',
+  '--disable-features=Translate',
+  '--disable-features=BackForwardCache',
+  '--enable-features=NetworkService,NetworkServiceInProcess',
+  '--force-color-profile=srgb',
+  '--disable-features=VizDisplayCompositor'
 ];
 
 // Chrome path will be determined dynamically when browser is launched
@@ -197,48 +217,106 @@ export class BrowserManager {
 
   /**
    * Create a new browser instance with unified configuration
+   * Enhanced with retry logic for protocol timeouts
    */
   private static async createNewBrowser(): Promise<Browser> {
-    try {
-      // Determine Chrome path dynamically at launch time
-      const chromePath = findChromePath();
-      log(`[BrowserManager][createNewBrowser] Using Chrome at: ${chromePath}`, "scraper");
-      
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: BROWSER_ARGS,
-        executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 120000, // Increased for slower environments like Render
-        protocolTimeout: 300000, // Increased for resource-constrained environments
-        handleSIGINT: false, // Prevent premature shutdown
-        handleSIGTERM: false,
-        handleSIGHUP: false
-      });
+    const maxRetries = 3;
+    let lastError: any = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Determine Chrome path dynamically at launch time
+        const chromePath = findChromePath();
+        log(`[BrowserManager][createNewBrowser] Attempt ${attempt}/${maxRetries} - Using Chrome at: ${chromePath}`, "scraper");
+        
+        // Increase protocol timeout progressively with each retry
+        const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
+        
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: BROWSER_ARGS,
+          executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
+          timeout: 180000, // 3 minutes for browser launch
+          protocolTimeout: protocolTimeout, // Progressive increase for protocol operations
+          handleSIGINT: false, // Prevent premature shutdown
+          handleSIGTERM: false,
+          handleSIGHUP: false,
+          ignoreDefaultArgs: ['--enable-automation'], // Remove automation flag
+          defaultViewport: null
+        });
 
-      log("[BrowserManager][getBrowser] Browser launched successfully", "scraper");
-      
-      // Set up error handlers
-      browser.on('disconnected', () => {
-        log("[BrowserManager] Browser disconnected", "scraper");
-        this.browser = null;
-      });
+        log(`[BrowserManager][getBrowser] Browser launched successfully on attempt ${attempt}`, "scraper");
+        
+        // Set up error handlers
+        browser.on('disconnected', () => {
+          log("[BrowserManager] Browser disconnected", "scraper");
+          this.browser = null;
+        });
 
-      return browser;
-    } catch (error: any) {
-      log(`[BrowserManager][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
-      throw error;
+        return browser;
+      } catch (error: any) {
+        lastError = error;
+        log(`[BrowserManager][getBrowser] Attempt ${attempt} failed: ${error.message}`, "scraper-error");
+        
+        // If it's a protocol timeout, wait before retrying
+        if (error.message?.includes('timed out') && attempt < maxRetries) {
+          const waitTime = 5000 * attempt; // 5s, 10s, 15s
+          log(`[BrowserManager][getBrowser] Waiting ${waitTime}ms before retry...`, "scraper");
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
     }
+    
+    throw lastError || new Error('Failed to launch browser after maximum retries');
   }
 
   /**
-   * Create a new page from the browser instance
+   * Create a new page from the browser instance with resource management
    */
   static async createPage(): Promise<Page> {
-    const browser = await this.getBrowser();
-    const page = await browser.newPage();
+    const maxRetries = 3;
+    let lastError: any = null;
     
-    log(`[BrowserManager][createPage] Created new page`, "scraper");
-    return page;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const browser = await this.getBrowser();
+        
+        // Check if we have too many pages open
+        const pages = await browser.pages();
+        if (pages.length > 5) {
+          log(`[BrowserManager][createPage] Too many pages open (${pages.length}), closing extras`, "scraper");
+          // Close all but the first page (usually blank)
+          for (let i = 1; i < pages.length - 2; i++) {
+            await pages[i].close().catch(() => {});
+          }
+        }
+        
+        // Add a small delay to prevent rapid page creation
+        if (attempt > 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+        
+        const page = await browser.newPage();
+        
+        // Set default timeout for the page
+        page.setDefaultTimeout(60000); // 1 minute default timeout
+        page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
+        
+        log(`[BrowserManager][createPage] Created new page on attempt ${attempt}`, "scraper");
+        return page;
+      } catch (error: any) {
+        lastError = error;
+        log(`[BrowserManager][createPage] Attempt ${attempt} failed: ${error.message}`, "scraper-error");
+        
+        // If it's a protocol error, the browser might be unresponsive
+        if (error.message?.includes('Protocol error') || error.message?.includes('timed out')) {
+          log(`[BrowserManager][createPage] Protocol error detected, resetting browser`, "scraper");
+          this.browser = null; // Force browser recreation on next attempt
+        }
+      }
+    }
+    
+    throw lastError || new Error('Failed to create page after maximum retries');
   }
 
   /**
