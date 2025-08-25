@@ -71,17 +71,16 @@ export async function envelopeDecryptAndRotate(
 ): Promise<string> {
   // In dev environment, just return the plaintext value
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
-    const [ row ] = await withUserContext(userId, (contextDb) => 
+    const row = await withUserContext(userId, (contextDb) => 
       contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
-    ) as any;
-    
+    );
     if (!row) throw new Error(`Row ${rowId} not found`);
     return row[fieldName] as string || "";
   }
 
-  const [ row ] = await withUserContext(userId, (contextDb) => 
+  const row = await withUserContext(userId, (contextDb) => 
     contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
-  ) as any;
+  );
 
   if (!row) throw new Error(`Row ${rowId} not found`);
 
