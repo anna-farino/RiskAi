@@ -695,60 +695,210 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
 }
 
 /**
- * Handle Cloudflare protection challenges
- * Based on patterns from Threat Tracker
+ * Enhanced Cloudflare protection challenge handler
+ * Implements comprehensive detection and extended waiting with proper interaction
  */
 export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
   try {
-    log(`[ProtectionBypass] Checking for Cloudflare protection...`, "scraper");
+    log(`[ProtectionBypass] Performing enhanced Cloudflare challenge detection...`, "scraper");
 
-    const isCloudflareChallenge = await page.evaluate(() => {
+    // 1. Better Challenge Detection
+    const challengeDetails = await page.evaluate(() => {
+      const title = document.title || '';
+      const bodyText = document.body?.textContent || '';
+      const html = document.documentElement?.innerHTML || '';
+      
+      // Detect "Just a moment" title
+      const hasJustAMomentTitle = title.toLowerCase().includes('just a moment') || 
+                                 title.toLowerCase().includes('please wait');
+      
+      // Look for cdn-cgi/challenge-platform scripts
+      const hasChallengeScript = html.includes('cdn-cgi/challenge-platform') ||
+                                html.includes('cf-challenge.js') ||
+                                !!document.querySelector('script[src*="cdn-cgi/challenge-platform"]') ||
+                                !!document.querySelector('script[src*="cf-challenge"]');
+      
+      // Check for Cloudflare Ray ID patterns
+      const hasRayId = html.includes('ray id') || html.includes('Ray ID') ||
+                      html.includes('cf-ray') || html.includes('cloudflare-ray') ||
+                      /ray\s*id\s*:\s*[a-f0-9]+/i.test(html);
+      
+      // Enhanced Cloudflare indicators
       const hasCloudflareIndicators = 
-        document.body?.textContent?.includes("Checking your browser") ||
-        document.body?.textContent?.includes("DDoS protection") ||
-        document.documentElement?.innerHTML?.includes("cloudflare") ||
-        document.querySelector('*[class*="cf-"]') !== null;
-
-      return hasCloudflareIndicators;
+        bodyText.includes("Checking your browser") ||
+        bodyText.includes("DDoS protection") ||
+        bodyText.includes("Security check") ||
+        bodyText.includes("Please wait while we check") ||
+        html.includes("cloudflare") ||
+        !!document.querySelector('*[class*="cf-"]') ||
+        !!document.querySelector('*[id*="cf-"]') ||
+        !!document.querySelector('.challenge-running') ||
+        !!document.querySelector('#challenge-form');
+      
+      // Check for challenge-specific elements
+      const challengeElements = {
+        challengeForm: !!document.querySelector('#challenge-form'),
+        challengeRunning: !!document.querySelector('.challenge-running'),
+        challengeWrapper: !!document.querySelector('.cf-wrapper'),
+        challengeSpinner: !!document.querySelector('.cf-browser-verification'),
+        cfElements: document.querySelectorAll('*[class*="cf-"]').length
+      };
+      
+      const isCloudflareChallenge = hasJustAMomentTitle || hasChallengeScript || 
+                                   hasRayId || hasCloudflareIndicators;
+      
+      return {
+        isChallenge: isCloudflareChallenge,
+        hasJustAMomentTitle,
+        hasChallengeScript,
+        hasRayId,
+        hasCloudflareIndicators,
+        challengeElements,
+        title,
+        linkCount: document.querySelectorAll('a[href]').length
+      };
     });
 
-    if (isCloudflareChallenge) {
-      log(`[ProtectionBypass] Cloudflare challenge detected, waiting for completion...`, "scraper");
+    if (!challengeDetails.isChallenge) {
+      log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
+      return true;
+    }
 
-      // Wait for Cloudflare to complete its checks
-      let challengeCompleted = false;
-      const maxWaitTime = 15000; // 15 seconds max wait
-      const checkInterval = 2000; // Check every 2 seconds
-      let waitTime = 0;
+    log(`[ProtectionBypass] Cloudflare challenge detected - Title: "${challengeDetails.title}", Script: ${challengeDetails.hasChallengeScript}, Ray ID: ${challengeDetails.hasRayId}, Links: ${challengeDetails.linkCount}`, "scraper");
 
+    // 2. Extended Challenge Waiting with monitoring
+    let challengeCompleted = false;
+    const maxWaitTime = 12000; // 12 seconds max wait
+    const checkInterval = 1000; // Check every 1 second
+    let waitTime = 0;
+    const initialUrl = page.url();
+
+    // Track network requests for challenge completion
+    const requestPromises: Promise<any>[] = [];
+    const onRequest = (request: any) => {
+      const url = request.url();
+      if (url.includes('cf-challenge') || url.includes('cdn-cgi')) {
+        log(`[ProtectionBypass] Challenge request detected: ${url}`, "scraper");
+      }
+    };
+    
+    const onResponse = (response: any) => {
+      const url = response.url();
+      if (url.includes('cf-challenge') || url.includes('cdn-cgi')) {
+        log(`[ProtectionBypass] Challenge response: ${response.status()} ${url}`, "scraper");
+      }
+    };
+
+    page.on('request', onRequest);
+    page.on('response', onResponse);
+
+    try {
       while (!challengeCompleted && waitTime < maxWaitTime) {
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
 
-        // Check if challenge is still active
-        const stillOnChallenge = await page.evaluate(() => {
-          return document.body?.textContent?.includes("Checking your browser") ||
-                 document.body?.textContent?.includes("DDoS protection");
+        // 3. Enhanced Challenge Interaction - Monitor specific elements and changes
+        const challengeStatus = await page.evaluate(() => {
+          const title = document.title || '';
+          const bodyText = document.body?.textContent || '';
+          const html = document.documentElement?.innerHTML || '';
+          
+          // Check if challenge elements disappeared
+          const challengeElementsGone = !document.querySelector('#challenge-form') &&
+                                       !document.querySelector('.challenge-running') &&
+                                       !document.querySelector('.cf-browser-verification');
+          
+          // Check if real content appeared
+          const hasRealContent = document.querySelectorAll('a[href]').length > 10 ||
+                                document.querySelectorAll('nav, header, footer, article').length > 2;
+          
+          // Check if still on challenge page
+          const stillOnChallenge = title.toLowerCase().includes('just a moment') ||
+                                  bodyText.includes("Checking your browser") ||
+                                  bodyText.includes("Please wait while we check") ||
+                                  bodyText.includes("DDoS protection") ||
+                                  html.includes('cdn-cgi/challenge-platform');
+          
+          return {
+            stillOnChallenge,
+            challengeElementsGone,
+            hasRealContent,
+            title,
+            linkCount: document.querySelectorAll('a[href]').length,
+            contentLength: bodyText.length
+          };
         });
 
-        if (!stillOnChallenge) {
+        // Monitor for URL changes
+        const currentUrl = page.url();
+        const urlChanged = currentUrl !== initialUrl;
+
+        log(`[ProtectionBypass] Challenge check (${waitTime}ms): stillOnChallenge=${challengeStatus.stillOnChallenge}, elementsGone=${challengeStatus.challengeElementsGone}, realContent=${challengeStatus.hasRealContent}, links=${challengeStatus.linkCount}, urlChanged=${urlChanged}`, "scraper");
+
+        // Detect when challenge is actually solved
+        if (!challengeStatus.stillOnChallenge && 
+            (challengeStatus.challengeElementsGone || challengeStatus.hasRealContent || urlChanged)) {
           challengeCompleted = true;
-          log(`[ProtectionBypass] Cloudflare challenge completed after ${waitTime}ms`, "scraper");
+          log(`[ProtectionBypass] Cloudflare challenge completed after ${waitTime}ms - URL: ${currentUrl}, Links: ${challengeStatus.linkCount}`, "scraper");
+          break;
+        }
+
+        // Add proper delays between challenge steps
+        if (waitTime === 3000) {
+          // Wait for specific Cloudflare elements to appear/disappear
+          try {
+            await page.waitForFunction(() => {
+              return !document.querySelector('.cf-browser-verification') ||
+                     document.querySelectorAll('a[href]').length > 5;
+            }, { timeout: 2000 });
+            log(`[ProtectionBypass] Challenge elements changed during wait`, "scraper");
+          } catch {
+            // Continue if timeout
+          }
         }
       }
+
+      // Clean up event listeners
+      page.off('request', onRequest);
+      page.off('response', onResponse);
 
       if (!challengeCompleted) {
         log(`[ProtectionBypass] Cloudflare challenge did not complete within ${maxWaitTime}ms`, "scraper");
         return false;
       }
 
-      // Wait for page to stabilize
+      // Final validation - ensure we have real content
       await new Promise((resolve) => setTimeout(resolve, 2000));
+      
+      const finalValidation = await page.evaluate(() => {
+        const linkCount = document.querySelectorAll('a[href]').length;
+        const title = document.title || '';
+        const isStillChallenge = title.toLowerCase().includes('just a moment') ||
+                                title.toLowerCase().includes('please wait');
+        
+        return {
+          linkCount,
+          title,
+          isStillChallenge,
+          hasNavigation: !!document.querySelector('nav, header'),
+          contentLength: document.body?.textContent?.length || 0
+        };
+      });
+
+      if (finalValidation.isStillChallenge || finalValidation.linkCount < 5) {
+        log(`[ProtectionBypass] Final validation failed - still on challenge page or insufficient links (${finalValidation.linkCount})`, "scraper");
+        return false;
+      }
+
+      log(`[ProtectionBypass] Cloudflare challenge successfully bypassed - Links: ${finalValidation.linkCount}, Content: ${finalValidation.contentLength} chars`, "scraper");
       return true;
-    } else {
-      log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
-      return true;
+
+    } finally {
+      // Ensure event listeners are cleaned up
+      page.off('request', onRequest);
+      page.off('response', onResponse);
     }
+
   } catch (error: any) {
     log(`[ProtectionBypass] Error handling Cloudflare challenge: ${error.message}`, "scraper-error");
     return false;
