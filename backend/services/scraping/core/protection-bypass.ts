@@ -1,68 +1,20 @@
 import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
-import initCycleTLS from 'cycletls';
 import UserAgent from 'user-agents';
 import { createCursor } from 'ghost-cursor';
 
-// Initialize CycleTLS instance
-let cycleTLSInstance: any = null;
-let cycleTLSAvailable: boolean | null = null;
 
-async function getCycleTLSInstance() {
-  // If we already know CycleTLS is not available, return null
-  if (cycleTLSAvailable === false) {
-    return null;
-  }
-  
-  try {
-    if (!cycleTLSInstance) {
-      log(`[ProtectionBypass] Initializing CycleTLS instance...`, "scraper");
-      const instance = await initCycleTLS();
-      
-      // Check if the instance has the expected API
-      if (instance && typeof instance === 'object') {
-        cycleTLSInstance = instance;
-        cycleTLSAvailable = true;
-        log(`[ProtectionBypass] CycleTLS instance initialized successfully`, "scraper");
-      } else {
-        throw new Error('CycleTLS instance does not have expected structure');
-      }
-    }
-    return cycleTLSInstance;
-  } catch (error: any) {
-    log(`[ProtectionBypass] CycleTLS not available, using fallback: ${error.message}`, "scraper");
-    cycleTLSAvailable = false;
-    return null;
-  }
-}
 
 /**
- * Chrome TLS fingerprint configurations
- */
-const TLS_FINGERPRINTS = {
-  chrome_122: {
-    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-  },
-  chrome_121: {
-    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-  },
-  chrome_120: {
-    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53-10,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-  }
-};
-
-/**
- * Performs a CycleTLS request with specified TLS fingerprint
+ * Performs an optimized HTTP request with natural browser-like headers
+ * Replaces the old CycleTLS approach with a single, clean strategy
  */
 export async function performCycleTLSRequest(
   url: string,
   options: {
     method?: 'GET' | 'HEAD' | 'POST';
-    tlsVersion?: 'chrome_122' | 'chrome_121' | 'chrome_120';
+    tlsVersion?: 'chrome_122' | 'chrome_121' | 'chrome_120'; // Keep for backward compatibility but ignored
     headers?: Record<string, string>;
     body?: string;
     timeout?: number;
@@ -78,7 +30,6 @@ export async function performCycleTLSRequest(
 }> {
   const {
     method = 'GET',
-    tlsVersion = 'chrome_122',
     headers = {},
     body,
     timeout = 30000,
@@ -86,18 +37,16 @@ export async function performCycleTLSRequest(
   } = options;
 
   try {
-    const cycletls = await getCycleTLSInstance();
-    const fingerprint = TLS_FINGERPRINTS[tlsVersion];
+    log(`[ProtectionBypass] Using optimized fetch request with natural browser headers`, "scraper");
     
-    // Build headers with proper Chrome headers
+    // Enhanced browser-like headers matching successful web_fetch patterns
     const requestHeaders = {
-      'User-Agent': fingerprint.userAgent,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
       'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-      'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
+      'Cache-Control': 'max-age=0',
+      'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
       'Sec-Ch-Ua-Mobile': '?0',
       'Sec-Ch-Ua-Platform': '"Windows"',
       'Sec-Fetch-Dest': 'document',
@@ -105,6 +54,8 @@ export async function performCycleTLSRequest(
       'Sec-Fetch-Site': 'none',
       'Sec-Fetch-User': '?1',
       'Upgrade-Insecure-Requests': '1',
+      'Connection': 'keep-alive',
+      'DNT': '1',
       ...headers
     };
 
@@ -113,188 +64,50 @@ export async function performCycleTLSRequest(
       requestHeaders['Cookie'] = cookies.join('; ');
     }
 
-    // If CycleTLS is available, use it
-    if (cycletls && typeof cycletls.request === 'function') {
-      log(`[ProtectionBypass] Using CycleTLS ${method} request with ${tlsVersion} fingerprint`, "scraper");
-      
-      const response = await cycletls.request(url, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(url, {
         method,
         headers: requestHeaders,
         body,
-        ja3: fingerprint.ja3,
-        userAgent: fingerprint.userAgent,
-        timeout,
-        disableRedirect: false,
-        headerOrder: [
-          'accept',
-          'accept-language',
-          'accept-encoding',
-          'cache-control',
-          'pragma',
-          'sec-ch-ua',
-          'sec-ch-ua-mobile',
-          'sec-ch-ua-platform',
-          'sec-fetch-dest',
-          'sec-fetch-mode',
-          'sec-fetch-site',
-          'sec-fetch-user',
-          'upgrade-insecure-requests',
-          'user-agent'
-        ]
+        signal: controller.signal,
+        redirect: 'follow'
       });
-
+      
+      clearTimeout(timeoutId);
+      
+      const responseBody = await response.text();
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      
       // Extract cookies from response headers
       const responseCookies: string[] = [];
-      if (response.headers['set-cookie']) {
-        const setCookies = Array.isArray(response.headers['set-cookie']) 
-          ? response.headers['set-cookie'] 
-          : [response.headers['set-cookie']];
-        responseCookies.push(...setCookies);
+      const setCookieHeader = response.headers.get('set-cookie');
+      if (setCookieHeader) {
+        responseCookies.push(setCookieHeader);
       }
-
-      log(`[ProtectionBypass] CycleTLS request completed: ${response.status}`, "scraper");
-
+      
+      log(`[ProtectionBypass] Request completed: ${response.status}`, "scraper");
+      
       return {
-        success: response.status >= 200 && response.status < 400,
+        success: response.ok,
         status: response.status,
-        headers: response.headers,
-        body: response.body,
+        headers: responseHeaders,
+        body: responseBody,
         cookies: responseCookies
       };
-    } else {
-      // Enhanced fallback with multiple strategies when CycleTLS is unavailable
-      log(`[ProtectionBypass] Using enhanced fallback fetch request (CycleTLS not available)`, "scraper");
       
-      const fallbackStrategies = [
-        // Strategy 1: Standard browser headers
-        {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
-          'Sec-Fetch-User': '?1',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
-        },
-        // Strategy 2: Search engine bot headers for paywall bypass
-        {
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en',
-          'Accept-Encoding': 'gzip, deflate',
-          'From': 'googlebot(at)google.com'
-        },
-        // Strategy 2b: Bingbot for additional paywall bypass
-        {
-          'User-Agent': 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en',
-          'Accept-Encoding': 'gzip, deflate'
-        },
-        // Strategy 2c: Facebook crawler for social media bypass
-        {
-          'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en',
-          'Accept-Encoding': 'gzip, deflate'
-        },
-        // Strategy 3: Mobile browser headers
-        {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate',
-          'DNT': '1',
-          'Connection': 'keep-alive'
-        }
-      ];
-
-      let lastError: any = null;
-      
-      for (let strategyIndex = 0; strategyIndex < fallbackStrategies.length; strategyIndex++) {
-        try {
-          const strategyHeaders = { ...fallbackStrategies[strategyIndex], ...requestHeaders };
-          
-          log(`[ProtectionBypass] Trying fallback strategy ${strategyIndex + 1}/${fallbackStrategies.length}`, "scraper");
-          
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), timeout);
-          
-          try {
-            const response = await fetch(url, {
-              method,
-              headers: strategyHeaders,
-              body,
-              signal: controller.signal,
-              redirect: 'follow'
-            });
-            
-            clearTimeout(timeoutId);
-            
-            const responseBody = await response.text();
-            const responseHeaders: Record<string, string> = {};
-            response.headers.forEach((value, key) => {
-              responseHeaders[key] = value;
-            });
-            
-            // Extract cookies from response headers
-            const responseCookies: string[] = [];
-            const setCookie = response.headers.get('set-cookie');
-            if (setCookie) {
-              responseCookies.push(setCookie);
-            }
-            
-            log(`[ProtectionBypass] Fallback strategy ${strategyIndex + 1} completed: ${response.status}`, "scraper");
-            
-            const result = {
-              success: response.ok,
-              status: response.status,
-              headers: responseHeaders,
-              body: responseBody,
-              cookies: responseCookies
-            };
-            
-            // If we get a successful response or it's the last strategy, return the result
-            if (response.ok || strategyIndex === fallbackStrategies.length - 1) {
-              if (response.status === 401) {
-                log(`[ProtectionBypass] 401 response persists - likely paywall or authentication required`, "scraper");
-              }
-              return result;
-            }
-            
-            // If this strategy failed but we have more, try the next one
-            if (!response.ok && strategyIndex < fallbackStrategies.length - 1) {
-              log(`[ProtectionBypass] Strategy ${strategyIndex + 1} failed (${response.status}), trying next strategy`, "scraper");
-              continue;
-            }
-            
-            return result;
-            
-          } catch (fetchError: any) {
-            clearTimeout(timeoutId);
-            lastError = fetchError;
-            log(`[ProtectionBypass] Strategy ${strategyIndex + 1} fetch error: ${fetchError.message}`, "scraper");
-            
-            // If this is the last strategy, throw the error
-            if (strategyIndex === fallbackStrategies.length - 1) {
-              throw fetchError;
-            }
-          }
-        } catch (strategyError: any) {
-          lastError = strategyError;
-          log(`[ProtectionBypass] Strategy ${strategyIndex + 1} error: ${strategyError.message}`, "scraper");
-        }
-      }
-      
-      // If all strategies failed, throw the last error
-      throw lastError || new Error('All fallback strategies failed');
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      throw fetchError;
     }
+    
   } catch (error: any) {
-    log(`[ProtectionBypass] CycleTLS request failed: ${error.message}`, "scraper-error");
+    log(`[ProtectionBypass] Request failed: ${error.message}`, "scraper-error");
     return {
       success: false,
       status: 0,
@@ -306,7 +119,8 @@ export async function performCycleTLSRequest(
 }
 
 /**
- * Performs a pre-flight check using CycleTLS to detect protection
+ * Performs a streamlined pre-flight check to detect protection
+ * Reduced from 2 requests to 1 for efficiency
  */
 export async function performPreflightCheck(url: string): Promise<{
   protectionDetected: boolean;
@@ -315,48 +129,40 @@ export async function performPreflightCheck(url: string): Promise<{
   cookies?: string[];
   headers?: Record<string, string>;
 }> {
-  log(`[ProtectionBypass] Performing pre-flight check for ${url}`, "scraper");
+  log(`[ProtectionBypass] Performing streamlined pre-flight check for ${url}`, "scraper");
 
-  // Try HEAD request first for efficiency
-  const headResponse = await performCycleTLSRequest(url, {
-    method: 'HEAD',
-    tlsVersion: 'chrome_122',
-    timeout: 10000
+  // Single optimized GET request (more informative than HEAD)
+  const response = await performCycleTLSRequest(url, {
+    method: 'GET',
+    timeout: 15000
   });
 
-  // Check for immediate protection indicators (including 401 for paywalls)
-  if (!headResponse.success || headResponse.status === 403 || headResponse.status === 503 || headResponse.status === 401) {
-    log(`[ProtectionBypass] Pre-flight detected protection (status: ${headResponse.status})`, "scraper");
+  // Check for protection indicators
+  if (!response.success || response.status === 403 || response.status === 503) {
+    log(`[ProtectionBypass] Pre-flight detected protection (status: ${response.status})`, "scraper");
     
-    // For 401 responses, this might be a paywall - still try but with different approach
-    if (headResponse.status === 401) {
-      log(`[ProtectionBypass] 401 detected - likely paywall or authentication required`, "scraper");
-    }
-    
-    // Try GET request with different fingerprint
-    const getResponse = await performCycleTLSRequest(url, {
-      method: 'GET',
-      tlsVersion: 'chrome_120',
-      timeout: 15000
-    });
-
     // Analyze response for protection type
-    const protectionType = analyzeProtectionType(getResponse);
+    const protectionType = analyzeProtectionType(response);
     
     return {
       protectionDetected: true,
       protectionType,
       requiresPuppeteer: protectionType !== 'none',
-      cookies: getResponse.cookies,
-      headers: getResponse.headers
+      cookies: response.cookies,
+      headers: response.headers
     };
+  }
+
+  // For 401, don't treat as protection - might be normal auth requirement
+  if (response.status === 401) {
+    log(`[ProtectionBypass] 401 detected - authentication required but not bot protection`, "scraper");
   }
 
   return {
     protectionDetected: false,
     requiresPuppeteer: false,
-    cookies: headResponse.cookies,
-    headers: headResponse.headers
+    cookies: response.cookies,
+    headers: response.headers
   };
 }
 
@@ -1206,194 +1012,33 @@ export function getRandomBrowserProfile(): BrowserProfile {
 }
 
 /**
- * Enhanced TLS 1.3 fingerprinting with CycleTLS for DataDome bypass
- * Implements cookie management and session handling
+ * Simplified TLS request using optimized fetch approach
+ * Replaces complex CycleTLS logic with natural browser behavior
  */
 export async function performTLSRequest(url: string, options: EnhancedScrapingOptions = {}): Promise<string> {
   try {
-    log(`[ProtectionBypass] Performing TLS fingerprinted request to: ${url}`, "scraper");
+    log(`[ProtectionBypass] Performing optimized TLS request to: ${url}`, "scraper");
     
-    const cycleTLS = await getCycleTLSInstance();
     const profile = options.browserProfile || getRandomBrowserProfile();
     
-    // If CycleTLS is not available, fallback to performCycleTLSRequest
-    if (!cycleTLS) {
-      log(`[ProtectionBypass] CycleTLS not available, using fallback method`, "scraper");
-      const fallbackResponse = await performCycleTLSRequest(url, {
-        method: 'GET',
-        tlsVersion: 'chrome_122',
-        headers: profile.headers,
-        timeout: 30000,
-        cookies: options.sessionCookies
-      });
-      
-      return fallbackResponse.body || '';
-    }
-    
-    // Initial request to get cookies and session
-    const initialOptions = {
-      ja3: profile.ja3,
-      userAgent: profile.userAgent,
-      headers: {
-        ...profile.headers,
-        'Cookie': options.sessionCookies?.join('; ') || ''
-      },
-      proxy: options.proxyUrl,
+    // Use the optimized performCycleTLSRequest function
+    const response = await performCycleTLSRequest(url, {
+      method: 'GET',
+      headers: profile.headers,
       timeout: 30000,
-      disableRedirect: false,
-      // Enable cookie jar for session management
-      followRedirect: true,
-      cookieJar: true
-    };
-
-    log(`[ProtectionBypass] Sending initial CycleTLS request with JA3: ${initialOptions.ja3.substring(0, 50)}...`, "scraper");
-    
-    // Use the correct CycleTLS API
-    const initialResponse = await cycleTLS.request(url, {
-      ...initialOptions,
-      method: 'GET'
+      cookies: options.sessionCookies
     });
     
-    log(`[ProtectionBypass] Initial response: status=${initialResponse.status}, cookies=${initialResponse.headers?.['set-cookie']?.length || 0}`, "scraper");
-    
-    // Check if we got DataDome challenge
-    if (initialResponse.status === 401 || initialResponse.status === 403 || 
-        (initialResponse.body && initialResponse.body.includes('captcha-delivery.com'))) {
-      
-      log(`[ProtectionBypass] DataDome challenge detected, attempting cookie-based bypass...`, "scraper");
-      
-      // Extract DataDome configuration from response
-      const ddConfigMatch = initialResponse.body?.match(/var dd=({[^}]+})/);
-      if (ddConfigMatch) {
-        try {
-          const ddConfig = JSON.parse(ddConfigMatch[1].replace(/'/g, '"'));
-          log(`[ProtectionBypass] DataDome config extracted: ${JSON.stringify(ddConfig)}`, "scraper");
-          
-          // Build challenge solver URL
-          const challengeUrl = `https://${ddConfig.host}/c.js`;
-          
-          // Request challenge solver with proper headers
-          const challengeOptions = {
-            ja3: profile.ja3,
-            userAgent: profile.userAgent,
-            headers: {
-              ...profile.headers,
-              'Referer': url,
-              'Cookie': ddConfig.cookie || ''
-            },
-            proxy: options.proxyUrl,
-            timeout: 30000,
-            cookieJar: true
-          };
-          
-          const challengeResponse = await cycleTLS.request(challengeUrl, {
-            ...challengeOptions,
-            method: 'GET'
-          });
-          log(`[ProtectionBypass] Challenge solver response: ${challengeResponse.status}`, "scraper");
-          
-          // Extract cookies from challenge response
-          const cookies = challengeResponse.headers?.['set-cookie'] || [];
-          const dataDomeCookie = cookies.find((c: string) => c.includes('datadome'));
-          
-          if (dataDomeCookie) {
-            log(`[ProtectionBypass] DataDome cookie obtained, retrying original request...`, "scraper");
-            
-            // Retry original request with DataDome cookie
-            const retryOptions = {
-              ...initialOptions,
-              headers: {
-                ...initialOptions.headers,
-                'Cookie': dataDomeCookie.split(';')[0]
-              }
-            };
-            
-            const retryResponse = await cycleTLS.request(url, {
-              ...retryOptions,
-              method: 'GET'
-            });
-            
-            if (retryResponse.status === 200) {
-              log(`[ProtectionBypass] Bypass successful with DataDome cookie (${retryResponse.body.length} chars)`, "scraper");
-              return retryResponse.body;
-            }
-          }
-        } catch (e: any) {
-          log(`[ProtectionBypass] Error parsing DataDome config: ${e.message}`, "scraper-error");
-        }
-      }
-      
-      // If cookie bypass failed, try different profiles
-      log(`[ProtectionBypass] Cookie bypass failed, trying profile rotation...`, "scraper");
-      const profiles = createBrowserProfiles();
-      
-      for (const fallbackProfile of profiles) {
-        if (fallbackProfile.userAgent === profile.userAgent) continue;
-        
-        const fallbackOptions = {
-          ja3: fallbackProfile.ja3,
-          userAgent: fallbackProfile.userAgent,
-          headers: fallbackProfile.headers,
-          proxy: options.proxyUrl,
-          timeout: 30000,
-          disableRedirect: false,
-          cookieJar: true
-        };
-        
-        const fallbackResponse = await cycleTLS.request(url, {
-          ...fallbackOptions,
-          method: 'GET'
-        });
-        if (fallbackResponse.status === 200) {
-          log(`[ProtectionBypass] Profile rotation successful with ${fallbackProfile.deviceType} profile (${fallbackResponse.body.length} chars)`, "scraper");
-          return fallbackResponse.body;
-        }
-      }
-      
-      // Return challenge page for analysis
-      return initialResponse.body || '';
+    if (response.success && response.body) {
+      log(`[ProtectionBypass] TLS request successful (${response.body.length} chars)`, "scraper");
+      return response.body;
     }
     
-    if (initialResponse.status === 200) {
-      log(`[ProtectionBypass] TLS request successful (${initialResponse.body.length} chars)`, "scraper");
-      return initialResponse.body;
-    }
+    log(`[ProtectionBypass] TLS request failed with status: ${response.status}`, "scraper");
+    return response.body || '';
     
-    log(`[ProtectionBypass] TLS request failed with status: ${initialResponse.status}`, "scraper");
-    return initialResponse.body || '';
   } catch (error: any) {
     log(`[ProtectionBypass] TLS request error: ${error.message}`, "scraper-error");
-    
-    // Attempt simplified request as last resort
-    try {
-      log(`[ProtectionBypass] Attempting simplified fallback...`, "scraper");
-      const cycleTLS = await getCycleTLSInstance();
-      const profile = options.browserProfile || getRandomBrowserProfile();
-      
-      // Minimal options - let CycleTLS use defaults
-      const simplifiedOptions = {
-        ja3: profile.ja3,
-        userAgent: profile.userAgent,
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
-        },
-        proxy: options.proxyUrl,
-        timeout: 30000
-      };
-      
-      const response = await cycleTLS(url, simplifiedOptions, 'get');
-      if (response.status === 200) {
-        log(`[ProtectionBypass] Simplified fallback successful (${response.body.length} chars)`, "scraper");
-        return response.body;
-      }
-    } catch (fallbackError: any) {
-      log(`[ProtectionBypass] All TLS methods failed: ${fallbackError.message}`, "scraper-error");
-    }
-    
     return '';
   }
 }

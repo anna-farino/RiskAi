@@ -153,36 +153,53 @@ export async function scrapeWithHTTP(
 
   log(`[HTTPScraper] Starting HTTP scraping for: ${url}`, "scraper");
 
-  // Perform pre-flight check with CycleTLS
+  // Perform pre-flight check
   const preflightResult = await performPreflightCheck(url);
   if (preflightResult.protectionDetected) {
     log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
     
-    // Try CycleTLS first for protected sites
-    const cycleTLSResult = await performCycleTLSRequest(url, {
+    // Try one optimized request for protected sites
+    const response = await performCycleTLSRequest(url, {
       method: 'GET',
-      tlsVersion: 'chrome_122',
       timeout: 30000,
       cookies: preflightResult.cookies
     });
     
-    if (cycleTLSResult.success && cycleTLSResult.body) {
-      const validation = await validateContent(cycleTLSResult.body, url);
+    if (response.success && response.body) {
+      const validation = await validateContent(response.body, url);
       
       if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
-        log(`[HTTPScraper] CycleTLS successful with ${validation.linkCount} links`, "scraper");
+        log(`[HTTPScraper] Protection bypass successful with ${validation.linkCount} links`, "scraper");
         return {
-          html: cycleTLSResult.body,
+          html: response.body,
           success: true,
           method: "http",
           responseTime: Date.now() - startTime,
-          statusCode: cycleTLSResult.status,
+          statusCode: response.status,
           finalUrl: url
         };
       }
       
-      log(`[HTTPScraper] CycleTLS validation failed: ${validation.errorIndicators.join(', ')}`, "scraper");
+      log(`[HTTPScraper] Protection bypass failed: ${validation.errorIndicators.join(', ')}`, "scraper");
     }
+    
+    // Early termination - if protection detected and bypass failed, go directly to Puppeteer
+    log(`[HTTPScraper] Protection detected and bypass failed, skipping redundant HTTP attempts`, "scraper");
+    return {
+      html: "",
+      success: false,
+      method: "http",
+      responseTime: Date.now() - startTime,
+      protectionDetected: {
+        hasProtection: true,
+        type: preflightResult.protectionType || "unknown",
+        confidence: 0.9,
+        details: `Pre-flight detected ${preflightResult.protectionType} protection`,
+      },
+      statusCode: response.status,
+      finalUrl: url,
+      requiresPuppeteer: true,
+    };
   }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -307,35 +324,9 @@ export async function scrapeWithHTTP(
             };
           }
 
-          // Handle 403 Forbidden as potential bot protection
+          // Handle 403 Forbidden - return immediately for Puppeteer
           if (response.status === 403) {
-            log(
-              `[HTTPScraper] 403 Forbidden detected, trying CycleTLS with different fingerprint`,
-              "scraper",
-            );
-            
-            // Try CycleTLS with different fingerprint
-            const cycleTLSRetry = await performCycleTLSRequest(url, {
-              method: 'GET',
-              tlsVersion: 'chrome_120',
-              timeout: 30000
-            });
-            
-            if (cycleTLSRetry.success && cycleTLSRetry.body) {
-              const validation = await validateContent(cycleTLSRetry.body, url);
-              
-              if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
-                log(`[HTTPScraper] CycleTLS bypass successful on 403`, "scraper");
-                return {
-                  html: cycleTLSRetry.body,
-                  success: true,
-                  method: "http",
-                  responseTime: Date.now() - startTime,
-                  statusCode: 200,
-                  finalUrl: url
-                };
-              }
-            }
+            log(`[HTTPScraper] 403 Forbidden detected - indicating bot protection`, "scraper");
             
             return {
               html: "",
@@ -350,6 +341,7 @@ export async function scrapeWithHTTP(
               },
               statusCode: response.status,
               finalUrl: response.url,
+              requiresPuppeteer: true,
             };
           }
 
@@ -429,30 +421,7 @@ export async function scrapeWithHTTP(
             "scraper",
           );
           
-          // Try CycleTLS as fallback
-          const cycleTLSFallback = await performCycleTLSRequest(url, {
-            method: 'GET',
-            tlsVersion: 'chrome_121',
-            timeout: 30000
-          });
-          
-          if (cycleTLSFallback.success && cycleTLSFallback.body) {
-            const fallbackValidation = await validateContent(cycleTLSFallback.body, url);
-            
-            if (fallbackValidation.isValid && !fallbackValidation.isErrorPage && fallbackValidation.linkCount >= 10) {
-              log(`[HTTPScraper] CycleTLS fallback successful with ${fallbackValidation.linkCount} links`, "scraper");
-              return {
-                html: cycleTLSFallback.body,
-                success: true,
-                method: "http",
-                responseTime: Date.now() - startTime,
-                statusCode: 200,
-                finalUrl: url
-              };
-            }
-          }
-          
-          // Return with success: false if validation failed
+          // Return failure - let Puppeteer handle validation failures
           return {
             html,
             success: false,
@@ -461,6 +430,7 @@ export async function scrapeWithHTTP(
             protectionDetected: protectionInfo,
             statusCode: response.status,
             finalUrl: response.url,
+            requiresPuppeteer: true,
           };
         }
         
