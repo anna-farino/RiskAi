@@ -18,7 +18,7 @@ import { db, pool } from "backend/db/db";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
 import { Request } from "express";
 import { userInfo } from "os";
-import { encrypt, decrypt } from "backend/utils/encryption";
+import { envelopeEncrypt, envelopeDecryptAndRotate } from "backend/utils/encryption-new";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
@@ -146,10 +146,14 @@ export class DatabaseStorage implements IStorage {
           .from(keywords)
           .where(eq(keywords.userId, userId))
       );
-      return encryptedKeywords.map(keyword => ({
-        ...keyword,
-        term: decrypt(keyword.term)
-      }));
+      // Decrypt each keyword's term field
+      const decryptedKeywords = await Promise.all(
+        encryptedKeywords.map(async (keyword) => ({
+          ...keyword,
+          term: await envelopeDecryptAndRotate(keywords, keyword.id, "term")
+        }))
+      );
+      return decryptedKeywords;
     } else {
       throw new Error("User id not found")
     }
@@ -170,7 +174,7 @@ export class DatabaseStorage implements IStorage {
         const keyword = data[0];
         return {
           ...keyword,
-          term: decrypt(keyword.term)
+          term: await envelopeDecryptAndRotate(keywords, keyword.id, "term")
         };
       }
       return undefined;
@@ -183,13 +187,17 @@ export class DatabaseStorage implements IStorage {
   async createKeyword(keyword: InsertKeyword, userId?: string): Promise<Keyword> {
     console.log("Values for new keyword:", keyword)
     if (userId || keyword.userId) {
-      const encryptedTerm = encrypt(keyword.term) 
+      // Encrypt the term
+      const envelope = await envelopeEncrypt(keyword.term);
+      
       const encryptedKeyword = {
         ...keyword,
-        term: encryptedTerm
+        term: typeof envelope === 'string' ? envelope : Buffer.from(envelope.blob).toString('base64'),
+        wrappedDekTerm: typeof envelope === 'string' ? null : Buffer.from(envelope.wrapped_dek).toString('base64'),
+        keyIdTerm: typeof envelope === 'string' ? null : envelope.key_id
       };
 
-      console.log("Encrypted term", encryptedTerm)
+      console.log("Encrypted term:", envelope ? "encrypted" : "plaintext")
       
       const [created] = await withUserContext(
         userId || keyword.userId,
@@ -199,10 +207,10 @@ export class DatabaseStorage implements IStorage {
           .returning()
       );
       
-      // Return with decrypted term for consistency with API
+      // Return with original plaintext term for consistency with API
       return {
         ...created,
-        term: decrypt(created.term)
+        term: keyword.term
       };
     } else {
       throw new Error("User id not found")
@@ -211,11 +219,15 @@ export class DatabaseStorage implements IStorage {
 
   async updateKeyword(id: string, keyword: Partial<Keyword>, userId?: string): Promise<Keyword> {
     if (userId) {
-
-      // Encrypt the term if it's being updated
       const updateData = { ...keyword };
+      const originalTerm = updateData.term;
+      
+      // Encrypt the term if it's being updated
       if (updateData.term) {
-        updateData.term = encrypt(updateData.term);
+        const envelope = await envelopeEncrypt(updateData.term);
+        updateData.term = typeof envelope === 'string' ? envelope : Buffer.from(envelope.blob).toString('base64');
+        updateData.wrappedDekTerm = typeof envelope === 'string' ? null : Buffer.from(envelope.wrapped_dek).toString('base64');
+        updateData.keyIdTerm = typeof envelope === 'string' ? null : envelope.key_id;
       }
       
       const [updated] = await withUserContext(
@@ -227,10 +239,10 @@ export class DatabaseStorage implements IStorage {
           .returning()
       );
       
-      // Return with decrypted term for consistency with API
+      // Return with original plaintext term for consistency with API
       return {
         ...updated,
-        term: decrypt(updated.term)
+        term: originalTerm || updated.term
       };
     } else {
       throw new Error("User id not found")
