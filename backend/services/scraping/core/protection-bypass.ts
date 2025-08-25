@@ -1020,8 +1020,45 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
       
       default:
         log(`[ProtectionBypass] Generic protection detected - performing standard bypass`, "scraper");
+        
+        // Check if this is actually a Cloudflare challenge in real-time
+        const realTimeCloudflareCheck = await page.evaluate(() => {
+          const title = document.title || '';
+          const bodyText = document.body?.textContent || '';
+          const html = document.documentElement?.innerHTML || '';
+          
+          return title.toLowerCase().includes('just a moment') ||
+                 bodyText.includes('Checking your browser') ||
+                 html.includes('cdn-cgi/challenge-platform') ||
+                 html.includes('cloudflare');
+        });
+        
+        if (realTimeCloudflareCheck) {
+          log(`[ProtectionBypass] Real-time detection: This is actually a Cloudflare challenge, switching to enhanced handler`, "scraper");
+          return await handleCloudflareChallenge(page);
+        }
+        
+        // Perform generic bypass
         await performHumanLikeActions(page);
-        return true;
+        
+        // Validate success instead of always returning true
+        const bypassValidation = await page.evaluate(() => {
+          const linkCount = document.querySelectorAll('a[href]').length;
+          const title = document.title || '';
+          const isStillChallenge = title.toLowerCase().includes('just a moment') ||
+                                  title.toLowerCase().includes('please wait') ||
+                                  document.body?.textContent?.includes('Checking your browser');
+          
+          return {
+            success: linkCount >= 5 && !isStillChallenge,
+            linkCount,
+            title,
+            isStillChallenge
+          };
+        });
+        
+        log(`[ProtectionBypass] Generic bypass validation: success=${bypassValidation.success}, links=${bypassValidation.linkCount}, stillChallenge=${bypassValidation.isStillChallenge}`, "scraper");
+        return bypassValidation.success;
     }
   } catch (error: any) {
     log(`[ProtectionBypass] Error bypassing ${protectionInfo.type} protection: ${error.message}`, "scraper-error");

@@ -305,33 +305,60 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
           }
         }
       } else {
-        // Check for other bot protection
-        const botProtectionCheck = await page.evaluate(() => {
-          return (
-            document.body.innerHTML.includes('_Incapsula_Resource') ||
-            document.body.innerHTML.includes('Incapsula') ||
-            document.body.innerHTML.includes('captcha') ||
-            document.body.innerHTML.includes('Captcha') ||
-            document.body.innerHTML.includes('cloudflare') ||
-            document.body.innerHTML.includes('CloudFlare')
-          );
+        // Check for specific protection types with proper classification
+        const protectionCheck = await page.evaluate(() => {
+          const title = document.title || '';
+          const bodyText = document.body?.textContent || '';
+          const html = document.documentElement?.innerHTML || '';
+          
+          // Cloudflare-specific detection
+          const isCloudflare = title.toLowerCase().includes('just a moment') ||
+                              title.toLowerCase().includes('please wait') ||
+                              bodyText.includes('Checking your browser') ||
+                              bodyText.includes('DDoS protection') ||
+                              html.includes('cdn-cgi/challenge-platform') ||
+                              html.includes('cf-challenge') ||
+                              html.includes('cloudflare') ||
+                              html.includes('CloudFlare') ||
+                              !!document.querySelector('*[class*="cf-"]') ||
+                              !!document.querySelector('#challenge-form');
+          
+          // Incapsula-specific detection
+          const isIncapsula = html.includes('_Incapsula_Resource') ||
+                             html.includes('Incapsula') ||
+                             bodyText.includes('Incapsula incident');
+          
+          // Generic protection (CAPTCHA, etc.)
+          const isGenericProtection = bodyText.includes('captcha') ||
+                                     bodyText.includes('Captcha') ||
+                                     bodyText.includes('CAPTCHA');
+          
+          return {
+            hasProtection: isCloudflare || isIncapsula || isGenericProtection,
+            type: isCloudflare ? 'cloudflare' : (isIncapsula ? 'incapsula' : 'generic'),
+            indicators: {
+              cloudflare: isCloudflare,
+              incapsula: isIncapsula,
+              generic: isGenericProtection
+            }
+          };
         });
 
-        if (botProtectionCheck) {
-          log(`[PuppeteerScraper] Generic bot protection detected, attempting bypass`, "scraper");
+        if (protectionCheck.hasProtection) {
+          log(`[PuppeteerScraper] ${protectionCheck.type} protection detected, attempting bypass`, "scraper");
           
           const protectionInfo: ProtectionInfo = {
             hasProtection: true,
-            type: 'generic',
-            confidence: 0.8,
-            details: 'Generic bot protection detected'
+            type: protectionCheck.type as any,
+            confidence: protectionCheck.type === 'cloudflare' ? 0.95 : 0.8,
+            details: `${protectionCheck.type} protection detected`
           };
 
           const bypassSuccess = await bypassProtection(page, protectionInfo);
           if (!bypassSuccess) {
-            log(`[PuppeteerScraper] Generic protection bypass failed`, "scraper");
+            log(`[PuppeteerScraper] ${protectionCheck.type} protection bypass failed`, "scraper");
           } else {
-            log(`[PuppeteerScraper] Generic protection bypass successful`, "scraper");
+            log(`[PuppeteerScraper] ${protectionCheck.type} protection bypass successful`, "scraper");
             await performBehavioralDelay(options);
           }
         }
