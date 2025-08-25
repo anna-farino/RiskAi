@@ -150,7 +150,7 @@ export class DatabaseStorage implements IStorage {
       const decryptedKeywords = await Promise.all(
         encryptedKeywords.map(async (keyword) => ({
           ...keyword,
-          term: await envelopeDecryptAndRotate(keywords, keyword.id, "term")
+          term: await envelopeDecryptAndRotate(keywords, keyword.id, "term", userId)
         }))
       );
       return decryptedKeywords;
@@ -174,7 +174,7 @@ export class DatabaseStorage implements IStorage {
         const keyword = data[0];
         return {
           ...keyword,
-          term: await envelopeDecryptAndRotate(keywords, keyword.id, "term")
+          term: await envelopeDecryptAndRotate(keywords, keyword.id, "term", userId)
         };
       }
       return undefined;
