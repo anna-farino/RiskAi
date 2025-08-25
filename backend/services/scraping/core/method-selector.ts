@@ -7,6 +7,8 @@ import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper'
  */
 async function performWebFetch(url: string): Promise<string | null> {
   try {
+    log(`[WebFetch] Attempting web fetch for: ${url}`, "scraper");
+    
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -29,12 +31,19 @@ async function performWebFetch(url: string): Promise<string | null> {
       redirect: 'follow'
     });
     
+    log(`[WebFetch] Response status: ${response.status}`, "scraper");
+    
     if (!response.ok) {
+      log(`[WebFetch] Response not OK: ${response.status} ${response.statusText}`, "scraper");
       return null;
     }
     
-    return await response.text();
-  } catch (error) {
+    const content = await response.text();
+    log(`[WebFetch] Content length: ${content.length}`, "scraper");
+    
+    return content;
+  } catch (error: any) {
+    log(`[WebFetch] Error: ${error.message}`, "scraper-error");
     return null;
   }
 }
