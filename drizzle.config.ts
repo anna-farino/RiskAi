@@ -5,6 +5,6 @@ export default {
   schema: isAzure ? './shared/db/schema/*' : './shared/db/schema/*',
   out: isAzure ? './db/migrations' : './backend/db/migrations',
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: process.env.MIGRATION_DB_URL!,
   },
 };
