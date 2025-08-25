@@ -74,7 +74,6 @@ export async function envelopeDecryptAndRotate(
     const row = await withUserContext(userId, (contextDb) => 
       contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
     );
-    
     if (!row) throw new Error(`Row ${rowId} not found`);
     return row[fieldName] as string || "";
   }
