@@ -3,8 +3,47 @@ import { scrapeWithHTTP } from '../scrapers/http-scraper';
 import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper';
 
 /**
- * Smart method selection
- * HTTP first, but switch to Puppeteer for dynamic content sites
+ * Web fetch function that uses native fetch with enhanced headers
+ */
+async function performWebFetch(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Cache-Control': 'max-age=0',
+        'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Connection': 'keep-alive',
+        'DNT': '1'
+      },
+      redirect: 'follow'
+    });
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    return await response.text();
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Smart method selection with three-tier approach
+ * 1. HTTP first (custom fetch with protection bypass)
+ * 2. Web fetch fallback (enhanced native fetch)  
+ * 3. Puppeteer for dynamic content sites
  */
 export async function getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
   // Try HTTP first
@@ -47,8 +86,24 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
     return { html: httpResult.html, method: 'http' };
   }
   
-  // Only use Puppeteer if HTTP truly failed or returned insufficient content
-  log(`[SimpleScraper] HTTP insufficient (success: ${httpResult.success}, length: ${httpResult.html.length}), using Puppeteer fallback`, "scraper");
+  // Try web_fetch as middle option before Puppeteer
+  log(`[SimpleScraper] HTTP insufficient (success: ${httpResult.success}, length: ${httpResult.html.length}), trying web_fetch`, "scraper");
+  
+  try {
+    const webFetchResult = await performWebFetch(url);
+    
+    if (webFetchResult && webFetchResult.length > 10000) {
+      log(`[SimpleScraper] Web_fetch successful (${webFetchResult.length} chars)`, "scraper");
+      return { html: webFetchResult, method: 'http' }; // Mark as http since it's still HTTP-based
+    } else {
+      log(`[SimpleScraper] Web_fetch insufficient content (${webFetchResult?.length || 0} chars)`, "scraper");
+    }
+  } catch (webFetchError: any) {
+    log(`[SimpleScraper] Web_fetch failed: ${webFetchError.message}`, "scraper");
+  }
+  
+  // Only use Puppeteer if both HTTP and web_fetch failed
+  log(`[SimpleScraper] Both HTTP and web_fetch insufficient, using Puppeteer fallback`, "scraper");
   
   // Retry Puppeteer up to 2 times if browser disconnection occurs
   let lastError: Error | null = null;
