@@ -6,6 +6,7 @@ import { pool } from "backend/db/db";
 import { eq } from "drizzle-orm";
 import { PgTable, TableConfig } from "drizzle-orm/pg-core";
 import { Column } from "drizzle-orm";
+import { withUserContext } from "backend/db/with-user-context";
 
 const KEY_NAME = process.env.AZURE_KEY_NAME || "";
 
@@ -65,23 +66,22 @@ export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | str
 export async function envelopeDecryptAndRotate(
   table: PgTable<TableConfig> & { id: Column<any, any, any> },
   rowId: string,
-  fieldName: string
+  fieldName: string,
+  userId: string
 ): Promise<string> {
   // In dev environment, just return the plaintext value
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
-    const [ row ] = await db
-      .select()
-      .from(table)
-      .where(eq(table.id, rowId));
+    const [ row ] = await withUserContext(userId, (contextDb) => 
+      contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
+    ) as any;
     
     if (!row) throw new Error(`Row ${rowId} not found`);
     return row[fieldName] as string || "";
   }
 
-  const [ row ] = await db
-    .select()
-    .from(table)
-    .where(eq(table.id, rowId));
+  const [ row ] = await withUserContext(userId, (contextDb) => 
+    contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
+  ) as any;
 
   if (!row) throw new Error(`Row ${rowId} not found`);
 
@@ -100,14 +100,16 @@ export async function envelopeDecryptAndRotate(
     if (!envelope) return plaintext; // Encryption was skipped in dev
     
     // Update the row with encrypted data
-    await db
-      .update(table)
-      .set({
-        [wrappedDekColumn]: Buffer.from(envelope.wrapped_dek).toString('base64'),
-        [keyIdColumn]: envelope.key_id,
-        [fieldName]: Buffer.from(envelope.blob).toString('base64')
-      })
-      .where(eq(table.id, rowId));
+    await withUserContext(userId, (contextDb) => 
+      contextDb
+        .update(table)
+        .set({
+          [wrappedDekColumn]: Buffer.from(envelope.wrapped_dek).toString('base64'),
+          [keyIdColumn]: envelope.key_id,
+          [fieldName]: Buffer.from(envelope.blob).toString('base64')
+        })
+        .where(eq(table.id, rowId))
+    );
     
     return plaintext;
   }
@@ -137,13 +139,15 @@ export async function envelopeDecryptAndRotate(
   if (row[keyIdColumn] !== latestId) {
     const cryptoLatest = new CryptographyClient(latestId, credential);
     const { result: newWrapped } = await cryptoLatest.wrapKey("RSA-OAEP", dek);
-    await db
-      .update(table)
-      .set({ 
-        [wrappedDekColumn]: Buffer.from(newWrapped).toString('base64'), 
-        [keyIdColumn]: latestId 
-      })
-      .where(eq(table.id, rowId));
+    await withUserContext(userId, (contextDb) => 
+      contextDb
+        .update(table)
+        .set({ 
+          [wrappedDekColumn]: Buffer.from(newWrapped).toString('base64'), 
+          [keyIdColumn]: latestId 
+        })
+        .where(eq(table.id, rowId))
+    );
   }
 
   return plain;
