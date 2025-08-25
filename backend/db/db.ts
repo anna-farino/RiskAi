@@ -8,7 +8,7 @@ import dotenvConfig from '../utils/dotenv-config';
 
 dotenvConfig(dotenv)
 
-const isProd = process.env.NODE_ENV === 'production';
+const isProdOrStaging = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
 console.log("NODE_ENV", process.env.NODE_ENV)
 if (!process.env.DATABASE_URL) {
@@ -26,7 +26,7 @@ const neonPool = new NeonPool({ connectionString: process.env.DATABASE_URL! });
 const dbPg   = drizzlePg(pgPool);
 const dbNeon = drizzleNeon({ client: neonPool });
 
-export const pool = isProd ? pgPool : neonPool;
-export const db = isProd ? dbPg : dbNeon;
+export const pool =  isProdOrStaging ? pgPool : neonPool;
+export const db =  isProdOrStaging ? dbPg : dbNeon;
 
 
