@@ -21,6 +21,9 @@ export const keywords = pgTable("keywords", {
   term: text("term").notNull(),
   active: boolean("active").notNull().default(true),
   userId: uuid("user_id").references(() => users.id),
+  // Encryption fields
+  wrappedDekTerm: text('wrapped_dek_term'), // Encrypted data encryption key (stored as base64)
+  keyIdTerm: text('key_id_term') // Azure Key Vault key version ID
 }, (_t) => [
     pgPolicy('keywords-rls', {
       for: 'all',

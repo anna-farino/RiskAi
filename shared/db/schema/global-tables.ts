@@ -83,7 +83,8 @@ export const userKeywords = pgTable('user_keywords', {
   appContext: text('app_context').notNull(), // 'news_radar' or 'threat_tracker'
   term: text('term').notNull(),
   isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow()
+  createdAt: timestamp('created_at').defaultNow(),
+  
 }, (table) => {
   return {
     unq: unique().on(table.userId, table.appContext, table.term)
