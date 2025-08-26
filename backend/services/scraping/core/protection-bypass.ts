@@ -444,11 +444,11 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
 
       // Active challenge solving with multiple attempts
       let challengeCompleted = false;
-      const maxWaitTime = 30000; // Increased to 30 seconds
+      const maxWaitTime = 45000; // 45 seconds for very aggressive protection
       const checkInterval = 2000; // Check every 2 seconds 
       let waitTime = 0;
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 5; // Increase attempts for stronger protection
 
       while (!challengeCompleted && waitTime < maxWaitTime && attempts < maxAttempts) {
         attempts++;
