@@ -475,7 +475,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         if (attempts === 1) {
           // First attempt: Wait for DataDome script to load and execute
           log(`[ProtectionBypass] Waiting for DataDome script initialization...`, "scraper");
-          await page.evaluate(() => {
+          await safePageEvaluate(page, () => {
             // Wait for DataDome script to fully load
             const script = document.querySelector('script[src*="captcha-delivery.com"]');
             if (script) {
@@ -502,7 +502,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           await performEnhancedHumanActions(page);
           
           // DataDome-specific actions
-          await page.evaluate(() => {
+          await safePageEvaluate(page, () => {
             // Simulate user interaction patterns that DataDome looks for
             const viewport = {
               width: window.innerWidth,
@@ -534,7 +534,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         } else {
           // Third attempt: Aggressive DataDome bypass techniques
           log(`[ProtectionBypass] Performing aggressive DataDome bypass techniques...`, "scraper");
-          await page.evaluate(() => {
+          await safePageEvaluate(page, () => {
             // Trigger all events that DataDome tracks
             const events = ['mousedown', 'mouseup', 'click', 'mousemove', 'keydown', 'keyup', 'focus', 'blur'];
             events.forEach(eventType => {
@@ -1289,13 +1289,13 @@ export async function performHumanLikeActions(page: Page): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, Math.random() * 300 + 200));
 
     // Random scrolling
-    await page.evaluate(() => {
+    await safePageEvaluate(page, () => {
       window.scrollTo(0, Math.random() * 300);
     });
     await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000 + 500));
 
     // Simulate reading behavior
-    await page.evaluate(() => {
+    await safePageEvaluate(page, () => {
       window.scrollTo(0, document.body.scrollHeight / 3);
     });
     await new Promise((resolve) => setTimeout(resolve, Math.random() * 1500 + 1000));
