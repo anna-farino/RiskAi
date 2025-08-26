@@ -670,7 +670,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         await new Promise((resolve) => setTimeout(resolve, 5000));
         
         // Final content check
-        const finalCheck = await page.evaluate(() => {
+        const finalCheck = await safePageEvaluate(page, () => {
           const bodyText = document.body?.textContent || '';
           const hasNavigation = document.querySelectorAll('a[href]').length > 5;
           const hasWebsiteStructure = document.querySelectorAll('nav, header, footer').length > 0;
@@ -684,7 +684,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
             contentLength: bodyText.length,
             linkCount: document.querySelectorAll('a[href]').length
           };
-        });
+        }) || { hasContent: false, hasNavigation: false, hasWebsiteStructure: false, hasMarketWatchContent: false, contentLength: 0, linkCount: 0 };
 
         if (finalCheck.hasContent && (finalCheck.hasNavigation || finalCheck.hasWebsiteStructure || finalCheck.hasMarketWatchContent)) {
           log(`[ProtectionBypass] Found some website content after alternative bypass (${finalCheck.contentLength} chars, ${finalCheck.linkCount} links), proceeding`, "scraper");
@@ -717,7 +717,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     log(`[ProtectionBypass] Performing enhanced Cloudflare challenge detection...`, "scraper");
 
     // 1. Better Challenge Detection
-    const challengeDetails = await page.evaluate(() => {
+    const challengeDetails = await safePageEvaluate(page, () => {
       const title = document.title || '';
       const bodyText = document.body?.textContent || '';
       const html = document.documentElement?.innerHTML || '';
@@ -771,7 +771,16 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         title,
         linkCount: document.querySelectorAll('a[href]').length
       };
-    });
+    }) || {
+      isChallenge: false,
+      hasJustAMomentTitle: false,
+      hasChallengeScript: false,
+      hasRayId: false,
+      hasCloudflareIndicators: false,
+      challengeElements: { challengeForm: false, challengeRunning: false, challengeWrapper: false, challengeSpinner: false, cfElements: 0 },
+      title: '',
+      linkCount: 0
+    };
 
     if (!challengeDetails.isChallenge) {
       log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
@@ -789,7 +798,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     let interactionPhase = 1;
     
     // Advanced fingerprint spoofing during challenge
-    await page.evaluate(() => {
+    await safePageEvaluate(page, () => {
       // Override timestamp precision to avoid high-resolution timing detection
       const originalNow = Date.now;
       Date.now = function() {
