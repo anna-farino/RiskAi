@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envelope Encryption Implementation Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; border-left: 4px solid #3498db; padding-left: 15px; margin-top: 30px; }
+        h3 { color: #7f8c8d; }
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            border: 1px solid #333;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        /* Syntax highlighting */
+        .keyword { color: #569cd6; font-weight: bold; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; font-style: italic; }
+        .function { color: #dcdcaa; }
+        .type { color: #4ec9b0; }
+        .variable { color: #9cdcfe; }
+        .operator { color: #d4d4d4; }
+        .number { color: #b5cea8; }
+        .property { color: #92c5f7; }
+        .constant { color: #4fc1ff; }
+        .env-var {
+            background: #e8f5e8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #27ae60;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        .function-signature {
+            background: #2c3e50;
+            color: #e74c3c;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Envelope Encryption Implementation Guide</h1>
+        <p><strong>Created:</strong> August 25, 2025 | <strong>Status:</strong> Production Ready</p>
+
+        <h2>📋 Table of Contents</h2>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#envelope-encryption">What is Envelope Encryption?</a></li>
+            <li><a href="#architecture">System Architecture</a></li>
+            <li><a href="#implementation">Implementation Details</a></li>
+            <li><a href="#azure-setup">Azure Key Vault Setup</a></li>
+            <li><a href="#database-schema">Database Schema</a></li>
+            <li><a href="#environment-variables">Environment Variables</a></li>
+            <li><a href="#usage-examples">Usage Examples</a></li>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ul>
+
+        <h2 id="overview">🎯 Overview</h2>
+        <p>This document describes the implementation of <strong>envelope encryption</strong> in our application, specifically for protecting sensitive user data like keywords. The system uses Azure Key Vault for master key management and implements field-specific encryption with backwards compatibility.</p>
+
+        <div class="info">
+            <strong>Key Features:</strong>
+            <ul>
+                <li>Azure Key Vault integration for master key management</li>
+                <li>Field-specific encryption (one DEK per field per row)</li>
+                <li>Automatic key rotation</li>
+                <li>Backwards compatibility with existing plaintext data</li>
+                <li>Environment-aware (dev uses plaintext, staging/prod uses encryption)</li>
+                <li>Row Level Security (RLS) compliance</li>
+            </ul>
+        </div>
+
+        <h2 id="envelope-encryption">🔑 What is Envelope Encryption?</h2>
+        
+        <h3>Concept</h3>
+        <p>Envelope encryption is a practice of encrypting plaintext data with a <strong>Data Encryption Key (DEK)</strong>, and then encrypting that DEK with a <strong>Key Encryption Key (KEK)</strong> stored in a secure key management service.</p>
+
+        <div class="flow-diagram">
+            <h4>Encryption Flow</h4>
+            <p><strong>Plaintext Data</strong> → [AES-256-GCM + Random DEK] → <strong>Encrypted Data</strong></p>
+            <p><strong>DEK</strong> → [RSA-OAEP + Azure KEK] → <strong>Wrapped DEK</strong></p>
+            <p><strong>Store:</strong> Encrypted Data + Wrapped DEK + Key Version ID</p>
+        </div>
+
+        <div class="flow-diagram">
+            <h4>Decryption Flow</h4>
+            <p><strong>Wrapped DEK</strong> → [Azure Key Vault + KEK] → <strong>Unwrapped DEK</strong></p>
+            <p><strong>Encrypted Data</strong> → [AES-256-GCM + DEK] → <strong>Plaintext Data</strong></p>
+        </div>
+
+        <h3>Benefits</h3>
+        <ul>
+            <li><strong>Performance:</strong> Only DEK needs Key Vault calls, data encryption uses local crypto</li>
+            <li><strong>Key Rotation:</strong> Rotate master key without re-encrypting all data</li>
+            <li><strong>Compliance:</strong> Master keys managed by certified key management service</li>
+            <li><strong>Scalability:</strong> Each record has unique DEK, limiting blast radius</li>
+        </ul>
+
+        <h2 id="architecture">🏗️ System Architecture</h2>
+
+        <h3>Components</h3>
+        <table>
+            <tr><th>Component</th><th>Role</th><th>Technology</th></tr>
+            <tr><td>Azure Key Vault</td><td>Master Key Storage & Management</td><td>Azure RSA-2048 Keys</td></tr>
+            <tr><td>Data Encryption Keys</td><td>Per-field encryption</td><td>AES-256-GCM</td></tr>
+            <tr><td>Database</td><td>Encrypted data + metadata storage</td><td>PostgreSQL</td></tr>
+            <tr><td>Application</td><td>Encryption/Decryption logic</td><td>Node.js + Drizzle ORM</td></tr>
+        </table>
+
+        <h3>Database Schema Design</h3>
+        <p>Our implementation uses a <strong>field-specific naming convention</strong> for encryption metadata:</p>
+
+        <div class="code-block">
+<pre><span class="comment">-- Example: keywords table with encrypted 'term' field</span>
+<span class="keyword">CREATE TABLE</span> <span class="variable">keywords</span> (
+  <span class="property">id</span> <span class="type">uuid</span> <span class="keyword">PRIMARY KEY</span>,
+  <span class="property">user_id</span> <span class="type">uuid</span> <span class="keyword">NOT NULL</span>,
+  <span class="property">term</span> <span class="type">text</span>,                    <span class="comment">-- Encrypted data (base64)</span>
+  <span class="property">wrapped_dek_term</span> <span class="type">text</span>,        <span class="comment">-- Wrapped DEK for 'term' field (base64)</span>  
+  <span class="property">key_id_term</span> <span class="type">text</span>,            <span class="comment">-- Azure Key Vault key version ID for 'term'</span>
+  <span class="property">active</span> <span class="type">boolean</span> <span class="keyword">DEFAULT</span> <span class="constant">true</span>,
+  <span class="property">created_at</span> <span class="type">timestamp</span> <span class="keyword">DEFAULT</span> <span class="function">now</span>()
+);</pre>
+        </div>
+
+        <div class="warning">
+            <strong>Naming Convention:</strong> For each encrypted field <code>fieldName</code>, we create:
+            <ul>
+                <li><code>wrappedDek{CapitalizedFieldName}</code> - stores the encrypted DEK</li>
+                <li><code>keyId{CapitalizedFieldName}</code> - stores the Azure Key Vault key version ID</li>
+            </ul>
+            Example: <code>term</code> → <code>wrappedDekTerm</code> + <code>keyIdTerm</code>
+        </div>
+
+        <h2 id="implementation">⚙️ Implementation Details</h2>
+
+        <h3>Core Functions</h3>
+
+        <h4>1. envelopeEncrypt()</h4>
+        <div class="function-signature">
+async function envelopeEncrypt(plain: string): Promise&lt;TidyEnvelope | string&gt;
+        </div>
+
+        <p><strong>Purpose:</strong> Encrypts plaintext data using envelope encryption method.</p>
+
+        <div class="code-block">
+<pre><span class="keyword">export</span> <span class="keyword">async</span> <span class="keyword">function</span> <span class="function">envelopeEncrypt</span>(<span class="variable">plain</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">TidyEnvelope</span> | <span class="type">string</span>&gt; {
+  <span class="comment">// In dev environment, just return the plaintext</span>
+  <span class="keyword">if</span> (<span class="property">process.env.NODE_ENV</span> !== <span class="string">'staging'</span> && <span class="property">process.env.NODE_ENV</span> !== <span class="string">'production'</span>) {
+    <span class="keyword">return</span> <span class="variable">plain</span>;
+  }
+
+  <span class="keyword">const</span> <span class="variable">dek</span> = <span class="function">randomBytes</span>(<span class="number">32</span>);
+  <span class="keyword">const</span> <span class="variable">iv</span>  = <span class="function">randomBytes</span>(<span class="constant">IV_LEN</span>);
+
+  <span class="keyword">const</span> <span class="variable">cipher</span> = <span class="function">createCipheriv</span>(<span class="string">"aes-256-gcm"</span>, <span class="variable">dek</span>, <span class="variable">iv</span>);
+  <span class="keyword">const</span> <span class="variable">ct</span>  = <span class="property">Buffer</span>.<span class="function">concat</span>([<span class="variable">cipher</span>.<span class="function">update</span>(<span class="variable">plain</span>, <span class="string">"utf8"</span>), <span class="variable">cipher</span>.<span class="function">final</span>()]);
+  <span class="keyword">const</span> <span class="variable">tag</span> = <span class="variable">cipher</span>.<span class="function">getAuthTag</span>();
+
+  <span class="comment">// Get the latest **versioned** key id, and wrap with that version</span>
+  <span class="keyword">const</span> <span class="variable">client</span> = <span class="function">getKeyClient</span>();
+  <span class="keyword">if</span> (!<span class="variable">client</span> || !<span class="variable">credential</span>) <span class="keyword">throw</span> <span class="keyword">new</span> <span class="function">Error</span>(<span class="string">"Key Vault not available"</span>);
+  
+  <span class="keyword">const</span> <span class="variable">latest</span> = <span class="keyword">await</span> <span class="variable">client</span>.<span class="function">getKey</span>(<span class="constant">KEY_NAME</span>);
+  <span class="keyword">const</span> <span class="variable">versionedId</span> = <span class="variable">latest</span>.<span class="property">id</span>!; <span class="comment">// .../keys/&lt;name&gt;/&lt;version&gt;</span>
+  <span class="keyword">const</span> <span class="variable">cryptoLatest</span> = <span class="keyword">new</span> <span class="function">CryptographyClient</span>(<span class="variable">versionedId</span>, <span class="variable">credential</span>);
+
+  <span class="keyword">const</span> { <span class="property">result</span>: <span class="variable">wrapped</span> } = <span class="keyword">await</span> <span class="variable">cryptoLatest</span>.<span class="function">wrapKey</span>(<span class="string">"RSA-OAEP"</span>, <span class="variable">dek</span>);
+
+  <span class="keyword">return</span> {
+    <span class="property">wrapped_dek</span>: <span class="variable">wrapped</span>,
+    <span class="property">key_id</span>: <span class="variable">versionedId</span>,
+    <span class="property">blob</span>: <span class="property">Buffer</span>.<span class="function">concat</span>([<span class="variable">iv</span>, <span class="variable">ct</span>, <span class="variable">tag</span>]),
+  };
+}</pre>
+        </div>
+
+        <p><strong>Key Points:</strong></p>
+        <ul>
+            <li>Returns plaintext string in development, TidyEnvelope object in staging/production</li>
+            <li>Generates random 256-bit DEK and 96-bit IV for each encryption</li>
+            <li>Uses AES-256-GCM for authenticated encryption</li>
+            <li>Wraps DEK using latest Azure Key Vault key version</li>
+            <li>Blob format: <code>[IV || Ciphertext || Auth Tag]</code></li>
+        </ul>
+
+        <h4>2. envelopeDecryptAndRotate()</h4>
+        <div class="function-signature">
+async function envelopeDecryptAndRotate(table, rowId, fieldName, userId): Promise&lt;string&gt;
+        </div>
+
+        <p><strong>Purpose:</strong> Decrypts data with automatic key rotation and backwards compatibility.</p>
+
+        <div class="code-block">
+<pre><span class="keyword">export</span> <span class="keyword">async</span> <span class="keyword">function</span> <span class="function">envelopeDecryptAndRotate</span>(
+  <span class="variable">table</span>: <span class="type">PgTable</span>&lt;<span class="type">TableConfig</span>&gt; & { <span class="property">id</span>: <span class="type">Column</span>&lt;<span class="keyword">any</span>, <span class="keyword">any</span>, <span class="keyword">any</span>&gt; },
+  <span class="variable">rowId</span>: <span class="type">string</span>,
+  <span class="variable">fieldName</span>: <span class="type">string</span>,
+  <span class="variable">userId</span>: <span class="type">string</span>
+): <span class="type">Promise</span>&lt;<span class="type">string</span>&gt; {
+  <span class="keyword">return</span> <span class="keyword">await</span> <span class="function">withUserContext</span>(<span class="variable">userId</span>, <span class="keyword">async</span> (<span class="variable">contextDb</span>) =&gt; {
+    <span class="comment">// In dev environment, just return the plaintext value</span>
+    <span class="keyword">if</span> (<span class="property">process.env.NODE_ENV</span> !== <span class="string">'staging'</span> && <span class="property">process.env.NODE_ENV</span> !== <span class="string">'production'</span>) {
+      <span class="keyword">const</span> <span class="variable">row</span> = <span class="keyword">await</span> <span class="variable">contextDb</span>
+        .<span class="function">select</span>().<span class="function">from</span>(<span class="variable">table</span>).<span class="function">where</span>(<span class="function">eq</span>(<span class="variable">table</span>.<span class="property">id</span>, <span class="variable">rowId</span>)).<span class="function">then</span>(<span class="variable">rows</span> =&gt; <span class="variable">rows</span>[<span class="number">0</span>]);
+      
+      <span class="keyword">if</span> (!<span class="variable">row</span>) <span class="keyword">throw</span> <span class="keyword">new</span> <span class="function">Error</span>(<span class="string">`Row ${rowId} not found`</span>);
+      <span class="keyword">return</span> <span class="variable">row</span>[<span class="variable">fieldName</span>] <span class="keyword">as</span> <span class="type">string</span> || <span class="string">""</span>;
+    }
+
+    <span class="keyword">const</span> <span class="variable">row</span> = <span class="keyword">await</span> <span class="variable">contextDb</span>
+      .<span class="function">select</span>().<span class="function">from</span>(<span class="variable">table</span>).<span class="function">where</span>(<span class="function">eq</span>(<span class="variable">table</span>.<span class="property">id</span>, <span class="variable">rowId</span>)).<span class="function">then</span>(<span class="variable">rows</span> =&gt; <span class="variable">rows</span>[<span class="number">0</span>]);
+
+    <span class="keyword">if</span> (!<span class="variable">row</span>) <span class="keyword">throw</span> <span class="keyword">new</span> <span class="function">Error</span>(<span class="string">`Row ${rowId} not found`</span>);
+
+    <span class="comment">// Build field-specific metadata column names (camelCase)</span>
+    <span class="keyword">const</span> <span class="variable">capitalizedField</span> = <span class="variable">fieldName</span>.<span class="function">charAt</span>(<span class="number">0</span>).<span class="function">toUpperCase</span>() + <span class="variable">fieldName</span>.<span class="function">slice</span>(<span class="number">1</span>);
+    <span class="keyword">const</span> <span class="variable">wrappedDekColumn</span> = <span class="string">`wrappedDek${capitalizedField}`</span>;
+    <span class="keyword">const</span> <span class="variable">keyIdColumn</span> = <span class="string">`keyId${capitalizedField}`</span>;
+
+    <span class="comment">// Check if field is not encrypted (no field-specific metadata)</span>
+    <span class="keyword">if</span> (!<span class="variable">row</span>[<span class="variable">wrappedDekColumn</span>] || !<span class="variable">row</span>[<span class="variable">keyIdColumn</span>]) {
+      <span class="comment">// Field is not encrypted - encrypt it now and update the row</span>
+      <span class="keyword">const</span> <span class="variable">plaintext</span> = <span class="variable">row</span>[<span class="variable">fieldName</span>] <span class="keyword">as</span> <span class="type">string</span>;
+      <span class="keyword">if</span> (!<span class="variable">plaintext</span>) <span class="keyword">return</span> <span class="string">""</span>;
+      
+      <span class="keyword">const</span> <span class="variable">envelope</span> = (<span class="keyword">await</span> <span class="function">envelopeEncrypt</span>(<span class="variable">plaintext</span>)) <span class="keyword">as</span> <span class="type">TidyEnvelope</span>;
+      
+      <span class="comment">// Update the row with encrypted data</span>
+      <span class="keyword">await</span> <span class="variable">contextDb</span>
+        .<span class="function">update</span>(<span class="variable">table</span>)
+        .<span class="function">set</span>({
+          [<span class="variable">wrappedDekColumn</span>]: <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">envelope</span>.<span class="property">wrapped_dek</span>).<span class="function">toString</span>(<span class="string">'base64'</span>),
+          [<span class="variable">keyIdColumn</span>]: <span class="variable">envelope</span>.<span class="property">key_id</span>,
+          [<span class="variable">fieldName</span>]: <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">envelope</span>.<span class="property">blob</span>).<span class="function">toString</span>(<span class="string">'base64'</span>)
+        })
+        .<span class="function">where</span>(<span class="function">eq</span>(<span class="variable">table</span>.<span class="property">id</span>, <span class="variable">rowId</span>));
+      
+      <span class="keyword">return</span> <span class="variable">plaintext</span>;
+    }
+
+    <span class="comment">// Field is encrypted - decrypt it</span>  
+    <span class="keyword">const</span> <span class="variable">blobBuf</span> = <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">row</span>[<span class="variable">fieldName</span>] <span class="keyword">as</span> <span class="type">string</span>, <span class="string">'base64'</span>);
+    <span class="keyword">const</span> <span class="variable">iv</span>  = <span class="variable">blobBuf</span>.<span class="function">subarray</span>(<span class="number">0</span>, <span class="constant">IV_LEN</span>);
+    <span class="keyword">const</span> <span class="variable">tag</span> = <span class="variable">blobBuf</span>.<span class="function">subarray</span>(<span class="variable">blobBuf</span>.<span class="property">length</span> - <span class="constant">TAG_LEN</span>);
+    <span class="keyword">const</span> <span class="variable">ct</span>  = <span class="variable">blobBuf</span>.<span class="function">subarray</span>(<span class="constant">IV_LEN</span>, <span class="variable">blobBuf</span>.<span class="property">length</span> - <span class="constant">TAG_LEN</span>);
+
+    <span class="comment">// Unwrap DEK using the exact version recorded in field-specific key_id</span>
+    <span class="keyword">const</span> <span class="variable">cryptoVersioned</span> = <span class="keyword">new</span> <span class="function">CryptographyClient</span>(<span class="variable">row</span>[<span class="variable">keyIdColumn</span>] <span class="keyword">as</span> <span class="type">string</span>, <span class="variable">credential</span>);
+    <span class="keyword">const</span> <span class="variable">wrappedDekBuffer</span> = <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">row</span>[<span class="variable">wrappedDekColumn</span>] <span class="keyword">as</span> <span class="type">string</span>, <span class="string">'base64'</span>);
+    <span class="keyword">const</span> { <span class="property">result</span>: <span class="variable">dek</span> } = <span class="keyword">await</span> <span class="variable">cryptoVersioned</span>.<span class="function">unwrapKey</span>(<span class="string">"RSA-OAEP"</span>, <span class="variable">wrappedDekBuffer</span>);
+
+    <span class="keyword">const</span> <span class="variable">dec</span> = <span class="function">createDecipheriv</span>(<span class="string">"aes-256-gcm"</span>, <span class="variable">dek</span>, <span class="variable">iv</span>);
+    <span class="variable">dec</span>.<span class="function">setAuthTag</span>(<span class="variable">tag</span>);
+    <span class="keyword">const</span> <span class="variable">plain</span> = <span class="variable">dec</span>.<span class="function">update</span>(<span class="variable">ct</span>, <span class="constant">undefined</span>, <span class="string">"utf8"</span>) + <span class="variable">dec</span>.<span class="function">final</span>(<span class="string">"utf8"</span>);
+
+    <span class="comment">// If stale, re-wrap the DEK under the latest **versioned** key and update</span>
+    <span class="keyword">const</span> <span class="variable">client</span> = <span class="function">getKeyClient</span>();
+    <span class="keyword">if</span> (!<span class="variable">client</span> || !<span class="variable">credential</span>) <span class="keyword">throw</span> <span class="keyword">new</span> <span class="function">Error</span>(<span class="string">"Key Vault not available"</span>);
+    
+    <span class="keyword">const</span> <span class="variable">latest</span> = <span class="keyword">await</span> <span class="variable">client</span>.<span class="function">getKey</span>(<span class="constant">KEY_NAME</span>);
+    <span class="keyword">const</span> <span class="variable">latestId</span> = <span class="variable">latest</span>.<span class="property">id</span>!;
+    <span class="keyword">if</span> (<span class="variable">row</span>[<span class="variable">keyIdColumn</span>] !== <span class="variable">latestId</span>) {
+      <span class="keyword">const</span> <span class="variable">cryptoLatest</span> = <span class="keyword">new</span> <span class="function">CryptographyClient</span>(<span class="variable">latestId</span>, <span class="variable">credential</span>);
+      <span class="keyword">const</span> { <span class="property">result</span>: <span class="variable">newWrapped</span> } = <span class="keyword">await</span> <span class="variable">cryptoLatest</span>.<span class="function">wrapKey</span>(<span class="string">"RSA-OAEP"</span>, <span class="variable">dek</span>);
+      <span class="keyword">await</span> <span class="variable">contextDb</span>
+        .<span class="function">update</span>(<span class="variable">table</span>)
+        .<span class="function">set</span>({ 
+          [<span class="variable">wrappedDekColumn</span>]: <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">newWrapped</span>).<span class="function">toString</span>(<span class="string">'base64'</span>), 
+          [<span class="variable">keyIdColumn</span>]: <span class="variable">latestId</span> 
+        })
+        .<span class="function">where</span>(<span class="function">eq</span>(<span class="variable">table</span>.<span class="property">id</span>, <span class="variable">rowId</span>));
+    }
+
+    <span class="keyword">return</span> <span class="variable">plain</span>;
+  });
+}</pre>
+        </div>
+
+        <p><strong>Key Features:</strong></p>
+        <ul>
+            <li><strong>Backwards Compatibility:</strong> Automatically encrypts plaintext data on first access</li>
+            <li><strong>Automatic Key Rotation:</strong> Re-wraps DEKs when accessing data encrypted with old key versions</li>
+            <li><strong>RLS Compliance:</strong> Uses <code>withUserContext()</code> for Row Level Security</li>
+            <li><strong>Field-Specific:</strong> Dynamic column name generation based on field name</li>
+            <li><strong>Environment Aware:</strong> Returns plaintext in development environments</li>
+        </ul>
+
+        <h2 id="azure-setup">☁️ Azure Key Vault Setup</h2>
+
+        <h3>Key Vault Configuration</h3>
+        <div class="code-block">
+<pre><span class="comment"># Create Key Vault (separate for staging/production)</span>
+<span class="function">az</span> <span class="variable">keyvault</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">"risqai-keyv-staging"</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">"group-risqai-staging"</span> <span class="operator">\</span>
+  <span class="property">--location</span> <span class="string">"eastus"</span> <span class="operator">\</span>
+  <span class="property">--enable-rbac-authorization</span>
+
+<span class="comment"># Create encryption key</span>
+<span class="function">az</span> <span class="variable">keyvault</span> <span class="property">key</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--vault-name</span> <span class="string">"risqai-keyv-staging"</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">"encryption-key"</span> <span class="operator">\</span>
+  <span class="property">--kty</span> <span class="constant">RSA</span> <span class="operator">\</span>
+  <span class="property">--size</span> <span class="number">2048</span> <span class="operator">\</span>
+  <span class="property">--key-ops</span> <span class="string">wrapKey</span> <span class="string">unwrapKey</span></pre>
+        </div>
+
+        <h3>Key Rotation Configuration</h3>
+        <p>Set up automatic key rotation in Azure Portal:</p>
+        <ul>
+            <li><strong>Staging:</strong> Rotation every 30 days, Expiry 60-90 days</li>
+            <li><strong>Production:</strong> Rotation every 90 days, Expiry 180-270 days</li>
+        </ul>
+
+        <div class="warning">
+            <strong>Critical:</strong> Expiry time must be greater than rotation time to avoid data loss. 
+            If a key expires before rotation, data encrypted with that key becomes permanently inaccessible.
+        </div>
+
+        <h3>Access Control (RBAC)</h3>
+        <div class="code-block">
+<pre><span class="comment"># Get Container App Managed Identity</span>
+<span class="variable">PRINCIPAL_ID</span>=<span class="operator">$</span>(<span class="function">az</span> <span class="variable">containerapp</span> <span class="property">identity</span> <span class="property">show</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">"app-risqai-backend"</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">"group-risqai-staging"</span> <span class="operator">\</span>
+  <span class="property">--query</span> <span class="string">"principalId"</span> <span class="property">-o</span> <span class="string">tsv</span>)
+
+<span class="comment"># Assign Key Vault role</span>
+<span class="function">az</span> <span class="variable">role</span> <span class="property">assignment</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--assignee</span> <span class="variable">$PRINCIPAL_ID</span> <span class="operator">\</span>
+  <span class="property">--role</span> <span class="string">"Key Vault Crypto Service Encryption User"</span> <span class="operator">\</span>
+  <span class="property">--scope</span> <span class="string">"/subscriptions/{subscription-id}/resourcegroups/group-risqai-staging/providers/microsoft.keyvault/vaults/risqai-keyv-staging"</span></pre>
+        </div>
+
+        <h2 id="database-schema">🗄️ Database Schema</h2>
+
+        <h3>Migration Example</h3>
+        <div class="code-block">
+<pre><span class="comment">-- Add encryption columns to existing table</span>
+<span class="keyword">ALTER TABLE</span> <span class="variable">keywords</span> 
+<span class="keyword">ADD COLUMN</span> <span class="property">wrapped_dek_term</span> <span class="type">text</span>,
+<span class="keyword">ADD COLUMN</span> <span class="property">key_id_term</span> <span class="type">text</span>;
+
+<span class="comment">-- Index for performance (optional)</span>
+<span class="keyword">CREATE INDEX</span> <span class="variable">idx_keywords_key_id_term</span> <span class="keyword">ON</span> <span class="variable">keywords</span>(<span class="property">key_id_term</span>) <span class="keyword">WHERE</span> <span class="property">key_id_term</span> <span class="keyword">IS NOT NULL</span>;</pre>
+        </div>
+
+        <h3>Drizzle Schema Definition</h3>
+        <div class="code-block">
+<pre><span class="keyword">export</span> <span class="keyword">const</span> <span class="variable">keywords</span> = <span class="function">pgTable</span>(<span class="string">"keywords"</span>, {
+  <span class="property">id</span>: <span class="function">uuid</span>(<span class="string">"id"</span>).<span class="function">defaultRandom</span>().<span class="function">primaryKey</span>(),
+  <span class="property">term</span>: <span class="function">text</span>(<span class="string">"term"</span>).<span class="function">notNull</span>(),
+  <span class="property">active</span>: <span class="function">boolean</span>(<span class="string">"active"</span>).<span class="function">notNull</span>().<span class="function">default</span>(<span class="constant">true</span>),
+  <span class="property">userId</span>: <span class="function">uuid</span>(<span class="string">"user_id"</span>).<span class="function">references</span>(() =&gt; <span class="variable">users</span>.<span class="property">id</span>),
+  
+  <span class="comment">// Encryption fields</span>
+  <span class="property">wrappedDekTerm</span>: <span class="function">text</span>(<span class="string">'wrapped_dek_term'</span>), <span class="comment">// Encrypted DEK (base64)</span>
+  <span class="property">keyIdTerm</span>: <span class="function">text</span>(<span class="string">'key_id_term'</span>),          <span class="comment">// Azure Key Vault key version ID</span>
+  
+  <span class="property">createdAt</span>: <span class="function">timestamp</span>(<span class="string">'created_at'</span>).<span class="function">defaultNow</span>()
+});</pre>
+        </div>
+
+        <h2 id="environment-variables">🌐 Environment Variables</h2>
+
+        <table>
+            <tr><th>Variable</th><th>Description</th><th>Environment</th><th>Example</th></tr>
+            <tr>
+                <td><span class="env-var">AZURE_KEY_VAULT_NAME</span></td>
+                <td>Azure Key Vault name</td>
+                <td>Staging/Prod</td>
+                <td><code>risqai-keyv-staging</code></td>
+            </tr>
+            <tr>
+                <td><span class="env-var">AZURE_KEY_NAME</span></td>
+                <td>Encryption key name in vault</td>
+                <td>Staging/Prod</td>
+                <td><code>encryption-key</code></td>
+            </tr>
+            <tr>
+                <td><span class="env-var">NODE_ENV</span></td>
+                <td>Environment identifier</td>
+                <td>All</td>
+                <td><code>development</code>, <code>staging</code>, <code>production</code></td>
+            </tr>
+            <tr>
+                <td><span class="env-var">DATABASE_URL</span></td>
+                <td>App database connection (low privileges)</td>
+                <td>All</td>
+                <td><code>postgresql://app_user:pass@host:5432/db</code></td>
+            </tr>
+            <tr>
+                <td><span class="env-var">MIGRATION_DATABASE_URL</span></td>
+                <td>Migration database connection (high privileges)</td>
+                <td>All</td>
+                <td><code>postgresql://migration_user:pass@host:5432/db</code></td>
+            </tr>
+        </table>
+
+        <div class="info">
+            <strong>Environment Behavior:</strong>
+            <ul>
+                <li><strong>Development:</strong> No encryption - data stored and returned as plaintext</li>
+                <li><strong>Staging/Production:</strong> Full encryption with Azure Key Vault</li>
+            </ul>
+        </div>
+
+        <h2 id="usage-examples">📝 Usage Examples</h2>
+
+        <h3>Creating Encrypted Data</h3>
+        <div class="code-block">
+<pre><span class="comment">// In your service layer</span>
+<span class="keyword">async</span> <span class="function">createKeyword</span>(<span class="variable">keyword</span>: <span class="type">InsertKeyword</span>, <span class="variable">userId</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">Keyword</span>&gt; {
+  <span class="comment">// Encrypt the term</span>
+  <span class="keyword">const</span> <span class="variable">envelope</span> = <span class="keyword">await</span> <span class="function">envelopeEncrypt</span>(<span class="variable">keyword</span>.<span class="property">term</span>);
+  
+  <span class="keyword">const</span> <span class="variable">encryptedKeyword</span> = {
+    ...<span class="variable">keyword</span>,
+    <span class="property">term</span>: <span class="keyword">typeof</span> <span class="variable">envelope</span> === <span class="string">'string'</span> ? <span class="variable">envelope</span> : <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">envelope</span>.<span class="property">blob</span>).<span class="function">toString</span>(<span class="string">'base64'</span>),
+    <span class="property">wrappedDekTerm</span>: <span class="keyword">typeof</span> <span class="variable">envelope</span> === <span class="string">'string'</span> ? <span class="constant">null</span> : <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">envelope</span>.<span class="property">wrapped_dek</span>).<span class="function">toString</span>(<span class="string">'base64'</span>),
+    <span class="property">keyIdTerm</span>: <span class="keyword">typeof</span> <span class="variable">envelope</span> === <span class="string">'string'</span> ? <span class="constant">null</span> : <span class="variable">envelope</span>.<span class="property">key_id</span>
+  };
+
+  <span class="keyword">const</span> [<span class="variable">created</span>] = <span class="keyword">await</span> <span class="variable">db</span>.<span class="function">insert</span>(<span class="variable">keywords</span>).<span class="function">values</span>(<span class="variable">encryptedKeyword</span>).<span class="function">returning</span>();
+  
+  <span class="keyword">return</span> {
+    ...<span class="variable">created</span>,
+    <span class="property">term</span>: <span class="variable">keyword</span>.<span class="property">term</span> <span class="comment">// Return original plaintext to API</span>
+  };
+}</pre>
+        </div>
+
+        <h3>Reading Encrypted Data</h3>
+        <div class="code-block">
+<pre><span class="comment">// In your service layer</span>
+<span class="keyword">async</span> <span class="function">getKeywords</span>(<span class="variable">userId</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">Keyword</span>[]&gt; {
+  <span class="keyword">const</span> <span class="variable">encryptedKeywords</span> = <span class="keyword">await</span> <span class="function">withUserContext</span>(<span class="variable">userId</span>, (<span class="variable">db</span>) =&gt; 
+    <span class="variable">db</span>.<span class="function">select</span>().<span class="function">from</span>(<span class="variable">keywords</span>).<span class="function">where</span>(<span class="function">eq</span>(<span class="variable">keywords</span>.<span class="property">userId</span>, <span class="variable">userId</span>))
+  );
+  
+  <span class="comment">// Decrypt each keyword's term field</span>
+  <span class="keyword">const</span> <span class="variable">decryptedKeywords</span> = <span class="keyword">await</span> <span class="property">Promise</span>.<span class="function">all</span>(
+    <span class="variable">encryptedKeywords</span>.<span class="function">map</span>(<span class="keyword">async</span> (<span class="variable">keyword</span>) =&gt; ({
+      ...<span class="variable">keyword</span>,
+      <span class="property">term</span>: <span class="keyword">await</span> <span class="function">envelopeDecryptAndRotate</span>(<span class="variable">keywords</span>, <span class="variable">keyword</span>.<span class="property">id</span>, <span class="string">"term"</span>, <span class="variable">userId</span>)
+    }))
+  );
+  
+  <span class="keyword">return</span> <span class="variable">decryptedKeywords</span>;
+}</pre>
+        </div>
+
+        <h3>Updating Encrypted Data</h3>
+        <div class="code-block">
+<pre><span class="keyword">async</span> <span class="function">updateKeyword</span>(<span class="variable">id</span>: <span class="type">string</span>, <span class="variable">updates</span>: <span class="type">Partial</span>&lt;<span class="type">Keyword</span>&gt;, <span class="variable">userId</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">Keyword</span>&gt; {
+  <span class="keyword">const</span> <span class="variable">updateData</span> = { ...<span class="variable">updates</span> };
+  
+  <span class="comment">// Encrypt the term if it's being updated</span>
+  <span class="keyword">if</span> (<span class="variable">updateData</span>.<span class="property">term</span>) {
+    <span class="keyword">const</span> <span class="variable">envelope</span> = <span class="keyword">await</span> <span class="function">envelopeEncrypt</span>(<span class="variable">updateData</span>.<span class="property">term</span>);
+    <span class="variable">updateData</span>.<span class="property">term</span> = <span class="keyword">typeof</span> <span class="variable">envelope</span> === <span class="string">'string'</span> ? <span class="variable">envelope</span> : <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">envelope</span>.<span class="property">blob</span>).<span class="function">toString</span>(<span class="string">'base64'</span>);
+    <span class="variable">updateData</span>.<span class="property">wrappedDekTerm</span> = <span class="keyword">typeof</span> <span class="variable">envelope</span> === <span class="string">'string'</span> ? <span class="constant">null</span> : <span class="property">Buffer</span>.<span class="function">from</span>(<span class="variable">envelope</span>.<span class="property">wrapped_dek</span>).<span class="function">toString</span>(<span class="string">'base64'</span>);
+    <span class="variable">updateData</span>.<span class="property">keyIdTerm</span> = <span class="keyword">typeof</span> <span class="variable">envelope</span> === <span class="string">'string'</span> ? <span class="constant">null</span> : <span class="variable">envelope</span>.<span class="property">key_id</span>;
+  }
+  
+  <span class="keyword">const</span> [<span class="variable">updated</span>] = <span class="keyword">await</span> <span class="function">withUserContext</span>(<span class="variable">userId</span>, (<span class="variable">db</span>) =&gt;
+    <span class="variable">db</span>.<span class="function">update</span>(<span class="variable">keywords</span>).<span class="function">set</span>(<span class="variable">updateData</span>).<span class="function">where</span>(<span class="function">eq</span>(<span class="variable">keywords</span>.<span class="property">id</span>, <span class="variable">id</span>)).<span class="function">returning</span>()
+  );
+  
+  <span class="keyword">return</span> {
+    ...<span class="variable">updated</span>,
+    <span class="property">term</span>: <span class="variable">updates</span>.<span class="property">term</span> || <span class="variable">updated</span>.<span class="property">term</span>
+  };
+}</pre>
+        </div>
+
+        <h2 id="troubleshooting">🔧 Troubleshooting</h2>
+
+        <h3>Common Issues</h3>
+
+        <h4>1. "Caller is not authorized" (403 Forbidden)</h4>
+        <p><strong>Cause:</strong> Container App Managed Identity lacks Key Vault permissions.</p>
+        <div class="code-block">
+<pre><span class="comment"># Solution: Assign correct RBAC role</span>
+<span class="function">az</span> <span class="variable">role</span> <span class="property">assignment</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--assignee</span> <span class="variable">[MANAGED_IDENTITY_PRINCIPAL_ID]</span> <span class="operator">\</span>
+  <span class="property">--role</span> <span class="string">"Key Vault Crypto Service Encryption User"</span> <span class="operator">\</span>
+  <span class="property">--scope</span> <span class="variable">[KEY_VAULT_SCOPE]</span></pre>
+        </div>
+
+        <h4>2. "Row not found" during decryption</h4>
+        <p><strong>Cause:</strong> Row Level Security blocking access without proper user context.</p>
+        <p><strong>Solution:</strong> Ensure all database operations use <code>withUserContext(userId, ...)</code></p>
+
+        <h4>3. "api.postgres.database.azure.com:443" connection error</h4>
+        <p><strong>Cause:</strong> App using Neon database connection instead of PostgreSQL in staging/prod.</p>
+        <p><strong>Solution:</strong> Update database connection logic to treat staging as production environment.</p>
+
+        <h4>4. Key rotation failures</h4>
+        <p><strong>Cause:</strong> Key expired before rotation completed.</p>
+        <p><strong>Prevention:</strong> Set expiry time to 2-3x rotation period.</p>
+
+        <h3>Monitoring & Logging</h3>
+        <ul>
+            <li>Monitor Azure Key Vault access logs</li>
+            <li>Set up alerts for key expiration</li>
+            <li>Log encryption/decryption operations (without sensitive data)</li>
+            <li>Monitor performance impact of Key Vault calls</li>
+        </ul>
+
+        <h2>🎉 Conclusion</h2>
+        <p>This envelope encryption implementation provides enterprise-grade security for sensitive data while maintaining backwards compatibility and operational simplicity. The system automatically handles key rotation, environment differences, and database access control.</p>
+
+        <div class="info">
+            <strong>Security Benefits:</strong>
+            <ul>
+                <li>Master keys never leave Azure Key Vault</li>
+                <li>Each data field gets unique encryption key</li>
+                <li>Automatic key rotation with zero downtime</li>
+                <li>Compliance with security frameworks</li>
+                <li>Defense against various attack vectors</li>
+            </ul>
+        </div>
+
+        <hr>
+        <p><em>Document Version: 1.0 | Last Updated: August 25, 2025 | Status: Production Ready</em></p>
+    </div>
+</body>
+</html>

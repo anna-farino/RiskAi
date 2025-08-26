@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Deployment Plan</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; border-bottom: 3px solid #e74c3c; padding-bottom: 10px; }
+        h2 { color: #34495e; border-left: 4px solid #e74c3c; padding-left: 15px; margin-top: 30px; }
+        h3 { color: #7f8c8d; }
+        h4 { color: #95a5a6; }
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            border: 1px solid #333;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        /* Syntax highlighting */
+        .keyword { color: #569cd6; font-weight: bold; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; font-style: italic; }
+        .function { color: #dcdcaa; }
+        .type { color: #4ec9b0; }
+        .variable { color: #9cdcfe; }
+        .operator { color: #d4d4d4; }
+        .number { color: #b5cea8; }
+        .property { color: #92c5f7; }
+        .constant { color: #4fc1ff; }
+        .env-var {
+            background: #e8f5e8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #27ae60;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .phase {
+            background: #f8f9fa;
+            border: 2px solid #e74c3c;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .phase h3 {
+            color: #e74c3c;
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .step-number {
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+        .checklist li {
+            margin: 8px 0;
+            position: relative;
+            padding-left: 25px;
+        }
+        .checklist li::before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            font-size: 16px;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Production Deployment Plan</h1>
+        <p><strong>Created:</strong> August 26, 2025 | <strong>Status:</strong> Planning Phase</p>
+        <p><strong>Objective:</strong> Set up complete production environment for the news-project application with proper security, encryption, and deployment workflows.</p>
+
+        <h2 id="toc">📋 Table of Contents</h2>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#phase1">Phase 1: Azure Infrastructure Setup</a></li>
+            <li><a href="#phase2">Phase 2: GitHub Setup</a></li>
+            <li><a href="#phase3">Phase 3: Auth0 & External Services Configuration</a></li>
+            <li><a href="#order">Key Order Considerations</a></li>
+            <li><a href="#notes">Important Notes</a></li>
+        </ul>
+
+        <h2 id="overview">🎯 Overview</h2>
+
+        <p><strong>Deployment Architecture:</strong></p>
+        <ul>
+            <li><strong>Backend:</strong> Azure Container Apps with Docker containers</li>
+            <li><strong>Frontend:</strong> Azure Static Web Apps</li>
+            <li><strong>Database:</strong> Azure Database for PostgreSQL (Flexible Server)</li>
+            <li><strong>Encryption:</strong> Azure Key Vault with envelope encryption</li>
+            <li><strong>CI/CD:</strong> GitHub Actions with environment-specific deployments</li>
+        </ul>
+
+        <div class="phase" id="phase1">
+            <h2>Phase 1: Azure Infrastructure Setup <a href="#toc">↑</a></h2>
+
+            <h3><span class="step-number">1</span>Create Container Registry</h3>
+            <p>Set up production container registry for Docker images.</p>
+            
+            <div class="code-block">
+<pre><span class="comment"># Create production container registry</span>
+<span class="function">az</span> <span class="variable">acr</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">risqaiprod</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--sku</span> <span class="constant">Standard</span> <span class="operator">\</span>
+  <span class="property">--admin-enabled</span> <span class="constant">true</span> <span class="operator">\</span>
+  <span class="property">--location</span> <span class="string">eastus</span></pre>
+            </div>
+
+            <h3><span class="step-number">2</span>Create Key Vault (before Container App)</h3>
+            <p>Essential for secure secret management and envelope encryption.</p>
+            
+            <div class="code-block">
+<pre><span class="comment"># Create production Key Vault</span>
+<span class="function">az</span> <span class="variable">keyvault</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">risqai-keyv-production</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--location</span> <span class="string">eastus</span> <span class="operator">\</span>
+  <span class="property">--enable-rbac-authorization</span>
+
+<span class="comment"># Create encryption key</span>
+<span class="function">az</span> <span class="variable">keyvault</span> <span class="property">key</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--vault-name</span> <span class="string">risqai-keyv-production</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">encryption-key</span> <span class="operator">\</span>
+  <span class="property">--kty</span> <span class="constant">RSA</span> <span class="operator">\</span>
+  <span class="property">--size</span> <span class="number">2048</span> <span class="operator">\</span>
+  <span class="property">--key-ops</span> <span class="string">wrapKey</span> <span class="string">unwrapKey</span>
+
+<span class="comment"># Set key rotation (90 days rotation, 180-270 days expiry)</span>
+<span class="function">az</span> <span class="variable">keyvault</span> <span class="property">key</span> <span class="property">set-policy</span> <span class="operator">\</span>
+  <span class="property">--vault-name</span> <span class="string">risqai-keyv-production</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">encryption-key</span> <span class="operator">\</span>
+  <span class="property">--key-permissions</span> <span class="string">wrapKey</span> <span class="string">unwrapKey</span></pre>
+            </div>
+
+            <h3><span class="step-number">3</span>Create Log Analytics Workspace & Container Environment</h3>
+            
+            <div class="code-block">
+<pre><span class="comment"># Create log analytics workspace</span>
+<span class="function">az</span> <span class="variable">monitor</span> <span class="property">log-analytics</span> <span class="property">workspace</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--workspace-name</span> <span class="string">workspace-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--location</span> <span class="string">eastus</span>
+
+<span class="comment"># Get workspace ID and key</span>
+<span class="variable">WORKSPACE_ID</span>=<span class="operator">$</span>(<span class="function">az</span> <span class="variable">monitor</span> <span class="property">log-analytics</span> <span class="property">workspace</span> <span class="property">show</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--workspace-name</span> <span class="string">workspace-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--query</span> <span class="string">customerId</span> <span class="property">-o</span> <span class="string">tsv</span>)
+
+<span class="variable">WORKSPACE_KEY</span>=<span class="operator">$</span>(<span class="function">az</span> <span class="variable">monitor</span> <span class="property">log-analytics</span> <span class="property">workspace</span> <span class="property">get-shared-keys</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--workspace-name</span> <span class="string">workspace-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--query</span> <span class="string">primarySharedKey</span> <span class="property">-o</span> <span class="string">tsv</span>)
+
+<span class="comment"># Create container environment</span>
+<span class="function">az</span> <span class="variable">containerapp</span> <span class="property">env</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">env-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--location</span> <span class="string">eastus</span> <span class="operator">\</span>
+  <span class="property">--logs-workspace-id</span> <span class="variable">$WORKSPACE_ID</span> <span class="operator">\</span>
+  <span class="property">--logs-workspace-key</span> <span class="variable">$WORKSPACE_KEY</span></pre>
+            </div>
+
+            <h3><span class="step-number">4</span>Create Database User (RLS compliant)</h3>
+            <p>Create application user with proper Row Level Security compliance.</p>
+            
+            <div class="code-block">
+<pre><span class="comment">-- Connect to your production database and run:</span>
+<span class="comment">-- Create app user with limited permissions (no RLS override)</span>
+<span class="keyword">CREATE USER</span> <span class="variable">risqai_app_prod</span> <span class="keyword">WITH PASSWORD</span> <span class="string">'secure_password_here'</span>;
+
+<span class="comment">-- Grant basic permissions (no BYPASSRLS)</span>
+<span class="keyword">GRANT CONNECT</span> <span class="keyword">ON DATABASE</span> <span class="variable">your_prod_db</span> <span class="keyword">TO</span> <span class="variable">risqai_app_prod</span>;
+<span class="keyword">GRANT USAGE</span> <span class="keyword">ON SCHEMA</span> <span class="variable">public</span> <span class="keyword">TO</span> <span class="variable">risqai_app_prod</span>;
+<span class="keyword">GRANT</span> <span class="property">SELECT</span>, <span class="property">INSERT</span>, <span class="property">UPDATE</span>, <span class="property">DELETE</span> <span class="keyword">ON ALL TABLES</span> <span class="keyword">IN SCHEMA</span> <span class="variable">public</span> <span class="keyword">TO</span> <span class="variable">risqai_app_prod</span>;
+<span class="keyword">GRANT USAGE</span> <span class="keyword">ON ALL SEQUENCES</span> <span class="keyword">IN SCHEMA</span> <span class="variable">public</span> <span class="keyword">TO</span> <span class="variable">risqai_app_prod</span>;
+
+<span class="comment">-- Ensure RLS policies apply to this user</span>
+<span class="comment">-- (Don't grant BYPASSRLS role)</span></pre>
+            </div>
+
+            <h3><span class="step-number">5</span>Create Backend Container App</h3>
+            
+            <div class="code-block">
+<pre><span class="comment"># Get registry login server</span>
+<span class="variable">REGISTRY_LOGIN_SERVER</span>=<span class="operator">$</span>(<span class="function">az</span> <span class="variable">acr</span> <span class="property">show</span> <span class="property">--name</span> <span class="string">risqaiprod</span> <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="property">--query</span> <span class="string">loginServer</span> <span class="property">-o</span> <span class="string">tsv</span>)
+
+<span class="comment"># Create backend container app (we'll update with proper image later via GitHub)</span>
+<span class="comment"># Note: Using direct env vars like staging, not secrets</span>
+<span class="function">az</span> <span class="variable">containerapp</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">app-risqai-backend-prod</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--environment</span> <span class="string">env-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--image</span> <span class="string">mcr.microsoft.com/azuredocs/containerapps-helloworld:latest</span> <span class="operator">\</span>
+  <span class="property">--target-port</span> <span class="number">3000</span> <span class="operator">\</span>
+  <span class="property">--ingress</span> <span class="string">external</span> <span class="operator">\</span>
+  <span class="property">--registry-server</span> <span class="variable">$REGISTRY_LOGIN_SERVER</span> <span class="operator">\</span>
+  <span class="property">--registry-identity</span> <span class="string">system</span> <span class="operator">\</span>
+  <span class="property">--min-replicas</span> <span class="number">1</span> <span class="operator">\</span>
+  <span class="property">--max-replicas</span> <span class="number">10</span> <span class="operator">\</span>
+  <span class="property">--env-vars</span> <span class="operator">\</span>
+    <span class="string">"NODE_ENV=production"</span> <span class="operator">\</span>
+    <span class="string">"DATABASE_URL=postgresql://risqai_app_prod:secure_password_here@your_prod_db_host:5432/your_prod_db"</span> <span class="operator">\</span>
+    <span class="string">"MIGRATION_DB_URL=postgresql://migration_user_prod:migration_password_here@your_prod_db_host:5432/your_prod_db"</span> <span class="operator">\</span>
+    <span class="string">"JWT_SECRET=your_jwt_secret_here"</span> <span class="operator">\</span>
+    <span class="string">"REFRESH_PEPPER=your_refresh_pepper_here"</span> <span class="operator">\</span>
+    <span class="string">"CSRF_SECRET=your_csrf_secret_here"</span> <span class="operator">\</span>
+    <span class="string">"OPENAI_API_KEY=your_openai_api_key_here"</span> <span class="operator">\</span>
+    <span class="string">"ENCRYPTION_KEY=your_encryption_key_here"</span> <span class="operator">\</span>
+    <span class="string">"PORT=3000"</span> <span class="operator">\</span>
+    <span class="string">"SENDGRID_API_KEY=your_sendgrid_api_key_here"</span> <span class="operator">\</span>
+    <span class="string">"AUTH0_AUDIENCE=https://api.risqai.co"</span> <span class="operator">\</span>
+    <span class="string">"AUTH0_DOMAIN=https://risqai.us.auth0.com"</span> <span class="operator">\</span>
+    <span class="string">"AUTH0_CLIENT_ID=your_prod_auth0_client_id"</span> <span class="operator">\</span>
+    <span class="string">"AUTH0_CLIENT_SECRET=your_prod_auth0_client_secret"</span> <span class="operator">\</span>
+    <span class="string">"IS_AZURE=true"</span> <span class="operator">\</span>
+    <span class="string">"AZURE_KEY_VAULT_NAME=risqai-keyv-production"</span> <span class="operator">\</span>
+    <span class="string">"AZURE_KEY_NAME=encryption-key"</span></pre>
+            </div>
+
+            <h3><span class="step-number">6</span>Set up Key Vault Permissions</h3>
+            
+            <div class="code-block">
+<pre><span class="comment"># Get backend app managed identity</span>
+<span class="variable">BACKEND_PRINCIPAL_ID</span>=<span class="operator">$</span>(<span class="function">az</span> <span class="variable">containerapp</span> <span class="property">identity</span> <span class="property">show</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">app-risqai-backend-prod</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--query</span> <span class="string">principalId</span> <span class="property">-o</span> <span class="string">tsv</span>)
+
+<span class="comment"># Assign Key Vault role for Container App</span>
+<span class="function">az</span> <span class="variable">role</span> <span class="property">assignment</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--assignee</span> <span class="variable">$BACKEND_PRINCIPAL_ID</span> <span class="operator">\</span>
+  <span class="property">--role</span> <span class="string">"Key Vault Crypto Service Encryption User"</span> <span class="operator">\</span>
+  <span class="property">--scope</span> <span class="string">"/subscriptions/$(az account show --query id -o tsv)/resourcegroups/group-risqai-production/providers/microsoft.keyvault/vaults/risqai-keyv-production"</span>
+
+<span class="comment"># Assign Key Vault Administrator role to Roberto Loss (for management)</span>
+<span class="function">az</span> <span class="variable">role</span> <span class="property">assignment</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--assignee</span> <span class="string">rloss@Altairtek.com</span> <span class="operator">\</span>
+  <span class="property">--role</span> <span class="string">"Key Vault Administrator"</span> <span class="operator">\</span>
+  <span class="property">--scope</span> <span class="string">"/subscriptions/$(az account show --query id -o tsv)/resourcegroups/group-risqai-production/providers/microsoft.keyvault/vaults/risqai-keyv-production"</span></pre>
+            </div>
+
+            <h3><span class="step-number">7</span>Create Frontend Static Web App</h3>
+            
+            <div class="code-block">
+<pre><span class="comment"># Create production static web app</span>
+<span class="function">az</span> <span class="variable">staticwebapp</span> <span class="property">create</span> <span class="operator">\</span>
+  <span class="property">--name</span> <span class="string">frontend-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--resource-group</span> <span class="string">group-risqai-production</span> <span class="operator">\</span>
+  <span class="property">--location</span> <span class="string">eastus2</span></pre>
+            </div>
+        </div>
+
+        <div class="phase" id="phase2">
+            <h2>Phase 2: GitHub Setup <a href="#toc">↑</a></h2>
+
+            <h3><span class="step-number">8</span>Create Production Environment in GitHub</h3>
+            <p>Go to <strong>GitHub → Settings → Environments → New Environment:</strong> <code>production</code></p>
+
+            <h4>Required Variables:</h4>
+            <div class="code-block">
+<pre><span class="variable">REGISTRY_LOGIN_SERVER</span> = <span class="string">risqaiprod-[hash].azurecr.io</span>
+<span class="variable">IMAGE_NAME</span> = <span class="string">risqai-backend</span>
+<span class="variable">RESOURCE_GROUP</span> = <span class="string">group-risqai-production</span>
+<span class="variable">CONTAINER_APP_NAME</span> = <span class="string">app-risqai-backend-prod</span></pre>
+            </div>
+
+            <h4>Required Secrets:</h4>
+            <div class="code-block">
+<pre><span class="variable">AZURE_CLIENT_ID</span> = <span class="string">[service principal client id]</span>
+<span class="variable">AZURE_TENANT_ID</span> = <span class="string">[your tenant id]</span>
+<span class="variable">AZURE_SUBSCRIPTION_ID</span> = <span class="string">[your subscription id]</span>
+<span class="variable">ACR_USERNAME</span> = <span class="string">[from: az acr credential show --name risqaiprod]</span>
+<span class="variable">ACR_PASSWORD</span> = <span class="string">[from: az acr credential show --name risqaiprod]</span>
+<span class="variable">VITE_AUTH0_AUDIENCE</span> = <span class="string">https://api.risqai.co</span>
+<span class="variable">VITE_AUTH0_CALLBACK_URL</span> = <span class="string">https://risqai.co/auth/callback</span>
+<span class="variable">VITE_AUTH0_CLIENT_ID</span> = <span class="string">[your production auth0 client id]</span>
+<span class="variable">VITE_AUTH0_DOMAIN</span> = <span class="string">https://risqai.us.auth0.com</span>
+<span class="variable">VITE_SERVER_URL</span> = <span class="string">https://api.risqai.co</span>
+<span class="variable">VITE_SERVER_URL_DEV</span> = <span class="string">http://localhost:3000</span></pre>
+            </div>
+
+            <h3><span class="step-number">9</span>Create GitHub Workflows</h3>
+
+            <h4>Backend Workflow: <code>.github/workflows/production-backend.yml</code></h4>
+            <div class="code-block">
+<pre><span class="property">name</span>: <span class="string">Production Backend – Build & Deploy (ACA)</span>
+
+<span class="property">on</span>:
+  <span class="property">push</span>:
+    <span class="property">branches</span>: [<span class="string">main</span>]
+  <span class="property">workflow_dispatch</span>:
+
+<span class="property">jobs</span>:
+  <span class="property">deploy</span>:
+    <span class="property">runs-on</span>: <span class="string">ubuntu-latest</span>
+    <span class="property">permissions</span>:
+      <span class="property">id-token</span>: <span class="string">write</span>
+      <span class="property">contents</span>: <span class="string">read</span>
+    <span class="property">environment</span>: <span class="string">production</span>
+    <span class="property">concurrency</span>:
+      <span class="property">group</span>: <span class="string">backend-production</span>
+      <span class="property">cancel-in-progress</span>: <span class="constant">false</span>
+    <span class="property">env</span>:
+      <span class="property">REGISTRY_LOGIN_SERVER</span>: <span class="string">${{ vars.REGISTRY_LOGIN_SERVER }}</span>
+      <span class="property">IMAGE_NAME</span>:            <span class="string">${{ vars.IMAGE_NAME }}</span>
+      <span class="property">RESOURCE_GROUP</span>:        <span class="string">${{ vars.RESOURCE_GROUP }}</span>
+      <span class="property">CONTAINER_APP_NAME</span>:    <span class="string">${{ vars.CONTAINER_APP_NAME }}</span>
+
+    <span class="property">steps</span>:
+      - <span class="property">uses</span>: <span class="string">actions/checkout@v4</span>
+
+      - <span class="property">uses</span>: <span class="string">azure/login@v2</span>
+        <span class="property">with</span>:
+          <span class="property">client-id</span>:       <span class="string">${{ secrets.AZURE_CLIENT_ID }}</span>
+          <span class="property">tenant-id</span>:       <span class="string">${{ secrets.AZURE_TENANT_ID }}</span>
+          <span class="property">subscription-id</span>: <span class="string">${{ secrets.AZURE_SUBSCRIPTION_ID }}</span>
+
+      - <span class="property">name</span>: <span class="string">Build Docker image</span>
+        <span class="property">run</span>: <span class="string">docker build -t "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}" .</span>
+
+      - <span class="property">name</span>: <span class="string">Push Docker image</span>
+        <span class="property">run</span>: |
+          <span class="string">echo "${{ secrets.ACR_PASSWORD }}" | docker login "$REGISTRY_LOGIN_SERVER" -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+          docker push "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"</span>
+
+      - <span class="property">name</span>: <span class="string">Deploy to Azure Container Apps</span>
+        <span class="property">run</span>: |
+          <span class="string">az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}" \
+            --min-replicas 1 \
+            --max-replicas 10</span></pre>
+            </div>
+
+            <h4>Frontend Workflow: <code>.github/workflows/production-frontend.yml</code></h4>
+            <div class="code-block">
+<pre><span class="property">name</span>: <span class="string">Production Frontend – Build & Deploy (Static Web App)</span>
+
+<span class="property">on</span>:
+  <span class="property">push</span>:
+    <span class="property">branches</span>: [<span class="string">main</span>]
+    <span class="property">paths</span>: [<span class="string">'frontend/**'</span>]
+  <span class="property">workflow_dispatch</span>:
+
+<span class="property">jobs</span>:
+  <span class="property">deploy</span>:
+    <span class="property">runs-on</span>: <span class="string">ubuntu-latest</span>
+    <span class="property">environment</span>: <span class="string">production</span>
+    <span class="property">steps</span>:
+      - <span class="property">uses</span>: <span class="string">actions/checkout@v4</span>
+        <span class="property">with</span>:
+          <span class="property">submodules</span>: <span class="constant">true</span>
+          <span class="property">lfs</span>: <span class="constant">false</span>
+
+      - <span class="property">name</span>: <span class="string">Deploy to Static Web App</span>
+        <span class="property">uses</span>: <span class="string">Azure/static-web-apps-deploy@v1</span>
+        <span class="property">with</span>:
+          <span class="property">azure_static_web_apps_api_token</span>: <span class="string">${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION }}</span>
+          <span class="property">repo_token</span>: <span class="string">${{ secrets.GITHUB_TOKEN }}</span>
+          <span class="property">action</span>: <span class="string">"upload"</span>
+          <span class="property">app_location</span>: <span class="string">"/frontend"</span>
+          <span class="property">output_location</span>: <span class="string">"dist"</span></pre>
+            </div>
+        </div>
+
+        <div class="phase" id="phase3">
+            <h2>Phase 3: Auth0 & External Services Configuration <a href="#toc">↑</a></h2>
+
+            <h3><span class="step-number">10</span>Configure Auth0 for Production</h3>
+            <p><strong>Critical!</strong> Update Auth0 application settings with production URLs.</p>
+
+            <div class="warning">
+                <strong>Auth0 Dashboard Steps:</strong>
+                <ol>
+                    <li>Go to <a href="https://manage.auth0.com" target="_blank">Auth0 Dashboard</a></li>
+                    <li>Select your application</li>
+                    <li>Update the following settings:</li>
+                </ol>
+            </div>
+
+            <div class="code-block">
+<pre><span class="comment"># Auth0 Application Settings to Update:</span>
+
+<span class="comment"># Allowed Callback URLs:</span>
+<span class="string">https://api.risqai.co/auth/callback</span>
+<span class="string">https://risqai.co/auth/callback</span>
+<span class="string">https://www.risqai.co/auth/callback</span>
+
+<span class="comment"># Allowed Logout URLs:</span>
+<span class="string">https://risqai.co</span>
+<span class="string">https://www.risqai.co</span>
+
+<span class="comment"># Allowed Web Origins:</span>
+<span class="string">https://risqai.co</span>
+<span class="string">https://www.risqai.co</span>
+
+<span class="comment"># Allowed Origins (CORS):</span>
+<span class="string">https://risqai.co</span>
+<span class="string">https://www.risqai.co</span>
+<span class="string">https://api.risqai.co</span></pre>
+            </div>
+
+            <div class="info">
+                <strong>Auth0 Environment Variables:</strong>
+                <ul>
+                    <li><span class="env-var">AUTH0_DOMAIN</span>: <code>https://risqai.us.auth0.com</code></li>
+                    <li><span class="env-var">AUTH0_AUDIENCE</span>: <code>https://api.risqai.co</code></li>
+                    <li><span class="env-var">AUTH0_CLIENT_ID</span>: Get from Auth0 Dashboard</li>
+                    <li><span class="env-var">AUTH0_CLIENT_SECRET</span>: Get from Auth0 Dashboard</li>
+                </ul>
+            </div>
+
+            <h3><span class="step-number">11</span>Get Service Principal Details</h3>
+            <div class="code-block">
+<pre><span class="comment"># Get ACR credentials for GitHub secrets</span>
+<span class="function">az</span> <span class="variable">acr</span> <span class="property">credential</span> <span class="property">show</span> <span class="property">--name</span> <span class="string">risqaiprod</span> <span class="property">--resource-group</span> <span class="string">group-risqai-production</span>
+
+<span class="comment"># Get Static Web App deployment token</span>
+<span class="function">az</span> <span class="variable">staticwebapp</span> <span class="property">secrets</span> <span class="property">list</span> <span class="property">--name</span> <span class="string">frontend-risqai-production</span> <span class="property">--query</span> <span class="string">"properties.apiKey"</span></pre>
+            </div>
+
+            <h3><span class="step-number">12</span>Final Verification</h3>
+            <ul class="checklist">
+                <li>Test backend container app health endpoint</li>
+                <li>Verify Key Vault access works</li>
+                <li>Test database connectivity with RLS</li>
+                <li>Deploy via GitHub Actions</li>
+                <li>Test end-to-end functionality</li>
+            </ul>
+        </div>
+
+        <h2 id="order">🔑 Key Order Considerations <a href="#toc">↑</a></h2>
+        
+        <table>
+            <tr><th>Order</th><th>Step</th><th>Reason</th></tr>
+            <tr><td>1</td><td>Container Registry</td><td>Needed before Container App creation and GitHub workflows</td></tr>
+            <tr><td>2</td><td>Key Vault first</td><td>Create before Container App so you can reference encryption keys</td></tr>
+            <tr><td>3</td><td>Database user</td><td>Set up before container app deployment to ensure proper connection strings</td></tr>
+            <tr><td>4</td><td>Container App</td><td>Core infrastructure before external integrations</td></tr>
+            <tr><td>5</td><td>Managed Identity permissions</td><td>Set up after Container App creation but before first deployment</td></tr>
+            <tr><td>6</td><td>GitHub Environment</td><td>Set up before creating workflows to ensure proper variable/secret access</td></tr>
+            <tr><td>7</td><td>Auth0 Configuration</td><td>Must be done before first user authentication attempts</td></tr>
+        </table>
+
+        <h2 id="notes">⚠️ Important Notes <a href="#toc">↑</a></h2>
+
+        <div class="warning">
+            <h4>Database User</h4>
+            <p>The production user should <strong>NOT</strong> have <code>BYPASSRLS</code> privilege to ensure RLS policies are enforced</p>
+        </div>
+
+        <div class="info">
+            <h4>Key Vault</h4>
+            <p>Use longer rotation periods for production (90 days vs 30 for staging)</p>
+        </div>
+
+        <div class="warning">
+            <h4>Secrets</h4>
+            <p>Never put actual secret values in deployment scripts - use secure password generation</p>
+        </div>
+
+        <div class="info">
+            <h4>Environment Variables</h4>
+            <p>Ensure <span class="env-var">NODE_ENV=production</span> to enable encryption functionality</p>
+        </div>
+
+        <div class="success">
+            <h4>Post-Deployment Tasks</h4>
+            <ul>
+                <li>Set up custom domains and SSL certificates</li>
+                <li>Configure monitoring and alerting</li>
+                <li>Set up backup procedures for Key Vault keys</li>
+                <li>Document disaster recovery procedures</li>
+            </ul>
+        </div>
+
+        <hr>
+        <p><em>Document Version: 1.0 | Last Updated: August 26, 2025 | Status: Planning Phase</em></p>
+    </div>
+</body>
+</html>
