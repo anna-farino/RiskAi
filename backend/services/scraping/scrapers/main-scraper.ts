@@ -178,9 +178,11 @@ export class StreamlinedUnifiedScraper {
       // Step 1: Get content (HTTP or Puppeteer)
       const result = await getContent(url, false);
 
-      // Step 2: Respect method selector's decision - only use advanced extraction if Puppeteer was chosen
-      // Method selector already evaluated dynamic content needs and made optimal decision
-      const needsAdvancedExtraction = result.method === 'puppeteer';
+      // Step 2: Check if we need additional extraction
+      // CRITICAL FIX: Don't do redundant extraction when Puppeteer already succeeded!
+      // Previously, every Puppeteer success triggered ANOTHER extraction that could fail
+      // and overwrite the successful result (e.g., 459 links → 0 links)
+      const needsAdvancedExtraction = false; // Disabled: We already have the content from getContent()
 
       const extractionOptions = {
         includePatterns: options?.includePatterns,
@@ -191,8 +193,9 @@ export class StreamlinedUnifiedScraper {
         minLinkTextLength: 15
       };
 
-      // Step 3: Use advanced extraction only for Puppeteer results (method selector chose Puppeteer for good reason)
-      if (needsAdvancedExtraction) {
+      // Step 3: Use advanced extraction only if initial extraction was insufficient
+      // This path is currently disabled as it causes redundant scraping
+      if (needsAdvancedExtraction && false) { // Disabled to prevent double-scraping
         log(`[SimpleScraper] Method selector chose Puppeteer - using advanced HTMX extraction`, "scraper");
         
         // Import setup functions
@@ -269,8 +272,9 @@ export class StreamlinedUnifiedScraper {
           }
         }
       } else {
-        // Step 3: Use standard extraction for HTTP results (method selector determined HTTP is sufficient)
-        log(`[SimpleScraper] Method selector chose HTTP - using standard extraction (${result.html.length} chars)`, "scraper");
+        // Step 3: Extract links from the content we already have (no redundant scraping!)
+        const methodName = result.method === 'puppeteer' ? 'Puppeteer' : 'HTTP';
+        log(`[SimpleScraper] Method selector chose ${methodName} - extracting links from existing content (${result.html.length} chars)`, "scraper");
         try {
           const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
           log(`[SimpleScraper] Standard extraction completed: ${articleLinks.length} article links found`, "scraper");
