@@ -3,6 +3,7 @@ import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
 import UserAgent from 'user-agents';
 import { createCursor } from 'ghost-cursor';
+import { safePageEvaluate } from '../scrapers/puppeteer-scraper/error-handler';
 
 
 
@@ -340,7 +341,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
     log(`[ProtectionBypass] Initial DataDome cookies present: ${hasDataDomeCookie}`, "scraper");
 
     // Check if we're on a DataDome challenge page
-    const isDataDomeChallenge = await page.evaluate(() => {
+    const isDataDomeChallenge = await safePageEvaluate(page, () => {
       const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
       const hasDataDomeMessage = document.body?.textContent?.includes("Please enable JS and disable any ad blocker") || false;
       const hasDataDomeContent = document.documentElement?.innerHTML?.includes("datadome") || false;
@@ -348,7 +349,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       const has401Error = document.title?.toLowerCase()?.includes('401') || false;
 
       return hasDataDomeScript || hasDataDomeMessage || hasDataDomeContent || hasGeodelivery || has401Error;
-    });
+    }) || false;
 
     if (isDataDomeChallenge) {
       log(`[ProtectionBypass] DataDome challenge detected, actively solving...`, "scraper");
@@ -360,7 +361,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
       log(`[ProtectionBypass] Executing DataDome challenge solver...`, "scraper");
       
       // Inject DataDome solver script with comprehensive error handling
-      const solverResult = await page.evaluate(() => {
+      const solverResult = await safePageEvaluate(page, () => {
         try {
           // Create a promise to track DataDome initialization
           return new Promise((resolve) => {
@@ -425,10 +426,13 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
           console.error('DataDome solver initialization error:', mainError);
           return { success: false, error: 'Solver initialization failed: ' + mainError.message };
         }
-      }).catch((evalError) => {
-        log(`[ProtectionBypass] DataDome solver evaluation error: ${evalError.message}`, "scraper-error");
-        return { success: false, error: 'Evaluation failed: ' + evalError.message };
       });
+      
+      // Handle null result from safePageEvaluate (filtered validation errors)
+      if (solverResult === null) {
+        log(`[ProtectionBypass] DataDome solver evaluation filtered out validation error - proceeding with fallback`, "scraper");
+        // Continue with fallback approach rather than failing
+      }
       
       log(`[ProtectionBypass] DataDome solver result: ${JSON.stringify(solverResult)}`, "scraper");
       
@@ -451,7 +455,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         log(`[ProtectionBypass] Challenge solving attempt ${attempts}/${maxAttempts}`, "scraper");
         
         // Quick content check before doing any work - if we already have substantial content, bypass is successful
-        const quickCheck = await page.evaluate(() => {
+        const quickCheck = await safePageEvaluate(page, () => {
           const bodyText = document.body?.textContent || '';
           const linkCount = document.querySelectorAll('a[href]').length;
           return {
@@ -459,7 +463,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
             linkCount: linkCount,
             hasSubstantialContent: bodyText.length > 100000 && linkCount > 50
           };
-        });
+        }) || { pageLength: 0, linkCount: 0, hasSubstantialContent: false };
         
         if (quickCheck.hasSubstantialContent) {
           challengeCompleted = true;
@@ -568,7 +572,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         waitTime += checkInterval;
 
         // Check if challenge is completed with more sophisticated detection
-        const challengeStatus = await page.evaluate(() => {
+        const challengeStatus = await safePageEvaluate(page, () => {
           const hasDataDomeScript = document.querySelector('script[src*="captcha-delivery.com"]') !== null;
           const hasDataDomeMessage = document.body?.textContent?.includes("Please enable JS and disable any ad blocker") || false;
           const hasBlockingContent = document.body?.textContent?.includes("blocked") || false;
@@ -600,7 +604,17 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
             linkCount: document.querySelectorAll('a[href]').length,
             currentUrl: window.location.href
           };
-        });
+        }) || {
+          stillHasChallenge: true,
+          hasRealContent: false,
+          hasWebsiteContent: false,
+          hasWebsiteStructure: false,
+          hasNavigation: false,
+          pageLength: 0,
+          elementCount: 0,
+          linkCount: 0,
+          currentUrl: ''
+        };
 
         // Enhanced challenge completion detection
         // Prioritize substantial content over script presence - if we have real content, bypass is successful
@@ -636,7 +650,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
         await new Promise((resolve) => setTimeout(resolve, 3000));
         
         // Try interacting with any visible elements
-        await page.evaluate(() => {
+        await safePageEvaluate(page, () => {
           // Click on any visible buttons or links
           const clickableElements = document.querySelectorAll('button, a, input[type="submit"], [onclick]');
           clickableElements.forEach((el, index) => {
