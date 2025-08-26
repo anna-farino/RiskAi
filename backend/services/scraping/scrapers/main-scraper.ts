@@ -178,10 +178,9 @@ export class StreamlinedUnifiedScraper {
       // Step 1: Get content (HTTP or Puppeteer)
       const result = await getContent(url, false);
 
-      // Step 2: Check if we need advanced HTMX extraction
-      const { detectDynamicContentNeeds } = await import('../core/method-selector');
-      const needsAdvancedExtraction = result.method === 'puppeteer' || 
-        detectDynamicContentNeeds(result.html, url);
+      // Step 2: Respect method selector's decision - only use advanced extraction if Puppeteer was chosen
+      // Method selector already evaluated dynamic content needs and made optimal decision
+      const needsAdvancedExtraction = result.method === 'puppeteer';
 
       const extractionOptions = {
         includePatterns: options?.includePatterns,
@@ -192,9 +191,9 @@ export class StreamlinedUnifiedScraper {
         minLinkTextLength: 15
       };
 
-      // Step 3: Use advanced extraction for HTMX/dynamic sites
+      // Step 3: Use advanced extraction only for Puppeteer results (method selector chose Puppeteer for good reason)
       if (needsAdvancedExtraction) {
-        log(`[SimpleScraper] Dynamic content detected, using advanced HTMX extraction`, "scraper");
+        log(`[SimpleScraper] Method selector chose Puppeteer - using advanced HTMX extraction`, "scraper");
         
         // Import setup functions
         const { setupSourcePage } = await import('../core/page-setup');
@@ -270,10 +269,11 @@ export class StreamlinedUnifiedScraper {
           }
         }
       } else {
-        // Step 3: Extract links with standard method for static sites
+        // Step 3: Use standard extraction for HTTP results (method selector determined HTTP is sufficient)
+        log(`[SimpleScraper] Method selector chose HTTP - using standard extraction (${result.html.length} chars)`, "scraper");
         try {
           const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
-          log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
+          log(`[SimpleScraper] Standard extraction completed: ${articleLinks.length} article links found`, "scraper");
           return articleLinks;
         } catch (standardError) {
           if (standardError instanceof Error && errorContext) {
