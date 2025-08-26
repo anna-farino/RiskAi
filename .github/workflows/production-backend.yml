@@ -33,9 +33,9 @@ jobs:
       - name: Build Docker image
         run: docker build -t "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}" .
 
-      - name: Push Docker image
+      - name: Login to ACR and Push Docker image
         run: |
-          echo "${{ secrets.ACR_PASSWORD }}" | docker login "$REGISTRY_LOGIN_SERVER" -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+          az acr login --name $(echo $REGISTRY_LOGIN_SERVER | cut -d'.' -f1)
           docker push "$REGISTRY_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
 
       - name: Deploy to Azure Container Apps
