@@ -782,11 +782,43 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
 
     // 2. Extended Challenge Waiting with aggressive monitoring
     let challengeCompleted = false;
-    const maxWaitTime = 20000; // 20 seconds max wait for aggressive protection
+    const maxWaitTime = 35000; // 35 seconds max wait for very aggressive protection
     const checkInterval = 1000; // Check every 1 second
     let waitTime = 0;
     const initialUrl = page.url();
     let interactionPhase = 1;
+    
+    // Advanced fingerprint spoofing during challenge
+    await page.evaluate(() => {
+      // Override timestamp precision to avoid high-resolution timing detection
+      const originalNow = Date.now;
+      Date.now = function() {
+        return originalNow() + Math.floor(Math.random() * 5);
+      };
+      
+      // Override performance timing for realistic human patterns  
+      const originalPerformanceNow = performance.now;
+      performance.now = function() {
+        return originalPerformanceNow() + Math.random() * 0.1;
+      };
+      
+      // Add realistic screen properties
+      Object.defineProperty(screen, 'availWidth', { value: 1920, writable: false });
+      Object.defineProperty(screen, 'availHeight', { value: 1040, writable: false });
+      
+      // Spoof touch capabilities for mobile detection
+      Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, writable: false });
+      
+      // Override battery API for more realistic fingerprint
+      Object.defineProperty(navigator, 'getBattery', {
+        value: () => Promise.resolve({
+          charging: true,
+          chargingTime: 0,
+          dischargingTime: Infinity,
+          level: 0.85 + Math.random() * 0.1
+        })
+      });
+    });
 
     // Track network requests for challenge completion
     const requestPromises: Promise<any>[] = [];
@@ -850,12 +882,18 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
 
         log(`[ProtectionBypass] Challenge check (${waitTime}ms): stillOnChallenge=${challengeStatus.stillOnChallenge}, elementsGone=${challengeStatus.challengeElementsGone}, realContent=${challengeStatus.hasRealContent}, links=${challengeStatus.linkCount}, urlChanged=${urlChanged}`, "scraper");
 
-        // Enhanced challenge completion detection
+        // Enhanced challenge completion detection with multiple criteria
         const challengeActuallyCompleted = (
-          (!challengeStatus.stillOnChallenge && challengeStatus.linkCount >= 10) ||
-          (urlChanged && challengeStatus.linkCount >= 5) ||
-          (challengeStatus.hasRealContent && challengeStatus.linkCount >= 8) ||
-          (challengeStatus.contentLength > 50000 && challengeStatus.linkCount >= 5)
+          // Primary completion: URL changed AND sufficient content
+          (urlChanged && challengeStatus.linkCount >= 8 && challengeStatus.contentLength > 10000) ||
+          // Secondary: Title changed AND substantial content
+          (!challengeStatus.stillOnChallenge && challengeStatus.linkCount >= 15 && challengeStatus.contentLength > 25000) ||
+          // Tertiary: Real navigation structure appeared
+          (challengeStatus.hasRealContent && challengeStatus.linkCount >= 12 && challengeStatus.contentLength > 15000) ||
+          // Quaternary: Massive content increase (clear success)
+          (challengeStatus.contentLength > 75000 && challengeStatus.linkCount >= 8) ||
+          // Emergency: Very high link count indicates real content
+          (challengeStatus.linkCount >= 25)
         );
 
         if (challengeActuallyCompleted) {
@@ -867,53 +905,157 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         // Progressive interaction phases during challenge waiting
         try {
           if (waitTime === 2000 && interactionPhase === 1) {
-            // Phase 1: Light interaction
-            log(`[ProtectionBypass] Phase 1: Performing light interactions`, "scraper");
-            await page.mouse.move(Math.random() * 100 + 100, Math.random() * 100 + 100);
-            await new Promise(resolve => setTimeout(resolve, 200));
-            await page.mouse.click(Math.random() * 50 + 200, Math.random() * 50 + 200);
-            interactionPhase = 2;
-          } else if (waitTime === 6000 && interactionPhase === 2) {
-            // Phase 2: More aggressive interaction
-            log(`[ProtectionBypass] Phase 2: Performing enhanced interactions`, "scraper");
+            // Phase 1: Advanced realistic mouse patterns
+            log(`[ProtectionBypass] Phase 1: Performing realistic human mouse patterns`, "scraper");
+            
+            // Realistic mouse movement with acceleration/deceleration curves
             await page.evaluate(() => {
-              window.scrollTo(0, 100);
-              setTimeout(() => window.scrollTo(0, 0), 200);
-            });
-            await page.keyboard.press('Tab');
-            await new Promise(resolve => setTimeout(resolve, 300));
-            interactionPhase = 3;
-          } else if (waitTime === 10000 && interactionPhase === 3) {
-            // Phase 3: Simulate human reading behavior
-            log(`[ProtectionBypass] Phase 3: Simulating human reading behavior`, "scraper");
-            await page.evaluate(() => {
-              // Simulate focus and attention
-              document.body.focus();
-              if (document.activeElement && 'blur' in document.activeElement) {
-                (document.activeElement as HTMLElement).blur();
+              let mouseX = 200, mouseY = 200;
+              for (let i = 0; i < 15; i++) {
+                mouseX += (Math.random() - 0.5) * 20;
+                mouseY += (Math.random() - 0.5) * 20;
+                
+                const event = new MouseEvent('mousemove', {
+                  clientX: Math.max(50, Math.min(mouseX, window.innerWidth - 50)),
+                  clientY: Math.max(50, Math.min(mouseY, window.innerHeight - 50)),
+                  bubbles: true
+                });
+                document.dispatchEvent(event);
               }
+              
+              // Simulate realistic click with timing variations
+              setTimeout(() => {
+                const clickEvent = new MouseEvent('click', {
+                  clientX: mouseX,
+                  clientY: mouseY,
+                  bubbles: true
+                });
+                document.dispatchEvent(clickEvent);
+              }, Math.random() * 200 + 100);
             });
-            await page.mouse.wheel({ deltaY: 200 });
-            await new Promise(resolve => setTimeout(resolve, 500));
-            await page.mouse.wheel({ deltaY: -200 });
-            interactionPhase = 4;
-          } else if (waitTime === 15000 && interactionPhase === 4) {
-            // Phase 4: Advanced challenge solving
-            log(`[ProtectionBypass] Phase 4: Advanced challenge solving attempts`, "scraper");
+            
+            await new Promise(resolve => setTimeout(resolve, 400));
+            interactionPhase = 2;
+            
+          } else if (waitTime === 5000 && interactionPhase === 2) {
+            // Phase 2: Keyboard and focus simulation  
+            log(`[ProtectionBypass] Phase 2: Performing keyboard and focus simulation`, "scraper");
+            
             await page.evaluate(() => {
-              // Try to trigger any hidden challenge completion mechanisms
-              const potentialTriggers = document.querySelectorAll('button, input[type="submit"], [onclick]');
-              potentialTriggers.forEach((element, index) => {
-                if (index < 3) { // Only try first 3 elements
-                  try {
-                    element.dispatchEvent(new Event('click', { bubbles: true }));
-                  } catch (e) {
-                    // Ignore errors
-                  }
+              // Simulate realistic typing patterns
+              const keys = ['Tab', 'ArrowDown', 'ArrowUp', 'Space'];
+              keys.forEach((key, index) => {
+                setTimeout(() => {
+                  const keyEvent = new KeyboardEvent('keydown', {
+                    key: key,
+                    bubbles: true
+                  });
+                  document.dispatchEvent(keyEvent);
+                }, index * 150);
+              });
+              
+              // Focus cycling to simulate user attention
+              document.body.focus();
+              setTimeout(() => {
+                if (document.activeElement && 'blur' in document.activeElement) {
+                  (document.activeElement as HTMLElement).blur();
+                }
+              }, 300);
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 600));
+            interactionPhase = 3;
+            
+          } else if (waitTime === 10000 && interactionPhase === 3) {
+            // Phase 3: Advanced scroll simulation
+            log(`[ProtectionBypass] Phase 3: Performing advanced scroll simulation`, "scraper");
+            
+            await page.evaluate(() => {
+              // Realistic scroll behavior with momentum
+              let scrollPos = 0;
+              for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                  scrollPos += (Math.random() * 100) + 50;
+                  window.scrollTo({
+                    top: scrollPos,
+                    behavior: 'smooth'
+                  });
+                }, i * 100);
+              }
+              
+              // Return to top with natural deceleration
+              setTimeout(() => {
+                window.scrollTo({
+                  top: 0,
+                  behavior: 'smooth'
+                });
+              }, 1000);
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            interactionPhase = 4;
+            
+          } else if (waitTime === 18000 && interactionPhase === 4) {
+            // Phase 4: Challenge element interaction
+            log(`[ProtectionBypass] Phase 4: Attempting direct challenge interaction`, "scraper");
+            
+            await page.evaluate(() => {
+              // Look for any Cloudflare challenge elements
+              const challengeElements = [
+                document.querySelector('#challenge-form'),
+                document.querySelector('.cf-browser-verification'),
+                document.querySelector('[id*="cf-"]'),
+                document.querySelector('[class*="challenge"]')
+              ].filter(el => el !== null);
+              
+              challengeElements.forEach(element => {
+                try {
+                  // Trigger focus and interaction events
+                  element.focus?.();
+                  element.click?.();
+                  
+                  const interactionEvent = new Event('challenge-interaction', { bubbles: true });
+                  element.dispatchEvent(interactionEvent);
+                } catch (e) {
+                  // Continue on errors
                 }
               });
+              
+              // Force challenge verification signals
+              if (typeof window.turnstile !== 'undefined') {
+                try {
+                  window.turnstile.render?.();
+                } catch (e) {}
+              }
             });
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
             interactionPhase = 5;
+            
+          } else if (waitTime === 25000 && interactionPhase === 5) {
+            // Phase 5: Network activity simulation
+            log(`[ProtectionBypass] Phase 5: Simulating natural network activity`, "scraper");
+            
+            // Inject realistic network timing
+            await page.evaluate(() => {
+              // Override fetch to add realistic delays
+              const originalFetch = window.fetch;
+              window.fetch = function(...args) {
+                return new Promise(resolve => {
+                  setTimeout(() => {
+                    resolve(originalFetch.apply(this, args));
+                  }, Math.random() * 100 + 50);
+                });
+              };
+              
+              // Trigger any pending requests
+              if (typeof document.readyState !== 'undefined') {
+                const stateEvent = new Event('readystatechange');
+                document.dispatchEvent(stateEvent);
+              }
+            });
+            
+            interactionPhase = 6;
           }
         } catch (interactionError: any) {
           log(`[ProtectionBypass] Interaction error in phase ${interactionPhase}: ${interactionError.message}`, "scraper");
@@ -969,14 +1111,45 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
           await new Promise(resolve => setTimeout(resolve, 100));
           await page.mouse.up();
           
-          // Wait for fallback completion
-          const fallbackWaitTime = 10000; // 10 seconds for fallback
+          // Wait for fallback completion with enhanced timing
+          const fallbackWaitTime = 15000; // 15 seconds for aggressive fallback
           let fallbackCompleted = false;
           
+          // Enhanced fallback with varied timing patterns
           for (let i = 0; i < fallbackWaitTime; i += 1000) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            const fallbackStatus = await page.evaluate(() => {
+            // Additional aggressive interactions during fallback
+            if (i === 3000) {
+              await page.evaluate(() => {
+                // Trigger window focus events
+                window.focus();
+                window.dispatchEvent(new Event('focus'));
+                document.dispatchEvent(new Event('visibilitychange'));
+                
+                // Simulate tab switching back to page
+                document.hidden = false;
+                document.visibilityState = 'visible';
+              });
+            }
+            
+            if (i === 7000) {
+              // More aggressive element targeting
+              await page.evaluate(() => {
+                // Look for any clickable elements that might trigger completion
+                const allClickables = document.querySelectorAll('*');
+                for (let element of allClickables) {
+                  if (element.tagName === 'DIV' && element.textContent?.trim() === '') {
+                    try {
+                      element.click();
+                      break;
+                    } catch (e) {}
+                  }
+                }
+              });
+            }
+            
+            const fallbackStatus = await safePageEvaluate(page, () => {
               const title = document.title || '';
               const linkCount = document.querySelectorAll('a[href]').length;
               const isStillChallenge = title.toLowerCase().includes('just a moment');
@@ -984,15 +1157,25 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               return {
                 linkCount,
                 isStillChallenge,
-                contentLength: document.body?.textContent?.length || 0
+                contentLength: document.body?.textContent?.length || 0,
+                hasNavigation: !!document.querySelector('nav, header, .menu'),
+                hasArticles: document.querySelectorAll('article, .article, .news-item').length
               };
-            });
+            }) || { linkCount: 0, isStillChallenge: true, contentLength: 0, hasNavigation: false, hasArticles: 0 };
             
-            log(`[ProtectionBypass] Fallback check (${i + 1000}ms): links=${fallbackStatus.linkCount}, stillChallenge=${fallbackStatus.isStillChallenge}`, "scraper");
+            log(`[ProtectionBypass] Fallback check (${i + 1000}ms): links=${fallbackStatus.linkCount}, stillChallenge=${fallbackStatus.isStillChallenge}, nav=${fallbackStatus.hasNavigation}, articles=${fallbackStatus.hasArticles}`, "scraper");
             
-            if (!fallbackStatus.isStillChallenge && fallbackStatus.linkCount >= 5) {
+            // More sophisticated completion detection for fallback
+            const fallbackSuccess = (
+              (!fallbackStatus.isStillChallenge && fallbackStatus.linkCount >= 8) ||
+              (fallbackStatus.hasNavigation && fallbackStatus.linkCount >= 5) ||
+              (fallbackStatus.hasArticles > 0 && fallbackStatus.linkCount >= 5) ||
+              (fallbackStatus.contentLength > 30000 && fallbackStatus.linkCount >= 3)
+            );
+            
+            if (fallbackSuccess) {
               fallbackCompleted = true;
-              log(`[ProtectionBypass] Fallback strategy succeeded with ${fallbackStatus.linkCount} links`, "scraper");
+              log(`[ProtectionBypass] Fallback strategy succeeded - Links: ${fallbackStatus.linkCount}, Nav: ${fallbackStatus.hasNavigation}, Articles: ${fallbackStatus.hasArticles}`, "scraper");
               break;
             }
           }
