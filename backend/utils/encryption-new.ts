@@ -14,6 +14,7 @@ let keyClient: KeyClient | null = null;
 let credential: DefaultAzureCredential | null = null;
 
 function getKeyClient() {
+  console.log(`[ENCRYPTION] Attempting to get key client...`);
   if (!keyClient && (process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'production')) {
     const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
     console.log(`[ENCRYPTION] Initializing Azure Key Vault client for ${process.env.NODE_ENV}`);
