@@ -24,53 +24,75 @@ async function getKeyClient() {
   console.log(`[ENCRYPTION] AZURE_KEY_NAME: ${process.env.AZURE_KEY_NAME}`);
   console.log(`[ENCRYPTION] AZURE_CLIENT_ID: ${process.env.AZURE_CLIENT_ID}`);
   console.log(`[ENCRYPTION] AZURE_TENANT_ID: ${process.env.AZURE_TENANT_ID}`);
+  console.log(`[ENCRYPTION] Current credential value: ${credential ? 'exists' : 'null'}`);
+  console.log(`[ENCRYPTION] Current keyClient value: ${keyClient ? 'exists' : 'null'}`);
   
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
     console.log(`[ENCRYPTION] Not in staging/production environment, returning null`);
     return null;
   }
   
-  if (!keyClient) {
+  if (!keyClient || !credential) {
     const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
     console.log(`[ENCRYPTION] Initializing Azure Key Vault client for ${process.env.NODE_ENV}`);
     console.log(`[ENCRYPTION] Vault URL: ${VAULT_URL}`);
     console.log(`[ENCRYPTION] Key name: ${KEY_NAME}`);
     
     try {
-      // Try ManagedIdentityCredential first for Container Apps, fallback to DefaultAzureCredential
+      // Initialize credential first
+      console.log(`[ENCRYPTION] About to initialize credential...`);
       if (process.env.NODE_ENV === 'production') {
         console.log(`[ENCRYPTION] Using ManagedIdentityCredential for production`);
+        credential = new ManagedIdentityCredential();
+        console.log(`[ENCRYPTION] ManagedIdentityCredential created, testing immediately...`);
+        
+        // Test credential immediately after creation
         try {
-          credential = new ManagedIdentityCredential();
-          console.log(`[ENCRYPTION] ManagedIdentityCredential created`);
-        } catch (miError) {
-          console.error(`[ENCRYPTION] ManagedIdentityCredential failed, trying DefaultAzureCredential:`, miError);
+          const token = await credential.getToken("https://vault.azure.net/.default");
+          console.log(`[ENCRYPTION] ManagedIdentityCredential token test successful: ${token ? 'token received' : 'null token'}`);
+        } catch (miTokenError) {
+          console.error(`[ENCRYPTION] ManagedIdentityCredential token test failed:`, miTokenError);
+          console.log(`[ENCRYPTION] Falling back to DefaultAzureCredential...`);
           credential = new DefaultAzureCredential();
-          console.log(`[ENCRYPTION] DefaultAzureCredential created as fallback`);
+          console.log(`[ENCRYPTION] DefaultAzureCredential created as fallback, testing...`);
+          
+          try {
+            const token = await credential.getToken("https://vault.azure.net/.default");
+            console.log(`[ENCRYPTION] DefaultAzureCredential token test successful: ${token ? 'token received' : 'null token'}`);
+          } catch (defaultTokenError) {
+            console.error(`[ENCRYPTION] DefaultAzureCredential token test also failed:`, defaultTokenError);
+            throw new Error(`Both credential types failed: MI=${miTokenError.message}, Default=${defaultTokenError.message}`);
+          }
         }
       } else {
         console.log(`[ENCRYPTION] Using DefaultAzureCredential for staging`);
         credential = new DefaultAzureCredential();
+        console.log(`[ENCRYPTION] DefaultAzureCredential created, testing immediately...`);
+        
+        try {
+          const token = await credential.getToken("https://vault.azure.net/.default");
+          console.log(`[ENCRYPTION] DefaultAzureCredential token test successful: ${token ? 'token received' : 'null token'}`);
+        } catch (tokenError) {
+          console.error(`[ENCRYPTION] DefaultAzureCredential token test failed:`, tokenError);
+          throw new Error(`Credential authentication failed: ${tokenError.message}`);
+        }
       }
-      console.log(`[ENCRYPTION] Credential created successfully`);
+      
+      console.log(`[ENCRYPTION] Credential successfully initialized and tested`);
+      console.log(`[ENCRYPTION] Creating KeyClient...`);
       keyClient = new KeyClient(VAULT_URL, credential);
       console.log(`[ENCRYPTION] KeyClient created successfully`);
       
-      // Test the credential by attempting to get a token
-      console.log(`[ENCRYPTION] Testing credential by getting token...`);
-      try {
-        await credential.getToken("https://vault.azure.net/.default");
-        console.log(`[ENCRYPTION] Credential token test successful`);
-      } catch (tokenError) {
-        console.error(`[ENCRYPTION] Credential token test failed:`, tokenError);
-        throw new Error(`Credential authentication failed: ${tokenError.message}`);
-      }
-      
     } catch (error) {
       console.error(`[ENCRYPTION] Error initializing Key Vault client:`, error);
+      // Reset both to null on failure
+      credential = null;
+      keyClient = null;
       throw error;
     }
   }
+  
+  console.log(`[ENCRYPTION] Returning keyClient: ${keyClient ? 'exists' : 'null'}, credential: ${credential ? 'exists' : 'null'}`);
   return keyClient;
 }
 
@@ -121,6 +143,13 @@ export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | str
   console.log(`[ENCRYPTION] Got key successfully, ID: ${latest.id}`);
   
   const versionedId = latest.id!; // .../keys/<name>/<version>
+  console.log(`[ENCRYPTION] About to create CryptographyClient with credential: ${credential ? 'exists' : 'null'}`);
+  console.log(`[ENCRYPTION] Versioned key ID: ${versionedId}`);
+  
+  if (!credential) {
+    throw new Error(`[ENCRYPTION] Credential is null when trying to create CryptographyClient`);
+  }
+  
   const cryptoLatest = new CryptographyClient(versionedId, credential);
   console.log(`[ENCRYPTION] Created CryptographyClient`);
 
@@ -166,12 +195,21 @@ export async function envelopeDecryptAndRotate(
 
   // Check if field is not encrypted (no field-specific metadata)
   if (!row[wrappedDekColumn] || !row[keyIdColumn]) {
+    console.log(`[ENCRYPTION] Field '${fieldName}' is not encrypted, encrypting now...`);
+    console.log(`[ENCRYPTION] wrappedDekColumn '${wrappedDekColumn}': ${row[wrappedDekColumn] ? 'exists' : 'null/undefined'}`);
+    console.log(`[ENCRYPTION] keyIdColumn '${keyIdColumn}': ${row[keyIdColumn] ? 'exists' : 'null/undefined'}`);
+    
     // Field is not encrypted - encrypt it now and update the row
     const plaintext = row[fieldName] as string;
     if (!plaintext) return "";
     
+    console.log(`[ENCRYPTION] About to encrypt plaintext value of length ${plaintext.length}`);
+    console.log(`[ENCRYPTION] Current credential state before envelopeEncrypt: ${credential ? 'exists' : 'null'}`);
+    
     const envelope = (await envelopeEncrypt(plaintext)) as TidyEnvelope;
     if (!envelope) return plaintext; // Encryption was skipped in dev
+    
+    console.log(`[ENCRYPTION] Encryption successful, updating database row...`);
     
     // Update the row with encrypted data
     await withUserContext(userId, (contextDb) => 
@@ -185,6 +223,7 @@ export async function envelopeDecryptAndRotate(
         .where(eq(table.id, rowId))
     );
     
+    console.log(`[ENCRYPTION] Database row updated successfully`);
     return plaintext;
   }
 
@@ -196,9 +235,20 @@ export async function envelopeDecryptAndRotate(
   const ct  = blobBuf.subarray(IV_LEN, blobBuf.length - TAG_LEN);
 
   // Unwrap DEK using the exact version recorded in field-specific key_id
+  console.log(`[ENCRYPTION] About to create CryptographyClient for decryption with credential: ${credential ? 'exists' : 'null'}`);
+  console.log(`[ENCRYPTION] Key ID from database: ${row[keyIdColumn]}`);
+  
+  if (!credential) {
+    throw new Error(`[ENCRYPTION] Credential is null when trying to create CryptographyClient for decryption`);
+  }
+  
   const cryptoVersioned = new CryptographyClient(row[keyIdColumn] as string, credential);
+  console.log(`[ENCRYPTION] Created CryptographyClient for decryption`);
+  
   const wrappedDekBuffer = Buffer.from(row[wrappedDekColumn] as string, 'base64');
+  console.log(`[ENCRYPTION] About to unwrap key...`);
   const { result: dek } = await cryptoVersioned.unwrapKey("RSA-OAEP", wrappedDekBuffer);
+  console.log(`[ENCRYPTION] Key unwrapped successfully`);
 
   const dec = createDecipheriv("aes-256-gcm", dek, iv);
   dec.setAuthTag(tag);
