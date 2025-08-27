@@ -16,8 +16,19 @@ let credential: DefaultAzureCredential | null = null;
 function getKeyClient() {
   if (!keyClient && (process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'production')) {
     const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
-    credential = new DefaultAzureCredential();
-    keyClient = new KeyClient(VAULT_URL, credential);
+    console.log(`[ENCRYPTION] Initializing Azure Key Vault client for ${process.env.NODE_ENV}`);
+    console.log(`[ENCRYPTION] Vault URL: ${VAULT_URL}`);
+    console.log(`[ENCRYPTION] Key name: ${KEY_NAME}`);
+    
+    try {
+      credential = new DefaultAzureCredential();
+      console.log(`[ENCRYPTION] DefaultAzureCredential created successfully`);
+      keyClient = new KeyClient(VAULT_URL, credential);
+      console.log(`[ENCRYPTION] KeyClient created successfully`);
+    } catch (error) {
+      console.error(`[ENCRYPTION] Error initializing Key Vault client:`, error);
+      throw error;
+    }
   }
   return keyClient;
 }
@@ -48,13 +59,22 @@ export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | str
 
   // Get the latest **versioned** key id, and wrap with that version
   const client = getKeyClient();
+  console.log(`[ENCRYPTION] Got key client:`, !!client);
+  console.log(`[ENCRYPTION] Got credential:`, !!credential);
+  
   if (!client || !credential) throw new Error("Key Vault not available");
   
+  console.log(`[ENCRYPTION] Attempting to get key: ${KEY_NAME}`);
   const latest = await client.getKey(KEY_NAME);
+  console.log(`[ENCRYPTION] Got key successfully, ID: ${latest.id}`);
+  
   const versionedId = latest.id!; // .../keys/<name>/<version>
   const cryptoLatest = new CryptographyClient(versionedId, credential);
+  console.log(`[ENCRYPTION] Created CryptographyClient`);
 
+  console.log(`[ENCRYPTION] Attempting to wrap key`);
   const { result: wrapped } = await cryptoLatest.wrapKey("RSA-OAEP", dek);
+  console.log(`[ENCRYPTION] Key wrapped successfully`);
 
   return {
     wrapped_dek: wrapped,
