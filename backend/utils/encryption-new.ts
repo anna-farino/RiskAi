@@ -15,7 +15,18 @@ let credential: DefaultAzureCredential | ManagedIdentityCredential | null = null
 
 async function getKeyClient() {
   console.log(`[ENCRYPTION] Attempting to get key client...`);
-  if (!keyClient && (process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'production')) {
+  console.log(`[ENCRYPTION] NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`[ENCRYPTION] AZURE_KEY_VAULT_NAME: ${process.env.AZURE_KEY_VAULT_NAME}`);
+  console.log(`[ENCRYPTION] AZURE_KEY_NAME: ${process.env.AZURE_KEY_NAME}`);
+  console.log(`[ENCRYPTION] AZURE_CLIENT_ID: ${process.env.AZURE_CLIENT_ID}`);
+  console.log(`[ENCRYPTION] AZURE_TENANT_ID: ${process.env.AZURE_TENANT_ID}`);
+  
+  if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
+    console.log(`[ENCRYPTION] Not in staging/production environment, returning null`);
+    return null;
+  }
+  
+  if (!keyClient) {
     const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
     console.log(`[ENCRYPTION] Initializing Azure Key Vault client for ${process.env.NODE_ENV}`);
     console.log(`[ENCRYPTION] Vault URL: ${VAULT_URL}`);
@@ -71,8 +82,11 @@ export interface TidyEnvelope {
 }
 
 export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | string> {
+  console.log(`[ENCRYPTION] envelopeEncrypt called for environment: ${process.env.NODE_ENV}`);
+  
   // In dev environment, just return the plaintext
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
+    console.log(`[ENCRYPTION] Returning plaintext for non-staging/production environment`);
     return plain;
   }
 
@@ -115,8 +129,11 @@ export async function envelopeDecryptAndRotate(
   fieldName: string,
   userId: string
 ): Promise<string> {
+  console.log(`[ENCRYPTION] envelopeDecryptAndRotate called for environment: ${process.env.NODE_ENV}, userId: ${userId}, rowId: ${rowId}, fieldName: ${fieldName}`);
+  
   // In dev environment, just return the plaintext value
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
+    console.log(`[ENCRYPTION] Returning plaintext value for non-staging/production environment`);
     const row = await withUserContext(userId, (contextDb) => 
       contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
     );
