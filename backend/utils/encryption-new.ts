@@ -1,6 +1,10 @@
+console.log("[ENCRYPTION STARTUP] Loading crypto module...");
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
+console.log("[ENCRYPTION STARTUP] Loading Azure Identity...");
 import { DefaultAzureCredential, ManagedIdentityCredential } from "@azure/identity";
+console.log("[ENCRYPTION STARTUP] Loading Azure KeyVault Keys...");
 import { KeyClient, CryptographyClient } from "@azure/keyvault-keys";
+console.log("[ENCRYPTION STARTUP] All Azure modules loaded successfully");
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pool } from "backend/db/db";
 import { eq } from "drizzle-orm";
