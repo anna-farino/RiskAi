@@ -46,8 +46,8 @@ export interface TidyEnvelope {
 }
 
 export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | string> {
-  // In dev environment, just return the plaintext
-  if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
+  // In dev environment or production (temporarily), just return the plaintext
+  if (process.env.NODE_ENV !== 'staging') {
     return plain;
   }
 
@@ -90,8 +90,8 @@ export async function envelopeDecryptAndRotate(
   fieldName: string,
   userId: string
 ): Promise<string> {
-  // In dev environment, just return the plaintext value
-  if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
+  // In dev environment or production (temporarily), just return the plaintext value
+  if (process.env.NODE_ENV !== 'staging') {
     const row = await withUserContext(userId, (contextDb) => 
       contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
     );
