@@ -13,7 +13,7 @@ const KEY_NAME = process.env.AZURE_KEY_NAME || "";
 let keyClient: KeyClient | null = null;
 let credential: DefaultAzureCredential | ManagedIdentityCredential | null = null;
 
-function getKeyClient() {
+async function getKeyClient() {
   console.log(`[ENCRYPTION] Attempting to get key client...`);
   if (!keyClient && (process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'production')) {
     const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
@@ -25,7 +25,14 @@ function getKeyClient() {
       // Try ManagedIdentityCredential first for Container Apps, fallback to DefaultAzureCredential
       if (process.env.NODE_ENV === 'production') {
         console.log(`[ENCRYPTION] Using ManagedIdentityCredential for production`);
-        credential = new ManagedIdentityCredential();
+        try {
+          credential = new ManagedIdentityCredential();
+          console.log(`[ENCRYPTION] ManagedIdentityCredential created`);
+        } catch (miError) {
+          console.error(`[ENCRYPTION] ManagedIdentityCredential failed, trying DefaultAzureCredential:`, miError);
+          credential = new DefaultAzureCredential();
+          console.log(`[ENCRYPTION] DefaultAzureCredential created as fallback`);
+        }
       } else {
         console.log(`[ENCRYPTION] Using DefaultAzureCredential for staging`);
         credential = new DefaultAzureCredential();
@@ -33,6 +40,17 @@ function getKeyClient() {
       console.log(`[ENCRYPTION] Credential created successfully`);
       keyClient = new KeyClient(VAULT_URL, credential);
       console.log(`[ENCRYPTION] KeyClient created successfully`);
+      
+      // Test the credential by attempting to get a token
+      console.log(`[ENCRYPTION] Testing credential by getting token...`);
+      try {
+        await credential.getToken("https://vault.azure.net/.default");
+        console.log(`[ENCRYPTION] Credential token test successful`);
+      } catch (tokenError) {
+        console.error(`[ENCRYPTION] Credential token test failed:`, tokenError);
+        throw new Error(`Credential authentication failed: ${tokenError.message}`);
+      }
+      
     } catch (error) {
       console.error(`[ENCRYPTION] Error initializing Key Vault client:`, error);
       throw error;
@@ -66,7 +84,7 @@ export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | str
   const tag = cipher.getAuthTag();
 
   // Get the latest **versioned** key id, and wrap with that version
-  const client = getKeyClient();
+  const client = await getKeyClient();
   console.log(`[ENCRYPTION] Got key client:`, !!client);
   console.log(`[ENCRYPTION] Got credential:`, !!credential);
   
@@ -158,7 +176,7 @@ export async function envelopeDecryptAndRotate(
   const plain = dec.update(ct, undefined, "utf8") + dec.final("utf8");
 
   // If stale, re-wrap the DEK under the latest **versioned** key and update
-  const client = getKeyClient();
+  const client = await getKeyClient();
   if (!client || !credential) throw new Error("Key Vault not available");
   
   const latest = await client.getKey(KEY_NAME);
