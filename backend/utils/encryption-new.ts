@@ -1,5 +1,5 @@
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
-import { DefaultAzureCredential } from "@azure/identity";
+import { DefaultAzureCredential, ManagedIdentityCredential } from "@azure/identity";
 import { KeyClient, CryptographyClient } from "@azure/keyvault-keys";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pool } from "backend/db/db";
@@ -11,7 +11,7 @@ import { withUserContext } from "backend/db/with-user-context";
 const KEY_NAME = process.env.AZURE_KEY_NAME || "";
 
 let keyClient: KeyClient | null = null;
-let credential: DefaultAzureCredential | null = null;
+let credential: DefaultAzureCredential | ManagedIdentityCredential | null = null;
 
 function getKeyClient() {
   console.log(`[ENCRYPTION] Attempting to get key client...`);
@@ -22,8 +22,15 @@ function getKeyClient() {
     console.log(`[ENCRYPTION] Key name: ${KEY_NAME}`);
     
     try {
-      credential = new DefaultAzureCredential();
-      console.log(`[ENCRYPTION] DefaultAzureCredential created successfully`);
+      // Try ManagedIdentityCredential first for Container Apps, fallback to DefaultAzureCredential
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`[ENCRYPTION] Using ManagedIdentityCredential for production`);
+        credential = new ManagedIdentityCredential();
+      } else {
+        console.log(`[ENCRYPTION] Using DefaultAzureCredential for staging`);
+        credential = new DefaultAzureCredential();
+      }
+      console.log(`[ENCRYPTION] Credential created successfully`);
       keyClient = new KeyClient(VAULT_URL, credential);
       console.log(`[ENCRYPTION] KeyClient created successfully`);
     } catch (error) {
@@ -46,8 +53,8 @@ export interface TidyEnvelope {
 }
 
 export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | string> {
-  // In dev environment or production (temporarily), just return the plaintext
-  if (process.env.NODE_ENV !== 'staging') {
+  // In dev environment, just return the plaintext
+  if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
     return plain;
   }
 
@@ -90,8 +97,8 @@ export async function envelopeDecryptAndRotate(
   fieldName: string,
   userId: string
 ): Promise<string> {
-  // In dev environment or production (temporarily), just return the plaintext value
-  if (process.env.NODE_ENV !== 'staging') {
+  // In dev environment, just return the plaintext value
+  if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
     const row = await withUserContext(userId, (contextDb) => 
       contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
     );
