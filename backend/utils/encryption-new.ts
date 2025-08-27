@@ -87,22 +87,30 @@ export interface TidyEnvelope {
 
 export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | string> {
   console.log(`[ENCRYPTION] envelopeEncrypt called for environment: ${process.env.NODE_ENV}`);
+  console.log(`[ENCRYPTION] Plaintext length: ${plain.length}`);
   
   // In dev environment, just return the plaintext
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
     console.log(`[ENCRYPTION] Returning plaintext for non-staging/production environment`);
     return plain;
   }
+  
+  console.log(`[ENCRYPTION] Starting encryption process for production environment`);
 
+  console.log(`[ENCRYPTION] Generating encryption keys and IV`);
   const dek = randomBytes(32);
   const iv  = randomBytes(IV_LEN);
 
+  console.log(`[ENCRYPTION] Performing AES encryption`);
   const cipher = createCipheriv("aes-256-gcm", dek, iv);
   const ct  = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
+  console.log(`[ENCRYPTION] AES encryption completed successfully`);
 
   // Get the latest **versioned** key id, and wrap with that version
+  console.log(`[ENCRYPTION] About to call getKeyClient()`);
   const client = await getKeyClient();
+  console.log(`[ENCRYPTION] getKeyClient() returned successfully`);
   console.log(`[ENCRYPTION] Got key client:`, !!client);
   console.log(`[ENCRYPTION] Got credential:`, !!credential);
   
