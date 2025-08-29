@@ -8,9 +8,6 @@ export const corsOptions = {
     'https://preview-risqai-frontend.onrender.com',
     'https://preview.risqai.co',
     'https://app.risqai.co',
-    'https://kind-pebble-02817100f.6.azurestaticapps.net',
-    'https://icy-plant-0e669a70f.2.azurestaticapps.net',
-    'https://white-forest-0f977190f.2.azurestaticapps.net',
     /\.replit\.dev$/,
     /\.repl\.co$/,
     /\.spock\.replit\.dev$/
