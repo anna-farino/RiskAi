@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth0 Architecture & Environment Configuration - August 28, 2025</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+        }
+        h4 {
+            color: #16a085;
+            margin-top: 20px;
+        }
+        .code-block {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .inline-code {
+            background-color: #f1f2f6;
+            color: #2f3542;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .env-var {
+            color: #9f7aea;
+            font-weight: bold;
+        }
+        .string {
+            color: #68d391;
+        }
+        .comment {
+            color: #a0aec0;
+            font-style: italic;
+        }
+        .keyword {
+            color: #63b3ed;
+            font-weight: bold;
+        }
+        .function {
+            color: #f6ad55;
+        }
+        .operator {
+            color: #fc8181;
+        }
+        .variable {
+            color: #90cdf4;
+        }
+        .architecture-diagram {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .flow-box {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .arrow {
+            display: inline-block;
+            margin: 0 10px;
+            font-size: 18px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            color: #856404;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            color: #155724;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            color: #0c5460;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .toc {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .toc ul ul {
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Auth0 Architecture & Environment Configuration</h1>
+        <p><strong>Created:</strong> August 28, 2025<br>
+        <strong>Project:</strong> RisqAI News Tracker<br>
+        <strong>Author:</strong> System Architecture Documentation</p>
+
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#architecture-overview">1. Architecture Overview</a></li>
+                <li><a href="#environment-variables">2. Environment Variables</a>
+                    <ul>
+                        <li><a href="#frontend-env">2.1 Frontend Environment Variables</a></li>
+                        <li><a href="#backend-env">2.2 Backend Environment Variables</a></li>
+                        <li><a href="#azure-env">2.3 Azure Environment Variables</a></li>
+                        <li><a href="#github-secrets">2.4 GitHub Secrets</a></li>
+                    </ul>
+                </li>
+                <li><a href="#auth0-configuration">3. Auth0 Configuration</a>
+                    <ul>
+                        <li><a href="#auth0-tenants">3.1 Tenants</a></li>
+                        <li><a href="#auth0-applications">3.2 Applications</a></li>
+                        <li><a href="#auth0-apis">3.3 APIs</a></li>
+                        <li><a href="#auth0-actions">3.4 Actions</a></li>
+                        <li><a href="#auth0-connections">3.5 Connections</a></li>
+                    </ul>
+                </li>
+                <li><a href="#url-configuration">4. URL Configuration</a></li>
+                <li><a href="#authentication-flow">5. Authentication Flow</a></li>
+                <li><a href="#troubleshooting">6. Troubleshooting</a></li>
+            </ul>
+        </div>
+
+        <h2 id="architecture-overview">1. Architecture Overview</h2>
+
+        <div class="architecture-diagram">
+            <div class="flow-box">Frontend<br>(React SPA)</div>
+            <span class="arrow">↔</span>
+            <div class="flow-box">Auth0<br>(Authentication)</div>
+            <span class="arrow">↔</span>
+            <div class="flow-box">Backend API<br>(Express.js)</div>
+            <br><br>
+            <div class="flow-box">Azure Static<br>Web Apps</div>
+            <span class="arrow">↔</span>
+            <div class="flow-box">Auth0 Tenant<br>(risqai.us.auth0.com)</div>
+            <span class="arrow">↔</span>
+            <div class="flow-box">Azure Container<br>Apps</div>
+        </div>
+
+        <p>The RisqAI application uses Auth0 as the central authentication provider, with a React frontend hosted on Azure Static Web Apps and a Node.js backend running on Azure Container Apps. The architecture supports multiple environments (development, staging, production) with separate Auth0 tenants and Azure resources.</p>
+
+        <h2 id="environment-variables">2. Environment Variables</h2>
+
+        <h3 id="frontend-env">2.1 Frontend Environment Variables</h3>
+
+        <p>Frontend environment variables are injected during build time via GitHub Actions and stored as GitHub repository secrets.</p>
+
+        <h4>Required Frontend Variables:</h4>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Production Value</th>
+                    <th>Staging Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code class="env-var">VITE_AUTH0_DOMAIN</code></td>
+                    <td><code>https://risqai.us.auth0.com</code></td>
+                    <td><code>https://preview-risqai.us.auth0.com</code></td>
+                    <td>Auth0 tenant domain for authentication</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">VITE_AUTH0_CLIENT_ID</code></td>
+                    <td><code>K2pr8mArmUomweVvK9m1xECgDFOEH8zS</code></td>
+                    <td><code>3KSrLuzhfByKoGZmDfdi7CdHoJDBpSVX</code></td>
+                    <td>Auth0 Single Page Application client ID</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">VITE_AUTH0_AUDIENCE</code></td>
+                    <td><code>https://api.app.risqai.co</code></td>
+                    <td><code>https://api.preview.risqai.co</code></td>
+                    <td>Auth0 API identifier for backend access</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">VITE_AUTH0_CALLBACK_URL</code></td>
+                    <td><code>https://app.risqai.co/auth/login</code></td>
+                    <td><code>https://preview.risqai.co/auth/login</code></td>
+                    <td>Auth0 callback URL after authentication</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">VITE_SERVER_URL</code></td>
+                    <td><code>https://api.app.risqai.co</code></td>
+                    <td><code>https://api.preview.risqai.co</code></td>
+                    <td>Backend API base URL for production</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">VITE_SERVER_URL_DEV</code></td>
+                    <td><code>http://localhost:5002</code></td>
+                    <td><code>http://localhost:5002</code></td>
+                    <td>Backend API base URL for local development</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Frontend Auth0 Provider Configuration:</h4>
+
+        <div class="code-block">
+<span class="comment">// frontend/src/auth0-provider-with-navigate.tsx</span><br>
+<span class="keyword">import</span> { <span class="variable">Auth0Provider</span> } <span class="keyword">from</span> <span class="string">"@auth0/auth0-react"</span>;<br>
+<br>
+<span class="keyword">export default function</span> <span class="function">Auth0ProviderWithNavigate</span>({ children }) {<br>
+  <span class="keyword">const</span> <span class="variable">domain</span> = <span class="keyword">import</span>.meta.env.<span class="env-var">VITE_AUTH0_DOMAIN</span>;<br>
+  <span class="keyword">const</span> <span class="variable">clientId</span> = <span class="keyword">import</span>.meta.env.<span class="env-var">VITE_AUTH0_CLIENT_ID</span>;<br>
+  <span class="keyword">const</span> <span class="variable">redirectUri</span> = <span class="keyword">import</span>.meta.env.<span class="env-var">VITE_AUTH0_CALLBACK_URL</span> ||<br> 
+    window.location.origin + <span class="string">'/auth/login'</span>;<br>
+  <span class="keyword">const</span> <span class="variable">audience</span> = <span class="keyword">import</span>.meta.env.<span class="env-var">VITE_AUTH0_AUDIENCE</span>;<br>
+<br>
+  <span class="keyword">return</span> (<br>
+    &lt;<span class="keyword">Auth0Provider</span><br>
+      <span class="variable">domain</span>={domain}<br>
+      <span class="variable">clientId</span>={clientId}<br>
+      <span class="variable">authorizationParams</span>={{<br>
+        <span class="variable">redirect_uri</span>: redirectUri,<br>
+        <span class="variable">audience</span>: audience,<br>
+      }}<br>
+      <span class="variable">cacheLocation</span>=<span class="string">"localstorage"</span><br>
+      <span class="variable">onRedirectCallback</span>={onRedirectCallback}<br>
+    &gt;<br>
+      {children}<br>
+    &lt;/<span class="keyword">Auth0Provider</span>&gt;<br>
+  );<br>
+}
+        </div>
+
+        <h3 id="backend-env">2.2 Backend Environment Variables</h3>
+
+        <p>Backend environment variables are configured directly in Azure Container Apps environment settings.</p>
+
+        <h4>Required Backend Variables:</h4>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Production Value</th>
+                    <th>Staging Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code class="env-var">NODE_ENV</code></td>
+                    <td><code>production</code></td>
+                    <td><code>staging</code></td>
+                    <td>Application environment mode</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AUTH0_DOMAIN</code></td>
+                    <td><code>https://risqai.us.auth0.com</code></td>
+                    <td><code>https://preview-risqai.us.auth0.com</code></td>
+                    <td>Auth0 tenant domain for JWT validation</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AUTH0_AUDIENCE</code></td>
+                    <td><code>https://api.app.risqai.co</code></td>
+                    <td><code>https://api.preview.risqai.co</code></td>
+                    <td>Auth0 API identifier for JWT validation</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AUTH0_CLIENT_ID</code></td>
+                    <td><code>V5VXGaU2EtEfkXi0Ey6haTPCtYveTNLi</code></td>
+                    <td><code>3KSrLuzhfByKoGZmDfdi7CdHoJDBpSVX</code></td>
+                    <td>Auth0 Machine-to-Machine client ID</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AUTH0_CLIENT_SECRET</code></td>
+                    <td><code>[ENCRYPTED]</code></td>
+                    <td><code>[ENCRYPTED]</code></td>
+                    <td>Auth0 Machine-to-Machine client secret</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">DATABASE_URL</code></td>
+                    <td><code>postgresql://risqai_user:***@db-risqai-production.postgres.database.azure.com:5432/postgres?sslmode=require</code></td>
+                    <td><code>postgresql://risqai_user:***@db-risqay-staging.postgres.database.azure.com:5432/postgres?sslmode=require</code></td>
+                    <td>PostgreSQL database connection string</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">JWT_SECRET</code></td>
+                    <td><code>[SECURE_RANDOM_STRING]</code></td>
+                    <td><code>[SECURE_RANDOM_STRING]</code></td>
+                    <td>JWT signing secret for sessions</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">CSRF_SECRET</code></td>
+                    <td><code>[SECURE_RANDOM_STRING]</code></td>
+                    <td><code>[SECURE_RANDOM_STRING]</code></td>
+                    <td>CSRF protection secret</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Azure Key Vault Integration:</h4>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Production Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code class="env-var">AZURE_KEY_VAULT_NAME</code></td>
+                    <td><code>risqai-keyv-production</code></td>
+                    <td>Azure Key Vault instance name for encryption</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AZURE_KEY_NAME</code></td>
+                    <td><code>encryption-key</code></td>
+                    <td>Key name within the Key Vault</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AZURE_CLIENT_ID</code></td>
+                    <td><code>8770e3b3-1d54-41ca-8a00-483766541204</code></td>
+                    <td>Managed Identity client ID for Key Vault access</td>
+                </tr>
+                <tr>
+                    <td><code class="env-var">AZURE_TENANT_ID</code></td>
+                    <td><code>3b627a3d-b4f4-4f0d-8ce3-7d27835b70e0</code></td>
+                    <td>Azure tenant ID</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Backend CORS Configuration:</h4>
+
+        <div class="code-block">
+<span class="comment">// backend/utils/cors-options.ts</span><br>
+<span class="keyword">export const</span> <span class="variable">corsOptions</span> = {<br>
+  <span class="variable">origin</span>: [<br>
+    <span class="string">'http://localhost:5174'</span>,          <span class="comment">// Local development</span><br>
+    <span class="string">'https://preview.risqai.co'</span>,       <span class="comment">// Staging frontend</span><br>
+    <span class="string">'https://app.risqai.co'</span>,          <span class="comment">// Production frontend</span><br>
+    <span class="operator">/</span><span class="string">\.replit\.dev$</span><span class="operator">/</span>,           <span class="comment">// Replit development</span><br>
+  ],<br>
+  <span class="variable">credentials</span>: <span class="keyword">true</span>,<br>
+  <span class="variable">methods</span>: [<br>
+    <span class="string">'GET'</span>,<br> 
+    <span class="string">'POST'</span>,<br> 
+    <span class="string">'PUT'</span>,<br> 
+    <span class="string">'DELETE'</span>,<br> 
+    <span class="string">'OPTIONS'</span>,<br> 
+    <span class="string">'PATCH'</span><br>
+  ],<br>
+  <span class="variable">allowedHeaders</span>: [<br>
+    <span class="string">'Content-Type'</span>,<br> 
+    <span class="string">'Authorization'</span>,<br> 
+    <span class="string">'X-Requested-With'</span>,<br>
+    <span class="string">'x-csrf-token'</span><br>
+  ],<br>
+};
+        </div>
+
+        <h3 id="azure-env">2.3 Azure Environment Variables</h3>
+
+        <p>Azure-specific configuration for Container Apps and Static Web Apps.</p>
+
+        <h4>Container Apps Environment:</h4>
+
+        <div class="code-block">
+<span class="comment"># Azure Container Apps - Production</span><br>
+<span class="env-var">SUBSCRIPTION_ID</span>=<span class="string">"1632db52-8b77-437b-8929-e3fccd92c9c5"</span><br>
+<span class="env-var">RESOURCE_GROUP_PROD</span>=<span class="string">"group-risqai-production"</span><br>
+<span class="env-var">CONTAINER_APP_NAME_PROD</span>=<span class="string">"app-risqai-backend-prod"</span><br>
+<span class="env-var">CONTAINER_ENVIRONMENT_PROD</span>=<span class="string">"env-risqai-production"</span><br>
+<br>
+<span class="comment"># Azure Container Apps - Staging</span><br>
+<span class="env-var">RESOURCE_GROUP_STAGING</span>=<span class="string">"group-risqai-staging"</span><br>
+<span class="env-var">CONTAINER_APP_NAME_STAGING</span>=<span class="string">"app-risqai-backend"</span><br>
+<span class="env-var">CONTAINER_ENVIRONMENT_STAGING</span>=<span class="string">"env-risqai-staging"</span>
+        </div>
+
+        <h3 id="github-secrets">2.4 GitHub Secrets</h3>
+
+        <p>GitHub repository secrets are used for CI/CD deployments and are environment-specific.</p>
+
+        <h4>Production Environment Secrets:</h4>
+
+        <div class="code-block">
+<span class="comment"># Frontend Build Variables</span><br>
+<span class="env-var">VITE_AUTH0_DOMAIN</span>=<span class="string">"https://risqai.us.auth0.com"</span><br>
+<span class="env-var">VITE_AUTH0_CLIENT_ID</span>=<span class="string">"K2pr8mArmUomweVvK9m1xECgDFOEH8zS"</span><br>
+<span class="env-var">VITE_AUTH0_AUDIENCE</span>=<span class="string">"https://api.app.risqai.co"</span><br>
+<span class="env-var">VITE_AUTH0_CALLBACK_URL</span>=<span class="string">"https://app.risqai.co/auth/login"</span><br>
+<span class="env-var">VITE_SERVER_URL</span>=<span class="string">"https://api.app.risqai.co"</span><br>
+<br>
+<span class="comment"># Azure Deployment</span><br>
+<span class="env-var">AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION</span>=<span class="string">"[DEPLOYMENT_TOKEN]"</span><br>
+<span class="env-var">AZURE_SUBSCRIPTION_ID</span>=<span class="string">"1632db52-8b77-437b-8929-e3fccd92c9c5"</span><br>
+<span class="env-var">AZURE_CLIENT_ID</span>=<span class="string">"8770e3b3-1d54-41ca-8a00-483766541204"</span><br>
+<span class="env-var">AZURE_TENANT_ID</span>=<span class="string">"3b627a3d-b4f4-4f0d-8ce3-7d27835b70e0"</span><br>
+<br>
+<span class="comment"># Container Registry</span><br>
+<span class="env-var">ACR_USERNAME</span>=<span class="string">"risqaiprod"</span><br>
+<span class="env-var">ACR_PASSWORD</span>=<span class="string">"[ENCRYPTED]"</span>
+        </div>
+
+        <h2 id="auth0-configuration">3. Auth0 Configuration</h2>
+
+        <h3 id="auth0-tenants">3.1 Tenants</h3>
+
+        <p>The application uses separate Auth0 tenants for different environments:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Environment</th>
+                    <th>Tenant Domain</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Production</td>
+                    <td><code>risqai.us.auth0.com</code></td>
+                    <td>Main production tenant for live application</td>
+                </tr>
+                <tr>
+                    <td>Staging</td>
+                    <td><code>preview-risqai.us.auth0.com</code></td>
+                    <td>Staging tenant for testing and development</td>
+                </tr>
+                <tr>
+                    <td>Development</td>
+                    <td><code>dev-risqai.us.auth0.com</code></td>
+                    <td>Development tenant for local development and testing</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 id="auth0-applications">3.2 Applications</h3>
+
+        <h4>Single Page Application (SPA)</h4>
+
+        <p>Handles frontend authentication and user login flow.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Production</th>
+                    <th>Staging</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Name</strong></td>
+                    <td>Azure | RisqAi | Production</td>
+                    <td>Preview | RisqAi | Staging</td>
+                </tr>
+                <tr>
+                    <td><strong>Client ID</strong></td>
+                    <td><code>K2pr8mArmUomweVvK9m1xECgDFOEH8zS</code></td>
+                    <td><code>3KSrLuzhfByKoGZmDfdi7CdHoJDBpSVX</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Application Type</strong></td>
+                    <td>Single Page Web Application</td>
+                    <td>Single Page Web Application</td>
+                </tr>
+                <tr>
+                    <td><strong>Allowed Callback URLs</strong></td>
+                    <td><code>https://app.risqai.co/auth/login</code></td>
+                    <td><code>https://preview.risqai.co/auth/login</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Allowed Logout URLs</strong></td>
+                    <td><code>https://app.risqai.co</code><br><code>https://app.risqai.co/auth/login</code></td>
+                    <td><code>https://preview.risqai.co</code><br><code>https://preview.risqai.co/auth/login</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Allowed Web Origins</strong></td>
+                    <td><code>https://app.risqai.co</code></td>
+                    <td><code>https://preview.risqai.co</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Grant Types</strong></td>
+                    <td>implicit, authorization_code, refresh_token</td>
+                    <td>implicit, authorization_code, refresh_token</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Machine-to-Machine Application (M2M)</h4>
+
+        <p>Used for backend API authentication and management API access.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Production</th>
+                    <th>Staging</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Name</strong></td>
+                    <td>Production Backend M2M (Azure)</td>
+                    <td>Staging Backend M2M</td>
+                </tr>
+                <tr>
+                    <td><strong>Client ID</strong></td>
+                    <td><code>V5VXGaU2EtEfkXi0Ey6haTPCtYveTNLi</code></td>
+                    <td><code>[STAGING_M2M_CLIENT_ID]</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Application Type</strong></td>
+                    <td>Machine to Machine</td>
+                    <td>Machine to Machine</td>
+                </tr>
+                <tr>
+                    <td><strong>Grant Types</strong></td>
+                    <td>client_credentials</td>
+                    <td>client_credentials</td>
+                </tr>
+                <tr>
+                    <td><strong>Token Endpoint Auth Method</strong></td>
+                    <td>client_secret_post</td>
+                    <td>client_secret_post</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 id="auth0-apis">3.3 APIs</h3>
+
+        <p>Auth0 APIs define the backend resources that can be accessed with access tokens.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Production</th>
+                    <th>Staging</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Name</strong></td>
+                    <td>Production Backend API</td>
+                    <td>Staging Backend API</td>
+                </tr>
+                <tr>
+                    <td><strong>Identifier</strong></td>
+                    <td><code>https://api.app.risqai.co</code></td>
+                    <td><code>https://api.preview.risqai.co</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Signing Algorithm</strong></td>
+                    <td>RS256</td>
+                    <td>RS256</td>
+                </tr>
+                <tr>
+                    <td><strong>Token Lifetime</strong></td>
+                    <td>86400 seconds (24 hours)</td>
+                    <td>86400 seconds (24 hours)</td>
+                </tr>
+                <tr>
+                    <td><strong>Scopes</strong></td>
+                    <td><code>read:settings</code><br><code>write:settings</code></td>
+                    <td><code>read:settings</code><br><code>write:settings</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 id="auth0-actions">3.4 Actions</h3>
+
+        <p>Auth0 Actions are serverless functions that execute during the authentication flow.</p>
+
+        <h4>Post-Login Actions</h4>
+
+        <div class="info">
+            <strong>Execution Order:</strong> Actions run in the order they are configured in the Auth0 Dashboard.
+        </div>
+
+        <h5>1. Add Email to Token</h5>
+        <p><strong>Purpose:</strong> Adds user email to JWT tokens for frontend access</p>
+
+        <div class="code-block">
+<span class="keyword">exports</span>.<span class="function">onExecutePostLogin</span> = <span class="keyword">async</span> (event, api) => {<br>
+  <span class="keyword">const</span> { email } = event.user;<br>
+  <br>
+  <span class="keyword">if</span> (email) {<br>
+    api.idToken.setCustomClaim(<span class="string">'email'</span>, email);<br>
+    api.accessToken.setCustomClaim(<span class="string">'email'</span>, email);<br>
+  }<br>
+};
+        </div>
+
+        <h5>2. Confirm Email is Verified</h5>
+        <p><strong>Purpose:</strong> Blocks login for users with unverified email addresses</p>
+
+        <div class="code-block">
+<span class="keyword">exports</span>.<span class="function">onExecutePostLogin</span> = <span class="keyword">async</span> (event, api) => {<br>
+  <span class="keyword">if</span> (!event.user.email_verified) {<br>
+    api.access.deny(<span class="string">'Please verify your email address before logging in.'</span>);<br>
+  }<br>
+};
+        </div>
+
+        <h5>3. Trigger MFA when enabled</h5>
+        <p><strong>Purpose:</strong> Enforces MFA based on user metadata settings</p>
+
+        <div class="code-block">
+<span class="keyword">exports</span>.<span class="function">onExecutePostLogin</span> = <span class="keyword">async</span> (event, api) => {<br>
+  <span class="keyword">const</span> mfaEnabled = event.user.user_metadata?.mfa_enabled;<br>
+  <br>
+  <span class="keyword">if</span> (mfaEnabled) {<br>
+    <span class="comment">// Check if user has enrolled MFA factors</span><br>
+    <span class="keyword">const</span> hasEnrolledFactors = event.user.multifactor &&<br> 
+      event.user.multifactor.length > <span class="string">0</span>;<br>
+    <br>
+    <span class="keyword">if</span> (hasEnrolledFactors) {<br>
+      <span class="comment">// User has MFA factors, require MFA</span><br>
+      api.multifactor.enable(<span class="string">"any"</span>, { allowRememberBrowser: <span class="keyword">true</span> });<br>
+    } <span class="keyword">else</span> {<br>
+      <span class="comment">// User has MFA enabled but no factors enrolled, force enrollment</span><br>
+      api.multifactor.enable(<span class="string">"any"</span>, { allowRememberBrowser: <span class="keyword">false</span> });<br>
+    }<br>
+  }<br>
+};
+        </div>
+
+        <h3 id="auth0-connections">3.5 Connections</h3>
+
+        <p>Auth0 connections define how users can authenticate.</p>
+
+        <h4>Username-Password-Authentication</h4>
+        <ul>
+            <li><strong>Type:</strong> Database Connection</li>
+            <li><strong>Password Policy:</strong> Good (minimum 8 characters)</li>
+            <li><strong>MFA:</strong> Enabled with return enrollment settings</li>
+            <li><strong>Brute Force Protection:</strong> Enabled</li>
+        </ul>
+
+        <h4>Google OAuth2</h4>
+        <ul>
+            <li><strong>Type:</strong> Social Connection</li>
+            <li><strong>Scopes:</strong> email, profile</li>
+            <li><strong>Status:</strong> Requires production Google OAuth credentials</li>
+        </ul>
+
+        <div class="warning">
+            <strong>Development Keys Warning:</strong> The Google OAuth connection is currently using Auth0's development keys. For production, you must configure your own Google OAuth credentials in Google Cloud Console.
+        </div>
+
+        <h2 id="url-configuration">4. URL Configuration</h2>
+
+        <h3>Production URLs</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>URL</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Frontend</strong></td>
+                    <td><code>https://app.risqai.co</code></td>
+                    <td>React SPA hosted on Azure Static Web Apps</td>
+                </tr>
+                <tr>
+                    <td><strong>Backend API</strong></td>
+                    <td><code>https://api.app.risqai.co</code></td>
+                    <td>Express.js API on Azure Container Apps</td>
+                </tr>
+                <tr>
+                    <td><strong>Auth0 Tenant</strong></td>
+                    <td><code>https://risqai.us.auth0.com</code></td>
+                    <td>Auth0 authentication tenant</td>
+                </tr>
+                <tr>
+                    <td><strong>Auth0 Callback</strong></td>
+                    <td><code>https://app.risqai.co/auth/login</code></td>
+                    <td>Post-authentication redirect</td>
+                </tr>
+                <tr>
+                    <td><strong>Auth0 Logout</strong></td>
+                    <td><code>https://app.risqai.co</code></td>
+                    <td>Post-logout redirect</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Staging URLs</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>URL</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Frontend</strong></td>
+                    <td><code>https://preview.risqai.co</code></td>
+                    <td>Staging React SPA</td>
+                </tr>
+                <tr>
+                    <td><strong>Backend API</strong></td>
+                    <td><code>https://api.preview.risqai.co</code></td>
+                    <td>Staging Express.js API</td>
+                </tr>
+                <tr>
+                    <td><strong>Auth0 Tenant</strong></td>
+                    <td><code>https://preview-risqai.us.auth0.com</code></td>
+                    <td>Staging Auth0 tenant</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="authentication-flow">5. Authentication Flow</h2>
+
+        <h3>Standard Login Flow</h3>
+
+        <div class="architecture-diagram">
+            <div class="flow-box">User clicks Login</div>
+            <span class="arrow">→</span>
+            <div class="flow-box">Redirect to Auth0</div>
+            <span class="arrow">→</span>
+            <div class="flow-box">Auth0 Universal Login</div>
+            <br><br>
+            <div class="flow-box">User Authentication</div>
+            <span class="arrow">→</span>
+            <div class="flow-box">Post-Login Actions</div>
+            <span class="arrow">→</span>
+            <div class="flow-box">Redirect to App</div>
+            <br><br>
+            <div class="flow-box">Frontend gets tokens</div>
+            <span class="arrow">→</span>
+            <div class="flow-box">API calls with JWT</div>
+            <span class="arrow">→</span>
+            <div class="flow-box">Backend validates JWT</div>
+        </div>
+
+        <h3>MFA Flow</h3>
+
+        <div class="code-block">
+<span class="comment">// MFA Decision Logic in Action</span><br>
+<span class="keyword">if</span> (user.user_metadata.mfa_enabled) {<br>
+  <span class="keyword">if</span> (user.multifactor && user.multifactor.length > <span class="string">0</span>) {<br>
+    <span class="comment">// User has enrolled factors - require MFA</span><br>
+    api.multifactor.enable(<span class="string">"any"</span>, { allowRememberBrowser: <span class="keyword">true</span> });<br>
+  } <span class="keyword">else</span> {<br>
+    <span class="comment">// User needs to enroll - force MFA setup</span><br>
+    api.multifactor.enable(<span class="string">"any"</span>, { allowRememberBrowser: <span class="keyword">false</span> });<br>
+  }<br>
+}
+        </div>
+
+        <h3>JWT Token Structure</h3>
+
+        <div class="code-block">
+<span class="comment">// Example JWT payload after successful authentication</span><br>
+{<br>
+  <span class="string">"iss"</span>: <span class="string">"https://risqai.us.auth0.com/"</span>,<br>
+  <span class="string">"sub"</span>: <span class="string">"auth0|64f8a1b2c3d4e5f6g7h8i9j0"</span>,<br>
+  <span class="string">"aud"</span>: [<br>
+    <span class="string">"https://api.app.risqai.co"</span>,<br>
+    <span class="string">"https://risqai.us.auth0.com/userinfo"</span><br>
+  ],<br>
+  <span class="string">"iat"</span>: <span class="string">1693234567</span>,<br>
+  <span class="string">"exp"</span>: <span class="string">1693320967</span>,<br>
+  <span class="string">"azp"</span>: <span class="string">"K2pr8mArmUomweVvK9m1xECgDFOEH8zS"</span>,<br>
+  <span class="string">"scope"</span>: <span class="string">"openid profile email read:settings write:settings"</span>,<br>
+  <span class="string">"email"</span>: <span class="string">"user@example.com"</span><br>
+}
+        </div>
+
+        <h2 id="troubleshooting">6. Troubleshooting</h2>
+
+        <h3>Common Issues</h3>
+
+        <h4>1. "Callback URL mismatch"</h4>
+        <div class="warning">
+            <strong>Error:</strong> <code>The provided redirect_uri is not in the list of allowed callback URLs</code>
+            <br><strong>Solution:</strong> Verify that the callback URL in Auth0 application settings matches exactly: <code>https://app.risqai.co/auth/login</code>
+        </div>
+
+        <h4>2. "Multifactor authentication required"</h4>
+        <div class="warning">
+            <strong>Error:</strong> API calls fail with MFA required after completing MFA
+            <br><strong>Solution:</strong> Check if MFA action is forcing continuous MFA challenges. Try using email MFA instead of authenticator app.
+        </div>
+
+        <h4>3. "Invalid client"</h4>
+        <div class="warning">
+            <strong>Error:</strong> <code>The OAuth client was not found</code>
+            <br><strong>Solution:</strong> Verify client ID matches between environment variables and Auth0 application configuration.
+        </div>
+
+        <h4>4. "Development keys warning"</h4>
+        <div class="warning">
+            <strong>Warning:</strong> Social connections using Auth0 development keys
+            <br><strong>Solution:</strong> Configure production Google OAuth credentials in Google Cloud Console and update Auth0 connection.
+        </div>
+
+        <h3>Debug Commands</h3>
+
+        <div class="code-block">
+<span class="comment"># Check Auth0 CLI status</span><br>
+<span class="keyword">auth0</span> tenants list<br>
+<span class="keyword">auth0</span> apps list<br>
+<span class="keyword">auth0</span> apis list<br>
+<span class="keyword">auth0</span> actions list<br>
+<br>
+<span class="comment"># Check GitHub secrets</span><br>
+<span class="keyword">gh</span> secret list --env production<br>
+<span class="keyword">gh</span> secret list --env staging<br>
+<br>
+<span class="comment"># Check Azure Container Apps environment</span><br>
+<span class="keyword">az</span> containerapp show --name app-risqai-backend-prod \<br>
+  --resource-group group-risqai-production \<br>
+  --query "properties.template.containers[0].env"<br>
+<br>
+<span class="comment"># Trigger frontend deployment</span><br>
+<span class="keyword">gh</span> workflow run "Azure Static Web Apps CI/CD - Production"
+        </div>
+
+        <h3>Environment Validation Checklist</h3>
+
+        <div class="success">
+            <h4>✅ Deployment Checklist</h4>
+            <ul>
+                <li>Verify all GitHub secrets match Auth0 configuration</li>
+                <li>Ensure callback URLs are exact matches in Auth0 apps</li>
+                <li>Confirm API identifiers match between frontend and Auth0</li>
+                <li>Check that Actions are deployed and active</li>
+                <li>Validate CORS origins include all frontend domains</li>
+                <li>Test MFA flow with both email and authenticator</li>
+                <li>Verify Azure Key Vault permissions for encryption</li>
+                <li>Confirm custom domains are properly configured</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <p><strong>Last Updated:</strong> August 28, 2025</p>
+            <p><strong>Next Review:</strong> Review environment configuration quarterly or when adding new features that require authentication changes.</p>
+        </div>
+    </div>
+</body>
+</html>
