@@ -1,9 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { copyFileSync } from 'fs'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'copy-staticwebapp-config',
+      writeBundle() {
+        copyFileSync(
+          path.resolve(__dirname, 'staticwebapp.config.json'),
+          path.resolve(__dirname, 'build/staticwebapp.config.json')
+        )
+      }
+    }
+  ],
   server: {
     port: 5174,
     host: true,
