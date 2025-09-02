@@ -50,7 +50,6 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION }}
           action: "upload"
-          skip_deploy_on_missing_secrets: true
           ###### Repository/Build Configurations ######
           app_location: "./frontend/build" # Pre-built app location
           api_location: "" # Api source code path - optional
@@ -69,5 +68,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION }}
           action: "close"
-          skip_deploy_on_missing_secrets: true
 
