@@ -91,32 +91,28 @@ function isValidConfig(config: ScrapingConfig): boolean {
     typeof config.titleSelector === "string" &&
     config.titleSelector !== "undefined" &&
     config.titleSelector.trim().length > 0 &&
-    !isTextContent(config.titleSelector) &&
-    !isAdvertisementSelector(config.titleSelector);
+    !isTextContent(config.titleSelector);
 
   const hasValidContent =
     config.contentSelector &&
     typeof config.contentSelector === "string" &&
     config.contentSelector !== "undefined" &&
     config.contentSelector.trim().length > 0 &&
-    !isTextContent(config.contentSelector) &&
-    !isAdvertisementSelector(config.contentSelector);
+    !isTextContent(config.contentSelector);
 
   const hasValidAuthor =
     !config.authorSelector ||
     (typeof config.authorSelector === "string" &&
       config.authorSelector !== "undefined" &&
       config.authorSelector.trim().length > 0 &&
-      !isTextContent(config.authorSelector) &&
-      !isAdvertisementSelector(config.authorSelector));
+      !isTextContent(config.authorSelector));
 
   const hasValidDate =
     !config.dateSelector ||
     (typeof config.dateSelector === "string" &&
       config.dateSelector !== "undefined" &&
       config.dateSelector.trim().length > 0 &&
-      !isTextContent(config.dateSelector) &&
-      !isAdvertisementSelector(config.dateSelector));
+      !isTextContent(config.dateSelector));
 
   return hasValidTitle && hasValidContent && hasValidAuthor && hasValidDate;
 }
