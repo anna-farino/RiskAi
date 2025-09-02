@@ -31,6 +31,8 @@ export default function Auth0ProviderWithNavigate({ children }: Props) {
       }}
       cacheLocation="localstorage"
       onRedirectCallback={onRedirectCallback}
+      useRefreshTokens={true}
+      useRefreshTokensFallback={false}
     >
       {children}
     </Auth0Provider>
