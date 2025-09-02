@@ -166,7 +166,8 @@ export async function scrapeWithHTTP(
     });
     
     if (response.success && response.body) {
-      const validation = await validateContent(response.body, url);
+      // HTTP scraper is typically used for source pages, not articles
+      const validation = await validateContent(response.body, url, false);
       
       if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
         log(`[HTTPScraper] Protection bypass successful with ${validation.linkCount} links`, "scraper");
@@ -192,7 +193,7 @@ export async function scrapeWithHTTP(
       responseTime: Date.now() - startTime,
       protectionDetected: {
         hasProtection: true,
-        type: preflightResult.protectionType || "unknown",
+        type: (preflightResult.protectionType || "generic") as any,
         confidence: 0.9,
         details: `Pre-flight detected ${preflightResult.protectionType} protection`,
       },
@@ -412,8 +413,8 @@ export async function scrapeWithHTTP(
           );
         }
 
-        // Validate content before returning success
-        const validation = await validateContent(html, url);
+        // Validate content before returning success - HTTP scraper for source pages
+        const validation = await validateContent(html, url, false);
         
         if (!validation.isValid || validation.isErrorPage || validation.linkCount < 10) {
           log(

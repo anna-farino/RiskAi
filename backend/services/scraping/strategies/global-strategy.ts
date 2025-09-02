@@ -176,7 +176,8 @@ export class GlobalStrategy implements AppScrapingStrategy {
         });
         
         if (response.success && response.body) {
-          const validation = await validateContent(response.body, url);
+          // Global strategy is for source pages, not articles
+          const validation = await validateContent(response.body, url, false);
           this.lastValidation = validation;
           
           if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
@@ -236,7 +237,8 @@ export class GlobalStrategy implements AppScrapingStrategy {
    * Enhanced content validation with link counting
    */
   async validateScrapedContent(html: string, url?: string): Promise<boolean> {
-    const validation = await validateContent(html, url);
+    // Global strategy validates source pages
+    const validation = await validateContent(html, url, false);
     this.lastValidation = validation;
     
     // Require at least 10 links for valid content

@@ -62,7 +62,7 @@ export interface ProtectionInfo {
 /**
  * Validates scraped content to ensure it's not an error page
  */
-export async function validateContent(html: string, url?: string): Promise<ValidationResult> {
+export async function validateContent(html: string, url?: string, isArticle: boolean = false): Promise<ValidationResult> {
   const $ = cheerio.load(html);
   const result: ValidationResult = {
     isValid: true,
@@ -154,10 +154,20 @@ export async function validateContent(html: string, url?: string): Promise<Valid
     result.protectionType = ProtectionType.GENERIC;
   }
 
-  // Final validation
+  // Final validation - different criteria for articles vs source pages
   result.isErrorPage = result.errorIndicators.length > 2 || result.confidence < 50;
-  result.isValid = !result.isErrorPage && result.linkCount >= 10 && result.confidence > 30;
-  result.hasContent = result.linkCount > 0 || $('p, article, div.content').text().length > 100;
+  
+  // Article pages: validate based on content length, not link count
+  // Source pages: validate based on link count (10+ required)
+  if (isArticle) {
+    const contentLength = $('p, article, div.content, main, section').text().length;
+    result.isValid = !result.isErrorPage && contentLength > 500 && result.confidence > 30;
+    result.hasContent = contentLength > 100;
+  } else {
+    // Source pages need many links
+    result.isValid = !result.isErrorPage && result.linkCount >= 10 && result.confidence > 30;
+    result.hasContent = result.linkCount > 0 || $('p, article, div.content').text().length > 100;
+  }
 
   // Ensure confidence is within bounds
   result.confidence = Math.max(0, Math.min(100, result.confidence));
@@ -216,7 +226,7 @@ export async function detectProtection(response: {
 
   // Quick body check if available
   if (response.body) {
-    const validation = await validateContent(response.body);
+    const validation = await validateContent(response.body, undefined, false);
     if (validation.isErrorPage) {
       info.detected = true;
       info.type = validation.protectionType;

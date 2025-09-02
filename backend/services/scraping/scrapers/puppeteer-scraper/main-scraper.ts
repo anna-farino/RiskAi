@@ -387,8 +387,8 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     
     log(`[PuppeteerScraper] Initial content extracted (${contentLength} chars)`, "scraper");
     
-    // Validate content quality
-    const validation = await validateContent(html, url);
+    // Validate content quality - use isArticlePage option to determine validation type
+    const validation = await validateContent(html, url, options?.isArticlePage || false);
     
     if (!validation.isValid || validation.isErrorPage) {
       log(`[PuppeteerScraper] Content validation warning: ${validation.errorIndicators.join(', ')}, confidence: ${validation.confidence}%`, "scraper");
@@ -475,8 +475,8 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       
       log(`[PuppeteerScraper] Dynamic content loading completed (${dynamicContentLength} chars)`, "scraper");
       
-      // Validate dynamic content
-      const dynamicValidation = await validateContent(dynamicHtml, url);
+      // Validate dynamic content - use isArticlePage option to determine validation type
+      const dynamicValidation = await validateContent(dynamicHtml, url, options?.isArticlePage || false);
       
       // For HTMX sites, always use the enriched DOM if we loaded HTMX content
       // Otherwise, check if dynamic content is significantly better

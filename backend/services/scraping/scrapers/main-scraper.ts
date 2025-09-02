@@ -42,8 +42,8 @@ export class StreamlinedUnifiedScraper {
       // Step 1: Get content (HTTP or Puppeteer)
       const contentResult = await getContent(url, true);
 
-      // Validate content quality
-      const validation = await validateContent(contentResult.html, url);
+      // Validate content quality - this is an article page
+      const validation = await validateContent(contentResult.html, url, true);
       
       if (!validation.isValid || validation.isErrorPage) {
         log(`[SimpleScraper] Content validation failed: ${validation.errorIndicators.join(', ')}, confidence: ${validation.confidence}%`, "scraper");
