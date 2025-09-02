@@ -10,14 +10,19 @@ const ERROR_INDICATORS = {
   title: [
     'Error', 'Forbidden', 'Access Denied', 'Just a moment', 
     '403', '503', '502', '504', 'Blocked', 'Challenge',
-    'Please Wait', 'Checking your browser', 'Security Check'
+    'Please Wait', 'Checking your browser', 'Security Check',
+    'Bloomberg', 'unusual activity', 'detected unusual'
   ],
   body: [
     'cf-error', 'cloudflare', 'ray ID', 'challenge-form', 
     'cf-browser-verification', 'cf-wrapper', 'cf-browser-check',
     'ddos-protection', 'rate-limited', 'security-challenge',
     'access-restricted', 'bot-detection', '_cf_chl_jschl_tk',
-    'cf-chl-bypass', 'cf-challenge-running', 'cf-im-under-attack'
+    'cf-chl-bypass', 'cf-challenge-running', 'cf-im-under-attack',
+    'unusual activity from your computer', 'detected unusual activity',
+    'please click the box below', 'let us know you\'re not a robot',
+    'complete the security check', 'prove you\'re not a bot',
+    'automated requests', 'suspicious activity'
   ],
   links: [
     'cloudflare.com/5xx-error', 'support.cloudflare.com',
@@ -161,8 +166,14 @@ export async function validateContent(html: string, url?: string, isArticle: boo
   // Source pages: validate based on link count (10+ required)
   if (isArticle) {
     const contentLength = $('p, article, div.content, main, section').text().length;
-    result.isValid = !result.isErrorPage && contentLength > 500 && result.confidence > 30;
-    result.hasContent = contentLength > 100;
+    // Also check for captcha-specific content that shouldn't be in real articles
+    const textContent = $('body').text();
+    const hasCaptchaContent = textContent.includes('unusual activity') || 
+                              textContent.includes('not a robot') || 
+                              textContent.includes('complete the security check') ||
+                              textContent.includes('browser supports JavaScript and cookies');
+    result.isValid = !result.isErrorPage && !hasCaptchaContent && contentLength > 500 && result.confidence > 30;
+    result.hasContent = contentLength > 100 && !hasCaptchaContent;
   } else {
     // Source pages need many links
     result.isValid = !result.isErrorPage && result.linkCount >= 10 && result.confidence > 30;

@@ -1386,19 +1386,32 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
         const bypassValidation = await page.evaluate(() => {
           const linkCount = document.querySelectorAll('a[href]').length;
           const title = document.title || '';
+          const bodyText = document.body?.textContent || '';
+          
+          // Check for common captcha/protection indicators
           const isStillChallenge = title.toLowerCase().includes('just a moment') ||
                                   title.toLowerCase().includes('please wait') ||
-                                  document.body?.textContent?.includes('Checking your browser');
+                                  title.toLowerCase().includes('bloomberg') || // Bloomberg captcha
+                                  bodyText.includes('Checking your browser') ||
+                                  bodyText.includes('unusual activity') ||
+                                  bodyText.includes('detected unusual') ||
+                                  bodyText.includes('not a robot') ||
+                                  bodyText.includes('click the box below') ||
+                                  bodyText.includes('browser supports JavaScript');
+          
+          // Need substantial content, not just a few links
+          const hasSubstantialContent = bodyText.length > 1000 && linkCount > 10;
           
           return {
-            success: linkCount >= 5 && !isStillChallenge,
+            success: hasSubstantialContent && !isStillChallenge,
             linkCount,
             title,
-            isStillChallenge
+            isStillChallenge,
+            contentLength: bodyText.length
           };
         });
         
-        log(`[ProtectionBypass] Generic bypass validation: success=${bypassValidation.success}, links=${bypassValidation.linkCount}, stillChallenge=${bypassValidation.isStillChallenge}`, "scraper");
+        log(`[ProtectionBypass] Generic bypass validation: success=${bypassValidation.success}, links=${bypassValidation.linkCount}, content=${bypassValidation.contentLength} chars, stillChallenge=${bypassValidation.isStillChallenge}`, "scraper");
         return bypassValidation.success;
     }
   } catch (error: any) {

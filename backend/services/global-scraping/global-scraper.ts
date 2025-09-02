@@ -146,6 +146,18 @@ async function scrapeGlobalSource(
           errors.push(`Failed to extract content from: ${link}`);
           continue;
         }
+        
+        // Validate article content to reject captcha/error pages
+        if (articleContent.content.length < 500 || 
+            articleContent.title.toLowerCase().includes('bloomberg') ||
+            articleContent.title.toLowerCase().includes('detected unusual') ||
+            articleContent.content.includes('unusual activity') ||
+            articleContent.content.includes('not a robot') ||
+            articleContent.content.includes('click the box below')) {
+          log(`[Global Scraping] Rejected captcha/error page: ${articleContent.title} (${articleContent.content.length} chars)`, "scraper");
+          errors.push(`Article ${link}: Captcha/error page detected`);
+          continue;
+        }
 
         // Step 4: AI Analysis for ALL articles
         log(`[Global Scraping] Analyzing article with AI`, "scraper");
@@ -194,7 +206,7 @@ async function scrapeGlobalSource(
           })
           .returning();
 
-        log(`[Global Scraping] Saved article: ${savedArticle.title} (Cyber: ${isCybersecurity}, Risk: ${securityScore || 'N/A'})`, "scraper");
+        log(`[Global Scraping] Saved article: ${savedArticle.title} - ${articleContent.content.length} chars (Cyber: ${isCybersecurity}, Risk: ${securityScore || 'N/A'})`, "scraper");
         savedCount++;
         newArticleIds.push(savedArticle.id);
       } catch (error) {
