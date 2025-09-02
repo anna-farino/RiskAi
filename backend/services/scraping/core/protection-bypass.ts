@@ -793,6 +793,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     let challengeCompleted = false;
     const maxWaitTime = 35000; // 35 seconds max wait for very aggressive protection
     const checkInterval = 1000; // Check every 1 second
+    const startTime = Date.now(); // Track actual elapsed time
     let waitTime = 0;
     const initialUrl = page.url();
     let interactionPhase = 1;
@@ -849,9 +850,9 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     page.on('response', onResponse);
 
     try {
-      while (!challengeCompleted && waitTime < maxWaitTime) {
+      while (!challengeCompleted && (Date.now() - startTime) < maxWaitTime) {
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
-        waitTime += checkInterval;
+        waitTime = Date.now() - startTime; // Use actual elapsed time
 
         // 3. Enhanced Challenge Interaction - Monitor specific elements and changes
         const challengeStatus = await page.evaluate(() => {
@@ -890,8 +891,9 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         const urlChanged = currentUrl !== initialUrl;
 
         // Only log challenge checks at key intervals (every 5 seconds)
-        if (waitTime % 5000 === 0) {
-          log(`[ProtectionBypass] Challenge check (${waitTime}ms): links=${challengeStatus.linkCount}, urlChanged=${urlChanged}`, "scraper");
+        const elapsedSeconds = Math.floor(waitTime / 1000);
+        if (elapsedSeconds % 5 === 0 && Math.abs(waitTime - (elapsedSeconds * 1000)) < checkInterval) {
+          log(`[ProtectionBypass] Challenge check (${Math.round(waitTime)}ms actual): links=${challengeStatus.linkCount}, urlChanged=${urlChanged}`, "scraper");
         }
 
         // Enhanced challenge completion detection with multiple criteria
@@ -910,13 +912,13 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
 
         if (challengeActuallyCompleted) {
           challengeCompleted = true;
-          log(`[ProtectionBypass] Cloudflare challenge completed after ${waitTime}ms - URL: ${currentUrl}, Links: ${challengeStatus.linkCount}`, "scraper");
+          log(`[ProtectionBypass] Cloudflare challenge completed after ${Math.round(waitTime)}ms actual - URL: ${currentUrl}, Links: ${challengeStatus.linkCount}`, "scraper");
           break;
         }
 
         // Progressive interaction phases during challenge waiting
         try {
-          if (waitTime === 2000 && interactionPhase === 1) {
+          if (waitTime >= 2000 && waitTime < 3000 && interactionPhase === 1) {
             // Phase 1: Advanced realistic mouse patterns
             log(`[ProtectionBypass] Phase 1: Performing realistic human mouse patterns`, "scraper");
             
@@ -949,7 +951,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             await new Promise(resolve => setTimeout(resolve, 400));
             interactionPhase = 2;
             
-          } else if (waitTime === 5000 && interactionPhase === 2) {
+          } else if (waitTime >= 5000 && waitTime < 6000 && interactionPhase === 2) {
             // Phase 2: Keyboard and focus simulation  
             log(`[ProtectionBypass] Phase 2: Performing keyboard and focus simulation`, "scraper");
             
@@ -978,7 +980,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             await new Promise(resolve => setTimeout(resolve, 600));
             interactionPhase = 3;
             
-          } else if (waitTime === 10000 && interactionPhase === 3) {
+          } else if (waitTime >= 10000 && waitTime < 11000 && interactionPhase === 3) {
             // Phase 3: Advanced scroll simulation
             log(`[ProtectionBypass] Phase 3: Performing advanced scroll simulation`, "scraper");
             
@@ -1007,7 +1009,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             await new Promise(resolve => setTimeout(resolve, 1200));
             interactionPhase = 4;
             
-          } else if (waitTime === 18000 && interactionPhase === 4) {
+          } else if (waitTime >= 18000 && waitTime < 19000 && interactionPhase === 4) {
             // Phase 4: Challenge element interaction
             log(`[ProtectionBypass] Phase 4: Attempting direct challenge interaction`, "scraper");
             
@@ -1044,7 +1046,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             await new Promise(resolve => setTimeout(resolve, 500));
             interactionPhase = 5;
             
-          } else if (waitTime === 25000 && interactionPhase === 5) {
+          } else if (waitTime >= 25000 && waitTime < 26000 && interactionPhase === 5) {
             // Phase 5: Network activity simulation
             log(`[ProtectionBypass] Phase 5: Simulating natural network activity`, "scraper");
             
@@ -1074,7 +1076,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         }
 
         // Wait for challenge completion signals
-        if (waitTime === 4000 || waitTime === 8000) {
+        if ((waitTime >= 4000 && waitTime < 5000) || (waitTime >= 8000 && waitTime < 9000)) {
           try {
             await page.waitForFunction(() => {
               return !document.querySelector('.cf-browser-verification') ||
