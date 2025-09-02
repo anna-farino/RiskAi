@@ -11,7 +11,7 @@ const ERROR_INDICATORS = {
     'Error', 'Forbidden', 'Access Denied', 'Just a moment', 
     '403', '503', '502', '504', 'Blocked', 'Challenge',
     'Please Wait', 'Checking your browser', 'Security Check',
-    'Bloomberg', 'unusual activity', 'detected unusual'
+    'unusual activity', 'detected unusual'
   ],
   body: [
     'cf-error', 'cloudflare', 'ray ID', 'challenge-form', 

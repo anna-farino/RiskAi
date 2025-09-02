@@ -1391,7 +1391,6 @@ export async function bypassProtection(page: Page, protectionInfo: ProtectionInf
           // Check for common captcha/protection indicators
           const isStillChallenge = title.toLowerCase().includes('just a moment') ||
                                   title.toLowerCase().includes('please wait') ||
-                                  title.toLowerCase().includes('bloomberg') || // Bloomberg captcha
                                   bodyText.includes('Checking your browser') ||
                                   bodyText.includes('unusual activity') ||
                                   bodyText.includes('detected unusual') ||

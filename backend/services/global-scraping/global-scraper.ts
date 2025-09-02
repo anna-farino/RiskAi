@@ -149,7 +149,6 @@ async function scrapeGlobalSource(
         
         // Validate article content to reject captcha/error pages
         if (articleContent.content.length < 500 || 
-            articleContent.title.toLowerCase().includes('bloomberg') ||
             articleContent.title.toLowerCase().includes('detected unusual') ||
             articleContent.content.includes('unusual activity') ||
             articleContent.content.includes('not a robot') ||
