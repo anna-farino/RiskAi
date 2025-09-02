@@ -187,6 +187,7 @@ export class StreamlinedUnifiedScraper {
         includePatterns: options?.includePatterns,
         excludePatterns: options?.excludePatterns,
         aiContext: options?.aiContext,
+        minimumTextLength: 3, // Lower threshold to catch short link text like "Read more", numbers, etc.
         context: context || options?.context,
         maxLinks: options?.maxLinks || 50,
         minLinkTextLength: 15
