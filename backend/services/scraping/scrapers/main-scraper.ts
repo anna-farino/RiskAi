@@ -276,9 +276,15 @@ export class StreamlinedUnifiedScraper {
         const methodName = result.method === 'puppeteer' ? 'Puppeteer' : 'HTTP';
         log(`[SimpleScraper] Method selector chose ${methodName} - extracting links from existing content (${result.html.length} chars)`, "scraper");
         try {
-          const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
-          log(`[SimpleScraper] Standard extraction completed: ${articleLinks.length} article links found`, "scraper");
-          return articleLinks;
+          // Use HTMX links if available, otherwise fall back to HTML extraction
+          if (result.htmxLinks && result.htmxLinks.length > 0) {
+            log(`[SimpleScraper] Using HTMX links from dynamic content: ${result.htmxLinks.length} links`, "scraper");
+            return result.htmxLinks;
+          } else {
+            const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
+            log(`[SimpleScraper] Standard extraction completed: ${articleLinks.length} article links found`, "scraper");
+            return articleLinks;
+          }
         } catch (standardError) {
           if (standardError instanceof Error && errorContext) {
             await logSourceScrapingError(

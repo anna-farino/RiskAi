@@ -454,9 +454,14 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Dynamic loading needed - minimal content: ${hasMinimalContent} (${contentLength} chars), HTMX detected: ${htmxDetected}, preloader detected: ${preloaderDetected}`, "scraper");
       
       // Handle HTMX content loading ONLY if HTMX is actually detected
+      let htmxLinks: string[] = [];
       if (options?.handleHTMX && htmxDetected) {
         log(`[PuppeteerScraper] HTMX detected on page, loading HTMX content`, "scraper");
-        await handleHTMXContent(page, url);
+        const htmxResult = await handleHTMXContent(page, url);
+        if (htmxResult && typeof htmxResult === 'object' && htmxResult.links) {
+          htmxLinks = htmxResult.links;
+          log(`[PuppeteerScraper] HTMX extraction captured ${htmxLinks.length} links`, "scraper");
+        }
       }
       
       // Handle preloader sites with intelligent waiting
@@ -509,7 +514,8 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
           method: 'puppeteer',
           responseTime: Date.now() - startTime,
           statusCode,
-          finalUrl: page.url()
+          finalUrl: page.url(),
+          htmxLinks: htmxLinks.length > 0 ? htmxLinks : undefined
         };
       } else {
         log(`[PuppeteerScraper] Dynamic content did not provide improvement (original: ${validation.linkCount} links, dynamic: ${dynamicValidation.linkCount} links)`, "scraper");
@@ -534,7 +540,8 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       method: 'puppeteer',
       responseTime: Date.now() - startTime,
       statusCode,
-      finalUrl: page.url()
+      finalUrl: page.url(),
+      htmxLinks: htmxLinks.length > 0 ? htmxLinks : undefined
     };
 
   } catch (error: any) {

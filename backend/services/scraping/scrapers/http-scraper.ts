@@ -28,6 +28,7 @@ export interface ScrapingResult {
   statusCode?: number;
   finalUrl?: string;
   requiresPuppeteer?: boolean;
+  htmxLinks?: string[]; // Links extracted from HTMX content
 }
 
 // Cookie jar for session persistence

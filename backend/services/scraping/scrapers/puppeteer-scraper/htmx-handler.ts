@@ -191,7 +191,15 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
           }
         }
 
-        return totalContentLoaded;
+        // Extract all links from injected HTMX content
+    const allHtmxLinks = Array.from(document.querySelectorAll('.htmx-injected-content a[href]')).map(link => {
+      const href = link.getAttribute('href');
+      return href;
+    }).filter(href => href && href !== '#' && href !== '/' && href !== '');
+    
+    console.log(`🔗 Total HTMX links extracted: ${allHtmxLinks.length}`);
+    
+    return { contentLoaded: totalContentLoaded, links: allHtmxLinks };
       }, baseUrl, currentUrl);
 
       // Handle validation blocking for HTMX content loading
