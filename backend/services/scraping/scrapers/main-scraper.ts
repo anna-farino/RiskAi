@@ -50,9 +50,8 @@ export class StreamlinedUnifiedScraper {
         // Continue anyway but log the issue
       }
       
-      if (validation.linkCount < 10) {
-        log(`[SimpleScraper] Warning: Only ${validation.linkCount} links found (minimum 10 recommended)`, "scraper");
-      }
+      // Don't check link count for article pages - they validate based on content length
+      // Articles often have few links but substantial content
 
       // Both HTTP and Puppeteer content need the same complete processing pipeline
       // Puppeteer is just a different way to get the HTML - the processing should be identical

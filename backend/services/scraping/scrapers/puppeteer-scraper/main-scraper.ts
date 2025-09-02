@@ -394,8 +394,9 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Content validation warning: ${validation.errorIndicators.join(', ')}, confidence: ${validation.confidence}%`, "scraper");
     }
     
-    if (validation.linkCount < 10) {
-      log(`[PuppeteerScraper] Warning: Only ${validation.linkCount} links found (minimum 10 recommended)`, "scraper");
+    // Only warn about link count for source pages, not articles
+    if (!options?.isArticlePage && validation.linkCount < 10) {
+      log(`[PuppeteerScraper] Warning: Only ${validation.linkCount} links found (minimum 10 recommended for source pages)`, "scraper");
     }
 
     // Detect HTMX presence on the page
@@ -494,8 +495,9 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
         validation.isValid = dynamicValidation.isValid;
         validation.isErrorPage = dynamicValidation.isErrorPage;
         
-        // Return with dynamic content - maintain 10 link requirement for source pages
-        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && dynamicValidation.linkCount >= 10;
+        // Return with dynamic content - check link requirement only for source pages
+        const isSuccess = dynamicValidation.isValid && !dynamicValidation.isErrorPage && 
+                         (options?.isArticlePage || dynamicValidation.linkCount >= 10);
         
         if (statusCode === 401) {
           log(`[PuppeteerScraper] Paywall detected (${dynamicValidation.linkCount} links) - may need enhanced bypass`, "scraper");
@@ -518,8 +520,9 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     log(`[PuppeteerScraper] Content extraction completed successfully (${validation.linkCount} links, ${validation.confidence}% confidence)`, "scraper");
 
-    // Mark as failed if content validation failed completely - maintain 10 link requirement
-    const isSuccess = validation.isValid && !validation.isErrorPage && validation.linkCount >= 10;
+    // Mark as failed if content validation failed completely - check link requirement only for source pages
+    const isSuccess = validation.isValid && !validation.isErrorPage && 
+                     (options?.isArticlePage || validation.linkCount >= 10);
     
     if (statusCode === 401) {
       log(`[PuppeteerScraper] Paywall detected (${validation.linkCount} links) - source page access blocked`, "scraper");
