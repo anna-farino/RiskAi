@@ -56,6 +56,33 @@ function isTextContent(selector: string): boolean {
 }
 
 /**
+ * Check if a selector targets advertisement or promotional content
+ */
+function isAdvertisementSelector(selector: string): boolean {
+  if (!selector) return false;
+  
+  // Common ad-related patterns in selectors
+  const adPatterns = [
+    /\.ia_rig/i, // Interactive Advertising Bureau standard - found on BleepingComputer
+    /\.ad[-_]/i, // Common ad class prefixes
+    /\.advertisement/i,
+    /\.promo/i,
+    /\.sponsor/i,
+    /\.banner/i,
+    /\.widget/i,
+    /\.sidebar-ad/i,
+    /\.google-ad/i,
+    /\.dfp-ad/i, // DoubleClick for Publishers
+    /\.taboola/i,
+    /\.outbrain/i,
+    /\[id\*="ad-"\]/i,
+    /\[class\*="ad-"\]/i,
+  ];
+
+  return adPatterns.some((pattern) => pattern.test(selector));
+}
+
+/**
  * Validate config to ensure selectors are not corrupted
  */
 function isValidConfig(config: ScrapingConfig): boolean {
@@ -286,9 +313,25 @@ Return valid JSON only:
     );
 
     // Sanitize and validate selectors with proper error handling
+    // Check for advertisement selectors and reject them
+    let titleSelector = sanitizeSelector(result?.titleSelector);
+    let contentSelector = sanitizeSelector(result?.contentSelector);
+    
+    // Reject advertisement selectors for title
+    if (titleSelector && isAdvertisementSelector(titleSelector)) {
+      log(`[StructureDetector] AI selected advertisement title selector "${titleSelector}", rejecting`, "scraper");
+      titleSelector = undefined;
+    }
+    
+    // Reject advertisement selectors for content - this is the key fix
+    if (contentSelector && isAdvertisementSelector(contentSelector)) {
+      log(`[StructureDetector] AI selected advertisement content selector "${contentSelector}", rejecting and using fallback`, "scraper");
+      contentSelector = undefined;
+    }
+    
     const sanitized: AIStructureResult = {
-      titleSelector: sanitizeSelector(result?.titleSelector) || "h1",
-      contentSelector: sanitizeSelector(result?.contentSelector) || "article",
+      titleSelector: titleSelector || "h1",
+      contentSelector: contentSelector || "article",
       authorSelector: sanitizeSelector(result?.authorSelector),
       dateSelector: sanitizeSelector(result?.dateSelector),
       confidence: Math.min(
