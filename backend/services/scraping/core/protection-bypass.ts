@@ -889,7 +889,10 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         const currentUrl = page.url();
         const urlChanged = currentUrl !== initialUrl;
 
-        log(`[ProtectionBypass] Challenge check (${waitTime}ms): stillOnChallenge=${challengeStatus.stillOnChallenge}, elementsGone=${challengeStatus.challengeElementsGone}, realContent=${challengeStatus.hasRealContent}, links=${challengeStatus.linkCount}, urlChanged=${urlChanged}`, "scraper");
+        // Only log challenge checks at key intervals (every 5 seconds)
+        if (waitTime % 5000 === 0) {
+          log(`[ProtectionBypass] Challenge check (${waitTime}ms): links=${challengeStatus.linkCount}, urlChanged=${urlChanged}`, "scraper");
+        }
 
         // Enhanced challenge completion detection with multiple criteria
         const challengeActuallyCompleted = (
@@ -1078,7 +1081,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                      !document.title?.toLowerCase().includes('just a moment') ||
                      document.querySelectorAll('a[href]').length > 8;
             }, { timeout: 1500 });
-            log(`[ProtectionBypass] Challenge completion signal detected during wait`, "scraper");
+            // Challenge completion signal detected
           } catch {
             // Continue if timeout - this is expected
           }
@@ -1172,7 +1175,10 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               };
             }) || { linkCount: 0, isStillChallenge: true, contentLength: 0, hasNavigation: false, hasArticles: 0 };
             
-            log(`[ProtectionBypass] Fallback check (${i + 1000}ms): links=${fallbackStatus.linkCount}, stillChallenge=${fallbackStatus.isStillChallenge}, nav=${fallbackStatus.hasNavigation}, articles=${fallbackStatus.hasArticles}`, "scraper");
+            // Only log fallback checks at key intervals (every 5 seconds)
+            if ((i + 1000) % 5000 === 0) {
+              log(`[ProtectionBypass] Fallback check (${i + 1000}ms): links=${fallbackStatus.linkCount}`, "scraper");
+            }
             
             // More sophisticated completion detection for fallback
             const fallbackSuccess = (
@@ -1572,7 +1578,7 @@ export async function performBehavioralDelay(options: EnhancedScrapingOptions = 
   
   const randomDelay = Math.floor(Math.random() * (delay.max - delay.min + 1)) + delay.min;
   
-  log(`[ProtectionBypass] Behavioral delay: ${randomDelay}ms`, "scraper");
+  // Removed verbose behavioral delay logging
   await new Promise(resolve => setTimeout(resolve, randomDelay));
 }
 

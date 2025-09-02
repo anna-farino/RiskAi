@@ -221,7 +221,7 @@ export class BrowserManager {
       try {
         // Determine Chrome path dynamically at launch time
         const chromePath = findChromePath();
-        log(`[BrowserManager][createNewBrowser] Attempt ${attempt}/${maxRetries} - Using Chrome at: ${chromePath}`, "scraper");
+        // Launching browser attempt
         
         // Increase protocol timeout progressively with each retry
         const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
@@ -239,7 +239,7 @@ export class BrowserManager {
           defaultViewport: null
         });
 
-        log(`[BrowserManager][getBrowser] Browser launched successfully on attempt ${attempt}`, "scraper");
+        log(`[BrowserManager] Browser launched successfully`, "scraper");
         
         // Set up error handlers
         browser.on('disconnected', () => {
@@ -255,7 +255,7 @@ export class BrowserManager {
         // If it's a protocol timeout, wait before retrying
         if (error.message?.includes('timed out') && attempt < maxRetries) {
           const waitTime = 5000 * attempt; // 5s, 10s, 15s
-          log(`[BrowserManager][getBrowser] Waiting ${waitTime}ms before retry...`, "scraper");
+          // Waiting before retry
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }
@@ -278,7 +278,7 @@ export class BrowserManager {
         // Check if we have too many pages open
         const pages = await browser.pages();
         if (pages.length > 5) {
-          log(`[BrowserManager][createPage] Too many pages open (${pages.length}), closing extras`, "scraper");
+          // Closing extra pages
           // Close all but the first page (usually blank)
           for (let i = 1; i < pages.length - 2; i++) {
             await pages[i].close().catch(() => {});
@@ -296,7 +296,7 @@ export class BrowserManager {
         page.setDefaultTimeout(60000); // 1 minute default timeout
         page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
         
-        log(`[BrowserManager][createPage] Created new page on attempt ${attempt}`, "scraper");
+        log(`[BrowserManager][createPage] Created new page`, "scraper");
         return page;
       } catch (error: any) {
         lastError = error;

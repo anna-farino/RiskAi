@@ -46,7 +46,7 @@ export class StreamlinedUnifiedScraper {
       const validation = await validateContent(contentResult.html, url, true);
       
       if (!validation.isValid || validation.isErrorPage) {
-        log(`[SimpleScraper] Content validation failed: ${validation.errorIndicators.join(', ')}, confidence: ${validation.confidence}%`, "scraper");
+        // Content validation warning logged
         // Continue anyway but log the issue
       }
       
@@ -55,7 +55,7 @@ export class StreamlinedUnifiedScraper {
 
       // Both HTTP and Puppeteer content need the same complete processing pipeline
       // Puppeteer is just a different way to get the HTML - the processing should be identical
-      log(`[SimpleScraper] Processing ${contentResult.method} content with complete extraction pipeline`, "scraper");
+      // Processing content with extraction pipeline
       
       // Step 2: Get structure config using unified detector
       let structureConfig = config;

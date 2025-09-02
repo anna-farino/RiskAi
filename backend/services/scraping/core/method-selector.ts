@@ -31,7 +31,7 @@ async function performWebFetch(url: string): Promise<string | null> {
       redirect: 'follow'
     });
     
-    log(`[WebFetch] Response status: ${response.status}`, "scraper");
+    // Response status logged only on error
     
     if (!response.ok) {
       log(`[WebFetch] Response not OK: ${response.status} ${response.statusText}`, "scraper");
@@ -39,7 +39,7 @@ async function performWebFetch(url: string): Promise<string | null> {
     }
     
     const content = await response.text();
-    log(`[WebFetch] Content length: ${content.length}`, "scraper");
+    // Content fetched successfully
     
     return content;
   } catch (error: any) {
