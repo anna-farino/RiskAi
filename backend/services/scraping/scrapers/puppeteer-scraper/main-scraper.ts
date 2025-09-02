@@ -128,31 +128,47 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     // Apply behavioral delay before navigation
     await performBehavioralDelay(options);
 
-    // Navigate to the page with safer settings
+    // Navigate to the page with dynamic fallback mechanism
     let response;
     let statusCode = 0;
     
     try {
-      // Use a shorter timeout and less strict wait condition for problematic sites
-      const isProblematicSite = url.includes('nytimes.com') || 
-                                url.includes('wsj.com') || 
-                                url.includes('bloomberg.com');
-      
-      const waitCondition = isProblematicSite ? 'domcontentloaded' : 'networkidle2';
-      const navTimeout = isProblematicSite ? 15000 : 30000;
+      // Start with networkidle2 and fallback to domcontentloaded if it fails
+      let waitCondition: 'networkidle2' | 'domcontentloaded' = 'networkidle2';
+      let navTimeout = 30000;
       
       log(`[PuppeteerScraper] Navigating with ${waitCondition} (timeout: ${navTimeout}ms)`, "scraper");
       
-      response = await page.goto(url, { 
-        waitUntil: waitCondition as any,
-        timeout: navTimeout 
-      });
-      statusCode = response ? response.status() : 0;
-      
-      // For problematic sites, wait a bit for content to load
-      if (isProblematicSite && response) {
-        log(`[PuppeteerScraper] Problematic site detected, waiting for content...`, "scraper");
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      try {
+        response = await page.goto(url, { 
+          waitUntil: waitCondition,
+          timeout: navTimeout 
+        });
+        statusCode = response ? response.status() : 0;
+      } catch (networkIdleError: any) {
+        // If networkidle2 fails, fallback to domcontentloaded
+        if (networkIdleError.message?.includes('timeout') || 
+            networkIdleError.message?.includes('Navigation timeout') ||
+            networkIdleError.message?.includes('waiting for event')) {
+          
+          log(`[PuppeteerScraper] networkidle2 failed (${networkIdleError.message.substring(0, 100)}), falling back to domcontentloaded`, "scraper");
+          
+          waitCondition = 'domcontentloaded';
+          navTimeout = 15000;
+          
+          response = await page.goto(url, { 
+            waitUntil: waitCondition,
+            timeout: navTimeout 
+          });
+          statusCode = response ? response.status() : 0;
+          
+          // Give additional time for content to load after domcontentloaded
+          log(`[PuppeteerScraper] Using domcontentloaded fallback, waiting for content...`, "scraper");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          // Re-throw non-timeout errors
+          throw networkIdleError;
+        }
       }
       
     } catch (navError: any) {
