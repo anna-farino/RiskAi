@@ -6,7 +6,7 @@ import AuthLayout from "@/components/layout/AuthLayout"
 import { useAuth0 } from "@auth0/auth0-react"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { serverUrl } from "@/utils/server-url"
 import { useToast } from "@/hooks/use-toast"
 import { z } from "zod"
@@ -30,6 +30,7 @@ export default function Login() {
   const [isResending, setIsResending] = useState(false)
   
   const audience = (import.meta as any).env.VITE_AUTH0_AUDIENCE;
+  const navigate = useNavigate()
   
   console.log("searchParams", searchParams.get("email_verified"))
   console.log("searchParams2", searchParams.get("error_description"))
@@ -40,6 +41,10 @@ export default function Login() {
     email: z.string().email("Please enter a valid email address")
   })
 
+  function goBackHome() {
+    logout()
+    navigate('/auth/login')
+  }
 
   useEffect(()=>{
     if (searchParams.get("email_verified") === "true") {
@@ -147,6 +152,7 @@ export default function Login() {
           </motion.p>
           
           {/* Welcome Message */}
+          {searchParams.get("error_description") != "Please verify your email before logging in." && 
           <div className="flex items-center gap-2 xs:gap-3 mb-3 xs:mb-4">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
@@ -175,9 +181,11 @@ export default function Login() {
               </motion.p>
             </div>
           </div>
+          }
         </div>
 
         {/* Feature Highlights */}
+        {searchParams.get("error_description") != "Please verify your email before logging in." && 
         <div className="mb-6 xs:mb-7 sm:mb-8 space-y-2 xs:space-y-3">
           <motion.div 
             initial={{ x: -20, opacity: 0 }}
@@ -217,7 +225,7 @@ export default function Login() {
               <p className="text-xs text-gray-400">AI-powered analysis and reporting</p>
             </div>
           </motion.div>
-        </div>
+        </div>}
 
         {/* Login Actions */}
         <motion.div 
@@ -226,6 +234,7 @@ export default function Login() {
           transition={{ delay: 0.9, duration: 0.5 }}
           className="flex flex-col gap-4"
         >
+        {searchParams.get("error_description") != "Please verify your email before logging in." && 
           <Button 
             className={cn(
               "w-full text-white hover:text-white font-medium shadow-sm",
@@ -239,7 +248,7 @@ export default function Login() {
             <Shield className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
             <span className="hidden xs:inline">Access Your Intelligence Dashboard</span>
             <span className="xs:hidden">Access Dashboard</span>
-          </Button>
+          </Button>}
 
           {searchParams.get("error_description") === "Please verify your email before logging in." && (
             <motion.div 
@@ -249,14 +258,15 @@ export default function Login() {
               className="flex flex-col gap-3 xs:gap-4 p-3 xs:p-4 rounded-lg bg-gradient-to-r from-slate-900/60 to-slate-800/40"
             >
               <div className="text-center">
-                <h4 className="text-xs xs:text-sm font-medium text-white mb-1.5 xs:mb-2">Email Verification Required</h4>
-                <p className="text-xs text-gray-400">Please check your inbox and verify your email address</p>
+                <h1 className="text-lg xs:text-sm font-medium text-white mb-1.5 xs:mb-2">
+                  Email Verification Required
+                </h1>
+                <p className="text-sm text-gray-400">
+                  Please check your inbox and verify your email address
+                </p>
               </div>
               
-              <div className="flex flex-col gap-1.5 xs:gap-2">
-                <Label htmlFor="email" className="text-left text-gray-300 text-xs xs:text-sm">
-                  Email address
-                </Label>
+              <div className="flex mt-10 flex-col gap-1.5 xs:gap-2">
                 <Input
                   id="email"
                   type="email"
@@ -284,8 +294,19 @@ export default function Login() {
               >
                 {isResending ? "Sending..." : "Resend Verification"}
               </Button>
+              <div 
+                className={cn(
+                  "flex flex-row w-full justify-center",
+                  "text-sm text-gray-400 mt-10",
+                  "hover:cursor-pointer hover:text-gray-100 transition-colors"
+                )}
+                onClick={goBackHome}
+              >
+                Home
+              </div>
             </motion.div>
           )}
+
         </motion.div>
       </motion.div>
     </AuthLayout>
