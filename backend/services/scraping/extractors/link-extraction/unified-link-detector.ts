@@ -21,9 +21,10 @@ export async function identifyArticleLinks(
 
     const appContext = context?.appType || "UnifiedScraper";
 
-    // Check if we're dealing with the simplified HTML from puppeteer or ai-link-handler
-    const isSimplifiedHtml = linksText.includes('<div class="extracted-article-links">') ||
-                             linksText.includes('<a href="') && !linksText.includes('<html>');
+    // Check if we're dealing with the simplified HTML from puppeteer
+    const isSimplifiedHtml = linksText.includes(
+      '<div class="extracted-article-links">',
+    );
 
     // For simplified HTML, extract directly to a more processable format
     let links = [];
@@ -170,34 +171,23 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Your goal is to be INCLUSIVE and preserve potential article content for downstream analysis.
-            
-            INCLUDE links that are likely articles:
-            1. **Established Publications**: Any legitimate news, tech, industry, or specialized publication domains
-            2. **Article-Style URLs**: Contains /article/, /blog/, /news/, /post/, /story/, /analysis/, /report/, /research/, dates, technical IDs, or content slugs
-            3. **Descriptive Titles**: Any meaningful title that describes content (technical, business, industry-specific)
-            4. **External Sources**: Links from legitimate domains with content-focused URLs
-            
-            INCLUDE these patterns:
-            - Industry articles: Technical content, analysis pieces, research reports, news updates
-            - Articles from specialized domains (any industry vertical)
-            - URLs with dates, IDs, slugs, or descriptive paths
-            - External articles from legitimate publication domains
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
+            1. Article-style titles (descriptive)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
+            3. Proper article context (not navigation/category pages)
 
-            EXCLUDE obvious non-articles:
-            - Login pages (/login, /auth, /signin)
-            - Search functionality (/search, ?q=, ?query=)
-            - User management pages (/user/, /profile/, /account/)
-            - Social media links
-            - Email addresses and contact info (mailto:, tel:)
-            - Site navigation (About, Contact, Terms, Privacy Policy)
-            - Admin pages (/admin/, /api/, /dashboard/)
-            - Pure category/tag listings without specific content
+            CRITICAL: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
+            
+            Return only links that are very likely to be actual articles.
+            Exclude:
+            - Category pages
+            - Tag pages
+            - Author pages
+            - Navigation links
+            - Search results
             - Pagination links
             - General company information pages
 
-            CRITICAL INSTRUCTIONS: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
-            
             Return JSON in format: { articleUrls: string[] }
             Each URL in articleUrls must be copied exactly as provided in the input without any modifications.`,
         },
@@ -271,7 +261,7 @@ export async function identifyArticleLinks(
     return result.articleUrls;
   } catch (error: any) {
     log(
-      `[${context?.appType || "UnifiedScraper"}] Error identifying article links: ${error.message}`,
+      `[${appContext || "UnifiedScraper"}] Error identifying article links: ${error.message}`,
       "openai-error",
     );
     console.error("Error identifying article links:", error);
