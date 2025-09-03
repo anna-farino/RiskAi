@@ -12,7 +12,7 @@ const openai = new OpenAI({
  */
 export async function identifyArticleLinks(
   linksText: string,
-  context?: { appType?: string },
+  context?: { appType?: string }
 ): Promise<string[]> {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -104,10 +104,7 @@ export async function identifyArticleLinks(
       });
 
       // Log information about the processing
-      log(
-        `[${appContext}] Extracted ${extractedLinks.length} total links`,
-        "openai",
-      );
+      log(`[${appContext}] Extracted ${extractedLinks.length} total links`, "openai");
       log(
         `[${appContext}] Found ${htmxLinks.length} potential HTMX links`,
         "openai",
@@ -171,36 +168,23 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Your goal is to be INCLUSIVE and preserve potential article content for downstream analysis.
-            
-            INCLUDE links that are likely articles from any domain:
-            1. **Established Publications**: Any legitimate news, tech, industry, or specialized publication domains
-            2. **Article-Style URLs**: Contains /article/, /blog/, /news/, /post/, /story/, /analysis/, /report/, /research/, dates, technical IDs, or content slugs
-            3. **Descriptive Titles**: Any meaningful title that describes content (technical, business, industry-specific)
-            4. **External Sources**: Links from legitimate domains with content-focused URLs
-            
-            INCLUDE these patterns:
-            - Industry articles: Technical content, analysis pieces, research reports, news updates
-            - Articles from specialized domains (any industry vertical)
-            - URLs with dates, IDs, slugs, or descriptive paths
-            - Links with meaningful context, even if title is truncated
-            - External articles from legitimate publication domains
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
+            1. Article-style titles (descriptive)
+            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
+            3. Proper article context (not navigation/category pages)
 
-            ONLY EXCLUDE obvious non-articles:
-            - Login/authentication pages (/login, /auth, /signin)
-            - Search functionality (/search, ?q=, ?query=)
-            - User management pages (/user/, /profile/, /account/)
-            - Site navigation (About, Contact, Terms, Privacy Policy)
-            - Administrative functions (/admin/, /api/, /dashboard/)
-            - Pure category/tag listings without specific content
+            CRITICAL: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
+            
+            Return only links that are very likely to be actual articles.
+            Exclude:
+            - Category pages
+            - Tag pages
+            - Author pages
+            - Navigation links
+            - Search results
             - Pagination links
             - General company information pages
 
-            CRITICAL INSTRUCTIONS:
-            - Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
-            - Accept various content types: technical, business, industry-specific
-            - Accept diverse URL structures across different content management systems
-            
             Return JSON in format: { articleUrls: string[] }
             Each URL in articleUrls must be copied exactly as provided in the input without any modifications.`,
         },
