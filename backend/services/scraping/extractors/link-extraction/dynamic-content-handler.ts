@@ -103,8 +103,8 @@ export async function extractArticleLinksFromPage(
     log(`[LinkExtractor] After normalization: ${links.length} links with absolute URLs`, "scraper");
     
     // Use unified AI link identification
-    if (options?.context || options?.aiContext) {
-      links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
+    if (options?.aiContext) {
+      links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext });
       // Ensure all URLs are absolute after AI processing
       links = normalizeUrls(links, baseUrl);
     }
@@ -157,8 +157,8 @@ export async function extractArticleLinks(
     log(`[LinkExtractor] After normalization: ${links.length} links with absolute URLs`, "scraper");
     
     // Use unified AI link identification
-    if (options?.context || options?.aiContext) {
-      links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext, context: options.context });
+    if (options?.aiContext) {
+      links = await handleAILinkIdentification(linkData, baseUrl, { aiContext: options.aiContext });
       // Ensure all URLs are absolute after AI processing
       links = normalizeUrls(links, baseUrl);
     }
