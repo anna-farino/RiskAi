@@ -3,10 +3,22 @@ import { log } from "backend/utils/log";
 import { safePageEvaluate } from './error-handler';
 
 /**
- * Handle HTMX content loading on dynamic pages
+ * HTMX Assessment Result for determining extraction strategy
+ */
+export interface HTMXAssessmentResult {
+  links: string[];
+  contentLoaded: number;
+  needsAdvancedExtraction: boolean;
+  htmxComplexity: 'simple' | 'moderate' | 'complex';
+  triggeredElements: number;
+  confidence: number;
+}
+
+/**
+ * Handle HTMX content loading on dynamic pages with smart assessment
  * Consolidates HTMX handling from News Radar
  */
-export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise<void> {
+export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise<HTMXAssessmentResult> {
   try {
     log(`[PuppeteerScraper] Checking for HTMX content...`, "scraper");
 
@@ -34,7 +46,14 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
     // Handle validation blocking for HTMX detection
     if (!htmxInfo) {
       log(`[PuppeteerScraper] HTMX detection blocked by validation, skipping HTMX handling`, "scraper");
-      return;
+      return {
+        links: [],
+        contentLoaded: 0,
+        needsAdvancedExtraction: true, // Default to advanced when basic fails
+        htmxComplexity: 'complex',
+        triggeredElements: 0,
+        confidence: 0
+      };
     }
 
     log(`[PuppeteerScraper] HTMX detection: scriptLoaded=${htmxInfo?.scriptLoaded}, hasAttributes=${htmxInfo?.hasHxAttributes}, elements=${htmxInfo?.hxGetElements?.length || 0}`, "scraper");
@@ -207,8 +226,8 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
         log(`[PuppeteerScraper] HTMX content loading blocked by validation`, "scraper");
       }
 
-      if (htmxContentLoaded && htmxContentLoaded > 0) {
-        log(`[PuppeteerScraper] Successfully loaded ${htmxContentLoaded} characters of HTMX content`, "scraper");
+      if (htmxContentLoaded && htmxContentLoaded.contentLoaded > 0) {
+        log(`[PuppeteerScraper] Successfully loaded ${htmxContentLoaded.contentLoaded} characters of HTMX content with ${htmxContentLoaded.links?.length || 0} links`, "scraper");
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
@@ -315,20 +334,89 @@ export async function handleHTMXContent(page: Page, sourceUrl?: string): Promise
         log(`[PuppeteerScraper] Clicked ${actualClicked} "load more" elements`, "scraper");
         await new Promise(resolve => setTimeout(resolve, 3000));
       }
-    }
 
-    // Wait for any remaining dynamic content to load
-    await page.waitForFunction(
-      () => {
-        const loadingElements = document.querySelectorAll(
-          '.loading, .spinner, [data-loading="true"], .skeleton'
-        );
-        return loadingElements.length === 0;
-      },
-      { timeout: 10000 }
-    ).catch(() => log("[PuppeteerScraper] Timeout waiting for loading indicators", "scraper"));
+      // Wait for any remaining dynamic content to load
+      await page.waitForFunction(
+        () => {
+          const loadingElements = document.querySelectorAll(
+            '.loading, .spinner, [data-loading="true"], .skeleton'
+          );
+          return loadingElements.length === 0;
+        },
+        { timeout: 10000 }
+      ).catch(() => log("[PuppeteerScraper] Timeout waiting for loading indicators", "scraper"));
+
+      // Phase 1 Assessment: Gather metrics for smart decision making
+      const finalLinks = htmxContentLoaded?.links || [];
+      const contentSize = htmxContentLoaded?.contentLoaded || 0;
+      const elementsTriggered = (triggeredElements || 0) + (actualClicked || 0);
+      
+      // Calculate HTMX complexity based on multiple factors
+      const htmxComplexity = await page.evaluate(() => {
+        const complexTriggers = document.querySelectorAll('[hx-trigger]:not([hx-trigger="load"]):not([hx-trigger="click"])');
+        const dynamicEndpoints = document.querySelectorAll('[hx-get], [hx-post]').length;
+        const stretchedLinks = document.querySelectorAll('.stretched-link').length;
+        
+        if (complexTriggers.length > 5 || dynamicEndpoints > 20 || stretchedLinks > 10) {
+          return 'complex';
+        } else if (complexTriggers.length > 2 || dynamicEndpoints > 10 || stretchedLinks > 5) {
+          return 'moderate';
+        } else {
+          return 'simple';
+        }
+      }) as 'simple' | 'moderate' | 'complex';
+      
+      // Smart assessment: determine if advanced extraction is needed
+      const needsAdvancedExtraction = 
+        finalLinks.length < 15 ||                               // Insufficient links from basic extraction
+        htmxComplexity === 'complex' ||                         // Complex HTMX patterns detected
+        (htmxComplexity === 'moderate' && finalLinks.length < 25) || // Moderate complexity with low yield
+        elementsTriggered < 3;                                   // Few elements were triggered successfully
+      
+      // Calculate confidence based on results
+      const confidence = Math.min(100, 
+        (finalLinks.length * 3) +                              // 3 points per link
+        (contentSize / 1000) +                                 // 1 point per KB loaded
+        (elementsTriggered * 10) +                             // 10 points per triggered element
+        (htmxComplexity === 'simple' ? 20 : htmxComplexity === 'moderate' ? 10 : 0)
+      );
+      
+      log(`[PuppeteerScraper] HTMX Assessment: ${finalLinks.length} links, ${htmxComplexity} complexity, needsAdvanced: ${needsAdvancedExtraction}, confidence: ${confidence.toFixed(1)}%`, "scraper");
+      
+      return {
+        links: finalLinks,
+        contentLoaded: contentSize,
+        needsAdvancedExtraction,
+        htmxComplexity,
+        triggeredElements: elementsTriggered,
+        confidence
+      };
+
+    } else {
+      log(`[PuppeteerScraper] No dynamic content needed or HTMX not detected`, "scraper");
+      
+      // Return basic assessment for non-HTMX sites
+      return {
+        links: [],
+        contentLoaded: 0,
+        needsAdvancedExtraction: false,
+        htmxComplexity: 'simple',
+        triggeredElements: 0,
+        confidence: 100 // High confidence for non-HTMX sites
+      };
+    }
 
   } catch (error: any) {
     log(`[PuppeteerScraper] Error handling HTMX content: ${error.message}`, "scraper-error");
+    
+    // Return fallback assessment on error
+    return {
+      links: [],
+      contentLoaded: 0,
+      needsAdvancedExtraction: true, // Default to advanced when basic fails
+      htmxComplexity: 'complex',
+      triggeredElements: 0,
+      confidence: 0
+    };
   }
 }

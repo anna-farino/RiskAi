@@ -29,6 +29,7 @@ export interface ScrapingResult {
   finalUrl?: string;
   requiresPuppeteer?: boolean;
   htmxLinks?: string[]; // Links extracted from HTMX content
+  htmxAssessment?: import('../scrapers/puppeteer-scraper/htmx-handler').HTMXAssessmentResult;
 }
 
 // Cookie jar for session persistence

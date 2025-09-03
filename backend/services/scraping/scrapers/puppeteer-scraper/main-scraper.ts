@@ -14,7 +14,7 @@ import {
 } from '../../core/protection-bypass';
 import { ScrapingResult } from '../http-scraper';
 import { isExternalValidationError } from './error-handler';
-import { handleHTMXContent } from './htmx-handler';
+import { handleHTMXContent, HTMXAssessmentResult } from './htmx-handler';
 import { handleDynamicContent } from './dynamic-handler';
 // Content extraction now handled inline
 
@@ -454,13 +454,14 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Dynamic loading needed - minimal content: ${hasMinimalContent} (${contentLength} chars), HTMX detected: ${htmxDetected}, preloader detected: ${preloaderDetected}`, "scraper");
       
       // Handle HTMX content loading ONLY if HTMX is actually detected
+      let htmxAssessment: HTMXAssessmentResult | null = null;
       let htmxLinks: string[] = [];
       if (options?.handleHTMX && htmxDetected) {
         log(`[PuppeteerScraper] HTMX detected on page, loading HTMX content`, "scraper");
-        const htmxResult = await handleHTMXContent(page, url);
-        if (htmxResult && typeof htmxResult === 'object' && htmxResult.links) {
-          htmxLinks = htmxResult.links;
-          log(`[PuppeteerScraper] HTMX extraction captured ${htmxLinks.length} links`, "scraper");
+        htmxAssessment = await handleHTMXContent(page, url);
+        if (htmxAssessment && htmxAssessment.links) {
+          htmxLinks = htmxAssessment.links;
+          log(`[PuppeteerScraper] HTMX extraction captured ${htmxLinks.length} links (complexity: ${htmxAssessment.htmxComplexity}, needsAdvanced: ${htmxAssessment.needsAdvancedExtraction})`, "scraper");
         }
       }
       
@@ -515,7 +516,8 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
           responseTime: Date.now() - startTime,
           statusCode,
           finalUrl: page.url(),
-          htmxLinks: htmxLinks.length > 0 ? htmxLinks : undefined
+          htmxLinks: htmxLinks.length > 0 ? htmxLinks : undefined,
+          htmxAssessment: htmxAssessment || undefined
         };
       } else {
         log(`[PuppeteerScraper] Dynamic content did not provide improvement (original: ${validation.linkCount} links, dynamic: ${dynamicValidation.linkCount} links)`, "scraper");
@@ -540,8 +542,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       method: 'puppeteer',
       responseTime: Date.now() - startTime,
       statusCode,
-      finalUrl: page.url(),
-      htmxLinks: htmxLinks.length > 0 ? htmxLinks : undefined
+      finalUrl: page.url()
     };
 
   } catch (error: any) {

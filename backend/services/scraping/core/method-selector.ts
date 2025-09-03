@@ -54,7 +54,7 @@ async function performWebFetch(url: string): Promise<string | null> {
  * 2. Web fetch fallback (enhanced native fetch)  
  * 3. Puppeteer for dynamic content sites
  */
-export async function getContent(url: string, isArticle: boolean = false): Promise<{ html: string, method: 'http' | 'puppeteer' }> {
+export async function getContent(url: string, isArticle: boolean = false): Promise<import('../scrapers/http-scraper').ScrapingResult> {
   // Try HTTP first
   const httpResult = await scrapeWithHTTP(url, { timeout: 12000 }); // Reduced to 12s
 
@@ -81,7 +81,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
         
         if (puppeteerResult.success) {
           log(`[SimpleScraper] Puppeteer dynamic content successful (${puppeteerResult.html.length} chars)`, "scraper");
-          return { html: puppeteerResult.html, method: 'puppeteer' };
+          return puppeteerResult;
         }
 
       } else if (needsDynamicLoading && hasSubstantialContent) {
@@ -92,7 +92,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
     if (httpResult.protectionDetected?.hasProtection) {
       log(`[SimpleScraper] Protection detected but HTTP content sufficient, proceeding with HTTP`, "scraper");
     }
-    return { html: httpResult.html, method: 'http' };
+    return httpResult;
   }
   
   // Try web_fetch as middle option before Puppeteer
@@ -103,7 +103,13 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
     
     if (webFetchResult && webFetchResult.length > 10000) {
       log(`[SimpleScraper] Web_fetch successful (${webFetchResult.length} chars)`, "scraper");
-      return { html: webFetchResult, method: 'http' }; // Mark as http since it's still HTTP-based
+      return {
+        html: webFetchResult,
+        success: true,
+        method: 'http',
+        responseTime: 0,
+        statusCode: 200
+      }; // Mark as http since it's still HTTP-based
     } else {
       log(`[SimpleScraper] Web_fetch insufficient content (${webFetchResult?.length || 0} chars)`, "scraper");
     }
@@ -128,7 +134,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
       
       if (puppeteerResult.success) {
         log(`[SimpleScraper] Puppeteer successful on attempt ${attempt} (${puppeteerResult.html.length} chars)`, "scraper");
-        return { html: puppeteerResult.html, method: 'puppeteer' };
+        return puppeteerResult;
       }
       
       // If Puppeteer didn't succeed but didn't throw, save the error
