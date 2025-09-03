@@ -307,10 +307,11 @@ export async function runUnifiedGlobalScraping(): Promise<{
   try {
     log(`[UNIFIED GLOBAL] Starting unified global scraping job`, "scraper");
 
-    // Get all sources from globalSources table
+    // Get only active sources from globalSources table
     const sources = await db
       .select()
       .from(globalSources)
+      .where(eq(globalSources.isActive, true))
       .orderBy(globalSources.name);
     
     log(`[UNIFIED GLOBAL] Found ${sources.length} global sources to scrape`, "scraper");
