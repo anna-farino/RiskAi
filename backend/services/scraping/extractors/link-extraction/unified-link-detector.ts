@@ -12,7 +12,7 @@ const openai = new OpenAI({
  */
 export async function identifyArticleLinks(
   linksText: string,
-  context?: { appType?: string },
+  context?: { appType?: string }
 ): Promise<string[]> {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -104,10 +104,7 @@ export async function identifyArticleLinks(
       });
 
       // Log information about the processing
-      log(
-        `[${appContext}] Extracted ${extractedLinks.length} total links`,
-        "openai",
-      );
+      log(`[${appContext}] Extracted ${extractedLinks.length} total links`, "openai");
       log(
         `[${appContext}] Found ${htmxLinks.length} potential HTMX links`,
         "openai",
