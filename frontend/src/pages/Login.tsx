@@ -152,7 +152,10 @@ export default function Login() {
           </motion.p>
           
           {/* Welcome Message */}
-          {searchParams.get("error_description") != "Please verify your email before logging in." && 
+          {(
+            searchParams.get("error_description") != "Please verify your email before logging in." && 
+            searchParams.get("email_ok") != "true"
+            ) &&
           <div className="flex items-center gap-2 xs:gap-3 mb-3 xs:mb-4">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
@@ -182,10 +185,53 @@ export default function Login() {
             </div>
           </div>
           }
+          {(
+            searchParams.get("email_ok") === "true"
+            ) &&
+          <div className="flex items-center gap-2 xs:gap-3 mb-3 xs:mb-4">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="text-[#00FFFF] flex-shrink-0"
+            >
+              <Sparkles size={20} className="xs:w-6 xs:h-6" />
+            </motion.div>
+            <div className="flex-1 text-center">
+              <motion.h3 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                className="text-lg xs:text-xl font-bold text-white mb-1"
+              >
+                  Email verified!
+              </motion.h3>
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                className="text-xs xs:text-sm text-gray-300"
+              >
+                  Click the button below to log in
+              </motion.p>
+            </div>
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="text-[#00FFFF] flex-shrink-0"
+            >
+              <Sparkles size={20} className="xs:w-6 xs:h-6" />
+            </motion.div>
+          </div>
+          }
         </div>
 
         {/* Feature Highlights */}
-        {searchParams.get("error_description") != "Please verify your email before logging in." && 
+        {(
+          searchParams.get("error_description") != "Please verify your email before logging in." &&
+          searchParams.get("email_ok") != "true"
+         ) &&
         <div className="mb-6 xs:mb-7 sm:mb-8 space-y-2 xs:space-y-3">
           <motion.div 
             initial={{ x: -20, opacity: 0 }}
