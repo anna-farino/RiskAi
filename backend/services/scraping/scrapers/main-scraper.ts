@@ -202,9 +202,10 @@ export class StreamlinedUnifiedScraper {
       // Step 3: Use advanced extraction when assessment indicates it's needed
       // Reintegrated with smart assessment to prevent redundant scraping
       if (needsAdvancedExtraction) { // Enabled with smart assessment
-        // Check if we already have sufficient HTMX content to avoid duplication
-        if (htmxAssessment && htmxAssessment.confidence > 70 && htmxAssessment.links.length >= 15) {
-          log(`[SimpleScraper] HTMX assessment shows good results (${htmxAssessment.links.length} links, ${htmxAssessment.confidence}% confidence) - skipping advanced extraction to prevent duplication`, "scraper");
+        // Only skip advanced extraction if assessment specifically says we DON'T need it
+        // The assessment's needsAdvancedExtraction flag is the authoritative decision
+        if (htmxAssessment && !htmxAssessment.needsAdvancedExtraction && htmxAssessment.confidence > 90 && htmxAssessment.links.length >= 25) {
+          log(`[SimpleScraper] HTMX assessment shows complete results (${htmxAssessment.links.length} links, ${htmxAssessment.confidence}% confidence, needsAdvanced: false) - skipping advanced extraction`, "scraper");
           return htmxAssessment.links;
         }
         
@@ -230,15 +231,12 @@ export class StreamlinedUnifiedScraper {
           });
           
           if (htmxDetected) {
-            // Check if we already have HTMX assessment - avoid reprocessing if we already loaded content
-            if (htmxAssessment && htmxAssessment.contentLoaded > 10000) {
-              log(`[SimpleScraper] HTMX content already loaded in previous step (${htmxAssessment.contentLoaded} chars) - skipping reload to prevent duplication`, "scraper");
-            } else {
-              log(`[SimpleScraper] HTMX detected on source page, loading HTMX content before extraction`, "scraper");
-              const { handleHTMXContent } = await import('../scrapers/puppeteer-scraper/htmx-handler');
-              await handleHTMXContent(page, url);
-              log(`[SimpleScraper] HTMX content loaded, proceeding with link extraction`, "scraper");
-            }
+            // Always perform advanced HTMX extraction when assessment indicates it's needed
+            // The initial HTMX loading is different from the advanced extraction process
+            log(`[SimpleScraper] HTMX detected on source page, performing advanced HTMX extraction`, "scraper");
+            const { handleHTMXContent } = await import('../scrapers/puppeteer-scraper/htmx-handler');
+            await handleHTMXContent(page, url);
+            log(`[SimpleScraper] Advanced HTMX processing completed, proceeding with sophisticated link extraction`, "scraper");
           }
           
           // Now extract links from the enriched DOM
