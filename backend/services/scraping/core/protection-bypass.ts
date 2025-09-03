@@ -5,6 +5,44 @@ import UserAgent from 'user-agents';
 import { createCursor } from 'ghost-cursor';
 import { safePageEvaluate } from '../scrapers/puppeteer-scraper/error-handler';
 
+// Global type declarations for bot detection evasion
+declare global {
+  interface Window {
+    chrome?: any;
+    datadome?: any;
+    turnstile?: any;
+    _datadome_started?: boolean;
+    Notification?: any;
+  }
+  
+  interface Navigator {
+    vendor?: string;
+    vendorSub?: string;
+    productSub?: string;
+    scheduling?: any;
+    userActivation?: UserActivation;
+    windowControlsOverlay?: any;
+    pdfViewerEnabled?: boolean;
+    webkitTemporaryStorage?: any;
+    webkitPersistentStorage?: any;
+    language?: string;
+    appCodeName?: string;
+    appName?: string;
+    cookieEnabled?: boolean;
+    onLine?: boolean;
+    product?: string;
+  }
+  
+  interface Document {
+    hasFocus?: () => boolean;
+  }
+  
+  interface Element {
+    focus?: () => void;
+    click?: () => void;
+  }
+}
+
 
 
 /**
@@ -1688,8 +1726,12 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
     
     // JavaScript environment patching - ENHANCED for NYTimes/WSJ/Bloomberg
     await page.evaluateOnNewDocument(() => {
-      // Delete telltale properties
-      delete navigator.__proto__.webdriver;
+      // Delete telltale properties (avoid __proto__ usage)
+      try {
+        delete (navigator as any).webdriver;
+      } catch (e) {
+        // Ignore deletion errors
+      }
       
       // Override webdriver detection with property descriptor
       Object.defineProperty(navigator, 'webdriver', {
@@ -1734,7 +1776,14 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
       const originalQuery = navigator.permissions.query;
       navigator.permissions.query = async (parameters) => {
         if (parameters.name === 'notifications') {
-          return Promise.resolve({ state: 'denied' });
+          return Promise.resolve({
+            state: 'denied',
+            name: 'notifications',
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => true
+          } as PermissionStatus);
         }
         return originalQuery(parameters);
       };
@@ -1800,7 +1849,9 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
               name: "Native Client"
             }
           ];
-          pluginArray.__proto__ = PluginArray.prototype;
+          
+          // Properly set prototype without using __proto__
+          Object.setPrototypeOf(pluginArray, PluginArray.prototype);
           return pluginArray;
         },
         configurable: true,
@@ -1855,6 +1906,184 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
       // Disable Notification API
       window.Notification = undefined;
       
+      // Basic navigator properties (missing from browserscan.net coverage)
+      Object.defineProperty(navigator, 'vendor', {
+        get: () => 'Google Inc.',
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'vendorSub', {
+        get: () => '',
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'productSub', {
+        get: () => '20030107',
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'product', {
+        get: () => 'Gecko',
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'appCodeName', {
+        get: () => 'Mozilla',
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'appName', {
+        get: () => 'Netscape',
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'cookieEnabled', {
+        get: () => true,
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'onLine', {
+        get: () => true,
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'doNotTrack', {
+        get: () => null,
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'language', {
+        get: () => 'en-US',
+        configurable: true,
+        enumerable: true
+      });
+
+      // Touch and input properties
+      Object.defineProperty(navigator, 'maxTouchPoints', {
+        get: () => 0, // Desktop profile
+        configurable: true,
+        enumerable: true
+      });
+
+      // Advanced navigator objects
+      Object.defineProperty(navigator, 'scheduling', {
+        get: () => ({
+          isInputPending: () => false,
+          toString: () => '[object Scheduling]'
+        }),
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'userActivation', {
+        get: () => ({
+          hasBeenActive: true,
+          isActive: false,
+          toString: () => '[object UserActivation]'
+        }),
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'geolocation', {
+        get: () => ({
+          getCurrentPosition: () => {},
+          watchPosition: () => {},
+          clearWatch: () => {},
+          toString: () => '[object Geolocation]'
+        }),
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'pdfViewerEnabled', {
+        get: () => true,
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'webkitTemporaryStorage', {
+        get: () => ({
+          queryUsageAndQuota: () => {},
+          toString: () => '[object DeprecatedStorageQuota]'
+        }),
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'webkitPersistentStorage', {
+        get: () => ({
+          queryUsageAndQuota: () => {},
+          requestQuota: () => {},
+          toString: () => '[object DeprecatedStorageQuota]'
+        }),
+        configurable: true,
+        enumerable: true
+      });
+
+      Object.defineProperty(navigator, 'windowControlsOverlay', {
+        get: () => ({
+          visible: false,
+          getTitlebarAreaRect: () => ({ x: 0, y: 0, width: 0, height: 0 }),
+          toString: () => '[object WindowControlsOverlay]'
+        }),
+        configurable: true,
+        enumerable: true
+      });
+
+      // Enhanced MIME types spoofing
+      Object.defineProperty(navigator, 'mimeTypes', {
+        get: () => {
+          const mimeTypesArray = [
+            {
+              type: 'application/pdf',
+              suffixes: 'pdf',
+              description: 'Portable Document Format',
+              enabledPlugin: navigator.plugins[0]
+            },
+            {
+              type: 'application/x-google-chrome-pdf',
+              suffixes: 'pdf',
+              description: 'Portable Document Format',
+              enabledPlugin: navigator.plugins[0]
+            },
+            {
+              type: 'application/x-nacl',
+              suffixes: '',
+              description: 'Native Client Executable',
+              enabledPlugin: navigator.plugins[2]
+            },
+            {
+              type: 'application/x-pnacl',
+              suffixes: '',
+              description: 'Portable Native Client Executable',
+              enabledPlugin: navigator.plugins[2]
+            }
+          ];
+          
+          // Properly implement MimeTypeArray prototype
+          Object.setPrototypeOf(mimeTypesArray, MimeTypeArray.prototype);
+          
+          // Add namedItem method
+          (mimeTypesArray as any).namedItem = function(name: string) {
+            return this.find((item: any) => item.type === name) || null;
+          };
+          
+          return mimeTypesArray;
+        },
+        configurable: true,
+        enumerable: true
+      });
+
       // Override connection info
       Object.defineProperty(navigator, 'connection', {
         get: () => ({
@@ -1866,6 +2095,83 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
         configurable: true,
         enumerable: true
       });
+    });
+    
+    // Add property consistency validation
+    await page.evaluateOnNewDocument(() => {
+      // Dynamic consistency checks for better detection evasion
+      const validateBrowserConsistency = () => {
+        try {
+          // Ensure userAgent matches navigator properties
+          const userAgent = navigator.userAgent;
+          const chromeVersionMatch = userAgent.match(/Chrome\/(\d+)/);
+          
+          if (chromeVersionMatch) {
+            const chromeVersion = chromeVersionMatch[1];
+            
+            // Update appVersion to match userAgent
+            const appVersionMatch = userAgent.match(/Mozilla\/5\.0 \(([^)]+)\) (.+)/);
+            if (appVersionMatch) {
+              Object.defineProperty(navigator, 'appVersion', {
+                get: () => `5.0 (${appVersionMatch[1]}) ${appVersionMatch[2]}`,
+                configurable: true,
+                enumerable: true
+              });
+            }
+            
+            // Ensure consistent touch capabilities based on platform
+            const isMobile = userAgent.includes('Mobile') || userAgent.includes('Android');
+            const currentMaxTouchPoints = navigator.maxTouchPoints;
+            const expectedTouchPoints = isMobile ? 5 : 0;
+            
+            if (currentMaxTouchPoints !== expectedTouchPoints) {
+              Object.defineProperty(navigator, 'maxTouchPoints', {
+                get: () => expectedTouchPoints,
+                configurable: true,
+                enumerable: true
+              });
+            }
+          }
+          
+          // Ensure platform consistency
+          const platformMatch = userAgent.match(/\(([^)]+)\)/);
+          if (platformMatch) {
+            const platformInfo = platformMatch[1];
+            let expectedPlatform = 'Win32';
+            
+            if (platformInfo.includes('Macintosh')) {
+              expectedPlatform = 'MacIntel';
+            } else if (platformInfo.includes('Linux') && !platformInfo.includes('Android')) {
+              expectedPlatform = 'Linux x86_64';
+            } else if (platformInfo.includes('Android')) {
+              expectedPlatform = 'Linux armv8l';
+            }
+            
+            Object.defineProperty(navigator, 'platform', {
+              get: () => expectedPlatform,
+              configurable: true,
+              enumerable: true
+            });
+          }
+          
+          // Ensure language consistency
+          if (navigator.language && navigator.languages && navigator.languages[0] !== navigator.language) {
+            Object.defineProperty(navigator, 'languages', {
+              get: () => [navigator.language, 'en'],
+              configurable: true,
+              enumerable: true
+            });
+          }
+          
+          return true;
+        } catch (error) {
+          console.warn('Browser consistency validation failed:', error);
+          return false;
+        }
+      };
+      
+      // Run validation after a short delay to ensure all properties are set
+      setTimeout(validateBrowserConsistency, 100);
     });
     
     log(`[ProtectionBypass] Enhanced fingerprinting applied successfully`, "scraper");
