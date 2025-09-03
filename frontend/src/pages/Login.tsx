@@ -154,7 +154,7 @@ export default function Login() {
           {/* Welcome Message */}
           {(
             searchParams.get("error_description") != "Please verify your email before logging in." && 
-            searchParams.get("email_ok") != "true"
+            !searchParams.get("message")?.includes("Your email was verified")
             ) &&
           <div className="flex items-center gap-2 xs:gap-3 mb-3 xs:mb-4">
             <motion.div 
@@ -186,8 +186,8 @@ export default function Login() {
           </div>
           }
           {(
-            searchParams.get("email_ok") === "true"
-            ) &&
+            searchParams.get("message")?.includes("Your email was verified")
+      ) &&
           <div className="flex items-center gap-2 xs:gap-3 mb-3 xs:mb-4">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
@@ -230,8 +230,8 @@ export default function Login() {
         {/* Feature Highlights */}
         {(
           searchParams.get("error_description") != "Please verify your email before logging in." &&
-          searchParams.get("email_ok") != "true"
-         ) &&
+          !searchParams.get("message")?.includes("Your email was verified")
+  ) &&
         <div className="mb-6 xs:mb-7 sm:mb-8 space-y-2 xs:space-y-3">
           <motion.div 
             initial={{ x: -20, opacity: 0 }}
