@@ -12,7 +12,7 @@ const openai = new OpenAI({
  */
 export async function identifyArticleLinks(
   linksText: string,
-  context?: { appType?: string }
+  context?: { appType?: string },
 ): Promise<string[]> {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -104,7 +104,10 @@ export async function identifyArticleLinks(
       });
 
       // Log information about the processing
-      log(`[${appContext}] Extracted ${extractedLinks.length} total links`, "openai");
+      log(
+        `[${appContext}] Extracted ${extractedLinks.length} total links`,
+        "openai",
+      );
       log(
         `[${appContext}] Found ${htmxLinks.length} potential HTMX links`,
         "openai",
@@ -168,9 +171,9 @@ export async function identifyArticleLinks(
       messages: [
         {
           role: "system",
-          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Look for:
+          content: `Analyze the list of links and identify URLs that are definitely news articles or blog posts. Be INCLUSIVE and preserve potential article content for downstream analysis. Look for:
             1. Article-style titles (descriptive)
-            2. URLs containing news-related patterns (/news/, /article/, /blog/, dates, years, CVE numbers)
+            2. URLs containing news-related patterns (/article/, /blog/, /news/, /post/, /story/, /analysis/, /report/, /research/, dates, technical IDs, or content slugs)
             3. Proper article context (not navigation/category pages)
 
             CRITICAL: Return URLs exactly as they appear in the input. Do not modify, shorten, or change any part of the URLs.
