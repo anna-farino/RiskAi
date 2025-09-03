@@ -1429,7 +1429,7 @@ export function createBrowserProfiles(): BrowserProfile[] {
   // Chrome Desktop Profile - TLS 1.3 Enhanced
   profiles.push({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    viewport: { width: 1920, height: 1080 },
+    viewport: { width: 1920, height: 1280 },
     // Chrome JA3 fingerprint for TLS 1.3 that works with CycleTLS
     ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513-41,29-23-24-25,0',
     headers: {
@@ -1606,7 +1606,7 @@ export async function performEnhancedHumanActions(page: Page): Promise<void> {
     // Get viewport dimensions
     const viewport = page.viewport();
     const maxX = viewport?.width || 1920;
-    const maxY = viewport?.height || 1080;
+    const maxY = viewport?.height || 1280;
     
     // Try to use ghost-cursor with proper error handling
     try {
