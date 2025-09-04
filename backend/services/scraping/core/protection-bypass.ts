@@ -146,19 +146,113 @@ export async function performCycleTLSRequest(
       // FIXED CYCLETLS IMPLEMENTATION - Correct parameter passing
       log(`[ProtectionBypass] Creating CycleTLS client`, "scraper");
       
-      // Create client with TLS options (no URL yet)
+      // Enhanced HTTP/2 and TLS fingerprinting options
+      const http2Settings = {
+        headerTableSize: 65536,
+        enablePush: false,
+        initialWindowSize: 6291456,
+        maxFrameSize: 16384,
+        maxConcurrentStreams: 1000,
+        maxHeaderListSize: 262144,
+        enableConnectProtocol: false
+      };
+      
+      // TLS extension order matching real Chrome
+      const tlsExtensionOrder = [
+        "grease",
+        "sni",
+        "extended_master_secret", 
+        "renegotiation_info",
+        "supported_groups",
+        "ec_point_formats",
+        "session_ticket",
+        "alpn",
+        "status_request",
+        "signature_algorithms",
+        "signed_cert_timestamp",
+        "key_share",
+        "psk_key_exchange_modes",
+        "supported_versions",
+        "compress_certificate",
+        "application_settings",
+        "grease",
+        "padding"
+      ];
+      
+      // Advanced TCP tuning parameters
+      const tcpOptions = {
+        tcpNoDelay: true, // Disable Nagle's algorithm like browsers
+        tcpKeepAliveInterval: 75000, // Chrome's keep-alive interval
+        tcpKeepAliveProbes: 9,
+        socketLinger: 0,
+        socketReuseAddress: true,
+        socketKeepAlive: true,
+        socketTimeout: 300000, // 5 minutes like Chrome
+        ipTTL: 64, // Common default TTL
+        ipTypeOfService: 0x00
+      };
+      
+      // Certificate validation behavior matching Chrome
+      const certOptions = {
+        certVerifyProc: "default",
+        certTransparencyCompliance: "enforce",
+        enableOCSPStapling: true,
+        enableCertificateTransparency: true,
+        checkCertificateRevocation: true,
+        requireValidCertificates: true,
+        pinnedCertificates: [], // No pinning by default
+        minTLSVersion: "TLS1.2",
+        maxTLSVersion: "TLS1.3"
+      };
+      
+      // Create client with enhanced TLS and HTTP/2 options
       const client = await cycletls({
         ja3: profile.ja3,
         userAgent: profile.userAgent,
         timeout: timeout || 30000,
+        http2Settings: http2Settings,
+        tlsExtensionOrder: tlsExtensionOrder.join(","),
+        windowSize: 15663105, // Chrome's default TCP window size
+        connectionFlow: 15663105,
+        priorityFrames: true,
+        headerPriority: {
+          weight: 256,
+          streamDep: 0,
+          exclusive: true
+        },
+        disableHttp2: false,
+        disableRedirect: false,
+        // Add TCP tuning options
+        ...tcpOptions,
+        // Add certificate validation options
+        ...certOptions,
+        // Additional Chrome-like behavior
+        forceHttp1: false,
+        disableCompression: false,
+        customTLSClient: "chrome_120", // Use Chrome 120 TLS stack
+        proxyUrl: "", // No proxy by default
+        cookies: cookies || [],
+        referer: headers?.Referer || headers?.referer || ""
       });
       
-      log(`[ProtectionBypass] CycleTLS client created, has methods: ${Object.keys(client)}`, "scraper");
+      log(`[ProtectionBypass] CycleTLS client created with HTTP/2 fingerprinting`, "scraper");
       
-      // Prepare request options with headers and body
+      // Enhanced request options with realistic browser behavior
       const requestOptions = {
-        headers: consistentHeaders,
-        body: body
+        headers: {
+          ...consistentHeaders,
+          // HTTP/2 pseudo-headers that browsers send
+          ':authority': new URL(url).host,
+          ':method': method.toUpperCase(),
+          ':path': new URL(url).pathname + new URL(url).search,
+          ':scheme': new URL(url).protocol.slice(0, -1)
+        },
+        body: body,
+        // Certificate validation like real Chrome
+        insecureSkipVerify: false,
+        // Follow redirects like browsers
+        followRedirect: true,
+        maxRedirects: 10
       };
       
       log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
@@ -2052,6 +2146,171 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
         configurable: true,
         enumerable: true
       });
+      
+      // ADVANCED CANVAS FINGERPRINT SPOOFING
+      // Override canvas methods to add noise to fingerprinting
+      const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+      const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+      const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+      
+      // Random noise generator for canvas operations
+      const getCanvasNoise = () => {
+        return Math.random() * 0.0001; // Very subtle noise that won't break rendering
+      };
+      
+      HTMLCanvasElement.prototype.toDataURL = function(...args: any[]) {
+        const context = this.getContext('2d');
+        if (context) {
+          const imageData = context.getImageData(0, 0, this.width, this.height);
+          // Add subtle noise to random pixels
+          for (let i = 0; i < imageData.data.length; i += Math.floor(Math.random() * 100) + 50) {
+            imageData.data[i] = Math.min(255, imageData.data[i] + Math.floor(getCanvasNoise() * 10));
+          }
+          context.putImageData(imageData, 0, 0);
+        }
+        return originalToDataURL.apply(this, args);
+      };
+      
+      HTMLCanvasElement.prototype.toBlob = function(callback: any, ...args: any[]) {
+        const context = this.getContext('2d');
+        if (context) {
+          const imageData = context.getImageData(0, 0, this.width, this.height);
+          // Add different noise pattern for toBlob
+          for (let i = 0; i < imageData.data.length; i += Math.floor(Math.random() * 150) + 100) {
+            imageData.data[i] = Math.min(255, imageData.data[i] + Math.floor(getCanvasNoise() * 5));
+          }
+          context.putImageData(imageData, 0, 0);
+        }
+        return originalToBlob.call(this, callback, ...args);
+      };
+      
+      CanvasRenderingContext2D.prototype.getImageData = function(...args: any[]) {
+        const imageData = originalGetImageData.apply(this, args);
+        // Add imperceptible noise to image data
+        for (let i = 0; i < imageData.data.length; i += Math.floor(Math.random() * 200) + 200) {
+          imageData.data[i] = Math.min(255, Math.max(0, imageData.data[i] + Math.floor((Math.random() - 0.5) * 2)));
+        }
+        return imageData;
+      };
+      
+      // WEBGL FINGERPRINT SPOOFING
+      const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter: number) {
+        // Spoof common WebGL parameters
+        if (parameter === 37445) { // UNMASKED_VENDOR_WEBGL
+          const vendors = ['Intel Inc.', 'NVIDIA Corporation', 'ATI Technologies Inc.', 'Qualcomm'];
+          return vendors[Math.floor(Math.random() * vendors.length)];
+        }
+        if (parameter === 37446) { // UNMASKED_RENDERER_WEBGL
+          const renderers = [
+            'Intel HD Graphics 620',
+            'NVIDIA GeForce GTX 1060',
+            'AMD Radeon RX 580',
+            'Intel Iris Plus Graphics 640'
+          ];
+          return renderers[Math.floor(Math.random() * renderers.length)];
+        }
+        if (parameter === 34921 || parameter === 34930) { // MAX_TEXTURE_SIZE, MAX_RENDERBUFFER_SIZE
+          return 16384 + Math.floor(Math.random() * 2) * 8192;
+        }
+        return originalGetParameter.call(this, parameter);
+      };
+      
+      // AUDIO CONTEXT FINGERPRINT SPOOFING
+      if (typeof AudioContext !== 'undefined') {
+        const originalCreateOscillator = AudioContext.prototype.createOscillator;
+        const originalCreateDynamicsCompressor = AudioContext.prototype.createDynamicsCompressor;
+        
+        AudioContext.prototype.createOscillator = function() {
+          const oscillator = originalCreateOscillator.call(this);
+          // Add subtle frequency variation
+          const originalSetValueAtTime = oscillator.frequency.setValueAtTime;
+          oscillator.frequency.setValueAtTime = function(value: number, time: number) {
+            const variation = 1 + (Math.random() - 0.5) * 0.0001; // ±0.005% variation
+            return originalSetValueAtTime.call(this, value * variation, time);
+          };
+          return oscillator;
+        };
+        
+        AudioContext.prototype.createDynamicsCompressor = function() {
+          const compressor = originalCreateDynamicsCompressor.call(this);
+          // Slightly vary compressor characteristics
+          const properties = ['threshold', 'knee', 'ratio', 'attack', 'release'];
+          properties.forEach(prop => {
+            if (compressor[prop] && compressor[prop].value !== undefined) {
+              const original = compressor[prop].value;
+              compressor[prop].value = original * (1 + (Math.random() - 0.5) * 0.001);
+            }
+          });
+          return compressor;
+        };
+      }
+      
+      // FONT FINGERPRINT SPOOFING
+      const originalGetComputedStyle = window.getComputedStyle;
+      window.getComputedStyle = function(...args: any[]) {
+        const result = originalGetComputedStyle.apply(this, args);
+        // Randomize font metrics slightly
+        const originalGetPropertyValue = result.getPropertyValue;
+        result.getPropertyValue = function(prop: string) {
+          const value = originalGetPropertyValue.call(this, prop);
+          if (prop === 'font-family') {
+            // Randomly shuffle the font stack order
+            const fonts = value.split(',').map(f => f.trim());
+            if (fonts.length > 1 && Math.random() > 0.7) {
+              [fonts[0], fonts[1]] = [fonts[1], fonts[0]];
+              return fonts.join(', ');
+            }
+          }
+          return value;
+        };
+        return result;
+      };
+      
+      // BATTERY API SPOOFING
+      if ('getBattery' in navigator) {
+        const originalGetBattery = navigator.getBattery;
+        navigator.getBattery = function() {
+          return originalGetBattery.call(this).then((battery: any) => {
+            // Create a proxy to intercept battery properties
+            return new Proxy(battery, {
+              get: function(target, prop) {
+                if (prop === 'level') {
+                  // Random battery level between 0.5 and 1.0
+                  return 0.5 + Math.random() * 0.5;
+                }
+                if (prop === 'charging') {
+                  // Randomly report charging status
+                  return Math.random() > 0.3;
+                }
+                if (prop === 'chargingTime') {
+                  // Random charging time or infinity
+                  return Math.random() > 0.5 ? Infinity : Math.floor(Math.random() * 7200);
+                }
+                if (prop === 'dischargingTime') {
+                  // Random discharging time
+                  return Math.floor(Math.random() * 14400) + 3600;
+                }
+                return target[prop];
+              }
+            });
+          });
+        };
+      }
+      
+      // TIMEZONE FINGERPRINT SPOOFING
+      const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
+      Date.prototype.getTimezoneOffset = function() {
+        const realOffset = originalGetTimezoneOffset.call(this);
+        // Common timezones to rotate through (in minutes)
+        const commonOffsets = [-480, -420, -360, -300, -240, -180, -120, 0, 60, 120, 180, 240];
+        const sessionOffset = commonOffsets[Math.floor(Math.random() * commonOffsets.length)];
+        // Use session-consistent offset
+        if (!(window as any).__timezoneOffset) {
+          (window as any).__timezoneOffset = sessionOffset;
+        }
+        return (window as any).__timezoneOffset;
+      };
       
       // Override automation detection with full Chrome object
       window.chrome = {
