@@ -67,7 +67,30 @@ Consider cybersecurity-related if it mentions:
       temperature: 0.3
     });
 
-    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    const responseContent = completion.choices[0].message.content;
+    
+    if (!responseContent || responseContent.trim() === '') {
+      console.error('Empty response from OpenAI API in analyzeCybersecurity');
+      return {
+        isCybersecurity: false,
+        confidence: 0,
+        categories: []
+      };
+    }
+
+    let result;
+    try {
+      result = JSON.parse(responseContent);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response from OpenAI:', parseError);
+      console.error('Response content:', responseContent);
+      return {
+        isCybersecurity: false,
+        confidence: 0,
+        categories: []
+      };
+    }
+    
     return {
       isCybersecurity: result.isCybersecurity || false,
       confidence: result.confidence || 0,
@@ -139,7 +162,37 @@ Respond in JSON format:
       temperature: 0.3
     });
 
-    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    const responseContent = completion.choices[0].message.content;
+    
+    if (!responseContent || responseContent.trim() === '') {
+      console.error('Empty response from OpenAI API in calculateSecurityRisk');
+      return {
+        score: 0,
+        severity: 'low' as const,
+        categories: {
+          exploitability: 0,
+          impact: 0,
+          scope: 0
+        }
+      };
+    }
+
+    let result;
+    try {
+      result = JSON.parse(responseContent);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response from OpenAI:', parseError);
+      console.error('Response content:', responseContent);
+      return {
+        score: 0,
+        severity: 'low' as const,
+        categories: {
+          exploitability: 0,
+          impact: 0,
+          scope: 0
+        }
+      };
+    }
     
     // Calculate severity based on score
     let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
