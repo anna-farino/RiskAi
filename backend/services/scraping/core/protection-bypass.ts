@@ -45,20 +45,141 @@ declare global {
 
 
 
+// Global session state for continuity across request phases
+interface SessionState {
+  cookies: string[];
+  browserProfile: BrowserProfile;
+  lastRequestTime: number;
+  sessionId: string;
+}
+
+const globalSessions = new Map<string, SessionState>();
+
 /**
- * Performs an optimized HTTP request with natural browser-like headers
- * Replaces the old CycleTLS approach with a single, clean strategy
+ * ENHANCED TLS-PROTECTED HTTP REQUEST with session continuity
+ * Critical fix: Apply TLS fingerprinting from FIRST network request
  */
 export async function performCycleTLSRequest(
   url: string,
   options: {
     method?: 'GET' | 'HEAD' | 'POST';
-    tlsVersion?: 'chrome_122' | 'chrome_121' | 'chrome_120'; // Keep for backward compatibility but ignored
+    tlsVersion?: 'chrome_122' | 'chrome_121' | 'chrome_120';
     headers?: Record<string, string>;
     body?: string;
     timeout?: number;
     cookies?: string[];
+    sessionId?: string;
   } = {}
+): Promise<{
+  success: boolean;
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+  cookies?: string[];
+  error?: string;
+}> {
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    timeout = 30000,
+    cookies = [],
+    sessionId = 'default'
+  } = options;
+
+  try {
+    // CRITICAL FIX 1: Apply browser profile and TLS fingerprinting immediately
+    let session = globalSessions.get(sessionId);
+    if (!session) {
+      session = {
+        cookies: [],
+        browserProfile: getRandomBrowserProfile(),
+        lastRequestTime: 0,
+        sessionId
+      };
+      globalSessions.set(sessionId, session);
+    }
+
+    // CRITICAL FIX 2: Human-like request timing (prevent robotic patterns)
+    const now = Date.now();
+    const timeSinceLastRequest = now - session.lastRequestTime;
+    const minimumDelay = 1000 + Math.random() * 2000; // 1-3 second delay
+    
+    if (timeSinceLastRequest < minimumDelay) {
+      const waitTime = minimumDelay - timeSinceLastRequest;
+      log(`[ProtectionBypass] Human timing delay: ${waitTime}ms`, "scraper");
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    session.lastRequestTime = Date.now();
+
+    // CRITICAL FIX 3: Use real CycleTLS with proper fingerprinting
+    const cycletls = require('cycletls');
+    const profile = session.browserProfile;
+    
+    log(`[ProtectionBypass] Using TLS-protected request with ${profile.deviceType} profile`, "scraper");
+    
+    // CRITICAL FIX 4: Consistent headers across all request types
+    const consistentHeaders = {
+      ...profile.headers,
+      ...headers
+    };
+
+    // Merge session cookies with provided cookies
+    const allCookies = [...session.cookies, ...cookies];
+    if (allCookies.length > 0) {
+      consistentHeaders['Cookie'] = allCookies.join('; ');
+    }
+
+    // CRITICAL FIX 5: Add referer for navigation simulation
+    const urlObj = new URL(url);
+    if (!consistentHeaders['Referer'] && session.lastRequestTime > 0) {
+      consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
+    }
+
+    const response = await cycletls(url, {
+      method,
+      headers: consistentHeaders,
+      body,
+      timeout,
+      ja3: profile.ja3,
+      userAgent: profile.userAgent,
+      // Add proxy support for IP rotation if needed
+      proxy: options.sessionId?.includes('proxy') ? undefined : undefined,
+    });
+
+    // Update session with response cookies
+    if (response.headers && response.headers['set-cookie']) {
+      const newCookies = Array.isArray(response.headers['set-cookie']) 
+        ? response.headers['set-cookie']
+        : [response.headers['set-cookie']];
+      session.cookies.push(...newCookies);
+    }
+
+    log(`[ProtectionBypass] TLS request completed: ${response.status}`, "scraper");
+    
+    return {
+      success: response.status >= 200 && response.status < 400,
+      status: response.status || 0,
+      headers: response.headers || {},
+      body: response.body || '',
+      cookies: session.cookies
+    };
+
+  } catch (error: any) {
+    log(`[ProtectionBypass] TLS request failed: ${error.message}`, "scraper-error");
+    
+    // Fallback to enhanced fetch if CycleTLS fails
+    return await performFallbackRequest(url, options);
+  }
+}
+
+/**
+ * Fallback enhanced fetch request with anti-detection
+ */
+async function performFallbackRequest(
+  url: string,
+  options: any
 ): Promise<{
   success: boolean;
   status: number;
@@ -76,29 +197,15 @@ export async function performCycleTLSRequest(
   } = options;
 
   try {
-    log(`[ProtectionBypass] Using optimized fetch request with natural browser headers`, "scraper");
+    log(`[ProtectionBypass] Using fallback enhanced fetch request`, "scraper");
     
-    // Enhanced browser-like headers matching successful web_fetch patterns
+    // Use consistent browser profile
+    const profile = getRandomBrowserProfile();
     const requestHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br, zstd',
-      'Cache-Control': 'max-age=0',
-      'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-      'Sec-Ch-Ua-Mobile': '?0',
-      'Sec-Ch-Ua-Platform': '"Windows"',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1',
-      'Connection': 'keep-alive',
-      'DNT': '1',
+      ...profile.headers,
       ...headers
     };
 
-    // Add cookies if provided
     if (cookies.length > 0) {
       requestHeaders['Cookie'] = cookies.join('; ');
     }
@@ -106,47 +213,37 @@ export async function performCycleTLSRequest(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: requestHeaders,
-        body,
-        signal: controller.signal,
-        redirect: 'follow'
-      });
-      
-      clearTimeout(timeoutId);
-      
-      const responseBody = await response.text();
-      const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-      
-      // Extract cookies from response headers
-      const responseCookies: string[] = [];
-      const setCookieHeader = response.headers.get('set-cookie');
-      if (setCookieHeader) {
-        responseCookies.push(setCookieHeader);
-      }
-      
-      log(`[ProtectionBypass] Request completed: ${response.status}`, "scraper");
-      
-      return {
-        success: response.ok,
-        status: response.status,
-        headers: responseHeaders,
-        body: responseBody,
-        cookies: responseCookies
-      };
-      
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      throw fetchError;
+    const response = await fetch(url, {
+      method,
+      headers: requestHeaders,
+      body,
+      signal: controller.signal,
+      redirect: 'follow'
+    });
+    
+    clearTimeout(timeoutId);
+    
+    const responseBody = await response.text();
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+    
+    const responseCookies: string[] = [];
+    const setCookieHeader = response.headers.get('set-cookie');
+    if (setCookieHeader) {
+      responseCookies.push(setCookieHeader);
     }
     
+    return {
+      success: response.ok,
+      status: response.status,
+      headers: responseHeaders,
+      body: responseBody,
+      cookies: responseCookies
+    };
+    
   } catch (error: any) {
-    log(`[ProtectionBypass] Request failed: ${error.message}`, "scraper-error");
     return {
       success: false,
       status: 0,
@@ -158,8 +255,55 @@ export async function performCycleTLSRequest(
 }
 
 /**
- * Performs a streamlined pre-flight check to detect protection
- * Reduced from 2 requests to 1 for efficiency
+ * ENHANCED SESSION WARMING with navigation simulation
+ * Critical fix: Establish legitimate session before scraping
+ */
+async function warmupSession(url: string, sessionId: string): Promise<void> {
+  try {
+    const urlObj = new URL(url);
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+    
+    log(`[ProtectionBypass] Starting session warmup for ${baseUrl}`, "scraper");
+    
+    // Step 1: Visit homepage (common human behavior)
+    const homepageResponse = await performCycleTLSRequest(baseUrl, {
+      method: 'GET',
+      sessionId,
+      timeout: 10000
+    });
+    
+    if (homepageResponse.success) {
+      log(`[ProtectionBypass] Homepage visit successful (${homepageResponse.status})`, "scraper");
+      
+      // Step 2: Brief human-like delay
+      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+      
+      // Step 3: Simulate robots.txt check (normal browser behavior)
+      await performCycleTLSRequest(`${baseUrl}/robots.txt`, {
+        method: 'GET',
+        sessionId,
+        timeout: 5000,
+        headers: {
+          'Referer': baseUrl,
+          'Sec-Fetch-Dest': 'empty',
+          'Sec-Fetch-Mode': 'cors',
+          'Sec-Fetch-Site': 'same-origin'
+        }
+      });
+      
+      // Step 4: Another human delay
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+    }
+    
+    log(`[ProtectionBypass] Session warmup completed`, "scraper");
+  } catch (error: any) {
+    log(`[ProtectionBypass] Session warmup failed: ${error.message}`, "scraper");
+  }
+}
+
+/**
+ * ENHANCED PRE-FLIGHT CHECK with session warming
+ * Critical fix: Establish session before detection attempt
  */
 export async function performPreflightCheck(url: string): Promise<{
   protectionDetected: boolean;
@@ -168,12 +312,27 @@ export async function performPreflightCheck(url: string): Promise<{
   cookies?: string[];
   headers?: Record<string, string>;
 }> {
-  log(`[ProtectionBypass] Performing streamlined pre-flight check for ${url}`, "scraper");
+  log(`[ProtectionBypass] Performing enhanced pre-flight check with session warming for ${url}`, "scraper");
 
-  // Single optimized GET request (more informative than HEAD)
+  // Generate unique session ID for this scraping attempt
+  const sessionId = `preflight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // CRITICAL FIX: Warm up session before main request
+  await warmupSession(url, sessionId);
+  
+  // Enhanced GET request with warmed session
   const response = await performCycleTLSRequest(url, {
     method: 'GET',
-    timeout: 15000
+    sessionId,
+    timeout: 15000,
+    headers: {
+      // Add referer to simulate natural navigation
+      'Referer': new URL(url).origin + '/',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-User': '?1'
+    }
   });
 
   // Check for protection indicators
@@ -1586,6 +1745,28 @@ export function getRandomBrowserProfile(): BrowserProfile {
   const profiles = createBrowserProfiles();
   const randomIndex = Math.floor(Math.random() * profiles.length);
   return profiles[randomIndex];
+}
+
+/**
+ * Get or create consistent session for URL
+ * Ensures same session used across HTTP and Puppeteer phases
+ */
+export function getSessionForUrl(url: string): SessionState {
+  const urlObj = new URL(url);
+  const sessionKey = `${urlObj.host}_${Date.now()}`;
+  
+  let session = globalSessions.get(sessionKey);
+  if (!session) {
+    session = {
+      cookies: [],
+      browserProfile: getRandomBrowserProfile(),
+      lastRequestTime: 0,
+      sessionId: sessionKey
+    };
+    globalSessions.set(sessionKey, session);
+  }
+  
+  return session;
 }
 
 /**
