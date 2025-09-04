@@ -143,49 +143,54 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // FIXED: Correct CycleTLS v1.0.27 API - create client first, then make request
-      const client = cycletls({
+      // FINAL FIX: Correct CycleTLS v1.0.27 API - direct method call
+      log(`[ProtectionBypass] Making CycleTLS ${method.toLowerCase()} request`, "scraper");
+      
+      // Debug: Check what cycletls() with options returns
+      const clientTest = cycletls({
         ja3: profile.ja3,
         userAgent: profile.userAgent,
         timeout,
       });
       
-      log(`[ProtectionBypass] CycleTLS client created, making ${method.toLowerCase()} request`, "scraper");
+      log(`[ProtectionBypass] Client type: ${typeof clientTest}, keys: ${Object.keys(clientTest)}`, "scraper");
       
-      // FIXED: Call HTTP method with URL and options together
-      const requestOptions = {
-        url: url,
+      // CORRECT API: Direct request with full options
+      const fullOptions = {
+        ja3: profile.ja3,
+        userAgent: profile.userAgent,
+        timeout,
         headers: consistentHeaders,
         body,
       };
       
+      log(`[ProtectionBypass] Making direct CycleTLS request to ${url}`, "scraper");
+      
+      // Use the correct CycleTLS API pattern
       switch (method.toLowerCase()) {
         case 'get':
-          response = await client.get(requestOptions);
+          response = await cycletls(url, fullOptions);
           break;
         case 'post':
-          response = await client.post(requestOptions);
+          response = await cycletls(url, { method: 'POST', ...fullOptions });
           break;
         case 'head':
-          response = await client.head(requestOptions);
+          response = await cycletls(url, { method: 'HEAD', ...fullOptions });
           break;
         case 'put':
-          response = await client.put(requestOptions);
+          response = await cycletls(url, { method: 'PUT', ...fullOptions });
           break;
         case 'delete':
-          response = await client.delete(requestOptions);
+          response = await cycletls(url, { method: 'DELETE', ...fullOptions });
           break;
         case 'patch':
-          response = await client.patch(requestOptions);
+          response = await cycletls(url, { method: 'PATCH', ...fullOptions });
           break;
         default:
           throw new Error(`Unsupported HTTP method: ${method}`);
       }
       
-      // Ensure client cleanup
-      if (client.exit) {
-        await client.exit();
-      }
+      // No client cleanup needed for direct API calls
       
       log(`[ProtectionBypass] CycleTLS request completed: ${response?.status || 'no status'}`, "scraper");
       
