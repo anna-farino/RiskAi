@@ -113,8 +113,7 @@ export async function performCycleTLSRequest(
     
     session.lastRequestTime = Date.now();
 
-    // CRITICAL FIX 3: Use real CycleTLS with proper fingerprinting
-    const cycletls = require('cycletls');
+    // CRITICAL FIX 3: Use real CycleTLS with proper fingerprinting and error handling
     const profile = session.browserProfile;
     
     log(`[ProtectionBypass] Using TLS-protected request with ${profile.deviceType} profile`, "scraper");
@@ -137,16 +136,47 @@ export async function performCycleTLSRequest(
       consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
     }
 
-    const response = await cycletls(url, {
-      method,
-      headers: consistentHeaders,
-      body,
-      timeout,
-      ja3: profile.ja3,
-      userAgent: profile.userAgent,
-      // Add proxy support for IP rotation if needed
-      proxy: options.sessionId?.includes('proxy') ? undefined : undefined,
-    });
+    // Try CycleTLS with proper error handling
+    let response: any;
+    try {
+      const cycletls = require('cycletls');
+      
+      // Use correct CycleTLS API
+      if (typeof cycletls === 'function') {
+        response = await cycletls(url, {
+          method,
+          headers: consistentHeaders,
+          body,
+          timeout,
+          ja3: profile.ja3,
+          userAgent: profile.userAgent,
+        });
+      } else if (cycletls.request) {
+        response = await cycletls.request(url, {
+          method,
+          headers: consistentHeaders,
+          body,
+          timeout,
+          ja3: profile.ja3,
+          userAgent: profile.userAgent,
+        });
+      } else {
+        throw new Error('CycleTLS API not available');
+      }
+      
+      // Validate response structure
+      if (!response || typeof response.status === 'undefined') {
+        throw new Error('Invalid CycleTLS response structure');
+      }
+      
+    } catch (cycleTLSError: any) {
+      log(`[ProtectionBypass] CycleTLS failed: ${cycleTLSError.message}, falling back to enhanced fetch`, "scraper");
+      return await performFallbackRequest(url, {
+        ...options,
+        sessionId,
+        headers: consistentHeaders
+      });
+    }
 
     // Update session with response cookies
     if (response.headers && response.headers['set-cookie']) {
@@ -175,7 +205,8 @@ export async function performCycleTLSRequest(
 }
 
 /**
- * Fallback enhanced fetch request with anti-detection
+ * Enhanced fallback fetch request with session continuity
+ * FIXED: Now uses consistent session data instead of random profiles
  */
 async function performFallbackRequest(
   url: string,
@@ -193,22 +224,47 @@ async function performFallbackRequest(
     headers = {},
     body,
     timeout = 30000,
-    cookies = []
+    cookies = [],
+    sessionId = 'default'
   } = options;
 
   try {
-    log(`[ProtectionBypass] Using fallback enhanced fetch request`, "scraper");
+    log(`[ProtectionBypass] Using enhanced fallback fetch with session continuity`, "scraper");
     
-    // Use consistent browser profile
-    const profile = getRandomBrowserProfile();
+    // FIXED: Use existing session instead of creating new profile
+    let session = globalSessions.get(sessionId);
+    if (!session) {
+      session = {
+        cookies: [],
+        browserProfile: getRandomBrowserProfile(),
+        lastRequestTime: 0,
+        sessionId
+      };
+      globalSessions.set(sessionId, session);
+    }
+
+    // Consistent headers from session profile
     const requestHeaders = {
-      ...profile.headers,
+      ...session.browserProfile.headers,
       ...headers
     };
 
-    if (cookies.length > 0) {
-      requestHeaders['Cookie'] = cookies.join('; ');
+    // Merge all cookies from session and options
+    const allCookies = [...session.cookies, ...cookies];
+    if (allCookies.length > 0) {
+      requestHeaders['Cookie'] = allCookies.join('; ');
     }
+
+    // Human-like timing for fallback requests too
+    const now = Date.now();
+    const timeSinceLastRequest = now - session.lastRequestTime;
+    const minimumDelay = 500 + Math.random() * 1000; // Shorter delay for fallback
+    
+    if (timeSinceLastRequest < minimumDelay) {
+      const waitTime = minimumDelay - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    session.lastRequestTime = Date.now();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -229,21 +285,26 @@ async function performFallbackRequest(
       responseHeaders[key] = value;
     });
     
+    // Update session with new cookies
     const responseCookies: string[] = [];
     const setCookieHeader = response.headers.get('set-cookie');
     if (setCookieHeader) {
       responseCookies.push(setCookieHeader);
+      session.cookies.push(setCookieHeader);
     }
+    
+    log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
     
     return {
       success: response.ok,
       status: response.status,
       headers: responseHeaders,
       body: responseBody,
-      cookies: responseCookies
+      cookies: session.cookies
     };
     
   } catch (error: any) {
+    log(`[ProtectionBypass] Fallback fetch failed: ${error.message}`, "scraper-error");
     return {
       success: false,
       status: 0,
