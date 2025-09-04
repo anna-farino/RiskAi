@@ -1488,13 +1488,12 @@ export function createBrowserProfiles(): BrowserProfile[] {
     deviceType: 'desktop'
   });
 
-  // Firefox Desktop Profile - TLS 1.3 Enhanced
+  // Firefox Desktop Profile - TLS 1.3 Enhanced  
   profiles.push({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
     viewport: { width: 1366, height: 768 },
-    // TLS 1.3 JA3 fingerprint for Firefox with TLS 1.3 cipher suites
-    // Firefox JA3 fingerprint for TLS 1.3 that works with CycleTLS
-    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21-41,29-23-24-25,0',
+    // REAL Firefox 122 JA3 fingerprint - unique from Chrome/Safari
+    ja3: '771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-51-57-47-53,0-23-65281-10-11-35-16-5-51-43-13-45-28-21,29-23-24-25-256-257,0',
     headers: {
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.5',
@@ -1513,8 +1512,8 @@ export function createBrowserProfiles(): BrowserProfile[] {
   profiles.push({
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
     viewport: { width: 375, height: 812 },
-    // Safari JA3 fingerprint for TLS 1.3 that works with CycleTLS
-    ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21-41,29-23-24-25,0',
+    // REAL Safari iOS 17.2 JA3 fingerprint - unique Safari signature
+    ja3: '771,4865-4867-4866-49196-49195-52393-49200-49199-52392-49162-49161-49172-49171-157-156-61-60-53-47,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21,29-23-24-25,0',
     headers: {
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
