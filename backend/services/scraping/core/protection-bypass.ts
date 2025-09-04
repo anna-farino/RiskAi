@@ -2218,32 +2218,35 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
       
       // AUDIO CONTEXT FINGERPRINT SPOOFING
       if (typeof AudioContext !== 'undefined') {
-        const originalCreateOscillator = AudioContext.prototype.createOscillator;
-        const originalCreateDynamicsCompressor = AudioContext.prototype.createDynamicsCompressor;
-        
-        AudioContext.prototype.createOscillator = function() {
-          const oscillator = originalCreateOscillator.call(this);
-          // Add subtle frequency variation
-          const originalSetValueAtTime = oscillator.frequency.setValueAtTime;
-          oscillator.frequency.setValueAtTime = function(value: number, time: number) {
-            const variation = 1 + (Math.random() - 0.5) * 0.0001; // ±0.005% variation
-            return originalSetValueAtTime.call(this, value * variation, time);
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const originalCreateOscillator = AudioContextClass.prototype.createOscillator;
+          const originalCreateDynamicsCompressor = AudioContextClass.prototype.createDynamicsCompressor;
+          
+          AudioContextClass.prototype.createOscillator = function() {
+            const oscillator = originalCreateOscillator.call(this);
+            // Add subtle frequency variation
+            const originalSetValueAtTime = oscillator.frequency.setValueAtTime;
+            oscillator.frequency.setValueAtTime = function(value: number, time: number) {
+              const variation = 1 + (Math.random() - 0.5) * 0.0001; // ±0.005% variation
+              return originalSetValueAtTime.call(this, value * variation, time);
+            };
+            return oscillator;
           };
-          return oscillator;
-        };
-        
-        AudioContext.prototype.createDynamicsCompressor = function() {
-          const compressor = originalCreateDynamicsCompressor.call(this);
-          // Slightly vary compressor characteristics
-          const properties = ['threshold', 'knee', 'ratio', 'attack', 'release'];
-          properties.forEach(prop => {
-            if (compressor[prop] && compressor[prop].value !== undefined) {
-              const original = compressor[prop].value;
-              compressor[prop].value = original * (1 + (Math.random() - 0.5) * 0.001);
-            }
-          });
-          return compressor;
-        };
+          
+          AudioContextClass.prototype.createDynamicsCompressor = function() {
+            const compressor = originalCreateDynamicsCompressor.call(this);
+            // Slightly vary compressor characteristics
+            const properties = ['threshold', 'knee', 'ratio', 'attack', 'release'];
+            properties.forEach(prop => {
+              if (compressor[prop] && compressor[prop].value !== undefined) {
+                const original = compressor[prop].value;
+                compressor[prop].value = original * (1 + (Math.random() - 0.5) * 0.001);
+              }
+            });
+            return compressor;
+          };
+        }
       }
       
       // FONT FINGERPRINT SPOOFING
