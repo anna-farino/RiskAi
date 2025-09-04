@@ -2173,6 +2173,207 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
       // Run validation after a short delay to ensure all properties are set
       setTimeout(validateBrowserConsistency, 100);
     });
+
+    // Font fingerprinting protection - CRITICAL missing piece
+    await page.evaluateOnNewDocument(() => {
+      // Override font detection with realistic Windows font list
+      const commonFonts = [
+        'Arial', 'Arial Black', 'Bahnschrift', 'Calibri', 'Cambria', 'Cambria Math',
+        'Candara', 'Comic Sans MS', 'Consolas', 'Constantia', 'Corbel', 'Courier New',
+        'Ebrima', 'Franklin Gothic Medium', 'Gabriola', 'Gadugi', 'Georgia', 'HoloLens MDL2 Assets',
+        'Impact', 'Ink Free', 'Javanese Text', 'Leelawadee UI', 'Lucida Console', 'Lucida Sans Unicode',
+        'Malgun Gothic', 'Marlett', 'Microsoft Himalaya', 'Microsoft JhengHei', 'Microsoft New Tai Lue',
+        'Microsoft PhagsPa', 'Microsoft Sans Serif', 'Microsoft Tai Le', 'Microsoft YaHei', 'Microsoft Yi Baiti',
+        'MingLiU-ExtB', 'Mongolian Baiti', 'MS Gothic', 'MV Boli', 'Myanmar Text', 'Nirmala UI',
+        'Palatino Linotype', 'Segoe MDL2 Assets', 'Segoe Print', 'Segoe Script', 'Segoe UI',
+        'Segoe UI Historic', 'Segoe UI Emoji', 'Segoe UI Symbol', 'SimSun', 'Sitka', 'Sylfaen',
+        'Symbol', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'Webdings', 'Wingdings', 'Yu Gothic'
+      ];
+
+      // Override font loading API
+      if (typeof FontFace !== 'undefined') {
+        const originalLoad = FontFace.prototype.load;
+        FontFace.prototype.load = function() {
+          return Promise.resolve(this);
+        };
+      }
+
+      // Override document.fonts API
+      if (document.fonts && document.fonts.check) {
+        const originalCheck = document.fonts.check;
+        document.fonts.check = function(font, text) {
+          // Return true for common fonts, false for uncommon ones
+          const fontFamily = font.toLowerCase();
+          const isCommonFont = commonFonts.some(common => 
+            fontFamily.includes(common.toLowerCase())
+          );
+          return isCommonFont;
+        };
+      }
+
+      // Canvas font detection protection
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+        const context = originalGetContext.call(this, type, ...args);
+        
+        if (context && type === '2d') {
+          const originalMeasureText = context.measureText;
+          context.measureText = function(text) {
+            const metrics = originalMeasureText.call(this, text);
+            // Add slight randomization to prevent font fingerprinting
+            const noise = (Math.random() - 0.5) * 0.1;
+            return {
+              ...metrics,
+              width: metrics.width + noise
+            };
+          };
+        }
+        
+        return context;
+      };
+    });
+
+    // Audio Context fingerprinting protection
+    await page.evaluateOnNewDocument(() => {
+      if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+        const AudioCtx = AudioContext || webkitAudioContext;
+        
+        const originalCreateAnalyser = AudioCtx.prototype.createAnalyser;
+        AudioCtx.prototype.createAnalyser = function() {
+          const analyser = originalCreateAnalyser.call(this);
+          
+          const originalGetFloatFrequencyData = analyser.getFloatFrequencyData;
+          analyser.getFloatFrequencyData = function(array) {
+            originalGetFloatFrequencyData.call(this, array);
+            // Add noise to prevent audio fingerprinting
+            for (let i = 0; i < array.length; i++) {
+              array[i] += (Math.random() - 0.5) * 0.1;
+            }
+          };
+          
+          return analyser;
+        };
+      }
+    });
+
+    // Performance API timing protection
+    await page.evaluateOnNewDocument(() => {
+      // Override performance timing to prevent timing analysis
+      if (window.performance && window.performance.now) {
+        const originalNow = window.performance.now;
+        let timeOffset = Math.random() * 10;
+        
+        window.performance.now = function() {
+          return originalNow.call(this) + timeOffset;
+        };
+      }
+
+      // Override timing methods
+      const originalSetTimeout = window.setTimeout;
+      window.setTimeout = function(callback, delay, ...args) {
+        // Add slight randomization to prevent timing pattern detection
+        const randomDelay = delay + (Math.random() - 0.5) * Math.min(delay * 0.1, 5);
+        return originalSetTimeout.call(this, callback, Math.max(0, randomDelay), ...args);
+      };
+    });
+
+    // Enhanced behavioral pattern simulation - INDUSTRY-LEADING FEATURE
+    await page.evaluateOnNewDocument(() => {
+      let mouseX = 0, mouseY = 0;
+      let lastMouseMove = Date.now();
+      let scrollPosition = 0;
+      
+      // Simulate realistic mouse movement patterns
+      const simulateMouseMovement = () => {
+        const now = Date.now();
+        if (now - lastMouseMove > 100 + Math.random() * 200) {
+          mouseX += (Math.random() - 0.5) * 5;
+          mouseY += (Math.random() - 0.5) * 5;
+          
+          mouseX = Math.max(0, Math.min(window.innerWidth, mouseX));
+          mouseY = Math.max(0, Math.min(window.innerHeight, mouseY));
+          
+          document.dispatchEvent(new MouseEvent('mousemove', {
+            clientX: mouseX,
+            clientY: mouseY,
+            bubbles: true
+          }));
+          
+          lastMouseMove = now;
+        }
+      };
+
+      // Simulate human-like scrolling patterns
+      const simulateScrolling = () => {
+        if (Math.random() < 0.1) { // 10% chance to scroll
+          const delta = (Math.random() - 0.5) * 100;
+          scrollPosition += delta;
+          scrollPosition = Math.max(0, Math.min(document.body.scrollHeight, scrollPosition));
+          
+          window.scrollTo(0, scrollPosition);
+        }
+      };
+
+      // Simulate human-like focus patterns
+      const simulateFocusEvents = () => {
+        if (Math.random() < 0.05) { // 5% chance
+          if (document.hasFocus && !document.hasFocus()) {
+            window.dispatchEvent(new Event('focus'));
+          } else if (Math.random() < 0.3) {
+            window.dispatchEvent(new Event('blur'));
+          }
+        }
+      };
+
+      // Override interaction timing to appear human
+      const addHumanTiming = (originalMethod, element, eventType) => {
+        return function(...args) {
+          // Add human-like delay before interaction
+          const delay = 50 + Math.random() * 100;
+          setTimeout(() => {
+            originalMethod.apply(this, args);
+            
+            // Simulate pre and post interaction mouse movements
+            simulateMouseMovement();
+            setTimeout(simulateMouseMovement, 10 + Math.random() * 20);
+          }, delay);
+        };
+      };
+
+      // Override click events to add human behavior
+      const originalClick = HTMLElement.prototype.click;
+      HTMLElement.prototype.click = function() {
+        // Simulate mouse movement before click
+        const rect = this.getBoundingClientRect();
+        mouseX = rect.left + rect.width / 2 + (Math.random() - 0.5) * rect.width * 0.3;
+        mouseY = rect.top + rect.height / 2 + (Math.random() - 0.5) * rect.height * 0.3;
+        
+        simulateMouseMovement();
+        
+        // Add human delay before actual click
+        setTimeout(() => {
+          originalClick.call(this);
+        }, 10 + Math.random() * 30);
+      };
+
+      // Start behavioral simulation patterns
+      setInterval(simulateMouseMovement, 150 + Math.random() * 100);
+      setInterval(simulateScrolling, 1000 + Math.random() * 2000);
+      setInterval(simulateFocusEvents, 2000 + Math.random() * 3000);
+
+      // Override event listeners to add human delays
+      const originalAddEventListener = EventTarget.prototype.addEventListener;
+      EventTarget.prototype.addEventListener = function(type, listener, options) {
+        if (typeof listener === 'function' && ['click', 'mousedown', 'keydown'].includes(type)) {
+          const humanListener = function(event) {
+            // Add micro-delay to simulate human reaction time
+            setTimeout(() => listener.call(this, event), Math.random() * 5);
+          };
+          return originalAddEventListener.call(this, type, humanListener, options);
+        }
+        return originalAddEventListener.call(this, type, listener, options);
+      };
+    });
     
     log(`[ProtectionBypass] Enhanced fingerprinting applied successfully`, "scraper");
   } catch (error: any) {
