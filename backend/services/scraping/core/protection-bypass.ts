@@ -143,11 +143,11 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // WORKING CYCLETLS IMPLEMENTATION - Based on discovered API pattern
-      log(`[ProtectionBypass] Creating CycleTLS client for ${url}`, "scraper");
+      // FIXED CYCLETLS IMPLEMENTATION - Correct parameter passing
+      log(`[ProtectionBypass] Creating CycleTLS client`, "scraper");
       
-      // The logs showed cycletls(url, options) returns a client with HTTP methods
-      const client = await cycletls(url, {
+      // Create client with TLS options (no URL yet)
+      const client = await cycletls({
         ja3: profile.ja3,
         userAgent: profile.userAgent,
         timeout: timeout || 30000,
@@ -155,38 +155,38 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] CycleTLS client created, has methods: ${Object.keys(client)}`, "scraper");
       
-      // Now call the appropriate HTTP method on the client
+      // Prepare request options with headers and body
       const requestOptions = {
         headers: consistentHeaders,
         body: body
       };
       
-      log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with options`, "scraper");
+      log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
       
-      // Call the appropriate method on the client
+      // Call the appropriate method with URL as first param, options as second
       switch (method.toLowerCase()) {
         case 'get':
-          response = await client.get(requestOptions);
+          response = await client.get(url, requestOptions);
           break;
         case 'post':
-          response = await client.post(requestOptions);
+          response = await client.post(url, requestOptions);
           break;
         case 'head':
-          response = await client.head(requestOptions);
+          response = await client.head(url, requestOptions);
           break;
         case 'put':
-          response = await client.put(requestOptions);
+          response = await client.put(url, requestOptions);
           break;
         case 'delete':
-          response = await client.delete(requestOptions);
+          response = await client.delete(url, requestOptions);
           break;
         case 'patch':
-          response = await client.patch(requestOptions);
+          response = await client.patch(url, requestOptions);
           break;
         default:
           // For unsupported methods, default to GET
           log(`[ProtectionBypass] Method ${method} not directly supported, using GET`, "scraper");
-          response = await client.get(requestOptions);
+          response = await client.get(url, requestOptions);
           break;
       }
       
