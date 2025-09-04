@@ -143,103 +143,88 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // COMPREHENSIVE CYCLETLS DEBUGGING AND PROPER IMPLEMENTATION
-      log(`[ProtectionBypass] Starting CycleTLS debugging for ${method.toLowerCase()} request`, "scraper");
+      // WORKING CYCLETLS IMPLEMENTATION - Based on discovered API pattern
+      log(`[ProtectionBypass] Creating CycleTLS client for ${url}`, "scraper");
       
-      // Test 1: Check module structure
-      log(`[ProtectionBypass] CycleTLS module type: ${typeof cycletls}`, "scraper");
-      log(`[ProtectionBypass] CycleTLS module keys: ${Object.keys(cycletls)}`, "scraper");
-      
-      // Test 2: Try different instantiation patterns
-      let clientTest1, clientTest2, clientTest3;
-      
-      try {
-        clientTest1 = cycletls();
-        log(`[ProtectionBypass] cycletls() -> type: ${typeof clientTest1}, keys: ${Object.keys(clientTest1)}`, "scraper");
-      } catch (e: any) {
-        log(`[ProtectionBypass] cycletls() failed: ${e.message}`, "scraper");
-      }
-      
-      try {
-        clientTest2 = cycletls({ ja3: profile.ja3 });
-        log(`[ProtectionBypass] cycletls({ja3}) -> type: ${typeof clientTest2}, keys: ${Object.keys(clientTest2)}`, "scraper");
-      } catch (e: any) {
-        log(`[ProtectionBypass] cycletls({ja3}) failed: ${e.message}`, "scraper");
-      }
-      
-      try {
-        clientTest3 = new cycletls();
-        log(`[ProtectionBypass] new cycletls() -> type: ${typeof clientTest3}, keys: ${Object.keys(clientTest3)}`, "scraper");
-      } catch (e: any) {
-        log(`[ProtectionBypass] new cycletls() failed: ${e.message}`, "scraper");
-      }
-      
-      // Test 3: Try direct function call patterns
-      const testOptions = {
+      // The logs showed cycletls(url, options) returns a client with HTTP methods
+      const client = await cycletls(url, {
         ja3: profile.ja3,
         userAgent: profile.userAgent,
-        timeout: 10000,
-        headers: {
-          'User-Agent': profile.userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        }
+        timeout: timeout || 30000,
+      });
+      
+      log(`[ProtectionBypass] CycleTLS client created, has methods: ${Object.keys(client)}`, "scraper");
+      
+      // Now call the appropriate HTTP method on the client
+      const requestOptions = {
+        headers: consistentHeaders,
+        body: body
       };
       
-      log(`[ProtectionBypass] Testing direct CycleTLS call patterns`, "scraper");
+      log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with options`, "scraper");
       
-      // Pattern 1: Direct call
-      try {
-        log(`[ProtectionBypass] Trying Pattern 1: cycletls(url, options)`, "scraper");
-        response = await cycletls(url, testOptions);
-        log(`[ProtectionBypass] Pattern 1 response type: ${typeof response}`, "scraper");
-        log(`[ProtectionBypass] Pattern 1 response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
-        if (response) {
-          log(`[ProtectionBypass] Pattern 1 status: ${response.status} (${typeof response.status})`, "scraper");
-          log(`[ProtectionBypass] Pattern 1 body length: ${response.body ? response.body.length : 'no body'}`, "scraper");
-        }
-      } catch (e: any) {
-        log(`[ProtectionBypass] Pattern 1 failed: ${e.message}`, "scraper");
-        response = null;
+      // Call the appropriate method on the client
+      switch (method.toLowerCase()) {
+        case 'get':
+          response = await client.get(requestOptions);
+          break;
+        case 'post':
+          response = await client.post(requestOptions);
+          break;
+        case 'head':
+          response = await client.head(requestOptions);
+          break;
+        case 'put':
+          response = await client.put(requestOptions);
+          break;
+        case 'delete':
+          response = await client.delete(requestOptions);
+          break;
+        case 'patch':
+          response = await client.patch(requestOptions);
+          break;
+        default:
+          // For unsupported methods, default to GET
+          log(`[ProtectionBypass] Method ${method} not directly supported, using GET`, "scraper");
+          response = await client.get(requestOptions);
+          break;
       }
       
-      // Pattern 2: Method in options
-      if (!response || typeof response.status !== 'number') {
+      // Clean up the client
+      if (client.exit && typeof client.exit === 'function') {
         try {
-          log(`[ProtectionBypass] Trying Pattern 2: cycletls(url, {method, ...options})`, "scraper");
-          response = await cycletls(url, { method: method.toUpperCase(), ...testOptions });
-          log(`[ProtectionBypass] Pattern 2 response type: ${typeof response}`, "scraper");
-          log(`[ProtectionBypass] Pattern 2 response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
-          if (response) {
-            log(`[ProtectionBypass] Pattern 2 status: ${response.status} (${typeof response.status})`, "scraper");
-            log(`[ProtectionBypass] Pattern 2 body length: ${response.body ? response.body.length : 'no body'}`, "scraper");
-          }
-        } catch (e: any) {
-          log(`[ProtectionBypass] Pattern 2 failed: ${e.message}`, "scraper");
-          response = null;
+          await client.exit();
+          log(`[ProtectionBypass] CycleTLS client cleaned up`, "scraper");
+        } catch (exitError: any) {
+          log(`[ProtectionBypass] Client cleanup failed: ${exitError.message}`, "scraper");
         }
       }
       
-      // Pattern 3: Create instance then call
-      if (!response || typeof response.status !== 'number') {
-        try {
-          log(`[ProtectionBypass] Trying Pattern 3: instance creation then method call`, "scraper");
-          const instance = cycletls();
-          if (instance && typeof instance.get === 'function') {
-            response = await instance.get(url, testOptions);
-            log(`[ProtectionBypass] Pattern 3 response type: ${typeof response}`, "scraper");
-            log(`[ProtectionBypass] Pattern 3 response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
-          } else {
-            log(`[ProtectionBypass] Pattern 3: instance has no get method`, "scraper");
-          }
-        } catch (e: any) {
-          log(`[ProtectionBypass] Pattern 3 failed: ${e.message}`, "scraper");
-          response = null;
-        }
+      log(`[ProtectionBypass] CycleTLS response received`, "scraper");
+      log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
+      log(`[ProtectionBypass] Response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
+      
+      // Validate response
+      if (!response) {
+        throw new Error('CycleTLS returned null/undefined response');
       }
       
-      // If none worked, throw error with comprehensive info
-      if (!response || typeof response.status !== 'number') {
-        throw new Error(`All CycleTLS patterns failed. Last response: ${JSON.stringify(response)}`);
+      // Log response details for debugging
+      if (response.status) {
+        log(`[ProtectionBypass] Response status: ${response.status}`, "scraper");
+      }
+      if (response.body) {
+        log(`[ProtectionBypass] Response body length: ${response.body.length}`, "scraper");
+      }
+      
+      // If status is still not a number, try to parse it
+      if (typeof response.status === 'string') {
+        response.status = parseInt(response.status, 10);
+      }
+      
+      if (typeof response.status !== 'number') {
+        log(`[ProtectionBypass] Invalid response status: ${response.status} (${typeof response.status})`, "scraper-error");
+        throw new Error(`CycleTLS response.status is ${typeof response.status}, expected number`);
       }
       
       // No client cleanup needed for direct API calls
