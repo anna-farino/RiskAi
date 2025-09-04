@@ -143,17 +143,18 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // CORRECT API: Call cycletls with URL first to get client
-      const client = await cycletls(url, {
+      // FIXED: Correct CycleTLS v1.0.27 API - create client first, then make request
+      const client = cycletls({
         ja3: profile.ja3,
         userAgent: profile.userAgent,
         timeout,
       });
       
-      log(`[ProtectionBypass] CycleTLS client created, calling ${method.toLowerCase()} method`, "scraper");
+      log(`[ProtectionBypass] CycleTLS client created, making ${method.toLowerCase()} request`, "scraper");
       
-      // CORRECT API: Now call the appropriate HTTP method on the client
+      // FIXED: Call HTTP method with URL and options together
       const requestOptions = {
+        url: url,
         headers: consistentHeaders,
         body,
       };
