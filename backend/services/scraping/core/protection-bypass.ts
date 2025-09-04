@@ -136,41 +136,70 @@ export async function performCycleTLSRequest(
       consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
     }
 
-    // Try CycleTLS with proper error handling
+    // FIXED: CORRECT CYCLETLS v1.0.27 API IMPLEMENTATION
     let response: any;
     try {
       const cycletls = require('cycletls');
       
-      // Use correct CycleTLS API
-      if (typeof cycletls === 'function') {
-        response = await cycletls(url, {
-          method,
-          headers: consistentHeaders,
-          body,
-          timeout,
-          ja3: profile.ja3,
-          userAgent: profile.userAgent,
-        });
-      } else if (cycletls.request) {
-        response = await cycletls.request(url, {
-          method,
-          headers: consistentHeaders,
-          body,
-          timeout,
-          ja3: profile.ja3,
-          userAgent: profile.userAgent,
-        });
-      } else {
-        throw new Error('CycleTLS API not available');
+      log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
+      
+      // CORRECT API: Call cycletls with URL first to get client
+      const client = await cycletls(url, {
+        ja3: profile.ja3,
+        userAgent: profile.userAgent,
+        timeout,
+      });
+      
+      log(`[ProtectionBypass] CycleTLS client created, calling ${method.toLowerCase()} method`, "scraper");
+      
+      // CORRECT API: Now call the appropriate HTTP method on the client
+      const requestOptions = {
+        headers: consistentHeaders,
+        body,
+      };
+      
+      switch (method.toLowerCase()) {
+        case 'get':
+          response = await client.get(requestOptions);
+          break;
+        case 'post':
+          response = await client.post(requestOptions);
+          break;
+        case 'head':
+          response = await client.head(requestOptions);
+          break;
+        case 'put':
+          response = await client.put(requestOptions);
+          break;
+        case 'delete':
+          response = await client.delete(requestOptions);
+          break;
+        case 'patch':
+          response = await client.patch(requestOptions);
+          break;
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
       }
       
+      // Ensure client cleanup
+      if (client.exit) {
+        await client.exit();
+      }
+      
+      log(`[ProtectionBypass] CycleTLS request completed: ${response?.status || 'no status'}`, "scraper");
+      
       // Validate response structure
-      if (!response || typeof response.status === 'undefined') {
-        throw new Error('Invalid CycleTLS response structure');
+      if (!response) {
+        throw new Error('CycleTLS returned null/undefined response');
+      }
+      
+      if (typeof response.status !== 'number') {
+        throw new Error(`CycleTLS response.status is ${typeof response.status}, expected number`);
       }
       
     } catch (cycleTLSError: any) {
-      log(`[ProtectionBypass] CycleTLS failed: ${cycleTLSError.message}, falling back to enhanced fetch`, "scraper");
+      log(`[ProtectionBypass] CycleTLS failed: ${cycleTLSError.message}`, "scraper-error");
+      log(`[ProtectionBypass] Falling back to enhanced fetch with session continuity`, "scraper");
       return await performFallbackRequest(url, {
         ...options,
         sessionId,
