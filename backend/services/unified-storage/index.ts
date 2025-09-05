@@ -92,10 +92,12 @@ export class UnifiedStorageService {
       
       if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Use specific keyword IDs sent from frontend
+        console.log(`[KEYWORD-DEBUG] Searching for keyword IDs: ${filter.keywordIds.join(', ')} for userId: ${userId}`);
         
         if (appType === 'news-radar') {
-          const keywordResults = await db
-            .select({ term: keywords.term, id: keywords.id })
+          // First try with the provided IDs
+          let keywordResults = await db
+            .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
             .from(keywords)
             .where(
               and(
@@ -103,6 +105,40 @@ export class UnifiedStorageService {
                 inArray(keywords.id, filter.keywordIds)
               )
             );
+          
+          console.log(`[KEYWORD-DEBUG] Found ${keywordResults.length} keywords by ID match`);
+          
+          // If no results found by ID, try to get ALL user keywords instead
+          if (keywordResults.length === 0) {
+            console.log(`[KEYWORD-DEBUG] No keywords found by ID, fetching all active keywords for user`);
+            keywordResults = await db
+              .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
+              .from(keywords)
+              .where(
+                and(
+                  eq(keywords.userId, userId),
+                  eq(keywords.active, true)
+                )
+              );
+            console.log(`[KEYWORD-DEBUG] Found ${keywordResults.length} active keywords for user`);
+            
+            // If still no results, check if there are ANY keywords for this user
+            if (keywordResults.length === 0) {
+              const allUserKeywords = await db
+                .select({ term: keywords.term, id: keywords.id, userId: keywords.userId, active: keywords.active })
+                .from(keywords)
+                .where(eq(keywords.userId, userId));
+              console.log(`[KEYWORD-DEBUG] Total keywords for user ${userId}: ${allUserKeywords.length}`, allUserKeywords);
+              
+              // Check if there are ANY keywords in the table at all
+              const anyKeywords = await db
+                .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
+                .from(keywords)
+                .limit(5);
+              console.log(`[KEYWORD-DEBUG] Sample keywords from table:`, anyKeywords);
+            }
+          }
+          
           keywordsToFilter = keywordResults.map(k => k.term);
         } else {
           // Threat Tracker: Handle NULL user_id values in threat_keywords table

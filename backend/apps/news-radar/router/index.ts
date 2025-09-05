@@ -574,6 +574,7 @@ newsRouter.get("/articles", async (req, res) => {
   filter.offset = (pageNum - 1) * limitNum;
   
   console.log("Filter parameters:", filter);
+  console.log("[NEWS-RADAR-DEBUG] userId being passed:", userId);
   
   try {
     // Use unified storage to get articles from global_articles table
