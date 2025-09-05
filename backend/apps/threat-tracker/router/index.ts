@@ -641,6 +641,7 @@ threatRouter.get("/articles", async (req, res) => {
     
     // Parse filter parameters
     const search = req.query.search as string | undefined;
+    const keywordIds = req.query.keywordIds;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     
@@ -656,13 +657,22 @@ threatRouter.get("/articles", async (req, res) => {
     }
     
     // Prepare filter object for unified storage
-    const filter = {
+    const filter: any = {
       searchTerm: search,
       startDate,
       endDate,
       limit,
       offset: (page - 1) * limit
     };
+    
+    // Add keyword IDs filter if provided
+    if (keywordIds) {
+      if (Array.isArray(keywordIds)) {
+        filter.keywordIds = keywordIds.filter(id => typeof id === 'string') as string[];
+      } else if (typeof keywordIds === 'string') {
+        filter.keywordIds = [keywordIds];
+      }
+    }
     
     // Use unified storage to get articles from global_articles table
     // Threat tracker only shows cybersecurity articles (handled by unified storage)

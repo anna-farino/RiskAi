@@ -528,6 +528,7 @@ newsRouter.get("/articles", async (req, res) => {
   // Prepare filter object for unified storage
   const filter: {
     searchTerm?: string;
+    keywordIds?: string[];
     startDate?: Date;
     endDate?: Date;
     limit?: number;
@@ -537,6 +538,15 @@ newsRouter.get("/articles", async (req, res) => {
   // Add search filter if provided
   if (search && typeof search === 'string') {
     filter.searchTerm = search;
+  }
+  
+  // Add keyword IDs filter if provided
+  if (keywordIds) {
+    if (Array.isArray(keywordIds)) {
+      filter.keywordIds = keywordIds.filter(id => typeof id === 'string') as string[];
+    } else if (typeof keywordIds === 'string') {
+      filter.keywordIds = [keywordIds];
+    }
   }
   
   // Parse date range filters

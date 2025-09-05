@@ -35,7 +35,7 @@ export class UnifiedStorageService {
   async getUserArticles(
     userId: string,
     appType: AppType,
-    filter?: ArticleFilter
+    filter?: ArticleFilter & { keywordIds?: string[] }
   ): Promise<GlobalArticle[]> {
     try {
       log(`[UnifiedStorage] Getting articles for user ${userId}, app: ${appType}`, 'storage');
@@ -87,12 +87,44 @@ export class UnifiedStorageService {
         conditions.push(sql`${globalArticles.publishDate} <= ${filter.endDate}`);
       }
 
-      // Step 3: Get user keywords for filtering (keep existing keyword logic)
-      const userKeywords = await this.getUserKeywords(userId, appType);
+      // Step 3: Apply keyword filtering based on specific keywordIds or all active keywords
+      let keywordsToFilter: string[] = [];
       
-      // Apply keyword filtering if user has keywords
-      if (userKeywords.length > 0) {
-        const keywordConditions = userKeywords.map(kw => 
+      if (filter?.keywordIds && filter.keywordIds.length > 0) {
+        // Use specific keyword IDs sent from frontend
+        log(`[UnifiedStorage] Filtering by specific keywords: ${filter.keywordIds.join(', ')}`, 'storage');
+        
+        if (appType === 'news-radar') {
+          const keywordResults = await db
+            .select({ term: keywords.term })
+            .from(keywords)
+            .where(
+              and(
+                eq(keywords.userId, userId),
+                inArray(keywords.id, filter.keywordIds)
+              )
+            );
+          keywordsToFilter = keywordResults.map(k => k.term);
+        } else {
+          const keywordResults = await db
+            .select({ term: threatKeywords.term })
+            .from(threatKeywords)
+            .where(
+              and(
+                eq(threatKeywords.userId, userId),
+                inArray(threatKeywords.id, filter.keywordIds)
+              )
+            );
+          keywordsToFilter = keywordResults.map(k => k.term);
+        }
+      } else {
+        // Fallback: Use all active keywords (existing behavior)
+        keywordsToFilter = await this.getUserKeywords(userId, appType);
+      }
+      
+      // Apply keyword filtering if we have keywords
+      if (keywordsToFilter.length > 0) {
+        const keywordConditions = keywordsToFilter.map(kw => 
           or(
             ilike(globalArticles.title, `%${kw}%`),
             ilike(globalArticles.content, `%${kw}%`),
@@ -103,6 +135,8 @@ export class UnifiedStorageService {
         if (keywordConditions.length > 0) {
           conditions.push(or(...keywordConditions));
         }
+        
+        log(`[UnifiedStorage] Applied keyword filter with ${keywordsToFilter.length} terms: ${keywordsToFilter.join(', ')}`, 'storage');
       }
 
       // Step 4: Execute query with source name join
