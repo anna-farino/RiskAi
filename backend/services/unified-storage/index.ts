@@ -136,6 +136,7 @@ export class UnifiedStorageService {
                 .select({ 
                   term: threatKeywords.term, 
                   id: threatKeywords.id,
+                  category: threatKeywords.category,
                   userId: threatKeywords.userId,
                   active: threatKeywords.active
                 })
@@ -157,6 +158,7 @@ export class UnifiedStorageService {
             .select({ 
               term: threatKeywords.term, 
               id: threatKeywords.id,
+              category: threatKeywords.category,
               userId: threatKeywords.userId,
               active: threatKeywords.active
             })
@@ -172,7 +174,8 @@ export class UnifiedStorageService {
           // Combine both results
           const allKeywords = [...keywordResults, ...globalKeywords];
           
-          keywordsToFilter = allKeywords.map(k => k.term);
+          // For Threat Tracker, store keywords with categories for cross-reference matching
+          keywordsToFilter = allKeywords;
         }
       } else {
         // Fallback: Use all active keywords (existing behavior)
@@ -182,17 +185,56 @@ export class UnifiedStorageService {
       // Handle keyword filtering logic
       if (keywordsToFilter.length > 0) {
         
-        // Create ILIKE conditions for each keyword
-        const keywordConditions = keywordsToFilter.map(kw => 
-          or(
-            ilike(globalArticles.title, `%${kw}%`),
-            ilike(globalArticles.content, `%${kw}%`)
-          )
-        );
-        
-        // Add the keyword conditions to the main query conditions
-        if (keywordConditions.length > 0) {
-          conditions.push(or(...keywordConditions));
+        if (appType === 'threat-tracker' && Array.isArray(keywordsToFilter) && keywordsToFilter[0]?.category) {
+          // Threat Tracker: Cross-reference matching - need both threat AND entity keywords
+          const threatKws = keywordsToFilter.filter(k => k.category === 'threat').map(k => k.term);
+          const entityKws = keywordsToFilter.filter(k => ['vendor', 'client', 'hardware'].includes(k.category)).map(k => k.term);
+          
+          if (threatKws.length > 0 && entityKws.length > 0) {
+            // Create conditions for threat keywords
+            const threatConditions = threatKws.map(kw => 
+              or(
+                ilike(globalArticles.title, `%${kw}%`),
+                ilike(globalArticles.content, `%${kw}%`)
+              )
+            );
+            
+            // Create conditions for entity keywords
+            const entityConditions = entityKws.map(kw => 
+              or(
+                ilike(globalArticles.title, `%${kw}%`),
+                ilike(globalArticles.content, `%${kw}%`)
+              )
+            );
+            
+            // Require at least one threat AND at least one entity
+            conditions.push(
+              and(
+                or(...threatConditions),
+                or(...entityConditions)
+              )
+            );
+          } else {
+            // If only one category is selected, show no results (requires both)
+            conditions.push(sql`FALSE`);
+          }
+        } else {
+          // News Radar or simple keyword list: OR matching
+          const keywordTerms = Array.isArray(keywordsToFilter) && keywordsToFilter[0]?.term 
+            ? keywordsToFilter.map(k => k.term)
+            : keywordsToFilter;
+            
+          const keywordConditions = keywordTerms.map(kw => 
+            or(
+              ilike(globalArticles.title, `%${kw}%`),
+              ilike(globalArticles.content, `%${kw}%`)
+            )
+          );
+          
+          // Add the keyword conditions to the main query conditions
+          if (keywordConditions.length > 0) {
+            conditions.push(or(...keywordConditions));
+          }
         }
       } else if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Keywords were requested but none found - show warning but continue
@@ -239,8 +281,13 @@ export class UnifiedStorageService {
         const articlesWithMatchedKeywords = articles.map(article => {
           const matchedKeywords: string[] = [];
           
+          // Extract keyword terms for matching
+          const keywordTerms = Array.isArray(keywordsToFilter) && keywordsToFilter[0]?.term 
+            ? keywordsToFilter.map(k => k.term)
+            : keywordsToFilter;
+          
           // Check which keywords match this article
-          for (const keyword of keywordsToFilter) {
+          for (const keyword of keywordTerms) {
             const lowerKeyword = keyword.toLowerCase();
             const titleMatch = article.title?.toLowerCase().includes(lowerKeyword);
             const contentMatch = article.content?.toLowerCase().includes(lowerKeyword);
