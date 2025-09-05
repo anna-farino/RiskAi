@@ -38,6 +38,7 @@ export class UnifiedStorageService {
     filter?: ArticleFilter & { keywordIds?: string[] }
   ): Promise<GlobalArticle[]> {
     try {
+      console.log(`[UNIFIED-STORAGE] Getting articles for user ${userId}, app: ${appType}, keywordIds:`, filter?.keywordIds);
       log(`[UnifiedStorage] Getting articles for user ${userId}, app: ${appType}`, 'storage');
 
       // Step 1: Get user's enabled sources
@@ -95,50 +96,19 @@ export class UnifiedStorageService {
         console.log(`[KEYWORD-DEBUG] Searching for keyword IDs: ${filter.keywordIds.join(', ')} for userId: ${userId}`);
         
         if (appType === 'news-radar') {
-          // First try with the provided IDs
-          let keywordResults = await db
+          // Get keywords by IDs
+          const keywordResults = await db
             .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
             .from(keywords)
             .where(
               and(
                 eq(keywords.userId, userId),
-                inArray(keywords.id, filter.keywordIds)
+                inArray(keywords.id, filter.keywordIds),
+                eq(keywords.active, true)
               )
             );
           
-          console.log(`[KEYWORD-DEBUG] Found ${keywordResults.length} keywords by ID match`);
-          
-          // If no results found by ID, try to get ALL user keywords instead
-          if (keywordResults.length === 0) {
-            console.log(`[KEYWORD-DEBUG] No keywords found by ID, fetching all active keywords for user`);
-            keywordResults = await db
-              .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
-              .from(keywords)
-              .where(
-                and(
-                  eq(keywords.userId, userId),
-                  eq(keywords.active, true)
-                )
-              );
-            console.log(`[KEYWORD-DEBUG] Found ${keywordResults.length} active keywords for user`);
-            
-            // If still no results, check if there are ANY keywords for this user
-            if (keywordResults.length === 0) {
-              const allUserKeywords = await db
-                .select({ term: keywords.term, id: keywords.id, userId: keywords.userId, active: keywords.active })
-                .from(keywords)
-                .where(eq(keywords.userId, userId));
-              console.log(`[KEYWORD-DEBUG] Total keywords for user ${userId}: ${allUserKeywords.length}`, allUserKeywords);
-              
-              // Check if there are ANY keywords in the table at all
-              const anyKeywords = await db
-                .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
-                .from(keywords)
-                .limit(5);
-              console.log(`[KEYWORD-DEBUG] Sample keywords from table:`, anyKeywords);
-            }
-          }
-          
+          console.log(`[KEYWORD-DEBUG] Found ${keywordResults.length} keywords:`, keywordResults.map(k => k.term));
           keywordsToFilter = keywordResults.map(k => k.term);
         } else {
           // Threat Tracker: Handle NULL user_id values in threat_keywords table
@@ -163,31 +133,30 @@ export class UnifiedStorageService {
       }
       
       // Handle keyword filtering logic
-      if (filter?.keywordIds && filter.keywordIds.length > 0) {
-        if (keywordsToFilter.length === 0) {
-          // User requested specific keywords but none were found in database
-          // This can happen when keywords exist in frontend state but not in database
-          log(`[UnifiedStorage] Warning: ${filter.keywordIds.length} keywords requested but 0 found in database. Showing all articles.`, 'storage');
-          // Don't apply keyword filtering - show all articles from enabled sources
-        } else {
-          // Apply keyword filtering if we have keywords
-          const keywordConditions = keywordsToFilter.map(kw => 
-            or(
-              ilike(globalArticles.title, `%${kw}%`),
-              ilike(globalArticles.content, `%${kw}%`),
-              sql`${globalArticles.detectedKeywords}::text ILIKE ${'%' + kw + '%'}`
-            )
-          );
-          
-          if (keywordConditions.length > 0) {
-            conditions.push(or(...keywordConditions));
-          }
-          
-          log(`[UnifiedStorage] Applied keyword filter: ${keywordsToFilter.length} terms`, 'storage');
+      if (keywordsToFilter.length > 0) {
+        console.log(`[KEYWORD-DEBUG] Applying filter for keywords: ${keywordsToFilter.join(', ')}`);
+        
+        // Create ILIKE conditions for each keyword
+        const keywordConditions = keywordsToFilter.map(kw => 
+          or(
+            ilike(globalArticles.title, `%${kw}%`),
+            ilike(globalArticles.content, `%${kw}%`)
+          )
+        );
+        
+        // Add the keyword conditions to the main query conditions
+        if (keywordConditions.length > 0) {
+          conditions.push(or(...keywordConditions));
+          console.log(`[KEYWORD-DEBUG] Added ${keywordConditions.length} keyword conditions to query`);
         }
+      } else if (filter?.keywordIds && filter.keywordIds.length > 0) {
+        // Keywords were requested but none found - show warning but continue
+        console.log(`[KEYWORD-DEBUG] WARNING: ${filter.keywordIds.length} keywords requested but none found in database`);
       }
 
       // Step 4: Execute query with source name join
+      console.log(`[KEYWORD-DEBUG] Building query with ${conditions.length} total conditions`);
+      
       const query = db
         .select({
           id: globalArticles.id,
@@ -221,6 +190,14 @@ export class UnifiedStorageService {
       }
 
       const articles = await query;
+      
+      console.log(`[KEYWORD-DEBUG] Query returned ${articles.length} articles`);
+      
+      // Sample some article titles to see what's being returned
+      if (articles.length > 0) {
+        const sampleTitles = articles.slice(0, 3).map(a => a.title?.substring(0, 50));
+        console.log(`[KEYWORD-DEBUG] Sample titles:`, sampleTitles);
+      }
       
       log(`[UnifiedStorage] Retrieved ${articles.length} articles for user`, 'storage');
       return articles;
