@@ -5,6 +5,7 @@
  */
 
 import { db } from 'backend/db/db';
+import { withUserContext } from 'backend/db/with-user-context';
 import {
   globalArticles,
   globalSources,
@@ -16,6 +17,7 @@ import { keywords, type Keyword } from '@shared/db/schema/news-tracker';
 import { threatKeywords, type ThreatKeyword } from '@shared/db/schema/threat-tracker';
 import { eq, and, or, inArray, sql, desc, ilike, isNull } from 'drizzle-orm';
 import { log } from 'backend/utils/log';
+import { decrypt } from 'backend/utils/encryption';
 
 export type AppType = 'news-radar' | 'threat-tracker';
 
@@ -99,31 +101,37 @@ export class UnifiedStorageService {
           console.log(`[KEYWORD-DEBUG] Attempting to fetch keywords for userId: ${userId}`);
           console.log(`[KEYWORD-DEBUG] Looking for IDs: ${filter.keywordIds.join(', ')}`);
           
-          // Debug: First check what keywords exist for this user
-          const allUserKeywords = await db
-            .select({ 
-              term: keywords.term, 
-              id: keywords.id, 
-              userId: keywords.userId,
-              active: keywords.active 
-            })
-            .from(keywords)
-            .where(eq(keywords.userId, userId));
-            
-          console.log(`[KEYWORD-DEBUG] All user keywords found: ${allUserKeywords.length}`, allUserKeywords.map(k => ({ id: k.id, term: k.term })));
-          
-          // Now filter by the requested IDs
-          const keywordResults = allUserKeywords.filter(k => 
-            filter.keywordIds.includes(k.id)
+          // Use withUserContext to bypass RLS and get keywords
+          const encryptedKeywords = await withUserContext(
+            userId,
+            async (contextDb) => contextDb
+              .select({ 
+                term: keywords.term, 
+                id: keywords.id, 
+                userId: keywords.userId,
+                active: keywords.active 
+              })
+              .from(keywords)
+              .where(
+                and(
+                  eq(keywords.userId, userId),
+                  inArray(keywords.id, filter.keywordIds),
+                  eq(keywords.active, true)
+                )
+              )
           );
           
-          console.log(`[KEYWORD-DEBUG] Filtered keywords: ${keywordResults.length}`, keywordResults.map(k => k.term));
+          console.log(`[KEYWORD-DEBUG] Found ${encryptedKeywords.length} keywords with withUserContext`);
           
-          // Filter for active keywords only
-          const activeKeywords = keywordResults.filter(k => k.active === true);
-          console.log(`[KEYWORD-DEBUG] Active keywords: ${activeKeywords.length}`, activeKeywords.map(k => k.term));
+          // Decrypt the keyword terms
+          const decryptedKeywords = encryptedKeywords.map(k => ({
+            ...k,
+            term: decrypt(k.term)
+          }));
           
-          keywordsToFilter = activeKeywords.map(k => k.term);
+          console.log(`[KEYWORD-DEBUG] Active keywords: ${decryptedKeywords.length}`, decryptedKeywords.map(k => k.term));
+          
+          keywordsToFilter = decryptedKeywords.map(k => k.term);
         } else {
           // Threat Tracker: Handle NULL user_id values in threat_keywords table
           const keywordResults = await db
