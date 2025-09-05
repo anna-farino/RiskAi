@@ -14,8 +14,13 @@ import {
   threatArticles,
   threatSettings,
 } from "@shared/db/schema/threat-tracker/index";
+import { 
+  globalArticles, 
+  globalSources, 
+  userSourcePreferences 
+} from "@shared/db/schema/global-tables";
 import { db, pool } from "backend/db/db";
-import { eq, and, isNull, sql, SQL, desc, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql, SQL, desc, inArray, gte, lte, or, ilike } from "drizzle-orm";
 import { encrypt, decrypt } from "backend/utils/encryption";
 
 // Helper function to execute SQL with parameters
@@ -29,6 +34,27 @@ async function executeRawSql<T>(
     return result.rows as T[];
   } catch (error) {
     console.error("SQL execution error:", error);
+    return [];
+  }
+}
+
+// Helper function to get user's enabled sources from user_source_preferences
+async function getUserEnabledSources(userId: string, appContext: 'news_radar' | 'threat_tracker'): Promise<string[]> {
+  try {
+    const enabledSources = await db
+      .select({ sourceId: userSourcePreferences.sourceId })
+      .from(userSourcePreferences)
+      .where(
+        and(
+          eq(userSourcePreferences.userId, userId),
+          eq(userSourcePreferences.appContext, appContext),
+          eq(userSourcePreferences.isEnabled, true)
+        )
+      );
+    
+    return enabledSources.map(s => s.sourceId);
+  } catch (error) {
+    console.error("Error getting user enabled sources:", error);
     return [];
   }
 }
@@ -589,11 +615,8 @@ export const storage: IStorage = {
       const pageSize = limit || 50;
 
       // Phase 3: Query-time filtering from global article pool
-      // Step 1: Get user's enabled sources (all user sources for now)
-      const userSources = await storage.getSources(userId);
-      const defaultSources = await storage.getDefaultSources(userId);
-      const allSources = [...userSources, ...defaultSources];
-      const sourceIds = allSources.map(s => s.id);
+      // Step 1: Get user's enabled sources from user_source_preferences table
+      const sourceIds = await getUserEnabledSources(userId, 'threat_tracker');
 
       // Step 2: Get user's active keywords for filtering
       const userKeywords = await storage.getKeywords(undefined, userId);
@@ -604,19 +627,17 @@ export const storage: IStorage = {
       // Build WHERE clause based on search parameters
       const conditions = [];
 
-      // Filter by user's sources only (no userId filter on articles)
+      // Filter by user's enabled sources only
       if (sourceIds.length > 0) {
-        conditions.push(inArray(threatArticles.sourceId, sourceIds));
+        conditions.push(inArray(globalArticles.sourceId, sourceIds));
       } else {
         // If user has no sources, return empty results
         return [];
       }
 
       // Phase 2.2: Filter for cybersecurity articles only
-      // Check if detectedKeywords contains "_cyber:true"
-      conditions.push(
-        sql`${threatArticles.detectedKeywords}->>'_cyber' = 'true'`
-      );
+      // Use the isCybersecurity field from global articles
+      conditions.push(eq(globalArticles.isCybersecurity, true));
 
       // Add search term filter
       if (search && search.trim().length > 0) {
@@ -628,22 +649,22 @@ export const storage: IStorage = {
         if (searchTerm.length < 5) {
           // Exact word matching using regex word boundaries
           searchCondition = sql`(
-            ${threatArticles.title} ~* ${`\\y${searchTerm}\\y`} OR 
-            ${threatArticles.content} ~* ${`\\y${searchTerm}\\y`} OR
-            ${threatArticles.detectedKeywords}->>'threats' ~* ${`\\y${searchTerm}\\y`} OR
-            ${threatArticles.detectedKeywords}->>'vendors' ~* ${`\\y${searchTerm}\\y`} OR
-            ${threatArticles.detectedKeywords}->>'clients' ~* ${`\\y${searchTerm}\\y`} OR
-            ${threatArticles.detectedKeywords}->>'hardware' ~* ${`\\y${searchTerm}\\y`}
+            ${globalArticles.title} ~* ${`\\y${searchTerm}\\y`} OR 
+            ${globalArticles.content} ~* ${`\\y${searchTerm}\\y`} OR
+            ${globalArticles.detectedKeywords}->>'threats' ~* ${`\\y${searchTerm}\\y`} OR
+            ${globalArticles.detectedKeywords}->>'vendors' ~* ${`\\y${searchTerm}\\y`} OR
+            ${globalArticles.detectedKeywords}->>'clients' ~* ${`\\y${searchTerm}\\y`} OR
+            ${globalArticles.detectedKeywords}->>'hardware' ~* ${`\\y${searchTerm}\\y`}
           )`;
         } else {
           // Partial matching for longer terms
           searchCondition = sql`(
-            ${threatArticles.title} ILIKE ${"%" + searchTerm + "%"} OR 
-            ${threatArticles.content} ILIKE ${"%" + searchTerm + "%"} OR
-            ${threatArticles.detectedKeywords}->>'threats' ILIKE ${"%" + searchTerm + "%"} OR
-            ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + searchTerm + "%"} OR
-            ${threatArticles.detectedKeywords}->>'clients' ILIKE ${"%" + searchTerm + "%"} OR
-            ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + searchTerm + "%"}
+            ${globalArticles.title} ILIKE ${"%" + searchTerm + "%"} OR 
+            ${globalArticles.content} ILIKE ${"%" + searchTerm + "%"} OR
+            ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + searchTerm + "%"} OR
+            ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + searchTerm + "%"} OR
+            ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + searchTerm + "%"} OR
+            ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + searchTerm + "%"}
           )`;
         }
         conditions.push(searchCondition);
@@ -663,10 +684,10 @@ export const storage: IStorage = {
           // Search within the detectedKeywords JSON structure
           const keywordConditions = keywordTerms.map((term) => {
             return sql`(
-              ${threatArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
-              ${threatArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
-              ${threatArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
-              ${threatArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
+              ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
+              ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
+              ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
+              ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
             )`;
           });
 
@@ -678,29 +699,29 @@ export const storage: IStorage = {
 
       // Add date range filters - use publishDate for filtering
       if (startDate) {
-        conditions.push(sql`${threatArticles.publishDate} >= ${startDate}`);
+        conditions.push(gte(globalArticles.publishDate, startDate));
       }
       if (endDate) {
-        conditions.push(sql`${threatArticles.publishDate} <= ${endDate}`);
+        conditions.push(lte(globalArticles.publishDate, endDate));
       }
 
       // Build the query for global articles with proper chaining
-      const baseQuery = db.select().from(threatArticles);
+      const baseQuery = db.select().from(globalArticles);
       
       // Apply conditions and build complete query
       const finalQuery = conditions.length > 0 
         ? baseQuery
             .where(and(...conditions))
             .orderBy(
-              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
-              desc(threatArticles.scrapeDate)
+              desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`),
+              desc(globalArticles.scrapedAt)
             )
             .limit(pageSize)
             .offset((pageNum - 1) * pageSize)
         : baseQuery
             .orderBy(
-              desc(sql`COALESCE(${threatArticles.publishDate}, ${threatArticles.scrapeDate})`),
-              desc(threatArticles.scrapeDate)
+              desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`),
+              desc(globalArticles.scrapedAt)
             )
             .limit(pageSize)
             .offset((pageNum - 1) * pageSize);

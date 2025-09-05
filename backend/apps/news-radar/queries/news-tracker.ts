@@ -14,6 +14,11 @@ import {
   settings,
   articles, 
 } from "@shared/db/schema/news-tracker/index";
+import { 
+  globalArticles, 
+  globalSources, 
+  userSourcePreferences 
+} from "@shared/db/schema/global-tables";
 import { db, pool } from "backend/db/db";
 import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc, inArray } from "drizzle-orm";
 import { Request } from "express";
@@ -29,6 +34,27 @@ async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]
     return result.rows as T[];
   } catch (error) {
     console.error("SQL execution error:", error);
+    return [];
+  }
+}
+
+// Helper function to get user's enabled sources from user_source_preferences
+async function getUserEnabledSources(userId: string, appContext: 'news_radar' | 'threat_tracker'): Promise<string[]> {
+  try {
+    const enabledSources = await db
+      .select({ sourceId: userSourcePreferences.sourceId })
+      .from(userSourcePreferences)
+      .where(
+        and(
+          eq(userSourcePreferences.userId, userId),
+          eq(userSourcePreferences.appContext, appContext),
+          eq(userSourcePreferences.isEnabled, true)
+        )
+      );
+    
+    return enabledSources.map(s => s.sourceId);
+  } catch (error) {
+    console.error("Error getting user enabled sources:", error);
     return [];
   }
 }
@@ -294,9 +320,8 @@ export class DatabaseStorage implements IStorage {
     const limit = filters?.limit || 50;
 
     // Phase 3: Query-time filtering from global article pool
-    // Step 1: Get user's enabled sources (for now, all user sources are considered enabled)
-    const userSources = await this.getSources(userId);
-    const sourceIds = userSources.map(s => s.id);
+    // Step 1: Get user's enabled sources from user_source_preferences table
+    const sourceIds = await getUserEnabledSources(userId, 'news_radar');
 
     // Step 2: Get user's active keywords for filtering
     const userKeywords = await this.getKeywords(userId);
@@ -307,40 +332,40 @@ export class DatabaseStorage implements IStorage {
     // Step 3: Query global articles (no userId filter)
     const query = db
       .select({
-        id: articles.id,
-        sourceId: articles.sourceId,
-        title: articles.title,
-        content: articles.content,
-        url: articles.url,
-        author: articles.author,
-        publishDate: articles.publishDate,
-        summary: articles.summary,
-        relevanceScore: articles.relevanceScore,
-        detectedKeywords: articles.detectedKeywords,
-        userId: articles.userId,
-        sourceName: sources.name,
+        id: globalArticles.id,
+        sourceId: globalArticles.sourceId,
+        title: globalArticles.title,
+        content: globalArticles.content,
+        url: globalArticles.url,
+        author: globalArticles.author,
+        publishDate: globalArticles.publishDate,
+        summary: globalArticles.summary,
+        relevanceScore: sql<number>`0`.as('relevanceScore'), // Default value for compatibility
+        detectedKeywords: globalArticles.detectedKeywords,
+        userId: sql<string>`''`.as('userId'), // Empty string for compatibility
+        sourceName: globalSources.name,
       })
-      .from(articles)
-      .leftJoin(sources, eq(articles.sourceId, sources.id))
+      .from(globalArticles)
+      .leftJoin(globalSources, eq(globalArticles.sourceId, globalSources.id))
       .where(
         and(
-          // Filter by user's sources only
-          sourceIds.length > 0 ? inArray(articles.sourceId, sourceIds) : sql`FALSE`,
+          // Filter by user's enabled sources only
+          sourceIds.length > 0 ? inArray(globalArticles.sourceId, sourceIds) : sql`FALSE`,
           searchTerm
             ? or(
-                ilike(articles.title, `%${searchTerm}%`),
-                ilike(articles.content, `%${searchTerm}%`)
+                ilike(globalArticles.title, `%${searchTerm}%`),
+                ilike(globalArticles.content, `%${searchTerm}%`)
               )
             : sql`TRUE`,
           startDate
-            ? gte(articles.publishDate, startDate)
+            ? gte(globalArticles.publishDate, startDate)
             : sql`TRUE`,
           endDate
-            ? lte(articles.publishDate, endDate)
+            ? lte(globalArticles.publishDate, endDate)
             : sql`TRUE`,
         )
       )
-      .orderBy(desc(articles.publishDate))
+      .orderBy(desc(globalArticles.publishDate))
       .limit(limit)
       .offset((page - 1) * limit);
 
