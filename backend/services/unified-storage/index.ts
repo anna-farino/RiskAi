@@ -105,10 +105,28 @@ export class UnifiedStorageService {
         }
       }
 
-      // Step 4: Execute query
+      // Step 4: Execute query with source name join
       const query = db
-        .select()
+        .select({
+          id: globalArticles.id,
+          sourceId: globalArticles.sourceId,
+          title: globalArticles.title,
+          content: globalArticles.content,
+          url: globalArticles.url,
+          author: globalArticles.author,
+          publishDate: globalArticles.publishDate,
+          summary: globalArticles.summary,
+          isCybersecurity: globalArticles.isCybersecurity,
+          securityScore: globalArticles.securityScore,
+          threatCategories: globalArticles.threatCategories,
+          scrapedAt: globalArticles.scrapedAt,
+          lastAnalyzedAt: globalArticles.lastAnalyzedAt,
+          analysisVersion: globalArticles.analysisVersion,
+          detectedKeywords: globalArticles.detectedKeywords,
+          sourceName: globalSources.name,
+        })
         .from(globalArticles)
+        .leftJoin(globalSources, eq(globalArticles.sourceId, globalSources.id))
         .where(and(...conditions))
         .orderBy(desc(globalArticles.publishDate));
 
