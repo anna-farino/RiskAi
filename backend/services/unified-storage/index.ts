@@ -92,11 +92,10 @@ export class UnifiedStorageService {
       
       if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Use specific keyword IDs sent from frontend
-        log(`[UnifiedStorage] Filtering by specific keywords: ${filter.keywordIds.join(', ')}`, 'storage');
         
         if (appType === 'news-radar') {
           const keywordResults = await db
-            .select({ term: keywords.term })
+            .select({ term: keywords.term, id: keywords.id })
             .from(keywords)
             .where(
               and(
@@ -106,12 +105,17 @@ export class UnifiedStorageService {
             );
           keywordsToFilter = keywordResults.map(k => k.term);
         } else {
+          // Threat Tracker: Handle NULL user_id values in threat_keywords table
           const keywordResults = await db
-            .select({ term: threatKeywords.term })
+            .select({ term: threatKeywords.term, id: threatKeywords.id })
             .from(threatKeywords)
             .where(
               and(
-                eq(threatKeywords.userId, userId),
+                // Handle NULL user_id by checking both conditions
+                or(
+                  eq(threatKeywords.userId, userId),
+                  isNull(threatKeywords.userId)
+                ),
                 inArray(threatKeywords.id, filter.keywordIds)
               )
             );
@@ -120,6 +124,13 @@ export class UnifiedStorageService {
       } else {
         // Fallback: Use all active keywords (existing behavior)
         keywordsToFilter = await this.getUserKeywords(userId, appType);
+      }
+      
+      // Handle keyword filtering logic
+      if (filter?.keywordIds && filter.keywordIds.length > 0 && keywordsToFilter.length === 0) {
+        // User requested specific keywords but none were found in database
+        log(`[UnifiedStorage] Keyword mismatch: ${filter.keywordIds.length} requested, 0 found. Returning empty results.`, 'storage');
+        return []; // Return empty array instead of all articles
       }
       
       // Apply keyword filtering if we have keywords
@@ -136,7 +147,7 @@ export class UnifiedStorageService {
           conditions.push(or(...keywordConditions));
         }
         
-        log(`[UnifiedStorage] Applied keyword filter with ${keywordsToFilter.length} terms: ${keywordsToFilter.join(', ')}`, 'storage');
+        log(`[UnifiedStorage] Applied keyword filter: ${keywordsToFilter.length} terms`, 'storage');
       }
 
       // Step 4: Execute query with source name join
