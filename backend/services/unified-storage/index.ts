@@ -221,6 +221,34 @@ export class UnifiedStorageService {
         console.log(`[KEYWORD-DEBUG] Sample titles:`, sampleTitles);
       }
       
+      // Add matched keywords to each article if keyword filtering was applied
+      if (keywordsToFilter.length > 0) {
+        const articlesWithMatchedKeywords = articles.map(article => {
+          const matchedKeywords: string[] = [];
+          
+          // Check which keywords match this article
+          for (const keyword of keywordsToFilter) {
+            const lowerKeyword = keyword.toLowerCase();
+            const titleMatch = article.title?.toLowerCase().includes(lowerKeyword);
+            const contentMatch = article.content?.toLowerCase().includes(lowerKeyword);
+            
+            if (titleMatch || contentMatch) {
+              matchedKeywords.push(keyword);
+            }
+          }
+          
+          // Return article with matched keywords (override detectedKeywords for display)
+          return {
+            ...article,
+            matchedKeywords, // Add new field with actual matched user keywords
+            detectedKeywords: matchedKeywords // Override AI-generated keywords with matched user keywords for display
+          };
+        });
+        
+        log(`[UnifiedStorage] Retrieved ${articlesWithMatchedKeywords.length} articles for user`, 'storage');
+        return articlesWithMatchedKeywords;
+      }
+      
       log(`[UnifiedStorage] Retrieved ${articles.length} articles for user`, 'storage');
       return articles;
 
