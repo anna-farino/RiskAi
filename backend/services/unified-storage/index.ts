@@ -127,27 +127,28 @@ export class UnifiedStorageService {
       }
       
       // Handle keyword filtering logic
-      if (filter?.keywordIds && filter.keywordIds.length > 0 && keywordsToFilter.length === 0) {
-        // User requested specific keywords but none were found in database
-        log(`[UnifiedStorage] Keyword mismatch: ${filter.keywordIds.length} requested, 0 found. Returning empty results.`, 'storage');
-        return []; // Return empty array instead of all articles
-      }
-      
-      // Apply keyword filtering if we have keywords
-      if (keywordsToFilter.length > 0) {
-        const keywordConditions = keywordsToFilter.map(kw => 
-          or(
-            ilike(globalArticles.title, `%${kw}%`),
-            ilike(globalArticles.content, `%${kw}%`),
-            sql`${globalArticles.detectedKeywords}::text ILIKE ${'%' + kw + '%'}`
-          )
-        );
-        
-        if (keywordConditions.length > 0) {
-          conditions.push(or(...keywordConditions));
+      if (filter?.keywordIds && filter.keywordIds.length > 0) {
+        if (keywordsToFilter.length === 0) {
+          // User requested specific keywords but none were found in database
+          // This can happen when keywords exist in frontend state but not in database
+          log(`[UnifiedStorage] Warning: ${filter.keywordIds.length} keywords requested but 0 found in database. Showing all articles.`, 'storage');
+          // Don't apply keyword filtering - show all articles from enabled sources
+        } else {
+          // Apply keyword filtering if we have keywords
+          const keywordConditions = keywordsToFilter.map(kw => 
+            or(
+              ilike(globalArticles.title, `%${kw}%`),
+              ilike(globalArticles.content, `%${kw}%`),
+              sql`${globalArticles.detectedKeywords}::text ILIKE ${'%' + kw + '%'}`
+            )
+          );
+          
+          if (keywordConditions.length > 0) {
+            conditions.push(or(...keywordConditions));
+          }
+          
+          log(`[UnifiedStorage] Applied keyword filter: ${keywordsToFilter.length} terms`, 'storage');
         }
-        
-        log(`[UnifiedStorage] Applied keyword filter: ${keywordsToFilter.length} terms`, 'storage');
       }
 
       // Step 4: Execute query with source name join
