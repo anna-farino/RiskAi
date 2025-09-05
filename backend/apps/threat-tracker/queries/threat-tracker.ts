@@ -684,8 +684,25 @@ export const storage: IStorage = {
         conditions.push(sql`${threatArticles.publishDate} <= ${endDate}`);
       }
 
-      // Build the query for global articles with proper chaining
-      const baseQuery = db.select().from(threatArticles);
+      // Build the query for global articles with proper chaining and join with sources
+      const baseQuery = db.select({
+        id: threatArticles.id,
+        sourceId: threatArticles.sourceId,
+        title: threatArticles.title,
+        content: threatArticles.content,
+        url: threatArticles.url,
+        author: threatArticles.author,
+        publishDate: threatArticles.publishDate,
+        summary: threatArticles.summary,
+        relevanceScore: threatArticles.relevanceScore,
+        securityScore: threatArticles.securityScore,
+        detectedKeywords: threatArticles.detectedKeywords,
+        scrapeDate: threatArticles.scrapeDate,
+        userId: threatArticles.userId,
+        markedForCapsule: threatArticles.markedForCapsule,
+        sourceName: threatSources.name,
+      }).from(threatArticles)
+        .leftJoin(threatSources, eq(threatArticles.sourceId, threatSources.id));
       
       // Apply conditions and build complete query
       const finalQuery = conditions.length > 0 
