@@ -96,20 +96,51 @@ export class UnifiedStorageService {
         console.log(`[KEYWORD-DEBUG] Searching for keyword IDs: ${filter.keywordIds.join(', ')} for userId: ${userId}`);
         
         if (appType === 'news-radar') {
-          // Get keywords by IDs
+          // Get keywords by IDs - try without the active check first
+          console.log(`[KEYWORD-DEBUG] Attempting to fetch keywords for userId: ${userId}`);
+          
+          // First, try the Drizzle query
           const keywordResults = await db
-            .select({ term: keywords.term, id: keywords.id, userId: keywords.userId })
+            .select({ 
+              term: keywords.term, 
+              id: keywords.id, 
+              userId: keywords.userId,
+              active: keywords.active 
+            })
             .from(keywords)
             .where(
               and(
                 eq(keywords.userId, userId),
-                inArray(keywords.id, filter.keywordIds),
-                eq(keywords.active, true)
+                inArray(keywords.id, filter.keywordIds)
               )
             );
           
-          console.log(`[KEYWORD-DEBUG] Found ${keywordResults.length} keywords:`, keywordResults.map(k => k.term));
-          keywordsToFilter = keywordResults.map(k => k.term);
+          console.log(`[KEYWORD-DEBUG] Drizzle query found ${keywordResults.length} keywords:`, keywordResults);
+          
+          // If no results, try a raw SQL query to bypass any RLS issues
+          let finalKeywords = keywordResults;
+          if (keywordResults.length === 0) {
+            console.log(`[KEYWORD-DEBUG] Trying raw SQL query...`);
+            const rawResults = await db.execute(
+              sql`SELECT id, term, active, user_id as "userId" 
+                  FROM keywords 
+                  WHERE user_id = ${userId} 
+                  AND id = ANY(${filter.keywordIds}::uuid[])
+                  AND active = true`
+            );
+            console.log(`[KEYWORD-DEBUG] Raw SQL found ${rawResults.rows.length} keywords:`, rawResults.rows);
+            
+            // Use raw SQL results if found
+            if (rawResults.rows.length > 0) {
+              finalKeywords = rawResults.rows as any[];
+            }
+          }
+          
+          // Filter for active keywords only (handle both boolean and string from raw SQL)
+          const activeKeywords = finalKeywords.filter(k => k.active === true || (k.active as any) === 't');
+          console.log(`[KEYWORD-DEBUG] Active keywords: ${activeKeywords.length}`, activeKeywords.map(k => k.term));
+          
+          keywordsToFilter = activeKeywords.map(k => k.term);
         } else {
           // Threat Tracker: Handle NULL user_id values in threat_keywords table
           const keywordResults = await db
