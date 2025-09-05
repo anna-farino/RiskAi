@@ -143,116 +143,26 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // FIXED CYCLETLS IMPLEMENTATION - Correct parameter passing
-      log(`[ProtectionBypass] Creating CycleTLS client`, "scraper");
+      // SIMPLIFIED CYCLETLS - Using only supported options
+      log(`[ProtectionBypass] Creating CycleTLS client with supported options only`, "scraper");
       
-      // Enhanced HTTP/2 and TLS fingerprinting options
-      const http2Settings = {
-        headerTableSize: 65536,
-        enablePush: false,
-        initialWindowSize: 6291456,
-        maxFrameSize: 16384,
-        maxConcurrentStreams: 1000,
-        maxHeaderListSize: 262144,
-        enableConnectProtocol: false
-      };
-      
-      // TLS extension order matching real Chrome
-      const tlsExtensionOrder = [
-        "grease",
-        "sni",
-        "extended_master_secret", 
-        "renegotiation_info",
-        "supported_groups",
-        "ec_point_formats",
-        "session_ticket",
-        "alpn",
-        "status_request",
-        "signature_algorithms",
-        "signed_cert_timestamp",
-        "key_share",
-        "psk_key_exchange_modes",
-        "supported_versions",
-        "compress_certificate",
-        "application_settings",
-        "grease",
-        "padding"
-      ];
-      
-      // Advanced TCP tuning parameters
-      const tcpOptions = {
-        tcpNoDelay: true, // Disable Nagle's algorithm like browsers
-        tcpKeepAliveInterval: 75000, // Chrome's keep-alive interval
-        tcpKeepAliveProbes: 9,
-        socketLinger: 0,
-        socketReuseAddress: true,
-        socketKeepAlive: true,
-        socketTimeout: 300000, // 5 minutes like Chrome
-        ipTTL: 64, // Common default TTL
-        ipTypeOfService: 0x00
-      };
-      
-      // Certificate validation behavior matching Chrome
-      const certOptions = {
-        certVerifyProc: "default",
-        certTransparencyCompliance: "enforce",
-        enableOCSPStapling: true,
-        enableCertificateTransparency: true,
-        checkCertificateRevocation: true,
-        requireValidCertificates: true,
-        pinnedCertificates: [], // No pinning by default
-        minTLSVersion: "TLS1.2",
-        maxTLSVersion: "TLS1.3"
-      };
-      
-      // Create client with enhanced TLS and HTTP/2 options
+      // Create client with only proven CycleTLS options
       const client = await cycletls({
-        ja3: profile.ja3,
-        userAgent: profile.userAgent,
-        timeout: timeout || 30000,
-        http2Settings: http2Settings,
-        tlsExtensionOrder: tlsExtensionOrder.join(","),
-        windowSize: 15663105, // Chrome's default TCP window size
-        connectionFlow: 15663105,
-        priorityFrames: true,
-        headerPriority: {
-          weight: 256,
-          streamDep: 0,
-          exclusive: true
-        },
-        disableHttp2: false,
-        disableRedirect: false,
-        // Add TCP tuning options
-        ...tcpOptions,
-        // Add certificate validation options
-        ...certOptions,
-        // Additional Chrome-like behavior
-        forceHttp1: false,
-        disableCompression: false,
-        customTLSClient: "chrome_120", // Use Chrome 120 TLS stack
-        proxyUrl: "", // No proxy by default
-        cookies: cookies || [],
-        referer: headers?.Referer || headers?.referer || ""
+        ja3: profile.ja3,                    // ✅ TLS fingerprinting
+        userAgent: profile.userAgent,        // ✅ User agent string
+        timeout: timeout || 30000,           // ✅ Request timeout
+        proxy: "",                            // ✅ No proxy (supported option)
+        disableRedirect: false,               // ✅ Follow redirects
+        // Note: Removed all unsupported options that were causing status 0
+        // Browser fingerprinting still works via page.evaluateOnNewDocument
       });
       
-      log(`[ProtectionBypass] CycleTLS client created with HTTP/2 fingerprinting`, "scraper");
+      log(`[ProtectionBypass] CycleTLS client created successfully`, "scraper");
       
-      // Enhanced request options with realistic browser behavior
+      // Simple request options without HTTP/2 pseudo-headers
       const requestOptions = {
-        headers: {
-          ...consistentHeaders,
-          // HTTP/2 pseudo-headers that browsers send
-          ':authority': new URL(url).host,
-          ':method': method.toUpperCase(),
-          ':path': new URL(url).pathname + new URL(url).search,
-          ':scheme': new URL(url).protocol.slice(0, -1)
-        },
-        body: body,
-        // Certificate validation like real Chrome
-        insecureSkipVerify: false,
-        // Follow redirects like browsers
-        followRedirect: true,
-        maxRedirects: 10
+        headers: consistentHeaders,           // Standard headers only
+        body: body                           // Request body if needed
       };
       
       log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
