@@ -40,7 +40,6 @@ export class UnifiedStorageService {
     filter?: ArticleFilter & { keywordIds?: string[] }
   ): Promise<GlobalArticle[]> {
     try {
-      console.log(`[UNIFIED-STORAGE] Getting articles for user ${userId}, app: ${appType}, keywordIds:`, filter?.keywordIds);
       log(`[UnifiedStorage] Getting articles for user ${userId}, app: ${appType}`, 'storage');
 
       // Step 1: Get user's enabled sources
@@ -95,11 +94,8 @@ export class UnifiedStorageService {
       
       if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Use specific keyword IDs sent from frontend
-        console.log(`[KEYWORD-DEBUG] Searching for keyword IDs: ${filter.keywordIds.join(', ')} for userId: ${userId}`);
         
         if (appType === 'news-radar') {
-          console.log(`[KEYWORD-DEBUG] Attempting to fetch keywords for userId: ${userId}`);
-          console.log(`[KEYWORD-DEBUG] Looking for IDs: ${filter.keywordIds.join(', ')}`);
           
           // Use withUserContext to bypass RLS and get keywords
           const encryptedKeywords = await withUserContext(
@@ -121,33 +117,62 @@ export class UnifiedStorageService {
               )
           );
           
-          console.log(`[KEYWORD-DEBUG] Found ${encryptedKeywords.length} keywords with withUserContext`);
-          
           // Decrypt the keyword terms
           const decryptedKeywords = encryptedKeywords.map(k => ({
             ...k,
             term: decrypt(k.term)
           }));
           
-          console.log(`[KEYWORD-DEBUG] Active keywords: ${decryptedKeywords.length}`, decryptedKeywords.map(k => k.term));
-          
           keywordsToFilter = decryptedKeywords.map(k => k.term);
         } else {
           // Threat Tracker: Handle NULL user_id values in threat_keywords table
-          const keywordResults = await db
-            .select({ term: threatKeywords.term, id: threatKeywords.id })
+          
+          // Try with withUserContext first for user-specific keywords
+          let keywordResults = [];
+          try {
+            const userKeywords = await withUserContext(
+              userId,
+              async (contextDb) => contextDb
+                .select({ 
+                  term: threatKeywords.term, 
+                  id: threatKeywords.id,
+                  userId: threatKeywords.userId,
+                  active: threatKeywords.active
+                })
+                .from(threatKeywords)
+                .where(
+                  and(
+                    eq(threatKeywords.userId, userId),
+                    inArray(threatKeywords.id, filter.keywordIds),
+                    eq(threatKeywords.active, true)
+                  )
+                )
+            );
+            keywordResults = userKeywords;
+          } catch (error) {
+          }
+          
+          // Also get global threat keywords (userId is NULL)
+          const globalKeywords = await db
+            .select({ 
+              term: threatKeywords.term, 
+              id: threatKeywords.id,
+              userId: threatKeywords.userId,
+              active: threatKeywords.active
+            })
             .from(threatKeywords)
             .where(
               and(
-                // Handle NULL user_id by checking both conditions
-                or(
-                  eq(threatKeywords.userId, userId),
-                  isNull(threatKeywords.userId)
-                ),
-                inArray(threatKeywords.id, filter.keywordIds)
+                isNull(threatKeywords.userId),
+                inArray(threatKeywords.id, filter.keywordIds),
+                eq(threatKeywords.active, true)
               )
             );
-          keywordsToFilter = keywordResults.map(k => k.term);
+          
+          // Combine both results
+          const allKeywords = [...keywordResults, ...globalKeywords];
+          
+          keywordsToFilter = allKeywords.map(k => k.term);
         }
       } else {
         // Fallback: Use all active keywords (existing behavior)
@@ -156,7 +181,6 @@ export class UnifiedStorageService {
       
       // Handle keyword filtering logic
       if (keywordsToFilter.length > 0) {
-        console.log(`[KEYWORD-DEBUG] Applying filter for keywords: ${keywordsToFilter.join(', ')}`);
         
         // Create ILIKE conditions for each keyword
         const keywordConditions = keywordsToFilter.map(kw => 
@@ -169,15 +193,12 @@ export class UnifiedStorageService {
         // Add the keyword conditions to the main query conditions
         if (keywordConditions.length > 0) {
           conditions.push(or(...keywordConditions));
-          console.log(`[KEYWORD-DEBUG] Added ${keywordConditions.length} keyword conditions to query`);
         }
       } else if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Keywords were requested but none found - show warning but continue
-        console.log(`[KEYWORD-DEBUG] WARNING: ${filter.keywordIds.length} keywords requested but none found in database`);
       }
 
       // Step 4: Execute query with source name join
-      console.log(`[KEYWORD-DEBUG] Building query with ${conditions.length} total conditions`);
       
       const query = db
         .select({
@@ -212,14 +233,6 @@ export class UnifiedStorageService {
       }
 
       const articles = await query;
-      
-      console.log(`[KEYWORD-DEBUG] Query returned ${articles.length} articles`);
-      
-      // Sample some article titles to see what's being returned
-      if (articles.length > 0) {
-        const sampleTitles = articles.slice(0, 3).map(a => a.title?.substring(0, 50));
-        console.log(`[KEYWORD-DEBUG] Sample titles:`, sampleTitles);
-      }
       
       // Add matched keywords to each article if keyword filtering was applied
       if (keywordsToFilter.length > 0) {
