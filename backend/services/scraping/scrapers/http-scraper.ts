@@ -9,6 +9,7 @@ import {
   performPreflightCheck,
 } from "../core/protection-bypass";
 import { validateContent, needsRescraping, isRateLimited } from "../core/error-detection";
+import { detectAndFixEncoding } from "../validators/encoding-detector";
 
 export interface HTTPScrapingOptions extends EnhancedScrapingOptions {
   maxRetries?: number;
@@ -168,13 +169,16 @@ export async function scrapeWithHTTP(
     });
     
     if (response.success && response.body) {
+      // Apply encoding detection to CycleTLS response
+      const encodingFixedBody = detectAndFixEncoding(response.body, response.headers?.['content-type']);
+      
       // HTTP scraper is typically used for source pages, not articles
-      const validation = await validateContent(response.body, url, false);
+      const validation = await validateContent(encodingFixedBody, url, false);
       
       if (validation.isValid && !validation.isErrorPage && validation.linkCount >= 10) {
         log(`[HTTPScraper] Protection bypass successful with ${validation.linkCount} links`, "scraper");
         return {
-          html: response.body,
+          html: encodingFixedBody,
           success: true,
           method: "http",
           responseTime: Date.now() - startTime,
@@ -271,12 +275,14 @@ export async function scrapeWithHTTP(
               const tlsHtml = await performTLSRequest(url, options);
 
               if (tlsHtml && tlsHtml.length > 100) {
+                // Apply encoding detection to TLS response
+                const encodingFixedTls = detectAndFixEncoding(tlsHtml);
                 log(
-                  `[HTTPScraper] TLS fingerprinting successful (${tlsHtml.length} chars)`,
+                  `[HTTPScraper] TLS fingerprinting successful (${encodingFixedTls.length} chars, encoding validated)`,
                   "scraper",
                 );
                 return {
-                  html: tlsHtml,
+                  html: encodingFixedTls,
                   success: true,
                   method: "http",
                   responseTime: Date.now() - startTime,
@@ -367,9 +373,19 @@ export async function scrapeWithHTTP(
         }
 
         // Get response body
-        const html = await response.text();
+        const rawHtml = await response.text();
+        
+        // Extract headers for encoding detection
+        const responseHeaders: Record<string, string> = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+        
+        // Detect and fix encoding issues
+        const html = detectAndFixEncoding(rawHtml, responseHeaders['content-type']);
+        
         log(
-          `[HTTPScraper] Retrieved ${html.length} characters of HTML`,
+          `[HTTPScraper] Retrieved ${html.length} characters of HTML (encoding validated)`,
           "scraper",
         );
 
@@ -389,12 +405,14 @@ export async function scrapeWithHTTP(
           const tlsHtml = await performTLSRequest(url, options);
 
           if (tlsHtml && tlsHtml.length > 100) {
+            // Apply encoding detection to TLS response
+            const encodingFixedTls = detectAndFixEncoding(tlsHtml);
             log(
-              `[HTTPScraper] TLS fingerprinting successful (${tlsHtml.length} chars)`,
+              `[HTTPScraper] TLS fingerprinting successful (${encodingFixedTls.length} chars, encoding validated)`,
               "scraper",
             );
             return {
-              html: tlsHtml,
+              html: encodingFixedTls,
               success: true,
               method: "http",
               responseTime: Date.now() - startTime,
