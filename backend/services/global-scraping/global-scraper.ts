@@ -16,6 +16,8 @@ import { GlobalStrategy } from "backend/services/scraping/strategies/global-stra
 // AI services
 import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai";
 import { analyzeContent } from "../../apps/news-radar/services/openai";
+// Content validation
+import { isValidArticleContent, isValidTitle, extractTitleFromUrl } from "../scraping/validators/content-validator";
 // Error logging
 import { 
   logSourceScrapingError, 
@@ -147,13 +149,43 @@ async function scrapeGlobalSource(
           continue;
         }
         
-        // Validate article content to reject captcha/error pages
+        // Check if extraction had very low confidence (indicating validation failure)
+        if (articleContent.confidence && articleContent.confidence < 0.2) {
+          log(`[Global Scraping] Rejected article due to very low extraction confidence (${articleContent.confidence}): ${link}`, "scraper");
+          errors.push(`Article ${link}: Content validation failed - likely corrupted or error page`);
+          continue;
+        }
+        
+        // Additional validation for content quality
+        if (!isValidArticleContent(articleContent.content)) {
+          log(`[Global Scraping] Rejected article - content appears corrupted or invalid: ${link}`, "scraper");
+          errors.push(`Article ${link}: Content validation failed - corrupted text detected`);
+          continue;
+        }
+        
+        // Validate title quality - use URL extraction as fallback
+        let finalTitle = articleContent.title;
+        if (!isValidTitle(finalTitle)) {
+          log(`[Global Scraping] Title invalid or missing, attempting URL extraction`, "scraper");
+          const urlTitle = extractTitleFromUrl(link);
+          if (urlTitle) {
+            finalTitle = urlTitle;
+            log(`[Global Scraping] Using title from URL: "${finalTitle}"`, "scraper");
+          } else {
+            // Skip articles without any valid title
+            log(`[Global Scraping] Rejected article - no valid title could be extracted: ${link}`, "scraper");
+            errors.push(`Article ${link}: No valid title available`);
+            continue;
+          }
+        }
+        
+        // Additional validation for known error pages
         if (articleContent.content.length < 500 || 
-            articleContent.title.toLowerCase().includes('detected unusual') ||
+            finalTitle.toLowerCase().includes('detected unusual') ||
             articleContent.content.includes('unusual activity') ||
             articleContent.content.includes('not a robot') ||
             articleContent.content.includes('click the box below')) {
-          log(`[Global Scraping] Rejected captcha/error page: ${articleContent.title} (${articleContent.content.length} chars)`, "scraper");
+          log(`[Global Scraping] Rejected captcha/error page: ${finalTitle} (${articleContent.content.length} chars)`, "scraper");
           errors.push(`Article ${link}: Captcha/error page detected`);
           continue;
         }
@@ -193,7 +225,7 @@ async function scrapeGlobalSource(
           .insert(globalArticles)
           .values({
             sourceId: sourceId,
-            title: articleContent.title || "Untitled",
+            title: finalTitle,
             content: articleContent.content,
             url: link,
             author: articleContent.author || "Unknown",

@@ -2,7 +2,7 @@
  * Content validation utilities to detect corrupted or garbled text
  */
 
-import { log } from '../../utils/logger';
+import { log } from 'backend/utils/log';
 
 /**
  * Detects if text contains corrupted or garbled characters
