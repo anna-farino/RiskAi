@@ -172,24 +172,12 @@ export async function scrapeWithHTTP(
       // Apply encoding detection to CycleTLS response
       const encodingFixedBody = detectAndFixEncoding(response.body, response.headers?.['content-type']);
       
-      // For successful protection bypass with substantial content, trust it
+      // For successful protection bypass, trust the validation
       const validation = await validateContent(encodingFixedBody, url, false);
       
-      // If we got substantial content from protection bypass, accept it
-      // Don't require link count - articles don't need many links
-      if (validation.isValid && !validation.isErrorPage) {
+      // Trust the isValid check - don't require link count for articles
+      if (validation.isValid) {
         log(`[HTTPScraper] Protection bypass successful (${encodingFixedBody.length} chars, ${validation.linkCount} links)`, "scraper");
-        return {
-          html: encodingFixedBody,
-          success: true,
-          method: "http",
-          responseTime: Date.now() - startTime,
-          statusCode: response.status,
-          finalUrl: url
-        };
-      } else if (encodingFixedBody.length > 10000) {
-        // Even if validation failed, if we got substantial content from bypass, use it
-        log(`[HTTPScraper] Protection bypass returned substantial content despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
         return {
           html: encodingFixedBody,
           success: true,
