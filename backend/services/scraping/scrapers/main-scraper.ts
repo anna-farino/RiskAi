@@ -150,6 +150,8 @@ export class StreamlinedUnifiedScraper {
       // Check if content is valid
       if (!isValidArticleContent(extractedContent)) {
         log(`[SimpleScraper] Content validation failed - appears corrupted or too short`, "scraper");
+        log(`[SimpleScraper] Failed content length: ${extractedContent.length} chars`, "scraper");
+        log(`[SimpleScraper] Failed content preview (first 500 chars): "${extractedContent.slice(0, 500).replace(/\s+/g, ' ')}"`, "scraper");
         // Reduce confidence significantly for corrupted content
         extracted.confidence = 0.1;
       }
