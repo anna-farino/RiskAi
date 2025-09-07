@@ -8,6 +8,7 @@ import { validateContent } from '../core/error-detection';
 import { 
   extractContentWithSelectors 
 } from '../extractors/content-extraction/content-extractor';
+import { isValidArticleContent, isValidTitle } from '../validators/content-validator';
 import { 
   shouldTriggerAIReanalysis, 
   performAIReanalysis 
@@ -130,13 +131,36 @@ export class StreamlinedUnifiedScraper {
         (extracted.confidence || 0.9) : 
         Math.min((extracted.confidence || 0.9) * (validation.confidence / 100), 0.5);
 
+      // Additional content quality validation
+      const extractedTitle = extracted.title || '';
+      const extractedContent = extracted.content || '';
+      
+      // Check if title is valid
+      if (!isValidTitle(extractedTitle)) {
+        log(`[SimpleScraper] Title validation failed - appears invalid or corrupted`, "scraper");
+        // Try to extract from URL as fallback
+        const { extractTitleFromUrl } = await import('../validators/content-validator');
+        const urlTitle = extractTitleFromUrl(url);
+        if (urlTitle) {
+          extracted.title = urlTitle;
+          log(`[SimpleScraper] Using title extracted from URL: "${urlTitle}"`, "scraper");
+        }
+      }
+      
+      // Check if content is valid
+      if (!isValidArticleContent(extractedContent)) {
+        log(`[SimpleScraper] Content validation failed - appears corrupted or too short`, "scraper");
+        // Reduce confidence significantly for corrupted content
+        extracted.confidence = 0.1;
+      }
+
       const result: ArticleContent = {
         title: extracted.title || '',
-        content: extracted.content || '',
+        content: extractedContent,
         author: extracted.author,
         publishDate,
         extractionMethod: `${contentResult.method}_${extracted.extractionMethod || 'selectors'}`,
-        confidence: adjustedConfidence
+        confidence: Math.min(adjustedConfidence, extracted.confidence || 0.9)
       };
 
       log(`[SimpleScraper] Final extraction result (title=${result.title.length} chars, content=${result.content.length} chars, method=${result.extractionMethod}, confidence=${result.confidence})`, "scraper");
