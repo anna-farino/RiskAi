@@ -4,6 +4,12 @@ import * as cheerio from 'cheerio';
 import { generateFallbackSelectors } from './fallback-selectors';
 import { cleanAndNormalizeContent } from './content-cleaner';
 import { extractPublishDate } from './date-extractor';
+import { 
+  isValidArticleContent, 
+  isValidTitle, 
+  extractTitleFromUrl, 
+  sanitizeContent 
+} from '../../validators/content-validator';
 
 /**
  * Sanitize CSS selector by removing invalid patterns
@@ -52,10 +58,43 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
       log(`[ContentExtractor] Date extraction failed: ${dateError}`, "scraper");
     }
 
-    // Clean and normalize the extracted content
+    // Clean and sanitize the extracted content
+    let title = cleanAndNormalizeContent(extracted.title || "");
+    let content = cleanAndNormalizeContent(extracted.content || "");
+    
+    // Additional sanitization to remove corrupted characters
+    title = sanitizeContent(title);
+    content = sanitizeContent(content);
+    
+    // Validate title - if invalid or missing, try to extract from URL
+    if (!isValidTitle(title) && sourceUrl) {
+      log(`[ContentExtractor] Title invalid or missing, attempting URL extraction`, "scraper");
+      const urlTitle = extractTitleFromUrl(sourceUrl);
+      if (urlTitle) {
+        title = urlTitle;
+        log(`[ContentExtractor] Using title from URL: "${title}"`, "scraper");
+      } else {
+        title = "Untitled"; // Keep as fallback but validation will catch this
+      }
+    }
+    
+    // Validate content quality
+    if (!isValidArticleContent(content)) {
+      log(`[ContentExtractor] Content validation failed - appears corrupted or too short`, "scraper");
+      // Mark as failed extraction with very low confidence
+      return {
+        title: title || "Content Validation Failed",
+        content: content || "Article content could not be extracted properly",
+        author: extracted.author,
+        publishDate,
+        extractionMethod: "validation_failed",
+        confidence: 0.1 // Very low confidence to signal rejection
+      };
+    }
+
     const result: ArticleContent = {
-      title: cleanAndNormalizeContent(extracted.title || ""),
-      content: cleanAndNormalizeContent(extracted.content || ""),
+      title,
+      content,
       author: extracted.author,
       publishDate,
       extractionMethod: extracted.extractionMethod || "selectors",
