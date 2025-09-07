@@ -1,6 +1,7 @@
 import { log } from "backend/utils/log";
 import { scrapeWithHTTP } from '../scrapers/http-scraper';
 import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper';
+import { detectAndFixEncoding, getEncodingFromHeaders } from '../validators/encoding-detector';
 
 /**
  * Web fetch function that uses native fetch with enhanced headers
@@ -38,9 +39,19 @@ async function performWebFetch(url: string): Promise<string | null> {
       return null;
     }
     
-    const content = await response.text();
-    // Content fetched successfully
+    // Get content with potential encoding fix
+    const rawContent = await response.text();
     
+    // Extract headers for encoding detection
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    
+    // Detect and fix encoding issues
+    const content = detectAndFixEncoding(rawContent, headers['content-type']);
+    
+    log(`[WebFetch] Content fetched and encoding validated (${content.length} chars)`, "scraper");
     return content;
   } catch (error: any) {
     log(`[WebFetch] Error: ${error.message}`, "scraper-error");
