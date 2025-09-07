@@ -415,21 +415,39 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
       // Step 2: Brief human-like delay
       await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
       
-      // Step 3: Simulate robots.txt check (normal browser behavior)
-      await performCycleTLSRequest(`${baseUrl}/robots.txt`, {
+      // Step 3: Load favicon (common browser behavior)
+      await performCycleTLSRequest(`${baseUrl}/favicon.ico`, {
         method: 'GET',
         sessionId,
         timeout: 5000,
         headers: {
           'Referer': baseUrl,
-          'Sec-Fetch-Dest': 'empty',
-          'Sec-Fetch-Mode': 'cors',
-          'Sec-Fetch-Site': 'same-origin'
+          'Sec-Fetch-Dest': 'image',
+          'Sec-Fetch-Mode': 'no-cors',
+          'Sec-Fetch-Site': 'same-origin',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
         }
       });
       
       // Step 4: Another human delay
       await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      
+      // Step 5: Try to load a common page (about or contact)
+      const commonPages = ['/about', '/contact', '/privacy', '/terms'];
+      const randomPage = commonPages[Math.floor(Math.random() * commonPages.length)];
+      
+      await performCycleTLSRequest(`${baseUrl}${randomPage}`, {
+        method: 'GET',
+        sessionId,
+        timeout: 5000,
+        headers: {
+          'Referer': baseUrl,
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'same-origin',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+        }
+      });
     }
     
     log(`[ProtectionBypass] Session warmup completed`, "scraper");
