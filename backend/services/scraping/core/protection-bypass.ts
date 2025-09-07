@@ -466,6 +466,8 @@ export async function performPreflightCheck(url: string): Promise<{
   requiresPuppeteer: boolean;
   cookies?: string[];
   headers?: Record<string, string>;
+  body?: string;  // Return the successful content
+  status?: number; // Return the status code
 }> {
   log(`[ProtectionBypass] Performing enhanced pre-flight check with session warming for ${url}`, "scraper");
 
@@ -511,11 +513,15 @@ export async function performPreflightCheck(url: string): Promise<{
     log(`[ProtectionBypass] 401 detected - authentication required but not bot protection`, "scraper");
   }
 
+  // Return the successful content from pre-flight
+  // This avoids making another request that might get blocked
   return {
     protectionDetected: false,
     requiresPuppeteer: false,
     cookies: response.cookies,
-    headers: response.headers
+    headers: response.headers,
+    body: response.body,  // Include the successful content
+    status: response.status // Include the status code
   };
 }
 

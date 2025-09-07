@@ -158,6 +158,43 @@ export async function scrapeWithHTTP(
 
   // Perform pre-flight check
   const preflightResult = await performPreflightCheck(url);
+  
+  // If pre-flight succeeded with substantial content, use it directly
+  // This happens when CycleTLS bypasses protection that regular fetch can't
+  if (!preflightResult.protectionDetected && preflightResult.body && preflightResult.body.length > 1000) {
+    log(`[HTTPScraper] Pre-flight returned substantial content (${preflightResult.body.length} chars), using it directly`, "scraper");
+    
+    // Apply encoding detection to the pre-flight response
+    const encodingFixedBody = detectAndFixEncoding(preflightResult.body, preflightResult.headers?.['content-type']);
+    
+    // Validate the content
+    const validation = await validateContent(encodingFixedBody, url, false);
+    
+    // If we got substantial content, use it
+    if (validation.isValid && !validation.isErrorPage) {
+      log(`[HTTPScraper] Using successful pre-flight content (${encodingFixedBody.length} chars, ${validation.linkCount} links)`, "scraper");
+      return {
+        html: encodingFixedBody,
+        success: true,
+        method: "http",
+        responseTime: Date.now() - startTime,
+        statusCode: preflightResult.status || 200,
+        finalUrl: url
+      };
+    } else if (encodingFixedBody.length > 10000) {
+      // Even if validation has issues, substantial content should be used
+      log(`[HTTPScraper] Using pre-flight content despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
+      return {
+        html: encodingFixedBody,
+        success: true,
+        method: "http",
+        responseTime: Date.now() - startTime,
+        statusCode: preflightResult.status || 200,
+        finalUrl: url
+      };
+    }
+  }
+  
   if (preflightResult.protectionDetected) {
     log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
     
