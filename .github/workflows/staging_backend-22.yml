@@ -2,7 +2,11 @@ name: Backend – Build & Deploy (ACA)
 
 on:
   push:
-    branches: [staging, main]
+    branches: 
+      - staging
+    paths:
+    - '**'
+    - '.github/workflows/staging_backend-22.yml'
   workflow_dispatch:
 
 jobs:
