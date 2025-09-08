@@ -180,4 +180,9 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - Sources with insufficient links now properly escalate to Puppeteer
   - Article scraping unchanged - still accepts content based on length
   - Better article link discovery for news aggregation
+- **7.5 Enhanced Debug Logging**: Added detailed content logging for failed scrapes
+  - When scraping fails, now logs content length and link count
+  - Shows first 500 and last 500 characters of failed content for debugging
+  - Helps identify if content is actually usable despite failing validation
+  - Provides visibility into what's being scraped when failures occur
 ```

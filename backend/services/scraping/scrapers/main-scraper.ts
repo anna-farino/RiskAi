@@ -197,11 +197,13 @@ export class StreamlinedUnifiedScraper {
    * @param errorContext - Optional context for error logging (userId, sourceId, etc.)
    */
   async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext, errorContext?: ScrapingContextInfo): Promise<string[]> {
+    let result: any = null; // Declare result outside try block for error logging
+    
     try {
       log(`[SimpleScraper] Starting source scraping: ${url}`, "scraper");
 
       // Step 1: Get content (HTTP or Puppeteer)
-      const result = await getContent(url, false);
+      result = await getContent(url, false);
 
       // Step 2: Smart assessment of whether we need additional extraction
       // Use assessment from HTMX handler if available, otherwise use intelligent heuristics
@@ -348,17 +350,34 @@ export class StreamlinedUnifiedScraper {
     } catch (error: any) {
       log(`[SimpleScraper] Error in source scraping: ${error.message}`, "scraper-error");
       
+      // Log any available content for debugging when scraping fails
+      if (result && result.html) {
+        log(`[SimpleScraper] Failed scrape had content: ${result.html.length} chars`, "scraper-error");
+        
+        // Log a sample of the content for debugging
+        const contentSample = result.html.length > 1000 
+          ? `${result.html.substring(0, 500)}\n...\n[Truncated - ${result.html.length} total chars]\n...\n${result.html.substring(result.html.length - 500)}`
+          : result.html;
+        log(`[SimpleScraper] Failed content sample:\n${contentSample}`, "scraper-error");
+        
+        // Count links in the failed content
+        const linkCount = (result.html.match(/<a[^>]*href[^>]*>/gi) || []).length;
+        log(`[SimpleScraper] Links in failed content: ${linkCount}`, "scraper-error");
+      }
+      
       // Log the error with context if available
       if (error instanceof Error && errorContext) {
         await logSourceScrapingError(
           error,
           errorContext,
-          'http', // Default, will be determined by method detection
+          result?.method || 'http', // Use actual method if available
           {
             step: 'general-source-scraping-failure',
             operation: 'main-scraper-source',
             url,
             errorOccurredAt: new Date().toISOString(),
+            contentLength: result?.html?.length || 0,
+            linkCount: result?.html ? (result.html.match(/<a[^>]*href[^>]*>/gi) || []).length : 0,
           }
         );
       }

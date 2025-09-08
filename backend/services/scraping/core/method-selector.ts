@@ -154,6 +154,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
   
   // Retry Puppeteer up to 2 times if browser disconnection occurs
   let lastError: Error | null = null;
+  let lastPuppeteerResult: any = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const puppeteerResult = await scrapeWithPuppeteer(url, {
@@ -164,12 +165,29 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
         protectionBypass: true
       });
       
+      lastPuppeteerResult = puppeteerResult; // Save for debugging if all attempts fail
+      
       if (puppeteerResult.success) {
         log(`[SimpleScraper] Puppeteer successful on attempt ${attempt} (${puppeteerResult.html.length} chars)`, "scraper");
         return puppeteerResult;
       }
       
-      // If Puppeteer didn't succeed but didn't throw, save the error
+      // If Puppeteer didn't succeed but didn't throw, log the content for debugging
+      log(`[SimpleScraper] Puppeteer returned unsuccessful result on attempt ${attempt}`, "scraper");
+      log(`[SimpleScraper] Content length: ${puppeteerResult.html?.length || 0} chars`, "scraper");
+      
+      // Log a sample of the content for debugging (first 500 chars and last 500 chars)
+      if (puppeteerResult.html && puppeteerResult.html.length > 0) {
+        const contentSample = puppeteerResult.html.length > 1000 
+          ? `${puppeteerResult.html.substring(0, 500)}\n...\n[Content truncated - ${puppeteerResult.html.length} total chars]\n...\n${puppeteerResult.html.substring(puppeteerResult.html.length - 500)}`
+          : puppeteerResult.html;
+        log(`[SimpleScraper] Content sample:\n${contentSample}`, "scraper");
+        
+        // Also count and log links for debugging
+        const linkCount = (puppeteerResult.html.match(/<a[^>]*href[^>]*>/gi) || []).length;
+        log(`[SimpleScraper] Links found in failed content: ${linkCount}`, "scraper");
+      }
+      
       lastError = new Error(`Puppeteer returned unsuccessful result`);
     } catch (error: any) {
       lastError = error;
@@ -194,6 +212,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
   }
   
   // If we got here, all attempts failed
+  log(`[SimpleScraper] All scraping attempts failed for: ${url}`, "scraper");
   throw new Error(`Both HTTP and Puppeteer failed for: ${url}${lastError ? ` - ${lastError.message}` : ''}`);
 }
 
