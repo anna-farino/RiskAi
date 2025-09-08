@@ -162,4 +162,22 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
   - Puppeteer scraper: Content validation and dynamic content comparison
   - Main scraper: Confidence adjustment based on validation results
   - All scrapers now enforce minimum 10 links for valid content
+
+### Phase 7: Link Count Validation Fix (Completed 2025-01-21)
+- **7.1 Issue Identified**: Source scraping was incorrectly accepting pages with insufficient links
+  - Web_fetch and HTTP scrapers were bypassing link count validation when content > 10KB
+  - Source pages with only 2-3 links were not escalating to Puppeteer
+  - Validation was being ignored for "substantial content" regardless of scraping type
+- **7.2 Root Cause**: Overly broad fix for article scraping affected source scraping
+  - Comment "articles don't need many links" was incorrectly applied to all scraping
+  - Content length override was applied universally instead of just for articles
+- **7.3 Solution Implemented**: Properly distinguish source vs article validation
+  - Added `isArticle` parameter to HTTP scraper to differentiate content types
+  - Source pages (isArticle=false) now strictly require 10+ links
+  - Article pages (isArticle=true) focus on content length, not link count
+  - Web_fetch now validates link count for sources before accepting results
+- **7.4 Impact**: Source scraping reliability significantly improved
+  - Sources with insufficient links now properly escalate to Puppeteer
+  - Article scraping unchanged - still accepts content based on length
+  - Better article link discovery for news aggregation
 ```
