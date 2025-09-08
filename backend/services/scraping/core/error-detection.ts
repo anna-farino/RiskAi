@@ -14,11 +14,15 @@ const ERROR_INDICATORS = {
     'unusual activity', 'detected unusual'
   ],
   body: [
-    'cf-error', 'cloudflare', 'ray ID', 'challenge-form', 
+    'cf-error', 'challenge-form', 
     'cf-browser-verification', 'cf-wrapper', 'cf-browser-check',
     'ddos-protection', 'rate-limited', 'security-challenge',
     'access-restricted', 'bot-detection', '_cf_chl_jschl_tk',
     'cf-chl-bypass', 'cf-challenge-running', 'cf-im-under-attack',
+    'Checking your browser before accessing',
+    'This process is automatic',
+    'will be redirected once the check is complete',
+    'Enable JavaScript and cookies to continue',
     'unusual activity from your computer', 'detected unusual activity',
     'please click the box below', 'let us know you\'re not a robot',
     'complete the security check', 'prove you\'re not a bot',
@@ -29,8 +33,10 @@ const ERROR_INDICATORS = {
     'cloudflare.com/error', 'challenges.cloudflare.com'
   ],
   scripts: [
-    'cdn-cgi/challenge-platform', 'cloudflare-static',
-    '/cdn-cgi/scripts/', 'cf-challenge.js'
+    'cdn-cgi/challenge-platform', 
+    '/cdn-cgi/challenge-platform/orchestrate',
+    '/cdn-cgi/challenge-platform/h/g/scripts',
+    'cf-challenge.js'
   ]
 };
 
