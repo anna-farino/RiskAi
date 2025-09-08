@@ -634,6 +634,20 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
 });
 
 // Articles API - Phase 5: Using unified storage to read from global_articles
+threatRouter.get("/articles/count", async (req, res) => {
+  reqLog(req, "GET /articles/count");
+  try {
+    const userId = getUserId(req);
+    
+    // Use unified storage to get the total count of articles for the user
+    const count = await unifiedStorage.getUserArticleCount(userId, 'threat-tracker');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
 threatRouter.get("/articles", async (req, res) => {
   reqLog(req, "GET /articles");
   try {
