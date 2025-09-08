@@ -481,7 +481,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
                         <span className="text-xs text-white font-medium">
-                          {newsArticles.length - 1} more articles available
+                          {(newsCount || 0) - 1} more articles available
                         </span>
                       </div>
                       <button 
@@ -777,7 +777,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
                         <span className="text-xs text-white font-medium">
-                          {threatArticles.length - 1} more threats available
+                          {(threatCount || 0) - 1} more threats available
                         </span>
                       </div>
                       <button 
