@@ -2,6 +2,7 @@ import { log } from "backend/utils/log";
 import { scrapeWithHTTP } from '../scrapers/http-scraper';
 import { scrapeWithPuppeteer } from '../scrapers/puppeteer-scraper/main-scraper';
 import { detectAndFixEncoding, getEncodingFromHeaders } from '../validators/encoding-detector';
+import { validateContent } from '../core/error-detection';
 
 /**
  * Web fetch function that uses native fetch with enhanced headers
@@ -67,7 +68,7 @@ async function performWebFetch(url: string): Promise<string | null> {
  */
 export async function getContent(url: string, isArticle: boolean = false): Promise<import('../scrapers/http-scraper').ScrapingResult> {
   // Try HTTP first
-  const httpResult = await scrapeWithHTTP(url, { timeout: 12000 }); // Reduced to 12s
+  const httpResult = await scrapeWithHTTP(url, { timeout: 12000, isArticle }); // Pass isArticle flag
 
   // If HTTP succeeds, check if content looks dynamic/incomplete
   if (httpResult.success && httpResult.html.length > 1000) {
@@ -113,14 +114,34 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
     const webFetchResult = await performWebFetch(url);
     
     if (webFetchResult && webFetchResult.length > 10000) {
-      log(`[SimpleScraper] Web_fetch successful (${webFetchResult.length} chars)`, "scraper");
-      return {
-        html: webFetchResult,
-        success: true,
-        method: 'http',
-        responseTime: 0,
-        statusCode: 200
-      }; // Mark as http since it's still HTTP-based
+      // For source pages, validate link count before accepting web_fetch result
+      if (!isArticle) {
+        const validation = await validateContent(webFetchResult, url, false);
+        
+        if (!validation.isValid || validation.linkCount < 10) {
+          log(`[SimpleScraper] Web_fetch has insufficient links for source page (${validation.linkCount} links, needs 10+), trying Puppeteer`, "scraper");
+          // Don't return, let it fall through to Puppeteer
+        } else {
+          log(`[SimpleScraper] Web_fetch successful for source with ${validation.linkCount} links (${webFetchResult.length} chars)`, "scraper");
+          return {
+            html: webFetchResult,
+            success: true,
+            method: 'http',
+            responseTime: 0,
+            statusCode: 200
+          };
+        }
+      } else {
+        // For articles, content length is sufficient
+        log(`[SimpleScraper] Web_fetch successful for article (${webFetchResult.length} chars)`, "scraper");
+        return {
+          html: webFetchResult,
+          success: true,
+          method: 'http',
+          responseTime: 0,
+          statusCode: 200
+        };
+      }
     } else {
       log(`[SimpleScraper] Web_fetch insufficient content (${webFetchResult?.length || 0} chars)`, "scraper");
     }
