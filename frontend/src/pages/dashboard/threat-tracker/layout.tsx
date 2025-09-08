@@ -8,12 +8,12 @@ const buttons = [
     url: "/dashboard/threat/home",
   },
   {
-    label: "Sources",
-    url: "/dashboard/threat/sources",
-  },
-  {
     label: "Keywords",
     url: "/dashboard/threat/keywords",
+  },
+  {
+    label: "Sources",
+    url: "/dashboard/threat/sources",
   },
 ];
 
@@ -24,7 +24,7 @@ export default function ThreatLayout() {
   // Check if we're on mobile for responsive rendering
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 640);
+      setIsMobile(window.innerWidth < 1024);
     };
 
     handleResize();

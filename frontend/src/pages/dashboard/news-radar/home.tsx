@@ -152,13 +152,6 @@ export default function NewsHome() {
         const queryString = buildQueryString();
         const url = `/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
         
-        console.log("Fetching articles with URL:", url);
-        console.log("Filter parameters:", {
-          search: searchTerm,
-          keywordIds: selectedKeywordIds,
-          ...dateRange
-        });
-        
         const response = await fetchWithAuth(url, {
           method: "GET",
         });
@@ -780,13 +773,7 @@ export default function NewsHome() {
         <div className="flex flex-col gap-6 md:gap-8">
           <div className="flex flex-col gap-4">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
-              <span className="bg-gradient-to-r from-[#BF00FF] via-[#BF00FF]/90 to-[#00FFFF] bg-clip-text text-transparent" 
-                    style={{ 
-                      backgroundImage: 'linear-gradient(to right, #BF00FF, #BF00FF 40%, #00FFFF)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text'
-                    }}>
+              <span className="text-white">
                 News Radar
               </span>
             </h1>

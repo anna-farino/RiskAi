@@ -11,6 +11,7 @@ import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCir
 import { cn } from "@/lib/utils";
 import { useFetch } from "@/hooks/use-fetch";
 import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Keywords() {
   const { toast } = useToast();
@@ -328,126 +329,171 @@ export default function Keywords() {
     addKeyword.mutate(data);
   });
 
+  // Search functionality for the unified toolbar
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showActiveOnly, setShowActiveOnly] = useState(false);
+
+  // Filter keywords based on search term and active status
+  const filteredKeywords = keywords.data?.filter(keyword => {
+    const matchesSearch = keyword.term.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !showActiveOnly || keyword.active;
+    return matchesSearch && matchesStatus;
+  }) || [];
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
-    <>
-      <div className="flex flex-col gap-5 mb-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-bold tracking-tight text-white">Keywords</h1>
-          <p className="text-slate-300">Manage keywords to categorize and filter article content</p>
-        </div>
-      </div>
-
-      <div className=" grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
-            <h2 className="text-lg font-medium text-white mb-2">Add Keyword</h2>
-            
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-slate-400">Keyword Term</label>
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Tag className="h-4 w-4" />
-                  </div>
-                  <Input
-                    placeholder="Enter keyword term..."
-                    {...form.register("term")}
-                    className="pl-9 bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  disabled={addKeyword.isPending}
-                  className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF]"
-                >
-                  {addKeyword.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 h-4 w-4" />
-                  )}
-                  Add
-                </Button>
-              </div>
-            </div>
-            
-            <div className="mt-2 pt-4 border-t border-slate-700/50 text-sm text-slate-400">
-              <div className="flex gap-2 items-start">
-                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <p>Keywords help the system identify and categorize articles during scraping and analysis</p>
-              </div>
-            </div>
-          </form>
-        </div>
-
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <h2 className="text-lg font-medium text-white mb-4">Keyword Stats</h2>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-slate-400">Total Keywords</span>
-                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Tag className="h-3 w-3 text-primary" />
-                </div>
-              </div>
-              <p 
-                className={cn("text-2xl font-semibold text-white ", {
-                  "animate-[pulse_0.5s_ease-in-out_infinite]": keywordsAreUpdating 
-                })}
-              >
-                {keywords.data?.length || 0}
-              </p>
-            </div>
-            
-            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-slate-400">Active Keywords</span>
-                <div className="h-6 w-6 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle className="h-3 w-3 text-green-500" />
-                </div>
-              </div>
-              <p className={cn(
-                "text-2xl font-semibold text-white", {
-                  "animate-[pulse_0.5s_ease-in-out_infinite]": activeKeywordsAreUpdating 
-                }
-              )}>
-                {keywords.data?.filter(k => k.active).length || 0}
+    <div
+      className={cn(
+        "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                Keywords
+              </h1>
+              <p className="text-sm text-slate-300">
+                Manage keywords to categorize and filter article content
               </p>
             </div>
           </div>
-          
-          <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-primary/10 to-transparent border border-slate-700/50">
-            <div className="flex gap-2 items-start">
-              <Search className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-white mb-1">Keyword Matching</p>
-                <p className="text-xs text-slate-400">
-                  Keywords are automatically matched against article content during the scraping process
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* How To Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Info className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">How to Work with Keywords</span>
+                </div>
+                <div className="text-xs text-slate-300 space-y-2">
+                  <p>
+                    Keywords help categorize and filter articles during news scraping:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Add specific terms related to your interests</li>
+                    <li>Use the toggle to activate/deactivate keywords</li>
+                    <li>Active keywords are used for article categorization</li>
+                    <li>Search to quickly find specific keywords</li>
+                    <li>Delete keywords you no longer need</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Search & Filter Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Search className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">Search & Filter</span>
+                </div>
+                <p className="text-xs text-slate-300 mb-3">
+                  Find specific keywords or filter by active status to manage your keyword list efficiently.
                 </p>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search keywords..."
+                      className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors",
+                      showActiveOnly
+                        ? "border border-green-500 bg-green-500 bg-opacity-20 hover:bg-opacity-30 text-green-500"
+                        : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                    )}
+                    onClick={() => setShowActiveOnly(!showActiveOnly)}
+                    title={showActiveOnly ? "Show All Keywords" : "Show Active Only"}
+                  >
+                    <CheckCircle className="h-3 w-3" />
+                    {showActiveOnly ? "Active Only" : "All"}
+                  </Button>
+                </div>
               </div>
+            </div>
+
+            {/* Actions Section */}
+            <div className="lg:col-span-4">
+              <form onSubmit={onSubmit} className="space-y-3">
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plus className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm font-medium text-purple-400">Add New Keyword</span>
+                  </div>
+                  <div className="text-xs text-slate-300 mb-3 space-y-2">
+                    <p>
+                      Enter specific terms to track in news articles. Keywords are automatically activated when added.
+                    </p>
+                    <p className="text-slate-400">
+                      Examples: "cybersecurity", "AI technology", "blockchain"
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="Enter keyword term..."
+                        {...form.register("term")}
+                        className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={addKeyword.isPending || !form.watch("term")?.trim()}
+                      className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-2"
+                    >
+                      {addKeyword.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                      Add Keyword
+                    </Button>
+                    <div className="text-xs text-slate-400">
+                      {filteredKeywords.length} keywords ({keywords.data?.filter(k => k.active).length || 0} active)
+                    </div>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+
+
+      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
         <div className="flex flex-row gap-x-4 items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <h2 className="hidden sm:block text-lg font-medium text-white">Keyword List</h2>
             <h2 className="sm:hidden text-lg font-medium text-white">Keywords</h2>
             <div className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
-              {keywords.data?.length || 0}
+              {filteredKeywords.length}{filteredKeywords.length !== keywords.data?.length && ` of ${keywords.data?.length || 0}`}
             </div>
           </div>
           
-          <div className="relative">
-            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">
-              <Search className="h-4 w-4" />
-            </div>
-            <Input 
-              placeholder="Filter keywords..."
-              className="pl-9 h-9 w-full max-w-[200px] bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
-            />
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            {searchTerm && (
+              <span>Searching: "{searchTerm}"</span>
+            )}
+            {showActiveOnly && (
+              <span>Active keywords only</span>
+            )}
           </div>
         </div>
 
@@ -465,10 +511,37 @@ export default function Keywords() {
               Add your first keyword using the form above to help categorize articles
             </p>
           </div>
+        ) : filteredKeywords.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
+              <Search className="h-8 w-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-medium text-white mb-2">No keywords found</h3>
+            <p className="text-slate-400 max-w-md mb-6">
+              {searchTerm 
+                ? `No keywords match "${searchTerm}". Try adjusting your search terms.`
+                : showActiveOnly 
+                  ? "No active keywords found. Try toggling the Active Only filter."
+                  : "No keywords to display."
+              }
+            </p>
+            {(searchTerm || showActiveOnly) && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setShowActiveOnly(false);
+                }}
+                className="border-slate-600/50 hover:border-slate-500/70 hover:bg-white/10 text-white"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {/* Use localKeywords for immediate UI updates */}
-            {keywords.data && keywords.data
+            {/* Use filteredKeywords for display */}
+            {filteredKeywords
               .sort((a,b) => a.term > b.term ? 1 : -1)
               .map((keyword) => {
               // Check if this item has a pending action
@@ -565,6 +638,6 @@ export default function Keywords() {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

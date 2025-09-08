@@ -1253,9 +1253,37 @@ export default function Reports() {
                 <p className="text-sm text-slate-400 italic">This report contains no articles</p>
               ) : (
                 <div className="space-y-6">
+                  {/* Article Table of Contents - only show if more than one article */}
+                  {selectedReport.articles.length > 1 && (
+                    <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 mb-6">
+                      <h4 className="text-sm font-medium text-slate-300 mb-3">Articles in this report:</h4>
+                      <ol className="space-y-2">
+                        {selectedReport.articles.map((article, index) => (
+                          <li key={article.id}>
+                            <button
+                              onClick={() => {
+                                const articleElement = document.getElementById(`article-${article.id}`);
+                                if (articleElement) {
+                                  articleElement.scrollIntoView({ 
+                                    behavior: 'smooth',
+                                    block: 'start'
+                                  });
+                                }
+                              }}
+                              className="text-left text-sm text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+                            >
+                              {index + 1}. {article.title}
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                  
                   {selectedReport.articles.map((article, index) => (
                     <motion.div
                       key={article.id}
+                      id={`article-${article.id}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}

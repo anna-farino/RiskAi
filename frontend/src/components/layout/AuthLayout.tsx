@@ -14,23 +14,7 @@ export default function AuthLayout({
       {false && <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>}
-      <div className="w-full max-w-md flex flex-col items-center px-4 sm:px-0">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4">
-            <a 
-              href="#" 
-              onClick={(e) => { 
-                e.preventDefault(); 
-                window.location.reload(); 
-              }} 
-              title="Click to refresh page" 
-              className="inline-block"
-            >
-              <Logo size="lg" interactive variant="gradient" />
-            </a>
-          </div>
-          <p className="text-sm text-slate-400 italic text-center">Secure your tomorrow, today.</p>
-        </div>
+      <div className="w-full max-w-md flex flex-col items-center px-3 xs:px-4 sm:px-0">
         <div className="w-full">
           {children}
         </div>

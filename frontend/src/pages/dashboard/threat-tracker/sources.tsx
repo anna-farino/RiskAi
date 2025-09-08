@@ -1,24 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Shield,
-  Clock,
-  Settings,
-  ChevronDown,
-  ChevronRight,
+  ListChecks,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -254,32 +249,59 @@ export default function ThreatSources() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Threat Sources</h1>
-          <p className="text-sm sm:text-base text-slate-400 mt-1">
-            Enable or disable cybersecurity threat intelligence sources
-          </p>
+    <div
+      className={cn(
+        "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                Threat Sources
+              </h1>
+              <p className="text-sm text-slate-300">
+                Manage sources for threat monitoring and auto-update settings
+              </p>
+            </div>
+          </div>
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* How To Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ListChecks className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">How to Use Sources</span>
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <p>• Configure auto-updates for continuous monitoring</p>
+                  <p>• Add custom sources or manage defaults</p>
+                  <p>• Use manual scans for immediate updates</p>
+                  <p>• Keywords help filter relevant threats</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Auto-Scrape Settings Card */}
-      <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-medium text-white">
-              Auto-Scan Settings
+      {/* Sources card */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[#BF00FF]" />
+              Sources
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="text-slate-400 hover:text-white"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            <CardDescription>
+              Websites to monitor for security threat information. Default
+              sources are provided for all users and cannot be deleted, but can
+              be enabled/disabled.
+            </CardDescription>
           </div>
         </CardHeader>
         

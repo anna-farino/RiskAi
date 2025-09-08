@@ -1,24 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/query-client";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Globe,
-  Clock,
-  Settings,
-  Check,
-  X,
-  ChevronDown,
-  ChevronRight,
+  ListChecks,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFetch } from "@/hooks/use-fetch";
@@ -255,95 +242,54 @@ export default function Sources() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">News Sources</h1>
-          <p className="text-sm sm:text-base text-slate-400 mt-1">
-            Enable or disable global news sources for monitoring
-          </p>
+    <div
+      className={cn(
+        "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
+      )}
+    >
+
+      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                News Sources
+              </h1>
+              <p className="text-sm text-slate-300">
+                Manage news sources and control updates
+              </p>
+            </div>
+          </div>
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* How To Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ListChecks className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">How to Use Sources</span>
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <p>• Configure auto-updates with intervals</p>
+                  <p>• Add custom RSS feeds or news sites</p>
+                  <p>• Use manual scan for immediate collection</p>
+                  <p>• Filter articles with keyword management</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Auto-Scrape Settings Card */}
-      <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-medium text-white">
-              Auto-Update Settings
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="text-slate-400 hover:text-white"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="auto-scrape" className="text-base font-medium text-white">
-                Auto-Update {autoScrapeStatus.data?.running && "(Running)"}
-              </Label>
-              <p className="text-sm text-slate-400">
-                Automatically fetch articles from enabled sources
-              </p>
-            </div>
-            <Switch
-              id="auto-scrape"
-              checked={optimisticAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled ?? false}
-              onCheckedChange={(checked) => {
-                const currentInterval = optimisticAutoScrapeInterval ?? 
-                  autoScrapeSettings.data?.interval ?? JobInterval.DAILY;
-                updateAutoScrapeSettings.mutate({
-                  enabled: checked,
-                  interval: currentInterval,
-                });
-              }}
-              className="data-[state=checked]:bg-[#BF00FF]"
-            />
-          </div>
-
-          <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <CollapsibleContent className="space-y-4">
-              <div className="flex gap-2 flex-wrap">
-                {Object.entries({
-                  [JobInterval.HOURLY]: "Hourly",
-                  [JobInterval.DAILY]: "Daily",
-                  [JobInterval.WEEKLY]: "Weekly",
-                }).map(([interval, label]) => (
-                  <Button
-                    key={interval}
-                    variant={(optimisticAutoScrapeInterval ?? autoScrapeSettings.data?.interval) === Number(interval) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      const currentEnabled = optimisticAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled ?? false;
-                      updateAutoScrapeSettings.mutate({
-                        enabled: currentEnabled,
-                        interval: Number(interval) as JobInterval,
-                      });
-                    }}
-                    disabled={!(optimisticAutoScrapeEnabled ?? autoScrapeSettings.data?.enabled) || updateAutoScrapeSettings.isPending}
-                    className="text-white"
-                  >
-                    {updateAutoScrapeSettings.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </CardContent>
-      </Card>
-
-      {/* Available Sources */}
-      <Card className="bg-slate-900/70 backdrop-blur-sm border-slate-700/50">
-        <CardHeader>
+      <Card
+        className={cn(
+          "bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden",
+          "flex flex-col",
+        )}
+      >
+        <CardHeader className="p-3 sm:p-4 lg:p-5 border-b border-slate-700/50">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-medium text-white">
               Available Sources

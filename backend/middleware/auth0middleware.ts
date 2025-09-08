@@ -35,8 +35,6 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
     .where(eq(auth0Ids.auth0Id,sub))
     .limit(1)
 
-  console.log("auth0id found?", auth0id)
-
   let userToReturn: User;
 
   if (auth0id) {

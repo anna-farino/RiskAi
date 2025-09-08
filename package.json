@@ -26,6 +26,7 @@
     "@sendgrid/mail": "^8.1.5",
     "@tanstack/react-query-devtools": "^5.74.4",
     "@types/nodemon": "^1.19.6",
+    "auth0": "^4.28.0",
     "cheerio": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",

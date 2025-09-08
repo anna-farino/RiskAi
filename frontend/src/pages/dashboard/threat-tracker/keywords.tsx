@@ -76,11 +76,15 @@ import {
   AlertCircle,
   PencilLine,
   Check,
+  CheckCircle,
   X,
+  XCircle,
   Shield,
   ChevronDown,
   ChevronRight,
+  Upload,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Form schema for keyword creation/editing
 const keywordFormSchema = z.object({
@@ -121,7 +125,7 @@ export default function Keywords() {
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
-    resolver: zodResolver(keywordFormSchema),
+    resolver: zodResolver(keywordFormSchema) as any,
     defaultValues: {
       term: "",
       category: "threat",
@@ -131,7 +135,7 @@ export default function Keywords() {
 
   // Initialize the bulk keyword form
   const bulkForm = useForm<BulkKeywordFormValues>({
-    resolver: zodResolver(bulkKeywordFormSchema),
+    resolver: zodResolver(bulkKeywordFormSchema) as any,
     defaultValues: {
       terms: "",
       category: "threat",
@@ -679,12 +683,12 @@ export default function Keywords() {
     return (
       <div className="mb-6">
         <Collapsible
-          open={!isDefaultKeywordsCollapsed}
-          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(!open)}
+          open={!isDefaultKeywordsCollapsed[category]}
+          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({...prev, [category]: !open}))}
         >
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 mb-3 hover:bg-muted/50 rounded-md p-1 -ml-1 w-full justify-start">
-              {isDefaultKeywordsCollapsed ? (
+              {isDefaultKeywordsCollapsed[category] ? (
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -720,8 +724,8 @@ export default function Keywords() {
     );
   }
 
-  // Helper function to render the user keyword table
-  function renderUserKeywordTable(keywords: ThreatKeyword[]) {
+  // Helper function to render unified keyword grid tiles (user keywords first, then compact system keywords)
+  function renderUnifiedKeywordGrid(defaultKeywords: ThreatKeyword[], userKeywords: ThreatKeyword[]) {
     if (localKeywords.length === 0) {
       return (
         <div className="flex justify-center py-8">
@@ -730,11 +734,15 @@ export default function Keywords() {
       );
     }
 
-    if (keywords.length === 0) {
+    // Sort keywords alphabetically within their types
+    const sortedUserKeywords = userKeywords.sort((a, b) => a.term.toLowerCase().localeCompare(b.term.toLowerCase()));
+    const sortedDefaultKeywords = defaultKeywords.sort((a, b) => a.term.toLowerCase().localeCompare(b.term.toLowerCase()));
+
+    if (sortedUserKeywords.length === 0 && sortedDefaultKeywords.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
-          <h3 className="text-lg font-medium">No custom keywords</h3>
+          <h3 className="text-lg font-medium">No keywords available</h3>
           <p className="text-sm text-muted-foreground mb-4 text-center px-4">
             {selectedCategory === "threat" &&
               "Add custom threat keywords to monitor for specific security issues."}
@@ -761,137 +769,354 @@ export default function Keywords() {
     }
 
     return (
-      <div className="overflow-x-auto pb-4">
-        <Table className="min-w-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-[120px]">Term</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
-              <TableHead className="text-right min-w-[80px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {keywords.map((keyword: ThreatKeyword) => (
-              <TableRow key={keyword.id}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    {keyword.term}
-                    {keyword.isDefault && (
-                      <Badge
-                        variant="secondary"
-                        className="flex items-center gap-1 bg-blue-100 text-blue-700 border-blue-200"
-                      >
-                        <Shield className="h-3 w-3" />
-                        <span className="text-xs">Default</span>
-                      </Badge>
+      <div className="space-y-8">
+        {/* User Keywords Section - Full tiles, shown first */}
+        {sortedUserKeywords.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-slate-400 flex items-center gap-2">
+              <Plus className="h-4 w-4 text-[#BF00FF]" />
+              Your Keywords
+              <Badge variant="outline" className="text-xs bg-[#BF00FF]/10 text-[#BF00FF] border-[#BF00FF]/30">
+                {sortedUserKeywords.length}
+              </Badge>
+            </h3>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {sortedUserKeywords.map((keyword) => {
+                const isPending = (toggleKeywordActive.isPending && toggleKeywordActive.variables?.id === keyword.id) ||
+                                (deleteKeyword.isPending && deleteKeyword.variables === keyword.id);
+                
+                return (
+                  <div 
+                    key={keyword.id} 
+                    className={cn(
+                      "relative border border-slate-700/50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-500",
+                      isPending && "border-orange-500/50 shadow-orange-500/10 shadow-md",
+                      keyword.active ? "bg-[#BF00FF]/5" : "bg-slate-800/70"
                     )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div
-                    className={`flex items-center ${keyword.isDefault ? "cursor-not-allowed" : "cursor-pointer"}`}
-                    onClick={() =>
-                      !keyword.isDefault &&
-                      handleToggleActive(keyword.id, keyword.active)
-                    }
-                    title={
-                      keyword.isDefault
-                        ? "Default keywords cannot be modified"
-                        : "Click to toggle status"
-                    }
                   >
-                    {keyword.active ? (
-                      <Badge
-                        variant="default"
-                        className="flex items-center gap-1 bg-green-500"
-                      >
-                        <Check className="h-3 w-3" />
-                        <span className="sm:inline hidden">Active</span>
-                        <span className="sm:hidden inline">On</span>
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="flex items-center gap-1 text-muted-foreground"
-                      >
-                        <X className="h-3 w-3" />
-                        <span className="sm:inline hidden">Inactive</span>
-                        <span className="sm:hidden inline">Off</span>
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right p-2 sm:p-4">
-                  <div className="flex justify-end gap-2">
-                    {keyword.isDefault ? (
-                      <div className="text-xs text-muted-foreground py-2">
-                        Default keyword
+                    {isPending && (
+                      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-10">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#BF00FF]" />
                       </div>
-                    ) : (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditKeyword(keyword)}
-                          className="h-fit w-fit rounded-full text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 p-2"
-                          title="Edit keyword"
-                        >
-                          <PencilLine className="h-4 w-4 text-foreground" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-fit w-fit rounded-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 p-2"
-                              title="Delete keyword"
-                            >
-                              <Trash2 className="h-4 w-4 text-foreground" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete the keyword "
-                                {keyword.term}". This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteKeyword.mutate(keyword.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </>
                     )}
+                  
+                    <div className={cn(
+                      "absolute top-0 right-0 h-6 w-6 flex items-center justify-center rounded-bl-lg",
+                      keyword.active ? "bg-green-500/20" : "bg-slate-500/20"
+                    )}>
+                      {keyword.active ? (
+                        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                      )}
+                    </div>
+                    
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "h-8 w-8 rounded-full flex items-center justify-center",
+                            keyword.active ? "bg-[#BF00FF]/20" : "bg-slate-500/20"
+                          )}>
+                            <Shield className={cn(
+                              "h-4 w-4", 
+                              keyword.active ? "text-[#BF00FF]" : "text-slate-400"
+                            )} />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <p className="font-medium text-sm text-white truncate pr-6" title={keyword.term}>
+                          {keyword.term}
+                        </p>
+                        <p className="text-xs text-slate-400 capitalize">
+                          {selectedCategory === "threat" ? "Custom Threat" : 
+                           selectedCategory === "vendor" ? "Custom Vendor" : 
+                           selectedCategory === "client" ? "Custom Client" : 
+                           "Custom Hardware/Software"}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={keyword.active}
+                            onCheckedChange={(checked) => handleToggleActive(keyword.id, keyword.active)}
+                            disabled={isPending}
+                            className="data-[state=checked]:bg-[#BF00FF]"
+                          />
+                          <span className="text-xs text-slate-400">
+                            {keyword.active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditKeyword(keyword)}
+                            disabled={isPending}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10"
+                            title="Edit keyword"
+                          >
+                            <PencilLine className="h-3.5 w-3.5" />
+                          </Button>
+
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={isPending}
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-400/10"
+                                title="Delete keyword"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete the keyword "
+                                  {keyword.term}". This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteKeyword.mutate(keyword.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* System Keywords Section - Collapsible dropdown with category info */}
+        {sortedDefaultKeywords.length > 0 && (
+          <div className="space-y-4">
+            <Collapsible
+              open={!isDefaultKeywordsCollapsed[selectedCategory]}
+              onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({...prev, [selectedCategory]: !open}))}
+            >
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full p-3 bg-slate-800/40 hover:bg-slate-800/60 rounded-lg border border-blue-500/20 hover:border-blue-500/30 transition-all duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      {isDefaultKeywordsCollapsed[selectedCategory] ? (
+                        <ChevronRight className="h-4 w-4 text-blue-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-blue-400" />
+                      )}
+                      <Shield className="h-4 w-4 text-blue-400" />
+                      <h3 className="text-sm font-medium text-blue-300">
+                        System Keywords
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
+                        {sortedDefaultKeywords.length} total
+                      </Badge>
+                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/30">
+                        {sortedDefaultKeywords.filter(k => k.active).length} active
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className="capitalize">
+                      {selectedCategory === "threat" && "Security Threats"}
+                      {selectedCategory === "vendor" && "Technology Vendors"}
+                      {selectedCategory === "client" && "Client Organizations"}
+                      {selectedCategory === "hardware" && "Hardware & Software"}
+                    </span>
+                    <ChevronDown className={cn(
+                      "h-3 w-3 transition-transform duration-200",
+                      isDefaultKeywordsCollapsed[selectedCategory] && "rotate-180"
+                    )} />
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <div className="p-4 bg-slate-900/40 rounded-lg border border-blue-500/10">
+                  <div className="mb-3">
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {selectedCategory === "threat" && 
+                        "Pre-configured keywords for common cybersecurity threats, attack vectors, and security incidents."}
+                      {selectedCategory === "vendor" && 
+                        "Technology companies and vendors commonly mentioned in security advisories and threat reports."}
+                      {selectedCategory === "client" && 
+                        "Standard client organization types and sectors frequently targeted by cyber threats."}
+                      {selectedCategory === "hardware" && 
+                        "Common hardware devices, software platforms, and technologies with security implications."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {sortedDefaultKeywords.map((keyword) => (
+                      <Badge
+                        key={keyword.id}
+                        variant={keyword.active ? "default" : "outline"}
+                        className={cn(
+                          "text-xs whitespace-nowrap px-3 py-1.5 transition-all duration-200",
+                          keyword.active
+                            ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
+                            : "bg-slate-800/60 text-slate-400 border-slate-600/50 hover:bg-slate-700/60"
+                        )}
+                        title={`System keyword: ${keyword.term} (${keyword.active ? 'Active' : 'Inactive'})`}
+                      >
+                        <Shield className="h-3 w-3 mr-1.5" />
+                        {keyword.term}
+                        {keyword.active && (
+                          <CheckCircle className="h-3 w-3 ml-1.5 text-blue-400" />
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 sm:px-6 max-w-full">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-4xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
-          Keywords
-        </h1>
-        <p className="text-muted-foreground sm:text-base leading-relaxed">
-          Manage keywords used for threat monitoring and cross-referencing.
-        </p>
+    <div
+      className={cn(
+        "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                Threat Keywords
+              </h1>
+              <p className="text-sm text-slate-300">
+                Manage keywords for threat monitoring across categories
+              </p>
+            </div>
+          </div>
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {/* Category Navigation Section */}
+            <div className="lg:col-span-5">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">Category Navigation</span>
+                </div>
+                <div className="space-y-2">
+                  <Tabs
+                    defaultValue="threat"
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
+                    className="w-full"
+                  >
+                    <TabsList className="w-full h-auto grid grid-cols-2 gap-1 p-1 bg-slate-800/60">
+                      <TabsTrigger
+                        value="threat"
+                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
+                      >
+                        Threats ({categoryCounts.threat})
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="vendor"
+                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
+                      >
+                        Vendors ({categoryCounts.vendor})
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="client"
+                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
+                      >
+                        Clients ({categoryCounts.client})
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="hardware"
+                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
+                      >
+                        H/W S/W ({categoryCounts.hardware})
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <div className="text-xs text-slate-400">
+                    {allKeywordsByCategory.length} keywords ({allKeywordsByCategory.filter(k => k.active).length} active)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Auto-Update Section */}
+            <div className="lg:col-span-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Check className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">Category Stats</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs text-slate-300">
+                    Current category: {selectedCategory === "threat" ? "Threats" : selectedCategory === "vendor" ? "Vendors" : selectedCategory === "client" ? "Clients" : "Hardware/Software"}
+                  </div>
+                  <div className="flex gap-4 text-xs">
+                    <span className="text-[#BF00FF]">{allKeywordsByCategory.length} total</span>
+                    <span className="text-green-400">{allKeywordsByCategory.filter(k => k.active).length} active</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Section */}
+            <div className="lg:col-span-3">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plus className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Actions</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    onClick={() => {
+                      setEditingKeyword(null);
+                      form.reset({
+                        term: "",
+                        category: selectedCategory,
+                        active: true,
+                      });
+                      setKeywordDialogOpen(true);
+                    }}
+                    className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-2"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Keyword
+                  </Button>
+                  <Button
+                    onClick={handleBulkKeywords}
+                    variant="outline" 
+                    className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 text-xs px-2"
+                  >
+                    <Upload className="h-3 w-3" />
+                    Bulk Import
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Tabs
@@ -900,106 +1125,6 @@ export default function Keywords() {
         onValueChange={setSelectedCategory}
         className="w-full"
       >
-        <div className="flex flex-col space-y-4">
-          <div className="w-full overflow-hidden">
-            <TabsList className="w-full h-auto grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:flex xl:w-auto gap-1 p-1">
-              <TabsTrigger
-                value="threat"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
-                  <span className="md:inline hidden">Threat Keywords</span>
-                  <span className="md:hidden inline">Threats</span>
-                  {categoryCounts.threat > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                      {categoryCounts.threat}
-                    </Badge>
-                  )}
-                </div>
-              </TabsTrigger>
-              <TabsTrigger
-                value="vendor"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
-                  <span>Vendors</span>
-                  {categoryCounts.vendor > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                      {categoryCounts.vendor}
-                    </Badge>
-                  )}
-                </div>
-              </TabsTrigger>
-              <TabsTrigger
-                value="client"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
-                  <span>Clients</span>
-                  {categoryCounts.client > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                      {categoryCounts.client}
-                    </Badge>
-                  )}
-                </div>
-              </TabsTrigger>
-              <TabsTrigger
-                value="hardware"
-                className="relative whitespace-nowrap text-xs sm:text-sm px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <div className="flex flex-col sm:flex-row items-center gap-1">
-                  <span className="md:inline hidden">Hardware/Software</span>
-                  <span className="md:hidden inline">H/W S/W</span>
-                  {categoryCounts.hardware > 0 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                      {categoryCounts.hardware}
-                    </Badge>
-                  )}
-                </div>
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <div className="flex flex-row gap-2 w-full sm:w-auto sm:self-end">
-            <Button
-              onClick={handleBulkKeywords}
-              disabled={createBulkKeywords.isPending}
-              variant="outline"
-              className="h-9 px-3 sm:px-4 text-xs sm:text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial"
-            >
-              {createBulkKeywords.isPending ? (
-                <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-              )}
-              <span className="md:inline hidden">Bulk Import</span>
-              <span className="md:hidden inline">Bulk</span>
-            </Button>
-
-            <Button
-              onClick={handleNewKeyword}
-              disabled={createKeyword.isPending}
-              className="h-9 px-3 sm:px-4 text-xs sm:text-sm bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0 flex-1 sm:flex-initial"
-            >
-              {createKeyword.isPending ? (
-                <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-              )}
-              <span className="md:inline hidden">
-                Add{" "}
-                {selectedCategory === "threat"
-                  ? "Keyword"
-                  : selectedCategory === "vendor"
-                    ? "Vendor"
-                    : selectedCategory === "client"
-                      ? "Client"
-                      : "Hardware/Software"}
-              </span>
-              <span className="md:hidden inline">Add</span>
-            </Button>
-          </div>
-        </div>
 
         <TabsContent value="threat" className="mt-4 sm:mt-6">
           <Card className="border-0 sm:border">
@@ -1013,23 +1138,10 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderDefaultKeywords(
+              {renderUnifiedKeywordGrid(
                 defaultKeywords.filter((k) => k.category === "threat"),
-                "threat",
+                userKeywords.filter((k) => k.category === "threat")
               )}
-              <div className="space-y-4">
-                {userKeywords.filter((k) => k.category === "threat").length >
-                  0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                      Your Keywords
-                    </h3>
-                  </div>
-                )}
-                {renderUserKeywordTable(
-                  userKeywords.filter((k) => k.category === "threat"),
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1043,23 +1155,10 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderDefaultKeywords(
+              {renderUnifiedKeywordGrid(
                 defaultKeywords.filter((k) => k.category === "vendor"),
-                "vendor",
+                userKeywords.filter((k) => k.category === "vendor")
               )}
-              <div className="space-y-4">
-                {userKeywords.filter((k) => k.category === "vendor").length >
-                  0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                      Your Keywords
-                    </h3>
-                  </div>
-                )}
-                {renderUserKeywordTable(
-                  userKeywords.filter((k) => k.category === "vendor"),
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1073,23 +1172,10 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderDefaultKeywords(
+              {renderUnifiedKeywordGrid(
                 defaultKeywords.filter((k) => k.category === "client"),
-                "client",
+                userKeywords.filter((k) => k.category === "client")
               )}
-              <div className="space-y-4">
-                {userKeywords.filter((k) => k.category === "client").length >
-                  0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                      Your Keywords
-                    </h3>
-                  </div>
-                )}
-                {renderUserKeywordTable(
-                  userKeywords.filter((k) => k.category === "client"),
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1105,23 +1191,10 @@ export default function Keywords() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderDefaultKeywords(
+              {renderUnifiedKeywordGrid(
                 defaultKeywords.filter((k) => k.category === "hardware"),
-                "hardware",
+                userKeywords.filter((k) => k.category === "hardware")
               )}
-              <div className="space-y-4">
-                {userKeywords.filter((k) => k.category === "hardware").length >
-                  0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                      Your Keywords
-                    </h3>
-                  </div>
-                )}
-                {renderUserKeywordTable(
-                  userKeywords.filter((k) => k.category === "hardware"),
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

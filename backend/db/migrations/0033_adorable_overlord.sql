@@ -1,0 +1,1 @@
+ALTER TABLE "scraping_error_logs" ALTER COLUMN "user_id" DROP NOT NULL;
