@@ -9,9 +9,8 @@ export function stripHtmlTags(text: string): string {
   
   try {
     // Step 1: Use cheerio for proper HTML parsing (handles most cases well)
-    const $ = cheerio.load(text, { 
-      decodeEntities: true // Automatically decode HTML entities
-    });
+    // Cheerio automatically decodes HTML entities when using .text()
+    const $ = cheerio.load(text);
     
     // Extract text content - cheerio handles nested tags and spacing
     let cleanedText = $.text();
