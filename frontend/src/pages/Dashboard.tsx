@@ -29,6 +29,26 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
+  // Fetch News Radar article count
+  const { data: newsCount } = useQuery({
+    queryKey: ['news-radar-count-dashboard'],
+    queryFn: async () => {
+      const response = await fetchWithAuth('/api/news-tracker/articles/count');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch news article count: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.count || 0;
+    },
+    refetchInterval: 30000, // Refresh at same rate as articles
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
   // Fetch Threat Tracker articles with real-time updates
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
     queryKey: ['threat-tracker-articles-dashboard'],
@@ -46,6 +66,26 @@ export default function Dashboard() {
     staleTime: 10000, // Consider data stale after 10 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to tab
     retry: 3, // Retry failed requests up to 3 times
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
+  // Fetch Threat Tracker article count
+  const { data: threatCount } = useQuery({
+    queryKey: ['threat-tracker-count-dashboard'],
+    queryFn: async () => {
+      const response = await fetchWithAuth('/api/threat-tracker/articles/count');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch threat article count: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.count || 0;
+    },
+    refetchInterval: 20000, // Refresh at same rate as articles
+    staleTime: 10000,
+    refetchOnWindowFocus: true,
+    retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
@@ -293,7 +333,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>{newsArticles?.length || 0} articles</span>
+                      <span>{newsCount || 0} articles</span>
                     </div>
                   )}
                 </div>
@@ -328,7 +368,7 @@ export default function Dashboard() {
                   <div className="bg-black/50 rounded-lg p-2 border border-[#BF00FF]/30 mb-3">
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span className="text-gray-300 font-medium">News Overview</span>
-                      <span className="text-gray-400">{newsArticles.length} articles</span>
+                      <span className="text-gray-400">{newsCount || 0} articles</span>
                     </div>
                     <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-gray-800">
                       {(() => {
@@ -498,7 +538,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                      <span>{threatArticles?.length || 0} threats</span>
+                      <span>{threatCount || 0} threats</span>
                     </div>
                   )}
                 </div>
@@ -545,7 +585,7 @@ export default function Dashboard() {
                   <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/30 mb-3">
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span className="text-gray-300 font-medium">Threat Overview</span>
-                      <span className="text-gray-400">{threatArticles.length} detected</span>
+                      <span className="text-gray-400">{threatCount || 0} detected</span>
                     </div>
                     <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-slate-800">
                       {(() => {
