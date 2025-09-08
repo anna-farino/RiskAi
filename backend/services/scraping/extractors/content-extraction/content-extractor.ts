@@ -2,7 +2,7 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent } from '../../types';
 import * as cheerio from 'cheerio';
 import { generateFallbackSelectors } from './fallback-selectors';
-import { cleanAndNormalizeContent } from './content-cleaner';
+import { cleanAndNormalizeContent, stripHtmlTags } from './content-cleaner';
 import { extractPublishDate } from './date-extractor';
 import { 
   isValidArticleContent, 
@@ -59,11 +59,13 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
     }
 
     // Clean and sanitize the extracted content
-    let title = cleanAndNormalizeContent(extracted.title || "");
-    let content = cleanAndNormalizeContent(extracted.content || "");
-    
-    // Additional sanitization to remove corrupted characters
+    // Strip HTML tags first, then normalize whitespace, then sanitize
+    let title = stripHtmlTags(extracted.title || "");
+    title = cleanAndNormalizeContent(title);
     title = sanitizeContent(title);
+    
+    let content = stripHtmlTags(extracted.content || "");
+    content = cleanAndNormalizeContent(content);
     content = sanitizeContent(content);
     
     // Validate title - if invalid or missing, try to extract from URL
@@ -92,10 +94,18 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
       };
     }
 
+    // Clean author field as well if it exists
+    let cleanedAuthor = extracted.author;
+    if (cleanedAuthor) {
+      cleanedAuthor = stripHtmlTags(cleanedAuthor);
+      cleanedAuthor = cleanAndNormalizeContent(cleanedAuthor);
+      cleanedAuthor = sanitizeContent(cleanedAuthor);
+    }
+    
     const result: ArticleContent = {
       title,
       content,
-      author: extracted.author,
+      author: cleanedAuthor,
       publishDate,
       extractionMethod: extracted.extractionMethod || "selectors",
       confidence: extracted.confidence || 0.9
@@ -342,6 +352,8 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
   if (selector) {
     try {
       result = $(selector).first().text().trim();
+      // Strip any HTML tags that might be in the extracted text
+      result = stripHtmlTags(result);
       
       // Validate result based on field type
       if (result && fieldType === 'author') {
@@ -367,6 +379,8 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
     for (const variation of variations) {
       try {
         result = $(variation).first().text().trim();
+        // Strip any HTML tags that might be in the extracted text
+        result = stripHtmlTags(result);
         
         // Validate result based on field type
         if (result && fieldType === 'author') {
@@ -397,6 +411,8 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
   for (const fallback of fallbacks) {
     try {
       result = $(fallback).first().text().trim();
+      // Strip any HTML tags that might be in the extracted text
+      result = stripHtmlTags(result);
       
       // Validate result based on field type
       if (result && fieldType === 'author') {
