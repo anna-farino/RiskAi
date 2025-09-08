@@ -519,6 +519,19 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 });
 
 // Articles - Phase 5: Using unified storage to read from global_articles
+newsRouter.get("/articles/count", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  
+  try {
+    // Use unified storage to get the total count of articles for the user
+    const count = await unifiedStorage.getUserArticleCount(userId, 'news-radar');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
   
