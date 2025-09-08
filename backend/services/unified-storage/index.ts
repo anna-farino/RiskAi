@@ -512,6 +512,8 @@ export class UnifiedStorageService {
    */
   async getUserArticleCount(userId: string, appType: AppType): Promise<number> {
     try {
+      log(`[UnifiedStorage] Getting article count for user ${userId}, app: ${appType}`, 'storage');
+
       // Get user's enabled sources
       const enabledSources = await db
         .select({ sourceId: userSourcePreferences.sourceId })
@@ -525,6 +527,7 @@ export class UnifiedStorageService {
         );
 
       if (enabledSources.length === 0) {
+        log(`[UnifiedStorage] User has no enabled sources`, 'storage');
         return 0;
       }
 
@@ -540,13 +543,147 @@ export class UnifiedStorageService {
         conditions.push(eq(globalArticles.isCybersecurity, true));
       }
 
-      // Count articles
+      // Get user's active keywords for filtering
+      let keywordsToFilter: any[] = [];
+      
+      if (appType === 'news-radar') {
+        // Use withUserContext to bypass RLS and get keywords
+        const encryptedKeywords = await withUserContext(
+          userId,
+          async (contextDb) => contextDb
+            .select({ 
+              term: keywords.term, 
+              id: keywords.id, 
+              userId: keywords.userId,
+              active: keywords.active 
+            })
+            .from(keywords)
+            .where(
+              and(
+                eq(keywords.userId, userId),
+                eq(keywords.active, true)
+              )
+            )
+        );
+        
+        // Decrypt the keyword terms
+        const decryptedKeywords = encryptedKeywords.map(k => ({
+          ...k,
+          term: decrypt(k.term)
+        }));
+        
+        keywordsToFilter = decryptedKeywords.map(k => k.term);
+      } else {
+        // Threat Tracker: Handle NULL user_id values in threat_keywords table
+        let keywordResults = [];
+        try {
+          const userKeywords = await withUserContext(
+            userId,
+            async (contextDb) => contextDb
+              .select({ 
+                term: threatKeywords.term, 
+                id: threatKeywords.id,
+                category: threatKeywords.category,
+                userId: threatKeywords.userId,
+                active: threatKeywords.active
+              })
+              .from(threatKeywords)
+              .where(
+                and(
+                  eq(threatKeywords.userId, userId),
+                  eq(threatKeywords.active, true)
+                )
+              )
+          );
+          keywordResults = userKeywords;
+        } catch (error) {
+          log(`[UnifiedStorage] Error getting user threat keywords: ${error}`, 'storage-error');
+        }
+        
+        // Also get global threat keywords (userId is NULL)
+        const globalKeywords = await db
+          .select({ 
+            term: threatKeywords.term, 
+            id: threatKeywords.id,
+            category: threatKeywords.category,
+            userId: threatKeywords.userId,
+            active: threatKeywords.active
+          })
+          .from(threatKeywords)
+          .where(
+            and(
+              isNull(threatKeywords.userId),
+              eq(threatKeywords.active, true)
+            )
+          );
+        
+        // Combine both results
+        keywordsToFilter = [...keywordResults, ...globalKeywords];
+      }
+      
+      // Apply keyword filtering
+      if (keywordsToFilter.length > 0) {
+        if (appType === 'threat-tracker' && keywordsToFilter[0]?.category) {
+          // Threat Tracker: Cross-reference matching - need both threat AND entity keywords
+          const threatKws = keywordsToFilter.filter(k => k.category === 'threat').map(k => k.term);
+          const entityKws = keywordsToFilter.filter(k => ['vendor', 'client', 'hardware'].includes(k.category)).map(k => k.term);
+          
+          if (threatKws.length > 0 && entityKws.length > 0) {
+            // Create conditions for threat keywords
+            const threatConditions = threatKws.map(kw => 
+              or(
+                ilike(globalArticles.title, `%${kw}%`),
+                ilike(globalArticles.content, `%${kw}%`)
+              )
+            );
+            
+            // Create conditions for entity keywords
+            const entityConditions = entityKws.map(kw => 
+              or(
+                ilike(globalArticles.title, `%${kw}%`),
+                ilike(globalArticles.content, `%${kw}%`)
+              )
+            );
+            
+            // Require at least one threat AND at least one entity
+            conditions.push(
+              and(
+                or(...threatConditions),
+                or(...entityConditions)
+              )
+            );
+          } else {
+            // If only one category is selected, show no results (requires both)
+            conditions.push(sql`FALSE`);
+          }
+        } else {
+          // News Radar: OR matching
+          const keywordTerms = Array.isArray(keywordsToFilter) && keywordsToFilter[0]?.term 
+            ? keywordsToFilter.map(k => k.term)
+            : keywordsToFilter;
+            
+          const keywordConditions = keywordTerms.map(kw => 
+            or(
+              ilike(globalArticles.title, `%${kw}%`),
+              ilike(globalArticles.content, `%${kw}%`)
+            )
+          );
+          
+          if (keywordConditions.length > 0) {
+            conditions.push(or(...keywordConditions));
+          }
+        }
+      }
+
+      // Count articles with all conditions applied
       const [result] = await db
         .select({ count: sql<number>`count(*)` })
         .from(globalArticles)
         .where(and(...conditions));
 
-      return result?.count || 0;
+      const count = result?.count || 0;
+      log(`[UnifiedStorage] Article count for user: ${count}`, 'storage');
+      return count;
     } catch (error: any) {
       log(`[UnifiedStorage] Error getting article count: ${error.message}`, 'storage-error');
       return 0;
