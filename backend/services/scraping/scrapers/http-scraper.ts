@@ -18,6 +18,7 @@ export interface HTTPScrapingOptions extends EnhancedScrapingOptions {
   followRedirects?: boolean;
   retryDelay?: number;
   enableTLSFingerprinting?: boolean;
+  isArticle?: boolean; // Whether we're scraping an article (content) vs source (links)
 }
 
 export interface ScrapingResult {
@@ -167,8 +168,8 @@ export async function scrapeWithHTTP(
     // Apply encoding detection to the pre-flight response
     const encodingFixedBody = detectAndFixEncoding(preflightResult.body, preflightResult.headers?.['content-type']);
     
-    // Validate the content
-    const validation = await validateContent(encodingFixedBody, url, false);
+    // Validate the content (pass isArticle flag for proper validation)
+    const validation = await validateContent(encodingFixedBody, url, options?.isArticle || false);
     
     // If we got substantial content, use it
     if (validation.isValid && !validation.isErrorPage) {
@@ -181,9 +182,9 @@ export async function scrapeWithHTTP(
         statusCode: preflightResult.status || 200,
         finalUrl: url
       };
-    } else if (encodingFixedBody.length > 10000) {
-      // Even if validation has issues, substantial content should be used
-      log(`[HTTPScraper] Using pre-flight content despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
+    } else if (options?.isArticle && encodingFixedBody.length > 10000) {
+      // For articles only: substantial content can override validation issues
+      log(`[HTTPScraper] Using pre-flight content for article despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
       return {
         html: encodingFixedBody,
         success: true,
@@ -192,6 +193,9 @@ export async function scrapeWithHTTP(
         statusCode: preflightResult.status || 200,
         finalUrl: url
       };
+    } else if (!options?.isArticle && validation.linkCount < 10) {
+      // For source pages: insufficient links means we need Puppeteer
+      log(`[HTTPScraper] Pre-flight content has insufficient links for source page (${validation.linkCount} links), need Puppeteer`, "scraper");
     }
   }
   
@@ -210,10 +214,9 @@ export async function scrapeWithHTTP(
       const encodingFixedBody = detectAndFixEncoding(response.body, response.headers?.['content-type']);
       
       // For successful protection bypass with substantial content, trust it
-      const validation = await validateContent(encodingFixedBody, url, false);
+      const validation = await validateContent(encodingFixedBody, url, options?.isArticle || false);
       
-      // If we got substantial content from protection bypass, accept it
-      // Don't require link count - articles don't need many links
+      // Check validation based on content type
       if (validation.isValid && !validation.isErrorPage) {
         log(`[HTTPScraper] Protection bypass successful (${encodingFixedBody.length} chars, ${validation.linkCount} links)`, "scraper");
         return {
@@ -224,9 +227,9 @@ export async function scrapeWithHTTP(
           statusCode: response.status,
           finalUrl: url
         };
-      } else if (encodingFixedBody.length > 10000) {
-        // Even if validation failed, if we got substantial content from bypass, use it
-        log(`[HTTPScraper] Protection bypass returned substantial content despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
+      } else if (options?.isArticle && encodingFixedBody.length > 10000) {
+        // For articles only: substantial content can override validation issues
+        log(`[HTTPScraper] Protection bypass returned substantial content for article despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
         return {
           html: encodingFixedBody,
           success: true,
@@ -235,6 +238,9 @@ export async function scrapeWithHTTP(
           statusCode: response.status,
           finalUrl: url
         };
+      } else if (!options?.isArticle && validation.linkCount < 10) {
+        // For source pages: insufficient links means bypass failed
+        log(`[HTTPScraper] Protection bypass has insufficient links for source page (${validation.linkCount} links), bypass failed`, "scraper");
       }
       
       log(`[HTTPScraper] Protection bypass failed: ${validation.errorIndicators.join(', ')}`, "scraper");
