@@ -7,6 +7,9 @@
 
 import { log } from "backend/utils/log";
 import { runUnifiedGlobalScraping } from "./global-scraping/global-scraper";
+import { db } from "backend/db/db";
+import { schedulerMetadata } from "@shared/db/schema/scheduler-metadata";
+import { eq } from "drizzle-orm";
 
 // GLOBAL SCRAPING INTERVAL - Every 3 hours as per re-architecture plan
 const THREE_HOURS = 3 * 60 * 60 * 1000;
@@ -28,36 +31,39 @@ let isRunning = false;
 function getNextScheduledTime(): Date {
   const now = new Date();
   
-  // Convert to EST/EDT (UTC-5 or UTC-4 depending on DST)
-  // Using toLocaleString to handle DST automatically
-  const estString = now.toLocaleString("en-US", { timeZone: "America/New_York" });
-  const estDate = new Date(estString);
+  // Get the current time in EST by using UTC offset
+  // EST is UTC-5, EDT is UTC-4 (we'll use a library or manual calculation)
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+  // EST offset is -5 hours from UTC (we'll use -5 for simplicity, proper would check DST)
+  const estOffset = -5 * 60 * 60000;
+  const estTime = new Date(utcTime + estOffset);
   
   // Get current hour in EST
-  const currentHour = estDate.getHours();
+  const currentHour = estTime.getHours();
+  const currentMinutes = estTime.getMinutes();
   
   // Find next scheduled hour (0, 3, 6, 9, 12, 15, 18, 21)
   let nextHour = Math.ceil(currentHour / 3) * 3;
-  if (nextHour === currentHour && estDate.getMinutes() === 0 && estDate.getSeconds() === 0) {
-    // If we're exactly on a scheduled time, schedule for next interval
+  
+  // If we're past the minute mark of a scheduled hour, go to next slot
+  if (nextHour === currentHour && currentMinutes > 0) {
     nextHour += 3;
   }
   
   // Create next scheduled time in EST
-  const nextScheduled = new Date(estDate);
-  nextScheduled.setHours(nextHour % 24);
-  nextScheduled.setMinutes(0);
-  nextScheduled.setSeconds(0);
-  nextScheduled.setMilliseconds(0);
+  const nextScheduledEST = new Date(estTime);
+  nextScheduledEST.setHours(nextHour % 24);
+  nextScheduledEST.setMinutes(0);
+  nextScheduledEST.setSeconds(0);
+  nextScheduledEST.setMilliseconds(0);
   
   // If next hour rolled over to next day
   if (nextHour >= 24) {
-    nextScheduled.setDate(nextScheduled.getDate() + 1);
+    nextScheduledEST.setDate(nextScheduledEST.getDate() + 1);
   }
   
   // Convert back to system timezone
-  const nextScheduledString = nextScheduled.toLocaleString("en-US", { timeZone: "America/New_York" });
-  const systemTime = new Date(nextScheduledString);
+  const systemTime = new Date(nextScheduledEST.getTime() - estOffset);
   
   // Ensure we're getting a future time
   if (systemTime <= now) {
@@ -68,44 +74,81 @@ function getNextScheduledTime(): Date {
 }
 
 /**
- * Get the last scheduled time that should have run
+ * Load scheduler state from database
  */
-function getLastScheduledTime(): Date {
-  const now = new Date();
-  
-  // Convert to EST/EDT
-  const estString = now.toLocaleString("en-US", { timeZone: "America/New_York" });
-  const estDate = new Date(estString);
-  
-  // Get current hour in EST
-  const currentHour = estDate.getHours();
-  
-  // Find last scheduled hour (0, 3, 6, 9, 12, 15, 18, 21)
-  const lastHour = Math.floor(currentHour / 3) * 3;
-  
-  // Create last scheduled time in EST
-  const lastScheduled = new Date(estDate);
-  lastScheduled.setHours(lastHour);
-  lastScheduled.setMinutes(0);
-  lastScheduled.setSeconds(0);
-  lastScheduled.setMilliseconds(0);
-  
-  // Convert back to system timezone
-  const lastScheduledString = lastScheduled.toLocaleString("en-US", { timeZone: "America/New_York" });
-  return new Date(lastScheduledString);
+async function loadSchedulerState(): Promise<Date | null> {
+  try {
+    const [metadata] = await db
+      .select()
+      .from(schedulerMetadata)
+      .where(eq(schedulerMetadata.schedulerName, 'global_scraper'))
+      .limit(1);
+    
+    if (metadata?.lastSuccessfulRun) {
+      lastGlobalRun = new Date(metadata.lastSuccessfulRun);
+      log(`[GLOBAL SCHEDULER] Loaded last successful run from database: ${lastGlobalRun.toISOString()}`, "scheduler");
+      return lastGlobalRun;
+    }
+    
+    return null;
+  } catch (error: any) {
+    log(`[GLOBAL SCHEDULER] Error loading scheduler state: ${error.message}`, "scheduler-error");
+    return null;
+  }
 }
 
 /**
- * Check if we should run on startup based on time elapsed since last scheduled slot
+ * Save scheduler state to database
  */
-function shouldRunOnStartup(): boolean {
-  const now = new Date();
-  const lastScheduledTime = getLastScheduledTime();
-  const timeSinceLastScheduled = now.getTime() - lastScheduledTime.getTime();
+async function saveSchedulerState(successful: boolean): Promise<void> {
+  try {
+    const now = new Date();
+    const metadata = {
+      schedulerName: 'global_scraper',
+      lastAttemptedRun: now,
+      lastSuccessfulRun: successful ? now : lastGlobalRun,
+      consecutiveFailures,
+      isRunning,
+      nextScheduledRun: nextRunAt,
+      metadata: JSON.stringify({ success: successful }),
+      updatedAt: now
+    };
+    
+    // Upsert the scheduler metadata
+    await db
+      .insert(schedulerMetadata)
+      .values(metadata)
+      .onConflictDoUpdate({
+        target: schedulerMetadata.schedulerName,
+        set: metadata
+      });
+      
+    log(`[GLOBAL SCHEDULER] Saved scheduler state to database`, "scheduler");
+  } catch (error: any) {
+    log(`[GLOBAL SCHEDULER] Error saving scheduler state: ${error.message}`, "scheduler-error");
+  }
+}
+
+/**
+ * Check if we should run on startup based on actual last run time
+ */
+async function shouldRunOnStartup(): Promise<boolean> {
+  const lastRun = await loadSchedulerState();
   
-  // Run if we're past the scheduled time but within the 3-hour window
-  // This prevents running if the server was down for multiple intervals
-  return timeSinceLastScheduled > 0 && timeSinceLastScheduled < THREE_HOURS;
+  if (!lastRun) {
+    // No previous run recorded, should run now
+    log(`[GLOBAL SCHEDULER] No previous run found in database, will run catch-up scrape`, "scheduler");
+    return true;
+  }
+  
+  const now = new Date();
+  const timeSinceLastRun = now.getTime() - lastRun.getTime();
+  const hoursSinceLastRun = timeSinceLastRun / (1000 * 60 * 60);
+  
+  log(`[GLOBAL SCHEDULER] Last run was ${hoursSinceLastRun.toFixed(2)} hours ago`, "scheduler");
+  
+  // Run if more than 3 hours have passed since last successful run
+  return hoursSinceLastRun >= 3;
 }
 
 /**
@@ -134,12 +177,12 @@ export async function initializeGlobalScheduler(): Promise<boolean> {
     log(`[GLOBAL SCHEDULER] Time until next run: ${Math.round(msToNextRun / 1000 / 60)} minutes`, "scheduler");
     
     // Check if we should run on startup
-    if (shouldRunOnStartup()) {
-      const lastScheduled = getLastScheduledTime();
-      log(`[GLOBAL SCHEDULER] Running catch-up scrape for missed scheduled time: ${lastScheduled.toLocaleString("en-US", { timeZone: "America/New_York" })} EST`, "scheduler");
+    const shouldRun = await shouldRunOnStartup();
+    if (shouldRun) {
+      log(`[GLOBAL SCHEDULER] Running catch-up scrape - more than 3 hours since last successful run`, "scheduler");
       await executeUnifiedGlobalScrape();
     } else {
-      log(`[GLOBAL SCHEDULER] No catch-up scrape needed - within schedule window`, "scheduler");
+      log(`[GLOBAL SCHEDULER] No catch-up scrape needed - last run was within 3 hours`, "scheduler");
     }
     
     // Set up initial timeout to align with schedule, then use interval
@@ -197,9 +240,15 @@ async function executeUnifiedGlobalScrape(): Promise<void> {
     }
     
     // Update state
-    lastGlobalRun = new Date();
+    if (result.success) {
+      lastGlobalRun = new Date();
+      consecutiveFailures = 0;
+      await saveSchedulerState(true);
+    } else {
+      consecutiveFailures++;
+      await saveSchedulerState(false);
+    }
     nextRunAt = getNextScheduledTime();  // Calculate next run based on fixed schedule
-    consecutiveFailures = result.success ? 0 : consecutiveFailures + 1;
     
     const duration = Date.now() - startTime;
     log(`[GLOBAL SCHEDULER] Unified global scrape ${result.success ? 'completed' : 'failed'} in ${duration}ms`, "scheduler");
@@ -251,8 +300,6 @@ export function stopGlobalScheduler(): void {
  * Get the status of the unified global scheduler
  */
 export function getGlobalSchedulerStatus() {
-  const now = new Date();
-  const lastScheduled = getLastScheduledTime();
   const nextScheduled = nextRunAt || getNextScheduledTime();
   
   return {
