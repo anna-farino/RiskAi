@@ -95,7 +95,7 @@ export class UnifiedStorageService {
       if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Use specific keyword IDs sent from frontend
         
-        if (appType === 'news-radar') {
+        if (appType === 'news-radar' || appType === 'threat-tracker') {
           
           // Use withUserContext to bypass RLS and get keywords
           const encryptedKeywords = await withUserContext(
