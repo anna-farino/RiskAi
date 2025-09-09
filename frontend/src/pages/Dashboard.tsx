@@ -9,11 +9,30 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const fetchWithAuth = useFetch();
   
+  // Fetch News Radar keywords
+  const { data: newsKeywords } = useQuery({
+    queryKey: ['news-radar-keywords-dashboard'],
+    queryFn: async () => {
+      const response = await fetchWithAuth('/api/news-tracker/keywords');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch news keywords: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000, // Keywords don't change often
+  });
+
   // Fetch News Radar articles with enhanced real-time updates
   const { data: newsArticles, isLoading: newsLoading, error: newsError, refetch: refetchNews } = useQuery({
-    queryKey: ['news-radar-articles-dashboard'],
+    queryKey: ['news-radar-articles-dashboard', newsKeywords],
     queryFn: async () => {
-      const response = await fetchWithAuth('/api/news-tracker/articles?limit=10&sortBy=createdAt&order=desc');
+      // Get active keyword IDs
+      const activeKeywordIds = newsKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
+      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
+      const url = `/api/news-tracker/articles?limit=10&sortBy=createdAt&order=desc${keywordParams ? '&' + keywordParams : ''}`;
+      
+      const response = await fetchWithAuth(url);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch news articles: ${response.statusText}`);
@@ -22,6 +41,7 @@ export default function Dashboard() {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
+    enabled: !!newsKeywords, // Only fetch articles after keywords are loaded
     refetchInterval: 30000, // Refresh every 30 seconds for more responsive updates
     staleTime: 15000, // Consider data stale after 15 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to tab
@@ -29,11 +49,56 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
+  // Fetch News Radar article count
+  const { data: newsCount } = useQuery({
+    queryKey: ['news-radar-count-dashboard', newsKeywords],
+    queryFn: async () => {
+      // Get active keyword IDs
+      const activeKeywordIds = newsKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
+      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
+      const url = `/api/news-tracker/articles/count${keywordParams ? '?' + keywordParams : ''}`;
+      
+      const response = await fetchWithAuth(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch news article count: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.count || 0;
+    },
+    enabled: !!newsKeywords, // Only fetch count after keywords are loaded
+    refetchInterval: 30000, // Refresh at same rate as articles
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
+  // Fetch Threat Tracker keywords
+  const { data: threatKeywords } = useQuery({
+    queryKey: ['threat-tracker-keywords-dashboard'],
+    queryFn: async () => {
+      const response = await fetchWithAuth('/api/threat-tracker/keywords');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch threat keywords: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000, // Keywords don't change often
+  });
+
   // Fetch Threat Tracker articles with real-time updates
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
-    queryKey: ['threat-tracker-articles-dashboard'],
+    queryKey: ['threat-tracker-articles-dashboard', threatKeywords],
     queryFn: async () => {
-      const response = await fetchWithAuth('/api/threat-tracker/articles');
+      // Get active keyword IDs
+      const activeKeywordIds = threatKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
+      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
+      const url = `/api/threat-tracker/articles?${keywordParams ? keywordParams + '&' : ''}limit=50`;
+      
+      const response = await fetchWithAuth(url);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch threat articles: ${response.statusText}`);
@@ -42,10 +107,37 @@ export default function Dashboard() {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
+    enabled: !!threatKeywords, // Only fetch articles after keywords are loaded
     refetchInterval: 20000, // Refresh every 20 seconds for critical threat data
     staleTime: 10000, // Consider data stale after 10 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to tab
     retry: 3, // Retry failed requests up to 3 times
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
+  // Fetch Threat Tracker article count
+  const { data: threatCount } = useQuery({
+    queryKey: ['threat-tracker-count-dashboard', threatKeywords],
+    queryFn: async () => {
+      // Get active keyword IDs
+      const activeKeywordIds = threatKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
+      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
+      const url = `/api/threat-tracker/articles/count${keywordParams ? '?' + keywordParams : ''}`;
+      
+      const response = await fetchWithAuth(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch threat article count: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.count || 0;
+    },
+    enabled: !!threatKeywords, // Only fetch count after keywords are loaded
+    refetchInterval: 20000, // Refresh at same rate as articles
+    staleTime: 10000,
+    refetchOnWindowFocus: true,
+    retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
@@ -293,7 +385,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>{newsArticles?.length || 0} articles</span>
+                      <span>{newsCount || 0} articles</span>
                     </div>
                   )}
                 </div>
@@ -328,7 +420,7 @@ export default function Dashboard() {
                   <div className="bg-black/50 rounded-lg p-2 border border-[#BF00FF]/30 mb-3">
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span className="text-gray-300 font-medium">News Overview</span>
-                      <span className="text-gray-400">{newsArticles.length} articles</span>
+                      <span className="text-gray-400">{newsCount || 0} articles</span>
                     </div>
                     <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-gray-800">
                       {(() => {
@@ -418,16 +510,28 @@ export default function Dashboard() {
                         
                         {keywords.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
-                              <span 
-                                key={kidx} 
-                                className="text-xs px-1.5 py-0.5 bg-[#BF00FF]/10 text-[#BF00FF] rounded border border-[#BF00FF]/20"
-                              >
-                                {keyword.keyword || keyword}
-                              </span>
-                            ))}
-                            {keywords.length > 3 && (
-                              <span className="text-xs text-gray-500">+{keywords.length - 3}</span>
+                            {keywords
+                              .filter((keyword: any) => {
+                                const kw = keyword.keyword || keyword;
+                                return typeof kw === 'string' && !kw.startsWith('_');
+                              })
+                              .slice(0, 3)
+                              .map((keyword: any, kidx: number) => (
+                                <span 
+                                  key={kidx} 
+                                  className="text-xs px-1.5 py-0.5 bg-[#BF00FF]/10 text-[#BF00FF] rounded border border-[#BF00FF]/20"
+                                >
+                                  {keyword.keyword || keyword}
+                                </span>
+                              ))}
+                            {keywords.filter((keyword: any) => {
+                              const kw = keyword.keyword || keyword;
+                              return typeof kw === 'string' && !kw.startsWith('_');
+                            }).length > 3 && (
+                              <span className="text-xs text-gray-500">+{keywords.filter((keyword: any) => {
+                                const kw = keyword.keyword || keyword;
+                                return typeof kw === 'string' && !kw.startsWith('_');
+                              }).length - 3}</span>
                             )}
                           </div>
                         )}
@@ -441,7 +545,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-[#BF00FF] rounded-full animate-pulse"></div>
                         <span className="text-xs text-white font-medium">
-                          {newsArticles.length - 1} more articles available
+                          {(newsCount || 0) - 1} more articles available
                         </span>
                       </div>
                       <button 
@@ -498,7 +602,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                      <span>{threatArticles?.length || 0} threats</span>
+                      <span>{threatCount || 0} threats</span>
                     </div>
                   )}
                 </div>
@@ -545,7 +649,7 @@ export default function Dashboard() {
                   <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/30 mb-3">
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span className="text-gray-300 font-medium">Threat Overview</span>
-                      <span className="text-gray-400">{threatArticles.length} detected</span>
+                      <span className="text-gray-400">{threatCount || 0} detected</span>
                     </div>
                     <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-slate-800">
                       {(() => {
@@ -710,17 +814,29 @@ export default function Dashboard() {
                             
                             {Array.isArray(keywords) && keywords.length > 0 && (
                               <div className="flex gap-1 flex-wrap">
-                                {keywords.slice(0, 3).map((keyword: any, kidx: number) => (
-                                  <span 
-                                    key={kidx}
-                                    className={`text-xs px-1.5 py-0.5 rounded-full ${severity.icon === 'red' ? 'bg-red-500/15 text-red-300 border border-red-500/20' : severity.icon === 'yellow' ? 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/20' : severity.icon === 'purple' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'bg-blue-500/15 text-blue-300 border border-blue-500/20'}`}
-                                  >
-                                    {keyword.keyword || keyword}
-                                  </span>
-                                ))}
-                                {keywords.length > 3 && (
+                                {keywords
+                                  .filter((keyword: any) => {
+                                    const kw = keyword.keyword || keyword;
+                                    return typeof kw === 'string' && !kw.startsWith('_');
+                                  })
+                                  .slice(0, 3)
+                                  .map((keyword: any, kidx: number) => (
+                                    <span 
+                                      key={kidx}
+                                      className={`text-xs px-1.5 py-0.5 rounded-full ${severity.icon === 'red' ? 'bg-red-500/15 text-red-300 border border-red-500/20' : severity.icon === 'yellow' ? 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/20' : severity.icon === 'purple' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'bg-blue-500/15 text-blue-300 border border-blue-500/20'}`}
+                                    >
+                                      {keyword.keyword || keyword}
+                                    </span>
+                                  ))}
+                                {keywords.filter((keyword: any) => {
+                                  const kw = keyword.keyword || keyword;
+                                  return typeof kw === 'string' && !kw.startsWith('_');
+                                }).length > 3 && (
                                   <span className="text-xs text-gray-500">
-                                    +{keywords.length - 3}
+                                    +{keywords.filter((keyword: any) => {
+                                      const kw = keyword.keyword || keyword;
+                                      return typeof kw === 'string' && !kw.startsWith('_');
+                                    }).length - 3}
                                   </span>
                                 )}
                               </div>
@@ -737,7 +853,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
                         <span className="text-xs text-white font-medium">
-                          {threatArticles.length - 1} more threats available
+                          {(threatCount || 0) - 1} more threats available
                         </span>
                       </div>
                       <button 

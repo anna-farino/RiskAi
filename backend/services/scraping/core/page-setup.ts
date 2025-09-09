@@ -1,4 +1,4 @@
-import type { Page } from 'puppeteer';
+import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import { BrowserManager } from './browser-manager';
 
@@ -66,7 +66,7 @@ export async function configureHeaders(page: Page, customHeaders?: Record<string
   const finalHeaders = customHeaders ? { ...defaultHeaders, ...customHeaders } : defaultHeaders;
   
   await page.setExtraHTTPHeaders(finalHeaders);
-  log(`[PageSetup][configureHeaders] Set ${Object.keys(finalHeaders).length} headers`, "scraper");
+  // Headers configured silently
 }
 
 /**
@@ -84,7 +84,7 @@ export async function setTimeouts(page: Page, timeouts?: TimeoutConfig): Promise
   page.setDefaultNavigationTimeout(finalTimeouts.navigation);
   page.setDefaultTimeout(finalTimeouts.default);
   
-  log(`[PageSetup][setTimeouts] Set navigation: ${finalTimeouts.navigation}ms, default: ${finalTimeouts.default}ms`, "scraper");
+  // Timeouts set silently
 }
 
 /**
@@ -113,7 +113,7 @@ async function applyStealthMode(page: Page): Promise<void> {
     });
   });
 
-  log(`[PageSetup][applyStealthMode] Applied stealth configurations`, "scraper");
+  // Stealth mode applied silently
 }
 
 /**
@@ -128,12 +128,9 @@ export async function setupPage(options?: PageSetupOptions): Promise<Page> {
   // Set viewport (default to 1920x1080 from all apps)
   const viewport = options?.viewport || { width: 1920, height: 1080 };
   await page.setViewport(viewport);
-  log(`[PageSetup][setupPage] Set viewport: ${viewport.width}x${viewport.height}`, "scraper");
-
-  // Set user agent
+  // Set viewport and user agent silently
   const userAgent = options?.userAgent || generateUserAgent('chrome');
   await page.setUserAgent(userAgent);
-  log(`[PageSetup][setupPage] Set user agent`, "scraper");
 
   // Configure headers
   await configureHeaders(page, options?.headers);

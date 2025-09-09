@@ -42,9 +42,9 @@ export class ErrorLogger {
         errorDetails.name = error.name;
       }
 
-      // Create error log entry
+      // Create error log entry - userId can be null for global scraping
       const errorLog: InsertScrapingErrorLog = {
-        userId: context.userId,
+        userId: context.userId || null, // Allow null for global scraping
         sourceId: context.sourceId || null,
         sourceUrl: context.sourceUrl,
         appType: context.appType,

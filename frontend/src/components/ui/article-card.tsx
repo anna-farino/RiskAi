@@ -140,12 +140,12 @@ export function ArticleCard({
           </h3>
 
           <div className="flex items-center gap-3 mb-3">
-            {article.author && (
+            {article.author && article.author !== "Unknown" ? (
               <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
                 <User className="h-3 w-3" />
                 <span className="font-medium">{article.author}</span>
               </div>
-            )}
+            ) : null}
 
             {article.publishDate && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">

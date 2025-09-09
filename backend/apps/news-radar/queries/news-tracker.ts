@@ -14,8 +14,13 @@ import {
   settings,
   articles, 
 } from "@shared/db/schema/news-tracker/index";
+import { 
+  globalArticles, 
+  globalSources, 
+  userSourcePreferences 
+} from "@shared/db/schema/global-tables";
 import { db, pool } from "backend/db/db";
-import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc } from "drizzle-orm";
+import { eq, and, isNull, sql, SQL, gte, lte, or, ilike, desc, inArray } from "drizzle-orm";
 import { Request } from "express";
 import { userInfo } from "os";
 import { envelopeEncrypt, envelopeDecryptAndRotate } from "backend/utils/encryption-new";
@@ -32,9 +37,31 @@ async function executeRawSql<T>(sqlStr: string, params: any[] = []): Promise<T[]
   }
 }
 
+// Helper function to get user's enabled sources from user_source_preferences
+async function getUserEnabledSources(userId: string, appContext: 'news_radar' | 'threat_tracker'): Promise<string[]> {
+  try {
+    const enabledSources = await db
+      .select({ sourceId: userSourcePreferences.sourceId })
+      .from(userSourcePreferences)
+      .where(
+        and(
+          eq(userSourcePreferences.userId, userId),
+          eq(userSourcePreferences.appContext, appContext),
+          eq(userSourcePreferences.isEnabled, true)
+        )
+      );
+    
+    return enabledSources.map(s => s.sourceId);
+  } catch (error) {
+    console.error("Error getting user enabled sources:", error);
+    return [];
+  }
+}
+
 export interface IStorage {
   // Sources
   getSources(userId?: string): Promise<Source[]>;
+  getGlobalSources(): Promise<Source[]>; // Phase 3.1: Get global sources
   getSource(id: string): Promise<Source | undefined>;
   getAutoScrapeSources(userId?: string): Promise<Source[]>;
   createSource(source: InsertSource): Promise<Source>;
@@ -61,7 +88,7 @@ export interface IStorage {
   ): Promise<Article[]>;
   getArticle(id: string, userId: string): Promise<Article | undefined>;
   getArticleByUrl(url: string, userId: string): Promise<Article | undefined>;
-  createArticle(article: InsertArticle, userId: string): Promise<Article>;
+  createArticle(article: InsertArticle, userId?: string): Promise<Article>;
   deleteArticle(id: string, userId: string): Promise<void>;
   deleteAllArticles(userId: string): Promise<number>; // Returns count of deleted articles
 
@@ -81,6 +108,28 @@ export class DatabaseStorage implements IStorage {
     } else {
       return await db.select().from(sources);
     }
+  }
+
+  // Phase 3.1: Get global sources from global_sources table
+  async getGlobalSources(): Promise<Source[]> {
+    const { globalSources } = await import('@shared/db/schema/global-tables');
+    
+    const globalSourcesList = await db.select({
+      id: globalSources.id,
+      userId: sql<string | null>`NULL`,
+      url: globalSources.url,
+      name: globalSources.name,
+      active: globalSources.isActive,
+      includeInAutoScrape: sql<boolean>`TRUE`, // All global sources are auto-scraped
+      lastScraped: globalSources.lastScraped,
+      scrapingConfig: globalSources.scrapingConfig,
+      createdAt: globalSources.addedAt,
+      updatedAt: globalSources.addedAt
+    })
+    .from(globalSources)
+    .where(eq(globalSources.isActive, true));
+    
+    return globalSourcesList as Source[];
   }
 
   async getSource(id: string): Promise<Source | undefined> {
@@ -268,51 +317,76 @@ export class DatabaseStorage implements IStorage {
       search?: string, 
       keywordIds?: string[],
       startDate?: Date,
-      endDate?: Date
+      endDate?: Date,
+      page?: number,
+      limit?: number
     },
   ): Promise<Article[]> {
     const searchTerm = filters?.search?.trim() ?? null;
     const startDate  = filters?.startDate   ?? null;
     const endDate    = filters?.endDate     ?? null;
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 50;
 
-    const rows = await withUserContext(
-      userId,
-      async (db) => db
-        .select({
-          id: articles.id,
-          sourceId: articles.sourceId,
-          title: articles.title,
-          content: articles.content,
-          url: articles.url,
-          author: articles.author,
-          publishDate: articles.publishDate,
-          summary: articles.summary,
-          relevanceScore: articles.relevanceScore,
-          detectedKeywords: articles.detectedKeywords,
-          userId: articles.userId,
-          sourceName: sources.name,
-        })
-        .from(articles)
-        .leftJoin(sources, eq(articles.sourceId, sources.id))
-        .where(
-          and(
-            eq(articles.userId, userId),
-            searchTerm
-              ? or(
-                  ilike(articles.title, `%${searchTerm}%`),
-                  ilike(articles.content, `%${searchTerm}%`)
-                )
-              : sql`TRUE`,
-            startDate
-              ? gte(articles.publishDate, startDate)
-              : sql`TRUE`,
-            endDate
-              ? lte(articles.publishDate, endDate)
-              : sql`TRUE`,
-          )
+    // Phase 3: Query-time filtering from global article pool
+    // Step 1: Get user's enabled sources from user_source_preferences table
+    const sourceIds = await getUserEnabledSources(userId, 'news_radar');
+
+    // Step 2: Get user's active keywords for filtering
+    const userKeywords = await this.getKeywords(userId);
+    const activeKeywords = userKeywords
+      .filter(k => k.active !== false)
+      .map(k => k.term.toLowerCase());
+
+    // Step 3: Query global articles (no userId filter)
+    const query = db
+      .select({
+        id: globalArticles.id,
+        sourceId: globalArticles.sourceId,
+        title: globalArticles.title,
+        content: globalArticles.content,
+        url: globalArticles.url,
+        author: globalArticles.author,
+        publishDate: globalArticles.publishDate,
+        summary: globalArticles.summary,
+        relevanceScore: sql<number>`0`.as('relevanceScore'), // Default value for compatibility
+        detectedKeywords: globalArticles.detectedKeywords,
+        userId: sql<string>`''`.as('userId'), // Empty string for compatibility
+        sourceName: globalSources.name,
+      })
+      .from(globalArticles)
+      .leftJoin(globalSources, eq(globalArticles.sourceId, globalSources.id))
+      .where(
+        and(
+          // Filter by user's enabled sources only
+          sourceIds.length > 0 ? inArray(globalArticles.sourceId, sourceIds) : sql`FALSE`,
+          searchTerm
+            ? or(
+                ilike(globalArticles.title, `%${searchTerm}%`),
+                ilike(globalArticles.content, `%${searchTerm}%`)
+              )
+            : sql`TRUE`,
+          startDate
+            ? gte(globalArticles.publishDate, startDate)
+            : sql`TRUE`,
+          endDate
+            ? lte(globalArticles.publishDate, endDate)
+            : sql`TRUE`,
         )
-        .orderBy(desc(articles.publishDate))
-    )
+      )
+      .orderBy(desc(globalArticles.publishDate))
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const rows = await query;
+
+    // Step 4: Apply keyword filtering (in memory for now)
+    if (activeKeywords.length > 0) {
+      return rows.filter(article => {
+        const searchText = `${article.title} ${article.content}`.toLowerCase();
+        return activeKeywords.some(keyword => searchText.includes(keyword));
+      });
+    }
 
     return rows;
   }
@@ -330,7 +404,29 @@ export class DatabaseStorage implements IStorage {
     return data.length > 0 ? data[0] : undefined;
   }
 
-  async getArticleByUrl(url: string, userId: string): Promise<Article | undefined> {
+  async getArticleByUrl(url: string, userId?: string): Promise<Article | undefined> {
+    // For global scraping (no userId), check the global_articles table
+    if (!userId) {
+      const { globalArticles } = await import('@shared/db/schema/global-tables');
+      
+      const [globalArticle] = await db
+        .select()
+        .from(globalArticles)
+        .where(eq(globalArticles.url, url))
+        .limit(1);
+      
+      if (globalArticle) {
+        // Map back to Article type for compatibility
+        return {
+          ...globalArticle,
+          userId: null,
+          relevanceScore: null,
+        } as Article;
+      }
+      return undefined;
+    }
+    
+    // For user-specific queries, use the regular articles table with RLS
     const data = await withUserContext(
       userId,
       async (db) => db
@@ -342,7 +438,40 @@ export class DatabaseStorage implements IStorage {
     return data.length > 0 ? data[0] : undefined;
   }
 
-  async createArticle(article: InsertArticle, userId: string): Promise<Article> {
+  async createArticle(article: InsertArticle, userId?: string): Promise<Article> {
+    // For global scraping (no userId), insert into global_articles table
+    if (!userId) {
+      // Import global tables
+      const { globalArticles } = await import('@shared/db/schema/global-tables');
+      
+      // Directly use the source_id from global_sources (no mapping needed)
+      const [created] = await db
+        .insert(globalArticles)
+        .values({
+          sourceId: article.sourceId, // Already from global_sources table
+          title: article.title,
+          content: article.content,
+          url: article.url,
+          author: article.author,
+          publishDate: article.publishDate,
+          summary: article.summary,
+          detectedKeywords: article.detectedKeywords,
+          securityScore: (article as any).securityScore ? parseInt((article as any).securityScore) : null,
+          isCybersecurity: Array.isArray(article.detectedKeywords) && 
+            article.detectedKeywords.some((kw: string) => kw === '_cyber:true'),
+          scrapedAt: new Date(),
+        })
+        .returning();
+      
+      // Map back to Article type for compatibility
+      return {
+        ...created,
+        userId: null,
+        relevanceScore: article.relevanceScore,
+      } as Article;
+    }
+    
+    // For user-specific articles, use the old table with RLS
     const [created] = await withUserContext(
       userId,
       async (db) => db

@@ -2,8 +2,14 @@ import { log } from "backend/utils/log";
 import { ScrapingConfig, ArticleContent } from '../../types';
 import * as cheerio from 'cheerio';
 import { generateFallbackSelectors } from './fallback-selectors';
-import { cleanAndNormalizeContent } from './content-cleaner';
+import { cleanAndNormalizeContent, stripHtmlTags } from './content-cleaner';
 import { extractPublishDate } from './date-extractor';
+import { 
+  isValidArticleContent, 
+  isValidTitle, 
+  extractTitleFromUrl, 
+  sanitizeContent 
+} from '../../validators/content-validator';
 
 /**
  * Sanitize CSS selector by removing invalid patterns
@@ -52,11 +58,54 @@ export async function extractArticleContent(html: string, config: ScrapingConfig
       log(`[ContentExtractor] Date extraction failed: ${dateError}`, "scraper");
     }
 
-    // Clean and normalize the extracted content
+    // Clean and sanitize the extracted content
+    // Strip HTML tags first, then normalize whitespace, then sanitize
+    let title = stripHtmlTags(extracted.title || "");
+    title = cleanAndNormalizeContent(title);
+    title = sanitizeContent(title);
+    
+    let content = stripHtmlTags(extracted.content || "");
+    content = cleanAndNormalizeContent(content);
+    content = sanitizeContent(content);
+    
+    // Validate title - if invalid or missing, try to extract from URL
+    if (!isValidTitle(title) && sourceUrl) {
+      log(`[ContentExtractor] Title invalid or missing, attempting URL extraction`, "scraper");
+      const urlTitle = extractTitleFromUrl(sourceUrl);
+      if (urlTitle) {
+        title = urlTitle;
+        log(`[ContentExtractor] Using title from URL: "${title}"`, "scraper");
+      } else {
+        title = "Untitled"; // Keep as fallback but validation will catch this
+      }
+    }
+    
+    // Validate content quality
+    if (!isValidArticleContent(content)) {
+      log(`[ContentExtractor] Content validation failed - appears corrupted or too short`, "scraper");
+      // Mark as failed extraction with very low confidence
+      return {
+        title: title || "Content Validation Failed",
+        content: content || "Article content could not be extracted properly",
+        author: extracted.author,
+        publishDate,
+        extractionMethod: "validation_failed",
+        confidence: 0.1 // Very low confidence to signal rejection
+      };
+    }
+
+    // Clean author field as well if it exists
+    let cleanedAuthor = extracted.author;
+    if (cleanedAuthor) {
+      cleanedAuthor = stripHtmlTags(cleanedAuthor);
+      cleanedAuthor = cleanAndNormalizeContent(cleanedAuthor);
+      cleanedAuthor = sanitizeContent(cleanedAuthor);
+    }
+    
     const result: ArticleContent = {
-      title: cleanAndNormalizeContent(extracted.title || ""),
-      content: cleanAndNormalizeContent(extracted.content || ""),
-      author: extracted.author,
+      title,
+      content,
+      author: cleanedAuthor,
       publishDate,
       extractionMethod: extracted.extractionMethod || "selectors",
       confidence: extracted.confidence || 0.9
@@ -303,6 +352,8 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
   if (selector) {
     try {
       result = $(selector).first().text().trim();
+      // Strip any HTML tags that might be in the extracted text
+      result = stripHtmlTags(result);
       
       // Validate result based on field type
       if (result && fieldType === 'author') {
@@ -328,6 +379,8 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
     for (const variation of variations) {
       try {
         result = $(variation).first().text().trim();
+        // Strip any HTML tags that might be in the extracted text
+        result = stripHtmlTags(result);
         
         // Validate result based on field type
         if (result && fieldType === 'author') {
@@ -358,6 +411,8 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
   for (const fallback of fallbacks) {
     try {
       result = $(fallback).first().text().trim();
+      // Strip any HTML tags that might be in the extracted text
+      result = stripHtmlTags(result);
       
       // Validate result based on field type
       if (result && fieldType === 'author') {

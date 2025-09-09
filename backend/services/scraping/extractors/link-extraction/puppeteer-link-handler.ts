@@ -108,7 +108,8 @@ export async function extractLinksFromPage(page: Page, baseUrl: string, options?
       
       // Import and use the DataDome bypass function
       const { bypassProtection } = await import('../../core/protection-bypass');
-      const bypassSuccessful = await bypassProtection(page, baseUrl);
+      const protectionInfo = { hasProtection: true, type: 'datadome', confidence: 0.9, details: 'DataDome challenge detected' };
+      const bypassSuccessful = await bypassProtection(page, protectionInfo);
       
       if (bypassSuccessful) {
         log(`[LinkExtractor] DataDome bypass successful, re-evaluating page content...`, "scraper");
