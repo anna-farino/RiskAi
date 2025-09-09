@@ -442,17 +442,19 @@ export const storage: IStorage = {
       // Get user-specific keywords if userId is provided
       let userKeywords: ThreatKeyword[] = [];
       if (userId) {
-        userKeywords = await db
-          .select()
-          .from(threatKeywords)
-          .where(
-            and(
-              eq(threatKeywords.category, category),
-              eq(threatKeywords.userId, userId),
-              eq(threatKeywords.isDefault, false),
-            ),
-          )
-          .execute();
+        userKeywords = await withUserContext(
+          userId,
+          async (db) => db
+            .select()
+            .from(threatKeywords)
+            .where(
+              and(
+                eq(threatKeywords.category, category),
+                eq(threatKeywords.userId, userId),
+                eq(threatKeywords.isDefault, false),
+              ),
+            )
+        );
       }
 
       // Decrypt terms for both default and user keywords
@@ -525,10 +527,10 @@ export const storage: IStorage = {
           .returning()
       );
       
-      // Return with decrypted term for API consistency
+      // Return with original plaintext term for API consistency
       return {
         ...result,
-        term: await envelopeDecryptAndRotate(threatKeywords, result.id, 'term', userId || keyword.userId)
+        term: keyword.term! // Return the original plaintext term since we know it
       };
     } catch (error) {
       console.error("Error creating threat keyword:", error);
@@ -588,7 +590,7 @@ export const storage: IStorage = {
       // Return with decrypted term for API consistency
       return {
         ...result,
-        term: await envelopeDecryptAndRotate(threatKeywords, result.id, 'term', userId)
+        term: keyword.term || await envelopeDecryptAndRotate(threatKeywords, result.id, 'term', userId)
       };
     } catch (error) {
       console.error("Error updating threat keyword:", error);
