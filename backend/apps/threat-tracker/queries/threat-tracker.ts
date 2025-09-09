@@ -21,7 +21,7 @@ import {
 } from "@shared/db/schema/global-tables";
 import { db, pool } from "backend/db/db";
 import { eq, and, isNull, sql, SQL, desc, inArray, gte, lte, or, ilike } from "drizzle-orm";
-import { encrypt, decrypt } from "backend/utils/encryption";
+import { envelopeDecryptAndRotate, envelopeEncrypt } from "backend/utils/encryption-new";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(
@@ -380,10 +380,12 @@ export const storage: IStorage = {
         term: keyword.term
       }));
 
-      const decryptedUserKeywords = userKeywords.map(keyword => ({
-        ...keyword,
-        term: decrypt(keyword.term)
-      }));
+      const decryptedUserKeywords = await Promise.all(
+        userKeywords.map(async (keyword) => ({
+          ...keyword,
+          term: await envelopeDecryptAndRotate(threatKeywords, keyword.id, 'term', userId!)
+        }))
+      );
 
       // Combine default and user keywords
       return [...decryptedDefaultKeywords, ...decryptedUserKeywords];
@@ -412,7 +414,7 @@ export const storage: IStorage = {
         const keyword = results[0];
         return {
           ...keyword,
-          term: decrypt(keyword.term)
+          term: await envelopeDecryptAndRotate(threatKeywords, keyword.id, 'term', userId)
         };
       }
       return undefined;
@@ -456,13 +458,15 @@ export const storage: IStorage = {
       // Decrypt terms for both default and user keywords
       const decryptedDefaultKeywords = defaultKeywords.map(keyword => ({
         ...keyword,
-        term: decrypt(keyword.term)
+        term: keyword.term // Default keywords are not encrypted
       }));
 
-      const decryptedUserKeywords = userKeywords.map(keyword => ({
-        ...keyword,
-        term: decrypt(keyword.term)
-      }));
+      const decryptedUserKeywords = userId ? await Promise.all(
+        userKeywords.map(async (keyword) => ({
+          ...keyword,
+          term: await envelopeDecryptAndRotate(threatKeywords, keyword.id, 'term', userId)
+        }))
+      ) : [];
 
       // Combine default and user keywords
       return [...decryptedDefaultKeywords, ...decryptedUserKeywords];
@@ -487,6 +491,10 @@ export const storage: IStorage = {
         throw new Error("Cannot create default keywords through this endpoint");
       }
 
+      // Encrypt the term before saving
+      const encryptedTerm = await envelopeEncrypt(keyword.term!);
+      const termValue = typeof encryptedTerm === 'string' ? encryptedTerm : Buffer.from(encryptedTerm.blob).toString('base64');
+      
       // Ensure isDefault is set to false for user keywords
       const keywordToCreate: {
           active?: boolean;
@@ -494,12 +502,20 @@ export const storage: IStorage = {
           isDefault?: boolean;
           term: string;
           category: "threat" | "vendor" | "client" | "hardware";
+          wrappedDekTerm?: string;
+          keyIdTerm?: string;
       } = {
         ...keyword,
-        term: encrypt(keyword.term!), // Encrypt the term before saving
+        term: termValue,
         category: keyword.category!,
         isDefault: keyword.isDefault || false,
       };
+      
+      // Add encryption metadata if envelope encryption was used
+      if (typeof encryptedTerm !== 'string') {
+        keywordToCreate.wrappedDekTerm = Buffer.from(encryptedTerm.wrapped_dek).toString('base64');
+        keywordToCreate.keyIdTerm = encryptedTerm.key_id;
+      }
 
       const [result] = await withUserContext(
         userId || keyword.userId,
@@ -512,7 +528,7 @@ export const storage: IStorage = {
       // Return with decrypted term for API consistency
       return {
         ...result,
-        term: decrypt(result.term)
+        term: await envelopeDecryptAndRotate(threatKeywords, result.id, 'term', userId || keyword.userId)
       };
     } catch (error) {
       console.error("Error creating threat keyword:", error);
@@ -550,7 +566,14 @@ export const storage: IStorage = {
       
       // Encrypt the term if it's being updated
       if (updateData.term) {
-        updateData.term = encrypt(updateData.term);
+        const encryptedTerm = await envelopeEncrypt(updateData.term);
+        if (typeof encryptedTerm === 'string') {
+          updateData.term = encryptedTerm;
+        } else {
+          updateData.term = Buffer.from(encryptedTerm.blob).toString('base64');
+          (updateData as any).wrappedDekTerm = Buffer.from(encryptedTerm.wrapped_dek).toString('base64');
+          (updateData as any).keyIdTerm = encryptedTerm.key_id;
+        }
       }
 
       const [result] = await withUserContext(
@@ -565,7 +588,7 @@ export const storage: IStorage = {
       // Return with decrypted term for API consistency
       return {
         ...result,
-        term: decrypt(result.term)
+        term: await envelopeDecryptAndRotate(threatKeywords, result.id, 'term', userId)
       };
     } catch (error) {
       console.error("Error updating threat keyword:", error);
