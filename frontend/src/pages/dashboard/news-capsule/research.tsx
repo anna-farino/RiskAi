@@ -24,8 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronUp, ChevronDown, Menu, X } from "lucide-react";
-import CapsuleArticleComponent from "./capsule-article";
+import { ChevronUp, ChevronDown, Menu, X, Link2, Play, FileText, Settings2, Trash2 } from "lucide-react";
 
 interface ArticleSummary {
   id: string;
@@ -95,13 +94,16 @@ export default function Research() {
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   const [bulkMode, setBulkMode] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [articlesPerPage] = useState(10);
+  const [articlesPerPage] = useState(5);
   const [reportTopic, setReportTopic] = useState("");
   
   // Phase 2: Enhanced state management for responsive behavior
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isViewportMobile, setIsViewportMobile] = useState(false);
   const [showSelectedArticlesOverlay, setShowSelectedArticlesOverlay] = useState(false);
+  
+  // Unified Toolbar State
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
   
   // Dialog state
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -502,7 +504,216 @@ export default function Research() {
   };
   
   return (
-    <div className="flex flex-col gap-4 lg:gap-6 min-h-screen overflow-x-hidden">
+    <>
+      {/* Unified Toolbar Container */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
+        {!isToolbarExpanded ? (
+          /* Collapsed State */
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-orange-400" />
+                <span className="text-lg font-medium text-white">Capsule Research</span>
+                {selectedArticles.length > 0 && (
+                  <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-xs text-orange-400">
+                    {selectedArticles.length} selected
+                  </span>
+                )}
+                {isLoading && (
+                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs text-blue-400">
+                    Processing...
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsToolbarExpanded(true)}
+                  className="px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/50 rounded-md text-sm text-slate-300 hover:text-white transition-all duration-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Expanded State */
+          <div className="p-6">
+            {/* Header with collapse button */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <FileText className="h-6 w-6 text-orange-400" />
+                <span className="text-xl font-semibold text-white">Capsule Research</span>
+                {selectedArticles.length > 0 && (
+                  <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-sm text-orange-400">
+                    {selectedArticles.length} selected
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setIsToolbarExpanded(false)}
+                className="p-2 hover:bg-slate-800/50 rounded-md transition-colors duration-200 text-slate-400 hover:text-white"
+              >
+                <ChevronUp className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* URL Processing Section */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* URL Input & Controls */}
+              <div className="lg:col-span-2">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Link2 className="h-5 w-5 text-blue-400" />
+                    <span className="text-base font-medium text-blue-400">URL Processing</span>
+                  </div>
+                  
+                  {/* Mode Toggle */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => setBulkMode(false)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        !bulkMode 
+                          ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50' 
+                          : 'bg-slate-800/50 text-slate-400 hover:text-slate-300'
+                      }`}
+                    >
+                      Single URL
+                    </button>
+                    <button
+                      onClick={() => setBulkMode(true)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        bulkMode 
+                          ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50' 
+                          : 'bg-slate-800/50 text-slate-400 hover:text-slate-300'
+                      }`}
+                    >
+                      Bulk URLs
+                    </button>
+                  </div>
+
+                  {/* URL Input */}
+                  <div className="relative mb-4">
+                    {bulkMode ? (
+                      <textarea
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                        rows={3}
+                        className="w-full px-4 py-3 text-sm bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-slate-200"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        onFocus={() => setShowUrlDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                        placeholder="https://example.com/article"
+                        className="w-full px-4 py-3 text-sm bg-slate-800/50 border border-slate-600/50 rounded-md focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-slate-200"
+                      />
+                    )}
+                    
+                    {/* URL Dropdown */}
+                    {showUrlDropdown && savedUrls.length > 0 && !bulkMode && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-md overflow-hidden z-20 max-h-48 overflow-y-auto shadow-xl">
+                        {savedUrls.map((savedUrl, index) => (
+                          <button
+                            key={index}
+                            onClick={() => selectSavedUrl(savedUrl)}
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
+                          >
+                            {savedUrl}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {url && (
+                      <button
+                        onClick={() => setUrl("")}
+                        className="px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-md text-sm transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      onClick={processUrl}
+                      disabled={isLoading}
+                      className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      {isLoading ? "Processing..." : "Process URLs"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Report Management */}
+              <div className="lg:col-span-1">
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Play className="h-5 w-5 text-purple-400" />
+                    <span className="text-base font-medium text-purple-400">Report Actions</span>
+                  </div>
+                  
+                  {/* Report Topic */}
+                  <div className="mb-4">
+                    <label className="block text-sm text-slate-300 mb-2">Report Topic</label>
+                    <input
+                      type="text"
+                      value={reportTopic}
+                      onChange={(e) => setReportTopic(e.target.value)}
+                      placeholder="Enter topic (optional)"
+                      className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-md text-sm text-slate-200 focus:ring-2 focus:ring-purple-500/50"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={sendToExecutiveReport}
+                      disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                      className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const articleIds = selectedArticles.map(article => article.id);
+                        const topic = reportTopic.trim() || undefined;
+                        createReportMutation.mutate({ articleIds, topic });
+                      }}
+                      disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                      className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md disabled:opacity-50 text-sm transition-colors"
+                    >
+                      Create New Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Article Management Section */}
+            <div className="bg-green-500/10 border border-green-500/20 rounded-md p-6 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Settings2 className="h-5 w-5 text-green-400" />
+                  <span className="text-base font-medium text-green-400">Article Management</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-slate-400">
+                    {processedArticles?.length || 0} processed | {selectedArticles.length} selected
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Mobile Floating Action Button - positioned next to back-to-top button */}
       {isViewportMobile && (
         <button
@@ -518,247 +729,252 @@ export default function Research() {
         </button>
       )}
       
-      <div className="flex flex-col gap-2 px-4 lg:px-0">
-        <h1 className="text-xl sm:text-2xl font-bold">Capsule Research</h1>
-        <p className="text-sm sm:text-base text-slate-300">
-          Analyze articles for executive reporting by submitting URLs for processing.
-        </p>
-      </div>
+      <div className="flex flex-col gap-4 lg:gap-6 min-h-screen overflow-x-hidden">
       
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
-        {/* URL Input Section - Mobile First, Stacked Layout */}
-        <div className={`w-full transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden ${
-          isViewportMobile ? 'lg:flex-1' : isSidebarCollapsed ? 'lg:flex-[2]' : 'lg:flex-1'
-        }`}>
-          <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            <h2 className="text-lg sm:text-xl font-semibold mb-4">Add one or more URL's below for processing</h2>
-            
-            <div className="flex flex-col gap-4">
-
-
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-3">
-                <div className="relative">
-                  {bulkMode ? (
-                    <textarea
-                      id="url-input"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
-                      rows={3}
-                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg resize-vertical focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
-                    />
-                  ) : (
-                    <input
-                      id="url-input"
-                      type="text"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      onFocus={() => setShowUrlDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                      placeholder="https://example.com/article"
-                      autoComplete="off"
-                      className="w-full px-4 py-3 text-sm sm:text-base bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50"
-                    />
-                  )}
-                  
-                  {/* Dropdown for saved URLs - Mobile optimized */}
-                  {showUrlDropdown && savedUrls.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 max-h-48 sm:max-h-60 overflow-y-auto shadow-xl">
-                      {savedUrls.map((savedUrl, index) => (
-                        <button
-                          key={index}
-                          onClick={() => selectSavedUrl(savedUrl)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
-                        >
-                          {savedUrl}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Action buttons - Stacked below input */}
-                <div className="flex gap-2">
-                  {url && (
-                    <button
-                      type="button"
-                      onClick={clearUrl}
-                      className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm sm:text-base min-h-[48px] touch-manipulation"
-                      aria-label="Clear input"
-                    >
-                      Clear
-                    </button>
-                  )}
-                  <button
-                    onClick={processUrl}
-                    disabled={isLoading}
-                    className="flex-1 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation"
-                  >
-                    {isLoading ? "Processing..." : "Process URL's"}
-                  </button>
-                </div>
-              </div>
+        {/* Articles Container */}
+        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-white">Processed Articles</h2>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-400">
+                {processedArticles?.length || 0} total articles
+              </span>
             </div>
           </div>
-          
-          {/* Processed Articles Display - Mobile Optimized */}
-          <div className="mt-4 sm:mt-6 flex flex-col gap-4">
-            {articlesLoading ? (
-              <div className="flex flex-col items-center justify-center py-8 sm:py-12">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                <p className="text-slate-400 text-sm">Loading articles...</p>
-              </div>
-            ) : (
-              <>
-                {processedArticles.length > 0 && (
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <h3 className="text-base sm:text-lg font-medium">
-                      Processed Articles ({processedArticles.length})
-                    </h3>
-                    {processedArticles.length > articlesPerPage && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm text-slate-400">
-                          Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
-                        </span>
-                      </div>
-                    )}
+          {articlesLoading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-8 h-8 border-4 border-slate-600 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+              <p className="text-slate-400">Loading articles...</p>
+            </div>
+          ) : processedArticles.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No articles processed yet. Add URLs above to get started.</p>
+            </div>
+          ) : (
+            <>
+              {/* Top Pagination Controls */}
+              {processedArticles.length > articlesPerPage && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 mb-6 p-4 bg-slate-800/30 border border-slate-700/40 rounded-md">
+                  <div className="flex items-center gap-3 order-2 sm:order-1">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
+                      disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+                      className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
+                    >
+                      Next
+                    </button>
                   </div>
-                )}
-                
+                  
+                  <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 order-1 sm:order-2">
+                    <span className="text-sm text-slate-400">
+                      Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                    </span>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+                        .filter(page => {
+                          const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                          const isMobile = window.innerWidth < 640;
+                          const range = isMobile ? 1 : 2;
+                          return page === 1 || page === totalPages || Math.abs(page - currentPage) <= range;
+                        })
+                        .map((page, index, visiblePages) => {
+                          const prevPage = visiblePages[index - 1];
+                          const showEllipsis = prevPage && page - prevPage > 1;
+                          
+                          return (
+                            <React.Fragment key={page}>
+                              {showEllipsis && <span className="text-slate-400 px-1 text-xs">...</span>}
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`px-2 py-1 rounded-md min-w-[28px] text-xs transition-colors ${
+                                  currentPage === page
+                                    ? 'bg-orange-600 text-white'
+                                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid gap-4">
                 {(() => {
                   const startIdx = (currentPage - 1) * articlesPerPage;
                   const endIdx = currentPage * articlesPerPage;
                   const articlesToShow = processedArticles.slice(startIdx, endIdx);
-                  console.log(`Displaying articles ${startIdx}-${endIdx} of ${processedArticles.length}:`, articlesToShow.length);
-                  console.log('Sample article titles:', articlesToShow.slice(0, 3).map(a => a.title));
-
+                  
                   return articlesToShow.map((article, index) => (
-                    <CapsuleArticleComponent
-                      article={article}
-                      index={index}
-                      setSelectedArticles={setSelectedArticles}
-                      selectedArticles={selectedArticles}
-                      removeProcessedArticle={removeProcessedArticle}
-                      selectForReport={selectForReport}
-                    />
-              ));
+                    <motion.div
+                      key={`article-${article.id}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-5 bg-slate-800/50 border border-slate-700/40 rounded-md hover:border-slate-600/60 transition-colors"
+                    >
+                      <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-start">
+                          <h3 className="text-lg font-medium flex-1 leading-tight text-slate-100">{article.title}</h3>
+                          <span className="text-xs text-slate-400 ml-3 px-2 py-1 border border-slate-600 rounded whitespace-nowrap">
+                            News Capsule
+                          </span>
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const isSelected = selectedArticles.some(selected => selected.title === article.title);
+                              if (isSelected) {
+                                const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
+                                setSelectedArticles(newSelected);
+                              } else {
+                                selectForReport(article);
+                              }
+                            }}
+                            className={`flex-1 px-4 py-2 text-sm rounded-md border transition-all duration-200 ${
+                              selectedArticles.some(selected => selected.title === article.title) 
+                                ? "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-500/50" 
+                                : "bg-green-500/20 hover:bg-green-500/30 text-green-300 border-green-500/50"
+                            }`}
+                          >
+                            {selectedArticles.some(selected => selected.title === article.title) ? "Selected for Report" : "Select for Report"}
+                          </button>
+                          <button
+                            onClick={() => removeProcessedArticle(article)}
+                            className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-md border border-red-500/50 transition-all duration-200"
+                            title="Delete article"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        
+                        {/* Article details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Threat Name</p>
+                            <p className="text-sm text-slate-200 break-words">{article.threatName}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Vulnerability ID</p>
+                            <p className="text-sm text-slate-200 break-words">{article.vulnerabilityId}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs text-slate-400 mb-1">Summary</p>
+                            <p className="text-sm text-slate-200 leading-relaxed">{article.summary}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs text-slate-400 mb-1">Impacts</p>
+                            <p className="text-sm text-slate-200 leading-relaxed">{article.impacts}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Attack Vector</p>
+                            <p className="text-sm text-slate-200 break-words">{article.attackVector}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Target OS</p>
+                            <p className="text-sm text-slate-200 break-words">{article.targetOS}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs text-slate-400 mb-1">Source</p>
+                            <p className="text-sm text-slate-200 break-words">{article.sourcePublication}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ));
                 })()}
-              </>
-            )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
         
-        {/* Selected Articles Section - Adaptive Sidebar */}
-        <div className="relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last w-full lg:w-80 lg:flex-shrink-0">
-          {/* Article Count Header */}
-          <div className="p-4 border-b border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-300">Selected Articles</h3>
-              <span className="text-[#00FFFF] font-semibold text-lg">
+        {/* Selected Articles Section - Full Width */}
+        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6 w-full">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-white">Selected Articles</h3>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={sendToExecutiveReport}
+                disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
+              </button>
+              <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-sm text-orange-400 font-medium">
                 {selectedArticles.length}
               </span>
             </div>
           </div>
 
-          <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-3 mb-4">
-                  <button
-                    onClick={sendToExecutiveReport}
-                    disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="flex-1 lg:w-full px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg disabled:opacity-50 disabled:hover:bg-[#BF00FF] disabled:hover:text-white text-sm sm:text-base min-h-[48px] touch-manipulation transition-all duration-200"
+          <div className="space-y-4">
+            {selectedArticles.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No articles selected yet</p>
+                <p className="text-xs mt-1">Select articles from the list above</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {selectedArticles.map((article, index) => (
+                  <motion.div
+                    key={`selected-${article.id}-${index}`}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="p-3 bg-slate-800/50 border border-slate-700/40 rounded-md hover:border-slate-600/60 transition-colors"
                   >
-                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Executive Report"}
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      const articleIds = selectedArticles.map(article => article.id);
-                      const topic = reportTopic.trim() || undefined;
-                      createReportMutation.mutate({ articleIds, topic });
-                    }}
-                    disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="flex-1 lg:w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 hover:text-[#00FFFF] rounded-lg disabled:opacity-50 text-sm sm:text-base min-h-[48px] touch-manipulation transition-all duration-200"
-                  >
-                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Creating..." : "New Report"}
-                  </button>
-            </div>
-            
-
-          
-            {/* Report Topic Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="reportTopic" className="block text-sm text-slate-300 mb-2">
-                Report Topic (Optional)
-              </label>
-              <input
-                id="reportTopic"
-                type="text"
-                value={reportTopic}
-                onChange={(e) => setReportTopic(e.target.value)}
-                placeholder="Enter a topic (Optional)"
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px] transition-all duration-200"
-              />
-              <p className="text-xs text-slate-500 mt-2">
-                This topic will appear in the Executive Report below the title
-              </p>
-            </div>
-          
-            {/* Selected Articles List */}
-            <div className="flex flex-col gap-3 sm:gap-4">
-              {selectedArticles.length === 0 ? (
-                <p className="text-sm text-slate-400 italic text-center py-8">
-                  No articles selected yet
-                </p>
-              ) : (
-              selectedArticles.map((article, index) => (
-                <motion.div
-                  key={`selected-${article.id}-${index}`}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="p-3 sm:p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg hover:border-slate-600/60 transition-colors"
-                >
-                  <div className="flex justify-between items-start gap-3">
-                    <h4 className="text-sm sm:text-base font-medium mb-2 flex-1 leading-tight">{article.title}</h4>
-                    <div className="flex flex-col items-end gap-2">
-                      <button
-                        onClick={() => removeSelectedArticle(article.id)}
-                        className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg touch-manipulation transition-colors"
-                      >
-                        ✕
-                      </button>
-                      <span className="text-xs text-slate-400 px-2 py-1 border border-slate-600 rounded whitespace-nowrap">
-                        NC
-                      </span>
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <h4 className="text-xs font-medium flex-1 leading-tight text-slate-100 line-clamp-2">{article.title}</h4>
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          onClick={() => removeSelectedArticle(article.id)}
+                          className="w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-sm transition-colors flex-shrink-0"
+                        >
+                          ×
+                        </button>
+                        <span className="text-xs text-slate-400 px-1.5 py-0.5 border border-slate-600 rounded text-center text-xs">
+                          NC
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-xs text-slate-400 mb-2 break-words">
-                    {article.threatName}
-                  </p>
-                  <p className="text-xs sm:text-sm line-clamp-3 leading-relaxed">
-                    {article.summary}
-                  </p>
-                </motion.div>
-              ))
+                    <p className="text-xs text-slate-400 mb-1.5 break-words line-clamp-1">
+                      {article.threatName}
+                    </p>
+                    <p className="text-xs text-slate-200 line-clamp-2 leading-relaxed">
+                      {article.summary}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
             )}
-          </div>
           </div>
         </div>
       </div>
       
       {/* Pagination Controls - Mobile Responsive */}
       {processedArticles.length > articlesPerPage && (
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-4 lg:mt-6 p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl mx-4 lg:mx-0">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-4 lg:mt-6 p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md">
           {/* Mobile: Stack vertically, Desktop: Horizontal layout */}
           <div className="flex items-center gap-3 order-2 sm:order-1">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation"
+              className="px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation"
             >
               Previous
             </button>
@@ -766,7 +982,7 @@ export default function Research() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
               disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
-              className="px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation"
+              className="px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px] touch-manipulation"
             >
               Next
             </button>
@@ -797,9 +1013,9 @@ export default function Research() {
                       {showEllipsis && <span className="text-slate-400 px-1 sm:px-2 text-xs sm:text-sm">...</span>}
                       <button
                         onClick={() => setCurrentPage(page)}
-                        className={`px-2 sm:px-3 py-2 sm:py-3 rounded-lg min-w-[36px] sm:min-w-[44px] text-xs sm:text-sm touch-manipulation ${
+                        className={`px-2 sm:px-3 py-2 sm:py-3 rounded-md min-w-[36px] sm:min-w-[44px] text-xs sm:text-sm touch-manipulation ${
                           currentPage === page
-                            ? 'bg-[#BF00FF] text-white'
+                            ? 'bg-orange-600 text-white'
                             : 'bg-slate-700 text-white hover:bg-slate-600'
                         }`}
                       >
@@ -835,7 +1051,7 @@ export default function Research() {
                 <h3 className="text-lg font-semibold">Selected Articles ({selectedArticles.length})</h3>
                 <button
                   onClick={() => setShowSelectedArticlesOverlay(false)}
-                  className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg touch-manipulation transition-colors"
+                  className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-md touch-manipulation transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -850,7 +1066,7 @@ export default function Research() {
                       setShowSelectedArticlesOverlay(false);
                     }}
                     disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="flex-1 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
+                    className="flex-1 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white rounded-md disabled:opacity-50 min-h-[48px] touch-manipulation"
                   >
                     {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
                   </button>
@@ -863,7 +1079,7 @@ export default function Research() {
                       setShowSelectedArticlesOverlay(false);
                     }}
                     disabled={createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="flex-1 px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 hover:text-[#00FFFF] rounded-lg disabled:opacity-50 min-h-[48px] touch-manipulation"
+                    className="flex-1 px-4 py-3 bg-slate-700 text-white hover:bg-slate-600 hover:text-[#00FFFF] rounded-md disabled:opacity-50 min-h-[48px] touch-manipulation"
                   >
                     New Report
                   </button>
@@ -879,7 +1095,7 @@ export default function Research() {
                     value={reportTopic}
                     onChange={(e) => setReportTopic(e.target.value)}
                     placeholder="Enter a topic (Optional)"
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px]"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px]"
                   />
                 </div>
 
@@ -892,13 +1108,13 @@ export default function Research() {
                   selectedArticles.map((article, index) => (
                     <div 
                       key={`mobile-selected-${article.id}-${index}`}
-                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-lg"
+                      className="p-4 bg-slate-800/50 border border-slate-700/40 rounded-md"
                     >
                       <div className="flex justify-between items-start gap-3">
                         <h4 className="text-base font-medium mb-2 flex-1 leading-tight">{article.title}</h4>
                         <button
                           onClick={() => removeSelectedArticle(article.id)}
-                          className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg touch-manipulation"
+                          className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md touch-manipulation"
                         >
                           ✕
                         </button>
@@ -1053,6 +1269,6 @@ export default function Research() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

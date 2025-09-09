@@ -25,7 +25,7 @@ export function RisqCard({
   padding = 'md',
 }: RisqCardProps) {
   // Base styles for all cards
-  const baseStyles = 'rounded-xl';
+  const baseStyles = 'rounded-md';
   
   // Padding variations
   const paddingStyles = {

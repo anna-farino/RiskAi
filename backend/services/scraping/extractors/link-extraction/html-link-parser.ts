@@ -23,7 +23,7 @@ export interface LinkData {
 export function extractLinksFromHTML(html: string, baseUrl: string, options?: LinkExtractionOptions): LinkData[] {
   const $ = cheerio.load(html);
   const links: LinkData[] = [];
-  const minimumTextLength = options?.minimumTextLength || 15;
+  const minimumTextLength = options?.minimumTextLength ?? 3; // Default to 3 chars instead of 15 to catch more links
   
   $('a[href]').each((_, element) => {
     const href = $(element).attr('href');

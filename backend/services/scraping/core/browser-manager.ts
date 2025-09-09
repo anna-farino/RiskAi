@@ -1,13 +1,7 @@
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import type { Browser, Page } from 'rebrowser-puppeteer';
-import { execSync } from 'child_process';
-import * as fs from 'fs';
+import puppeteer, { type Browser, type Page } from "rebrowser-puppeteer";
+import { execSync } from "child_process";
+import * as fs from "fs";
 import { log } from "backend/utils/log";
-import vanillaPuppeteer from 'rebrowser-puppeteer';
-
-// Add stealth plugin to avoid detection
-puppeteer.use(StealthPlugin());
 
 /**
  * Find Chrome executable path for Puppeteer
@@ -17,131 +11,179 @@ puppeteer.use(StealthPlugin());
 function findChromePath(): string {
   // First check for system Chrome (Google Chrome) - Azure Container Apps
   const systemChromePaths = [
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable'
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
   ];
-  
+
   for (const path of systemChromePaths) {
     if (fs.existsSync(path)) {
-      log(`[BrowserManager][findChromePath] Using system Chrome: ${path}`, "scraper");
+      log(
+        `[BrowserManager][findChromePath] Using system Chrome: ${path}`,
+        "scraper",
+      );
       return path;
     }
   }
-  
+
   // Check for Render's Puppeteer cache paths
   const renderPuppeteerPaths = [
-    '/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome',
-    '/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.49/chrome-linux64/chrome',
-    '/opt/render/project/src/.cache/puppeteer/chrome/linux-130.0.6723.91/chrome-linux64/chrome',
-    '/opt/render/project/src/.cache/puppeteer/chrome/linux-129.0.6668.89/chrome-linux64/chrome',
-    '/opt/render/project/src/.cache/puppeteer/chrome/linux-128.0.6613.84/chrome-linux64/chrome'
+    "/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome",
+    "/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.49/chrome-linux64/chrome",
+    "/opt/render/project/src/.cache/puppeteer/chrome/linux-130.0.6723.91/chrome-linux64/chrome",
+    "/opt/render/project/src/.cache/puppeteer/chrome/linux-129.0.6668.89/chrome-linux64/chrome",
+    "/opt/render/project/src/.cache/puppeteer/chrome/linux-128.0.6613.84/chrome-linux64/chrome",
   ];
 
   for (const path of renderPuppeteerPaths) {
     if (fs.existsSync(path)) {
-      log(`[BrowserManager][findChromePath] Using Render's Puppeteer Chrome: ${path}`, "scraper");
+      log(
+        `[BrowserManager][findChromePath] Using Render's Puppeteer Chrome: ${path}`,
+        "scraper",
+      );
       return path;
     }
   }
 
   // Try to dynamically find Chrome in Render's Puppeteer cache
   try {
-    const puppeteerCacheBase = '/opt/render/project/src/.cache/puppeteer/chrome';
+    const puppeteerCacheBase =
+      "/opt/render/project/src/.cache/puppeteer/chrome";
     if (fs.existsSync(puppeteerCacheBase)) {
       const chromeVersions = fs.readdirSync(puppeteerCacheBase);
       for (const version of chromeVersions) {
         const chromePath = `${puppeteerCacheBase}/${version}/chrome-linux64/chrome`;
         if (fs.existsSync(chromePath)) {
-          log(`[BrowserManager][findChromePath] Found Render's Chrome dynamically: ${chromePath}`, "scraper");
+          log(
+            `[BrowserManager][findChromePath] Found Render's Chrome dynamically: ${chromePath}`,
+            "scraper",
+          );
           return chromePath;
         }
       }
     }
   } catch (error) {
-    log(`[BrowserManager][findChromePath] Error scanning Puppeteer cache: ${error}`, "scraper");
+    log(
+      `[BrowserManager][findChromePath] Error scanning Puppeteer cache: ${error}`,
+      "scraper",
+    );
   }
-  
+
   try {
     // Then try using which google-chrome
-    const chromePath = execSync('which google-chrome').toString().trim();
+    const chromePath = execSync("which google-chrome").toString().trim();
     return chromePath;
-  } catch(e) {
+  } catch (e) {
     try {
       // Try chromium
-      const chromePath = execSync('which chromium').toString().trim();
+      const chromePath = execSync("which chromium").toString().trim();
       return chromePath;
-    } catch(e) {
+    } catch (e) {
       // Then try to find Chrome using which command
       try {
-        const chromePath = execSync('which chrome').toString().trim();
+        const chromePath = execSync("which chrome").toString().trim();
         return chromePath;
       } catch (e) {
         log("[BrowserManager][findChromePath] Using default path", "scraper");
       }
     }
   }
-  
+
   // Known Replit Chromium paths (from both apps)
   const replitChromiumPaths = [
-    '/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium',
-    '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium'
+    "/nix/store/l58kg6vnq5mp4618n3vxm6qm2qhra1zk-chromium-unwrapped-125.0.6422.141/libexec/chromium/chromium",
+    "/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium",
   ];
 
   for (const path of replitChromiumPaths) {
     try {
       if (fs.existsSync(path)) {
-        log(`[BrowserManager][findChromePath] Using Replit's installed Chromium: ${path}`, "scraper");
+        log(
+          `[BrowserManager][findChromePath] Using Replit's installed Chromium: ${path}`,
+          "scraper",
+        );
         return path;
       }
     } catch (err) {
-      log(`[BrowserManager][findChromePath] Error checking path ${path}`, "scraper-error");
+      log(
+        `[BrowserManager][findChromePath] Error checking path ${path}`,
+        "scraper-error",
+      );
     }
   }
 
   // If all else fails, use Puppeteer's bundled Chromium
   try {
-    const chrome = vanillaPuppeteer.executablePath();
-    log(`[BrowserManager][findChromePath] Using Puppeteer's bundled Chromium: ${chrome}`, "scraper");
+    const chrome = puppeteer.executablePath();
+    log(
+      `[BrowserManager][findChromePath] Using Puppeteer's bundled Chromium: ${chrome}`,
+      "scraper",
+    );
     return chrome;
   } catch (e) {
-    log(`[BrowserManager][findChromePath] Error getting puppeteer path`, "scraper-error");
-    throw new Error('Could not find Chrome executable');
+    log(
+      `[BrowserManager][findChromePath] Error getting puppeteer path`,
+      "scraper-error",
+    );
+    throw new Error("Could not find Chrome executable");
   }
 }
 
 /**
  * Unified browser configuration combining best practices from all apps
+ * Enhanced for resource-constrained environments like Replit
  */
 const BROWSER_ARGS = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
-  '--disable-accelerated-2d-canvas',
-  '--disable-gpu',
-  '--window-size=1920x1080',
-  '--disable-features=site-per-process,AudioServiceOutOfProcess',
-  '--disable-blink-features=AutomationControlled',
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-accelerated-2d-canvas",
+  "--disable-gpu",
+  "--window-size=1920x1080",
+  "--disable-features=site-per-process,AudioServiceOutOfProcess",
+  "--disable-blink-features=AutomationControlled",
   // Additional args from Threat Tracker for enhanced stealth
-  '--disable-software-rasterizer',
-  '--disable-extensions',
-  '--disable-gl-drawing-for-tests',
-  '--mute-audio',
-  '--no-zygote',
-  '--no-first-run',
-  '--no-default-browser-check',
-  '--ignore-certificate-errors',
-  '--allow-running-insecure-content',
-  '--disable-web-security',
+  "--disable-software-rasterizer",
+  "--disable-extensions",
+  "--disable-gl-drawing-for-tests",
+  "--mute-audio",
+  "--no-zygote",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--ignore-certificate-errors",
+  "--allow-running-insecure-content",
+  "--disable-web-security",
   // Crashpad disabling arguments
-  '--disable-crashpad',
-  '--disable-crash-reporter',
-  '--disable-breakpad',
-  '--single-process',
-  '--user-data-dir=/tmp/chrome-user-data',
-  '--disk-cache-dir=/tmp/chrome-cache',
-  '--force-crash-handler-disable',
-  '--crash-handler-disabled',
-  '--disable-crash-handler'
+  "--disable-crashpad",
+  "--disable-crash-reporter",
+  "--disable-breakpad",
+  // Removed --single-process as it can cause instability
+  "--user-data-dir=/tmp/chrome-user-data",
+  "--disk-cache-dir=/tmp/chrome-cache",
+  "--force-crash-handler-disable",
+  "--crash-handler-disabled",
+  "--disable-crash-handler",
+  // Enhanced memory management for Replit
+  "--max-old-space-size=512", // Reduced from 1024 to prevent OOM
+  "--js-flags=--max-old-space-size=512",
+  // Additional optimizations for resource-constrained environments
+  "--disable-background-networking",
+  "--disable-background-timer-throttling",
+  "--disable-backgrounding-occluded-windows",
+  "--disable-renderer-backgrounding",
+  "--disable-features=TranslateUI",
+  "--disable-ipc-flooding-protection",
+  "--disable-component-extensions-with-background-pages",
+  "--disable-default-apps",
+  "--disable-sync",
+  "--metrics-recording-only",
+  "--no-pings",
+  "--disable-domain-reliability",
+  "--disable-features=InterestFeedContentSuggestions",
+  "--disable-features=Translate",
+  "--disable-features=BackForwardCache",
+  "--enable-features=NetworkService,NetworkServiceInProcess",
+  "--force-color-profile=srgb",
+  "--disable-features=VizDisplayCompositor",
 ];
 
 // Chrome path will be determined dynamically when browser is launched
@@ -161,7 +203,7 @@ export class BrowserManager {
    */
   static async getBrowser(): Promise<Browser> {
     if (this.isShuttingDown) {
-      throw new Error('Browser manager is shutting down');
+      throw new Error("Browser manager is shutting down");
     }
 
     if (this.browser) {
@@ -170,7 +212,10 @@ export class BrowserManager {
         await this.browser.version();
         return this.browser;
       } catch (error) {
-        log(`[BrowserManager][getBrowser] Browser disconnected, creating new instance`, "scraper");
+        log(
+          `[BrowserManager][getBrowser] Browser disconnected, creating new instance`,
+          "scraper",
+        );
         this.browser = null;
       }
     }
@@ -181,7 +226,7 @@ export class BrowserManager {
     }
 
     this.creationPromise = this.createNewBrowser();
-    
+
     try {
       this.browser = await this.creationPromise;
       this.creationPromise = null;
@@ -194,48 +239,120 @@ export class BrowserManager {
 
   /**
    * Create a new browser instance with unified configuration
+   * Enhanced with retry logic for protocol timeouts
    */
   private static async createNewBrowser(): Promise<Browser> {
-    try {
-      // Determine Chrome path dynamically at launch time
-      const chromePath = findChromePath();
-      log(`[BrowserManager][createNewBrowser] Using Chrome at: ${chromePath}`, "scraper");
-      
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: BROWSER_ARGS,
-        executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
-        timeout: 120000, // Increased for slower environments like Render
-        protocolTimeout: 300000, // Increased for resource-constrained environments
-        handleSIGINT: false, // Prevent premature shutdown
-        handleSIGTERM: false,
-        handleSIGHUP: false
-      });
+    const maxRetries = 3;
+    let lastError: any = null;
 
-      log("[BrowserManager][getBrowser] Browser launched successfully", "scraper");
-      
-      // Set up error handlers
-      browser.on('disconnected', () => {
-        log("[BrowserManager] Browser disconnected", "scraper");
-        this.browser = null;
-      });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Determine Chrome path dynamically at launch time
+        const chromePath = findChromePath();
+        // Launching browser attempt
 
-      return browser;
-    } catch (error: any) {
-      log(`[BrowserManager][getBrowser] Failed to launch browser: ${error.message}`, "scraper-error");
-      throw error;
+        // Increase protocol timeout progressively with each retry
+        const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
+
+        const browser = await puppeteer.launch({
+          headless: false,
+          args: BROWSER_ARGS,
+          executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
+          timeout: 180000, // 3 minutes for browser launch
+          protocolTimeout: protocolTimeout, // Progressive increase for protocol operations
+          handleSIGINT: false, // Prevent premature shutdown
+          handleSIGTERM: false,
+          handleSIGHUP: false,
+          ignoreDefaultArgs: ["--enable-automation"], // Remove automation flag
+          defaultViewport: null,
+        });
+
+        log(`[BrowserManager] Browser launched successfully`, "scraper");
+
+        // Set up error handlers
+        browser.on("disconnected", () => {
+          log("[BrowserManager] Browser disconnected", "scraper");
+          this.browser = null;
+        });
+
+        return browser;
+      } catch (error: any) {
+        lastError = error;
+        log(
+          `[BrowserManager][getBrowser] Attempt ${attempt} failed: ${error.message}`,
+          "scraper-error",
+        );
+
+        // If it's a protocol timeout, wait before retrying
+        if (error.message?.includes("timed out") && attempt < maxRetries) {
+          const waitTime = 5000 * attempt; // 5s, 10s, 15s
+          // Waiting before retry
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
+      }
     }
+
+    throw (
+      lastError || new Error("Failed to launch browser after maximum retries")
+    );
   }
 
   /**
-   * Create a new page from the browser instance
+   * Create a new page from the browser instance with resource management
    */
   static async createPage(): Promise<Page> {
-    const browser = await this.getBrowser();
-    const page = await browser.newPage();
-    
-    log(`[BrowserManager][createPage] Created new page`, "scraper");
-    return page;
+    const maxRetries = 3;
+    let lastError: any = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const browser = await this.getBrowser();
+
+        // Check if we have too many pages open
+        const pages = await browser.pages();
+        if (pages.length > 5) {
+          // Closing extra pages
+          // Close all but the first page (usually blank)
+          for (let i = 1; i < pages.length - 2; i++) {
+            await pages[i].close().catch(() => {});
+          }
+        }
+
+        // Add a small delay to prevent rapid page creation
+        if (attempt > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+        }
+
+        const page = await browser.newPage();
+
+        // Set default timeout for the page
+        page.setDefaultTimeout(60000); // 1 minute default timeout
+        page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
+
+        log(`[BrowserManager][createPage] Created new page`, "scraper");
+        return page;
+      } catch (error: any) {
+        lastError = error;
+        log(
+          `[BrowserManager][createPage] Attempt ${attempt} failed: ${error.message}`,
+          "scraper-error",
+        );
+
+        // If it's a protocol error, the browser might be unresponsive
+        if (
+          error.message?.includes("Protocol error") ||
+          error.message?.includes("timed out")
+        ) {
+          log(
+            `[BrowserManager][createPage] Protocol error detected, resetting browser`,
+            "scraper",
+          );
+          this.browser = null; // Force browser recreation on next attempt
+        }
+      }
+    }
+
+    throw lastError || new Error("Failed to create page after maximum retries");
   }
 
   /**
@@ -246,11 +363,14 @@ export class BrowserManager {
       if (!this.browser) {
         return false;
       }
-      
+
       await this.browser.version();
       return true;
     } catch (error) {
-      log(`[BrowserManager][healthCheck] Browser health check failed: ${error}`, "scraper-error");
+      log(
+        `[BrowserManager][healthCheck] Browser health check failed: ${error}`,
+        "scraper-error",
+      );
       return false;
     }
   }
@@ -264,13 +384,19 @@ export class BrowserManager {
     }
 
     this.isShuttingDown = true;
-    
+
     if (this.browser) {
       try {
         await this.browser.close();
-        log("[BrowserManager][closeBrowser] Browser closed successfully", "scraper");
+        log(
+          "[BrowserManager][closeBrowser] Browser closed successfully",
+          "scraper",
+        );
       } catch (error: any) {
-        log(`[BrowserManager][closeBrowser] Error closing browser: ${error.message}`, "scraper-error");
+        log(
+          `[BrowserManager][closeBrowser] Error closing browser: ${error.message}`,
+          "scraper-error",
+        );
       } finally {
         this.browser = null;
         this.isShuttingDown = false;
@@ -288,16 +414,16 @@ export class BrowserManager {
 }
 
 // Handle process termination gracefully
-process.on('exit', () => {
-  if (BrowserManager['browser']) {
+process.on("exit", () => {
+  if (BrowserManager["browser"]) {
     BrowserManager.closeBrowser();
   }
 });
 
-process.on('SIGINT', () => {
+process.on("SIGINT", () => {
   BrowserManager.closeBrowser().then(() => process.exit(0));
 });
 
-process.on('SIGTERM', () => {
+process.on("SIGTERM", () => {
   BrowserManager.closeBrowser().then(() => process.exit(0));
 });

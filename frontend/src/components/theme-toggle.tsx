@@ -15,7 +15,7 @@ export function ModeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild >
-        <div className="relative w-10 h-10 focus:border-2 focus:border-foreground rounded-xl cursor-pointer">
+        <div className="relative w-10 h-10 focus:border-2 focus:border-foreground rounded-md cursor-pointer">
           <Sun className={cn(
             "absolute block h-[1.2rem] w-[1.2rem] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-0 scale-100 transition-all",
             theme !== "light" && "hidden"

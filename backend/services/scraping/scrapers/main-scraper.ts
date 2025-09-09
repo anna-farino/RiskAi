@@ -4,9 +4,11 @@ import { extractPublishDate } from '../extractors/content-extraction/date-extrac
 // Cache system now integrated into structure-detector.ts
 import { getContent } from '../core/method-selector';
 import { detectHtmlStructure } from '../extractors/structure-detection/structure-detector';
+import { validateContent } from '../core/error-detection';
 import { 
   extractContentWithSelectors 
 } from '../extractors/content-extraction/content-extractor';
+import { isValidArticleContent, isValidTitle } from '../validators/content-validator';
 import { 
   shouldTriggerAIReanalysis, 
   performAIReanalysis 
@@ -41,9 +43,20 @@ export class StreamlinedUnifiedScraper {
       // Step 1: Get content (HTTP or Puppeteer)
       const contentResult = await getContent(url, true);
 
+      // Validate content quality - this is an article page
+      const validation = await validateContent(contentResult.html, url, true);
+      
+      if (!validation.isValid || validation.isErrorPage) {
+        // Content validation warning logged
+        // Continue anyway but log the issue
+      }
+      
+      // Don't check link count for article pages - they validate based on content length
+      // Articles often have few links but substantial content
+
       // Both HTTP and Puppeteer content need the same complete processing pipeline
       // Puppeteer is just a different way to get the HTML - the processing should be identical
-      log(`[SimpleScraper] Processing ${contentResult.method} content with complete extraction pipeline`, "scraper");
+      // Processing content with extraction pipeline
       
       // Step 2: Get structure config using unified detector
       let structureConfig = config;
@@ -113,13 +126,43 @@ export class StreamlinedUnifiedScraper {
         }
       }
 
+      // Adjust confidence based on validation results
+      const adjustedConfidence = validation.isValid ? 
+        (extracted.confidence || 0.9) : 
+        Math.min((extracted.confidence || 0.9) * (validation.confidence / 100), 0.5);
+
+      // Additional content quality validation
+      const extractedTitle = extracted.title || '';
+      const extractedContent = extracted.content || '';
+      
+      // Check if title is valid
+      if (!isValidTitle(extractedTitle)) {
+        log(`[SimpleScraper] Title validation failed - appears invalid or corrupted`, "scraper");
+        // Try to extract from URL as fallback
+        const { extractTitleFromUrl } = await import('../validators/content-validator');
+        const urlTitle = extractTitleFromUrl(url);
+        if (urlTitle) {
+          extracted.title = urlTitle;
+          log(`[SimpleScraper] Using title extracted from URL: "${urlTitle}"`, "scraper");
+        }
+      }
+      
+      // Check if content is valid
+      if (!isValidArticleContent(extractedContent)) {
+        log(`[SimpleScraper] Content validation failed - appears corrupted or too short`, "scraper");
+        log(`[SimpleScraper] Failed content length: ${extractedContent.length} chars`, "scraper");
+        log(`[SimpleScraper] Failed content preview (first 500 chars): "${extractedContent.slice(0, 500).replace(/\s+/g, ' ')}"`, "scraper");
+        // Reduce confidence significantly for corrupted content
+        extracted.confidence = 0.1;
+      }
+
       const result: ArticleContent = {
         title: extracted.title || '',
-        content: extracted.content || '',
+        content: extractedContent,
         author: extracted.author,
         publishDate,
         extractionMethod: `${contentResult.method}_${extracted.extractionMethod || 'selectors'}`,
-        confidence: extracted.confidence || 0.9
+        confidence: Math.min(adjustedConfidence, extracted.confidence || 0.9)
       };
 
       log(`[SimpleScraper] Final extraction result (title=${result.title.length} chars, content=${result.content.length} chars, method=${result.extractionMethod}, confidence=${result.confidence})`, "scraper");
@@ -154,29 +197,47 @@ export class StreamlinedUnifiedScraper {
    * @param errorContext - Optional context for error logging (userId, sourceId, etc.)
    */
   async scrapeSourceUrl(url: string, options?: SourceScrapingOptions, context?: AppScrapingContext, errorContext?: ScrapingContextInfo): Promise<string[]> {
+    let result: any = null; // Declare result outside try block for error logging
+    
     try {
       log(`[SimpleScraper] Starting source scraping: ${url}`, "scraper");
 
       // Step 1: Get content (HTTP or Puppeteer)
-      const result = await getContent(url, false);
+      result = await getContent(url, false);
 
-      // Step 2: Check if we need advanced HTMX extraction
-      const { detectDynamicContentNeeds } = await import('../core/method-selector');
-      const needsAdvancedExtraction = result.method === 'puppeteer' || 
-        detectDynamicContentNeeds(result.html, url);
+      // Step 2: Smart assessment of whether we need additional extraction
+      // Use assessment from HTMX handler if available, otherwise use intelligent heuristics
+      const htmxAssessment = result.htmxAssessment;
+      const hasBasicLinks = result.htmxLinks && result.htmxLinks.length > 0;
+      
+      // Smart assessment: use advanced extraction when assessment indicates need OR when basic extraction is insufficient
+      const needsAdvancedExtraction = htmxAssessment?.needsAdvancedExtraction || 
+                                     (!hasBasicLinks && result.method === 'puppeteer') || // Puppeteer but no HTMX links found
+                                     (hasBasicLinks && result.htmxLinks!.length < 10); // Basic extraction yielded too few links
+      
+      log(`[SimpleScraper] Assessment: hasBasicLinks=${hasBasicLinks} (${result.htmxLinks?.length || 0}), complexity=${htmxAssessment?.htmxComplexity || 'unknown'}, needsAdvanced=${needsAdvancedExtraction}`, "scraper");
 
       const extractionOptions = {
         includePatterns: options?.includePatterns,
         excludePatterns: options?.excludePatterns,
         aiContext: options?.aiContext,
+        minimumTextLength: 3, // Lower threshold to catch short link text like "Read more", numbers, etc.
         context: context || options?.context,
         maxLinks: options?.maxLinks || 50,
         minLinkTextLength: 15
       };
 
-      // Step 3: Use advanced extraction for HTMX/dynamic sites
-      if (needsAdvancedExtraction) {
-        log(`[SimpleScraper] Dynamic content detected, using advanced HTMX extraction`, "scraper");
+      // Step 3: Use advanced extraction when assessment indicates it's needed
+      // Reintegrated with smart assessment to prevent redundant scraping
+      if (needsAdvancedExtraction) { // Enabled with smart assessment
+        // Only skip advanced extraction if assessment specifically says we DON'T need it
+        // The assessment's needsAdvancedExtraction flag is the authoritative decision
+        if (htmxAssessment && !htmxAssessment.needsAdvancedExtraction && htmxAssessment.confidence > 90 && htmxAssessment.links.length >= 25) {
+          log(`[SimpleScraper] HTMX assessment shows complete results (${htmxAssessment.links.length} links, ${htmxAssessment.confidence}% confidence, needsAdvanced: false) - skipping advanced extraction`, "scraper");
+          return htmxAssessment.links;
+        }
+        
+        log(`[SimpleScraper] Assessment indicates advanced extraction needed (${htmxAssessment?.links.length || 0} basic links, ${htmxAssessment?.confidence || 0}% confidence) - proceeding with advanced HTMX extraction`, "scraper");
         
         // Import setup functions
         const { setupSourcePage } = await import('../core/page-setup');
@@ -190,8 +251,39 @@ export class StreamlinedUnifiedScraper {
           log(`[SimpleScraper] Navigating to ${url} for advanced extraction`, "scraper");
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
           
-          // Use the advanced HTMX extraction
+          // Check if page has HTMX and load HTMX content first
+          const htmxDetected = await page.evaluate(() => {
+            return !!(window as any).htmx || 
+                   !!document.querySelector('[hx-get], [hx-post], [hx-trigger], script[src*="htmx"]') ||
+                   !!document.querySelector('[data-hx-get], [data-hx-post], [data-hx-trigger]');
+          });
+          
+          if (htmxDetected) {
+            // Always perform advanced HTMX extraction when assessment indicates it's needed
+            // The initial HTMX loading is different from the advanced extraction process
+            log(`[SimpleScraper] HTMX detected on source page, performing advanced HTMX extraction`, "scraper");
+            const { handleHTMXContent } = await import('../scrapers/puppeteer-scraper/htmx-handler');
+            await handleHTMXContent(page, url);
+            log(`[SimpleScraper] Advanced HTMX processing completed, proceeding with sophisticated link extraction`, "scraper");
+          }
+          
+          // Now extract links from the enriched DOM
           const articleLinks = await extractArticleLinksFromPage(page, url, extractionOptions);
+          
+          // Validate we have enough links after HTMX processing
+          if (articleLinks.length < 10 && htmxDetected) {
+            log(`[SimpleScraper] Warning: Only ${articleLinks.length} links found after HTMX loading (minimum 10 expected)`, "scraper");
+            
+            // Try one more time with a longer wait
+            log(`[SimpleScraper] Attempting additional HTMX content loading with longer wait`, "scraper");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const retryLinks = await extractArticleLinksFromPage(page, url, extractionOptions);
+            
+            if (retryLinks.length > articleLinks.length) {
+              log(`[SimpleScraper] Retry successful: ${retryLinks.length} links found`, "scraper");
+              return retryLinks;
+            }
+          }
           
           log(`[SimpleScraper] Advanced HTMX extraction completed: ${articleLinks.length} links found`, "scraper");
           return articleLinks;
@@ -223,11 +315,19 @@ export class StreamlinedUnifiedScraper {
           }
         }
       } else {
-        // Step 3: Extract links with standard method for static sites
+        // Step 3: Extract links from the content we already have (no redundant scraping!)
+        const methodName = result.method === 'puppeteer' ? 'Puppeteer' : 'HTTP';
+        log(`[SimpleScraper] Method selector chose ${methodName} - extracting links from existing content (${result.html.length} chars)`, "scraper");
         try {
-          const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
-          log(`[SimpleScraper] Extracted ${articleLinks.length} article links using standard method`, "scraper");
-          return articleLinks;
+          // Use HTMX links if available, otherwise fall back to HTML extraction
+          if (result.htmxLinks && result.htmxLinks.length > 0) {
+            log(`[SimpleScraper] Using HTMX links from dynamic content: ${result.htmxLinks.length} links`, "scraper");
+            return result.htmxLinks;
+          } else {
+            const articleLinks = await extractArticleLinks(result.html, url, extractionOptions);
+            log(`[SimpleScraper] Standard extraction completed: ${articleLinks.length} article links found`, "scraper");
+            return articleLinks;
+          }
         } catch (standardError) {
           if (standardError instanceof Error && errorContext) {
             await logSourceScrapingError(
@@ -250,17 +350,34 @@ export class StreamlinedUnifiedScraper {
     } catch (error: any) {
       log(`[SimpleScraper] Error in source scraping: ${error.message}`, "scraper-error");
       
+      // Log any available content for debugging when scraping fails
+      if (result && result.html) {
+        log(`[SimpleScraper] Failed scrape had content: ${result.html.length} chars`, "scraper-error");
+        
+        // Log a sample of the content for debugging
+        const contentSample = result.html.length > 1000 
+          ? `${result.html.substring(0, 500)}\n...\n[Truncated - ${result.html.length} total chars]\n...\n${result.html.substring(result.html.length - 500)}`
+          : result.html;
+        log(`[SimpleScraper] Failed content sample:\n${contentSample}`, "scraper-error");
+        
+        // Count links in the failed content
+        const linkCount = (result.html.match(/<a[^>]*href[^>]*>/gi) || []).length;
+        log(`[SimpleScraper] Links in failed content: ${linkCount}`, "scraper-error");
+      }
+      
       // Log the error with context if available
       if (error instanceof Error && errorContext) {
         await logSourceScrapingError(
           error,
           errorContext,
-          'http', // Default, will be determined by method detection
+          result?.method || 'http', // Use actual method if available
           {
             step: 'general-source-scraping-failure',
             operation: 'main-scraper-source',
             url,
             errorOccurredAt: new Date().toISOString(),
+            contentLength: result?.html?.length || 0,
+            linkCount: result?.html ? (result.html.match(/<a[^>]*href[^>]*>/gi) || []).length : 0,
           }
         );
       }

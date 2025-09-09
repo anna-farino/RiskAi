@@ -15,15 +15,17 @@ export class ThreatTrackerStrategy implements AppScrapingStrategy {
       },
       extractionOptions: {
         maxLinks: 100, // More aggressive link extraction for threat intelligence
-        minLinkTextLength: 10,
+        minLinkTextLength: 10
+      },
+      linkPatterns: {
         includePatterns: [
-          '/threat/', '/security/', '/cyber/', '/breach/', '/vulnerability/',
-          '/malware/', '/ransomware/', '/attack/', '/incident/', '/advisory/',
-          '/alert/', '/warning/', '/disclosure/', '/research/', '/analysis/'
+          /\/threat\//i, /\/security\//i, /\/cyber\//i, /\/breach\//i, /\/vulnerability\//i,
+          /\/malware\//i, /\/ransomware\//i, /\/attack\//i, /\/incident\//i, /\/advisory\//i,
+          /\/alert\//i, /\/warning\//i, /\/disclosure\//i, /\/research\//i, /\/analysis\//i
         ],
         excludePatterns: [
-          '/product/', '/pricing/', '/demo/', '/contact/', '/about/',
-          '/careers/', '/partner/', '/press/', '/investor/'
+          /\/product\//i, /\/pricing\//i, /\/demo\//i, /\/contact\//i, /\/about\//i,
+          /\/careers\//i, /\/partner\//i, /\/press\//i, /\/investor\//i
         ]
       }
     };

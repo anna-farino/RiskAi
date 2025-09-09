@@ -52,7 +52,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             </div>
 
             {/* Error Content */}
-            <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 text-center">
+            <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6 text-center">
               <h2 className="text-xl font-semibold text-white mb-3">
                 Oops! Something went wrong
               </h2>
@@ -65,7 +65,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={this.handleReload}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg transition-all duration-200"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md transition-all duration-200"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Try Again
@@ -73,7 +73,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 
                 <button
                   onClick={this.handleGoHome}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all duration-200"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-all duration-200"
                 >
                   <Home className="w-4 h-4" />
                   Dashboard
@@ -98,7 +98,7 @@ export function ErrorFallback({
   resetErrorBoundary: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+    <div className="flex flex-col items-center justify-center p-8 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-md">
       <div className="inline-flex items-center justify-center w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-full mb-4">
         <AlertTriangle className="w-6 h-6 text-red-400" />
       </div>
@@ -116,7 +116,7 @@ export function ErrorFallback({
           <summary className="text-sm text-slate-400 cursor-pointer hover:text-slate-300 mb-2">
             Error Details
           </summary>
-          <div className="bg-slate-800/70 border border-slate-700/50 rounded-lg p-3">
+          <div className="bg-slate-800/70 border border-slate-700/50 rounded-md p-3">
             <pre className="text-xs text-red-300 overflow-auto max-h-24">
               {error.message}
             </pre>
@@ -126,7 +126,7 @@ export function ErrorFallback({
       
       <button
         onClick={resetErrorBoundary}
-        className="flex items-center gap-2 px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-lg transition-all duration-200"
+        className="flex items-center gap-2 px-4 py-2 bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md transition-all duration-200"
       >
         <RefreshCw className="w-4 h-4" />
         Try Again

@@ -36,7 +36,7 @@ export function NewsCapsuleWidget() {
         }
       >
         <div className="space-y-3">
-          <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
+          <div className="flex items-center justify-between bg-black/30 p-3 rounded-md border border-[#BF00FF]/10">
             <div className="flex items-center">
               <Newspaper className="w-5 h-5 mr-3 text-[#00FFFF]" />
               <div>
@@ -49,7 +49,7 @@ export function NewsCapsuleWidget() {
             </span>
           </div>
           
-          <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[#BF00FF]/10">
+          <div className="flex items-center justify-between bg-black/30 p-3 rounded-md border border-[#BF00FF]/10">
             <div className="flex items-center">
               <FileText className="w-5 h-5 mr-3 text-[#00FFFF]" />
               <div>

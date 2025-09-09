@@ -58,7 +58,7 @@ export default function UserRoleRow({
                   <div
                     className={cn(
                       "flex flex-col",
-                      "z-50 p-4 mt-2 rounded-lg gap-2",
+                      "z-50 p-4 mt-2 rounded-md gap-2",
                       "bg-muted text-foreground border-muted-foreground border shadow-md"
                     )}
                   >

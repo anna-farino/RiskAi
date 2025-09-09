@@ -29,7 +29,7 @@ export function NewsSummaryWidget({ delay = 0 }) {
       }
     >
       <div className="space-y-4">
-        <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
+        <div className="bg-black/30 rounded-md p-3 border border-[#BF00FF]/10">
           <div className="flex justify-between items-start mb-2">
             <span className="text-xs bg-[#BF00FF]/20 text-[#00FFFF] px-2 py-1 rounded">CVE-2025-1234</span>
             <span className="text-xs text-gray-400">2h ago</span>
@@ -38,7 +38,7 @@ export function NewsSummaryWidget({ delay = 0 }) {
           <p className="text-sm text-gray-300">Researchers have discovered a zero-day vulnerability affecting millions of devices...</p>
         </div>
         
-        <div className="bg-black/30 rounded-lg p-3 border border-[#BF00FF]/10">
+        <div className="bg-black/30 rounded-md p-3 border border-[#BF00FF]/10">
           <div className="flex justify-between items-start mb-2">
             <span className="text-xs bg-[#5B21B6]/20 text-[#00FFFF] px-2 py-1 rounded">Industry</span>
             <span className="text-xs text-gray-400">5h ago</span>
@@ -78,8 +78,28 @@ export function ThreatAlertsWidget({ delay = 0 }) {
         </WidgetActions>
       }
     >
+      {/* Threat Metrics Summary Row */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-md p-2 text-center">
+          <div className="text-lg font-bold text-red-400">47</div>
+          <div className="text-xs text-gray-400">Active Threats</div>
+        </div>
+        <div className="bg-green-500/10 border border-green-500/20 rounded-md p-2 text-center">
+          <div className="text-lg font-bold text-green-400">23</div>
+          <div className="text-xs text-gray-400">Resolved Today</div>
+        </div>
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-2 text-center">
+          <div className="text-lg font-bold text-orange-400">High</div>
+          <div className="text-xs text-gray-400">Risk Score</div>
+        </div>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-2 text-center">
+          <div className="text-lg font-bold text-blue-400">2m ago</div>
+          <div className="text-xs text-gray-400">Last Updated</div>
+        </div>
+      </div>
+
       <div className="space-y-3">
-        <div className="flex items-center gap-3 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+        <div className="flex items-center gap-3 bg-red-500/10 p-3 rounded-md border border-red-500/20">
           <div className="text-red-400">
             <AlertTriangle className="w-5 h-5" />
           </div>
@@ -89,7 +109,7 @@ export function ThreatAlertsWidget({ delay = 0 }) {
           </div>
         </div>
         
-        <div className="flex items-center gap-3 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
+        <div className="flex items-center gap-3 bg-yellow-500/10 p-3 rounded-md border border-yellow-500/20">
           <div className="text-yellow-400">
             <AlertTriangle className="w-5 h-5" />
           </div>
@@ -99,7 +119,7 @@ export function ThreatAlertsWidget({ delay = 0 }) {
           </div>
         </div>
         
-        <div className="flex items-center gap-3 bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
+        <div className="flex items-center gap-3 bg-blue-500/10 p-3 rounded-md border border-blue-500/20">
           <div className="text-blue-400">
             <AlertTriangle className="w-5 h-5" />
           </div>
@@ -140,22 +160,22 @@ export function TrendAnalysisWidget({ delay = 0 }) {
       }
     >
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-black/30 p-4 rounded-lg border border-[#BF00FF]/10 text-center">
+        <div className="bg-black/30 p-4 rounded-md border border-[#BF00FF]/10 text-center">
           <div className="text-3xl font-bold text-[#00FFFF] mb-1">+24%</div>
           <div className="text-xs text-gray-400">Ransomware</div>
         </div>
         
-        <div className="bg-black/30 p-4 rounded-lg border border-[#BF00FF]/10 text-center">
+        <div className="bg-black/30 p-4 rounded-md border border-[#BF00FF]/10 text-center">
           <div className="text-3xl font-bold text-[#FF00BF] mb-1">+18%</div>
           <div className="text-xs text-gray-400">Zero-Day</div>
         </div>
         
-        <div className="bg-black/30 p-4 rounded-lg border border-[#BF00FF]/10 text-center">
+        <div className="bg-black/30 p-4 rounded-md border border-[#BF00FF]/10 text-center">
           <div className="text-3xl font-bold text-green-400 mb-1">-7%</div>
           <div className="text-xs text-gray-400">DDoS</div>
         </div>
         
-        <div className="bg-black/30 p-4 rounded-lg border border-[#BF00FF]/10 text-center">
+        <div className="bg-black/30 p-4 rounded-md border border-[#BF00FF]/10 text-center">
           <div className="text-3xl font-bold text-yellow-400 mb-1">+12%</div>
           <div className="text-xs text-gray-400">Phishing</div>
         </div>
@@ -190,7 +210,7 @@ export function NewsRadarScanWidget({ delay = 0 }) {
         </WidgetActions>
       }
     >
-      <div className="relative h-40 w-full overflow-hidden rounded-lg mb-4 bg-radar-gradient flex items-center justify-center">
+      <div className="relative h-40 w-full overflow-hidden rounded-md mb-4 bg-radar-gradient flex items-center justify-center">
         <div className="scanner-effect w-full h-full absolute"></div>
         <div className="z-10 text-center">
           <div className="text-xl font-bold mb-1">24/7 Monitoring</div>

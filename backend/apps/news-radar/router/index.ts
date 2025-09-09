@@ -1,8 +1,10 @@
 import { articles, insertKeywordSchema, insertSourceSchema } from "@shared/db/schema/news-tracker";
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
+import { unifiedStorage } from "backend/services/unified-storage";
 import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
-import { getGlobalScrapeSchedule, JobInterval, updateGlobalScrapeSchedule, initializeScheduler } from "../services/scheduler";
+// Using global scheduler from backend/services/global-scheduler.ts
+import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
 import { log } from "backend/utils/log";
 import { Router } from "express";
 import { z } from "zod";
@@ -19,55 +21,83 @@ export const newsRouter = Router()
 
 const activeScraping = new Map<string, boolean>();
 
+// Phase 3.1: Modified source endpoints - users can only enable/disable, not add/delete
+
 newsRouter.get("/sources", async (req, res) => {
   const userId = (req.user as User).id as string;
   reqLog(req,"GET sources hit. userId=", userId)
-  const sources = await storage.getSources(userId);
+  // Use unified storage to get user's enabled sources from global pool
+  const sources = await unifiedStorage.getUserEnabledSources(userId, 'news-radar');
   res.json(sources);
 });
 
-newsRouter.post("/sources", async (req, res) => {
+// NEW: Get all available global sources with user's enabled status
+newsRouter.get("/sources/available", async (req, res) => {
   const userId = (req.user as User).id as string;
-  const source = insertSourceSchema.parse({
-    ...req.body,
-    userId
-  });
-  const created = await storage.createSource(source);
-  res.json(created);
-});
-
-newsRouter.patch("/sources/:id", async (req, res) => {
-  const userId = (req.user as User).id as string;
-  const id = req.params.id;
+  reqLog(req, "GET /sources/available", userId);
   
-  // Check if source belongs to user
-  const source = await storage.getSource(id);
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
-  }
-  
-  const updated = await storage.updateSource(id, req.body);
-  res.json(updated);
-});
-
-newsRouter.delete("/sources/:id", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const id = req.params.id;
+    // Use unified storage to get all sources with user's enabled status
+    const sourcesWithStatus = await unifiedStorage.getAllSourcesWithStatus(userId, 'news-radar');
     
-    // Check if source belongs to user
-    const source = await storage.getSource(id);
-    if (!source || source.userId !== userId) {
-      return res.status(404).json({ message: "Source not found" });
+    // Add isGlobal flag for backward compatibility
+    const sourcesWithGlobalFlag = sourcesWithStatus.map(source => ({
+      ...source,
+      isGlobal: true
+    }));
+    
+    res.json(sourcesWithGlobalFlag);
+  } catch (error: any) {
+    console.error("Error fetching available sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch available sources" });
+  }
+});
+
+// NEW: Toggle source enabled/disabled for user
+newsRouter.put("/sources/:id/toggle", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  const sourceId = req.params.id;
+  const { isEnabled } = req.body;
+  
+  reqLog(req, `PUT /sources/${sourceId}/toggle`, { userId, isEnabled });
+  
+  try {
+    // Get the global source
+    const globalSource = await unifiedStorage.getSource(sourceId);
+    if (!globalSource) {
+      return res.status(404).json({ error: "Source not found" });
     }
     
-    await storage.deleteSource(id);
-    // Return success object instead of empty response to better support optimistic UI updates
-    res.status(200).json({ success: true, id, message: "Source deleted successfully" });
-  } catch (error) {
-    console.error(error)
-    res.send(500)
+    // Use unified storage to toggle the preference (no data duplication)
+    await unifiedStorage.toggleSourcePreference(userId, sourceId, 'news-radar', isEnabled);
+    
+    res.json({ success: true, sourceId, isEnabled });
+  } catch (error: any) {
+    console.error("Error toggling source:", error);
+    res.status(500).json({ error: error.message || "Failed to toggle source" });
   }
+});
+
+// DEPRECATED: Regular users can no longer create sources
+// Only admins can add sources to the global pool
+newsRouter.post("/sources", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Creating sources is no longer available. Please contact an admin to add new sources to the global pool." 
+  });
+});
+
+// DEPRECATED: Regular users can no longer update sources  
+newsRouter.patch("/sources/:id", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Updating sources is no longer available. Sources are managed globally by admins." 
+  });
+});
+
+// DEPRECATED: Regular users can no longer delete sources
+newsRouter.delete("/sources/:id", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Deleting sources is no longer available. You can disable sources instead." 
+  });
 });
 
 // Bulk operations schemas
@@ -84,7 +114,15 @@ const bulkDeleteSourcesSchema = z.object({
 });
 
 // Bulk add sources endpoint
+// DEPRECATED: Bulk operations no longer available
 newsRouter.post("/sources/bulk-add", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Bulk adding sources is no longer available. Sources are managed globally by admins." 
+  });
+});
+
+// Original bulk-add implementation (disabled)
+newsRouter.post("/sources/bulk-add-disabled", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
     reqLog(req, "POST /sources/bulk-add", userId);
@@ -229,8 +267,15 @@ newsRouter.post("/sources/bulk-add", async (req, res) => {
   }
 });
 
-// Bulk delete sources endpoint
+// DEPRECATED: Bulk delete no longer available  
 newsRouter.post("/sources/bulk-delete", async (req, res) => {
+  return res.status(403).json({ 
+    error: "Bulk deleting sources is no longer available. You can disable sources instead." 
+  });
+});
+
+// Original bulk-delete implementation (disabled)
+newsRouter.post("/sources/bulk-delete-disabled", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
     reqLog(req, "POST /sources/bulk-delete", userId);
@@ -333,6 +378,94 @@ newsRouter.post("/sources/bulk-delete", async (req, res) => {
   }
 });
 
+// Phase 3.2: Admin endpoints for managing global sources
+// Admin: Get all global sources
+newsRouter.get("/admin/sources", async (req, res) => {
+  reqLog(req, "GET /admin/sources");
+  
+  // TODO: Add admin authentication check here
+  // For now, this is open - in production, check if user is admin
+  
+  try {
+    const globalSources = await storage.getGlobalSources();
+    res.json(globalSources);
+  } catch (error: any) {
+    console.error("Error fetching global sources:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch global sources" });
+  }
+});
+
+// Admin: Add new global source
+newsRouter.post("/admin/sources", async (req, res) => {
+  reqLog(req, "POST /admin/sources");
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = insertSourceSchema.parse({
+      ...req.body,
+      userId: null // Global sources have no userId
+    });
+    const created = await storage.createSource(source);
+    res.json(created);
+  } catch (error: any) {
+    console.error("Error creating global source:", error);
+    res.status(500).json({ error: error.message || "Failed to create global source" });
+  }
+});
+
+// Admin: Update global source
+newsRouter.patch("/admin/sources/:id", async (req, res) => {
+  const id = req.params.id;
+  reqLog(req, `PATCH /admin/sources/${id}`);
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = await storage.getSource(id);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Only allow updating global sources
+    if (source.userId) {
+      return res.status(403).json({ error: "Cannot update user-specific sources through admin endpoint" });
+    }
+    
+    const updated = await storage.updateSource(id, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Error updating global source:", error);
+    res.status(500).json({ error: error.message || "Failed to update global source" });
+  }
+});
+
+// Admin: Delete global source
+newsRouter.delete("/admin/sources/:id", async (req, res) => {
+  const id = req.params.id;
+  reqLog(req, `DELETE /admin/sources/${id}`);
+  
+  // TODO: Add admin authentication check here
+  
+  try {
+    const source = await storage.getSource(id);
+    if (!source) {
+      return res.status(404).json({ error: "Source not found" });
+    }
+    
+    // Only allow deleting global sources
+    if (source.userId) {
+      return res.status(403).json({ error: "Cannot delete user-specific sources through admin endpoint" });
+    }
+    
+    await storage.deleteSource(id);
+    res.json({ success: true, id, message: "Global source deleted successfully" });
+  } catch (error: any) {
+    console.error("Error deleting global source:", error);
+    res.status(500).json({ error: error.message || "Failed to delete global source" });
+  }
+});
+
 // Keywords
 newsRouter.get("/keywords", async (req, res) => {
   console.log("Getting keywords...")
@@ -385,41 +518,54 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
   res.status(200).json({ success: true, id, message: "Keyword deleted successfully" });
 });
 
-// Articles
+// Articles - Phase 5: Using unified storage to read from global_articles
+newsRouter.get("/articles/count", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  
+  try {
+    // Use unified storage to get the total count of articles for the user
+    const count = await unifiedStorage.getUserArticleCount(userId, 'news-radar');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
   
-  // Parse query parameters for filtering
-  const { search, keywordIds, startDate, endDate } = req.query;
+  // Parse query parameters for filtering and pagination
+  const { search, keywordIds, startDate, endDate, page, limit } = req.query;
   
-  // Prepare filter object
-  const filters: {
-    search?: string;
+  // Prepare filter object for unified storage
+  const filter: {
+    searchTerm?: string;
     keywordIds?: string[];
     startDate?: Date;
     endDate?: Date;
+    limit?: number;
+    offset?: number;
   } = {};
   
   // Add search filter if provided
   if (search && typeof search === 'string') {
-    filters.search = search;
+    filter.searchTerm = search;
   }
   
-  // Parse keyword IDs (could be a single string or an array)
+  // Add keyword IDs filter if provided
   if (keywordIds) {
-    if (typeof keywordIds === 'string') {
-      // Single keyword ID as string
-      filters.keywordIds = [keywordIds];
-    } else if (Array.isArray(keywordIds)) {
-      // Array of keyword IDs
-      filters.keywordIds = keywordIds as string[];
+    if (Array.isArray(keywordIds)) {
+      filter.keywordIds = keywordIds.filter(id => typeof id === 'string') as string[];
+    } else if (typeof keywordIds === 'string') {
+      filter.keywordIds = [keywordIds];
     }
   }
   
   // Parse date range filters
   if (startDate && typeof startDate === 'string') {
     try {
-      filters.startDate = new Date(startDate);
+      filter.startDate = new Date(startDate);
     } catch (error) {
       console.error("Invalid startDate format:", error);
     }
@@ -427,21 +573,32 @@ newsRouter.get("/articles", async (req, res) => {
   
   if (endDate && typeof endDate === 'string') {
     try {
-      filters.endDate = new Date(endDate);
+      filter.endDate = new Date(endDate);
     } catch (error) {
       console.error("Invalid endDate format:", error);
     }
   }
   
-  console.log("Filter parameters:", filters);
+  // Parse pagination parameters
+  const pageNum = page && typeof page === 'string' ? parseInt(page, 10) : 1;
+  const limitNum = limit && typeof limit === 'string' ? parseInt(limit, 10) : 50;
   
-  // Get filtered articles
-  const articles = await storage.getArticles(req, userId, filters);
-  if (articles.length > 0) {
-    console.log("Filtered articles:", articles.length);
+  filter.limit = limitNum;
+  filter.offset = (pageNum - 1) * limitNum;
+  
+  console.log("Filter parameters:", filter);
+  console.log("[NEWS-RADAR-DEBUG] userId being passed:", userId);
+  
+  try {
+    // Use unified storage to get articles from global_articles table
+    const articles = await unifiedStorage.getUserArticles(userId, 'news-radar', filter);
+    console.log("Received articles from global pool:", articles.length);
+    
+    res.json(articles);
+  } catch (error: any) {
+    console.error("Error fetching articles:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch articles" });
   }
-  
-  res.json(articles);
 });
 
 newsRouter.delete("/articles/:id", async (req, res) => {
@@ -543,8 +700,7 @@ newsRouter.post("/sources/:id/scrape", async (req, res) => {
 // Background Jobs and Auto-Scraping
 newsRouter.post("/jobs/scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    
+    // Global scrape no longer needs userId
     if (isGlobalJobRunning()) {
       return res.status(400).json({ 
         success: false, 
@@ -552,7 +708,7 @@ newsRouter.post("/jobs/scrape", async (req, res) => {
       });
     }
     
-    const result = await runGlobalScrapeJob(userId);
+    const result = await runGlobalScrapeJob(); // No userId - runs globally
     res.json(result);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -626,12 +782,12 @@ newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {
   }
 });
 
-// User-specific auto-scrape settings
+// Global auto-scrape settings (now returns global scheduler status)
 newsRouter.get("/settings/auto-scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const settings = await getGlobalScrapeSchedule(userId);
-    res.json(settings);
+    // Return global scheduler status
+    const status = getGlobalSchedulerStatus();
+    res.json(status);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ message: errorMessage });
@@ -640,17 +796,13 @@ newsRouter.get("/settings/auto-scrape", async (req, res) => {
 
 newsRouter.post("/settings/auto-scrape", async (req, res) => {
   try {
-    const userId = (req.user as User).id as string;
-    const schema = z.object({
-      enabled: z.boolean(),
-      interval: z.nativeEnum(JobInterval)
+    // Global scheduler runs automatically every 3 hours
+    // This endpoint now just returns the current status
+    const status = getGlobalSchedulerStatus();
+    res.json({
+      message: "Global scheduler runs automatically every 3 hours",
+      status
     });
-    
-    const { enabled, interval } = schema.parse(req.body);
-    await updateGlobalScrapeSchedule(enabled, interval, userId);
-    
-    const settings = await getGlobalScrapeSchedule(userId);
-    res.json(settings);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({ message: errorMessage });

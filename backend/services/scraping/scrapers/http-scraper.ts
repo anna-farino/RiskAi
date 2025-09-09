@@ -5,7 +5,11 @@ import {
   performTLSRequest,
   getRandomBrowserProfile,
   EnhancedScrapingOptions,
+  performCycleTLSRequest,
+  performPreflightCheck,
 } from "../core/protection-bypass";
+import { validateContent, needsRescraping, isRateLimited } from "../core/error-detection";
+import { detectAndFixEncoding } from "../validators/encoding-detector";
 
 export interface HTTPScrapingOptions extends EnhancedScrapingOptions {
   maxRetries?: number;
@@ -14,6 +18,7 @@ export interface HTTPScrapingOptions extends EnhancedScrapingOptions {
   followRedirects?: boolean;
   retryDelay?: number;
   enableTLSFingerprinting?: boolean;
+  isArticle?: boolean; // Whether we're scraping an article (content) vs source (links)
 }
 
 export interface ScrapingResult {
@@ -24,6 +29,9 @@ export interface ScrapingResult {
   protectionDetected?: ProtectionInfo;
   statusCode?: number;
   finalUrl?: string;
+  requiresPuppeteer?: boolean;
+  htmxLinks?: string[]; // Links extracted from HTMX content
+  htmxAssessment?: import('../scrapers/puppeteer-scraper/htmx-handler').HTMXAssessmentResult;
 }
 
 // Cookie jar for session persistence
@@ -149,6 +157,170 @@ export async function scrapeWithHTTP(
 
   log(`[HTTPScraper] Starting HTTP scraping for: ${url}`, "scraper");
 
+  // Perform pre-flight check
+  const preflightResult = await performPreflightCheck(url);
+  
+  // If pre-flight succeeded with substantial content, use it directly
+  // This happens when CycleTLS bypasses protection that regular fetch can't
+  if (!preflightResult.protectionDetected && preflightResult.body && preflightResult.body.length > 1000) {
+    log(`[HTTPScraper] Pre-flight returned substantial content (${preflightResult.body.length} chars), using it directly`, "scraper");
+    
+    try {
+      // Debug logging for validation process
+      log(`[HTTPScraper] Starting validation of ${preflightResult.body.length} chars content`, "scraper");
+      
+      // Apply encoding detection to the pre-flight response
+      const encodingFixedBody = detectAndFixEncoding(preflightResult.body, preflightResult.headers?.['content-type']);
+      log(`[HTTPScraper] Encoding fixed: ${encodingFixedBody.length} chars`, "scraper");
+      
+      // Validate the content (pass isArticle flag for proper validation)
+      const validation = await validateContent(encodingFixedBody, url, options?.isArticle || false);
+      log(`[HTTPScraper] Validation complete: isValid=${validation.isValid}, links=${validation.linkCount}, isErrorPage=${validation.isErrorPage}, confidence=${validation.confidence}`, "scraper");
+      
+      // If we got substantial content, use it
+      if (validation.isValid && !validation.isErrorPage) {
+        log(`[HTTPScraper] Using successful pre-flight content (${encodingFixedBody.length} chars, ${validation.linkCount} links)`, "scraper");
+        return {
+          html: encodingFixedBody,
+          success: true,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: preflightResult.status || 200,
+          finalUrl: url
+        };
+      } else if (options?.isArticle && encodingFixedBody.length > 10000) {
+        // For articles only: substantial content can override validation issues
+        log(`[HTTPScraper] Using pre-flight content for article despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
+        return {
+          html: encodingFixedBody,
+          success: true,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: preflightResult.status || 200,
+          finalUrl: url
+        };
+      } else if (!options?.isArticle && validation.linkCount < 10) {
+        // For source pages: insufficient links means we need Puppeteer
+        log(`[HTTPScraper] Pre-flight content has insufficient links for source page (${validation.linkCount} links), need Puppeteer`, "scraper");
+        // CRITICAL FIX: Return the content with requiresPuppeteer flag instead of discarding it
+        return {
+          html: encodingFixedBody,
+          success: false,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: preflightResult.status || 200,
+          finalUrl: url,
+          requiresPuppeteer: true
+        };
+      } else {
+        // Validation failed for other reasons
+        log(`[HTTPScraper] Pre-flight content validation failed: errorIndicators=${validation.errorIndicators?.join(', ')}, confidence=${validation.confidence}`, "scraper");
+        // Return content but mark as needing Puppeteer
+        return {
+          html: encodingFixedBody,
+          success: false,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: preflightResult.status || 200,
+          finalUrl: url,
+          requiresPuppeteer: true
+        };
+      }
+    } catch (error: any) {
+      // Error during validation - log but don't lose the content
+      log(`[HTTPScraper] Validation error: ${error.message}`, "scraper-error");
+      log(`[HTTPScraper] Error stack: ${error.stack}`, "scraper-error");
+      
+      // Return the original content despite validation error
+      // This prevents data loss when validation fails
+      return {
+        html: preflightResult.body,
+        success: false,
+        method: "http",
+        responseTime: Date.now() - startTime,
+        statusCode: preflightResult.status || 200,
+        finalUrl: url,
+        requiresPuppeteer: true
+      };
+    }
+  }
+  
+  if (preflightResult.protectionDetected) {
+    log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
+    
+    // Try one optimized request for protected sites
+    const response = await performCycleTLSRequest(url, {
+      method: 'GET',
+      timeout: 30000,
+      cookies: preflightResult.cookies
+    });
+    
+    if (response.success && response.body) {
+      // Apply encoding detection to CycleTLS response
+      const encodingFixedBody = detectAndFixEncoding(response.body, response.headers?.['content-type']);
+      
+      // For successful protection bypass with substantial content, trust it
+      const validation = await validateContent(encodingFixedBody, url, options?.isArticle || false);
+      
+      // Check validation based on content type
+      if (validation.isValid && !validation.isErrorPage) {
+        log(`[HTTPScraper] Protection bypass successful (${encodingFixedBody.length} chars, ${validation.linkCount} links)`, "scraper");
+        return {
+          html: encodingFixedBody,
+          success: true,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: response.status,
+          finalUrl: url
+        };
+      } else if (options?.isArticle && encodingFixedBody.length > 10000) {
+        // For articles only: substantial content can override validation issues
+        log(`[HTTPScraper] Protection bypass returned substantial content for article despite validation issues (${encodingFixedBody.length} chars)`, "scraper");
+        return {
+          html: encodingFixedBody,
+          success: true,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: response.status,
+          finalUrl: url
+        };
+      } else if (!options?.isArticle && validation.linkCount < 10) {
+        // For source pages: insufficient links means bypass failed
+        log(`[HTTPScraper] Protection bypass has insufficient links for source page (${validation.linkCount} links), bypass failed`, "scraper");
+        // CRITICAL FIX: Return the content with requiresPuppeteer flag instead of falling through
+        return {
+          html: encodingFixedBody,
+          success: false,
+          method: "http",
+          responseTime: Date.now() - startTime,
+          statusCode: response.status,
+          finalUrl: url,
+          requiresPuppeteer: true
+        };
+      }
+      
+      log(`[HTTPScraper] Protection bypass failed: ${validation.errorIndicators.join(', ')}`, "scraper");
+    }
+    
+    // Early termination - if protection detected and bypass failed, go directly to Puppeteer
+    log(`[HTTPScraper] Protection detected and bypass failed, skipping redundant HTTP attempts`, "scraper");
+    return {
+      html: "",
+      success: false,
+      method: "http",
+      responseTime: Date.now() - startTime,
+      protectionDetected: {
+        hasProtection: true,
+        type: (preflightResult.protectionType || "generic") as any,
+        confidence: 0.9,
+        details: `Pre-flight detected ${preflightResult.protectionType} protection`,
+      },
+      statusCode: response.status,
+      finalUrl: url,
+      requiresPuppeteer: true,
+    };
+  }
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       log(`[HTTPScraper] Attempt ${attempt}/${maxRetries}`, "scraper");
@@ -215,12 +387,14 @@ export async function scrapeWithHTTP(
               const tlsHtml = await performTLSRequest(url, options);
 
               if (tlsHtml && tlsHtml.length > 100) {
+                // Apply encoding detection to TLS response
+                const encodingFixedTls = detectAndFixEncoding(tlsHtml);
                 log(
-                  `[HTTPScraper] TLS fingerprinting successful (${tlsHtml.length} chars)`,
+                  `[HTTPScraper] TLS fingerprinting successful (${encodingFixedTls.length} chars, encoding validated)`,
                   "scraper",
                 );
                 return {
-                  html: tlsHtml,
+                  html: encodingFixedTls,
                   success: true,
                   method: "http",
                   responseTime: Date.now() - startTime,
@@ -271,12 +445,10 @@ export async function scrapeWithHTTP(
             };
           }
 
-          // Handle 403 Forbidden as potential bot protection
+          // Handle 403 Forbidden - return immediately for Puppeteer
           if (response.status === 403) {
-            log(
-              `[HTTPScraper] 403 Forbidden detected, likely bot protection`,
-              "scraper",
-            );
+            log(`[HTTPScraper] 403 Forbidden detected - indicating bot protection`, "scraper");
+            
             return {
               html: "",
               success: false,
@@ -290,6 +462,7 @@ export async function scrapeWithHTTP(
               },
               statusCode: response.status,
               finalUrl: response.url,
+              requiresPuppeteer: true,
             };
           }
 
@@ -312,9 +485,19 @@ export async function scrapeWithHTTP(
         }
 
         // Get response body
-        const html = await response.text();
+        const rawHtml = await response.text();
+        
+        // Extract headers for encoding detection
+        const responseHeaders: Record<string, string> = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+        
+        // Detect and fix encoding issues
+        const html = detectAndFixEncoding(rawHtml, responseHeaders['content-type']);
+        
         log(
-          `[HTTPScraper] Retrieved ${html.length} characters of HTML`,
+          `[HTTPScraper] Retrieved ${html.length} characters of HTML (encoding validated)`,
           "scraper",
         );
 
@@ -334,12 +517,14 @@ export async function scrapeWithHTTP(
           const tlsHtml = await performTLSRequest(url, options);
 
           if (tlsHtml && tlsHtml.length > 100) {
+            // Apply encoding detection to TLS response
+            const encodingFixedTls = detectAndFixEncoding(tlsHtml);
             log(
-              `[HTTPScraper] TLS fingerprinting successful (${tlsHtml.length} chars)`,
+              `[HTTPScraper] TLS fingerprinting successful (${encodingFixedTls.length} chars, encoding validated)`,
               "scraper",
             );
             return {
-              html: tlsHtml,
+              html: encodingFixedTls,
               success: true,
               method: "http",
               responseTime: Date.now() - startTime,
@@ -360,9 +545,31 @@ export async function scrapeWithHTTP(
           );
         }
 
-        // Success case - let extraction logic determine if content is usable
+        // Validate content before returning success - HTTP scraper for source pages
+        const validation = await validateContent(html, url, false);
+        
+        if (!validation.isValid || validation.isErrorPage || validation.linkCount < 10) {
+          log(
+            `[HTTPScraper] Content validation failed: ${validation.errorIndicators.join(', ')}, links: ${validation.linkCount}`,
+            "scraper",
+          );
+          
+          // Return failure - let Puppeteer handle validation failures
+          return {
+            html,
+            success: false,
+            method: "http",
+            responseTime: Date.now() - startTime,
+            protectionDetected: protectionInfo,
+            statusCode: response.status,
+            finalUrl: response.url,
+            requiresPuppeteer: true,
+          };
+        }
+        
+        // Success case - content validated
         log(
-          `[HTTPScraper] Successfully retrieved content (${html.length} chars)`,
+          `[HTTPScraper] Successfully retrieved and validated content (${html.length} chars, ${validation.linkCount} links)`,
           "scraper",
         );
         return {

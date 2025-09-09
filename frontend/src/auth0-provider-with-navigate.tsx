@@ -7,10 +7,15 @@ type Props = {
 export default function Auth0ProviderWithNavigate({ children }: Props) {
   const navigate = useNavigate();
 
-  const domain = (import.meta as any).env.VITE_AUTH0_DOMAIN;
+  let domain = (import.meta as any).env.VITE_AUTH0_DOMAIN;
   const clientId = (import.meta as any).env.VITE_AUTH0_CLIENT_ID;
   const redirectUri = (import.meta as any).env.VITE_AUTH0_CALLBACK_URL || window.location.origin + '/auth/login';
   const audience = (import.meta as any).env.VITE_AUTH0_AUDIENCE;
+
+  // Fix domain if it has https:// prefix
+  if (domain && domain.startsWith('https://')) {
+    domain = domain.replace('https://', '');
+  }
 
   const onRedirectCallback = (appState: AppState | undefined) => {
     navigate('dashboard')
@@ -18,6 +23,7 @@ export default function Auth0ProviderWithNavigate({ children }: Props) {
   };
 
   if (!(domain && clientId && redirectUri && audience)) {
+    console.error('Auth0 configuration missing:', { domain, clientId, redirectUri, audience });
     return null;
   }
 
