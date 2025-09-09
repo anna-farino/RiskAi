@@ -32,7 +32,7 @@ Author: ${content.author || 'Unknown'}
 
 Please provide a comprehensive threat analysis with:
 1. Threat Name - A clear, concise name for the primary threat/vulnerability (e.g., "CVE-2024-1234 Remote Code Execution", "Ransomware Campaign", "Supply Chain Attack")
-2. Executive Summary - 2-3 sentences highlighting the key threat
+2. Executive Summary - Write a direct, factual summary of what happened, who was affected, and the current status. DO NOT use phrases like "The article discusses", "This report covers", or similar. State the facts directly (e.g., "Attackers exploited a zero-day vulnerability in Microsoft Exchange to compromise 30,000 organizations worldwide"). 2-3 sentences maximum.
 3. Impact Assessment - What damage this threat could cause to organizations
 4. Attack Vector - How the threat operates or spreads
 5. Microsoft Connection - Any connection to Microsoft products/services (if none, state "No direct Microsoft connection identified")

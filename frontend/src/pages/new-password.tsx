@@ -104,10 +104,10 @@ export default function ConfirmPassword({
           </div>
 
           {/* Password Reset Widget Card */}
-          <Card className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-8 hover:border-[#BF00FF]/40 transition-all duration-300 shadow-2xl">
+          <Card className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-md p-8 hover:border-[#BF00FF]/40 transition-all duration-300 shadow-2xl">
             <CardHeader className="p-0 mb-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                <div className="p-3 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
                   <svg className="h-6 w-6 text-[#BF00FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3a1 1 0 011-1h2.586l6.243-6.243C11.978 9.628 12.736 9.5 13.5 9.5a6.002 6.002 0 016.5 1.5z" />
                   </svg>
@@ -165,7 +165,7 @@ export default function ConfirmPassword({
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 hover:text-[#00FFFF] text-white font-semibold h-12 rounded-lg transition-all duration-300" 
+                    className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 hover:text-[#00FFFF] text-white font-semibold h-12 rounded-md transition-all duration-300" 
                     disabled={mutation.isPending}
                   >
                     { mutation.isPending ? (

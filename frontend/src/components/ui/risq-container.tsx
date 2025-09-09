@@ -46,9 +46,9 @@ export function RisqContainer({
   // Style variations based on variant
   const variantStyles = {
     default: '',
-    glass: 'bg-background/75 backdrop-blur-md border border-purple-600/20 dark:border-purple-400/20 rounded-xl',
-    bordered: 'border-2 border-purple-600 dark:border-purple-400 rounded-xl',
-    shadowed: 'shadow-lg shadow-purple-600/10 dark:shadow-purple-400/10 rounded-xl',
+    glass: 'bg-background/75 backdrop-blur-md border border-purple-600/20 dark:border-purple-400/20 rounded-md',
+    bordered: 'border-2 border-purple-600 dark:border-purple-400 rounded-md',
+    shadowed: 'shadow-lg shadow-purple-600/10 dark:shadow-purple-400/10 rounded-md',
   };
   
   return (

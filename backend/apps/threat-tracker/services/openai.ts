@@ -52,7 +52,7 @@ CRITICAL INSTRUCTIONS:
 
 Return your analysis in valid JSON format with the following structure:
 {
-  "summary": "A concise 1-2 sentence summary of the article focusing on security threats",
+  "summary": "Write a direct, factual summary of the security threat or incident. DO NOT use phrases like 'The article discusses', 'This article reports', etc. State the facts directly (e.g., 'Hackers exploited CVE-2024-1234 to breach Microsoft Exchange servers', 'New ransomware targets healthcare systems via phishing emails'). Maximum 1-2 sentences.",
   "detectedKeywords": {
     "threats": ["only", "exact", "matches", "from", "threat", "keywords", "list"],
     "vendors": ["only", "exact", "matches", "from", "vendor", "keywords", "list"],

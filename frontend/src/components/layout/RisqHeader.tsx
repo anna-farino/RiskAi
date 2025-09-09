@@ -63,7 +63,7 @@ export function RisqHeader() {
             </Link>
           </div>
           <div className="h-3 sm:h-4"></div> {/* Spacer for desktop/tablet tagline */}
-          <p className="hidden sm:block text-xs text-white font-light italic tracking-wide ml-1 leading-normal opacity-90">
+          <p className="hidden sm:block text-xs text-white font-light tracking-wide ml-1 leading-normal opacity-90">
             AI-Powered Risk Intelligence
           </p>
         </div>

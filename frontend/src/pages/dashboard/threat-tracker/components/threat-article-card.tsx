@@ -157,7 +157,7 @@ export function ThreatArticleCard({
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div
         className={cn(
-          "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
+          "h-full rounded-md border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
           "hover:border-[#00FFFF]/40 hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300",
           "flex flex-col relative",
           isPending && "bg-black/30",

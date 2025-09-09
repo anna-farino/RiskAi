@@ -65,8 +65,8 @@ const SheetContent = React.forwardRef<
       {children}
       {/* Custom close button - styled to match the hamburger menu */}
       <SheetPrimitive.Close className="absolute right-4 top-4 p-0 opacity-100 focus:outline-none">
-        <div className="p-[1px] bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] rounded-[5px]">
-          <div className="p-[5px] text-white bg-black border-0 rounded-[4px] flex items-center justify-center">
+        <div className="p-[1px] bg-gradient-to-r from-[#BF00FF] to-[#00FFFF] rounded-md">
+          <div className="p-[5px] text-white bg-black border-0 rounded-md flex items-center justify-center">
             <X className="h-5 w-5" />
           </div>
         </div>

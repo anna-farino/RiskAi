@@ -129,14 +129,14 @@ body {
 }
 
 button {
-  @apply rounded-lg border border-transparent px-4 py-2 text-base font-medium 
+  @apply rounded-md border border-transparent px-4 py-2 text-base font-medium 
          bg-background text-foreground cursor-pointer transition-all duration-200
          hover:bg-primary/10 hover:border-primary hover:text-primary;
 }
 
 /* Primary RisqAi Button */
 .btn-risqai-primary {
-  @apply px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 
+  @apply px-4 py-2 rounded-md text-white font-medium transition-all duration-300 
          cursor-pointer border border-transparent;
   background: linear-gradient(to right, #BF00FF, #00FFFF);
   background-size: 200% auto;
@@ -155,7 +155,7 @@ button {
 
 /* Secondary RisqAi Button */
 .btn-risqai-secondary {
-  @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 
+  @apply px-4 py-2 rounded-md font-medium transition-all duration-300 
          cursor-pointer bg-transparent;
   border: 1px solid #BF00FF;
   color: #00FFFF;
@@ -173,7 +173,7 @@ button {
 
 /* Ghost RisqAi Button */
 .btn-risqai-ghost {
-  @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 
+  @apply px-4 py-2 rounded-md font-medium transition-all duration-300 
          cursor-pointer bg-transparent border-transparent;
   color: white;
 }
@@ -293,11 +293,11 @@ body::-webkit-scrollbar-thumb:active {
 
 /* Additional utility classes */
 .risqai-card {
-  @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm overflow-hidden;
+  @apply bg-card text-card-foreground rounded-md border border-border shadow-sm overflow-hidden;
 }
 
 .risqai-card-gradient {
-  @apply bg-black text-white rounded-lg shadow-sm overflow-hidden;
+  @apply bg-black text-white rounded-md shadow-sm overflow-hidden;
   border: 1px solid transparent;
   background-clip: padding-box;
   position: relative;
@@ -321,7 +321,7 @@ body::-webkit-scrollbar-thumb:active {
 }
 
 .risqai-glassmorphism {
-  @apply rounded-lg;
+  @apply rounded-md;
   background: rgba(30, 58, 138, 0.1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -329,7 +329,7 @@ body::-webkit-scrollbar-thumb:active {
 }
 
 .risqai-glassmorphism-dark {
-  @apply rounded-lg;
+  @apply rounded-md;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

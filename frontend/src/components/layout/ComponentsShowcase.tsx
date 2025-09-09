@@ -27,7 +27,7 @@ export function ComponentsShowcase() {
         </div>
 
         {/* Logos Section */}
-        <RisqSection paddingY="lg" background="gradient" className="mb-8 rounded-xl">
+        <RisqSection paddingY="lg" background="gradient" className="mb-8 rounded-md">
           <h2 className="text-2xl font-semibold mb-4 text-center">Logo Variations</h2>
           <div className="flex flex-wrap justify-center gap-8 mb-6">
             <div className="flex flex-col items-center">
