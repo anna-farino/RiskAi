@@ -260,6 +260,13 @@
       "when": 1756142181202,
       "tag": "0036_slim_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1757455104778,
+      "tag": "0037_far_ravenous",
+      "breakpoints": true
     }
   ]
 }
