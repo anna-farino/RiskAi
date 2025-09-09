@@ -24,6 +24,9 @@ export const threatKeywords = pgTable("threat_keywords", {
   active: boolean("active").notNull().default(true),
   userId: uuid("user_id").references(() => users.id),
   isDefault: boolean("is_default").notNull().default(false),
+  // Encryption metadata fields for envelope encryption
+  wrappedDekTerm: text("wrapped_dek_term"),
+  keyIdTerm: text("key_id_term"),
 }, (_t) => [
     pgPolicy('rls-threat-keywords', {
       for: 'all',
