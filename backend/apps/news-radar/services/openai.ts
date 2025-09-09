@@ -18,7 +18,7 @@ export async function analyzeContent(
           role: "system",
           content: `Analyze the article title and content for EXACT matches of the provided keywords ONLY (case-insensitive).
           Return a JSON object with:
-          - summary: A concise summary of the article (max 200 words)
+          - summary: Write a direct, informative summary of what actually happened or was discovered. DO NOT start with phrases like "The article discusses", "The article reports", "This article covers", etc. Instead, state the facts directly (e.g., "Microsoft patched three critical vulnerabilities", "Hackers compromised 50,000 user accounts", "New ransomware targets healthcare systems"). Maximum 200 words.
           - relevanceScore: 0-100 based on keyword matches and context
           - detectedKeywords: array of keywords that EXACTLY match in the title or text
           - matchExamples: object mapping each found keyword to a brief excerpt showing its context

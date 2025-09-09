@@ -30,7 +30,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           className={cn(
             "mdc-checkbox__background",
             "absolute inset-0 flex items-center justify-center",
-            "rounded-sm border-2 border-gray-600",
+            "rounded-md border-2 border-gray-600",
             "transition-all duration-90 ease-out",
             checked ? "bg-[#BF00FF] border-[#BF00FF]" : "bg-transparent",
             disabled && "border-gray-400",

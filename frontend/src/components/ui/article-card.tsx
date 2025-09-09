@@ -119,7 +119,7 @@ export function ArticleCard({
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div
         className={cn(
-          "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
+          "h-full rounded-md border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
           "hover:border-[#00FFFF]/40 hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300",
           "flex flex-col relative",
           isPending && "bg-black/30",
@@ -140,12 +140,12 @@ export function ArticleCard({
           </h3>
 
           <div className="flex items-center gap-3 mb-3">
-            {article.author && (
+            {article.author && article.author !== "Unknown" ? (
               <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
                 <User className="h-3 w-3" />
                 <span className="font-medium">{article.author}</span>
               </div>
-            )}
+            ) : null}
 
             {article.publishDate && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">

@@ -140,9 +140,9 @@ export default function SampleDataPopulator() {
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+    <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-md p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+        <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
           <Database className="h-5 w-5 text-[#BF00FF]" />
         </div>
         <div>
@@ -152,7 +152,7 @@ export default function SampleDataPopulator() {
       </div>
 
       {/* Authorization Banner */}
-      <div className="mb-6 p-4 border border-yellow-500/20 bg-yellow-500/10 rounded-lg flex items-start gap-3">
+      <div className="mb-6 p-4 border border-yellow-500/20 bg-yellow-500/10 rounded-md flex items-start gap-3">
         <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
         <div className="text-yellow-200 text-sm">
           <strong>Authorization Required:</strong> Only @altairtek.com users in non-production environments can use this feature.
@@ -161,15 +161,15 @@ export default function SampleDataPopulator() {
 
       {/* Data Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="text-center p-3 bg-black/30 rounded-lg">
+        <div className="text-center p-3 bg-black/30 rounded-md">
           <div className="text-lg font-bold text-white">9</div>
           <div className="text-xs text-gray-400">News Sources</div>
         </div>
-        <div className="text-center p-3 bg-black/30 rounded-lg">
+        <div className="text-center p-3 bg-black/30 rounded-md">
           <div className="text-lg font-bold text-white">22</div>
           <div className="text-xs text-gray-400">News Keywords</div>
         </div>
-        <div className="text-center p-3 bg-black/30 rounded-lg">
+        <div className="text-center p-3 bg-black/30 rounded-md">
           <div className="text-lg font-bold text-white">80+</div>
           <div className="text-xs text-gray-400">Threat Keywords</div>
         </div>
@@ -177,7 +177,7 @@ export default function SampleDataPopulator() {
 
       {/* Current Status */}
       {dataStatus && (
-        <div className="mb-4 p-3 bg-black/30 rounded-lg">
+        <div className="mb-4 p-3 bg-black/30 rounded-md">
           <div className="text-sm text-gray-300 mb-2">Current Data:</div>
           <div className="flex gap-4 text-xs">
             <Badge variant="outline" className="text-white">
@@ -231,7 +231,7 @@ export default function SampleDataPopulator() {
 
       {/* Logs */}
       {logs.length > 0 && (
-        <div className="bg-black/50 border border-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto">
+        <div className="bg-black/50 border border-gray-700 rounded-md p-3 max-h-48 overflow-y-auto">
           <div className="text-xs font-mono space-y-1">
             {logs.map((log, index) => (
               <div key={index} className="flex items-start gap-2">

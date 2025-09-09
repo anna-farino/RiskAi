@@ -21,9 +21,11 @@ import { Progress } from "@/components/ui/progress";
 import { formatDateOnly } from "@/utils/date-utils";
 
 
-// Extend the ThreatArticle type to include securityScore
+// Extend the ThreatArticle type to include securityScore and sourceName
 interface ExtendedThreatArticle extends ThreatArticle {
   securityScore: string | null;
+  sourceName?: string | null;
+  matchedKeywords?: string[];
 }
 
 interface ThreatArticleCardProps {
@@ -155,7 +157,7 @@ export function ThreatArticleCard({
     <div className="h-full overflow-hidden transition-all duration-300 group-hover:translate-y-[-3px]">
       <div
         className={cn(
-          "h-full rounded-xl border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
+          "h-full rounded-md border border-slate-700/50 bg-gradient-to-b from-transparent to-black/10 backdrop-blur-sm overflow-hidden",
           "hover:border-[#00FFFF]/40 hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300",
           "flex flex-col relative",
           isPending && "bg-black/30",
@@ -257,12 +259,17 @@ export function ThreatArticleCard({
           </div>
 
           <div className="flex items-center gap-3 mb-3">
-            {article.author && (
+            {(article.author && article.author !== "Unknown") ? (
               <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
                 <User className="h-3 w-3" />
                 <span className="font-medium">{article.author}</span>
               </div>
-            )}
+            ) : article.sourceName ? (
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
+                <User className="h-3 w-3" />
+                <span className="font-medium">{article.sourceName}</span>
+              </div>
+            ) : null}
 
             <div className="flex items-center gap-1.5 text-xs text-slate-400 leading-4">
               <Clock className="h-3 w-3" />
@@ -417,12 +424,83 @@ export function ThreatArticleCard({
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
-            {/* Article counter */}
-            {articleIndex !== undefined && totalArticles !== undefined && (
-              <div className="text-xs text-slate-400 flex-shrink-0">
-                Article {articleIndex + 1} of {totalArticles}
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
+              {/* Matched user keywords */}
+              {article.matchedKeywords && article.matchedKeywords.length > 0 && (
+                <>
+                  {article.matchedKeywords.slice(0, 3).map((keyword, index) => {
+                    // Use consistent color palette from News Radar
+                    const colors = [
+                      {
+                        bg: "bg-[#00FFFF]/10",
+                        text: "text-[#00FFFF]",
+                        border: "border-[#00FFFF]/30",
+                        hover: "hover:bg-[#00FFFF]/20 hover:text-[#00FFFF]"
+                      },
+                      {
+                        bg: "bg-[#BF00FF]/10",
+                        text: "text-[#BF00FF]",
+                        border: "border-[#BF00FF]/30",
+                        hover: "hover:bg-[#BF00FF]/20 hover:text-[#BF00FF]"
+                      },
+                      {
+                        bg: "bg-blue-500/10",
+                        text: "text-blue-400",
+                        border: "border-blue-500/30",
+                        hover: "hover:bg-blue-500/20 hover:text-blue-400"
+                      },
+                      {
+                        bg: "bg-yellow-500/10",
+                        text: "text-yellow-400",
+                        border: "border-yellow-500/30",
+                        hover: "hover:bg-yellow-500/20 hover:text-yellow-400"
+                      },
+                      {
+                        bg: "bg-orange-500/10",
+                        text: "text-orange-400",
+                        border: "border-orange-500/30",
+                        hover: "hover:bg-orange-500/20 hover:text-orange-400"
+                      }
+                    ];
+                    const colorSet = colors[index % colors.length];
+                    
+                    return (
+                      <Badge
+                        key={`matched-${keyword}-${index}`}
+                        variant="outline"
+                        className={cn(
+                          "text-xs font-medium cursor-pointer transition-colors truncate max-w-24 leading-4",
+                          colorSet.bg,
+                          colorSet.text,
+                          colorSet.border,
+                          colorSet.hover
+                        )}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (onKeywordClick) onKeywordClick(keyword, "matched");
+                        }}
+                      >
+                        {keyword}
+                      </Badge>
+                    );
+                  })}
+                  {article.matchedKeywords.length > 3 && (
+                    <span className="text-xs font-medium text-[#00FFFF] leading-4">
+                      +{article.matchedKeywords.length - 3} more
+                    </span>
+                  )}
+                </>
+              )}
+              
+              {/* Article counter - only show if no keywords */}
+              {(!article.matchedKeywords || article.matchedKeywords.length === 0) && 
+               articleIndex !== undefined && totalArticles !== undefined && (
+                <div className="text-xs text-slate-400 flex-shrink-0">
+                  Article {articleIndex + 1} of {totalArticles}
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {onSendToCapsule && (

@@ -789,7 +789,7 @@ export default function Keywords() {
                   <div 
                     key={keyword.id} 
                     className={cn(
-                      "relative border border-slate-700/50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-500",
+                      "relative border border-slate-700/50 rounded-md overflow-hidden transition-all duration-200 hover:border-slate-500",
                       isPending && "border-orange-500/50 shadow-orange-500/10 shadow-md",
                       keyword.active ? "bg-[#BF00FF]/5" : "bg-slate-800/70"
                     )}
@@ -912,7 +912,7 @@ export default function Keywords() {
               onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({...prev, [selectedCategory]: !open}))}
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full p-3 bg-slate-800/40 hover:bg-slate-800/60 rounded-lg border border-blue-500/20 hover:border-blue-500/30 transition-all duration-200">
+                <button className="flex items-center justify-between w-full p-3 bg-slate-800/40 hover:bg-slate-800/60 rounded-md border border-blue-500/20 hover:border-blue-500/30 transition-all duration-200">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                       {isDefaultKeywordsCollapsed[selectedCategory] ? (
@@ -949,7 +949,7 @@ export default function Keywords() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
-                <div className="p-4 bg-slate-900/40 rounded-lg border border-blue-500/10">
+                <div className="p-4 bg-slate-900/40 rounded-md border border-blue-500/10">
                   <div className="mb-3">
                     <p className="text-xs text-slate-400 leading-relaxed">
                       {selectedCategory === "threat" && 
@@ -999,7 +999,7 @@ export default function Keywords() {
       )}
     >
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex flex-col gap-1">
@@ -1016,7 +1016,7 @@ export default function Keywords() {
           <div className="grid gap-4 lg:grid-cols-12">
             {/* Category Navigation Section */}
             <div className="lg:col-span-5">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="h-4 w-4 text-blue-400" />
                   <span className="text-sm font-medium text-blue-400">Category Navigation</span>
@@ -1064,7 +1064,7 @@ export default function Keywords() {
 
             {/* Auto-Update Section */}
             <div className="lg:col-span-4">
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-md p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Check className="h-4 w-4 text-green-400" />
                   <span className="text-sm font-medium text-green-400">Category Stats</span>
@@ -1083,7 +1083,7 @@ export default function Keywords() {
 
             {/* Actions Section */}
             <div className="lg:col-span-3">
-              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Plus className="h-4 w-4 text-purple-400" />
                   <span className="text-sm font-medium text-purple-400">Actions</span>
@@ -1266,7 +1266,7 @@ export default function Keywords() {
                 control={form.control}
                 name="active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <FormItem className="flex flex-row items-center justify-between rounded-md border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Active Status</FormLabel>
                       <FormDescription>
@@ -1380,7 +1380,7 @@ export default function Keywords() {
                 control={bulkForm.control}
                 name="active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <FormItem className="flex flex-row items-center justify-between rounded-md border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel>Active Status</FormLabel>
                       <FormDescription>

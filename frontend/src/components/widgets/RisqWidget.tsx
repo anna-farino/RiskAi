@@ -29,8 +29,8 @@ export function RisqWidget({
   // Determine the classes based on the variant
   const getWidgetClasses = () => {
     const baseClasses = "bg-gradient-to-b from-[#300A45]/80 to-black/80 backdrop-blur-sm " +
-      "border border-[#BF00FF]/20 rounded-xl p-6 flex flex-col " + 
-      "shadow-lg shadow-[#BF00FF]/5 h-full";
+      "border border-[#BF00FF]/20 rounded-md p-6 flex flex-col " + 
+      "shadow-lg shadow-[#BF00FF]/5 h-full min-h-[400px]";
     
     const variantClasses = {
       standard: "",
@@ -72,16 +72,18 @@ export function RisqWidget({
       </div>
       
       {/* Content */}
-      <div className="flex-1 min-h-[280px] flex flex-col">
-        {children}
-      </div>
-      
-      {/* Footer/Actions */}
-      {footer && (
-        <div className="mt-auto pt-4">
-          {footer}
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1">
+          {children}
         </div>
-      )}
+        
+        {/* Footer/Actions - Always at bottom */}
+        {footer && (
+          <div className="mt-auto pt-6 flex-shrink-0">
+            {footer}
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -95,12 +97,12 @@ export function WidgetActions({
   explanation?: string 
 }) {
   return (
-    <div className="mt-auto flex flex-col gap-2">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="flex flex-col gap-3 w-full">
+      <div className="grid grid-cols-3 gap-2 w-full">
         {children}
       </div>
       {explanation && (
-        <span className="text-xs text-muted-foreground text-center mt-2">
+        <span className="text-xs text-muted-foreground text-center">
           {explanation}
         </span>
       )}
@@ -121,7 +123,7 @@ export function WidgetButton({
   className?: string
 }) {
   const getButtonClasses = () => {
-    const baseClasses = "flex items-center justify-center rounded-lg py-2 px-3 text-sm font-medium transition-all duration-200";
+    const baseClasses = "flex items-center justify-center rounded-md py-2 px-3 text-sm font-medium transition-all duration-200";
     
     const variantClasses = {
       primary: "btn-risqai-primary",
