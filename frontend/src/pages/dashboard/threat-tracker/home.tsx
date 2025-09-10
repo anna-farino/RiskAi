@@ -86,16 +86,6 @@ export default function ThreatHome() {
     );
   };
 
-  // Toggle toolbar expansion
-  const toggleToolbar = () => {
-    const newExpanded = !isToolbarExpanded;
-    setIsToolbarExpanded(newExpanded);
-    localStorage.setItem(
-      "threat-tracker-toolbar-expanded",
-      JSON.stringify(newExpanded),
-    );
-  };
-
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: ["/api/threat-tracker/keywords"],
