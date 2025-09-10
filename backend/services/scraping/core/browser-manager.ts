@@ -139,7 +139,6 @@ const BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
-  "--display=:99", // Use virtual display
   "--disable-features=site-per-process,AudioServiceOutOfProcess",
   "--disable-blink-features=AutomationControlled",
   // Additional args from Threat Tracker for enhanced stealth
@@ -248,9 +247,11 @@ export class BrowserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Ensure virtual display is available for containerized environments
-        if (!process.env.DISPLAY) {
+        // Only set virtual display for Azure environments (staging/production)
+        const isAzureEnvironment = process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'production';
+        if (isAzureEnvironment && !process.env.DISPLAY) {
           process.env.DISPLAY = ':99';
+          log('[BrowserManager] Setting virtual display for Azure environment', 'scraper');
         }
 
         // Determine Chrome path dynamically at launch time
@@ -260,9 +261,16 @@ export class BrowserManager {
         // Increase protocol timeout progressively with each retry
         const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
 
+        // Build browser args dynamically based on environment
+        const browserArgs = [...BROWSER_ARGS];
+        if (isAzureEnvironment) {
+          browserArgs.push('--display=:99'); // Add virtual display for Azure
+          log('[BrowserManager] Adding virtual display argument for Azure environment', 'scraper');
+        }
+
         const browser = await puppeteer.launch({
           headless: false,
-          args: BROWSER_ARGS,
+          args: browserArgs,
           executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
           timeout: 180000, // 3 minutes for browser launch
           protocolTimeout: protocolTimeout, // Progressive increase for protocol operations
