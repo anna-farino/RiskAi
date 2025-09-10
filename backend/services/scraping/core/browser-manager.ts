@@ -139,6 +139,7 @@ const BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
+  "--display=:99", // Use virtual display
   "--disable-features=site-per-process,AudioServiceOutOfProcess",
   "--disable-blink-features=AutomationControlled",
   // Additional args from Threat Tracker for enhanced stealth
