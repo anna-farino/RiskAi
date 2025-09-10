@@ -1,7 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Trash2,
   Clock,
   User,
   Loader2,
@@ -16,7 +15,6 @@ import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { DeleteAlertDialog } from "@/components/delete-alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { formatDateOnly } from "@/utils/date-utils";
 
@@ -30,7 +28,6 @@ interface ExtendedThreatArticle extends ThreatArticle {
 
 interface ThreatArticleCardProps {
   article: ExtendedThreatArticle;
-  onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string, category: string) => void;
   onSendToCapsule?: (url: string) => void;
@@ -47,7 +44,6 @@ interface KeywordCategories {
 
 export function ThreatArticleCard({
   article,
-  onDelete,
   isPending = false,
   onKeywordClick,
   onSendToCapsule,
@@ -56,12 +52,6 @@ export function ThreatArticleCard({
 }: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onDelete(article.id);
-  };
 
   const handleSendToCapsule = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -526,35 +516,6 @@ export function ThreatArticleCard({
                   )}
                 </Button>
               )}
-
-              <DeleteAlertDialog
-                open={openAlert}
-                setOpen={setOpenAlert}
-                action={(e: React.MouseEvent) => handleDelete(e)}
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setOpenAlert(true);
-                  }}
-                  className={cn(
-                    "h-8 w-8 p-2",
-                    "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10 hover:border-red-500/30",
-                    "transition-all duration-200",
-                    isPending && "cursor-not-allowed opacity-70",
-                  )}
-                >
-                  {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </DeleteAlertDialog>
             </div>
           </div>
         </div>

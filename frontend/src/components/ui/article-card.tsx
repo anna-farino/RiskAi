@@ -1,12 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Clock, User, Loader2, Send } from "lucide-react";
+import { Clock, User, Loader2, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Article } from "@shared/db/schema/news-tracker/index";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { DeleteAlertDialog } from "../delete-alert-dialog";
 
 // Type interface to handle both detectedKeywords and detected_keywords
 interface ArticleWithKeywords extends Article {
@@ -16,7 +15,6 @@ interface ArticleWithKeywords extends Article {
 
 interface ArticleCardProps {
   article: ArticleWithKeywords;
-  onDelete: (id: string) => void;
   isPending?: boolean;
   onKeywordClick?: (keyword: string) => void;
   onSendToCapsule?: (url: string) => void;
@@ -24,7 +22,6 @@ interface ArticleCardProps {
 
 export function ArticleCard({
   article,
-  onDelete,
   isPending = false,
   onKeywordClick,
   onSendToCapsule,
@@ -46,12 +43,6 @@ export function ArticleCard({
       return a & a;
     }, 0);
     return accents[Math.abs(hash) % accents.length];
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onDelete(article.id);
   };
 
   const handleSendToCapsule = async (e: React.MouseEvent) => {
@@ -227,35 +218,6 @@ export function ArticleCard({
                   )}
                 </Button>
               )}
-
-              <DeleteAlertDialog
-                open={openAlert}
-                setOpen={setOpenAlert}
-                action={(e: React.MouseEvent) => handleDelete(e)}
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setOpenAlert(true);
-                  }}
-                  className={cn(
-                    "h-8 w-8 p-2",
-                    "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-red-400 hover:bg-red-400/10 hover:border-red-500/30",
-                    "transition-all duration-200",
-                    isPending && "cursor-not-allowed opacity-70",
-                  )}
-                >
-                  {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </DeleteAlertDialog>
             </div>
           </div>
         </div>
