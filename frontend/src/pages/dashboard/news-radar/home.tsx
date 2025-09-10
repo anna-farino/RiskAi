@@ -30,25 +30,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 
 export default function NewsHome() {
   const { toast } = useToast();
   const fetchWithAuth = useFetch();
-
-
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -82,34 +69,6 @@ export default function NewsHome() {
   
   // Available keywords display state
   const [showAllAvailableKeywords, setShowAllAvailableKeywords] = useState<boolean>(false);
-  
-  // Global scan status for scan all sources functionality
-  const autoScrapeStatus = useQuery({
-    queryKey: ["/api/news-tracker/jobs/status"],
-    queryFn: async () => {
-      try {
-        const response = await fetchWithAuth("/api/news-tracker/jobs/status", {
-            method: "GET",
-          });
-        if (!response.ok) {
-          console.warn(
-            "Job status API returned non-ok response:",
-            response.status,
-          );
-          return { running: false };
-        }
-        const data = await response.json();
-        return data || { running: false };
-      } catch (error) {
-        console.error("Error fetching job status:", error);
-        return { running: false };
-      }
-    },
-    refetchInterval: 5000, // Poll every 5 seconds
-    initialData: { running: false },
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
   
   // Fetch keywords for filter dropdown
   const keywords = useQuery<Keyword[]>({
@@ -381,278 +340,6 @@ export default function NewsHome() {
     }
   };
 
-  const deleteArticle = useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        // Use fetch directly to handle empty responses properly
-        const response = await fetchWithAuth(`/api/news-tracker/articles/${id}`, {
-          method: "DELETE",
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to delete article: ${response.statusText}`);
-        }
-        
-        // Don't try to parse JSON - some DELETE endpoints return empty responses
-        return { success: true, id };
-      } catch (error) {
-        console.error("Delete article error:", error);
-        throw error;
-      }
-    },
-    onMutate: async (id) => {
-      // Cancel any outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
-      
-      // Snapshot the previous values
-      const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
-      const previousLocalArticles = [...localArticles];
-      
-      // Add to pendingItems to show loading indicator
-      setPendingItems(prev => new Set(prev).add(id));
-      
-      // Optimistically update local state for immediate UI feedback
-      setLocalArticles(prev => prev.filter(article => article.id !== id));
-      
-      // Optimistically update React Query cache
-      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], (oldData = []) => {
-        return oldData.filter(article => article.id !== id);
-      });
-      
-      // Return a context object with the snapshotted values
-      return { previousArticles, previousLocalArticles, id };
-    },
-    onError: (err, id, context) => {
-      if (context) {
-        // If the mutation fails, restore both local state and React Query cache
-        setLocalArticles(context.previousLocalArticles);
-        queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context.previousArticles);
-        
-        // Remove from pending items
-        setPendingItems(prev => {
-          const updated = new Set(prev);
-          updated.delete(id);
-          return updated;
-        });
-      }
-      
-      toast({
-        title: "Error deleting article",
-        description: "Failed to delete article. Please try again.",
-        variant: "destructive",
-      });
-    },
-    onSuccess: (data, id) => {
-      // Remove from pending items
-      setPendingItems(prev => {
-        const updated = new Set(prev);
-        updated.delete(id);
-        return updated;
-      });
-      
-      // Don't invalidate - optimistic delete already removed the item
-      toast({
-        title: "Article deleted successfully",
-      });
-    },
-  });
-
-  const deleteAllArticles = useMutation({
-    mutationFn: async () => {
-      try {
-        const response = await fetchWithAuth(`/api/news-tracker/articles`, {
-          method: "DELETE",
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to delete all articles: ${response.statusText}`);
-        }
-        
-        // Try to parse JSON response
-        try {
-          const data = await response.json();
-          return data;
-        } catch (e) {
-          // If parsing fails, just return success
-          return { success: true, deletedCount: 0 };
-        }
-      } catch (error) {
-        console.error("Delete all articles error:", error);
-        throw error;
-      }
-    },
-    onMutate: async () => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/articles"] });
-      
-      // Snapshot the previous articles
-      const previousArticles = queryClient.getQueryData<Article[]>(["/api/news-tracker/articles"]);
-      const previousLocalArticles = [...localArticles];
-      
-      // Optimistically clear the articles in local state
-      setLocalArticles([]);
-      
-      // Optimistically clear the articles in React Query cache
-      queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], []);
-      
-      return { previousArticles, previousLocalArticles };
-    },
-    onError: (error, variables, context) => {
-      if (context) {
-        // If the mutation fails, restore both local state and React Query cache
-        setLocalArticles(context.previousLocalArticles);
-        queryClient.setQueryData<Article[]>(["/api/news-tracker/articles"], context.previousArticles);
-      }
-      
-      toast({
-        title: "Error",
-        description: "Failed to delete articles. Please try again.",
-        variant: "destructive",
-      });
-    },
-    onSuccess: (data: {
-      success: boolean;
-      message?: string;
-      deletedCount: number;
-    }) => {
-      // Don't invalidate - optimistic update already cleared the list
-      toast({
-        title: "Articles deleted",
-        description: `Successfully deleted ${data.deletedCount} articles.`,
-      });
-    },
-  });
-
-  // Run global scrape job manually
-  const runGlobalScrape = useMutation({
-    mutationFn: async () => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for run (longer than stop)
-
-        const response = await fetchWithAuth("/api/news-tracker/jobs/scrape", {
-            method: "POST",
-            signal: controller.signal,
-          });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to start global update: ${response.statusText}`,
-          );
-        }
-
-        // Try to parse JSON but handle empty responses
-        try {
-          const data = await response.json();
-          return data;
-        } catch (e) {
-          // If parsing fails, just return success
-          return { success: true };
-        }
-      } catch (error) {
-        console.error("Run global update error:", error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "News scan started",
-        description: "All eligible sources are being scanned for news",
-      });
-      // Force update job status
-      queryClient.invalidateQueries({
-        queryKey: ["/api/news-tracker/jobs/status"],
-      });
-    },
-    onError: (err) => {
-      toast({
-        title: "Error starting scan",
-        description: "Failed to start scanning. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Stop global scrape job
-  const stopGlobalScrape = useMutation({
-    mutationFn: async () => {
-      try {
-        console.log("Attempting to stop global update...");
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-        const response = await fetchWithAuth("/api/news-tracker/jobs/stop", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            signal: controller.signal,
-          });
-
-        clearTimeout(timeoutId);
-
-        console.log("Stop request response status:", response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Error response:", errorText);
-          return {
-            success: false,
-            message: `Failed to stop global update: ${response.statusText}`,
-          };
-        }
-
-        // Try to parse JSON but handle empty responses
-        try {
-          const data = await response.json();
-          console.log("Stop job succeeded with data:", data);
-          return data || { success: true, message: "Global update stopped" };
-        } catch (e) {
-          console.log("Empty response, returning success object");
-          return { success: true, message: "Global update stopped" };
-        }
-      } catch (error) {
-        console.error("Stop global update error:", error);
-        return {
-          success: false,
-          message:
-            error instanceof Error ? error.message : "Unknown error occurred",
-        };
-      }
-    },
-    onSuccess: (data) => {
-      console.log("Stop global update succeeded:", data);
-      if (data?.success !== false) {
-        toast({
-          title: "Scan stopped",
-          description: "All scanning operations have been stopped",
-        });
-      } else {
-        toast({
-          title: "Error stopping scan",
-          description:
-            data.message || "Failed to stop scanning. Please try again.",
-          variant: "destructive",
-        });
-      }
-      // Force update job status
-      queryClient.invalidateQueries({
-        queryKey: ["/api/news-tracker/jobs/status"],
-      });
-    },
-    onError: (err) => {
-      console.error("Stop global update mutation error handler:", err);
-      toast({
-        title: "Error stopping scan",
-        description: "Failed to stop scanning. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Function to check if an article is new
   const isArticleNew = (article: Article): boolean => {
     if (!lastVisitTimestamp || !article.publishDate) return false;
@@ -782,50 +469,6 @@ export default function NewsHome() {
           </Button>
           </div>
         </div>
-        
-        {totalArticles > 0 && (
-          <div className="flex justify-center pt-6 mt-6 border-t border-slate-700/30">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={deleteAllArticles.isPending}
-                  className="h-9 px-4 font-semibold transition-all duration-200"
-                >
-                  {deleteAllArticles.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Delete All Articles ({totalArticles})
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Are you absolutely sure?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action will permanently delete all{" "}
-                    {totalArticles} articles. This action cannot be
-                    undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => deleteAllArticles.mutate()}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Delete All Articles
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
       </div>
     );
   };
@@ -844,19 +487,6 @@ export default function NewsHome() {
                   <span className="text-base font-medium text-slate-200">Scan and Filter Controls</span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-slate-400">
-                  <div className="flex items-center gap-1">
-                    {autoScrapeStatus?.data?.running ? (
-                      <div className="flex items-center gap-1">
-                        <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
-                        <span>Scanning</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <div className="h-2 w-2 bg-slate-400 rounded-full"></div>
-                        <span>Ready</span>
-                      </div>
-                    )}
-                  </div>
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
                     <span>{localArticles.length} articles</span>
@@ -924,36 +554,6 @@ export default function NewsHome() {
                       value={searchTerm}
                       onChange={handleSearchChange}
                     />
-                  </div>
-                  {/* Scan Control Button */}
-                  <div className="mt-3">
-                    <Button
-                      onClick={() => {
-                        if (autoScrapeStatus?.data?.running) {
-                          stopGlobalScrape.mutate();
-                        } else {
-                          runGlobalScrape.mutate();
-                        }
-                      }}
-                      disabled={runGlobalScrape.isPending || stopGlobalScrape.isPending}
-                      className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-3 transition-all duration-200"
-                    >
-                      {runGlobalScrape.isPending || stopGlobalScrape.isPending ? (
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      ) : autoScrapeStatus?.data?.running ? (
-                        <X className="mr-1 h-3 w-3" />
-                      ) : (
-                        <Newspaper className="mr-1 h-3 w-3" />
-                      )}
-                      {autoScrapeStatus?.data?.running
-                        ? "Stop Scan"
-                        : "New Scan"}
-                    </Button>
-                    {autoScrapeStatus?.data?.running && (
-                      <div className="text-xs text-slate-400 text-center mt-1">
-                        Scanning...
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1303,7 +903,7 @@ export default function NewsHome() {
                 No articles yet
               </h3>
               <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed">
-                Add sources and start scraping to populate your news feed with
+                Enable sources and keywords to populate your news feed with
                 the latest articles and analysis.
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
@@ -1311,7 +911,7 @@ export default function NewsHome() {
                   asChild
                   className="h-10 px-6 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] transition-all duration-200"
                 >
-                  <Link to="/dashboard/news/sources">Add Sources</Link>
+                  <Link to="/dashboard/news/sources">Enable Sources</Link>
                 </Button>
                 <Button 
                   variant="outline" 
@@ -1349,7 +949,6 @@ export default function NewsHome() {
                     >
                       <ArticleCard
                         article={article}
-                        onDelete={(id: any) => deleteArticle.mutate(id)}
                         isPending={pendingItems.has(article.id)}
                         onKeywordClick={handleKeywordClick}
                         onSendToCapsule={sendToCapsule}
