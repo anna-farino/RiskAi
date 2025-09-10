@@ -139,6 +139,7 @@ const BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
+  "--display=:99", // Use virtual display
   "--disable-features=site-per-process,AudioServiceOutOfProcess",
   "--disable-blink-features=AutomationControlled",
   // Additional args from Threat Tracker for enhanced stealth
@@ -247,6 +248,11 @@ export class BrowserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        // Ensure virtual display is available for containerized environments
+        if (!process.env.DISPLAY) {
+          process.env.DISPLAY = ':99';
+        }
+
         // Determine Chrome path dynamically at launch time
         const chromePath = findChromePath();
         // Launching browser attempt
