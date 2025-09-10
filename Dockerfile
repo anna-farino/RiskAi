@@ -99,5 +99,7 @@ USER nodeuser
 
 EXPOSE 3000
 
-# Run DB migrations and start the app with virtual display
-CMD ["sh", "-c", "cd /app/backend && echo '=== Starting Xvfb virtual display ===' && Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
+
+# Run DB migrations and start the app with conditional virtual display
+CMD ["sh", "-c", "cd /app/backend && if [ \"$NODE_ENV\" = \"staging\" ] || [ \"$NODE_ENV\" = \"production\" ]; then echo '=== Starting Xvfb virtual display for Azure ===' && Xvfb :99 -screen 0 1920x1080x24 & sleep 2; else echo '=== Skipping Xvfb for development environment ==='; fi && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
+
