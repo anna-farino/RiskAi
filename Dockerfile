@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install required system dependencies for Puppeteer/Chromium
+# Install required system dependencies for Puppeteer/Chromium and Xvfb
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y \
   fonts-thai-tlwg \
   fonts-kacst \
   fonts-freefont-ttf \
+  xvfb \
+  x11vnc \
+  fluxbox \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
@@ -41,6 +44,10 @@ RUN apt-get update \
 # Set Puppeteer environment variables
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Set up virtual display environment
+ENV DISPLAY=:99
+ENV XVFB_WHD=1920x1080x24
 
 # Set working directory
 WORKDIR /app
@@ -92,5 +99,5 @@ USER nodeuser
 
 EXPOSE 3000
 
-# Run DB migrations and start the app  
-CMD ["sh", "-c", "cd /app/backend && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
+# Run DB migrations and start the app with virtual display
+CMD ["sh", "-c", "cd /app/backend && echo '=== Starting Xvfb virtual display ===' && Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
