@@ -31,18 +31,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
@@ -98,37 +86,15 @@ export default function ThreatHome() {
     );
   };
 
-  // Check scrape job status for scan all sources functionality
-  const checkScrapeStatus = useQuery<{ running: boolean }>({
-    queryKey: ["/api/threat-tracker/scrape/status"],
-    queryFn: async () => {
-      try {
-        const response = await fetchWithAuth(
-          "/api/threat-tracker/scrape/status",
-          {
-            method: "GET",
-          },
-        );
-        if (!response.ok) {
-          console.warn(
-            "Scrape status API returned non-ok response:",
-            response.status,
-          );
-          return { running: false };
-        }
-
-        const data = await response.json();
-        return data || { running: false };
-      } catch (error) {
-        console.error("Error fetching scrape status:", error);
-        return { running: false };
-      }
-    },
-    refetchInterval: 5000, // Poll every 5 seconds
-    initialData: { running: false },
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  // Toggle toolbar expansion
+  const toggleToolbar = () => {
+    const newExpanded = !isToolbarExpanded;
+    setIsToolbarExpanded(newExpanded);
+    localStorage.setItem(
+      "threat-tracker-toolbar-expanded",
+      JSON.stringify(newExpanded),
+    );
+  };
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -300,92 +266,6 @@ export default function ThreatHome() {
     };
   }, []);
 
-  // Delete article mutation
-  const deleteArticle = useMutation({
-    mutationFn: async (id: string) => {
-      return fetchWithAuth(`/api/threat-tracker/articles/${id}`, {
-        method: "DELETE",
-      });
-    },
-    onMutate: (id) => {
-      // Optimistic update - remove article from local state
-      setLocalArticles((prev) => prev.filter((article) => article.id !== id));
-      // Add to pending operations
-      setPendingItems((prev) => new Set(prev).add(id));
-    },
-    onSuccess: (_, id) => {
-      toast({
-        title: "Article deleted",
-        description: "The article has been successfully deleted.",
-      });
-      // Remove from pending operations
-      setPendingItems((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-      // Invalidate queries to refetch data
-      queryClient.invalidateQueries({
-        queryKey: ["/api/threat-tracker/articles"],
-      });
-    },
-    onError: (error, id) => {
-      console.error("Error deleting article:", error);
-      toast({
-        title: "Error deleting article",
-        description:
-          "There was an error deleting the article. Please try again.",
-        variant: "destructive",
-      });
-      // Revert optimistic update
-      queryClient.invalidateQueries({
-        queryKey: ["/api/threat-tracker/articles"],
-      });
-      // Remove from pending operations
-      setPendingItems((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-    },
-  });
-
-  // Delete all articles mutation
-  const deleteAllArticles = useMutation({
-    mutationFn: async () => {
-      return fetchWithAuth("/api/threat-tracker/articles", {
-        method: "DELETE",
-      });
-    },
-    onMutate: () => {
-      // Optimistic update - clear local articles
-      setLocalArticles([]);
-    },
-    onSuccess: () => {
-      toast({
-        title: "All articles deleted",
-        description: "All articles have been successfully deleted.",
-      });
-      // Invalidate queries to refetch data
-      queryClient.invalidateQueries({
-        queryKey: ["/api/threat-tracker/articles"],
-      });
-    },
-    onError: (error) => {
-      console.error("Error deleting all articles:", error);
-      toast({
-        title: "Error deleting articles",
-        description:
-          "There was an error deleting all articles. Please try again.",
-        variant: "destructive",
-      });
-      // Revert optimistic update
-      queryClient.invalidateQueries({
-        queryKey: ["/api/threat-tracker/articles"],
-      });
-    },
-  });
-
   // Mark article for capsule mutation
   const markArticleForCapsule = useMutation({
     mutationFn: async ({ id, marked }: { id: string; marked: boolean }) => {
@@ -477,101 +357,6 @@ export default function ThreatHome() {
     }
   };
 
-  // Scrape all sources mutation
-  const scrapeAllSources = useMutation({
-    mutationFn: async () => {
-      return fetchWithAuth("/api/threat-tracker/scrape/all", {
-        method: "POST",
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Scan for new threats started",
-        description:
-          "The system is now scanning all active sources for threats.",
-      });
-      // Start polling for status updates
-      queryClient.invalidateQueries({
-        queryKey: ["/api/threat-tracker/scrape/status"],
-      });
-    },
-    onError: (error) => {
-      console.error("Error starting scan:", error);
-      toast({
-        title: "Error starting scan",
-        description: "There was an error starting the scan. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Stop scrape job mutation
-  const stopScrapeJob = useMutation({
-    mutationFn: async () => {
-      try {
-        console.log("Attempting to stop global scan...");
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-        const response = await fetchWithAuth(
-          "/api/threat-tracker/scrape/stop",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            signal: controller.signal,
-          },
-        );
-
-        clearTimeout(timeoutId);
-
-        console.log("Stop request response status:", response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Stop request failed with:", errorText);
-          throw new Error(`Failed to stop scan: ${response.statusText}`);
-        }
-
-        try {
-          const data = await response.json();
-          return data || { success: true, message: "Scan stopped" };
-        } catch (e) {
-          console.log("No JSON response, assuming success");
-          return { success: true, message: "Scan stopped" };
-        }
-      } catch (error) {
-        console.error("Stop scan error:", error);
-        if (error instanceof Error && error.name === "AbortError") {
-          throw new Error(
-            "Stop request timed out. The scan may still be stopping.",
-          );
-        }
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
-      console.log("Stop global scan succeeded:", data);
-      toast({
-        title: "Scan stopped",
-        description: "The scan has been stopped successfully.",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["/api/threat-tracker/scrape/status"],
-      });
-    },
-    onError: (error) => {
-      console.error("Error stopping scan:", error);
-      toast({
-        title: "Error stopping scan",
-        description: "There was an error stopping the scan. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
     setSelectedKeywordIds((prev) =>
@@ -588,19 +373,9 @@ export default function ThreatHome() {
     setDateRange({});
   };
 
-  // Function to handle article deletion
-  const handleDeleteArticle = (id: string) => {
-    deleteArticle.mutate(id);
-  };
-
   // Function to handle marking for capsule
   const handleMarkForCapsule = (id: string, currentlyMarked: boolean) => {
     markArticleForCapsule.mutate({ id, marked: !currentlyMarked });
-  };
-
-  // Handle delete all articles
-  const handleDeleteAllArticles = () => {
-    deleteAllArticles.mutate();
   };
 
   // Group keywords by category
@@ -753,19 +528,6 @@ export default function ThreatHome() {
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-slate-400">
-                  <div className="flex items-center gap-1">
-                    {checkScrapeStatus?.data?.running ? (
-                      <div className="flex items-center gap-1">
-                        <div className="h-2 w-2 bg-purple-400 rounded-full animate-pulse"></div>
-                        <span>Scanning</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <div className="h-2 w-2 bg-slate-400 rounded-full"></div>
-                        <span>Ready</span>
-                      </div>
-                    )}
-                  </div>
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
                     <span>{localArticles.length} threats</span>
@@ -1127,7 +889,6 @@ export default function ThreatHome() {
                     <ThreatArticleCard
                       article={article}
                       isPending={pendingItems.has(article.id)}
-                      onDelete={() => handleDeleteArticle(article.id)}
                       onKeywordClick={(keyword, category) => {
                         // Add the keyword to the filter
                         const keywordObj = keywords.data?.find(
@@ -1217,47 +978,6 @@ export default function ThreatHome() {
                   </div>
                 </div>
               )}
-
-              {/* Clear All Button - Bottom of page */}
-              {totalArticles > 0 && (
-                <div className="flex justify-center pt-6 mt-6 border-t border-slate-700/30">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-9 px-4 font-semibold transition-all duration-200"
-                        disabled={deleteAllArticles.isPending}
-                      >
-                        {deleteAllArticles.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                        Delete All Articles ({totalArticles})
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action will permanently delete all{" "}
-                          {totalArticles} threat articles. This cannot be
-                          undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteAllArticles}>
-                          Delete All
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -1268,7 +988,7 @@ export default function ThreatHome() {
                 No threat articles found
               </h3>
               <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed">
-                Start by adding sources and keywords to monitor for security
+                Start by enabling sources and keywords to monitor for security
                 threats, or adjust your search filters to discover potential
                 vulnerabilities.
               </p>
@@ -1277,7 +997,7 @@ export default function ThreatHome() {
                   asChild
                   className="h-10 px-6 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] transition-all duration-200"
                 >
-                  <Link to="/dashboard/threat/sources">Add Sources</Link>
+                  <Link to="/dashboard/threat/sources">Enable Sources</Link>
                 </Button>
                 <Button
                   variant="outline"
