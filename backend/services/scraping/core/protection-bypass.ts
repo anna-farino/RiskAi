@@ -136,28 +136,36 @@ export async function performCycleTLSRequest(
       consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
     }
 
-    // FIXED: CORRECT CYCLETLS v1.0.27 API IMPLEMENTATION
+    // ENHANCED: Using CycleTLS Manager for optimized client lifecycle
     let response: any;
     try {
-      const cycletls = require('cycletls');
+      // Import CycleTLS Manager
+      const { cycleTLSManager } = require('./cycletls-manager');
       
-      log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
+      log(`[ProtectionBypass] Getting CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // SIMPLIFIED CYCLETLS - Using only supported options
-      log(`[ProtectionBypass] Creating CycleTLS client with supported options only`, "scraper");
-      
-      // Create client with only proven CycleTLS options
-      const client = await cycletls({
+      // Get or create client through the manager
+      const client = await cycleTLSManager.getClient({
         ja3: profile.ja3,                    // ✅ TLS fingerprinting
         userAgent: profile.userAgent,        // ✅ User agent string
         timeout: timeout || 30000,           // ✅ Request timeout
         proxy: "",                            // ✅ No proxy (supported option)
         disableRedirect: false,               // ✅ Follow redirects
-        // Note: Removed all unsupported options that were causing status 0
-        // Browser fingerprinting still works via page.evaluateOnNewDocument
       });
       
-      log(`[ProtectionBypass] CycleTLS client created successfully`, "scraper");
+      // Check if client is available (architecture compatibility)
+      if (!client) {
+        log(`[ProtectionBypass] CycleTLS client not available (architecture incompatible), falling back`, "scraper");
+        return {
+          success: false,
+          status: 0,
+          headers: {},
+          body: '',
+          error: 'CycleTLS not compatible with current architecture'
+        };
+      }
+      
+      log(`[ProtectionBypass] CycleTLS client ready`, "scraper");
       
       // Simple request options without HTTP/2 pseudo-headers
       const requestOptions = {
@@ -194,15 +202,8 @@ export async function performCycleTLSRequest(
           break;
       }
       
-      // Clean up the client
-      if (client.exit && typeof client.exit === 'function') {
-        try {
-          await client.exit();
-          log(`[ProtectionBypass] CycleTLS client cleaned up`, "scraper");
-        } catch (exitError: any) {
-          log(`[ProtectionBypass] Client cleanup failed: ${exitError.message}`, "scraper");
-        }
-      }
+      // Note: Client cleanup is handled by CycleTLS Manager for optimal reuse
+      log(`[ProtectionBypass] Request completed, client returned to manager pool`, "scraper");
       
       log(`[ProtectionBypass] CycleTLS response received`, "scraper");
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
