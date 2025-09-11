@@ -77,7 +77,15 @@ export function normalizeUrls(links: string[], baseUrl: string): string[] {
       
       // Validate the constructed absolute URL
       try {
-        const validatedUrl = new URL(absoluteUrl.replace(/&amp;/g, '&'));
+        const cleanedUrl = absoluteUrl.replace(/&amp;/g, '&');
+        
+        // Enhanced debug logging for Azure environment issues
+        if (baseDomain.includes('foorilla.com') || process.env.NODE_ENV !== 'production') {
+          log(`[LinkExtractor] URL_DEBUG - About to validate: "${cleanedUrl}" (original: "${absoluteUrl}")`, "scraper");
+          log(`[LinkExtractor] URL_DEBUG - From base: "${baseUrl}", relative: "${cleanLink}"`, "scraper");
+        }
+        
+        const validatedUrl = new URL(cleanedUrl);
         const finalUrl = validatedUrl.toString();
         
         // Debug log for relative URL conversion (only in staging/dev)
@@ -87,7 +95,14 @@ export function normalizeUrls(links: string[], baseUrl: string): string[] {
         
         return finalUrl;
       } catch (urlError) {
-        log(`[LinkExtractor] ERROR - Generated invalid absolute URL: "${absoluteUrl}" from link: "${cleanLink}" with base: "${baseUrl}" - ${urlError}`, "scraper-error");
+        // Enhanced error logging for debugging Azure-specific issues
+        const cleanedUrl = absoluteUrl.replace(/&amp;/g, '&');
+        log(`[LinkExtractor] ERROR - URL constructor failed!`, "scraper-error");
+        log(`[LinkExtractor] ERROR - Input URL: "${cleanedUrl}"`, "scraper-error");
+        log(`[LinkExtractor] ERROR - Original absolute URL: "${absoluteUrl}"`, "scraper-error");
+        log(`[LinkExtractor] ERROR - From base: "${baseUrl}", relative: "${cleanLink}"`, "scraper-error");
+        log(`[LinkExtractor] ERROR - Node.js error: ${urlError.message}`, "scraper-error");
+        log(`[LinkExtractor] ERROR - URL length: ${cleanedUrl.length}, contains special chars: ${/[^\x00-\x7F]/.test(cleanedUrl)}`, "scraper-error");
         return ''; // Return empty string for invalid URLs
       }
       
