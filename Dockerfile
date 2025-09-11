@@ -61,15 +61,29 @@ COPY shared/package*.json ./shared/
 # Install dependencies
 RUN cd backend && npm install --legacy-peer-deps
 
+# Configure CycleTLS binaries for container environment
+RUN echo "=== Configuring CycleTLS binaries ===" && \
+    cd backend && \
+    find node_modules/cycletls -type f -name "cycletls*" -exec chmod +x {} \; && \
+    find node_modules/cycletls -type f -name "*.so" -exec chmod +x {} \; && \
+    find node_modules/cycletls -type f -name "*.exe" -exec chmod +x {} \; && \
+    echo "✓ CycleTLS binary permissions set"
+
+# Set CycleTLS environment variables for container
+ENV CYCLETLS_PATH=/app/backend/node_modules/cycletls
+ENV CGO_ENABLED=1
+
 # Copy app code
 COPY backend/ ./backend/
 COPY shared/ ./shared/
 COPY drizzle.config.ts ./
 COPY drizzle.config.ts ./backend/
 
-# Verify critical migration files exist - fail build if missing
-# Build timestamp: 2025-08-13 20:15 UTC - Add extensive debugging
-RUN echo "=== DEBUGGING: Checking file structure ===" && \
+# Verify CycleTLS binaries and critical files exist - fail build if missing
+RUN echo "=== DEBUGGING: Checking CycleTLS and file structure ===" && \
+    echo "CycleTLS binaries:" && \
+    find /app/backend/node_modules/cycletls -type f -executable 2>/dev/null | head -5 || echo "No CycleTLS binaries found" && \
+    echo "Migration files:" && \
     ls -la /app/backend/db/migrations/ || echo "migrations dir not found" && \
     ls -la /app/backend/db/migrations/meta/ || echo "meta dir not found" && \
     find /app -name "_journal.json" -type f || echo "No _journal.json found anywhere" && \
@@ -99,5 +113,5 @@ USER nodeuser
 
 EXPOSE 3000
 
-# Run DB migrations and start the app with conditional virtual display
-CMD ["sh", "-c", "cd /app/backend && if [ \"$NODE_ENV\" = \"staging\" ] || [ \"$NODE_ENV\" = \"production\" ]; then echo '=== Starting Xvfb virtual display for Azure ===' && Xvfb :99 -screen 0 1920x1080x24 & sleep 2; else echo '=== Skipping Xvfb for development environment ==='; fi && echo '=== RUNTIME DEBUG: Checking files at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
+# Run DB migrations and start the app with conditional virtual display and CycleTLS diagnostics
+CMD ["sh", "-c", "cd /app/backend && if [ \"$NODE_ENV\" = \"staging\" ] || [ \"$NODE_ENV\" = \"production\" ]; then echo '=== Starting Xvfb virtual display for Azure ===' && Xvfb :99 -screen 0 1920x1080x24 & sleep 2; else echo '=== Skipping Xvfb for development environment ==='; fi && echo '=== RUNTIME DEBUG: Checking files and CycleTLS at startup ===' && ls -la /app/backend/db/migrations/ && ls -la /app/backend/db/migrations/meta/ && find /app -name '_journal.json' -type f && echo 'CycleTLS binaries:' && find /app/backend/node_modules/cycletls -type f -executable 2>/dev/null | head -3 || echo 'No CycleTLS binaries found' && echo '=== END RUNTIME DEBUG ===' && npx drizzle-kit migrate --config=../drizzle.config.ts && node dist/index.js"]
