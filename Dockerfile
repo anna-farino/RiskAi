@@ -1,4 +1,3 @@
-
 FROM node:20-slim
 
 # Install required system dependencies for Puppeteer/Chromium and Xvfb
