@@ -139,7 +139,7 @@ const BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
-  "--display=:99", // Use virtual display
+  // "--display=:99", // Azure only use virtual display - added conditional logix for Azure below
   "--disable-features=site-per-process,AudioServiceOutOfProcess",
   "--disable-blink-features=AutomationControlled",
   // Additional args from Threat Tracker for enhanced stealth
@@ -249,10 +249,15 @@ export class BrowserManager {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // Only set virtual display for Azure environments (staging/production)
-        const isAzureEnvironment = process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'production';
+        const isAzureEnvironment =
+          process.env.NODE_ENV === "staging" ||
+          process.env.NODE_ENV === "production";
         if (isAzureEnvironment && !process.env.DISPLAY) {
-          process.env.DISPLAY = ':99';
-          log('[BrowserManager] Setting virtual display for Azure environment', 'scraper');
+          process.env.DISPLAY = ":99";
+          log(
+            "[BrowserManager] Setting virtual display for Azure environment",
+            "scraper",
+          );
         }
 
         // Determine Chrome path dynamically at launch time
@@ -265,8 +270,11 @@ export class BrowserManager {
         // Build browser args dynamically based on environment
         const browserArgs = [...BROWSER_ARGS];
         if (isAzureEnvironment) {
-          browserArgs.push('--display=:99'); // Add virtual display for Azure
-          log('[BrowserManager] Adding virtual display argument for Azure environment', 'scraper');
+          browserArgs.push("--display=:99"); // Add virtual display for Azure
+          log(
+            "[BrowserManager] Adding virtual display argument for Azure environment",
+            "scraper",
+          );
         }
 
         const browser = await puppeteer.launch({
