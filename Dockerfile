@@ -80,6 +80,7 @@ COPY drizzle.config.ts ./
 COPY drizzle.config.ts ./backend/
 
 # Verify CycleTLS binaries and critical files exist - fail build if missing
+<<<<<<< HEAD
 RUN echo "=== ENHANCED DEBUGGING: Checking CycleTLS architecture compatibility ===" && \
     echo "System architecture: $(uname -m)" && \
     echo "Node version: $(node --version)" && \
@@ -91,6 +92,11 @@ RUN echo "=== ENHANCED DEBUGGING: Checking CycleTLS architecture compatibility =
     echo "" && \
     echo "CycleTLS binary details:" && \
     find /app/backend/node_modules/cycletls -name "cycletls*" -type f -exec sh -c 'echo "File: $1"; file "$1" 2>/dev/null || echo "file command failed"; ls -la "$1"; echo ""' _ {} \; && \
+=======
+RUN echo "=== DEBUGGING: Checking CycleTLS and file structure ===" && \
+    echo "CycleTLS binaries:" && \
+    find /app/backend/node_modules/cycletls -type f -executable 2>/dev/null | head -5 || echo "No CycleTLS binaries found" && \
+>>>>>>> origin/dev
     echo "Migration files:" && \
     ls -la /app/backend/db/migrations/ || echo "migrations dir not found" && \
     ls -la /app/backend/db/migrations/meta/ || echo "meta dir not found" && \
