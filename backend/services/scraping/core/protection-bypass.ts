@@ -191,6 +191,16 @@ export async function performCycleTLSRequest(
       
       if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
         try {
+<<<<<<< HEAD
+          // Safe URL parsing without network calls
+          const urlObj = new URL(url);
+          log(`[Azure-Network-Debug] Target hostname: ${urlObj.hostname}`, "scraper");
+          log(`[Azure-Network-Debug] Target protocol: ${urlObj.protocol}`, "scraper");
+          log(`[Azure-Network-Debug] Target port: ${urlObj.port || 'default'}`, "scraper");
+          log(`[Azure-Network-Debug] Request path: ${urlObj.pathname}`, "scraper");
+        } catch (urlError) {
+          log(`[Azure-Network-Debug] URL parsing failed: ${urlError.message}`, "scraper-error");
+=======
           const dns = require('dns');
           const { promisify } = require('util');
           const resolve = promisify(dns.resolve);
@@ -201,6 +211,7 @@ export async function performCycleTLSRequest(
           log(`[Azure-Network-Debug] DNS resolution: ${urlObj.hostname} -> ${addresses.join(', ')} (${dnsTime}ms)`, "scraper");
         } catch (dnsError) {
           log(`[Azure-Network-Debug] DNS resolution failed: ${dnsError.message}`, "scraper-error");
+>>>>>>> origin/dev
         }
       }
       
