@@ -175,6 +175,35 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
       
+      // Enhanced diagnostics for Azure vs Replit investigation
+      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+        log(`[Azure-Network-Debug] Request initiated`, "scraper");
+        log(`[Azure-Network-Debug] Target: ${url}`, "scraper");  
+        log(`[Azure-Network-Debug] Method: ${method.toUpperCase()}`, "scraper");
+        log(`[Azure-Network-Debug] User-Agent: ${consistentHeaders['User-Agent'] || 'not-set'}`, "scraper");
+        log(`[Azure-Network-Debug] Environment: NODE_ENV=${process.env.NODE_ENV}, IS_AZURE=${process.env.IS_AZURE}`, "scraper");
+        log(`[Azure-Network-Debug] Profile: ${profile.deviceType}, JA3: ${profile.ja3 ? 'set' : 'not-set'}`, "scraper");
+        
+        // Add DNS and timing information  
+      }
+      
+      const startTime = Date.now(); // Track overall request timing
+      
+      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+        try {
+          const dns = require('dns');
+          const { promisify } = require('util');
+          const resolve = promisify(dns.resolve);
+          const urlObj = new URL(url);
+          const dnsStart = Date.now();
+          const addresses = await resolve(urlObj.hostname);
+          const dnsTime = Date.now() - dnsStart;
+          log(`[Azure-Network-Debug] DNS resolution: ${urlObj.hostname} -> ${addresses.join(', ')} (${dnsTime}ms)`, "scraper");
+        } catch (dnsError) {
+          log(`[Azure-Network-Debug] DNS resolution failed: ${dnsError.message}`, "scraper-error");
+        }
+      }
+      
       // Call the appropriate method with URL as first param, options as second
       switch (method.toLowerCase()) {
         case 'get':
@@ -208,6 +237,36 @@ export async function performCycleTLSRequest(
       log(`[ProtectionBypass] CycleTLS response received`, "scraper");
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
       log(`[ProtectionBypass] Response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
+      
+      // Enhanced response diagnostics for Azure vs Replit investigation
+      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+        const responseTime = Date.now() - (startTime || Date.now());
+        log(`[Azure-Network-Debug] Response received after ${responseTime}ms`, "scraper");
+        log(`[Azure-Network-Debug] Response status: ${response ? response.status : 'null'}`, "scraper");
+        log(`[Azure-Network-Debug] Response headers available: ${response && response.headers ? 'yes' : 'no'}`, "scraper");
+        log(`[Azure-Network-Debug] Response body available: ${response && (response.data || response.text) ? 'yes' : 'no'}`, "scraper");
+        
+        if (response && response.headers) {
+          const serverHeader = response.headers['server'] || response.headers['Server'];
+          const cfRay = response.headers['cf-ray'] || response.headers['CF-RAY'];
+          const cfCache = response.headers['cf-cache-status'] || response.headers['CF-Cache-Status'];
+          
+          if (serverHeader) log(`[Azure-Network-Debug] Server: ${serverHeader}`, "scraper");
+          if (cfRay) log(`[Azure-Network-Debug] Cloudflare Ray ID: ${cfRay}`, "scraper");
+          if (cfCache) log(`[Azure-Network-Debug] Cloudflare Cache Status: ${cfCache}`, "scraper");
+        }
+        
+        // Log content length for analysis
+        if (response && (response.data || response.text)) {
+          const contentLength = (response.data || response.text).length;
+          log(`[Azure-Network-Debug] Response content length: ${contentLength} characters`, "scraper");
+          
+          // Sample first 200 chars for analysis (but not sensitive content)
+          const content = (response.data || response.text).toString();
+          const sample = content.substring(0, 200).replace(/[\r\n]+/g, ' ');
+          log(`[Azure-Network-Debug] Content sample: ${sample}...`, "scraper");
+        }
+      }
       
       // Validate response
       if (!response) {
