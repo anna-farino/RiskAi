@@ -37,15 +37,37 @@ export function detectEnvironment(): EnvironmentInfo {
   const isAzure = process.env.IS_AZURE === 'true';
   const isReplit = process.env.REPLIT === 'true' || process.env.REPL_ID !== undefined;
   
+  // Enhanced environment detection logging for Azure investigation
+  if (isAzure) {
+    log(`[Azure-Environment-Debug] Environment detection started`, "scraper");
+    log(`[Azure-Environment-Debug] NODE_ENV: ${nodeEnv}`, "scraper");
+    log(`[Azure-Environment-Debug] IS_AZURE: ${process.env.IS_AZURE}`, "scraper");
+    log(`[Azure-Environment-Debug] Platform: ${process.platform}`, "scraper");
+    log(`[Azure-Environment-Debug] Architecture: ${process.arch}`, "scraper");
+    log(`[Azure-Environment-Debug] Node version: ${process.version}`, "scraper");
+  }
+  
   // Detect containerization
   const containerized = isAzure || 
     process.env.DOCKER_CONTAINER === 'true' ||
     process.env.KUBERNETES_SERVICE_HOST !== undefined;
 
   // Get system info
-  const cpuCount = require('os').cpus().length;
-  const totalMem = require('os').totalmem();
+  const os = require('os');
+  const cpuCount = os.cpus().length;
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
   const memoryLimit = `${Math.round(totalMem / 1024 / 1024 / 1024 * 100) / 100}GB`;
+  
+  // Enhanced Azure environment logging
+  if (isAzure) {
+    log(`[Azure-Environment-Debug] CPU cores: ${cpuCount}`, "scraper");
+    log(`[Azure-Environment-Debug] Total memory: ${memoryLimit}`, "scraper");
+    log(`[Azure-Environment-Debug] Free memory: ${Math.round(freeMem / 1024 / 1024)}MB`, "scraper");
+    log(`[Azure-Environment-Debug] Containerized: ${containerized}`, "scraper");
+    log(`[Azure-Environment-Debug] Hostname: ${os.hostname()}`, "scraper");
+    log(`[Azure-Environment-Debug] Network interfaces: ${Object.keys(os.networkInterfaces()).join(', ')}`, "scraper");
+  }
 
   return {
     platform: process.platform,
