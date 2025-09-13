@@ -27,6 +27,8 @@ interface BrowserFingerprint {
 export class AzureAntiDetectionManager {
   private highRiskDomains = [
     'darkreading.com',
+    'darkreader.com',
+    'bizjournals.com',
     'cloudflare.com',
     'recaptcha.net',
     'hcaptcha.com'
