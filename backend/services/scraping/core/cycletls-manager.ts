@@ -96,7 +96,32 @@ class CycleTLSManager {
   private async validateBinaryArchitecture(): Promise<void> {
     const systemArch = process.arch; // 'x64' or 'arm64'
     const platform = process.platform; // 'linux', 'darwin', 'win32'
-    const expectedBinary = `cycletls-${platform}-${systemArch}`;
+
+    // CycleTLS uses different naming convention than expected
+    // Based on logs: available binaries are "index", "index-arm", "index-arm64", "index-freebsd", "index-mac", "index-mac-arm64", "index.exe"
+    let expectedBinary = '';
+
+    if (platform === 'linux') {
+      if (systemArch === 'arm64') {
+        expectedBinary = 'index-arm64';
+      } else if (systemArch === 'arm') {
+        expectedBinary = 'index-arm';
+      } else {
+        expectedBinary = 'index'; // Default for x64 linux
+      }
+    } else if (platform === 'darwin') {
+      if (systemArch === 'arm64') {
+        expectedBinary = 'index-mac-arm64';
+      } else {
+        expectedBinary = 'index-mac';
+      }
+    } else if (platform === 'win32') {
+      expectedBinary = 'index.exe';
+    } else if (platform === 'freebsd') {
+      expectedBinary = 'index-freebsd';
+    } else {
+      expectedBinary = 'index'; // Fallback
+    }
 
     // Check for binary in multiple possible locations
     const possiblePaths = [
@@ -123,7 +148,7 @@ class CycleTLSManager {
       try {
         if (fs.existsSync(cycleTLSDir)) {
           const files = fs.readdirSync(cycleTLSDir);
-          availableBinaries = files.filter(f => f.startsWith('cycletls-')).join(', ') || 'none found';
+          availableBinaries = files.join(', ') || 'none found';
         }
       } catch (error) {
         availableBinaries = `error listing: ${error.message}`;
