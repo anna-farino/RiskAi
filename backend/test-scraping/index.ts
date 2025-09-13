@@ -97,14 +97,15 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
 
     log(`[TEST-SCRAPING] Request ${requestId} - Testing source: ${sourceUrl} (testMode: ${testMode})`, "test-scraper");
 
-    // Perform test scraping
-    const result = await testSourceScraping(sourceUrl, testMode);
-
-    // Add request metadata to response
-    const response = {
-      ...result,
+    // Return immediately with request accepted status
+    const immediateResponse = {
+      success: true,
+      message: 'Test scraping initiated - check logs for progress',
       requestId,
-      processingTimeMs: Date.now() - startTime,
+      sourceUrl,
+      testMode,
+      timestamp: new Date().toISOString(),
+      processingStatus: 'started',
       serverInfo: {
         nodeEnv: process.env.NODE_ENV,
         isAzure: process.env.IS_AZURE === 'true',
@@ -112,17 +113,10 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
       }
     };
 
-    // Log summary
-    const status = result.success ? 'SUCCESS' : 'FAILURE';
-    const articlesInfo = `${result.scraping.articlesFound} found, ${result.scraping.articlesProcessed} processed`;
-    const errorCount = result.scraping.errors.length;
+    res.status(202).json(immediateResponse); // 202 Accepted
 
-    log(`[TEST-SCRAPING] Request ${requestId} ${status}: ${articlesInfo}, ${errorCount} errors, ${Date.now() - startTime}ms`, "test-scraper");
-
-    // Set appropriate HTTP status
-    const httpStatus = result.success ? 200 : (result.scraping.articlesFound === 0 ? 404 : 206); // 206 = partial content
-
-    res.status(httpStatus).json(response);
+    // Process scraping in background (fire and forget)
+    processScrapingInBackground(sourceUrl, testMode, requestId, startTime);
 
   } catch (error: any) {
     const errorMsg = `Test scraping request failed: ${error.message}`;
@@ -136,6 +130,61 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
       processingTimeMs: Date.now() - startTime,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+}
+
+/**
+ * Background processing function for test scraping
+ * This runs independently of the HTTP request/response cycle
+ */
+async function processScrapingInBackground(
+  sourceUrl: string,
+  testMode: boolean,
+  requestId: string | unknown,
+  startTime: number
+): Promise<void> {
+  try {
+    log(`[TEST-SCRAPING] Background processing started for request ${requestId}`, "test-scraper");
+
+    // Perform test scraping
+    const result = await testSourceScraping(sourceUrl, testMode);
+
+    // Log comprehensive results
+    const status = result.success ? 'SUCCESS' : 'FAILURE';
+    const articlesInfo = `${result.scraping.articlesFound} found, ${result.scraping.articlesProcessed} processed`;
+    const errorCount = result.scraping.errors.length;
+    const totalTime = Date.now() - startTime;
+
+    log(`[TEST-SCRAPING] Background processing ${status} for request ${requestId}:`, "test-scraper");
+    log(`  - Articles: ${articlesInfo}`, "test-scraper");
+    log(`  - Errors: ${errorCount}`, "test-scraper");
+    log(`  - Total time: ${totalTime}ms`, "test-scraper");
+    log(`  - CycleTLS compatible: ${result.diagnostics.cycleTLSCompatible}`, "test-scraper");
+    log(`  - IP Address: ${result.diagnostics.ipAddress}`, "test-scraper");
+    log(`  - Anti-detection applied: ${result.diagnostics.antiDetectionApplied}`, "test-scraper");
+
+    // Log errors if any
+    if (result.scraping.errors.length > 0) {
+      result.scraping.errors.forEach((error, index) => {
+        log(`  - Error ${index + 1}: ${error}`, "test-scraper-error");
+      });
+    }
+
+    // Log sample articles if found
+    if (result.scraping.sampleArticles.length > 0) {
+      log(`  - Sample articles found:`, "test-scraper");
+      result.scraping.sampleArticles.slice(0, 3).forEach((article, index) => {
+        log(`    ${index + 1}. ${article.title} (${article.url})`, "test-scraper");
+      });
+    }
+
+    log(`[TEST-SCRAPING] Background processing completed for request ${requestId}`, "test-scraper");
+
+  } catch (error: any) {
+    log(`[TEST-SCRAPING] Background processing failed for request ${requestId}: ${error.message}`, "test-scraper-error");
+    if (error.stack) {
+      log(`[TEST-SCRAPING] Stack trace: ${error.stack}`, "test-scraper-error");
+    }
   }
 }
 

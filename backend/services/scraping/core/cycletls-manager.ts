@@ -101,7 +101,6 @@ class CycleTLSManager {
     // Check for binary in multiple possible locations
     const possiblePaths = [
       path.join(process.cwd(), 'node_modules', 'cycletls', 'dist', expectedBinary),
-      path.join(process.cwd(), 'backend', 'node_modules', 'cycletls', 'dist', expectedBinary),
       path.join(__dirname, '..', '..', '..', 'node_modules', 'cycletls', 'dist', expectedBinary)
     ];
 
@@ -118,7 +117,7 @@ class CycleTLSManager {
 
     if (!binaryFound) {
       // List available binaries for debugging
-      const cycleTLSDir = path.join(process.cwd(), 'backend', 'node_modules', 'cycletls', 'dist');
+      const cycleTLSDir = path.join(process.cwd(), 'node_modules', 'cycletls', 'dist');
       let availableBinaries = 'none found';
 
       try {
@@ -264,7 +263,7 @@ class CycleTLSManager {
 
     // CycleTLS directory structure
     try {
-      const cycleTLSPath = path.join(process.cwd(), 'backend', 'node_modules', 'cycletls');
+      const cycleTLSPath = path.join(process.cwd(), 'node_modules', 'cycletls');
       if (fs.existsSync(cycleTLSPath)) {
         const structure = this.getCycleTLSStructure(cycleTLSPath);
         log(`[CycleTLSManager] CycleTLS structure: ${JSON.stringify(structure, null, 2)}`, "scraper");
