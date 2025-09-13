@@ -119,21 +119,7 @@ RUN cd /app/backend && \
 # Test CycleTLS module loading (critical for Azure compatibility)
 RUN cd /app/backend && \
     echo "=== CYCLETLS MODULE VALIDATION ===" && \
-    timeout 15 node -e "
-        try {
-            const cycletls = require('cycletls');
-            if (typeof cycletls === 'function') {
-                console.log('✅ CycleTLS module loaded successfully');
-                process.exit(0);
-            } else {
-                console.log('❌ CycleTLS module invalid - not a function');
-                process.exit(1);
-            }
-        } catch (error) {
-            console.log('❌ CycleTLS module loading failed:', error.message);
-            process.exit(1);
-        }
-    " && echo "✅ CycleTLS module validation completed" || \
+    timeout 15 node -e "try { const cycletls = require('cycletls'); if (typeof cycletls === 'function') { console.log('✅ CycleTLS module loaded successfully'); process.exit(0); } else { console.log('❌ CycleTLS module invalid - not a function'); process.exit(1); } } catch (error) { console.log('❌ CycleTLS module loading failed:', error.message); process.exit(1); }" && echo "✅ CycleTLS module validation completed" || \
     (echo "❌ CycleTLS module validation failed" && exit 1) && \
     echo ""
 
