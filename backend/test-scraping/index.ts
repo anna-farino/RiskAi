@@ -233,6 +233,18 @@ export async function handleTestScrapingHealth(req: Request, res: Response): Pro
       // Puppeteer not available
     }
 
+    // Force CycleTLS validation check for debugging
+    try {
+      const { cycleTLSManager } = require('backend/services/scraping/core/cycletls-manager');
+
+      // Force a fresh validation by checking compatibility
+      health.scraping.cycleTLSArchitectureCheck = await cycleTLSManager.isCompatible();
+      health.scraping.cycleTLSStats = cycleTLSManager.getStats();
+
+    } catch (cycleTLSError) {
+      health.scraping.cycleTLSError = cycleTLSError.message;
+    }
+
     res.status(200).json(health);
 
   } catch (error: any) {
