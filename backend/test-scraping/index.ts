@@ -52,12 +52,17 @@ function validateRequest(body: any): { isValid: boolean; error?: string; data?: 
     return { isValid: false, error: 'testMode must be a boolean if provided' };
   }
 
+  if (body.fullTest !== undefined && typeof body.fullTest !== 'boolean') {
+    return { isValid: false, error: 'fullTest must be a boolean if provided' };
+  }
+
   return {
     isValid: true,
     data: {
       password: body.password,
       sourceUrl: body.sourceUrl,
-      testMode: body.testMode || false
+      testMode: body.testMode || false,
+      fullTest: body.fullTest || false
     }
   };
 }
@@ -93,9 +98,9 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
       return;
     }
 
-    const { sourceUrl, testMode } = validation.data!;
+    const { sourceUrl, testMode, fullTest } = validation.data!;
 
-    log(`[TEST-SCRAPING] Request ${requestId} - Testing source: ${sourceUrl} (testMode: ${testMode})`, "test-scraper");
+    log(`[TEST-SCRAPING] Request ${requestId} - Testing source: ${sourceUrl} (testMode: ${testMode}, fullTest: ${fullTest})`, "test-scraper");
 
     // Return immediately with request accepted status
     const immediateResponse = {
@@ -104,6 +109,7 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
       requestId,
       sourceUrl,
       testMode,
+      fullTest,
       timestamp: new Date().toISOString(),
       processingStatus: 'started',
       serverInfo: {
@@ -116,7 +122,7 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
     res.status(202).json(immediateResponse); // 202 Accepted
 
     // Process scraping in background (fire and forget)
-    processScrapingInBackground(sourceUrl, testMode, requestId, startTime);
+    processScrapingInBackground(sourceUrl, testMode, fullTest, requestId, startTime);
 
   } catch (error: any) {
     const errorMsg = `Test scraping request failed: ${error.message}`;
@@ -140,6 +146,7 @@ export async function handleTestScraping(req: Request, res: Response): Promise<v
 async function processScrapingInBackground(
   sourceUrl: string,
   testMode: boolean,
+  fullTest: boolean,
   requestId: string | unknown,
   startTime: number
 ): Promise<void> {
@@ -147,7 +154,7 @@ async function processScrapingInBackground(
     log(`[TEST-SCRAPING] Background processing started for request ${requestId}`, "test-scraper");
 
     // Perform test scraping
-    const result = await testSourceScraping(sourceUrl, testMode);
+    const result = await testSourceScraping(sourceUrl, testMode, fullTest);
 
     // Log comprehensive results
     const status = result.success ? 'SUCCESS' : 'FAILURE';
@@ -162,6 +169,19 @@ async function processScrapingInBackground(
     log(`  - CycleTLS compatible: ${result.diagnostics.cycleTLSCompatible}`, "test-scraper");
     log(`  - IP Address: ${result.diagnostics.ipAddress}`, "test-scraper");
     log(`  - Anti-detection applied: ${result.diagnostics.antiDetectionApplied}`, "test-scraper");
+
+    // Log full test results if applicable
+    if (fullTest && result.fullTest) {
+      log(`  - Full Test Results:`, "test-scraper");
+      log(`    - Articles saved: ${result.fullTest.articlesSaved}`, "test-scraper");
+      log(`    - Saving errors: ${result.fullTest.savingErrors.length}`, "test-scraper");
+      if (result.fullTest.savedArticles.length > 0) {
+        log(`    - Sample saved articles:`, "test-scraper");
+        result.fullTest.savedArticles.slice(0, 3).forEach((article, index) => {
+          log(`      ${index + 1}. ${article.title} (${article.url}) - Cyber: ${article.isCybersecurity}`, "test-scraper");
+        });
+      }
+    }
 
     // Log errors if any
     if (result.scraping.errors.length > 0) {

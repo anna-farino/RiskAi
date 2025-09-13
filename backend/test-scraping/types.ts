@@ -7,6 +7,7 @@ export interface TestScrapingRequest {
   password: string;
   sourceUrl: string;
   testMode?: boolean;
+  fullTest?: boolean;
 }
 
 export interface TestScrapingResponse {
@@ -28,6 +29,11 @@ export interface TestScrapingResponse {
       articleScrapingMs?: number;
       totalMs: number;
     };
+  };
+  fullTest?: {
+    articlesSaved: number;
+    savedArticles: SavedTestArticle[];
+    savingErrors: string[];
   };
   diagnostics: {
     environment: string;
@@ -62,6 +68,21 @@ export interface LogEntry {
   level: 'info' | 'warning' | 'error';
   message: string;
   context?: string;
+}
+
+export interface SavedTestArticle {
+  id: string;
+  url: string;
+  title: string;
+  contentPreview: string;
+  author?: string;
+  publishDate?: string;
+  summary?: string;
+  detectedKeywords: string[];
+  isCybersecurity: boolean;
+  securityScore?: number;
+  scrapingMethod: string;
+  extractionSuccess: boolean;
 }
 
 export interface ScrapingDiagnostics {
