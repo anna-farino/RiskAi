@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Scraping API Documentation - September 13, 2025</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #2c3e50;
+            --border-color: #dee2e6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 0 30px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 40px;
+            margin: -20px -20px 40px -20px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .meta-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--light-bg);
+            border-radius: 8px;
+            border-left: 5px solid var(--secondary-color);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+        .status-dev { background: var(--warning-color); color: white; }
+        .status-complete { background: var(--success-color); color: white; }
+
+        .toc {
+            background: var(--light-bg);
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            border: 1px solid var(--border-color);
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .toc a:hover {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 30px;
+            color: var(--secondary-color);
+        }
+
+        h4 {
+            font-size: 1.2rem;
+            margin-top: 25px;
+            color: #555;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #404040;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-block::before {
+            content: attr(data-language);
+            position: absolute;
+            top: -1px;
+            right: 10px;
+            background: var(--secondary-color);
+            color: white;
+            padding: 2px 8px;
+            font-size: 11px;
+            border-radius: 0 0 4px 4px;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+
+        .code-block pre {
+            margin: 0;
+            padding: 20px;
+            background: transparent;
+            color: #f8f8f2;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .code-block code {
+            background: transparent;
+            color: #f8f8f2;
+            padding: 0;
+            font-size: inherit;
+            font-family: inherit;
+        }
+
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .api-table th {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .api-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        .api-table tbody tr:hover {
+            background: var(--light-bg);
+        }
+
+        .method-get { background: var(--success-color); }
+        .method-post { background: var(--secondary-color); }
+        .method-put { background: var(--warning-color); }
+        .method-delete { background: var(--danger-color); }
+
+        .method-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .info-box, .warning-box, .danger-box, .success-box {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            border-left: 5px solid;
+        }
+
+        .info-box {
+            background: #e8f4fd;
+            border-color: var(--secondary-color);
+            color: #1e40af;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-color: var(--warning-color);
+            color: #856404;
+        }
+
+        .danger-box {
+            background: #fadbd8;
+            border-color: var(--danger-color);
+            color: #721c24;
+        }
+
+        .success-box {
+            background: #d5f4e6;
+            border-color: var(--success-color);
+            color: #0f5132;
+        }
+
+        .endpoint-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light-bg);
+        }
+
+        .endpoint-path {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .example-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .example-card {
+            background: var(--light-bg);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .example-title {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--secondary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        inline code {
+            background: #f4f4f4;
+            color: var(--primary-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+
+        .footer {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            margin: 40px -20px -20px -20px;
+            border-radius: 0 0 10px 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Test Scraping API Documentation</h1>
+            <div class="subtitle">September 13, 2025 - Development & Testing Tool</div>
+        </div>
+
+        <div class="meta-info">
+            <div class="meta-item">
+                <span class="meta-label">Version:</span>
+                <span>1.0</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Created:</span>
+                <span>September 13, 2025</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Status:</span>
+                <span class="status-badge status-dev">Development</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Security:</span>
+                <span>Password Protected</span>
+            </div>
+        </div>
+
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#security">Security Model</a></li>
+                <li><a href="#endpoints">API Endpoints</a></li>
+                <li><a href="#examples">Usage Examples</a></li>
+                <li><a href="#diagnostics">Diagnostic Information</a></li>
+                <li><a href="#troubleshooting">Troubleshooting</a></li>
+                <li><a href="#implementation">Implementation Details</a></li>
+            </ul>
+        </div>
+
+        <section id="overview" class="section">
+            <h2>📋 Overview</h2>
+            <p>The Test Scraping API provides a secure, unprotected endpoint for testing scraping functionality without affecting production data. This is particularly useful for debugging Azure vs Replit scraping differences and validating the enhanced scraping system.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔓</div>
+                    <h4>No Auth0 Required</h4>
+                    <p>Routes placed before Auth0 middleware for easy testing without authentication tokens.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h4>Password Protected</h4>
+                    <p>Secured with hardcoded password to prevent unauthorized access while maintaining simplicity.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h4>Comprehensive Diagnostics</h4>
+                    <p>Detailed environment information, CycleTLS compatibility, IP detection, and performance metrics.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h4>Production Logic</h4>
+                    <p>Uses exact same scraping functions as production for accurate testing results.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="security" class="section">
+            <h2>🔐 Security Model</h2>
+            <div class="api-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Security Layer</th>
+                            <th>Implementation</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Authentication</strong></td>
+                            <td>Password in body</td>
+                            <td>Hardcoded password <code>"TestTST"</code> required in request</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Authorization</strong></td>
+                            <td>None (pre-Auth0)</td>
+                            <td>Routes placed before Auth0 middleware</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Production Block</strong></td>
+                            <td>Environment check</td>
+                            <td>Automatically disabled when <code>NODE_ENV=production</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rate Limiting</strong></td>
+                            <td>Express rate limiter</td>
+                            <td>Standard rate limiting applied</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Data Protection</strong></td>
+                            <td>Read-only operations</td>
+                            <td>No database writes, purely for testing</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="endpoints" class="section">
+            <h2>🚀 API Endpoints</h2>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method-badge method-post">POST</span>
+                    <span class="endpoint-path">/api/test-scraping</span>
+                </div>
+                <p>Main endpoint for testing scraping functionality on any source URL.</p>
+
+                <h4>Request Format</h4>
+                <div class="code-block" data-language="json">
+                    <pre><code class="json">{
+  "password": "TestTST",
+  "sourceUrl": "https://www.darkreading.com",
+  "testMode": false
+}</code></pre>
+                </div>
+
+                <h4>Request Parameters</h4>
+                <div class="api-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>password</code></td>
+                                <td>string</td>
+                                <td>Yes</td>
+                                <td>Must be exactly <code>"TestTST"</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>sourceUrl</code></td>
+                                <td>string</td>
+                                <td>Yes</td>
+                                <td>Valid HTTP/HTTPS URL to scrape (max 500 chars)</td>
+                            </tr>
+                            <tr>
+                                <td><code>testMode</code></td>
+                                <td>boolean</td>
+                                <td>No</td>
+                                <td>If true, tests up to 3 sample articles instead of 1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>HTTP Status Codes</h4>
+                <div class="api-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>200</strong></td>
+                                <td>Success - scraping completed successfully</td>
+                            </tr>
+                            <tr>
+                                <td><strong>206</strong></td>
+                                <td>Partial Content - some articles found but scraping had issues</td>
+                            </tr>
+                            <tr>
+                                <td><strong>400</strong></td>
+                                <td>Bad Request - validation failed (wrong password, invalid URL, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>403</strong></td>
+                                <td>Forbidden - endpoint disabled in production environment</td>
+                            </tr>
+                            <tr>
+                                <td><strong>404</strong></td>
+                                <td>Not Found - no articles found on source page</td>
+                            </tr>
+                            <tr>
+                                <td><strong>500</strong></td>
+                                <td>Internal Server Error - system error</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="endpoint-path">/api/test-scraping/health</span>
+                </div>
+                <p>Health check endpoint for the test scraping system.</p>
+
+                <h4>Response Format</h4>
+                <div class="code-block" data-language="json">
+                    <pre><code class="json">{
+  "status": "healthy",
+  "timestamp": "2024-12-XX...",
+  "environment": {
+    "nodeEnv": "production",
+    "isAzure": true,
+    "hasDatabase": true
+  },
+  "scraping": {
+    "unifiedScraperLoaded": true,
+    "cycleTLSAvailable": true,
+    "puppeteerAvailable": true
+  }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="examples" class="section">
+            <h2>💡 Usage Examples</h2>
+
+            <div class="example-grid">
+                <div class="example-card">
+                    <div class="example-title">Basic Test - darkreading.com</div>
+                    <div class="code-block" data-language="bash">
+                        <pre><code class="bash">curl -X POST http://localhost:5000/api/test-scraping \
+  -H "Content-Type: application/json" \
+  -d '{
+    "password": "TestTST",
+    "sourceUrl": "https://www.darkreading.com"
+  }'</code></pre>
+                    </div>
+                </div>
+
+                <div class="example-card">
+                    <div class="example-title">Enhanced Test Mode</div>
+                    <div class="code-block" data-language="bash">
+                        <pre><code class="bash">curl -X POST http://localhost:5000/api/test-scraping \
+  -H "Content-Type: application/json" \
+  -d '{
+    "password": "TestTST",
+    "sourceUrl": "https://www.darkreading.com",
+    "testMode": true
+  }'</code></pre>
+                    </div>
+                </div>
+
+                <div class="example-card">
+                    <div class="example-title">Test Unknown Source</div>
+                    <div class="code-block" data-language="bash">
+                        <pre><code class="bash">curl -X POST http://localhost:5000/api/test-scraping \
+  -H "Content-Type: application/json" \
+  -d '{
+    "password": "TestTST",
+    "sourceUrl": "https://techcrunch.com"
+  }'</code></pre>
+                    </div>
+                </div>
+
+                <div class="example-card">
+                    <div class="example-title">Azure Production Test</div>
+                    <div class="code-block" data-language="bash">
+                        <pre><code class="bash">curl -X POST https://your-azure-app.azurecontainerapps.io/api/test-scraping \
+  -H "Content-Type: application/json" \
+  -d '{
+    "password": "TestTST",
+    "sourceUrl": "https://www.darkreading.com",
+    "testMode": true
+  }'</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="diagnostics" class="section">
+            <h2>🔍 Diagnostic Information</h2>
+            <p>The API provides comprehensive diagnostic information to help debug scraping issues:</p>
+
+            <h3>Environment Detection</h3>
+            <ul>
+                <li><strong>environment</strong>: <code>"azure"</code>, <code>"local"</code>, or <code>"unknown"</code></li>
+                <li><strong>isAzure</strong>: Boolean flag for Azure Container Apps</li>
+                <li><strong>nodeEnv</strong>: Current NODE_ENV value</li>
+            </ul>
+
+            <h3>CycleTLS Diagnostics</h3>
+            <div class="code-block" data-language="json">
+                <pre><code class="json">"cycleTLSStats": {
+  "architectureCompatible": true,
+  "isArchitectureValidated": true,
+  "binaryPath": "/app/backend/node_modules/cycletls/dist/cycletls-linux-x64",
+  "lastCompatibilityCheck": "2024-12-XX..."
+}</code></pre>
+            </div>
+
+            <h3>Network & Anti-Detection</h3>
+            <ul>
+                <li><strong>ipAddress</strong>: Current outbound IP address (detected via httpbin.org)</li>
+                <li><strong>antiDetectionApplied</strong>: Whether Azure anti-detection measures were applied</li>
+                <li><strong>scrapingMethods</strong>: Tracking which methods were successfully used</li>
+            </ul>
+        </section>
+
+        <section id="troubleshooting" class="section">
+            <h2>🔧 Troubleshooting</h2>
+
+            <div class="info-box">
+                <h4>Azure vs Replit Comparison</h4>
+                <p>Use this API to compare results between environments by testing the same URL in both and comparing the diagnostic sections.</p>
+            </div>
+
+            <h3>Common Errors</h3>
+            <div class="api-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Error</th>
+                            <th>Cause</th>
+                            <th>Solution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>"Forbidden"</td>
+                            <td>Production environment detected</td>
+                            <td>Only available in development/staging environments</td>
+                        </tr>
+                        <tr>
+                            <td>"Invalid password"</td>
+                            <td>Wrong password in request</td>
+                            <td>Use <code>"TestTST"</code> exactly</td>
+                        </tr>
+                        <tr>
+                            <td>"sourceUrl must be a valid URL"</td>
+                            <td>Malformed URL</td>
+                            <td>Provide valid HTTP/HTTPS URL</td>
+                        </tr>
+                        <tr>
+                            <td>"No article links found"</td>
+                            <td>Source page has no extractable links</td>
+                            <td>Check if URL is a news source homepage</td>
+                        </tr>
+                        <tr>
+                            <td>"CycleTLS module loading failed"</td>
+                            <td>Binary compatibility issues</td>
+                            <td>Check Azure container architecture</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Debugging Steps</h3>
+            <ol>
+                <li><strong>Check Health</strong>: Start with <code>/api/test-scraping/health</code></li>
+                <li><strong>Test Known Source</strong>: Use darkreading.com which is in the database</li>
+                <li><strong>Enable Test Mode</strong>: Use <code>"testMode": true</code> for more detailed output</li>
+                <li><strong>Check Logs</strong>: Review the <code>logs</code> array in response</li>
+                <li><strong>Monitor Timing</strong>: Look at <code>timing</code> object for performance issues</li>
+            </ol>
+        </section>
+
+        <section id="implementation" class="section">
+            <h2>⚙️ Implementation Details</h2>
+
+            <h3>Core Components</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Handler (index.ts)</h4>
+                    <p>Request validation, security checks, and response formatting</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Scraper (scraper.ts)</h4>
+                    <p>Production scraping logic wrapper with comprehensive diagnostics</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Types (types.ts)</h4>
+                    <p>TypeScript definitions for all requests and responses</p>
+                </div>
+            </div>
+
+            <h3>Production Integration</h3>
+            <p>The test API uses the <strong>exact same scraping logic</strong> as production:</p>
+            <ul>
+                <li><code>unifiedScraper.scrapeSourceUrl()</code> - Extract article links</li>
+                <li><code>unifiedScraper.scrapeArticleUrl()</code> - Extract article content</li>
+                <li><code>GlobalStrategy</code> context - Same strategy as global scheduler</li>
+                <li><code>cycleTLSManager</code> - Same CycleTLS management</li>
+                <li><code>azureAntiDetectionManager</code> - Same anti-detection system</li>
+            </ul>
+
+            <div class="warning-box">
+                <h4>⚠️ Development Tool Warning</h4>
+                <p>This is a development/testing tool only. Do not use in production without proper authentication and authorization mechanisms.</p>
+            </div>
+        </section>
+
+        <div class="footer">
+            <p><strong>Test Scraping API Documentation</strong> - Created September 13, 2025</p>
+            <p>For debugging Azure vs Replit scraping differences • Password: TestTST</p>
+        </div>
+    </div>
+</body>
+</html>

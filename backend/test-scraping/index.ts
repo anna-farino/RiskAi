@@ -1,0 +1,197 @@
+/**
+ * Test Scraping Route Handler
+ * Allows testing of scraping functionality without Auth0 protection
+ * Secured with hardcoded password for development/testing purposes
+ */
+
+import { Request, Response } from 'express';
+import { log } from "backend/utils/log";
+import { testSourceScraping } from './scraper';
+import { TestScrapingRequest, TestScrapingResponse } from './types';
+
+// Security configuration
+const TEST_PASSWORD = 'TestTST';
+const MAX_URL_LENGTH = 500;
+
+/**
+ * Validate the request payload
+ */
+function validateRequest(body: any): { isValid: boolean; error?: string; data?: TestScrapingRequest } {
+  // Check required fields
+  if (!body || typeof body !== 'object') {
+    return { isValid: false, error: 'Request body must be a valid JSON object' };
+  }
+
+  if (!body.password || typeof body.password !== 'string') {
+    return { isValid: false, error: 'Password is required' };
+  }
+
+  if (body.password !== TEST_PASSWORD) {
+    return { isValid: false, error: 'Invalid password' };
+  }
+
+  if (!body.sourceUrl || typeof body.sourceUrl !== 'string') {
+    return { isValid: false, error: 'sourceUrl is required and must be a string' };
+  }
+
+  // Validate URL format
+  try {
+    const url = new URL(body.sourceUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return { isValid: false, error: 'sourceUrl must use HTTP or HTTPS protocol' };
+    }
+    if (body.sourceUrl.length > MAX_URL_LENGTH) {
+      return { isValid: false, error: `sourceUrl must be less than ${MAX_URL_LENGTH} characters` };
+    }
+  } catch (error) {
+    return { isValid: false, error: 'sourceUrl must be a valid URL' };
+  }
+
+  // Validate optional fields
+  if (body.testMode !== undefined && typeof body.testMode !== 'boolean') {
+    return { isValid: false, error: 'testMode must be a boolean if provided' };
+  }
+
+  return {
+    isValid: true,
+    data: {
+      password: body.password,
+      sourceUrl: body.sourceUrl,
+      testMode: body.testMode || false
+    }
+  };
+}
+
+/**
+ * Main test scraping handler
+ */
+export async function handleTestScraping(req: Request, res: Response): Promise<void> {
+  const requestId = req.headers['x-call-id'] || 'unknown';
+  const startTime = Date.now();
+
+  // Production environment check
+  if (process.env.NODE_ENV === 'production') {
+    log(`[TEST-SCRAPING] BLOCKED: Attempt to use test endpoint in production`, "test-scraper-security");
+    res.status(403).json({
+      error: 'Forbidden'
+    });
+    return;
+  }
+
+  try {
+    log(`[TEST-SCRAPING] Request ${requestId} started`, "test-scraper");
+
+    // Validate request
+    const validation = validateRequest(req.body);
+    if (!validation.isValid) {
+      log(`[TEST-SCRAPING] Request ${requestId} validation failed: ${validation.error}`, "test-scraper");
+      res.status(400).json({
+        success: false,
+        error: validation.error,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const { sourceUrl, testMode } = validation.data!;
+
+    log(`[TEST-SCRAPING] Request ${requestId} - Testing source: ${sourceUrl} (testMode: ${testMode})`, "test-scraper");
+
+    // Perform test scraping
+    const result = await testSourceScraping(sourceUrl, testMode);
+
+    // Add request metadata to response
+    const response = {
+      ...result,
+      requestId,
+      processingTimeMs: Date.now() - startTime,
+      serverInfo: {
+        nodeEnv: process.env.NODE_ENV,
+        isAzure: process.env.IS_AZURE === 'true',
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    // Log summary
+    const status = result.success ? 'SUCCESS' : 'FAILURE';
+    const articlesInfo = `${result.scraping.articlesFound} found, ${result.scraping.articlesProcessed} processed`;
+    const errorCount = result.scraping.errors.length;
+
+    log(`[TEST-SCRAPING] Request ${requestId} ${status}: ${articlesInfo}, ${errorCount} errors, ${Date.now() - startTime}ms`, "test-scraper");
+
+    // Set appropriate HTTP status
+    const httpStatus = result.success ? 200 : (result.scraping.articlesFound === 0 ? 404 : 206); // 206 = partial content
+
+    res.status(httpStatus).json(response);
+
+  } catch (error: any) {
+    const errorMsg = `Test scraping request failed: ${error.message}`;
+    log(`[TEST-SCRAPING] Request ${requestId} ERROR: ${errorMsg}`, "test-scraper-error");
+
+    res.status(500).json({
+      success: false,
+      error: errorMsg,
+      requestId,
+      timestamp: new Date().toISOString(),
+      processingTimeMs: Date.now() - startTime,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+}
+
+/**
+ * Health check for the test scraping system
+ */
+export async function handleTestScrapingHealth(req: Request, res: Response): Promise<void> {
+  // Production environment check
+  if (process.env.NODE_ENV === 'production') {
+    log(`[TEST-SCRAPING] BLOCKED: Attempt to use test health endpoint in production`, "test-scraper-security");
+    res.status(403).json({
+      error: 'Forbidden'
+    });
+    return;
+  }
+
+  try {
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        isAzure: process.env.IS_AZURE === 'true',
+        hasDatabase: !!process.env.DATABASE_URL
+      },
+      scraping: {
+        unifiedScraperLoaded: true, // If we got this far, it's loaded
+        cycleTLSAvailable: false,
+        puppeteerAvailable: false
+      }
+    };
+
+    // Quick CycleTLS check
+    try {
+      const cycletls = require('cycletls');
+      health.scraping.cycleTLSAvailable = typeof cycletls === 'function';
+    } catch (error) {
+      // CycleTLS not available
+    }
+
+    // Quick Puppeteer check
+    try {
+      require('rebrowser-puppeteer');
+      health.scraping.puppeteerAvailable = true;
+    } catch (error) {
+      // Puppeteer not available
+    }
+
+    res.status(200).json(health);
+
+  } catch (error: any) {
+    log(`[TEST-SCRAPING] Health check failed: ${error.message}`, "test-scraper-error");
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
