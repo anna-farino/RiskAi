@@ -25,6 +25,59 @@ function findChromePath(): string {
     }
   }
 
+  // Check for Mac system Chrome paths
+  const macChromePaths = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+  ];
+
+  for (const path of macChromePaths) {
+    if (fs.existsSync(path)) {
+      log(
+        `[BrowserManager][findChromePath] Using Mac system Chrome: ${path}`,
+        "scraper",
+      );
+      return path;
+    }
+  }
+
+  // Check for local Puppeteer cache paths (Mac ARM64)
+  try {
+    const projectRoot = process.cwd().includes('/backend')
+      ? process.cwd().replace('/backend', '')
+      : process.cwd();
+    const localPuppeteerCache = `${projectRoot}/.cache/puppeteer/chrome`;
+
+    if (fs.existsSync(localPuppeteerCache)) {
+      const chromeVersions = fs.readdirSync(localPuppeteerCache);
+      for (const version of chromeVersions.sort().reverse()) { // Try newest versions first
+        const chromePath = `${localPuppeteerCache}/${version}/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+        if (fs.existsSync(chromePath)) {
+          log(
+            `[BrowserManager][findChromePath] Found local Mac Chrome: ${chromePath}`,
+            "scraper",
+          );
+          return chromePath;
+        }
+
+        // Also try x64 version for Intel Macs
+        const chromePathIntel = `${localPuppeteerCache}/${version}/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+        if (fs.existsSync(chromePathIntel)) {
+          log(
+            `[BrowserManager][findChromePath] Found local Intel Mac Chrome: ${chromePathIntel}`,
+            "scraper",
+          );
+          return chromePathIntel;
+        }
+      }
+    }
+  } catch (error) {
+    log(
+      `[BrowserManager][findChromePath] Error scanning local Puppeteer cache: ${error}`,
+      "scraper",
+    );
+  }
+
   // Check for Render's Puppeteer cache paths
   const renderPuppeteerPaths = [
     "/opt/render/project/src/.cache/puppeteer/chrome/linux-136.0.7103.94/chrome-linux64/chrome",

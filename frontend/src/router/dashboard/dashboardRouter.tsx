@@ -4,6 +4,7 @@ import OtpPage from '../../pages/otp-page.tsx'
 import ConfirmPassword from '../../pages/new-password.tsx'
 import Settings from '../../pages/dashboard/Settings.tsx'
 import HackRoles from '../../pages/dashboard/hack-roles.tsx'
+import LiveLogs from '../../pages/dashboard/LiveLogs.tsx'
 import WidgetDashboard from '@/pages/Dashboard.tsx'
 
 export const dashboardRouter = [
@@ -26,6 +27,10 @@ export const dashboardRouter = [
   {
     path: "settings/new-password",
     element: <ConfirmPassword twHeight='h-full' redirect='settings'/>
+  },
+  {
+    path: "dev/live-logs",
+    element: <LiveLogs />
   },
   //{
   //  path: "admin",

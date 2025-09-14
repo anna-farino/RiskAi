@@ -2,12 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createServer } from 'http';
 import router from './router';
 import helmet from 'helmet';
 import logTime from './middleware/log-time';
 import { callId } from './middleware/call-id';
 import { corsOptions } from './utils/cors-options';
 import { helmetConfig, setNonce } from './utils/helmet-config';
+import { initializeSocketIO } from './services/live-logs/socket-server';
+import { initializeLogInterception } from './services/live-logs/log-interceptor';
 
 const port = Number(process.env.PORT) || 5000;
 
@@ -24,6 +27,7 @@ try {
 }
 
 const app = express();
+const httpServer = createServer(app);
 
 app.set('trust-proxy', 1);
 app.use(helmet(helmetConfig));
@@ -44,7 +48,11 @@ if (isDevelopment) {
   }));
 }
 
-app.listen(port, async () => {
+// Initialize live logs system (staging only)
+initializeLogInterception();
+initializeSocketIO(httpServer);
+
+httpServer.listen(port, async () => {
   console.log(`🌐 [SERVER] Server is running on port ${port}`);
   if (isDevelopment) {
     console.log('💻 [SERVER] Development mode: Proxying non-API requests to Vite dev server');
