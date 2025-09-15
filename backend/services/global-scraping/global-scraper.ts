@@ -25,6 +25,14 @@ import {
   logBackgroundJobError,
   type ScrapingContextInfo 
 } from "../error-logging";
+// Data usage tracking
+import { 
+  getAllSessionsDataUsage,
+  logGlobalDataUsageSummary 
+} from "../scraping/core/protection-bypass";
+import { 
+  getPuppeteerDataUsage 
+} from "../scraping/scrapers/puppeteer-scraper/main-scraper";
 
 // Create single global context
 const globalStrategy = new GlobalStrategy();
@@ -35,6 +43,42 @@ const activeScraping = new Map<string, boolean>();
 
 // Track if global job is running
 let globalJobRunning = false;
+
+/**
+ * Calculate total data usage for a source
+ * Aggregates data from HTTP sessions and Puppeteer sessions
+ */
+function calculateSourceDataUsage(sourceId: string): string | null {
+  try {
+    // Get all session data usage from HTTP requests (CycleTLS and fetch)
+    const allSessions = getAllSessionsDataUsage();
+    
+    // Filter sessions that might be related to this source (we can't directly match
+    // sessionId to sourceId, so we aggregate all recent sessions as approximation)
+    const httpTotalBytes = allSessions.reduce((total, session) => {
+      return total + session.dataUsage.totalBytesSent + session.dataUsage.totalBytesReceived;
+    }, 0);
+    
+    // Note: We can't easily tie Puppeteer sessions to specific sources without
+    // modifying the scraper to pass sourceId through. For now, we'll estimate
+    // based on the fact that global scraping processes one source at a time.
+    
+    const totalMB = httpTotalBytes / (1024 * 1024);
+    
+    if (totalMB < 0.1) {
+      const totalKB = httpTotalBytes / 1024;
+      return totalKB > 0 ? `${totalKB.toFixed(1)}KB` : null;
+    } else if (totalMB < 1000) {
+      return `${totalMB.toFixed(2)}MB`;
+    } else {
+      const totalGB = totalMB / 1024;
+      return `${totalGB.toFixed(3)}GB`;
+    }
+  } catch (error: any) {
+    log(`[DataUsage] Error calculating source data usage: ${error.message}`, "data-usage");
+    return null;
+  }
+}
 
 /**
  * Create error context for logging
@@ -271,8 +315,12 @@ async function scrapeGlobalSource(
       .set({ lastScraped: new Date() })
       .where(eq(globalSources.id, sourceId));
 
+    // Calculate total data usage for this source
+    const sourceDataUsage = calculateSourceDataUsage(sourceId);
+    const dataUsageText = sourceDataUsage ? ` (Data: ${sourceDataUsage})` : '';
+    
     log(
-      `[Global Scraping] Completed source ${source.name}: ${processedCount} processed, ${savedCount} saved`,
+      `[Global Scraping] Completed source ${source.name}: ${processedCount} processed, ${savedCount} saved${dataUsageText}`,
       "scraper",
     );
 
@@ -381,8 +429,12 @@ export async function runUnifiedGlobalScraping(): Promise<{
           errors
         });
 
+        // Calculate total data usage for this source
+        const sourceDataUsage = calculateSourceDataUsage(sourceId);
+        const dataUsageText = sourceDataUsage ? ` (Data: ${sourceDataUsage})` : '';
+        
         log(
-          `[UNIFIED GLOBAL] Source ${source.name} completed: ${savedCount} new articles`,
+          `[UNIFIED GLOBAL] Source ${source.name} completed: ${savedCount} new articles${dataUsageText}`,
           "scraper",
         );
       } catch (error) {
