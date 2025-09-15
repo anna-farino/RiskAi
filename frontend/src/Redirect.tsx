@@ -6,9 +6,6 @@ export default function Redirect() {
   const { isAuthenticated, isLoading, user, error } = useAuth0();
   const navigate = useNavigate();
 
-  console.log("Redirect component. User:", user)
-  console.log("isAuthenticated", isAuthenticated)
-  console.log("isLoading", isLoading)
 
   useEffect(() => {
     if (isLoading) return;
@@ -21,13 +18,10 @@ export default function Redirect() {
     }
 
     if (isAuthenticated && user?.email_verified) {
-      console.log("Redirect: authenticated");
       navigate("/dashboard");
     } else if (isAuthenticated && !user?.email_verified) {
-      console.log("Redirect: authenticated but email not verified");
       navigate("/auth/login");
     } else {
-      console.log("Redirect: NOT authenticated");
       navigate("/auth/login");
     }
   }, [isAuthenticated, isLoading, user?.email_verified, navigate, error]);

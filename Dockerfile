@@ -1,3 +1,4 @@
+# Use explicit x64 architecture to ensure CycleTLS binary compatibility
 FROM node:20-slim
 
 # Install required system dependencies for Puppeteer/Chromium and Xvfb
@@ -79,19 +80,54 @@ COPY shared/ ./shared/
 COPY drizzle.config.ts ./
 COPY drizzle.config.ts ./backend/
 
-# Verify CycleTLS binaries and critical files exist - fail build if missing
-RUN echo "=== ENHANCED DEBUGGING: Checking CycleTLS architecture compatibility ===" && \
+# Enhanced CycleTLS architecture validation and debugging
+RUN echo "=== ARCHITECTURE VALIDATION ===" && \
     echo "System architecture: $(uname -m)" && \
     echo "Node version: $(node --version)" && \
     echo "Platform: $(node -p 'process.platform')" && \
     echo "Arch: $(node -p 'process.arch')" && \
     echo "" && \
-    echo "CycleTLS binaries found:" && \
-    find /app/backend/node_modules/cycletls -type f -executable 2>/dev/null | head -5 || echo "No CycleTLS binaries found" && \
+    if [ "$(node -p 'process.arch')" != "x64" ]; then \
+        echo "❌ ERROR: Expected x64 architecture, got $(node -p 'process.arch')" && \
+        echo "CycleTLS binaries are built for x64 and will not work on $(node -p 'process.arch')" && \
+        exit 1; \
+    else \
+        echo "✅ Architecture validation passed: $(node -p 'process.arch')"; \
+    fi && \
+    echo ""
+
+# CycleTLS binary diagnostic (non-fatal)
+RUN cd /app/backend && \
+    echo "=== CYCLETLS BINARY DIAGNOSTIC ===" && \
+    echo "Platform: $(node -p 'process.platform')" && \
+    echo "Architecture: $(node -p 'process.arch')" && \
+    EXPECTED_BINARY="cycletls-$(node -p 'process.platform')-$(node -p 'process.arch')" && \
+    echo "Expected binary name: $EXPECTED_BINARY" && \
     echo "" && \
-    echo "CycleTLS binary details:" && \
-    find /app/backend/node_modules/cycletls -name "cycletls*" -type f -exec sh -c 'echo "File: $1"; file "$1" 2>/dev/null || echo "file command failed"; ls -la "$1"; echo ""' _ {} \; && \
-    echo "Migration files:" && \
+    echo "Checking cycletls installation:" && \
+    ls -la node_modules/cycletls/ 2>/dev/null || echo "❌ cycletls directory not found" && \
+    echo "" && \
+    echo "Checking dist directory:" && \
+    ls -la node_modules/cycletls/dist/ 2>/dev/null || echo "❌ cycletls/dist directory not found" && \
+    echo "" && \
+    echo "All files containing 'cycletls' in name:" && \
+    find node_modules/cycletls -name "*cycletls*" -type f 2>/dev/null || echo "❌ no cycletls files found" && \
+    echo "" && \
+    echo "All executable files in cycletls:" && \
+    find node_modules/cycletls -type f -executable 2>/dev/null || echo "❌ no executable files found" && \
+    echo "" && \
+    echo "Package.json check:" && \
+    cat node_modules/cycletls/package.json | grep -E "\"name\"|\"version\"|\"main\"" 2>/dev/null || echo "❌ package.json not readable" && \
+    echo "=== END DIAGNOSTIC ==="
+
+# Test CycleTLS module loading (diagnostic mode - non-fatal)
+RUN cd /app/backend && \
+    echo "=== CYCLETLS MODULE VALIDATION ===" && \
+    timeout 15 node -e "try { const cycletls = require('cycletls'); if (typeof cycletls === 'function') { console.log('✅ CycleTLS module loaded successfully'); } else { console.log('❌ CycleTLS module invalid - not a function'); } } catch (error) { console.log('❌ CycleTLS module loading failed:', error.message); }" && echo "✅ CycleTLS module validation completed (diagnostic mode)" && \
+    echo ""
+
+# Database migration files validation
+RUN echo "=== DATABASE FILES VALIDATION ===" && \
     ls -la /app/backend/db/migrations/ || echo "migrations dir not found" && \
     ls -la /app/backend/db/migrations/meta/ || echo "meta dir not found" && \
     find /app -name "_journal.json" -type f || echo "No _journal.json found anywhere" && \

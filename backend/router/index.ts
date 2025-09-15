@@ -20,6 +20,7 @@ import { auth0middleware } from "backend/middleware/auth0middleware";
 import { handleChangePassword } from "backend/handlers/auth0/change-password";
 // import { handleMigrateUserPreferences } from 'backend/handlers/migrate-preferences';
 import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
+import { handleTestScraping, handleTestScrapingHealth } from "backend/test-scraping";
 
 const limiter = rateLimit(rateLimitConfig);
 const router = Router();
@@ -37,6 +38,10 @@ router.get("/test-datadome-bypass", testDatadomeBypass);
 
 // HEALTH CHECKS (unprotected)
 router.get("/health/database", handleDatabaseHealthCheck);
+
+// TEST SCRAPING (unprotected but password-secured)
+router.post("/test-scraping", limiter, handleTestScraping);
+router.get("/test-scraping/health", handleTestScrapingHealth);
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
