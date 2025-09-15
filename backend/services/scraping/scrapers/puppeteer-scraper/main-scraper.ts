@@ -10,9 +10,7 @@ import {
   performEnhancedHumanActions,
   performBehavioralDelay,
   detectDataDomeChallenge,
-  EnhancedScrapingOptions,
-  getSessionDataUsage,
-  getAllSessionsDataUsage
+  EnhancedScrapingOptions 
 } from '../../core/protection-bypass';
 import { ScrapingResult } from '../http-scraper';
 import { isExternalValidationError } from './error-handler';
@@ -31,151 +29,6 @@ export interface PuppeteerScrapingOptions extends EnhancedScrapingOptions {
   timeout?: number;
   enhancedFingerprinting?: boolean;
   enhancedHumanActions?: boolean;
-  sessionId?: string;
-}
-
-// Track Puppeteer data usage per session
-interface PuppeteerDataUsage {
-  totalBytesSent: number;
-  totalBytesReceived: number;
-  requestCount: number;
-  domainStats: Map<string, { requests: number; bytesSent: number; bytesReceived: number; }>;
-}
-
-const puppeteerSessionData = new Map<string, PuppeteerDataUsage>();
-
-// Helper function to create fresh Puppeteer data usage stats
-function createFreshPuppeteerDataUsage(): PuppeteerDataUsage {
-  return {
-    totalBytesSent: 0,
-    totalBytesReceived: 0,
-    requestCount: 0,
-    domainStats: new Map()
-  };
-}
-
-// Helper function to update Puppeteer data usage stats
-function updatePuppeteerDataUsage(
-  sessionId: string,
-  url: string,
-  bytesSent: number,
-  bytesReceived: number
-): void {
-  const domain = new URL(url).hostname;
-  
-  if (!puppeteerSessionData.has(sessionId)) {
-    puppeteerSessionData.set(sessionId, createFreshPuppeteerDataUsage());
-  }
-  
-  const usage = puppeteerSessionData.get(sessionId)!;
-  
-  // Update totals
-  usage.totalBytesSent += bytesSent;
-  usage.totalBytesReceived += bytesReceived;
-  usage.requestCount += 1;
-  
-  // Update domain stats
-  if (!usage.domainStats.has(domain)) {
-    usage.domainStats.set(domain, { requests: 0, bytesSent: 0, bytesReceived: 0 });
-  }
-  const domainStats = usage.domainStats.get(domain)!;
-  domainStats.requests += 1;
-  domainStats.bytesSent += bytesSent;
-  domainStats.bytesReceived += bytesReceived;
-  
-  // Log the data usage for this request
-  log(`[DataUsage] PUPPETEER ${domain}: Sent ${bytesSent}B, Received ${bytesReceived}B`, "data-usage");
-}
-
-// Export function to get Puppeteer data usage for a session
-export function getPuppeteerDataUsage(sessionId: string): PuppeteerDataUsage | null {
-  return puppeteerSessionData.get(sessionId) || null;
-}
-
-// Helper function to calculate Puppeteer request size
-function calculatePuppeteerRequestSize(request: any): number {
-  let size = 0;
-  
-  // Add URL size
-  size += new TextEncoder().encode(request.url()).length;
-  
-  // Add headers size (approximate)
-  const headers = request.headers();
-  Object.entries(headers).forEach(([key, value]) => {
-    size += key.length + value.length + 4; // +4 for ": " and "\r\n"
-  });
-  
-  // Add post data size if present
-  const postData = request.postData();
-  if (postData) {
-    size += new TextEncoder().encode(postData).length;
-  }
-  
-  return size;
-}
-
-// Helper function to calculate Puppeteer response size  
-function calculatePuppeteerResponseSize(response: any): number {
-  let size = 0;
-  
-  // Add headers size (approximate)
-  const headers = response.headers();
-  Object.entries(headers).forEach(([key, value]) => {
-    size += key.length + value.length + 4; // +4 for ": " and "\r\n"
-  });
-  
-  // Try to get content length from headers
-  const contentLength = headers['content-length'];
-  if (contentLength) {
-    size += parseInt(contentLength, 10) || 0;
-  } else {
-    // Estimate based on response type
-    const contentType = headers['content-type'] || '';
-    if (contentType.includes('text/html')) {
-      size += 50000; // Estimate 50KB for HTML pages
-    } else if (contentType.includes('application/json')) {
-      size += 5000; // Estimate 5KB for JSON
-    } else if (contentType.includes('text/css')) {
-      size += 20000; // Estimate 20KB for CSS
-    } else if (contentType.includes('application/javascript')) {
-      size += 30000; // Estimate 30KB for JS
-    } else if (contentType.includes('image/')) {
-      size += 100000; // Estimate 100KB for images
-    } else {
-      size += 10000; // Default estimate 10KB
-    }
-  }
-  
-  return size;
-}
-
-// Helper function to log Puppeteer session data usage summary
-function logPuppeteerSessionDataUsage(sessionId: string): void {
-  const usage = puppeteerSessionData.get(sessionId);
-  if (!usage) return;
-  
-  const totalKB = (usage.totalBytesReceived + usage.totalBytesSent) / 1024;
-  
-  log(`[DataUsage] Puppeteer Session ${sessionId} Summary:`, "data-usage");
-  log(`[DataUsage]   Total Requests: ${usage.requestCount}`, "data-usage");
-  log(`[DataUsage]   Total Data: ${totalKB.toFixed(2)}KB (Sent: ${(usage.totalBytesSent/1024).toFixed(2)}KB, Received: ${(usage.totalBytesReceived/1024).toFixed(2)}KB)`, "data-usage");
-  
-  // Log top domains by data usage
-  const domainArray = Array.from(usage.domainStats.entries())
-    .map(([domain, stats]) => ({ 
-      domain, 
-      totalBytes: stats.bytesSent + stats.bytesReceived,
-      requests: stats.requests 
-    }))
-    .sort((a, b) => b.totalBytes - a.totalBytes)
-    .slice(0, 5);
-    
-  if (domainArray.length > 0) {
-    log(`[DataUsage]   Top Domains:`, "data-usage");
-    domainArray.forEach(({ domain, totalBytes, requests }) => {
-      log(`[DataUsage]     ${domain}: ${requests} reqs, ${(totalBytes/1024).toFixed(2)}KB`, "data-usage");
-    });
-  }
 }
 
 /**
@@ -244,10 +97,6 @@ async function waitForPreloaderComplete(page: Page): Promise<void> {
 export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapingOptions): Promise<ScrapingResult> {
   const startTime = Date.now();
   let page: Page | null = null;
-  
-  // Generate session ID for data tracking
-  const sessionId = options?.sessionId || `puppeteer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  log(`[PuppeteerScraper] Using session ID: ${sessionId} for data tracking`, "data-usage");
 
   try {
     log(`[PuppeteerScraper] Starting enhanced Puppeteer scraping for: ${url}`, "scraper");
@@ -274,25 +123,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       await applyEnhancedFingerprinting(page, browserProfile);
     }
 
-    // Set up network monitoring for data usage tracking
-    await page.setRequestInterception(true);
-    
-    const requestSizes = new Map<string, number>();
-    
-    page.on('request', (request) => {
-      const requestSize = calculatePuppeteerRequestSize(request);
-      requestSizes.set(request.url(), requestSize);
-      request.continue();
-    });
-    
-    page.on('response', (response) => {
-      const responseSize = calculatePuppeteerResponseSize(response);
-      const requestSize = requestSizes.get(response.url()) || 0;
-      updatePuppeteerDataUsage(sessionId, response.url(), requestSize, responseSize);
-      requestSizes.delete(response.url()); // Clean up
-    });
-    
-    log(`[PuppeteerScraper] Network monitoring enabled for data usage tracking`, "data-usage");
     log(`[PuppeteerScraper] Page setup completed, navigating to URL`, "scraper");
 
     // Apply behavioral delay before navigation
@@ -679,9 +509,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
           log(`[PuppeteerScraper] Paywall detected (${dynamicValidation.linkCount} links) - may need enhanced bypass`, "scraper");
         }
         
-        // Log Puppeteer session data usage summary before returning
-        logPuppeteerSessionDataUsage(sessionId);
-        
         return {
           html: dynamicHtml,
           success: isSuccess,
@@ -709,9 +536,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       log(`[PuppeteerScraper] Paywall detected (${validation.linkCount} links) - source page access blocked`, "scraper");
     }
 
-    // Log Puppeteer session data usage summary before returning
-    logPuppeteerSessionDataUsage(sessionId);
-    
     return {
       html,
       success: isSuccess,
@@ -725,9 +549,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     // Filter validation errors in main scraping function
     if (isExternalValidationError(error)) {
       log(`[PuppeteerScraper] External validation warning in main function (continuing): ${error.message}`, "scraper");
-      // Log Puppeteer session data usage summary before returning
-      logPuppeteerSessionDataUsage(sessionId);
-      
       // Return partial success with validation notice
       return {
         html: '<html><body><div class="content">Scraping completed with external validation restrictions</div></body></html>',
@@ -762,9 +583,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     }
     
     log(`[PuppeteerScraper] Error during Puppeteer scraping: ${error.message}`, "scraper-error");
-    
-    // Log Puppeteer session data usage summary even on error
-    logPuppeteerSessionDataUsage(sessionId);
     
     return {
       html: '',

@@ -45,121 +45,15 @@ declare global {
 
 
 
-// Data usage tracking interface
-interface DataUsageStats {
-  totalBytesSent: number;
-  totalBytesReceived: number;
-  requestCount: number;
-  methodStats: {
-    cycletls: { requests: number; bytesSent: number; bytesReceived: number; };
-    fetch: { requests: number; bytesSent: number; bytesReceived: number; };
-  };
-  domainStats: Map<string, { requests: number; bytesSent: number; bytesReceived: number; }>;
-}
-
 // Global session state for continuity across request phases
 interface SessionState {
   cookies: string[];
   browserProfile: BrowserProfile;
   lastRequestTime: number;
   sessionId: string;
-  dataUsage: DataUsageStats;
 }
 
 const globalSessions = new Map<string, SessionState>();
-
-// Helper function to create fresh data usage stats
-function createFreshDataUsageStats(): DataUsageStats {
-  return {
-    totalBytesSent: 0,
-    totalBytesReceived: 0,
-    requestCount: 0,
-    methodStats: {
-      cycletls: { requests: 0, bytesSent: 0, bytesReceived: 0 },
-      fetch: { requests: 0, bytesSent: 0, bytesReceived: 0 }
-    },
-    domainStats: new Map()
-  };
-}
-
-// Helper function to calculate request body size
-function calculateRequestSize(headers: Record<string, string>, body?: string): number {
-  let size = 0;
-  
-  // Add headers size (approximate)
-  Object.entries(headers).forEach(([key, value]) => {
-    size += key.length + value.length + 4; // +4 for ": " and "\r\n"
-  });
-  
-  // Add body size
-  if (body) {
-    size += new TextEncoder().encode(body).length;
-  }
-  
-  return size;
-}
-
-// Helper function to update session data usage stats
-function updateDataUsageStats(
-  session: SessionState, 
-  method: 'cycletls' | 'fetch',
-  url: string,
-  bytesSent: number,
-  bytesReceived: number
-): void {
-  const domain = new URL(url).hostname;
-  
-  // Update totals
-  session.dataUsage.totalBytesSent += bytesSent;
-  session.dataUsage.totalBytesReceived += bytesReceived;
-  session.dataUsage.requestCount += 1;
-  
-  // Update method stats
-  session.dataUsage.methodStats[method].requests += 1;
-  session.dataUsage.methodStats[method].bytesSent += bytesSent;
-  session.dataUsage.methodStats[method].bytesReceived += bytesReceived;
-  
-  // Update domain stats
-  if (!session.dataUsage.domainStats.has(domain)) {
-    session.dataUsage.domainStats.set(domain, { requests: 0, bytesSent: 0, bytesReceived: 0 });
-  }
-  const domainStats = session.dataUsage.domainStats.get(domain)!;
-  domainStats.requests += 1;
-  domainStats.bytesSent += bytesSent;
-  domainStats.bytesReceived += bytesReceived;
-  
-  // Log the data usage for this request
-  log(`[DataUsage] ${method.toUpperCase()} ${domain}: Sent ${bytesSent}B, Received ${bytesReceived}B`, "data-usage");
-}
-
-// Helper function to log session data usage summary
-function logSessionDataUsage(sessionId: string, session: SessionState): void {
-  const stats = session.dataUsage;
-  const totalKB = (stats.totalBytesReceived + stats.totalBytesSent) / 1024;
-  
-  log(`[DataUsage] Session ${sessionId} Summary:`, "data-usage");
-  log(`[DataUsage]   Total Requests: ${stats.requestCount}`, "data-usage");
-  log(`[DataUsage]   Total Data: ${totalKB.toFixed(2)}KB (Sent: ${(stats.totalBytesSent/1024).toFixed(2)}KB, Received: ${(stats.totalBytesReceived/1024).toFixed(2)}KB)`, "data-usage");
-  log(`[DataUsage]   CycleTLS: ${stats.methodStats.cycletls.requests} reqs, ${((stats.methodStats.cycletls.bytesSent + stats.methodStats.cycletls.bytesReceived)/1024).toFixed(2)}KB`, "data-usage");
-  log(`[DataUsage]   Fetch: ${stats.methodStats.fetch.requests} reqs, ${((stats.methodStats.fetch.bytesSent + stats.methodStats.fetch.bytesReceived)/1024).toFixed(2)}KB`, "data-usage");
-  
-  // Log top domains by data usage
-  const domainArray = Array.from(stats.domainStats.entries())
-    .map(([domain, stats]) => ({ 
-      domain, 
-      totalBytes: stats.bytesSent + stats.bytesReceived,
-      requests: stats.requests 
-    }))
-    .sort((a, b) => b.totalBytes - a.totalBytes)
-    .slice(0, 5);
-    
-  if (domainArray.length > 0) {
-    log(`[DataUsage]   Top Domains:`, "data-usage");
-    domainArray.forEach(({ domain, totalBytes, requests }) => {
-      log(`[DataUsage]     ${domain}: ${requests} reqs, ${(totalBytes/1024).toFixed(2)}KB`, "data-usage");
-    });
-  }
-}
 
 /**
  * ENHANCED TLS-PROTECTED HTTP REQUEST with session continuity
@@ -201,11 +95,9 @@ export async function performCycleTLSRequest(
         cookies: [],
         browserProfile: getRandomBrowserProfile(),
         lastRequestTime: 0,
-        sessionId,
-        dataUsage: createFreshDataUsageStats()
+        sessionId
       };
       globalSessions.set(sessionId, session);
-      log(`[DataUsage] Created new session ${sessionId} with fresh data tracking`, "data-usage");
     }
 
     // CRITICAL FIX 2: Human-like request timing (prevent robotic patterns)
@@ -312,13 +204,6 @@ export async function performCycleTLSRequest(
         }
       }
       
-      // Log global data usage summary every 50 requests across all sessions
-      const allSessions = getAllSessionsDataUsage();
-      const totalRequests = allSessions.reduce((sum, { dataUsage }) => sum + dataUsage.requestCount, 0);
-      if (totalRequests > 0 && totalRequests % 50 === 0) {
-        logGlobalDataUsageSummary();
-      }
-      
       log(`[ProtectionBypass] CycleTLS response received`, "scraper");
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
       log(`[ProtectionBypass] Response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
@@ -377,19 +262,7 @@ export async function performCycleTLSRequest(
       session.cookies.push(...newCookies);
     }
 
-    // Calculate and track data usage
-    const requestSize = calculateRequestSize(consistentHeaders, body);
-    const responseSize = response.body ? new TextEncoder().encode(response.body).length : 0;
-    
-    // Update session data usage stats
-    updateDataUsageStats(session, 'cycletls', url, requestSize, responseSize);
-    
     log(`[ProtectionBypass] TLS request completed: ${response.status}`, "scraper");
-    
-    // Log session summary every 10 requests for monitoring
-    if (session.dataUsage.requestCount % 10 === 0) {
-      logSessionDataUsage(sessionId, session);
-    }
     
     return {
       success: response.status >= 200 && response.status < 400,
@@ -441,11 +314,9 @@ async function performFallbackRequest(
         cookies: [],
         browserProfile: getRandomBrowserProfile(),
         lastRequestTime: 0,
-        sessionId,
-        dataUsage: createFreshDataUsageStats()
+        sessionId
       };
       globalSessions.set(sessionId, session);
-      log(`[DataUsage] Created new session ${sessionId} with fresh data tracking`, "data-usage");
     }
 
     // Consistent headers from session profile
@@ -498,19 +369,7 @@ async function performFallbackRequest(
       session.cookies.push(setCookieHeader);
     }
     
-    // Calculate and track data usage for fallback fetch
-    const requestSize = calculateRequestSize(requestHeaders, body);
-    const responseSize = responseBody ? new TextEncoder().encode(responseBody).length : 0;
-    
-    // Update session data usage stats
-    updateDataUsageStats(session, 'fetch', url, requestSize, responseSize);
-    
     log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
-    
-    // Log session summary every 10 requests for monitoring
-    if (session.dataUsage.requestCount % 10 === 0) {
-      logSessionDataUsage(sessionId, session);
-    }
     
     return {
       success: response.ok,
@@ -522,19 +381,6 @@ async function performFallbackRequest(
     
   } catch (error: any) {
     log(`[ProtectionBypass] Fallback fetch failed: ${error.message}`, "scraper-error");
-    
-    // Get session for error tracking
-    let session = globalSessions.get(sessionId);
-    if (session) {
-      // Even on error, track the request attempt (0 bytes received)
-      const errorRequestHeaders = {
-        ...session.browserProfile.headers,
-        ...headers
-      };
-      const requestSize = calculateRequestSize(errorRequestHeaders, body);
-      updateDataUsageStats(session, 'fetch', url, requestSize, 0);
-    }
-    
     return {
       success: false,
       status: 0,
@@ -605,20 +451,8 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     }
     
     log(`[ProtectionBypass] Session warmup completed`, "scraper");
-    
-    // Log data usage for warmup session
-    const session = globalSessions.get(sessionId);
-    if (session) {
-      log(`[DataUsage] Session warmup used ${((session.dataUsage.totalBytesSent + session.dataUsage.totalBytesReceived)/1024).toFixed(2)}KB across ${session.dataUsage.requestCount} requests`, "data-usage");
-    }
   } catch (error: any) {
     log(`[ProtectionBypass] Session warmup failed: ${error.message}`, "scraper");
-    
-    // Still log data usage even if warmup failed
-    const session = globalSessions.get(sessionId);
-    if (session && session.dataUsage.requestCount > 0) {
-      log(`[DataUsage] Failed session warmup still used ${((session.dataUsage.totalBytesSent + session.dataUsage.totalBytesReceived)/1024).toFixed(2)}KB across ${session.dataUsage.requestCount} requests`, "data-usage");
-    }
   }
 }
 
@@ -2088,8 +1922,7 @@ export function getSessionForUrl(url: string): SessionState {
       cookies: [],
       browserProfile: getRandomBrowserProfile(),
       lastRequestTime: 0,
-      sessionId: sessionKey,
-      dataUsage: createFreshDataUsageStats()
+      sessionId: sessionKey
     };
     globalSessions.set(sessionKey, session);
   }
@@ -3083,87 +2916,4 @@ export async function detectDataDomeChallenge(page: Page): Promise<boolean> {
     log(`[ProtectionBypass] Error detecting DataDome challenge: ${error.message}`, "scraper-error");
     return false;
   }
-}
-
-// ===== DATA USAGE TRACKING EXPORTS =====
-
-// Export function to get data usage stats for a session
-export function getSessionDataUsage(sessionId: string): DataUsageStats | null {
-  const session = globalSessions.get(sessionId);
-  return session ? session.dataUsage : null;
-}
-
-// Export function to get data usage stats for all sessions
-export function getAllSessionsDataUsage(): { sessionId: string; dataUsage: DataUsageStats; }[] {
-  const allStats: { sessionId: string; dataUsage: DataUsageStats; }[] = [];
-  
-  for (const [sessionId, session] of globalSessions.entries()) {
-    allStats.push({ sessionId, dataUsage: session.dataUsage });
-  }
-  
-  return allStats;
-}
-
-// Export function to log global data usage summary across all sessions
-export function logGlobalDataUsageSummary(): void {
-  const allSessions = getAllSessionsDataUsage();
-  
-  if (allSessions.length === 0) {
-    log(`[DataUsage] No active sessions`, "data-usage");
-    return;
-  }
-  
-  const globalStats = allSessions.reduce((total, { dataUsage }) => {
-    total.totalBytesSent += dataUsage.totalBytesSent;
-    total.totalBytesReceived += dataUsage.totalBytesReceived;
-    total.requestCount += dataUsage.requestCount;
-    total.methodStats.cycletls.requests += dataUsage.methodStats.cycletls.requests;
-    total.methodStats.cycletls.bytesSent += dataUsage.methodStats.cycletls.bytesSent;
-    total.methodStats.cycletls.bytesReceived += dataUsage.methodStats.cycletls.bytesReceived;
-    total.methodStats.fetch.requests += dataUsage.methodStats.fetch.requests;
-    total.methodStats.fetch.bytesSent += dataUsage.methodStats.fetch.bytesSent;
-    total.methodStats.fetch.bytesReceived += dataUsage.methodStats.fetch.bytesReceived;
-    
-    // Merge domain stats
-    for (const [domain, stats] of dataUsage.domainStats.entries()) {
-      if (!total.domainStats.has(domain)) {
-        total.domainStats.set(domain, { requests: 0, bytesSent: 0, bytesReceived: 0 });
-      }
-      const domainTotal = total.domainStats.get(domain)!;
-      domainTotal.requests += stats.requests;
-      domainTotal.bytesSent += stats.bytesSent;
-      domainTotal.bytesReceived += stats.bytesReceived;
-    }
-    
-    return total;
-  }, createFreshDataUsageStats());
-  
-  const totalGB = (globalStats.totalBytesReceived + globalStats.totalBytesSent) / (1024 * 1024 * 1024);
-  const totalMB = (globalStats.totalBytesReceived + globalStats.totalBytesSent) / (1024 * 1024);
-  
-  log(`[DataUsage] ===== GLOBAL DATA USAGE SUMMARY =====`, "data-usage");
-  log(`[DataUsage] Active Sessions: ${allSessions.length}`, "data-usage");
-  log(`[DataUsage] Total Requests: ${globalStats.requestCount}`, "data-usage");
-  log(`[DataUsage] Total Data: ${totalGB > 1 ? totalGB.toFixed(3) + 'GB' : totalMB.toFixed(2) + 'MB'} (Sent: ${(globalStats.totalBytesSent/(1024*1024)).toFixed(2)}MB, Received: ${(globalStats.totalBytesReceived/(1024*1024)).toFixed(2)}MB)`, "data-usage");
-  log(`[DataUsage] CycleTLS: ${globalStats.methodStats.cycletls.requests} reqs, ${((globalStats.methodStats.cycletls.bytesSent + globalStats.methodStats.cycletls.bytesReceived)/(1024*1024)).toFixed(2)}MB`, "data-usage");
-  log(`[DataUsage] Fetch: ${globalStats.methodStats.fetch.requests} reqs, ${((globalStats.methodStats.fetch.bytesSent + globalStats.methodStats.fetch.bytesReceived)/(1024*1024)).toFixed(2)}MB`, "data-usage");
-  
-  // Log top domains globally
-  const globalDomainArray = Array.from(globalStats.domainStats.entries())
-    .map(([domain, stats]) => ({ 
-      domain, 
-      totalBytes: stats.bytesSent + stats.bytesReceived,
-      requests: stats.requests 
-    }))
-    .sort((a, b) => b.totalBytes - a.totalBytes)
-    .slice(0, 10);
-    
-  if (globalDomainArray.length > 0) {
-    log(`[DataUsage] Top Domains Globally:`, "data-usage");
-    globalDomainArray.forEach(({ domain, totalBytes, requests }) => {
-      log(`[DataUsage]   ${domain}: ${requests} reqs, ${(totalBytes/(1024*1024)).toFixed(2)}MB`, "data-usage");
-    });
-  }
-  
-  log(`[DataUsage] =====================================`, "data-usage");
 }
