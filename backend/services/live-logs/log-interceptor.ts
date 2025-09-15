@@ -26,6 +26,7 @@ export function enhancedLog(message: string, source = "express", level: 'info' |
     originalLog(logMessage);
   }
 
+
   // Emit to WebSocket clients (only in staging, only scraper-related sources)
   emitLogToClients(message, source, level);
 }
@@ -54,24 +55,13 @@ export function initializeLogInterception() {
     return; // Don't intercept logs in production
   }
 
-  // Override the log utility function
+  // Initialize the log module with the emit function
   try {
-    // Import and replace the log function
-    const logModule = require('../../utils/log');
-
-    // Store original for fallback
-    const originalLogFunction = logModule.log;
-
-    // Replace with enhanced version
-    logModule.log = enhancedLog;
-
-    console.log(`${new Date().toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    })} [log-interceptor] Log interception initialized for live streaming`);
-
+    import('../../utils/log').then((logModule) => {
+      logModule.initializeLiveLogsEmission(emitLogToClients);
+    }).catch((error: any) => {
+      originalError(`Failed to import log module: ${error.message}`);
+    });
   } catch (error: any) {
     originalError(`Log interception initialization failed: ${error.message}`);
   }

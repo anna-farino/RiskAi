@@ -200,6 +200,10 @@ const BROWSER_ARGS = [
   "--disable-extensions",
   "--disable-gl-drawing-for-tests",
   "--mute-audio",
+  "--no-audio-output",
+  "--disable-audio-output",
+  "--disable-notifications",
+  "--disable-desktop-notifications",
   "--no-zygote",
   "--no-first-run",
   "--no-default-browser-check",
@@ -331,7 +335,7 @@ export class BrowserManager {
         }
 
         const browser = await puppeteer.launch({
-          headless: false,
+          headless: 'new',
           args: browserArgs,
           executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
           timeout: 180000, // 3 minutes for browser launch

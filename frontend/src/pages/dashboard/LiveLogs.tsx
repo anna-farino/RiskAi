@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { io, Socket } from 'socket.io-client';
 import { Button } from '@/components/ui/button';
@@ -8,31 +8,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Play, Square, Trash2, Activity, AlertCircle, Globe, Loader2 } from 'lucide-react';
+import { Play, Square, Trash2, Activity, AlertCircle, Globe, Loader2, Download } from 'lucide-react';
 import { serverUrl } from '@/utils/server-url';
 import { useToast } from '@/hooks/use-toast';
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-  source: string;
-  level: 'info' | 'error' | 'debug';
-}
+import { useLiveLogsStore, LogEntry } from '@/stores/live-logs-store';
 
 export default function LiveLogs() {
   const { user, isAuthenticated } = useAuth0();
   const { toast } = useToast();
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-
-  // Test scraping state
-  const [testUrl, setTestUrl] = useState('');
-  const [fullTest, setFullTest] = useState(true);
-  const [isTestRunning, setIsTestRunning] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  // Zustand store
+  const {
+    logs,
+    isConnected,
+    isStreaming,
+    hasPermission,
+    testUrl,
+    fullTest,
+    isTestRunning,
+    testResult,
+    addLog,
+    clearLogs,
+    setConnectionState,
+    setStreamingState,
+    setPermission,
+    setTestUrl,
+    setFullTest,
+    setTestRunning,
+    setTestResult,
+    exportLogs,
+  } = useLiveLogsStore();
 
   const socketRef = useRef<Socket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -63,7 +68,7 @@ export default function LiveLogs() {
 
         if (response.ok) {
           const data = await response.json();
-          setHasPermission(data.hasPermission);
+          setPermission(data.hasPermission);
 
           if (!data.hasPermission) {
             toast({
@@ -73,7 +78,7 @@ export default function LiveLogs() {
             });
           }
         } else {
-          setHasPermission(false);
+          setPermission(false);
           if (response.status === 404) {
             toast({
               title: "Not Available",
@@ -84,7 +89,7 @@ export default function LiveLogs() {
         }
       } catch (error) {
         console.error('Error checking permissions:', error);
-        setHasPermission(false);
+        setPermission(false);
       }
     };
 
@@ -105,8 +110,7 @@ export default function LiveLogs() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('WebSocket connected successfully');
-      setIsConnected(true);
+      setConnectionState(true);
       toast({
         title: "Connected",
         description: "WebSocket connection established.",
@@ -114,14 +118,11 @@ export default function LiveLogs() {
     });
 
     socket.on('disconnect', () => {
-      console.log('WebSocket disconnected');
-      setIsConnected(false);
-      setIsStreaming(false);
+      setConnectionState(false);
     });
 
-    socket.on('log-entry', (logEntry: LogEntry) => {
-      console.log('Received log entry:', logEntry);
-      setLogs(prev => [...prev, logEntry]);
+    socket.on('log-entry', (logEntry: Omit<LogEntry, 'id'>) => {
+      addLog(logEntry);
     });
 
     socket.on('auth_error', (error: string) => {
@@ -130,7 +131,7 @@ export default function LiveLogs() {
         description: error,
         variant: "destructive"
       });
-      setHasPermission(false);
+      setPermission(false);
     });
 
     return () => {
@@ -140,23 +141,19 @@ export default function LiveLogs() {
 
   const startStreaming = () => {
     if (socketRef.current && isConnected) {
-      console.log('Emitting start_streaming event');
       socketRef.current.emit('start_streaming');
-      setIsStreaming(true);
+      setStreamingState(true);
       toast({
         title: "Streaming Started",
         description: "Live logs are now being streamed.",
       });
-    } else {
-      console.log('Cannot start streaming - socket not connected', { socketRef: !!socketRef.current, isConnected });
     }
   };
 
   const stopStreaming = () => {
     if (socketRef.current && isConnected) {
-      console.log('Emitting stop_streaming event');
       socketRef.current.emit('stop_streaming');
-      setIsStreaming(false);
+      setStreamingState(false);
       toast({
         title: "Streaming Stopped",
         description: "Live log streaming has been stopped.",
@@ -164,11 +161,29 @@ export default function LiveLogs() {
     }
   };
 
-  const clearLogs = () => {
-    setLogs([]);
+  const handleClearLogs = () => {
+    clearLogs();
     toast({
       title: "Logs Cleared",
       description: "All logs have been cleared from view.",
+    });
+  };
+
+  const handleExportLogs = () => {
+    const exportData = exportLogs();
+    const blob = new Blob([exportData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `live-logs-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Logs Exported",
+      description: "Logs have been downloaded as JSON file.",
     });
   };
 
@@ -194,7 +209,7 @@ export default function LiveLogs() {
       return;
     }
 
-    setIsTestRunning(true);
+    setTestRunning(true);
     setTestResult(null);
 
     try {
@@ -234,7 +249,6 @@ export default function LiveLogs() {
         });
       }
     } catch (error) {
-      console.error('Test scraping error:', error);
       setTestResult({
         success: false,
         message: error instanceof Error ? error.message : 'Network error'
@@ -245,7 +259,7 @@ export default function LiveLogs() {
         variant: "destructive"
       });
     } finally {
-      setIsTestRunning(false);
+      setTestRunning(false);
     }
   };
 
@@ -372,12 +386,22 @@ export default function LiveLogs() {
                 </Button>
 
                 <Button
-                  onClick={clearLogs}
+                  onClick={handleClearLogs}
                   variant="outline"
                   className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20"
                 >
                   <Trash2 size={16} className="mr-2" />
                   Clear Logs
+                </Button>
+
+                <Button
+                  onClick={handleExportLogs}
+                  variant="outline"
+                  className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                  disabled={logs.length === 0}
+                >
+                  <Download size={16} className="mr-2" />
+                  Export
                 </Button>
               </div>
 
@@ -408,7 +432,7 @@ export default function LiveLogs() {
                 ) : (
                   <div className="space-y-2">
                     {logs.map((log, index) => (
-                      <div key={index} className="flex gap-3 items-start">
+                      <div key={log.id || index} className="flex gap-3 items-start">
                         <Badge className={getLevelColor(log.level)} variant="outline">
                           {log.level.toUpperCase()}
                         </Badge>
@@ -416,7 +440,7 @@ export default function LiveLogs() {
                           {log.source}
                         </Badge>
                         <span className="text-gray-400 text-xs mt-0.5 whitespace-nowrap">
-                          {log.timestamp}
+                          {log.formattedTime || new Date(log.timestamp).toLocaleTimeString()}
                         </span>
                         <span className="text-gray-200 flex-1 break-all">
                           {log.message}
