@@ -21,6 +21,7 @@ import { handleChangePassword } from "backend/handlers/auth0/change-password";
 // import { handleMigrateUserPreferences } from 'backend/handlers/migrate-preferences';
 import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
 import { handleTestScraping, handleTestScrapingHealth } from "backend/test-scraping";
+import liveLogsRouter from "backend/api/live-logs-management";
 
 const limiter = rateLimit(rateLimitConfig);
 const router = Router();
@@ -42,6 +43,9 @@ router.get("/health/database", handleDatabaseHealthCheck);
 // TEST SCRAPING (unprotected but password-secured)
 router.post("/test-scraping", limiter, handleTestScraping);
 router.get("/test-scraping/health", handleTestScrapingHealth);
+
+// LIVE LOGS MANAGEMENT (staging only)
+router.use("/live-logs-management", liveLogsRouter);
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)

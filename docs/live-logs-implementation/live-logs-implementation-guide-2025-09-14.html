@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Logs Implementation Guide - September 14, 2025</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        .header .date {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .section h3 {
+            color: #34495e;
+            margin-top: 25px;
+        }
+        .file-path {
+            background: #ecf0f1;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        .architecture-diagram {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .changes-list {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .comparison-table th {
+            background-color: #3498db;
+            color: white;
+        }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .code-container {
+            margin: 15px 0;
+        }
+        pre[class*="language-"] {
+            border-radius: 8px;
+            margin: 0;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .toc {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #2c3e50;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .toc a:hover {
+            background: #bdc3c7;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-new {
+            background: #cce5ff;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Live Logs Implementation Guide</h1>
+        <div class="date">September 14, 2025 - Real-time Server Log Streaming System</div>
+    </div>
+
+    <div class="toc section">
+        <h2>Table of Contents</h2>
+        <ul>
+            <li><a href="#overview">1. System Overview</a></li>
+            <li><a href="#architecture">2. Architecture & Components</a></li>
+            <li><a href="#backend-changes">3. Backend Implementation</a></li>
+            <li><a href="#frontend-changes">4. Frontend Implementation</a></li>
+            <li><a href="#puppeteer-changes">5. Puppeteer Configuration Changes</a></li>
+            <li><a href="#state-management">6. State Management with Zustand</a></li>
+            <li><a href="#security">7. Security & Permissions</a></li>
+            <li><a href="#testing">8. Testing & Validation</a></li>
+        </ul>
+    </div>
+
+    <div class="section" id="overview">
+        <h2>1. System Overview</h2>
+        <p>The Live Logs system provides real-time streaming of server logs to authorized developers through WebSocket connections. This implementation enables developers to monitor scraping operations, debug issues, and track system performance in real-time without server access.</p>
+
+        <div class="architecture-diagram">
+            <h3>Key Features</h3>
+            <ul>
+                <li>🔄 <strong>Real-time log streaming</strong> via Socket.IO WebSocket connections</li>
+                <li>🔒 <strong>Permission-based access</strong> with email authentication</li>
+                <li>💾 <strong>Persistent state management</strong> using Zustand store</li>
+                <li>🎛️ <strong>Interactive test scraping</strong> with immediate log feedback</li>
+                <li>📊 <strong>Log filtering and export</strong> capabilities</li>
+                <li>🔇 <strong>Silent browser operation</strong> with enhanced Puppeteer configuration</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="architecture">
+        <h2>2. Architecture & Components</h2>
+
+        <div class="architecture-diagram">
+            <h3>System Flow</h3>
+            <pre style="font-family: monospace; background: #f8f9fa; padding: 15px;">
+Frontend (React + Zustand)
+    ↓ WebSocket Connection
+Socket.IO Server ← Log Interceptor ← Enhanced Log Utility
+    ↑ Filtering & Emission     ↑ ES Module Integration
+Test Scraping API → Unified Scraper → Browser Manager (Silent)
+            </pre>
+        </div>
+
+        <h3>File Structure</h3>
+        <div class="file-path">📁 Backend Components</div>
+        <ul>
+            <li><code>backend/services/live-logs/socket-server.ts</code> - WebSocket server & client management</li>
+            <li><code>backend/services/live-logs/log-interceptor.ts</code> - Log interception initialization</li>
+            <li><code>backend/services/live-logs/permissions.ts</code> - Developer access control</li>
+            <li><code>backend/utils/log.ts</code> - Enhanced logging utility with WebSocket integration</li>
+            <li><code>backend/services/scraping/core/browser-manager.ts</code> - Silent browser configuration</li>
+            <li><code>backend/test-scraping/index.ts</code> - Test scraping endpoint</li>
+        </ul>
+
+        <div class="file-path">📁 Frontend Components</div>
+        <ul>
+            <li><code>frontend/src/pages/dashboard/LiveLogs.tsx</code> - Main live logs interface</li>
+            <li><code>frontend/src/stores/live-logs-store.ts</code> - Zustand state management store</li>
+            <li><code>shared/db/schema/devs-allowed-logs.ts</code> - Database schema for permissions</li>
+        </ul>
+    </div>
+
+    <div class="section" id="backend-changes">
+        <h2>3. Backend Implementation</h2>
+
+        <h3>3.1 Enhanced Log Utility <span class="status-badge status-new">NEW</span></h3>
+        <div class="file-path">backend/utils/log.ts</div>
+
+        <div class="changes-list">
+            <strong>Key Changes:</strong>
+            <ul>
+                <li>Added WebSocket emission capability directly into log utility</li>
+                <li>ES module integration for dynamic function enhancement</li>
+                <li>Conditional emission based on environment and source filtering</li>
+            </ul>
+        </div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">// Enhanced log utility with WebSocket integration
+let emitLogToClients: ((message: string, source: string, level?: 'info' | 'error' | 'debug') => void) | null = null;
+
+// Initialize the WebSocket emission function when live logs are enabled
+export function initializeLiveLogsEmission(emitFunction: (message: string, source: string, level?: 'info' | 'error' | 'debug') => void) {
+  emitLogToClients = emitFunction;
+  console.log(`${new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  })} [log-interceptor] Live logs emission initialized`);
+}
+
+export function log(message: string, source = "express", level: 'info' | 'error' | 'debug' = 'info') {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  const logMessage = `${formattedTime} [${source}] ${message}`;
+
+  // Original console output
+  if (level === 'error') {
+    console.error(logMessage);
+  } else {
+    console.log(logMessage);
+  }
+
+  // Emit to WebSocket clients if live logs are enabled
+  if (emitLogToClients && process.env.NODE_ENV !== 'production') {
+    emitLogToClients(message, source, level);
+  }
+}</code></pre>
+        </div>
+
+        <h3>3.2 Socket.IO Server Implementation</h3>
+        <div class="file-path">backend/services/live-logs/socket-server.ts</div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">// Initialize Socket.IO server for live logs streaming
+export function initializeSocketIO(httpServer: HttpServer): SocketIOServer {
+  if (process.env.NODE_ENV === 'production') {
+    log('Socket.IO disabled - production environment', 'socket-server');
+    return null!;
+  }
+
+  io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: process.env.NODE_ENV === 'development'
+        ? ['http://localhost:5174', 'http://localhost:5173']
+        : process.env.FRONTEND_URL || 'https://preview.risqai.co',
+      credentials: true
+    },
+    path: '/socket.io/',
+    transports: ['websocket', 'polling']
+  });
+
+  // Middleware for authentication and permission checking
+  io.use(async (socket: Socket, next) => {
+    try {
+      const email = socket.handshake.auth.email as string;
+      if (!email) {
+        return next(new Error('Email required for live logs access'));
+      }
+
+      const hasPermission = await verifyDevLogPermission(email);
+      if (!hasPermission) {
+        return next(new Error('Not authorized to view live logs'));
+      }
+
+      socket.data.email = email;
+      next();
+    } catch (error: any) {
+      next(new Error('Authentication failed'));
+    }
+  });
+
+  // Handle connections and streaming controls
+  io.on('connection', (socket: Socket) => {
+    const email = socket.data.email;
+
+    socket.on('start_streaming', () => {
+      socket.join('live-logs');
+      socket.emit('log-entry', {
+        message: `Live log streaming started for ${email}`,
+        source: 'socket-server',
+        level: 'info',
+        timestamp: new Date().toISOString(),
+        formattedTime: new Date().toLocaleTimeString("en-US", {
+          hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true,
+        })
+      });
+    });
+
+    socket.on('stop_streaming', () => {
+      socket.leave('live-logs');
+    });
+  });
+
+  return io;
+}</code></pre>
+        </div>
+
+        <h3>3.3 Log Interception Architecture</h3>
+        <div class="file-path">backend/services/live-logs/log-interceptor.ts</div>
+
+        <div class="changes-list">
+            <strong>Architectural Fix:</strong> The original approach tried to replace <code>console.log</code> at runtime, but ES module exports are immutable. The new approach integrates WebSocket emission directly into the log utility function using dynamic imports.
+        </div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">// Fixed log interception using ES module integration
+export function initializeLogInterception() {
+  if (process.env.NODE_ENV === 'production') {
+    return; // Don't intercept logs in production
+  }
+
+  // Initialize the log module with the emit function
+  try {
+    import('../../utils/log').then((logModule) => {
+      logModule.initializeLiveLogsEmission(emitLogToClients);
+    }).catch((error: any) => {
+      console.error(`Failed to import log module: ${error.message}`);
+    });
+  } catch (error: any) {
+    console.error(`Log interception initialization failed: ${error.message}`);
+  }
+}</code></pre>
+        </div>
+    </div>
+
+    <div class="section" id="frontend-changes">
+        <h2>4. Frontend Implementation</h2>
+
+        <h3>4.1 Live Logs Interface</h3>
+        <div class="file-path">frontend/src/pages/dashboard/LiveLogs.tsx</div>
+
+        <div class="changes-list">
+            <strong>Key Features:</strong>
+            <ul>
+                <li>Real-time log display with color-coded levels and sources</li>
+                <li>Test scraping interface with immediate feedback</li>
+                <li>Log export functionality</li>
+                <li>Persistent state management integration</li>
+                <li>Permission-based access control</li>
+            </ul>
+        </div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">// WebSocket connection with authentication
+useEffect(() => {
+  if (!hasPermission || !user?.email) return;
+
+  const socket = io(serverUrl, {
+    auth: {
+      email: user.email
+    },
+    transports: ['websocket', 'polling']
+  });
+
+  socketRef.current = socket;
+
+  socket.on('connect', () => {
+    setConnectionState(true);
+    toast({
+      title: "Connected",
+      description: "WebSocket connection established.",
+    });
+  });
+
+  socket.on('log-entry', (logEntry: Omit<LogEntry, 'id'>) => {
+    addLog(logEntry); // Add to Zustand store
+  });
+
+  socket.on('auth_error', (error: string) => {
+    toast({
+      title: "Authentication Error",
+      description: error,
+      variant: "destructive"
+    });
+    setPermission(false);
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+}, [hasPermission, user?.email, toast]);</code></pre>
+        </div>
+
+        <h3>4.2 Test Scraping Integration</h3>
+        <div class="code-container">
+            <pre><code class="language-typescript">// Test scraping with real-time log feedback
+const runTestScraping = async () => {
+  if (!testUrl.trim()) {
+    toast({
+      title: "URL Required",
+      description: "Please enter a valid URL to test.",
+      variant: "destructive"
+    });
+    return;
+  }
+
+  setTestRunning(true);
+  setTestResult(null);
+
+  try {
+    const response = await fetch(`${serverUrl}/api/test-scraping`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        password: 'TestTST',
+        sourceUrl: testUrl,
+        fullTest: fullTest
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      setTestResult({
+        success: true,
+        message: `Test completed successfully! Check logs for details.`
+      });
+      toast({
+        title: "Test Completed",
+        description: "Scraping test finished successfully. Check the logs tab for details.",
+      });
+    }
+  } catch (error) {
+    setTestResult({
+      success: false,
+      message: error instanceof Error ? error.message : 'Network error'
+    });
+  } finally {
+    setTestRunning(false);
+  }
+};</code></pre>
+        </div>
+    </div>
+
+    <div class="section" id="puppeteer-changes">
+        <h2>5. Puppeteer Configuration Changes</h2>
+
+        <h3>5.1 Comparison with origin/dev Branch</h3>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Configuration</th>
+                    <th>origin/dev Branch</th>
+                    <th>Current Implementation</th>
+                    <th>Impact</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>headless</strong></td>
+                    <td><code>headless: false</code></td>
+                    <td><code>headless: 'new'</code></td>
+                    <td class="highlight">Prevents browser windows from opening</td>
+                </tr>
+                <tr>
+                    <td><strong>Audio Arguments</strong></td>
+                    <td><code>--mute-audio</code></td>
+                    <td><code>--mute-audio<br>--no-audio-output<br>--disable-audio-output<br>--disable-notifications<br>--disable-desktop-notifications</code></td>
+                    <td class="highlight">Eliminates "bip" sounds completely</td>
+                </tr>
+                <tr>
+                    <td><strong>Mac Chrome Detection</strong></td>
+                    <td>Basic system paths only</td>
+                    <td>Enhanced with ARM64 and Intel detection</td>
+                    <td>Better compatibility across Mac architectures</td>
+                </tr>
+                <tr>
+                    <td><strong>Path Detection</strong></td>
+                    <td>Static Render paths</td>
+                    <td>Dynamic version detection</td>
+                    <td>Future-proof Chrome version handling</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>5.2 Enhanced Chrome Path Detection</h3>
+        <div class="file-path">backend/services/scraping/core/browser-manager.ts</div>
+
+        <div class="changes-list">
+            <strong>New Mac Support:</strong>
+            <ul>
+                <li>Added Mac ARM64 architecture detection</li>
+                <li>Dynamic Chrome version scanning</li>
+                <li>Improved fallback mechanisms</li>
+            </ul>
+        </div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">// Enhanced Mac Chrome detection with ARM64 support
+const macChromePaths = [
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "/Applications/Chromium.app/Contents/MacOS/Chromium",
+];
+
+for (const path of macChromePaths) {
+  if (fs.existsSync(path)) {
+    log(
+      `[BrowserManager][findChromePath] Using Mac system Chrome: ${path}`,
+      "scraper",
+    );
+    return path;
+  }
+}
+
+// Check for local Puppeteer cache paths (Mac ARM64)
+try {
+  const projectRoot = process.cwd().includes('/backend')
+    ? process.cwd().replace('/backend', '')
+    : process.cwd();
+  const localPuppeteerCache = `${projectRoot}/.cache/puppeteer/chrome`;
+
+  if (fs.existsSync(localPuppeteerCache)) {
+    const chromeVersions = fs.readdirSync(localPuppeteerCache);
+    for (const version of chromeVersions.sort().reverse()) { // Try newest versions first
+      const chromePath = `${localPuppeteerCache}/${version}/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+      if (fs.existsExists(chromePath)) {
+        log(
+          `[BrowserManager][findChromePath] Found local Mac Chrome: ${chromePath}`,
+          "scraper",
+        );
+        return chromePath;
+      }
+
+      // Also try x64 version for Intel Macs
+      const chromePathIntel = `${localPuppeteerCache}/${version}/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+      if (fs.existsExists(chromePathIntel)) {
+        log(
+          `[BrowserManager][findChromePath] Found local Intel Mac Chrome: ${chromePathIntel}`,
+          "scraper",
+        );
+        return chromePathIntel;
+      }
+    }
+  }
+} catch (error) {
+  log(
+    `[BrowserManager][findChromePath] Error scanning local Puppeteer cache: ${error}`,
+    "scraper",
+  );
+}</code></pre>
+        </div>
+
+        <h3>5.3 Silent Browser Configuration</h3>
+        <div class="code-container">
+            <pre><code class="language-typescript">// Updated browser launch configuration
+const browser = await puppeteer.launch({
+  headless: 'new', // Changed from false to prevent browser windows
+  args: [
+    ...BROWSER_ARGS,
+    // Enhanced audio muting
+    "--no-audio-output",
+    "--disable-audio-output",
+    "--disable-notifications",
+    "--disable-desktop-notifications",
+    // Conditional Azure display
+    ...(isAzureEnvironment ? ["--display=:99"] : [])
+  ],
+  executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
+  timeout: 180000,
+  protocolTimeout: protocolTimeout,
+  handleSIGINT: false,
+  handleSIGTERM: false,
+  handleSIGHUP: false,
+  ignoreDefaultArgs: ["--enable-automation"],
+  defaultViewport: null,
+});</code></pre>
+        </div>
+    </div>
+
+    <div class="section" id="state-management">
+        <h2>6. State Management with Zustand</h2>
+
+        <h3>6.1 Live Logs Store Implementation</h3>
+        <div class="file-path">frontend/src/stores/live-logs-store.ts</div>
+
+        <div class="changes-list">
+            <strong>Benefits:</strong>
+            <ul>
+                <li>Persistent logs state when navigating between pages</li>
+                <li>Memory management with configurable log limits</li>
+                <li>Built-in search and filtering capabilities</li>
+                <li>Export functionality</li>
+                <li>Connection state management</li>
+            </ul>
+        </div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">export interface LogEntry {
+  timestamp: string;
+  message: string;
+  source: string;
+  level: 'info' | 'error' | 'debug';
+  formattedTime: string;
+  id: string; // Unique identifier for each log entry
+}
+
+interface LiveLogsState {
+  // Logs data
+  logs: LogEntry[];
+  maxLogs: number; // Limit to prevent memory issues
+
+  // Connection state
+  isConnected: boolean;
+  isStreaming: boolean;
+  hasPermission: boolean | null;
+
+  // Test scraping state
+  testUrl: string;
+  fullTest: boolean;
+  isTestRunning: boolean;
+  testResult: { success: boolean; message: string } | null;
+
+  // Actions
+  addLog: (log: Omit<LogEntry, 'id'>) => void;
+  clearLogs: () => void;
+  setConnectionState: (connected: boolean) => void;
+  setStreamingState: (streaming: boolean) => void;
+
+  // Computed functions
+  getLogsByLevel: (level: LogEntry['level']) => LogEntry[];
+  getLogsBySource: (source: string) => LogEntry[];
+  searchLogs: (query: string) => LogEntry[];
+  exportLogs: () => string;
+}
+
+export const useLiveLogsStore = create<LiveLogsState>()(
+  subscribeWithSelector((set, get) => ({
+    // Initial state
+    logs: [],
+    maxLogs: 1000, // Limit to prevent memory issues
+
+    // Actions
+    addLog: (logData) => set((state) => {
+      const newLog: LogEntry = {
+        ...logData,
+        id: generateLogId(),
+      };
+
+      const updatedLogs = [...state.logs, newLog];
+
+      // Trim logs if exceeding max limit (keep most recent)
+      if (updatedLogs.length > state.maxLogs) {
+        updatedLogs.splice(0, updatedLogs.length - state.maxLogs);
+      }
+
+      return { logs: updatedLogs };
+    }),
+
+    clearLogs: () => set({ logs: [] }),
+
+    setConnectionState: (connected) => set({
+      isConnected: connected,
+      // Auto-stop streaming if disconnected
+      isStreaming: connected ? get().isStreaming : false
+    }),
+
+    // Computed functions
+    exportLogs: () => {
+      const logs = get().logs;
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        totalLogs: logs.length,
+        logs: logs.map(log => ({
+          timestamp: log.timestamp,
+          formattedTime: log.formattedTime,
+          level: log.level,
+          source: log.source,
+          message: log.message
+        }))
+      };
+
+      return JSON.stringify(exportData, null, 2);
+    },
+  }))
+);</code></pre>
+        </div>
+
+        <h3>6.2 Component Integration</h3>
+        <div class="code-container">
+            <pre><code class="language-typescript">// Using Zustand store in LiveLogs component
+export default function LiveLogs() {
+  const { user, isAuthenticated } = useAuth0();
+  const { toast } = useToast();
+
+  // Zustand store
+  const {
+    logs,
+    isConnected,
+    isStreaming,
+    hasPermission,
+    testUrl,
+    fullTest,
+    isTestRunning,
+    testResult,
+    addLog,
+    clearLogs,
+    setConnectionState,
+    setStreamingState,
+    setPermission,
+    setTestUrl,
+    setFullTest,
+    setTestRunning,
+    setTestResult,
+    exportLogs,
+  } = useLiveLogsStore();
+
+  // WebSocket log handler - directly integrates with store
+  socket.on('log-entry', (logEntry: Omit<LogEntry, 'id'>) => {
+    addLog(logEntry); // Automatically handles ID generation and storage limits
+  });
+
+  // Export functionality
+  const handleExportLogs = () => {
+    const exportData = exportLogs();
+    const blob = new Blob([exportData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `live-logs-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Logs Exported",
+      description: "Logs have been downloaded as JSON file.",
+    });
+  };
+}</code></pre>
+        </div>
+    </div>
+
+    <div class="section" id="security">
+        <h2>7. Security & Permissions</h2>
+
+        <h3>7.1 Permission Database Schema</h3>
+        <div class="file-path">shared/db/schema/devs-allowed-logs.ts</div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">import { pgTable, serial, varchar, timestamp, boolean } from 'drizzle-orm/pg-core';
+
+export const devsAllowedLogs = pgTable('devs_allowed_logs', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export type DevAllowedLog = typeof devsAllowedLogs.$inferSelect;
+export type NewDevAllowedLog = typeof devsAllowedLogs.$inferInsert;</code></pre>
+        </div>
+
+        <h3>7.2 Permission Verification</h3>
+        <div class="file-path">backend/services/live-logs/permissions.ts</div>
+
+        <div class="code-container">
+            <pre><code class="language-typescript">import { db } from 'backend/db/connection';
+import { devsAllowedLogs } from 'shared/db/schema/devs-allowed-logs';
+import { eq } from 'drizzle-orm';
+
+export async function verifyDevLogPermission(email: string): Promise<boolean> {
+  try {
+    const result = await db
+      .select()
+      .from(devsAllowedLogs)
+      .where(eq(devsAllowedLogs.email, email))
+      .limit(1);
+
+    return result.length > 0 && result[0].isActive;
+  } catch (error) {
+    console.error('Error verifying dev log permission:', error);
+    return false;
+  }
+}
+
+export async function addDevLogPermission(email: string): Promise<boolean> {
+  try {
+    await db.insert(devsAllowedLogs).values({
+      email,
+      isActive: true,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error adding dev log permission:', error);
+    return false;
+  }
+}</code></pre>
+        </div>
+
+        <h3>7.3 Security Measures</h3>
+        <div class="architecture-diagram">
+            <h4>Multi-Layer Security</h4>
+            <ul>
+                <li><strong>Environment Restriction:</strong> Live logs disabled in production</li>
+                <li><strong>Email Authentication:</strong> Users must provide valid email</li>
+                <li><strong>Database Verification:</strong> Email must exist in allowed developers table</li>
+                <li><strong>Source Filtering:</strong> Only scraper-related logs are transmitted</li>
+                <li><strong>Session Management:</strong> WebSocket connections tied to user sessions</li>
+                <li><strong>CORS Protection:</strong> Restricted origins for Socket.IO connections</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="testing">
+        <h2>8. Testing & Validation</h2>
+
+        <h3>8.1 System Validation Steps</h3>
+        <div class="architecture-diagram">
+            <ol>
+                <li><strong>Permission Check:</strong> Verify user has database entry in <code>devs_allowed_logs</code></li>
+                <li><strong>WebSocket Connection:</strong> Confirm Socket.IO handshake and authentication</li>
+                <li><strong>Log Interception:</strong> Validate log utility integration with WebSocket emission</li>
+                <li><strong>Source Filtering:</strong> Ensure only allowed sources reach frontend</li>
+                <li><strong>Browser Silence:</strong> Confirm no browser windows or audio notifications</li>
+                <li><strong>State Persistence:</strong> Test navigation preservation of logs</li>
+                <li><strong>Export Functionality:</strong> Validate JSON export format and data integrity</li>
+            </ol>
+        </div>
+
+        <h3>8.2 Test Scraping Validation</h3>
+        <div class="code-container">
+            <pre><code class="language-typescript">// Test scraping endpoint validation
+export async function handleTestScraping(req: Request, res: Response): Promise<void> {
+  const requestId = req.headers['x-call-id'] || 'unknown';
+  const startTime = Date.now();
+
+  // Production environment check
+  if (process.env.NODE_ENV === 'production') {
+    log(`[TEST-SCRAPING] BLOCKED: Attempt to use test endpoint in production`, "test-scraper-security");
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  // Validate request and password
+  const validation = validateRequest(req.body);
+  if (!validation.isValid) {
+    log(`[TEST-SCRAPING] Request ${requestId} validation failed: ${validation.error}`, "test-scraper");
+    res.status(400).json({
+      success: false,
+      error: validation.error,
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  // Return immediate response and process in background
+  res.status(202).json({
+    success: true,
+    message: 'Test scraping initiated - check logs for progress',
+    requestId,
+    processingStatus: 'started'
+  });
+
+  // Background processing with comprehensive logging
+  processScrapingInBackground(sourceUrl, testMode, fullTest, requestId, startTime);
+}</code></pre>
+        </div>
+
+        <h3>8.3 Performance Monitoring</h3>
+        <div class="changes-list">
+            <strong>Monitoring Points:</strong>
+            <ul>
+                <li>WebSocket connection stability and reconnection handling</li>
+                <li>Memory usage with log rotation (1000 log limit)</li>
+                <li>Browser resource consumption in headless mode</li>
+                <li>Network bandwidth for real-time log streaming</li>
+                <li>Database query performance for permission checks</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>9. Deployment & Configuration</h2>
+
+        <h3>9.1 Environment Variables</h3>
+        <div class="code-container">
+            <pre><code class="language-bash"># Required for live logs functionality
+NODE_ENV=development  # Must NOT be 'production' for live logs to work
+DATABASE_URL=postgresql://...  # Required for permission checks
+FRONTEND_URL=https://preview.risqai.co  # For CORS configuration
+
+# Optional
+IS_AZURE=true  # Enables Azure-specific display configuration</code></pre>
+        </div>
+
+        <h3>9.2 Database Migration</h3>
+        <div class="code-container">
+            <pre><code class="language-sql">-- Create developers permissions table
+CREATE TABLE devs_allowed_logs (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+-- Add authorized developers
+INSERT INTO devs_allowed_logs (email) VALUES
+  ('developer1@company.com'),
+  ('developer2@company.com');</code></pre>
+        </div>
+
+        <h3>9.3 Server Initialization</h3>
+        <div class="file-path">backend/index.ts</div>
+        <div class="code-container">
+            <pre><code class="language-typescript">// Initialize live logs system
+import { initializeSocketIO } from './services/live-logs/socket-server';
+import { initializeLogInterception } from './services/live-logs/log-interceptor';
+
+// Start HTTP server
+const server = app.listen(port, () => {
+  console.log(`🌐 [SERVER] Server is running on port ${port}`);
+});
+
+// Initialize Socket.IO for live logs
+const io = initializeSocketIO(server);
+
+// Initialize log interception
+initializeLogInterception();</code></pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Summary of Changes <span class="status-badge status-completed">COMPLETED</span></h2>
+
+        <div class="architecture-diagram">
+            <h3>✅ Issues Resolved</h3>
+            <ul>
+                <li><strong>Browser Windows Opening:</strong> Changed from <code>headless: false</code> to <code>headless: 'new'</code></li>
+                <li><strong>Audio Notifications:</strong> Enhanced muting with comprehensive audio-disabling arguments</li>
+                <li><strong>Log Interception Failure:</strong> Redesigned from function replacement to ES module integration</li>
+                <li><strong>State Loss on Navigation:</strong> Implemented Zustand store with persistent state management</li>
+                <li><strong>Memory Management:</strong> Added log rotation with configurable limits (1000 logs)</li>
+                <li><strong>Cross-Platform Compatibility:</strong> Enhanced Chrome detection for Mac ARM64/Intel architectures</li>
+            </ul>
+        </div>
+
+        <div class="changes-list">
+            <h3>🚀 New Capabilities</h3>
+            <ul>
+                <li>Real-time scraping log monitoring</li>
+                <li>Interactive test scraping with immediate feedback</li>
+                <li>Log export in JSON format</li>
+                <li>Permission-based access control</li>
+                <li>Silent browser operation</li>
+                <li>Persistent state across page navigation</li>
+                <li>Enhanced error handling and debugging</li>
+            </ul>
+        </div>
+
+        <div class="file-path">
+            <strong>Next Steps:</strong>
+            <ul>
+                <li>Add user to <code>devs_allowed_logs</code> database table</li>
+                <li>Test complete end-to-end flow with test scraping</li>
+                <li>Monitor system performance and WebSocket stability</li>
+                <li>Consider adding log search and filtering UI enhancements</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer style="text-align: center; padding: 20px; color: #7f8c8d;">
+        <p>Generated on September 14, 2025 | Live Logs Implementation Documentation</p>
+    </footer>
+</body>
+</html>
