@@ -2,6 +2,13 @@ import puppeteer, { type Browser, type Page } from "rebrowser-puppeteer";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import { log } from "backend/utils/log";
+import { 
+  generateRandomDisplayNumber, 
+  generateRealisticScreenResolution,
+  applyEnhancedStealthMeasures,
+  isAzureEnvironment,
+  getXvfbDisplayConfig
+} from "./stealth-enhancements";
 
 /**
  * Find Chrome executable path for Puppeteer
@@ -248,16 +255,22 @@ export class BrowserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Only set virtual display for Azure environments (staging/production)
-        const isAzureEnvironment =
-          process.env.NODE_ENV === "staging" ||
-          process.env.NODE_ENV === "production";
-        if (isAzureEnvironment && !process.env.DISPLAY) {
-          process.env.DISPLAY = ":99";
-          log(
-            "[BrowserManager] Setting virtual display for Azure environment",
-            "scraper",
-          );
+        // Dynamic display configuration for Azure environments
+        const isAzure = isAzureEnvironment();
+        let displayNumber = 99; // Default fallback
+        
+        if (isAzure) {
+          // Generate random display number to avoid detection
+          displayNumber = generateRandomDisplayNumber();
+          const displayStr = `:${displayNumber}`;
+          
+          if (!process.env.DISPLAY) {
+            process.env.DISPLAY = displayStr;
+            log(
+              `[BrowserManager] Setting randomized virtual display ${displayStr} for Azure environment`,
+              "scraper",
+            );
+          }
         }
 
         // Determine Chrome path dynamically at launch time
@@ -269,10 +282,19 @@ export class BrowserManager {
 
         // Build browser args dynamically based on environment
         const browserArgs = [...BROWSER_ARGS];
-        if (isAzureEnvironment) {
-          browserArgs.push("--display=:99"); // Add virtual display for Azure
+        
+        // Generate realistic screen resolution
+        const screenRes = generateRealisticScreenResolution();
+        // Remove default window size and add dynamic one
+        const windowSizeIndex = browserArgs.findIndex(arg => arg.startsWith("--window-size"));
+        if (windowSizeIndex !== -1) {
+          browserArgs[windowSizeIndex] = `--window-size=${screenRes.width},${screenRes.height}`;
+        }
+        
+        if (isAzure) {
+          browserArgs.push(`--display=:${displayNumber}`); // Add randomized virtual display for Azure
           log(
-            "[BrowserManager] Adding virtual display argument for Azure environment",
+            `[BrowserManager] Adding randomized display :${displayNumber} with resolution ${screenRes.width}x${screenRes.height}`,
             "scraper",
           );
         }
@@ -352,7 +374,10 @@ export class BrowserManager {
         page.setDefaultTimeout(60000); // 1 minute default timeout
         page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
 
-        log(`[BrowserManager][createPage] Created new page`, "scraper");
+        // Apply enhanced stealth measures to the page
+        await applyEnhancedStealthMeasures(page);
+
+        log(`[BrowserManager][createPage] Created new page with enhanced stealth measures`, "scraper");
         return page;
       } catch (error: any) {
         lastError = error;
