@@ -20,8 +20,9 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
 
   useEffect(() => {
     const checkPermission = async () => {
+      console.log("VITE_ENV=", (import.meta as any).env.VITE_ENV)
       // Check if feature is enabled via environment variable
-      if (import.meta.env.VITE_ENV !== 'development' && import.meta.env.VITE_ENV !== 'staging') {
+      if ((import.meta as any).env.VITE_ENV !== 'development' && (import.meta as any).env.VITE_ENV !== 'staging') {
         setState({
           available: false,
           hasPermission: false,
