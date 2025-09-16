@@ -185,7 +185,7 @@ function findChromePath(): string {
  * Unified browser configuration combining best practices from all apps
  * Enhanced for resource-constrained environments like Replit
  */
-const BROWSER_ARGS = [
+const BASE_BROWSER_ARGS = [
   "--no-sandbox",
   "--disable-setuid-sandbox",
   "--disable-dev-shm-usage",
@@ -199,11 +199,7 @@ const BROWSER_ARGS = [
   "--disable-software-rasterizer",
   "--disable-extensions",
   "--disable-gl-drawing-for-tests",
-  "--mute-audio",
-  "--no-audio-output",
-  "--disable-audio-output",
-  "--disable-notifications",
-  "--disable-desktop-notifications",
+  "--mute-audio", // Keep basic audio muting for all environments
   "--no-zygote",
   "--no-first-run",
   "--no-default-browser-check",
@@ -243,6 +239,35 @@ const BROWSER_ARGS = [
   "--force-color-profile=srgb",
   "--disable-features=VizDisplayCompositor",
 ];
+
+/**
+ * Enhanced audio suppression args for laptop development (DEV_ENV_LAPTOP=true)
+ * These provide complete silence but may affect some website behaviors
+ */
+const LAPTOP_DEV_AUDIO_ARGS = [
+  "--no-audio-output",
+  "--disable-audio-output",
+  "--disable-notifications",
+  "--disable-desktop-notifications",
+];
+
+/**
+ * Build browser arguments based on environment
+ */
+function getBrowserArgs(): string[] {
+  const args = [...BASE_BROWSER_ARGS];
+
+  // Add enhanced audio suppression for laptop development
+  if (process.env.DEV_ENV_LAPTOP === 'true') {
+    args.push(...LAPTOP_DEV_AUDIO_ARGS);
+    log(
+      "[BrowserManager] Using enhanced audio suppression for laptop development",
+      "scraper"
+    );
+  }
+
+  return args;
+}
 
 // Chrome path will be determined dynamically when browser is launched
 
@@ -325,7 +350,7 @@ export class BrowserManager {
         const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
 
         // Build browser args dynamically based on environment
-        const browserArgs = [...BROWSER_ARGS];
+        const browserArgs = getBrowserArgs();
         if (isAzureEnvironment) {
           browserArgs.push("--display=:99"); // Add virtual display for Azure
           log(
@@ -334,8 +359,22 @@ export class BrowserManager {
           );
         }
 
+        // Conditional headless mode: silent for laptop dev, visible for production/staging
+        const headlessMode = process.env.DEV_ENV_LAPTOP === 'true' ? 'new' : false;
+        if (process.env.DEV_ENV_LAPTOP === 'true') {
+          log(
+            "[BrowserManager] Using headless mode for laptop development",
+            "scraper"
+          );
+        } else {
+          log(
+            "[BrowserManager] Using headed mode (browser windows visible)",
+            "scraper"
+          );
+        }
+
         const browser = await puppeteer.launch({
-          headless: 'new',
+          headless: headlessMode,
           args: browserArgs,
           executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
           timeout: 180000, // 3 minutes for browser launch
