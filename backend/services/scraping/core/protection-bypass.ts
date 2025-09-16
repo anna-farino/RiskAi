@@ -175,8 +175,8 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
       
-      // Enhanced diagnostics for Azure vs Replit investigation
-      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+      // Enhanced diagnostics for Azure environment only
+      if (process.env.IS_AZURE === 'true') {
         log(`[Azure-Network-Debug] Request initiated`, "scraper");
         log(`[Azure-Network-Debug] Target: ${url}`, "scraper");  
         log(`[Azure-Network-Debug] Method: ${method.toUpperCase()}`, "scraper");
@@ -189,7 +189,7 @@ export async function performCycleTLSRequest(
       
       const startTime = Date.now(); // Track overall request timing
       
-      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+      if (process.env.IS_AZURE === 'true') {
         try {
           // Safe URL parsing without network calls
           const urlObj = new URL(url);
@@ -269,8 +269,8 @@ export async function performCycleTLSRequest(
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
       log(`[ProtectionBypass] Response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
       
-      // Enhanced response diagnostics for Azure vs Replit investigation
-      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+      // Enhanced response diagnostics for Azure environment only
+      if (process.env.IS_AZURE === 'true') {
         const responseTime = Date.now() - (startTime || Date.now());
         log(`[Azure-Network-Debug] Response received after ${responseTime}ms`, "scraper");
         log(`[Azure-Network-Debug] Response status: ${response ? response.status : 'null'}`, "scraper");
@@ -355,11 +355,39 @@ export async function performCycleTLSRequest(
 
     log(`[ProtectionBypass] TLS request completed: ${response.status}`, "scraper");
     
+    // Extract body from CycleTLS response (it uses 'data' or 'text', not 'body')
+    let responseBody = '';
+    if (response.data) {
+      // Handle data field (might be binary/gzipped)
+      if (typeof response.data === 'string') {
+        responseBody = response.data;
+      } else if (Buffer.isBuffer(response.data)) {
+        // Try to decompress if it's gzipped
+        try {
+          const zlib = require('zlib');
+          responseBody = zlib.gunzipSync(response.data).toString('utf8');
+          log(`[ProtectionBypass] Decompressed gzipped response`, "scraper");
+        } catch (e) {
+          // Not gzipped, just convert to string
+          responseBody = response.data.toString('utf8');
+        }
+      } else {
+        responseBody = JSON.stringify(response.data);
+      }
+    } else if (response.text) {
+      responseBody = response.text;
+    } else if (response.body) {
+      responseBody = response.body;
+    }
+    
+    // Log actual body length for debugging
+    log(`[ProtectionBypass] Response body extracted: ${responseBody.length} characters`, "scraper");
+    
     return {
       success: response.status >= 200 && response.status < 400,
       status: response.status || 0,
       headers: response.headers || {},
-      body: response.body || '',
+      body: responseBody,
       cookies: session.cookies
     };
 
