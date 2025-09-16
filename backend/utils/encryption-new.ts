@@ -58,6 +58,65 @@ const TAG_LEN = 16;
 
 const db = drizzle(pool);
 
+/**
+ * Utility function to detect if a string is likely base64 encoded data vs plaintext
+ */
+function isLikelyBase64EncodedData(value: string): boolean {
+  if (!value || value.length === 0) return false;
+
+  // Base64 strings are typically much longer than regular keywords
+  if (value.length < 20) return false;
+
+  // Check if it matches base64 pattern (alphanumeric + / + = padding)
+  const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
+  if (!base64Pattern.test(value)) return false;
+
+  // Check if length is divisible by 4 (base64 requirement)
+  if (value.length % 4 !== 0) return false;
+
+  // Additional heuristic: base64 encoded encrypted data is typically 100+ chars
+  if (value.length < 50) return false;
+
+  // Try to decode and see if it contains binary data patterns
+  try {
+    const decoded = Buffer.from(value, 'base64');
+    // If most bytes are non-printable (encrypted data), it's likely base64 encoded
+    const nonPrintableCount = decoded.filter(byte => byte < 32 || byte > 126).length;
+    return nonPrintableCount / decoded.length > 0.5;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attempt to recover a corrupted keyword by detecting if it contains base64 data
+ */
+function attemptCorruptedKeywordRecovery(value: string): { recovered: boolean; plaintext?: string; error?: string } {
+  if (!isLikelyBase64EncodedData(value)) {
+    return { recovered: false, error: 'Value does not appear to be base64 encoded data' };
+  }
+
+  console.log(`[ENCRYPTION] Attempting recovery of corrupted keyword with length ${value.length}`);
+
+  try {
+    // Try to decode the base64 and see if it yields readable text
+    const decoded = Buffer.from(value, 'base64');
+    const decodedText = decoded.toString('utf8');
+
+    // Check if decoded text looks like a reasonable keyword (printable, reasonable length)
+    if (decodedText.length > 0 && decodedText.length < 100 && /^[\x20-\x7E]*$/.test(decodedText)) {
+      console.log(`[ENCRYPTION] Successfully recovered corrupted keyword: "${decodedText}"`);
+      return { recovered: true, plaintext: decodedText };
+    } else {
+      console.log(`[ENCRYPTION] Decoded text doesn't look like a valid keyword: ${decodedText.slice(0, 50)}...`);
+      return { recovered: false, error: 'Decoded text is not a valid keyword' };
+    }
+  } catch (error) {
+    console.log(`[ENCRYPTION] Failed to decode base64 during recovery: ${error}`);
+    return { recovered: false, error: 'Failed to decode base64' };
+  }
+}
+
 export interface TidyEnvelope {
   wrapped_dek: Uint8Array; // wrapped DEK
   key_id: string;          // full versioned key ID
@@ -105,6 +164,9 @@ export async function envelopeDecryptAndRotate(
   userId: string
 ): Promise<string> {
   console.log(`[ENCRYPTION] envelopeDecryptAndRotate called for environment: ${process.env.NODE_ENV}, userId: ${userId}, rowId: ${rowId}, fieldName: ${fieldName}`);
+
+  // Add timing to help identify slow decryptions
+  const startTime = Date.now();
   
   // In dev environment, just return the plaintext value
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
@@ -200,20 +262,69 @@ export async function envelopeDecryptAndRotate(
       console.warn(`[ENCRYPTION] Key rotation failed, continuing with decrypted value:`, rotationError);
     }
 
+    const elapsedTime = Date.now() - startTime;
+    console.log(`[ENCRYPTION] Successfully decrypted field '${fieldName}' for row ${rowId} in ${elapsedTime}ms`);
     return plain;
   } catch (error) {
-    console.error(`[ENCRYPTION] Decryption failed for field '${fieldName}', this may be due to invalid key from different environment. Error:`, error);
-    
-    // If decryption fails (e.g., key from different environment), treat as plaintext and re-encrypt
-    const plaintext = row[fieldName] as string;
-    if (!plaintext) return "";
-    
+    console.error(`[ENCRYPTION] Decryption failed for field '${fieldName}' in row ${rowId}. Error:`, error);
+
+    const fieldValue = row[fieldName] as string;
+    if (!fieldValue) {
+      console.log(`[ENCRYPTION] Field '${fieldName}' is empty, returning empty string`);
+      return "";
+    }
+
+    // CRITICAL FIX: Check if the field contains base64 encoded data (corrupted state)
+    if (isLikelyBase64EncodedData(fieldValue)) {
+      console.error(`[ENCRYPTION] CORRUPTION DETECTED: Field '${fieldName}' contains base64 data instead of plaintext. Attempting recovery...`);
+
+      // Try to recover the corrupted keyword
+      const recovery = attemptCorruptedKeywordRecovery(fieldValue);
+      if (recovery.recovered && recovery.plaintext) {
+        console.log(`[ENCRYPTION] Successfully recovered corrupted keyword for row ${rowId}`);
+
+        // Re-encrypt with the recovered plaintext
+        try {
+          const envelope = (await envelopeEncrypt(recovery.plaintext)) as TidyEnvelope;
+          if (!envelope) return recovery.plaintext; // Encryption was skipped in dev
+
+          // Update the row with properly encrypted data
+          await withUserContext(userId, (contextDb) =>
+            contextDb
+              .update(table)
+              .set({
+                [wrappedDekColumn]: Buffer.from(envelope.wrapped_dek).toString('base64'),
+                [keyIdColumn]: envelope.key_id,
+                [fieldName]: Buffer.from(envelope.blob).toString('base64')
+              })
+              .where(eq(table.id, rowId))
+          );
+
+          console.log(`[ENCRYPTION] Successfully re-encrypted recovered keyword for row ${rowId}`);
+          return recovery.plaintext;
+        } catch (reEncryptError) {
+          console.error(`[ENCRYPTION] Failed to re-encrypt recovered keyword for row ${rowId}:`, reEncryptError);
+          return recovery.plaintext; // Return recovered text even if re-encryption fails
+        }
+      } else {
+        console.error(`[ENCRYPTION] Failed to recover corrupted keyword for row ${rowId}: ${recovery.error}`);
+        console.error(`[ENCRYPTION] Corrupted value preview: ${fieldValue.slice(0, 100)}...`);
+        return `[CORRUPTED KEYWORD - ID: ${rowId}]`; // Return a clear indicator of corruption
+      }
+    }
+
+    // If it doesn't look like base64 data, treat as potential plaintext
+    console.log(`[ENCRYPTION] Field value doesn't appear to be base64, treating as plaintext and attempting re-encryption`);
+
     try {
-      const envelope = (await envelopeEncrypt(plaintext)) as TidyEnvelope;
-      if (!envelope) return plaintext; // Encryption was skipped in dev
-      
+      const envelope = (await envelopeEncrypt(fieldValue)) as TidyEnvelope;
+      if (!envelope) {
+        console.log(`[ENCRYPTION] Encryption was skipped (dev environment), returning value as-is`);
+        return fieldValue;
+      }
+
       // Update the row with newly encrypted data using current environment's key
-      await withUserContext(userId, (contextDb) => 
+      await withUserContext(userId, (contextDb) =>
         contextDb
           .update(table)
           .set({
@@ -223,12 +334,13 @@ export async function envelopeDecryptAndRotate(
           })
           .where(eq(table.id, rowId))
       );
-      
-      console.log(`[ENCRYPTION] Successfully re-encrypted field with current environment key`);
-      return plaintext;
+
+      console.log(`[ENCRYPTION] Successfully re-encrypted field with current environment key for row ${rowId}`);
+      return fieldValue;
     } catch (reEncryptError) {
-      console.error(`[ENCRYPTION] Re-encryption also failed, returning field value as-is:`, reEncryptError);
-      return plaintext;
+      console.error(`[ENCRYPTION] Re-encryption also failed for row ${rowId}:`, reEncryptError);
+      console.error(`[ENCRYPTION] Returning field value as-is: ${fieldValue.slice(0, 50)}...`);
+      return fieldValue;
     }
   }
 }
