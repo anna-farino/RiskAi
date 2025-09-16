@@ -824,7 +824,8 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
                     
                     // 3. User interaction timing
                     if (typeof window._datadome_started === 'undefined') {
-                      window._datadome_started = Date.now() - Math.floor(Math.random() * 3000 + 2000);
+                      window._datadome_started = true;
+                      (window as any)._datadome_start_time = Date.now() - Math.floor(Math.random() * 3000 + 2000);
                     }
                     
                     resolve({ success: true, config: ddConfig });
