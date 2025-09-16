@@ -9,7 +9,16 @@ export const openai = new OpenAI({
 export async function summarizeArticle(articleText: string, options?: { maxTokens?: number }) {
   try {
     const completion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: articleText }],
+      messages: [
+        {
+          role: "system",
+          content: "Create a direct, informative summary of the article. DO NOT use phrases like 'The article discusses', 'The article reports', 'This article covers', etc. Instead, state the facts directly. For example: 'Microsoft patched three critical vulnerabilities', 'Hackers compromised 50,000 user accounts', 'New ransomware targets healthcare systems'. Focus on what actually happened, who was affected, and the current status."
+        },
+        { 
+          role: "user", 
+          content: `Please summarize this article: ${articleText}` 
+        }
+      ],
       model: "gpt-3.5-turbo",
       max_tokens: options?.maxTokens || 500,
     });

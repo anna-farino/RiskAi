@@ -300,9 +300,16 @@ function normalizeUrl(url: string): string {
  */
 export function isValidUrl(url: string): boolean {
   try {
+    // Log suspicious URLs for environment-specific debugging
+    if (url.startsWith('/') && !url.startsWith('//')) {
+      log(`[BulkTitleExtractor] ENVIRONMENT DEBUG - Relative URL detected: ${url} (NODE_ENV: ${process.env.NODE_ENV})`, "title-extractor");
+    }
+    
     new URL(normalizeUrl(url));
     return true;
-  } catch {
+  } catch (error: any) {
+    // Enhanced error logging for debugging environment differences
+    log(`[BulkTitleExtractor] URL validation failed for "${url}": ${error.message} (NODE_ENV: ${process.env.NODE_ENV})`, "title-extractor");
     return false;
   }
 }

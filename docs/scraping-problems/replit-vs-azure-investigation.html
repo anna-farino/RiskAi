@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Replit vs Azure Scraping Investigation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #2c3e50;
+            margin-top: 25px;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-critical { background: #e74c3c; color: white; }
+        .status-high { background: #f39c12; color: white; }
+        .status-medium { background: #f1c40f; color: #2c3e50; }
+        .status-success { background: #27ae60; color: white; }
+        .status-failure { background: #c0392b; color: white; }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background: #34495e;
+            color: white;
+            font-weight: 600;
+        }
+        .comparison-table .working {
+            background: #d5f4e6;
+            border-left: 4px solid #27ae60;
+        }
+        .comparison-table .failing {
+            background: #fadbd8;
+            border-left: 4px solid #e74c3c;
+        }
+        .comparison-table .critical {
+            background: #fadbd8;
+        }
+        .comparison-table .high {
+            background: #fdeaa7;
+        }
+        .comparison-table .medium {
+            background: #fff3cd;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .json-block {
+            background: #34495e;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .progress-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .action-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .action-item.high-priority {
+            background: #fadbd8;
+            border-color: #e17055;
+        }
+        .checkmark { color: #27ae60; font-weight: bold; }
+        .crossmark { color: #e74c3c; font-weight: bold; }
+        .pending { color: #f39c12; font-weight: bold; }
+        .info-box {
+            background: #e8f4fd;
+            border: 1px solid #b8daff;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .danger-box {
+            background: #fadbd8;
+            border: 1px solid #f5b7b1;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .metric-label {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Replit vs Azure Scraping Investigation</h1>
+
+        <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+            <span><strong>Date Started:</strong> 2025-09-13</span>
+            <span class="status-badge status-critical">HIGH PRIORITY</span>
+            <span class="status-badge status-high">ACTIVE INVESTIGATION</span>
+            <span><strong>Team:</strong> Development Team</span>
+        </div>
+
+        <div class="info-box">
+            <h3>🎯 Executive Summary</h3>
+            <p>Complex scraping system works perfectly in <strong>Replit</strong> development environment but fails in <strong>Azure Container Apps</strong> production for certain high-protection websites like <code>darkreading.com</code>. This investigation documents the root causes, technical analysis, and implementation of solutions.</p>
+        </div>
+
+        <h2>🔄 Problem Statement</h2>
+
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Environment</th>
+                    <th>darkreading.com Scraping</th>
+                    <th>Cloudflare Bypass</th>
+                    <th>CycleTLS Operations</th>
+                    <th>Content Extraction</th>
+                    <th>Overall Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="working">
+                    <td><strong>Replit</strong></td>
+                    <td><span class="checkmark">✅</span> SUCCESS</td>
+                    <td><span class="checkmark">✅</span> FUNCTIONAL</td>
+                    <td><span class="checkmark">✅</span> WORKING</td>
+                    <td><span class="checkmark">✅</span> 5136 chars, 1 link</td>
+                    <td class="status-badge status-success">WORKING</td>
+                </tr>
+                <tr class="failing">
+                    <td><strong>Azure Container Apps</strong></td>
+                    <td><span class="crossmark">❌</span> COMPLETE FAILURE</td>
+                    <td><span class="crossmark">❌</span> NON-FUNCTIONAL</td>
+                    <td><span class="crossmark">❌</span> SILENT FAILURES</td>
+                    <td><span class="crossmark">❌</span> NO CONTENT</td>
+                    <td class="status-badge status-failure">FAILING</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>⚙️ Technical Environment Analysis</h2>
+
+        <h3>Azure Container Apps Configuration</h3>
+        <div class="json-block">
+{
+  "staticIp": "4.157.217.180",
+  "region": "eastus",
+  "domain": "lemonbay-f060baa5.eastus.azurecontainerapps.io",
+  "resources": {
+    "cpu": 4,
+    "memory": "6Gi",
+    "ephemeralStorage": "8Gi"
+  },
+  "environment": {
+    "IS_AZURE": "true",
+    "NODE_ENV": "staging"
+  }
+}
+        </div>
+
+        <h3>Network Fingerprinting Comparison</h3>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Aspect</th>
+                    <th>Replit (Working)</th>
+                    <th>Azure Container Apps (Failing)</th>
+                    <th>Impact Level</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="critical">
+                    <td><strong>IP Address</strong></td>
+                    <td>Dynamic/Residential-style</td>
+                    <td>Static: 4.157.217.180</td>
+                    <td><span class="status-badge status-critical">CRITICAL</span></td>
+                </tr>
+                <tr class="critical">
+                    <td><strong>IP Organization</strong></td>
+                    <td>Various providers</td>
+                    <td>Microsoft Corporation (AS8075)</td>
+                    <td><span class="status-badge status-critical">CRITICAL</span></td>
+                </tr>
+                <tr class="high">
+                    <td><strong>Geographic Location</strong></td>
+                    <td>Distributed</td>
+                    <td>Virginia, US (Datacenter)</td>
+                    <td><span class="status-badge status-high">HIGH</span></td>
+                </tr>
+                <tr class="high">
+                    <td><strong>Architecture</strong></td>
+                    <td>x64</td>
+                    <td>Potentially ARM64/Mixed</td>
+                    <td><span class="status-badge status-high">HIGH</span></td>
+                </tr>
+                <tr class="high">
+                    <td><strong>Network Access</strong></td>
+                    <td>Open internet</td>
+                    <td>Container networking</td>
+                    <td><span class="status-badge status-high">HIGH</span></td>
+                </tr>
+                <tr class="medium">
+                    <td><strong>DNS Configuration</strong></td>
+                    <td>Replit custom</td>
+                    <td>Azure default</td>
+                    <td><span class="status-badge status-medium">MEDIUM</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>🔍 Root Cause Analysis</h2>
+
+        <div class="danger-box">
+            <h3>1. IP-Based Blocking <span class="status-badge status-critical">PRIMARY ISSUE</span></h3>
+            <p><strong>Evidence:</strong></p>
+            <ul>
+                <li>Azure static IP <code>4.157.217.180</code> clearly marked as Microsoft Corporation datacenter</li>
+                <li>Local testing from different IPs also shows 403 Forbidden responses</li>
+                <li>Cloudflare Ray IDs present - requests processed but blocked</li>
+                <li><strong>Key Difference:</strong> Replit can bypass/extract content from 403 responses, Azure cannot</li>
+            </ul>
+
+            <div class="code-block">
+# Azure IP Geolocation
+whois 4.157.217.180
+Organization: Microsoft Corporation (MSFT)
+Country: United States
+State: Virginia
+ASN: AS8075
+
+# darkreading.com DNS Resolution
+dig +short www.darkreading.com
+104.16.222.171
+104.16.224.171
+# (Cloudflare CDN)
+            </div>
+        </div>
+
+        <div class="warning-box">
+            <h3>2. CycleTLS Binary Architecture Mismatch <span class="status-badge status-high">HIGH PRIORITY</span></h3>
+            <p><strong>Evidence:</strong></p>
+            <ul>
+                <li>CycleTLS <code>client.get()</code> calls return null/empty responses in Azure</li>
+                <li>Container logs show client creation succeeds but requests fail silently</li>
+                <li>Binary permissions set correctly but potentially wrong architecture</li>
+            </ul>
+
+            <div class="code-block">
+# Current Dockerfile Issues (lines 67-70)
+RUN chmod +x /app/node_modules/cycletls/dist/cycletls-*
+# ❌ No architecture verification
+# ❌ No runtime binary validation
+# ❌ No fallback strategy when binary incompatible
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>3. Enhanced Bot Detection Patterns <span class="status-badge status-medium">MEDIUM PRIORITY</span></h3>
+            <p><strong>Potential Detection Vectors:</strong></p>
+            <ul>
+                <li>Container hostname and network interfaces differ from Replit</li>
+                <li>Azure-specific environment variables (<code>IS_AZURE=true</code>)</li>
+                <li>Container runtime characteristics detectable by bot protection</li>
+                <li>Different request timing patterns and system fingerprints</li>
+            </ul>
+        </div>
+
+        <h2>📋 Investigation Progress</h2>
+
+        <div class="progress-section">
+            <h3><span class="checkmark">✅</span> Phase 1: Environmental Analysis (COMPLETED)</h3>
+            <ul>
+                <li><span class="checkmark">✅</span> Document Azure vs Replit configuration differences</li>
+                <li><span class="checkmark">✅</span> Analyze network fingerprinting disparities</li>
+                <li><span class="checkmark">✅</span> Map technical environment characteristics</li>
+                <li><span class="checkmark">✅</span> Identify potential blocking mechanisms</li>
+            </ul>
+        </div>
+
+        <div class="progress-section">
+            <h3><span class="checkmark">✅</span> Phase 2: Network & IP Analysis (COMPLETED)</h3>
+            <ul>
+                <li><span class="checkmark">✅</span> DNS resolution verification (darkreading.com → Cloudflare)</li>
+                <li><span class="checkmark">✅</span> IP geolocation analysis (Azure static IP location/organization)</li>
+                <li><span class="checkmark">✅</span> Certificate chain validation (Google Trust Services - working)</li>
+                <li><span class="checkmark">✅</span> Network connectivity testing (403 responses confirmed)</li>
+            </ul>
+        </div>
+
+        <div class="progress-section">
+            <h3><span class="pending">🔄</span> Phase 3: Deep Technical Diagnosis (IN PROGRESS)</h3>
+            <ul>
+                <li><span class="checkmark">✅</span> Enhanced diagnostic logging implementation</li>
+                <li><span class="pending">⏳</span> CycleTLS binary architecture verification</li>
+                <li><span class="pending">⏳</span> Request flow mapping for successful vs failed attempts</li>
+                <li><span class="pending">⏳</span> Cloudflare protection mechanism analysis</li>
+                <li><span class="pending">⏳</span> Browser fingerprint comparison between environments</li>
+            </ul>
+        </div>
+
+        <div class="progress-section">
+            <h3><span class="pending">📋</span> Phase 4: Solution Implementation (PENDING)</h3>
+            <ul>
+                <li><span class="pending">⏳</span> Azure IP alternatives research & testing</li>
+                <li><span class="pending">⏳</span> Enhanced anti-detection system implementation</li>
+                <li><span class="pending">⏳</span> CycleTLS architecture fixes & fallback strategies</li>
+                <li><span class="pending">⏳</span> Site-specific bypass techniques for darkreading.com</li>
+                <li><span class="pending">⏳</span> Residential proxy integration for high-risk sites</li>
+            </ul>
+        </div>
+
+        <h2>📊 Success Metrics</h2>
+
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">95%</div>
+                <div class="metric-label">CycleTLS Success Rate Target</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">90%</div>
+                <div class="metric-label">darkreading.com Extraction Target</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">80%</div>
+                <div class="metric-label">Cloudflare Bypass Target</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">30s</div>
+                <div class="metric-label">Max Response Time</div>
+            </div>
+        </div>
+
+        <h2>🚀 Immediate Action Items</h2>
+
+        <div class="action-item high-priority">
+            <h4>🔥 High Priority (This Week)</h4>
+            <ol>
+                <li><strong>Complete CycleTLS Binary Verification</strong>
+                    <ul>
+                        <li>Implement runtime architecture detection</li>
+                        <li>Add binary compatibility checks in Dockerfile</li>
+                        <li>Create graceful fallback when binaries fail</li>
+                    </ul>
+                </li>
+                <li><strong>Deploy Enhanced Diagnostics</strong>
+                    <ul>
+                        <li>Push diagnostic logging code to Azure staging</li>
+                        <li>Monitor darkreading.com scraping with detailed logging</li>
+                        <li>Analyze request/response patterns vs Replit</li>
+                    </ul>
+                </li>
+                <li><strong>Research Azure Networking Alternatives</strong>
+                    <ul>
+                        <li>Investigate multi-region deployment options</li>
+                        <li>Research Container Apps networking configurations</li>
+                        <li>Evaluate residential proxy services integration</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="action-item">
+            <h4>📋 Medium Priority (Next Week)</h4>
+            <ol>
+                <li><strong>Implement Enhanced Anti-Detection</strong>
+                    <ul>
+                        <li>Azure-specific browser fingerprint masking</li>
+                        <li>Request timing randomization</li>
+                        <li>User-agent rotation strategies</li>
+                        <li>Container environment masking</li>
+                    </ul>
+                </li>
+                <li><strong>Create Site-Specific Bypass Strategies</strong>
+                    <ul>
+                        <li>darkreading.com custom handling</li>
+                        <li>Cloudflare challenge automation improvements</li>
+                        <li>Session persistence across requests</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <h2>💡 Key Insights Discovered</h2>
+
+        <div class="info-box">
+            <ol>
+                <li><strong>Static IP is Major Factor:</strong> Azure's <code>4.157.217.180</code> clearly identifies as Microsoft datacenter, triggering enhanced Cloudflare protection</li>
+                <li><strong>CycleTLS Silent Failures:</strong> Binary architecture mismatches cause operations to fail without errors, degrading protection bypass capabilities</li>
+                <li><strong>Environment Detection:</strong> Container characteristics are detectable by sophisticated bot protection systems</li>
+                <li><strong>Bypass Strategy Differences:</strong> What works in Replit's environment doesn't translate directly to Azure's constrained container environment</li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+            <p><strong>Last Updated:</strong> 2025-09-13 | <strong>Next Review:</strong> Daily until resolution</p>
+            <p><strong>Investigation Lead:</strong> Development Team | <strong>Stakeholders:</strong> DevOps, Security, Product Team</p>
+        </div>
+    </div>
+</body>
+</html>

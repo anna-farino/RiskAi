@@ -83,128 +83,96 @@ export default function Settings() {
   //console.log(userData.data)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold">
-          Settings
-        </h1>
+    <div className="flex flex-col gap-4">
+      {/* Settings Header - Similar to News Capsule */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300 mx-4 lg:mx-0">
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
+                <Shield className="h-6 w-6 text-[#BF00FF]" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-semibold text-white">Platform Settings</span>
+                <span className="text-sm text-slate-400">Configure your account, security, and intelligence preferences</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-slate-400">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-green-400 rounded-full"></div>
+                <span>Account Active</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                <span>{!!userData.data?.twoFactorEnabled ? 'MFA Enabled' : 'MFA Disabled'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Sectioned Widget Layout */}
-      <div className="space-y-12 w-full">
+      <div className="space-y-4 w-full">
         
         {/* Account & Security Section */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-              <Bell className="h-6 w-6 text-[#BF00FF]" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Account & Security</h2>
-              <p className="text-sm text-gray-400">Manage your account protection and privacy settings</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Security Widget */}
-            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-                  <Shield className="h-5 w-5 text-[#BF00FF]" />
-                </div>
-                <h2 className="text-xl font-semibold text-white">Security</h2>
+        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300 mx-4 lg:mx-0">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
+                <Shield className="h-6 w-6 text-[#BF00FF]" />
               </div>
-          
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label className="text-base font-medium text-white">Two-Factor Authentication</Label>
-                <p className="text-sm text-gray-400 mt-1">Extra security layer</p>
+              <div className="flex flex-col">
+                <span className="text-xl font-semibold text-white">Account & Security</span>
+                <span className="text-sm text-slate-400">Manage your account protection and privacy settings</span>
               </div>
-              <Switch
-                id="two-factor-authentication"
-                disabled={twoFAmutation.isPending}
-                checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
-                onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
-              />
             </div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label className="text-base font-medium text-white">Reset Password</Label>
-                <p className="text-sm text-gray-400 mt-1">Change account password</p>
-              </div>
-              <CustomAlertDialog
-                title="Reset Password?"
-                description={`An OTP-code will be sent to your email upon clicking 'Confirm'`}
-                action={sendOtpMutation.mutate}
-                open={resetOpen}
-                setOpen={setResetOpen}
-                twGapClass="gap-8"
-                twMaxWidthClass="max-w-sm"
-              >
-                <Button variant="outline" size="sm">
-                  Reset
-                </Button>
-              </CustomAlertDialog>
-            </div>
-            {error && 
-              <div className="text-destructive text-sm bg-red-500/10 p-2 rounded">
-                An error occurred! Try again later
-              </div>
-            }
-          </div>
-        </div>
-
-            {/* Data Privacy Widget */}
-            {false && <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-                  <Shield className="h-5 w-5 text-[#00FFFF]" />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label className="text-base font-medium text-white">Two-Factor Authentication</Label>
+                  <p className="text-sm text-slate-400 mt-1">Extra security layer for your account</p>
                 </div>
-                <h2 className="text-xl font-semibold text-white">Data Privacy</h2>
+                <Switch
+                  id="two-factor-authentication"
+                  disabled={twoFAmutation.isPending}
+                  checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
+                  onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
+                />
               </div>
               
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-white">Data Retention</Label>
-                  <Select value={dataRetention} onValueChange={setDataRetention}>
-                    <SelectTrigger className="bg-black/50 border-[#BF00FF]/20 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-[#BF00FF]/20">
-                      <SelectItem value="3months">3 Months</SelectItem>
-                      <SelectItem value="6months">6 Months</SelectItem>
-                      <SelectItem value="12months">12 Months</SelectItem>
-                      <SelectItem value="24months">24 Months</SelectItem>
-                      <SelectItem value="indefinite">Indefinite</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-400">How long to keep your data</p>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label className="text-base font-medium text-white">Reset Password</Label>
+                  <p className="text-sm text-slate-400 mt-1">Change your account password</p>
                 </div>
-                
-                <div className="space-y-3">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Download My Data
+                <CustomAlertDialog
+                  title="Reset Password?"
+                  description={`An OTP-code will be sent to your email upon clicking 'Confirm'`}
+                  action={sendOtpMutation.mutate}
+                  open={resetOpen}
+                  setOpen={setResetOpen}
+                  twGapClass="gap-8"
+                  twMaxWidthClass="max-w-sm"
+                >
+                  <Button variant="outline" size="sm">
+                    Reset
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10">
-                    Request Data Deletion
-                  </Button>
-                </div>
-                
-                <div className="text-xs text-gray-400 pt-2">
-                  <p>GDPR compliant data processing.</p>
-                  <p>Contact support for privacy inquiries.</p>
-                </div>
+                </CustomAlertDialog>
               </div>
-            </div>}
+              {error && 
+                <div className="text-destructive text-sm bg-red-500/10 border border-red-500/20 p-3 rounded">
+                  An error occurred! Try again later
+                </div>
+              }
+            </div>
           </div>
         </div>
         
         {/* Intelligence Preferences Section */}
         {false && <div className="space-y-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
               <Globe className="h-6 w-6 text-[#00FFFF]" />
             </div>
             <div>
@@ -215,9 +183,9 @@ export default function Settings() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Sources Widget */}
-            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-md p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
                   <Globe className="h-5 w-5 text-[#00FFFF]" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">Sources</h2>
@@ -247,9 +215,9 @@ export default function Settings() {
             </div>
 
             {/* Keywords Widget */}
-            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-md p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
                   <AlertTriangle className="h-5 w-5 text-[#BF00FF]" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">Keywords</h2>
@@ -288,7 +256,7 @@ export default function Settings() {
         {/* Notifications & Reports Section */}
         {false && <div className="space-y-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
               <Mail className="h-6 w-6 text-[#00FFFF]" />
             </div>
             <div>
@@ -299,9 +267,9 @@ export default function Settings() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Notifications Widget */}
-            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-md p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
                   <Mail className="h-5 w-5 text-[#00FFFF]" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">Notifications</h2>
@@ -347,9 +315,9 @@ export default function Settings() {
             </div>
 
             {/* Reports Widget */}
-            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-xl p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
+            <div className="bg-black/40 backdrop-blur border border-[#BF00FF]/20 rounded-md p-6 hover:border-[#BF00FF]/40 transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
                   <Clock className="h-5 w-5 text-[#00FFFF]" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">Reports</h2>
@@ -397,18 +365,20 @@ export default function Settings() {
         </div>}
 
         {/* Developer Tools Section */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-lg">
-              <Shield className="h-6 w-6 text-[#BF00FF]" />
+        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300 mx-4 lg:mx-0">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
+                <Shield className="h-6 w-6 text-[#BF00FF]" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-semibold text-white">Developer Tools</span>
+                <span className="text-sm text-slate-400">Development and testing utilities</span>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Developer Tools</h2>
-              <p className="text-sm text-gray-400">Development and testing utilities</p>
-            </div>
+            
+            <SampleDataPopulator />
           </div>
-          
-          <SampleDataPopulator />
         </div>
         
       </div>

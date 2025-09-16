@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import dotenvConfig from './dotenv-config';
 import { reqLog } from './req-log';
 
+
 dotenvConfig(dotenv)
 
 const SECRET = process.env.JWT_SECRET!;

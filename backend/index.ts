@@ -15,6 +15,14 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 
 console.log("[🌐 NODE_ENV]", process.env.NODE_ENV)
 
+// Debug: Check CycleTLS availability at startup
+try {
+  const cycletls = require('cycletls');
+  console.log('✅ [STARTUP] CycleTLS loaded successfully, version:', require('cycletls/package.json').version);
+} catch(e) {
+  console.log('❌ [STARTUP] CycleTLS failed to load:', e.message);
+}
+
 const app = express();
 
 app.set('trust-proxy', 1);

@@ -136,28 +136,36 @@ export async function performCycleTLSRequest(
       consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
     }
 
-    // FIXED: CORRECT CYCLETLS v1.0.27 API IMPLEMENTATION
+    // ENHANCED: Using CycleTLS Manager for optimized client lifecycle
     let response: any;
     try {
-      const cycletls = require('cycletls');
+      // Import CycleTLS Manager
+      const { cycleTLSManager } = require('./cycletls-manager');
       
-      log(`[ProtectionBypass] Creating CycleTLS client with ${profile.deviceType} profile`, "scraper");
+      log(`[ProtectionBypass] Getting CycleTLS client with ${profile.deviceType} profile`, "scraper");
       
-      // SIMPLIFIED CYCLETLS - Using only supported options
-      log(`[ProtectionBypass] Creating CycleTLS client with supported options only`, "scraper");
-      
-      // Create client with only proven CycleTLS options
-      const client = await cycletls({
+      // Get or create client through the manager
+      const client = await cycleTLSManager.getClient({
         ja3: profile.ja3,                    // ✅ TLS fingerprinting
         userAgent: profile.userAgent,        // ✅ User agent string
         timeout: timeout || 30000,           // ✅ Request timeout
         proxy: "",                            // ✅ No proxy (supported option)
         disableRedirect: false,               // ✅ Follow redirects
-        // Note: Removed all unsupported options that were causing status 0
-        // Browser fingerprinting still works via page.evaluateOnNewDocument
       });
       
-      log(`[ProtectionBypass] CycleTLS client created successfully`, "scraper");
+      // Check if client is available (architecture compatibility)
+      if (!client) {
+        log(`[ProtectionBypass] CycleTLS client not available (architecture incompatible), falling back`, "scraper");
+        return {
+          success: false,
+          status: 0,
+          headers: {},
+          body: '',
+          error: 'CycleTLS not compatible with current architecture'
+        };
+      }
+      
+      log(`[ProtectionBypass] CycleTLS client ready`, "scraper");
       
       // Simple request options without HTTP/2 pseudo-headers
       const requestOptions = {
@@ -166,6 +174,33 @@ export async function performCycleTLSRequest(
       };
       
       log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
+      
+      // Enhanced diagnostics for Azure vs Replit investigation
+      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+        log(`[Azure-Network-Debug] Request initiated`, "scraper");
+        log(`[Azure-Network-Debug] Target: ${url}`, "scraper");  
+        log(`[Azure-Network-Debug] Method: ${method.toUpperCase()}`, "scraper");
+        log(`[Azure-Network-Debug] User-Agent: ${consistentHeaders['User-Agent'] || 'not-set'}`, "scraper");
+        log(`[Azure-Network-Debug] Environment: NODE_ENV=${process.env.NODE_ENV}, IS_AZURE=${process.env.IS_AZURE}`, "scraper");
+        log(`[Azure-Network-Debug] Profile: ${profile.deviceType}, JA3: ${profile.ja3 ? 'set' : 'not-set'}`, "scraper");
+        
+        // Add DNS and timing information  
+      }
+      
+      const startTime = Date.now(); // Track overall request timing
+      
+      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+        try {
+          // Safe URL parsing without network calls
+          const urlObj = new URL(url);
+          log(`[Azure-Network-Debug] Target hostname: ${urlObj.hostname}`, "scraper");
+          log(`[Azure-Network-Debug] Target protocol: ${urlObj.protocol}`, "scraper");
+          log(`[Azure-Network-Debug] Target port: ${urlObj.port || 'default'}`, "scraper");
+          log(`[Azure-Network-Debug] Request path: ${urlObj.pathname}`, "scraper");
+        } catch (urlError) {
+          log(`[Azure-Network-Debug] URL parsing failed: ${urlError.message}`, "scraper-error");
+        }
+      }
       
       // Call the appropriate method with URL as first param, options as second
       switch (method.toLowerCase()) {
@@ -207,6 +242,36 @@ export async function performCycleTLSRequest(
       log(`[ProtectionBypass] CycleTLS response received`, "scraper");
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
       log(`[ProtectionBypass] Response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
+      
+      // Enhanced response diagnostics for Azure vs Replit investigation
+      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+        const responseTime = Date.now() - (startTime || Date.now());
+        log(`[Azure-Network-Debug] Response received after ${responseTime}ms`, "scraper");
+        log(`[Azure-Network-Debug] Response status: ${response ? response.status : 'null'}`, "scraper");
+        log(`[Azure-Network-Debug] Response headers available: ${response && response.headers ? 'yes' : 'no'}`, "scraper");
+        log(`[Azure-Network-Debug] Response body available: ${response && (response.data || response.text) ? 'yes' : 'no'}`, "scraper");
+        
+        if (response && response.headers) {
+          const serverHeader = response.headers['server'] || response.headers['Server'];
+          const cfRay = response.headers['cf-ray'] || response.headers['CF-RAY'];
+          const cfCache = response.headers['cf-cache-status'] || response.headers['CF-Cache-Status'];
+          
+          if (serverHeader) log(`[Azure-Network-Debug] Server: ${serverHeader}`, "scraper");
+          if (cfRay) log(`[Azure-Network-Debug] Cloudflare Ray ID: ${cfRay}`, "scraper");
+          if (cfCache) log(`[Azure-Network-Debug] Cloudflare Cache Status: ${cfCache}`, "scraper");
+        }
+        
+        // Log content length for analysis
+        if (response && (response.data || response.text)) {
+          const contentLength = (response.data || response.text).length;
+          log(`[Azure-Network-Debug] Response content length: ${contentLength} characters`, "scraper");
+          
+          // Sample first 200 chars for analysis (but not sensitive content)
+          const content = (response.data || response.text).toString();
+          const sample = content.substring(0, 200).replace(/[\r\n]+/g, ' ');
+          log(`[Azure-Network-Debug] Content sample: ${sample}...`, "scraper");
+        }
+      }
       
       // Validate response
       if (!response) {

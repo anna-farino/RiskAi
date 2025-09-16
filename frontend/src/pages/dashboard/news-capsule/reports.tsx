@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { ReportsManager } from "@/components/news-capsule/reports-manager";
+import { formatDateOnly } from "@/utils/date-utils";
+
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { X as XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon } from "lucide-react";
+import { X as XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon, ChevronUp, ChevronDown, BarChart3, FolderOpen } from "lucide-react";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,11 +23,31 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { use } from "passport";
+
 
 interface ReportWithArticles extends Report {
   articles: CapsuleArticle[];
 }
+
+// Helper function to format dates properly
+const formatDate = (dateValue: any): string => {
+  try {
+    // Handle both Date objects and string dates
+    if (dateValue instanceof Date) {
+      return format(dateValue, "MMM d, yyyy");
+    }
+    if (typeof dateValue === 'string') {
+      // Try parsing as Date first
+      const parsed = new Date(dateValue);
+      if (!isNaN(parsed.getTime())) {
+        return format(parsed, "MMM d, yyyy");
+      }
+    }
+    return formatDateOnly(dateValue, "MMM d, yyyy");
+  } catch (error) {
+    return "Unknown date";
+  }
+};
 
 export default function Reports() {
   const queryClient = useQueryClient();
@@ -39,64 +60,55 @@ export default function Reports() {
   const [executiveNotes, setExecutiveNotes] = useState<Record<string, string>>({});
   const [showAddNote, setShowAddNote] = useState<string | null>(null);
   
-  // Mobile responsive state - matching research page structure
-  const [showReportLibrary, setShowReportLibrary] = useState(false);
-  const [isViewportMobile, setIsViewportMobile] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Remove sidebar-related mobile responsive state
+  
+  // Unified Toolbar State
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
 
-  // Responsive viewport detection - matching research page
+  // Load reports query
+  const { data: reports = [], isLoading: reportsLoading, error: reportsError } = useQuery<ReportWithArticles[]>({
+    queryKey: ["/api/news-capsule/reports"],
+    queryFn: async () => {
+      const response = await fetchWithAuth('/api/news-capsule/reports');
+      if (!response.ok) throw new Error('Failed to fetch reports');
+      return response.json();
+    },
+  });
+
+  // Auto-select first report when none selected
   useEffect(() => {
-    const checkViewport = () => {
-      const isMobile = window.innerWidth < 1024;
-      setIsViewportMobile(isMobile);
-      if (isMobile) {
-        setIsSidebarCollapsed(false); // Always expanded on mobile
-      }
-    };
-
-    checkViewport();
-    window.addEventListener('resize', checkViewport);
-    return () => window.removeEventListener('resize', checkViewport);
-  }, []);
+    if (reports.length > 0 && !selectedReport) {
+      setSelectedReport(reports[0]);
+    }
+  }, [reports, selectedReport]);
   
   // Dialog state for confirmations
   const [showDeleteReportDialog, setShowDeleteReportDialog] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<ReportWithArticles | null>(null);
   const [showRemoveArticleDialog, setShowRemoveArticleDialog] = useState(false);
   const [articleToRemove, setArticleToRemove] = useState<{ reportId: string; articleId: string; articleTitle: string; isLastArticle?: boolean } | null>(null);
-  const [checkReportFromDashboard, setCheckReportFromDashboard] = useState(false)
+  const [checkReportFromDashboard, setCheckReportFromDashboard] = useState(false);
 
-
-
-  // Fetch reports from database
-  const { data: reports = [], isLoading: reportsLoading } = useQuery<ReportWithArticles[]>({
-    queryKey: ["/api/news-capsule/reports"],
-    queryFn: async () => {
-      const response = await fetchWithAuth('/api/news-capsule/reports', {
-        method: "GET",
-      });
-      if (!response.ok) throw new Error('Failed to fetch reports');
-      return response.json();
-    },
-  });
-
-  setTimeout(()=> setCheckReportFromDashboard(true), 10)
-  console.log(selectedReport)
-  useEffect(()=>{
-    const reportFromDashboard = sessionStorage.getItem('selectedCapsuleReport')
-    if (!reportFromDashboard || !checkReportFromDashboard) return
+  // Check for report from dashboard navigation
+  useEffect(() => {
+    const reportFromDashboard = sessionStorage.getItem('selectedCapsuleReport');
+    if (!reportFromDashboard || !checkReportFromDashboard) return;
     try {
-      window.scrollTo(0,0)
-      const report = JSON.parse(reportFromDashboard)
-      console.log("Report in sessionStorage", report)
-      setSelectedReport(report)
+      window.scrollTo(0, 0);
+      const report = JSON.parse(reportFromDashboard);
+      setSelectedReport(report);
     } catch (error) {
-      console.error(error)
+      console.error(error);
     } finally {
-      sessionStorage.removeItem('selectedCapsuleReport')
-      setCheckReportFromDashboard(false)
+      sessionStorage.removeItem('selectedCapsuleReport');
+      setCheckReportFromDashboard(false);
     }
-  },[checkReportFromDashboard])
+  }, [checkReportFromDashboard]);
+
+  // Initialize dashboard check
+  useEffect(() => {
+    setTimeout(() => setCheckReportFromDashboard(true), 10);
+  }, []);
 
   // Delete report mutation
   const deleteReportMutation = useMutation({
@@ -128,12 +140,6 @@ export default function Reports() {
 
   const handleReportSelect = (report: ReportWithArticles) => {
     setSelectedReport(report);
-    //loadExecutiveNotes(report.id);
-    
-    // Close mobile library overlay when report is selected
-    if (isViewportMobile) {
-      setShowReportLibrary(false);
-    }
   };
 
   // Load executive notes for the selected report
@@ -403,7 +409,7 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.json`;
+    link.download = `Executive_Report_${String(selectedReport.createdAt).replace(/,|\s/g, '_')}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -412,62 +418,143 @@ export default function Reports() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
-      {/* Mobile Floating Action Button - positioned to match research page */}
-      {isViewportMobile && (
-        <button
-          onClick={() => setShowReportLibrary(true)}
-          className="fixed bottom-4 right-[170px] sm:bottom-6 sm:right-[170px] z-[55] w-14 h-14 bg-[#00FFFF]/80 backdrop-blur-sm border border-[#00FFFF]/50 hover:bg-[#BF00FF] text-black hover:text-white rounded-full flex items-center justify-center shadow-xl transition-all duration-200 ease-in-out hover:scale-105 active:scale-95"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          {reports.length > 0 && (
-            <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#BF00FF] text-white text-xs font-bold rounded-full flex items-center justify-center">
-              {reports.length}
-            </span>
-          )}
-        </button>
-      )}
 
-      <div className="flex flex-col gap-2 px-4 lg:px-0">
-        <h1 className="text-xl sm:text-2xl font-bold">Executive Reports</h1>
-        <p className="text-sm sm:text-base text-slate-300">
-          View and manage compiled reports for executive review.
-        </p>
-      </div>
-      
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 flex-1 px-4 lg:px-0">
-        {/* Report Library - Adaptive Sidebar matching research page */}
-        <div className="relative transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden order-first lg:order-last w-full lg:w-80 lg:flex-shrink-0">
-          {/* Report Count Header */}
-          <div className="p-4 border-b border-slate-700/50">
+      {/* Unified Toolbar Container */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300 mx-4 lg:mx-0">
+        {!isToolbarExpanded ? (
+          /* Collapsed State */
+          <div className="p-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-300">Report Library</h3>
-              <span className="text-[#00FFFF] font-semibold text-lg">
-                {reports.length}
-              </span>
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-orange-400" />
+                <div className="flex flex-col">
+                  <span className="text-lg font-medium text-white">Reports Library and Tools</span>
+                  <span className="text-xs text-slate-400">View and manage compiled reports for executive review</span>
+                </div>
+                {reports.length > 0 && (
+                  <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-xs text-orange-400">
+                    {reports.length} reports
+                  </span>
+                )}
+                {selectedReport && (
+                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs text-blue-400">
+                    Report selected
+                  </span>
+                )}
+
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsToolbarExpanded(true)}
+                  className="px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/50 rounded-md text-sm text-slate-300 hover:text-white transition-all duration-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
+        ) : (
+          /* Expanded State */
+          <div className="p-6">
+            {/* Header with collapse button */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-6 w-6 text-orange-400" />
+                <div className="flex flex-col">
+                  <span className="text-xl font-semibold text-white">Reports Library and Tools</span>
+                  <span className="text-sm text-slate-400">View and manage compiled reports for executive review</span>
+                </div>
+                {reports.length > 0 && (
+                  <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-sm text-orange-400">
+                    {reports.length} reports
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setIsToolbarExpanded(false)}
+                className="p-2 hover:bg-slate-800/50 rounded-md transition-colors duration-200 text-slate-400 hover:text-white"
+              >
+                <ChevronUp className="h-5 w-5" />
+              </button>
+            </div>
 
-          <div className="min-h-[400px] lg:h-full overflow-y-auto p-4 sm:p-5">
-            <ReportsManager 
-              reports={reports}
-              onReportSelect={handleReportSelect}
-              onDeleteReport={(reportId) => {
-                const report = reports.find(r => r.id === reportId);
-                if (report) confirmDeleteReport(report);
-              }}
-              selectedReportId={selectedReport?.id}
-              isLoading={reportsLoading}
-              isDeleting={deleteReportMutation.isPending}
-            />
+            {/* Report Library - Full Width */}
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <FolderOpen className="h-5 w-5 text-orange-400" />
+                  <span className="text-base font-medium text-orange-400">Report Library</span>
+                  {reports.length > 0 && (
+                    <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-xs text-orange-400">
+                      {reports.length} reports
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-slate-400">
+                    {reports.length} total reports | {reports.reduce((sum, r) => sum + r.articles.length, 0)} total articles
+                  </span>
+                </div>
+              </div>
+              
+              {/* Report List - Always Visible */}
+              <div className="max-h-48 overflow-y-auto mb-4">
+                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {reports.length === 0 ? (
+                    <div className="col-span-full text-center py-6 text-slate-400">
+                      <FolderOpen className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No reports available</p>
+                    </div>
+                  ) : (
+                    reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className={`relative group px-2 py-1.5 rounded-md border transition-all duration-200 ${
+                          selectedReport?.id === report.id
+                            ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                            : 'bg-slate-800/50 border-slate-600/50 hover:bg-slate-700/50 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        <div 
+                          onClick={() => handleReportSelect(report)}
+                          className="flex items-center justify-between cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-medium truncate">
+                              {format(new Date(report.createdAt), 'MMM dd')} • {report.articles.length} articles • {format(new Date(report.createdAt), 'h:mm a')}
+                            </span>
+                          </div>
+                          
+                          {/* Delete button */}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDeleteReport(report);
+                            }}
+                            className="p-1 rounded bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-colors text-xs flex-shrink-0"
+                            title="Delete report"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18"></path>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              
+
+            </div>
           </div>
-        </div>
-        
-        {/* Executive Report Content - Flexible Width matching research page */}
-        <div className={`w-full transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden ${
-          isViewportMobile ? 'lg:flex-1' : isSidebarCollapsed ? 'lg:flex-[2]' : 'lg:flex-1'
-        }`}>
+        )}
+      </div>
+      
+      {/* Executive Report Content - Full Width */}
+      <div className="w-full bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-md overflow-hidden mx-4 lg:mx-0">
           <div className="min-h-[300px] lg:h-full overflow-y-auto p-4 sm:p-5">
             {reportsLoading ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[200px]">
@@ -476,10 +563,10 @@ export default function Reports() {
               </div>
             ) : selectedReport ? (
             <div>
-              <div className={`flex ${isViewportMobile ? 'flex-col gap-4' : 'justify-between items-center'} mb-6`}>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                 <div>
                   <h2 className="text-lg sm:text-xl font-semibold">
-                    Executive Report: {formatDate(selectedReport.createdAt)}
+                    Executive Report: {format(new Date(selectedReport.createdAt), 'MMM dd, yyyy • h:mm a')}
                   </h2>
                   {selectedReport.topic && (
                     <p className="text-slate-300 text-sm mt-1">
@@ -499,9 +586,9 @@ export default function Reports() {
                   </button>
                   
                   {showExportDropdown && (
-                    <div className={`absolute ${isViewportMobile ? 'right-0 left-0' : 'right-0'} mt-2 ${isViewportMobile ? 'w-full' : 'w-48'} bg-slate-800 border border-slate-700 rounded-md shadow-lg z-20`}>
+                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg z-20">
                       <button
-                        className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 rounded-t-md rounded-b-none min-h-[44px] touch-manipulation"
+                        className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 rounded-t-md rounded-b-none"
                         onClick={async () => {
                           setShowExportDropdown(false);
                           try {
@@ -529,7 +616,7 @@ export default function Reports() {
                               new Paragraph({
                                 children: [
                                   new TextRun({
-                                    text: `Executive Report: ${formatDate(selectedReport.createdAt)}`,
+                                    text: `Executive Report: ${String(selectedReport.createdAt)}`,
                                     font: "Cambria",
                                     size: 22
                                   })
@@ -808,7 +895,7 @@ export default function Reports() {
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');
                             link.href = url;
-                            link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.docx`;
+                            link.download = `Executive_Report_${String(selectedReport.createdAt).replace(/,|\s/g, '_')}.docx`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
@@ -959,7 +1046,7 @@ export default function Reports() {
                               </head>
                               <body>
                                 <h1>RisqAI News Capsule Reporting</h1>
-                                <h2>Executive Report: ${formatDate(selectedReport.createdAt)}</h2>
+                                <h2>Executive Report: ${String(selectedReport.createdAt)}</h2>
                             `;
 
                             if (selectedReport.topic) {
@@ -1072,7 +1159,7 @@ export default function Reports() {
                             let htmlContent = `
                               <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.3; color: black; max-width: 100%;">
                                 <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24px;">RisqAI News Capsule Reporting</h1>
-                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${formatDate(selectedReport.createdAt)}</h2>
+                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${String(selectedReport.createdAt)}</h2>
                             `;
                             
                             if (selectedReport.topic) {
@@ -1158,7 +1245,7 @@ export default function Reports() {
                             }
                             
                             // Download the PDF
-                            pdf.save(`Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.pdf`);
+                            pdf.save(`Executive_Report_${String(selectedReport.createdAt).replace(/,|\s/g, '_')}.pdf`);
                             
                             // Clean up
                             document.body.removeChild(container);
@@ -1183,7 +1270,7 @@ export default function Reports() {
                           let textContent = "RisqAI News Capsule Reporting\n";
                           textContent += "=".repeat(50) + "\n\n";
                           
-                          textContent += `Executive Report: ${formatDate(selectedReport.createdAt)}\n\n`;
+                          textContent += `Executive Report: ${String(selectedReport.createdAt)}\n\n`;
                           
                           if (selectedReport.topic) {
                             textContent += `Report Topic: ${selectedReport.topic}\n\n`;
@@ -1225,7 +1312,7 @@ export default function Reports() {
                           const url = URL.createObjectURL(blob);
                           const link = document.createElement('a');
                           link.href = url;
-                          link.download = `Executive_Report_${formatDate(selectedReport.createdAt).replace(/,|\s/g, '_')}.txt`;
+                          link.download = `Executive_Report_${String(selectedReport.createdAt).replace(/,|\s/g, '_')}.txt`;
                           document.body.appendChild(link);
                           link.click();
                           document.body.removeChild(link);
@@ -1289,18 +1376,18 @@ export default function Reports() {
                       transition={{ delay: index * 0.1 }}
                       className={`relative pb-6 mb-6 ${index < selectedReport.articles.length - 1 ? 'border-b border-slate-700/30' : ''}`}
                     >
-                      <div className={`flex ${isViewportMobile ? 'flex-col gap-3' : 'items-start gap-3'} mb-4`}>
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
                         <h3 className="text-base sm:text-lg font-medium flex-1 leading-tight">{article.title}</h3>
                         <button
                           onClick={() => confirmRemoveArticleFromReport(article.id)}
-                          className={`${isViewportMobile ? 'self-end' : ''} p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors min-h-[44px] min-w-[44px] touch-manipulation flex items-center justify-center`}
+                          className="self-end sm:self-start p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                           title="Remove article from report"
                         >
                           <XIcon className="w-5 h-5" />
                         </button>
                       </div>
                       
-                      <div className={`grid ${isViewportMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-3 sm:gap-4`}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <p className="text-xs text-slate-400 mb-1">Threat Name</p>
                           <p className="text-sm">{article.threatName}</p>
@@ -1345,7 +1432,6 @@ export default function Reports() {
               <p>Select a report to view its details</p>
             </div>
           )}
-          </div>
         </div>
       </div>
 
@@ -1369,7 +1455,7 @@ export default function Reports() {
               Are you sure you want to delete this report? This action cannot be undone.
               {reportToDelete && (
                 <div className="mt-2 p-2 bg-slate-800 rounded text-sm">
-                  <strong>Report from {formatDate(reportToDelete.createdAt)}</strong>
+                  <strong>Report from {String(reportToDelete.createdAt)}</strong>
                   {reportToDelete.topic && <div className="text-slate-400">Topic: {reportToDelete.topic}</div>}
                 </div>
               )}
@@ -1474,51 +1560,7 @@ export default function Reports() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Mobile Report Library Overlay - matching research page pattern */}
-      <AnimatePresence>
-        {showReportLibrary && isViewportMobile && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30"
-            onClick={() => setShowReportLibrary(false)}
-          >
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 500 }}
-              className="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700/50 rounded-t-2xl max-h-[85vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Report Library ({reports.length})</h3>
-                <button
-                  onClick={() => setShowReportLibrary(false)}
-                  className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg touch-manipulation transition-colors"
-                >
-                  <XIcon className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
-                <ReportsManager 
-                  reports={reports}
-                  onReportSelect={handleReportSelect}
-                  onDeleteReport={(reportId) => {
-                    const report = reports.find(r => r.id === reportId);
-                    if (report) confirmDeleteReport(report);
-                  }}
-                  selectedReportId={selectedReport?.id}
-                  isLoading={reportsLoading}
-                  isDeleting={deleteReportMutation.isPending}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </div>
   );
 }

@@ -50,7 +50,7 @@ const NavItem = ({ href, icon, children, active, isChild = false }: NavItemProps
   <Link
     to={href}
     className={cn(
-      "flex items-center gap-3 rounded-lg py-2.5 text-sm transition-all duration-300",
+      "flex items-center gap-3 rounded-md py-2.5 text-sm transition-all duration-300",
       isChild 
         ? "ml-4 mr-2 px-3 bg-gradient-to-b backdrop-blur-sm border shadow-sm" 
         : "px-3 bg-gradient-to-b backdrop-blur-sm border shadow-sm",
@@ -79,7 +79,7 @@ const NavGroup = ({ title, children, defaultOpen = false }: NavGroupProps) => {
         <Button 
           variant="ghost" 
           className={cn(
-            "flex w-full items-center justify-between py-2 px-3 text-sm transition-all duration-300 rounded-lg",
+            "flex w-full items-center justify-between py-2 px-3 text-sm transition-all duration-300 rounded-md",
             "bg-gradient-to-b from-slate-900/20 to-slate-800/10 backdrop-blur-sm border border-slate-700/20 shadow-sm",
             "text-gray-400 hover:text-[#BF00FF] hover:from-[#300A45]/40 hover:to-black/40 hover:border-[#BF00FF]/25 hover:shadow-md hover:shadow-[#BF00FF]/5"
           )}
@@ -176,7 +176,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           <Collapsible open={newsRadarExpanded} onOpenChange={setNewsRadarExpanded} className="w-full">
             <div className="flex items-center">
               <div className={cn(
-                "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
                 "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
                 isActive('/dashboard/news/home')
                   ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
@@ -230,7 +230,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           <Collapsible open={threatTrackerExpanded} onOpenChange={setThreatTrackerExpanded} className="w-full">
             <div className="flex items-center">
               <div className={cn(
-                "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
                 "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
                 isActive('/dashboard/threat/home')
                   ? "from-[#300A45]/80 to-black/80 border-[#00FFFF]/30 text-white shadow-lg shadow-[#00FFFF]/15"
@@ -284,7 +284,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
             <div className="flex items-center">
               <div className={cn(
-                "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
                 "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
                 isActive('/dashboard/news-capsule/home')
                   ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
@@ -443,7 +443,7 @@ export const MobileNavigation = () => {
                   <Collapsible open={newsRadarExpanded} onOpenChange={setNewsRadarExpanded} className="w-full">
                     <div className="flex items-center">
                       <div className={cn(
-                        "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
                         "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
                         (location.pathname === '/dashboard/news/home' || location.pathname === '/dashboard/news')
                           ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
@@ -497,7 +497,7 @@ export const MobileNavigation = () => {
                   <Collapsible open={threatTrackerExpanded} onOpenChange={setThreatTrackerExpanded} className="w-full">
                     <div className="flex items-center">
                       <div className={cn(
-                        "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
                         "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
                         location.pathname.startsWith('/dashboard/threat')
                           ? "from-[#300A45]/80 to-black/80 border-[#00FFFF]/30 text-white shadow-lg shadow-[#00FFFF]/15"
@@ -551,7 +551,7 @@ export const MobileNavigation = () => {
                   <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
                     <div className="flex items-center">
                       <div className={cn(
-                        "flex items-center justify-between w-full gap-3 rounded-lg py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
                         "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
                         location.pathname.startsWith('/dashboard/news-capsule')
                           ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"

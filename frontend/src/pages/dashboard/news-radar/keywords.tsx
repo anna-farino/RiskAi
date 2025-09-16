@@ -238,6 +238,90 @@ export default function Keywords() {
     },
   });
 
+  const toggleAllKeywords = useMutation({
+    mutationFn: async ({ activate }: { activate: boolean }) => {
+      try {
+        const allKeywords = keywords.data || [];
+        const targetKeywords = activate ? 
+          allKeywords.filter(k => !k.active) : // If activating, get inactive keywords
+          allKeywords.filter(k => k.active);   // If deactivating, get active keywords
+        
+        console.log(`${activate ? 'Activating' : 'Deactivating'} keywords:`, targetKeywords.map(k => ({ id: k.id, term: k.term })));
+        
+        if (targetKeywords.length === 0) {
+          console.log(`No keywords to ${activate ? 'activate' : 'deactivate'}`);
+          return { success: true };
+        }
+        
+        // Process all keywords one by one to ensure proper error handling
+        for (const keyword of targetKeywords) {
+          console.log(`${activate ? 'Activating' : 'Deactivating'} keyword: ${keyword.term} (${keyword.id})`);
+          
+          const response = await fetchWithAuth(`/api/news-tracker/keywords/${keyword.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ active: activate }),
+          });
+          
+          if (!response.ok) {
+            console.error(`Failed to ${activate ? 'activate' : 'deactivate'} keyword ${keyword.term}:`, response.status, response.statusText);
+            throw new Error(`Failed to ${activate ? 'activate' : 'deactivate'} keyword ${keyword.term}: ${response.statusText}`);
+          }
+          
+          console.log(`Successfully ${activate ? 'activated' : 'deactivated'}: ${keyword.term}`);
+        }
+        
+        console.log(`All keywords ${activate ? 'activated' : 'deactivated'} successfully`);
+        return { success: true };
+      } catch (error) {
+        console.error("Toggle all keywords error:", error);
+        throw error;
+      }
+    },
+    onMutate: async ({ activate }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
+      // Snapshot the previous values
+      const previousKeywords = queryClient.getQueryData<Keyword[]>(["/api/news-tracker/keywords"]);
+      
+      // Update React Query cache - toggle all keywords
+      queryClient.setQueryData<Keyword[]>(["/api/news-tracker/keywords"], oldData => 
+        (oldData || []).map(keyword => ({ ...keyword, active: activate }))
+      );
+      
+      return { previousKeywords };
+    },
+    onError: (err, variables, context) => {
+      if (context) {
+        // Revert cache
+        queryClient.setQueryData(["/api/news-tracker/keywords"], context.previousKeywords);
+      }
+      
+      toast({
+        title: `Error ${variables.activate ? 'activating' : 'deactivating'} keywords`,
+        description: `Failed to ${variables.activate ? 'activate' : 'deactivate'} all keywords. Please try again.`,
+        variant: "destructive",
+      });
+    },
+    onSuccess: async (_, { activate }) => {
+      // Invalidate and refetch to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/keywords"] });
+      
+      // Force a refetch to ensure UI is updated
+      setActiveKeywordsUpdating(true);
+      await keywords.refetch();
+      setActiveKeywordsUpdating(false);
+      
+      toast({
+        title: `All keywords ${activate ? 'activated' : 'deactivated'}`,
+        description: activate ? "All keywords are now active for filtering." : "You can now activate individual keywords as needed.",
+      });
+    },
+  });
+
   const deleteKeyword = useMutation({
     mutationFn: async (id: string) => {
       try {
@@ -351,12 +435,12 @@ export default function Keywords() {
       )}
     >
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex flex-col gap-1">
               <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
-                Keywords
+                Keyword Management
               </h1>
               <p className="text-sm text-slate-300">
                 Manage keywords to categorize and filter article content
@@ -365,41 +449,16 @@ export default function Keywords() {
           </div>
 
           {/* Toolbar Content */}
-          <div className="grid gap-4 lg:grid-cols-12">
-            {/* How To Section */}
-            <div className="lg:col-span-4">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Info className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-medium text-blue-400">How to Work with Keywords</span>
-                </div>
-                <div className="text-xs text-slate-300 space-y-2">
-                  <p>
-                    Keywords help categorize and filter articles during news scraping:
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>Add specific terms related to your interests</li>
-                    <li>Use the toggle to activate/deactivate keywords</li>
-                    <li>Active keywords are used for article categorization</li>
-                    <li>Search to quickly find specific keywords</li>
-                    <li>Delete keywords you no longer need</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Search & Filter Section */}
-            <div className="lg:col-span-4">
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-2">
+            <div className="lg:col-span-1">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
                   <Search className="h-4 w-4 text-green-400" />
-                  <span className="text-sm font-medium text-green-400">Search & Filter</span>
+                  <span className="text-sm font-medium text-green-400">Search & Filter Keywords</span>
                 </div>
-                <p className="text-xs text-slate-300 mb-3">
-                  Find specific keywords or filter by active status to manage your keyword list efficiently.
-                </p>
-                <div className="space-y-2">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <Input
                       placeholder="Search keywords..."
@@ -412,7 +471,7 @@ export default function Keywords() {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "h-8 text-xs px-2 transition-colors",
+                      "h-8 text-xs px-3 transition-colors whitespace-nowrap",
                       showActiveOnly
                         ? "border border-green-500 bg-green-500 bg-opacity-20 hover:bg-opacity-30 text-green-500"
                         : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
@@ -420,11 +479,45 @@ export default function Keywords() {
                     onClick={() => setShowActiveOnly(!showActiveOnly)}
                     title={showActiveOnly ? "Show All Keywords" : "Show Active Only"}
                   >
-                    <CheckCircle className="h-3 w-3" />
-                    {showActiveOnly ? "Active Only" : "All"}
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Active Only
                   </Button>
                 </div>
               </div>
+            </div>
+
+            {/* Actions Section */}
+            <div className="lg:col-span-1">
+              <form onSubmit={onSubmit}>
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Plus className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm font-medium text-purple-400">Add New Keyword</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="Enter keyword term..."
+                        {...form.register("term")}
+                        className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={addKeyword.isPending || !form.watch("term")?.trim()}
+                      className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-3 whitespace-nowrap"
+                    >
+                      {addKeyword.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Plus className="h-3 w-3 mr-1" />
+                      )}
+                      Add Keyword
+                    </Button>
+                  </div>
+                </div>
+              </form>
             </div>
 
             {/* Actions Section */}
@@ -485,6 +578,39 @@ export default function Keywords() {
             <div className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
               {filteredKeywords.length}{filteredKeywords.length !== keywords.data?.length && ` of ${keywords.data?.length || 0}`}
             </div>
+            {/* Toggle All Keywords Button */}
+            {keywords.data && keywords.data.length > 0 && (
+              (() => {
+                const activeCount = keywords.data.filter(k => k.active).length;
+                const allActive = activeCount === keywords.data.length;
+                const hasActive = activeCount > 0;
+                
+                return (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleAllKeywords.mutate({ activate: !hasActive })}
+                    disabled={toggleAllKeywords.isPending}
+                    className={cn(
+                      "h-7 px-2 text-xs transition-all duration-200",
+                      hasActive 
+                        ? "border-orange-500/30 hover:bg-orange-500/10 text-orange-400 hover:text-orange-300"
+                        : "border-green-500/30 hover:bg-green-500/10 text-green-400 hover:text-green-300"
+                    )}
+                    title={hasActive ? "Deactivate all keywords" : "Activate all keywords"}
+                  >
+                    {toggleAllKeywords.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : hasActive ? (
+                      <XCircle className="h-3 w-3 mr-1" />
+                    ) : (
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                    )}
+                    {hasActive ? "Deactivate All" : "Activate All"}
+                  </Button>
+                );
+              })()
+            )}
           </div>
           
           <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -556,7 +682,7 @@ export default function Keywords() {
                 <div 
                   key={keyword.id} 
                   className={cn(
-                    "relative border border-slate-700/50 rounded-lg overflow-hidden",
+                    "relative border border-slate-700/50 rounded-md overflow-hidden",
                     "transition-all duration-200",
                     isPending 
                       ? "border-orange-500/50 shadow-orange-500/10 shadow-md" 

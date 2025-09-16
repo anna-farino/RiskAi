@@ -1,3 +1,7 @@
+//import dotenv from 'dotenv'
+//import dotenvConfig from 'backend/utils/dotenv-config'
+//dotenvConfig(dotenv)
+
 const isAzure = process.env.IS_AZURE;
 
 export default {

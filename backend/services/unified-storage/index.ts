@@ -17,7 +17,7 @@ import { keywords, type Keyword } from '@shared/db/schema/news-tracker';
 import { threatKeywords, type ThreatKeyword } from '@shared/db/schema/threat-tracker';
 import { eq, and, or, inArray, sql, desc, ilike, isNull } from 'drizzle-orm';
 import { log } from 'backend/utils/log';
-import { decrypt } from 'backend/utils/encryption';
+import { envelopeDecryptAndRotate } from 'backend/utils/encryption-new';
 
 export type AppType = 'news-radar' | 'threat-tracker';
 
@@ -95,8 +95,7 @@ export class UnifiedStorageService {
       if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Use specific keyword IDs sent from frontend
         
-        if (appType === 'news-radar') {
-          
+        if (appType === 'news-radar' || appType === 'threat-tracker') {          
           // Use withUserContext to bypass RLS and get keywords
           const encryptedKeywords = await withUserContext(
             userId,
@@ -118,10 +117,12 @@ export class UnifiedStorageService {
           );
           
           // Decrypt the keyword terms
-          const decryptedKeywords = encryptedKeywords.map(k => ({
-            ...k,
-            term: decrypt(k.term)
-          }));
+          const decryptedKeywords = await Promise.all(
+            encryptedKeywords.map(async (k) => ({
+              ...k,
+              term: await envelopeDecryptAndRotate(keywords, k.id, 'term', userId)
+            }))
+          );
           
           keywordsToFilter = decryptedKeywords.map(k => k.term);
         } else {
@@ -567,10 +568,12 @@ export class UnifiedStorageService {
         );
         
         // Decrypt the keyword terms
-        const decryptedKeywords = encryptedKeywords.map(k => ({
-          ...k,
-          term: decrypt(k.term)
-        }));
+        const decryptedKeywords = await Promise.all(
+          encryptedKeywords.map(async (k) => ({
+            ...k,
+            term: await envelopeDecryptAndRotate(keywords, k.id, 'term', userId)
+          }))
+        );
         
         keywordsToFilter = decryptedKeywords.map(k => k.term);
       } else {

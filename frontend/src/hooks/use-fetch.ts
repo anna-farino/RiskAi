@@ -16,15 +16,19 @@ export function useFetch() {
         }
       })
     } catch(error) {
-      console.error("Failed to get Auth0 token:", (error as any).message.toString())
+      console.error("Failed to get Auth0 token:", (error as any).message?.toString() || error)
       console.error("Error details:", error);
       console.error("Audience used:", audience);
-      // Return a mock 401 response instead of throwing
-      return new Response(JSON.stringify({ error: "Authentication failed", details: (error as any).message }), {
+      // Return a mock 401 response instead of throwing to prevent unhandled rejection
+      const errorResponse = new Response(JSON.stringify({ 
+        error: "Authentication failed", 
+        details: (error as any).message || "Unknown auth error" 
+      }), {
         status: 401,
         statusText: "Unauthorized",
         headers: { "Content-Type": "application/json" }
       });
+      return Promise.resolve(errorResponse);
     }
 
     // Only proceed if we have a valid token
