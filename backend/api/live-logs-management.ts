@@ -6,6 +6,10 @@ import {
   verifyDevLogPermission
 } from '../services/live-logs/permissions';
 import { log } from '../utils/log';
+import dotenv from 'dotenv'
+import dotenvConfig from 'backend/utils/dotenv-config';
+
+dotenvConfig(dotenv)
 
 const router = express.Router();
 
@@ -13,9 +17,12 @@ const router = express.Router();
  * Get all developers with live logs permissions
  * GET /api/live-logs-management/permissions
  */
-router.get('/permissions', async (req, res) => {
+router.get('/permissions', async (_req, res) => {
   try {
-    if (process.env.NODE_ENV === 'production') {
+    if (
+      process.env.NODE_ENV === 'production' || 
+      (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'development')
+    ) {
       return res.status(404).json({ error: 'Live logs not available in production' });
     }
 
