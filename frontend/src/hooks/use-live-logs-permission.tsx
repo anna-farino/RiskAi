@@ -93,4 +93,8 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
   }, [isAuthenticated, authLoading, user?.email]);
 
   return state;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/dev
