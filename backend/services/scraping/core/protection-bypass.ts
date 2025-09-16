@@ -202,31 +202,63 @@ export async function performCycleTLSRequest(
         }
       }
       
-      // Call the appropriate method with URL as first param, options as second
-      switch (method.toLowerCase()) {
-        case 'get':
-          response = await client.get(url, requestOptions);
-          break;
-        case 'post':
-          response = await client.post(url, requestOptions);
-          break;
-        case 'head':
-          response = await client.head(url, requestOptions);
-          break;
-        case 'put':
-          response = await client.put(url, requestOptions);
-          break;
-        case 'delete':
-          response = await client.delete(url, requestOptions);
-          break;
-        case 'patch':
-          response = await client.patch(url, requestOptions);
-          break;
-        default:
-          // For unsupported methods, default to GET
-          log(`[ProtectionBypass] Method ${method} not directly supported, using GET`, "scraper");
-          response = await client.get(url, requestOptions);
-          break;
+      // CRITICAL FIX: Wrap CycleTLS calls in Promise with timeout to prevent process crashes
+      const executeRequest = async () => {
+        return new Promise((resolve, reject) => {
+          // Set a hard timeout to prevent hanging
+          const requestTimeout = setTimeout(() => {
+            reject(new Error(`CycleTLS request timeout after ${timeout || 30000}ms`));
+          }, timeout || 30000);
+          
+          // Execute the request with error isolation
+          const performRequest = async () => {
+            try {
+              let result;
+              // Call the appropriate method with URL as first param, options as second
+              switch (method.toLowerCase()) {
+                case 'get':
+                  result = await client.get(url, requestOptions);
+                  break;
+                case 'post':
+                  result = await client.post(url, requestOptions);
+                  break;
+                case 'head':
+                  result = await client.head(url, requestOptions);
+                  break;
+                case 'put':
+                  result = await client.put(url, requestOptions);
+                  break;
+                case 'delete':
+                  result = await client.delete(url, requestOptions);
+                  break;
+                case 'patch':
+                  result = await client.patch(url, requestOptions);
+                  break;
+                default:
+                  // For unsupported methods, default to GET
+                  log(`[ProtectionBypass] Method ${method} not directly supported, using GET`, "scraper");
+                  result = await client.get(url, requestOptions);
+                  break;
+              }
+              clearTimeout(requestTimeout);
+              resolve(result);
+            } catch (error) {
+              clearTimeout(requestTimeout);
+              reject(error);
+            }
+          };
+          
+          // Execute with error boundary
+          performRequest().catch(reject);
+        });
+      };
+      
+      try {
+        response = await executeRequest();
+      } catch (requestError: any) {
+        // Log the error but don't let it crash the process
+        log(`[ProtectionBypass] CycleTLS request failed safely: ${requestError.message}`, "scraper-error");
+        throw requestError; // Re-throw to be caught by outer try-catch
       }
       
       // Clean up the client
