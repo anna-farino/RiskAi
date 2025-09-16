@@ -300,7 +300,7 @@ export class BrowserManager {
         }
 
         const browser = await puppeteer.launch({
-          headless: false,
+          headless: "new", // Use new headless mode for better compatibility
           args: browserArgs,
           executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
           timeout: 180000, // 3 minutes for browser launch

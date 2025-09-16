@@ -261,15 +261,9 @@ export async function performCycleTLSRequest(
         throw requestError; // Re-throw to be caught by outer try-catch
       }
       
-      // Clean up the client
-      if (client.exit && typeof client.exit === 'function') {
-        try {
-          await client.exit();
-          log(`[ProtectionBypass] CycleTLS client cleaned up`, "scraper");
-        } catch (exitError: any) {
-          log(`[ProtectionBypass] Client cleanup failed: ${exitError.message}`, "scraper");
-        }
-      }
+      // DO NOT cleanup the client here - let CycleTLSManager handle lifecycle
+      // This was causing WebSocket disconnection issues
+      log(`[ProtectionBypass] CycleTLS request completed, keeping client alive`, "scraper");
       
       log(`[ProtectionBypass] CycleTLS response received`, "scraper");
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
