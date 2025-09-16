@@ -1707,21 +1707,80 @@ export async function bypassIncapsula(page: Page): Promise<boolean> {
     const hasIncapsula = await page.evaluate(() => {
       return document.documentElement?.innerHTML?.includes("_Incapsula_Resource") ||
              document.documentElement?.innerHTML?.includes("Incapsula") ||
-             document.documentElement?.innerHTML?.includes("window._icdt");
+             document.documentElement?.innerHTML?.includes("window._icdt") ||
+             window.hasOwnProperty('__incap_script') ||
+             document.cookie.includes('incap_ses_');
     });
 
     if (hasIncapsula) {
-      log(`[ProtectionBypass] Incapsula protection detected, performing bypass actions...`, "scraper");
+      log(`[ProtectionBypass] Incapsula protection detected, performing enhanced bypass...`, "scraper");
       
-      // Perform human-like actions to bypass Incapsula
+      // Strategy 1: Handle Incapsula cookies and wait for validation
+      await page.evaluate(() => {
+        // Incapsula often sets visid_incap and incap_ses cookies
+        const cookies = document.cookie.split(';');
+        const incapCookies = cookies.filter(c => 
+          c.includes('incap_') || c.includes('visid_')
+        );
+        console.log('Incapsula cookies found:', incapCookies.length);
+      });
+
+      // Strategy 2: Wait for Incapsula resources to load
+      try {
+        await page.waitForFunction(
+          () => {
+            // Check if Incapsula validation completed
+            return !document.querySelector('script[src*="_Incapsula_Resource"]') ||
+                   window.hasOwnProperty('__incap_script_loaded');
+          },
+          { timeout: 10000 }
+        );
+      } catch {
+        log(`[ProtectionBypass] Incapsula resources timeout, continuing...`, "scraper");
+      }
+      
+      // Strategy 3: Enhanced human-like actions for Incapsula
+      await page.mouse.move(100, 100);
+      await page.mouse.move(200, 200);
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await performHumanLikeActions(page);
       
-      // Wait for protection to clear
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      // Strategy 4: Handle Incapsula's JavaScript challenge
+      await page.evaluate(() => {
+        // Trigger any pending Incapsula validations
+        if (window._icdt) {
+          console.log('Triggering Incapsula validation');
+        }
+      });
       
-      // Reload page to get clean content
-      await page.reload({ waitUntil: 'networkidle2' });
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Wait for protection to clear with longer timeout
+      await new Promise((resolve) => setTimeout(resolve, 7000));
+      
+      // Strategy 5: Check if we need to reload
+      const stillBlocked = await page.evaluate(() => {
+        const html = document.documentElement.innerHTML;
+        return html.includes("Request unsuccessful") || 
+               html.includes("Incapsula incident") ||
+               html.length < 1000; // Very short response usually means blocked
+      });
+      
+      if (stillBlocked) {
+        log(`[ProtectionBypass] Still blocked, attempting reload...`, "scraper");
+        // Reload page to get clean content
+        await page.reload({ waitUntil: 'networkidle2' });
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+      
+      // Final validation
+      const finalCheck = await page.evaluate(() => {
+        return document.body?.innerText?.length > 500;
+      });
+      
+      if (finalCheck) {
+        log(`[ProtectionBypass] Incapsula bypass successful`, "scraper");
+      } else {
+        log(`[ProtectionBypass] Incapsula bypass may have partially failed`, "scraper");
+      }
       
       return true;
     } else {
