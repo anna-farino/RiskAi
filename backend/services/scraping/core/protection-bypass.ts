@@ -2,8 +2,8 @@ import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
 import UserAgent from 'user-agents';
-import { createCursor } from 'ghost-cursor';
 import { safePageEvaluate } from '../scrapers/puppeteer-scraper/error-handler';
+import { applyEnhancedStealthMeasures } from './stealth-enhancements';
 
 // Global type declarations for bot detection evasion
 declare global {
@@ -2041,7 +2041,7 @@ export async function performBehavioralDelay(options: EnhancedScrapingOptions = 
 }
 
 /**
- * Enhanced human-like actions with ghost cursor
+ * Enhanced human-like actions with realistic mouse movements
  */
 export async function performEnhancedHumanActions(page: Page): Promise<void> {
   try {
@@ -2052,37 +2052,33 @@ export async function performEnhancedHumanActions(page: Page): Promise<void> {
     const maxX = viewport?.width || 1920;
     const maxY = viewport?.height || 1280;
     
-    // Try to use ghost-cursor with proper error handling
-    try {
-      const cursor = createCursor(page);
+    // Use native Puppeteer mouse simulation with realistic patterns
+    // Random mouse movements with bezier curves for more natural motion
+    for (let i = 0; i < 3; i++) {
+      const startX = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1);
+      const startY = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
+      const endX = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1);
+      const endY = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
       
-      // Random mouse movements
-      for (let i = 0; i < 3; i++) {
-        const x = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1); // Stay within 10-90% of viewport
-        const y = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
+      // Move in multiple small steps to simulate human-like movement
+      const steps = 10 + Math.floor(Math.random() * 10);
+      for (let step = 0; step <= steps; step++) {
+        const progress = step / steps;
+        // Add slight curve to the movement
+        const currentX = startX + (endX - startX) * progress + Math.sin(progress * Math.PI) * 20;
+        const currentY = startY + (endY - startY) * progress + Math.cos(progress * Math.PI) * 20;
         
-        await cursor.move(x, y);
-        await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
+        await page.mouse.move(currentX, currentY);
+        await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 30));
       }
       
-      // Safe click in the middle area
-      const safeX = Math.floor(maxX / 2);
-      const safeY = Math.floor(maxY / 2);
-      await cursor.click(safeX, safeY);
-      
-    } catch (cursorError: any) {
-      log(`[ProtectionBypass] Ghost cursor error: ${cursorError.message}, falling back to native mouse simulation`, "scraper");
-      
-      // Fallback to native Puppeteer mouse simulation
-      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
-      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
-      
-      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
-      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
-      
-      // Safe click
-      await page.mouse.click(Math.floor(maxX / 2), Math.floor(maxY / 2));
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
     }
+    
+    // Safe click in a random but reasonable area
+    const safeX = Math.floor(maxX * (0.3 + Math.random() * 0.4)); // 30-70% of width
+    const safeY = Math.floor(maxY * (0.3 + Math.random() * 0.4)); // 30-70% of height
+    await page.mouse.click(safeX, safeY);
     
     // Random scroll actions
     await page.evaluate(() => {
@@ -2121,7 +2117,11 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
   try {
     log(`[ProtectionBypass] Applying enhanced fingerprinting for ${profile.deviceType}`, "scraper");
     
-    // Set viewport to match profile
+    // First apply our comprehensive stealth measures from stealth-enhancements module
+    // This includes dynamic display, WebGL spoofing, WebRTC prevention, etc.
+    await applyEnhancedStealthMeasures(page);
+    
+    // Set viewport to match profile (will override the one from stealth measures)
     await page.setViewport(profile.viewport);
     
     // Set user agent
