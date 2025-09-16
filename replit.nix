@@ -1,6 +1,7 @@
 
 { pkgs }: {
   deps = [
+    pkgs.xorg.xorgserver
     pkgs.jq
     pkgs.gir-rs
     pkgs.libxkbcommon

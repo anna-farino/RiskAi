@@ -246,6 +246,73 @@ export class BrowserManager {
   }
 
   /**
+   * Start XVFB on a specific display
+   */
+  private static async startXvfb(displayNumber: number): Promise<void> {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    const displayStr = `:${displayNumber}`;
+    
+    try {
+      // Check if XVFB is already running on this display
+      const { stdout: psOutput } = await execAsync('ps aux | grep Xvfb || true');
+      const isRunning = psOutput.includes(displayStr);
+      
+      if (isRunning) {
+        log(`[BrowserManager] XVFB already running on display ${displayStr}`, "scraper");
+        return;
+      }
+      
+      // Generate realistic screen resolution
+      const screenRes = generateRealisticScreenResolution();
+      
+      // Start XVFB with the random display number and resolution
+      // Try to find Xvfb in common locations
+      const xvfbPaths = [
+        'Xvfb', // System path
+        '/nix/store/*/bin/Xvfb', // Nix store pattern
+        '/usr/bin/Xvfb' // Standard Linux location
+      ];
+      
+      let xvfbPath = 'Xvfb';
+      for (const path of xvfbPaths) {
+        if (path.includes('*')) {
+          // Handle glob pattern for Nix store
+          try {
+            const { stdout } = await execAsync(`ls ${path} 2>/dev/null | head -1`);
+            if (stdout.trim()) {
+              xvfbPath = stdout.trim();
+              break;
+            }
+          } catch {}
+        } else {
+          try {
+            await execAsync(`which ${path}`);
+            xvfbPath = path;
+            break;
+          } catch {}
+        }
+      }
+      
+      const xvfbCommand = `${xvfbPath} ${displayStr} -screen 0 ${screenRes.width}x${screenRes.height}x24 -ac +extension GLX +render -noreset &`;
+      
+      log(`[BrowserManager] Starting XVFB on display ${displayStr} with resolution ${screenRes.width}x${screenRes.height}`, "scraper");
+      
+      await execAsync(xvfbCommand);
+      
+      // Wait for XVFB to initialize
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      log(`[BrowserManager] XVFB started successfully on display ${displayStr}`, "scraper");
+    } catch (error: any) {
+      log(`[BrowserManager] Warning: Could not start XVFB: ${error.message}`, "scraper");
+      // Continue anyway - might be running in a different environment
+    }
+  }
+
+  /**
    * Create a new browser instance with unified configuration
    * Enhanced with retry logic for protocol timeouts
    */
@@ -264,12 +331,22 @@ export class BrowserManager {
           displayNumber = generateRandomDisplayNumber();
           const displayStr = `:${displayNumber}`;
           
+          // Start XVFB on the generated display
+          await this.startXvfb(displayNumber);
+          
+          // Set display environment variable
+          process.env.DISPLAY = displayStr;
+          log(
+            `[BrowserManager] Set DISPLAY=${displayStr} for Azure environment`,
+            "scraper",
+          );
+        } else {
+          // For non-Azure environments (like Replit), check if DISPLAY is set
           if (!process.env.DISPLAY) {
-            process.env.DISPLAY = displayStr;
-            log(
-              `[BrowserManager] Setting randomized virtual display ${displayStr} for Azure environment`,
-              "scraper",
-            );
+            // Try to start XVFB on default display
+            await this.startXvfb(99);
+            process.env.DISPLAY = ':99';
+            log(`[BrowserManager] Set DISPLAY=:99 for non-Azure environment`, "scraper");
           }
         }
 
@@ -300,7 +377,7 @@ export class BrowserManager {
         }
 
         const browser = await puppeteer.launch({
-          headless: "new", // Use new headless mode for better compatibility
+          headless: false, // Use real browser with XVFB for better anti-detection
           args: browserArgs,
           executablePath: chromePath || process.env.PUPPETEER_EXECUTABLE_PATH,
           timeout: 180000, // 3 minutes for browser launch
