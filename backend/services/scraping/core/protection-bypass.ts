@@ -608,8 +608,8 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
     
     log(`[ProtectionBypass] Starting session warmup`, "scraper");
-    
-    // Step 1: Visit unprotected sites first to establish session legitimacy
+  
+      // Step 1: Visit homepage (common human behavior)
     const warmupSites = [
       'https://www.google.com',
       'https://www.wikipedia.org',
@@ -632,60 +632,47 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
       
       if (warmupResponse.success) {
         log(`[ProtectionBypass] Warmup site visit successful: ${site} (${warmupResponse.status})`, "scraper");
+        
+        // Step 2: Brief human-like delay
+        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+        
+        // Step 3: Load favicon (common browser behavior)
+        await performCycleTLSRequest(`${baseUrl}/favicon.ico`, {
+          method: 'GET',
+          sessionId,
+          timeout: 5000,
+          headers: {
+            'Referer': baseUrl,
+            'Sec-Fetch-Dest': 'image',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          }
+        });
+        
+        // Step 4: Another human delay
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+        
+        // Step 5: Try to load a common page (about or contact)
+        const commonPages = ['/about', '/contact', '/privacy', '/terms'];
+        const randomPage = commonPages[Math.floor(Math.random() * commonPages.length)];
+        
+        await performCycleTLSRequest(`${baseUrl}${randomPage}`, {
+          method: 'GET',
+          sessionId,
+          timeout: 5000,
+          headers: {
+            'Referer': baseUrl,
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+          }
+        });
       }
       
       // Human-like delay between sites (3-5 seconds)
       await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
-    }
-    
-    log(`[ProtectionBypass] Now approaching target site: ${baseUrl}`, "scraper");
-    
-    // Step 2: Visit target homepage
-    const homepageResponse = await performCycleTLSRequest(baseUrl, {
-      method: 'GET',
-      sessionId,
-      timeout: 10000
-    });
-    
-    if (homepageResponse.success) {
-      log(`[ProtectionBypass] Homepage visit successful (${homepageResponse.status})`, "scraper");
-      
-      // Step 3: Brief human-like delay
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-      
-      // Step 4: Load favicon (common browser behavior)
-      await performCycleTLSRequest(`${baseUrl}/favicon.ico`, {
-        method: 'GET',
-        sessionId,
-        timeout: 5000,
-        headers: {
-          'Referer': baseUrl,
-          'Sec-Fetch-Dest': 'image',
-          'Sec-Fetch-Mode': 'no-cors',
-          'Sec-Fetch-Site': 'same-origin',
-          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-        }
-      });
-      
-      // Step 5: Another human delay
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-      
-      // Step 6: Try to load a common page (about or contact)
-      const commonPages = ['/about', '/contact', '/privacy', '/terms'];
-      const randomPage = commonPages[Math.floor(Math.random() * commonPages.length)];
-      
-      await performCycleTLSRequest(`${baseUrl}${randomPage}`, {
-        method: 'GET',
-        sessionId,
-        timeout: 5000,
-        headers: {
-          'Referer': baseUrl,
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'same-origin',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-        }
-      });
     }
     
     log(`[ProtectionBypass] Session warmup completed`, "scraper");
