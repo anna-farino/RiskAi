@@ -385,28 +385,46 @@ export async function performCycleTLSRequest(
         const zlib = require('zlib');
         let decompressed = false;
         
-        // Try Brotli decompression first (most common for HTML from Cloudflare)
-        try {
-          responseBody = zlib.brotliDecompressSync(response.data).toString('utf8');
-          log(`[ProtectionBypass] Successfully decompressed Brotli-compressed response`, "scraper");
-          decompressed = true;
-        } catch (brotliError) {
-          // Not Brotli, try gzip
+        // Check for Zstandard compression first (magic bytes: 28 b5 2f fd)
+        if (response.data.length >= 4 && 
+            response.data[0] === 0x28 && 
+            response.data[1] === 0xb5 && 
+            response.data[2] === 0x2f && 
+            response.data[3] === 0xfd) {
           try {
-            responseBody = zlib.gunzipSync(response.data).toString('utf8');
-            log(`[ProtectionBypass] Successfully decompressed gzip-compressed response`, "scraper");
+            const { decompress } = require('@mongodb-js/zstd');
+            responseBody = (await decompress(response.data)).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed Zstandard-compressed response`, "scraper");
             decompressed = true;
-          } catch (gzipError) {
-            // Not gzip, try deflate
+          } catch (zstdError) {
+            log(`[ProtectionBypass] Failed to decompress as Zstandard: ${zstdError.message}`, "scraper");
+          }
+        }
+        
+        if (!decompressed) {
+          // Try Brotli decompression (most common for HTML from Cloudflare)
+          try {
+            responseBody = zlib.brotliDecompressSync(response.data).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed Brotli-compressed response`, "scraper");
+            decompressed = true;
+          } catch (brotliError) {
+            // Not Brotli, try gzip
             try {
-              responseBody = zlib.inflateSync(response.data).toString('utf8');
-              log(`[ProtectionBypass] Successfully decompressed deflate-compressed response`, "scraper");
+              responseBody = zlib.gunzipSync(response.data).toString('utf8');
+              log(`[ProtectionBypass] Successfully decompressed gzip-compressed response`, "scraper");
               decompressed = true;
-            } catch (deflateError) {
-              // No compression detected, convert as-is
-              log(`[ProtectionBypass] No compression detected, converting buffer to string`, "scraper");
-              log(`[ProtectionBypass] Decompression attempts failed - Brotli: ${brotliError.message}, Gzip: ${gzipError.message}, Deflate: ${deflateError.message}`, "scraper");
-              responseBody = response.data.toString('utf8');
+            } catch (gzipError) {
+              // Not gzip, try deflate
+              try {
+                responseBody = zlib.inflateSync(response.data).toString('utf8');
+                log(`[ProtectionBypass] Successfully decompressed deflate-compressed response`, "scraper");
+                decompressed = true;
+              } catch (deflateError) {
+                // No compression detected, convert as-is
+                log(`[ProtectionBypass] No compression detected, converting buffer to string`, "scraper");
+                log(`[ProtectionBypass] Decompression attempts failed - Brotli: ${brotliError.message}, Gzip: ${gzipError.message}, Deflate: ${deflateError.message}`, "scraper");
+                responseBody = response.data.toString('utf8');
+              }
             }
           }
         }
