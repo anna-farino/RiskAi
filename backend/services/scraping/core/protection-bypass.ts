@@ -691,6 +691,7 @@ export async function performPreflightCheck(url: string): Promise<{
   headers?: Record<string, string>;
   body?: string;  // Return the successful content
   status?: number; // Return the status code
+  sessionId?: string; // Return the sessionId for reuse
 }> {
   log(`[ProtectionBypass] Performing enhanced pre-flight check with session warming for ${url}`, "scraper");
 
@@ -727,7 +728,8 @@ export async function performPreflightCheck(url: string): Promise<{
       protectionType,
       requiresPuppeteer: protectionType !== 'none',
       cookies: response.cookies,
-      headers: response.headers
+      headers: response.headers,
+      sessionId // Return sessionId for reuse in bypass attempts
     };
   }
 
@@ -744,7 +746,8 @@ export async function performPreflightCheck(url: string): Promise<{
     cookies: response.cookies,
     headers: response.headers,
     body: response.body,  // Include the successful content
-    status: response.status // Include the status code
+    status: response.status, // Include the status code
+    sessionId // Return sessionId for potential reuse
   };
 }
 

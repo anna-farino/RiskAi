@@ -276,11 +276,12 @@ export async function scrapeWithHTTP(
   if (preflightResult.protectionDetected) {
     log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
     
-    // Try one optimized request for protected sites
+    // Try one optimized request for protected sites using the warmed-up session
     const response = await performCycleTLSRequest(url, {
       method: 'GET',
       timeout: 30000,
-      cookies: preflightResult.cookies
+      cookies: preflightResult.cookies,
+      sessionId: preflightResult.sessionId  // Use the warmed-up sessionId
     });
     
     if (response.success && response.body) {
