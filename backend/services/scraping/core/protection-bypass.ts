@@ -1855,10 +1855,23 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   const cfBeacon = (window as any).__cfBeacon;
                   
                   // Find all global functions that might be the onload callback
+                  // IMPORTANT: Exclude browser built-in functions
+                  const builtInFunctions = [
+                    'onerror', 'alert', 'atob', 'blur', 'btoa', 'close', 
+                    'confirm', 'fetch', 'find', 'focus', 'moveBy', 'moveTo', 
+                    'open', 'print', 'prompt', 'resizeBy', 'resizeTo', 
+                    'scroll', 'scrollBy', 'scrollTo', 'stop', 'getComputedStyle',
+                    'getSelection', 'matchMedia', 'requestAnimationFrame',
+                    'cancelAnimationFrame', 'clearInterval', 'clearTimeout',
+                    'setInterval', 'setTimeout', 'postMessage'
+                  ];
+                  
                   const globalFuncs = Object.keys(window).filter(k => 
                     typeof (window as any)[k] === 'function' && 
                     k.length < 10 && // Short names like PXGpw7
-                    /^[A-Za-z0-9]+$/.test(k) // Alphanumeric only
+                    k.length > 3 && // But not too short
+                    /^[A-Za-z][A-Za-z0-9]+$/.test(k) && // Alphanumeric, starts with letter
+                    !builtInFunctions.includes(k.toLowerCase()) // Not a built-in
                   );
                   
                   // Find container with data-sitekey
@@ -1881,8 +1894,46 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 
                 log(`[ProtectionBypass] Widget config: ${JSON.stringify(widgetConfig)}`, "scraper");
                 
-                // Since we're in explicit render mode and can't use ready(), 
-                // we need to manually render the widget
+                // Check if we should look for the onload callback in the URL
+                const urlOnloadCallback = await page.evaluate(() => {
+                  // Look for onload parameter in any script URL
+                  const scripts = Array.from(document.querySelectorAll('script[src]'));
+                  for (const script of scripts) {
+                    const src = script.getAttribute('src') || '';
+                    const match = src.match(/[?&]onload=([A-Za-z0-9]+)/);
+                    if (match) {
+                      console.log(`Found onload callback in URL: ${match[1]}`);
+                      return match[1];
+                    }
+                  }
+                  return null;
+                });
+                
+                if (urlOnloadCallback) {
+                  log(`[ProtectionBypass] Found onload callback in URL: ${urlOnloadCallback}`, "scraper");
+                  
+                  // Call the specific onload callback
+                  try {
+                    const onloadResult = await page.evaluate((callbackName) => {
+                      const func = (window as any)[callbackName];
+                      if (typeof func === 'function') {
+                        console.log(`Calling onload callback: ${callbackName}`);
+                        func();
+                        return { success: true };
+                      }
+                      return { error: 'Function not found' };
+                    }, urlOnloadCallback);
+                    
+                    if (onloadResult.success) {
+                      log(`[ProtectionBypass] Successfully called onload callback`, "scraper");
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                  } catch (e) {
+                    log(`[ProtectionBypass] Failed to call onload callback`, "scraper");
+                  }
+                }
+                
+                // Handle explicit render mode
                 if (widgetConfig?.renderMode === 'explicit' && widgetConfig?.sitekey) {
                   const renderResult = await page.evaluate(() => {
                     const ts = (window as any).turnstile;
@@ -1963,23 +2014,44 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   });
                 }
                 
-                // Check for onload callbacks
+                // Check for onload callbacks (filtered to only Cloudflare-specific ones)
                 if (widgetConfig?.callbackFunctions?.length) {
-                  log(`[ProtectionBypass] Found potential callback functions: ${widgetConfig.callbackFunctions}`, "scraper");
+                  log(`[ProtectionBypass] Found potential Cloudflare callback functions: ${widgetConfig.callbackFunctions}`, "scraper");
                   
-                  // Try to call them
+                  // Try to call them with safety checks
                   for (const funcName of widgetConfig.callbackFunctions) {
-                    await page.evaluate((name) => {
-                      try {
-                        const func = (window as any)[name];
-                        if (typeof func === 'function') {
-                          console.log(`Calling callback: ${name}`);
-                          func();
+                    try {
+                      const callResult = await page.evaluate((name) => {
+                        try {
+                          const func = (window as any)[name];
+                          if (typeof func === 'function') {
+                            // Check if function looks safe to call (no parameters expected)
+                            const funcStr = func.toString();
+                            if (funcStr.includes('native code')) {
+                              console.log(`Skipping native function: ${name}`);
+                              return { skipped: true, reason: 'native' };
+                            }
+                            
+                            console.log(`Calling Cloudflare callback: ${name}`);
+                            // Call with timeout to prevent hanging
+                            const result = func();
+                            return { success: true, result: typeof result };
+                          }
+                          return { skipped: true, reason: 'not a function' };
+                        } catch (e: any) {
+                          console.log(`Failed to call ${name}:`, e.message);
+                          return { error: e.message };
                         }
-                      } catch (e) {
-                        console.log(`Failed to call ${name}:`, e);
+                      }, funcName);
+                      
+                      if (callResult?.success) {
+                        log(`[ProtectionBypass] Successfully called callback: ${funcName}`, "scraper");
+                        // Give it time to initialize
+                        await new Promise(resolve => setTimeout(resolve, 500));
                       }
-                    }, funcName);
+                    } catch (evalError) {
+                      log(`[ProtectionBypass] Could not evaluate callback ${funcName}`, "scraper");
+                    }
                   }
                 }
                 
