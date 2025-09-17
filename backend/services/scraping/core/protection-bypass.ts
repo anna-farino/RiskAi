@@ -1729,9 +1729,17 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 window.dispatchEvent(new Event('focus'));
                 document.dispatchEvent(new Event('visibilitychange'));
                 
-                // Simulate tab switching back to page
-                document.hidden = false;
-                document.visibilityState = 'visible';
+                // Simulate tab switching back to page - use Object.defineProperty for read-only properties
+                Object.defineProperty(document, 'hidden', {
+                  value: false,
+                  writable: true,
+                  configurable: true
+                });
+                Object.defineProperty(document, 'visibilityState', {
+                  value: 'visible',
+                  writable: true,
+                  configurable: true
+                });
               });
             }
             
