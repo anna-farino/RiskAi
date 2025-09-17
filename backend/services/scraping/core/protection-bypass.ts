@@ -1445,133 +1445,7 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
  */
 export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
   try {
-    // Inject Turnstile instrumentation BEFORE navigation
-    await page.evaluateOnNewDocument(() => {
-      // Store original Turnstile for later
-      let originalTurnstile: any = null;
-      
-      // Create storage for widgets and events
-      (window as any).__tsWidgets = {};
-      (window as any).__tsEvents = {
-        tokens: [],
-        errors: [],
-        expired: []
-      };
-      
-      // Instrument Turnstile when it loads
-      Object.defineProperty(window, 'turnstile', {
-        get() {
-          return originalTurnstile;
-        },
-        set(value) {
-          if (value && !originalTurnstile) {
-            console.log('[CF] Instrumenting Turnstile API');
-            originalTurnstile = value;
-            
-            // Wrap the render function to capture widget IDs
-            const originalRender = value.render;
-            if (originalRender) {
-              value.render = function(container: any, options: any = {}) {
-                console.log('[CF] Turnstile render called');
-                
-                // Wrap callbacks to capture tokens
-                const originalCallback = options.callback;
-                const originalErrorCallback = options['error-callback'];
-                const originalExpiredCallback = options['expired-callback'];
-                
-                // Store the widget ID when it's created
-                const widgetId = originalRender.call(this, container, options);
-                console.log(`[CF] Widget rendered with ID: ${widgetId}`);
-                
-                // Enhanced callback wrapper to capture token
-                options.callback = function(token: string) {
-                  console.log(`[CF] Token received for widget ${widgetId}: ${token?.substring(0, 30)}...`);
-                  (window as any).__tsEvents.tokens.push({
-                    token,
-                    widgetId: widgetId,
-                    timestamp: Date.now()
-                  });
-                  (window as any).__latestToken = token;
-                  (window as any).__latestWidgetId = widgetId;
-                  if (originalCallback) originalCallback(token);
-                };
-                
-                options['error-callback'] = function(error: any) {
-                  console.log('[CF] Turnstile error:', error);
-                  (window as any).__tsEvents.errors.push({
-                    error,
-                    widgetId: widgetId,
-                    timestamp: Date.now()
-                  });
-                  if (originalErrorCallback) originalErrorCallback(error);
-                };
-                
-                options['expired-callback'] = function() {
-                  console.log('[CF] Token expired');
-                  (window as any).__tsEvents.expired.push({
-                    widgetId: widgetId,
-                    timestamp: Date.now()
-                  });
-                  if (originalExpiredCallback) originalExpiredCallback();
-                };
-                
-                // Store widget info
-                (window as any).__tsWidgets[widgetId] = {
-                  id: widgetId,
-                  container: container,
-                  options: options,
-                  timestamp: Date.now()
-                };
-                
-                return widgetId;
-              };
-            }
-            
-            // Also wrap execute to log calls
-            const originalExecute = value.execute;
-            if (originalExecute) {
-              value.execute = function(widgetId?: any) {
-                console.log(`[CF] Execute called for widget: ${widgetId}`);
-                const result = originalExecute.call(this, widgetId);
-                // Store the widget ID if execution succeeds
-                if (widgetId !== undefined) {
-                  (window as any).__lastExecutedWidgetId = widgetId;
-                }
-                return result;
-              };
-            }
-            
-            // Wrap getResponse to capture tokens
-            const originalGetResponse = value.getResponse;
-            if (originalGetResponse) {
-              value.getResponse = function(widgetId?: any) {
-                const response = originalGetResponse.call(this, widgetId);
-                if (response) {
-                  console.log(`[CF] GetResponse returned token for widget ${widgetId}: ${response.substring(0, 30)}...`);
-                  (window as any).__latestToken = response;
-                  (window as any).__latestWidgetId = widgetId;
-                }
-                return response;
-              };
-            }
-          }
-          originalTurnstile = value;
-        },
-        configurable: true
-      });
-      
-      // Also intercept auto-render widgets with data-sitekey
-      const originalQuerySelector = document.querySelector;
-      document.querySelector = function(selector: string) {
-        const element = originalQuerySelector.call(this, selector);
-        if (element && selector && selector.includes('data-sitekey')) {
-          // Store element for later reference
-          (window as any).__turnstileElement = element;
-        }
-        return element;
-      };
-    });
-    
+    // Instrumentation is now applied globally in stealth-enhancements.ts
     log(`[ProtectionBypass] Performing enhanced Cloudflare challenge detection...`, "scraper");
 
     // 1. Better Challenge Detection
@@ -2556,9 +2430,16 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   
                   log(`[ProtectionBypass] Widget execution result: ${JSON.stringify(widgetExecution)}`, "scraper");
                   
-                  // Now monitor for token generation
+                  // Now monitor for token generation with smarter logic
                   let challengeCompleted = false;
-                  for (let i = 0; i < 20; i++) {
+                  let consecutiveNoProgress = 0;
+                  let lastTokenCount = 0;
+                  let lastErrorCount = 0;
+                  
+                  // Increase timeout for invisible challenges (they can take longer)
+                  const maxAttempts = 60; // 60 seconds total
+                  
+                  for (let i = 0; i < maxAttempts; i++) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     
                     // Check for Turnstile token response using our instrumentation
@@ -2652,8 +2533,31 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                       };
                     });
                     
+                    // Check for errors in our instrumentation
+                    const eventStatus = await page.evaluate(() => {
+                      const events = (window as any).__tsEvents || { tokens: [], errors: [] };
+                      return {
+                        tokenCount: events.tokens.length,
+                        errorCount: events.errors.length,
+                        lastError: events.errors.length > 0 ? events.errors[events.errors.length - 1] : null
+                      };
+                    });
+                    
+                    // Track progress
+                    if (eventStatus.tokenCount > lastTokenCount) {
+                      log(`[ProtectionBypass] Progress: New tokens detected (${eventStatus.tokenCount} total)`, "scraper");
+                      consecutiveNoProgress = 0;
+                      lastTokenCount = eventStatus.tokenCount;
+                    } else if (eventStatus.errorCount > lastErrorCount) {
+                      log(`[ProtectionBypass] Error detected in Turnstile: ${JSON.stringify(eventStatus.lastError)}`, "scraper");
+                      lastErrorCount = eventStatus.errorCount;
+                      consecutiveNoProgress = 0; // Reset since error is a form of progress
+                    } else {
+                      consecutiveNoProgress++;
+                    }
+                    
                     if (tokenInfo.hasToken && tokenInfo.token) {
-                      log(`[ProtectionBypass] Turnstile token received (length: ${tokenInfo.tokenLength})`, "scraper");
+                      log(`[ProtectionBypass] Turnstile token received (length: ${tokenInfo.tokenLength}, from instrumentation: ${tokenInfo.fromInstrumentation})`, "scraper");
                       
                       // Submit the token via the Cloudflare mechanism
                       const submitResult = await page.evaluate((token) => {
@@ -2718,8 +2622,19 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                       break;
                     }
                     
-                    // Retry execution periodically
-                    if (i === 5 || i === 10 || i === 15) {
+                    // If no progress for 20 seconds, consider it failed
+                    if (consecutiveNoProgress >= 20) {
+                      log(`[ProtectionBypass] No progress detected for 20 seconds, challenge likely failed`, "scraper");
+                      break;
+                    }
+                    
+                    // Log status periodically
+                    if (i % 5 === 4) {
+                      log(`[ProtectionBypass] Waiting for challenge (${i + 1}/${maxAttempts})... Tokens: ${eventStatus.tokenCount}, Errors: ${eventStatus.errorCount}, No progress: ${consecutiveNoProgress}s`, "scraper");
+                    }
+                    
+                    // Retry execution periodically if we're stuck
+                    if ((i === 10 || i === 20 || i === 30) && eventStatus.tokenCount === 0) {
                       log(`[ProtectionBypass] Retrying widget execution (attempt ${i})...`, "scraper");
                       await page.evaluate(() => {
                         const ts = (window as any).turnstile;

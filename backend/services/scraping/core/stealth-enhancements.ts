@@ -139,6 +139,150 @@ export async function applyEnhancedStealthMeasures(page: Page, config?: StealthC
   
   log(`[StealthEnhancements] Applying enhanced stealth measures with display :${stealthConfig.displayNumber}`, "scraper");
   
+  // Apply Turnstile instrumentation FIRST - must be before page loads
+  await page.evaluateOnNewDocument(() => {
+    // Store original Turnstile for later
+    let originalTurnstile: any = null;
+    
+    // Create storage for widgets and events
+    (window as any).__tsWidgets = {};
+    (window as any).__tsEvents = {
+      tokens: [],
+      errors: [],
+      expired: []
+    };
+    
+    // Instrument Turnstile when it loads
+    Object.defineProperty(window, 'turnstile', {
+      get() {
+        return originalTurnstile;
+      },
+      set(value) {
+        if (value && !originalTurnstile) {
+          console.log('[CF] Instrumenting Turnstile API');
+          
+          // Wrap the render function to capture widget IDs
+          const originalRender = value.render;
+          if (originalRender) {
+            value.render = function(container: any, options: any = {}) {
+              console.log('[CF] Turnstile render called');
+              
+              // Store original callbacks
+              const originalCallback = options.callback;
+              const originalErrorCallback = options['error-callback'];
+              const originalExpiredCallback = options['expired-callback'];
+              
+              // Wrap callback to capture token
+              if (!options.callback || typeof options.callback === 'string') {
+                // If callback is a string (function name) or missing, wrap it
+                options.callback = function(token: string) {
+                  console.log(`[CF] Token received: ${token?.substring(0, 30)}...`);
+                  (window as any).__tsEvents.tokens.push({
+                    token,
+                    widgetId: widgetId,
+                    timestamp: Date.now()
+                  });
+                  (window as any).__latestToken = token;
+                  (window as any).__latestWidgetId = widgetId;
+                  
+                  // Call original if it was a string
+                  if (typeof originalCallback === 'string' && (window as any)[originalCallback]) {
+                    (window as any)[originalCallback](token);
+                  } else if (typeof originalCallback === 'function') {
+                    originalCallback(token);
+                  }
+                };
+              }
+              
+              // Wrap error callback
+              options['error-callback'] = function(error: any) {
+                console.log('[CF] Turnstile error:', error);
+                (window as any).__tsEvents.errors.push({
+                  error,
+                  widgetId: widgetId,
+                  timestamp: Date.now()
+                });
+                if (originalErrorCallback) {
+                  if (typeof originalErrorCallback === 'string' && (window as any)[originalErrorCallback]) {
+                    (window as any)[originalErrorCallback](error);
+                  } else if (typeof originalErrorCallback === 'function') {
+                    originalErrorCallback(error);
+                  }
+                }
+              };
+              
+              // Wrap expired callback
+              options['expired-callback'] = function() {
+                console.log('[CF] Token expired');
+                (window as any).__tsEvents.expired.push({
+                  widgetId: widgetId,
+                  timestamp: Date.now()
+                });
+                if (originalExpiredCallback) {
+                  if (typeof originalExpiredCallback === 'string' && (window as any)[originalExpiredCallback]) {
+                    (window as any)[originalExpiredCallback]();
+                  } else if (typeof originalExpiredCallback === 'function') {
+                    originalExpiredCallback();
+                  }
+                }
+              };
+              
+              // Call original render and get widget ID
+              const widgetId = originalRender.call(this, container, options);
+              console.log(`[CF] Widget rendered with ID: ${widgetId}`);
+              
+              // Store widget info
+              (window as any).__tsWidgets[widgetId] = {
+                id: widgetId,
+                container: container,
+                options: options,
+                timestamp: Date.now()
+              };
+              
+              return widgetId;
+            };
+          }
+          
+          // Wrap execute to log calls
+          const originalExecute = value.execute;
+          if (originalExecute) {
+            value.execute = function(widgetId?: any) {
+              console.log(`[CF] Execute called for widget: ${widgetId}`);
+              const result = originalExecute.call(this, widgetId);
+              if (widgetId !== undefined) {
+                (window as any).__lastExecutedWidgetId = widgetId;
+              }
+              return result;
+            };
+          }
+          
+          // Wrap getResponse to capture tokens
+          const originalGetResponse = value.getResponse;
+          if (originalGetResponse) {
+            value.getResponse = function(widgetId?: any) {
+              const response = originalGetResponse.call(this, widgetId);
+              if (response) {
+                console.log(`[CF] GetResponse returned token for widget ${widgetId}: ${response.substring(0, 30)}...`);
+                (window as any).__latestToken = response;
+                (window as any).__latestWidgetId = widgetId;
+                // Also add to events
+                (window as any).__tsEvents.tokens.push({
+                  token: response,
+                  widgetId: widgetId,
+                  timestamp: Date.now(),
+                  fromGetResponse: true
+                });
+              }
+              return response;
+            };
+          }
+        }
+        originalTurnstile = value;
+      },
+      configurable: true
+    });
+  });
+  
   // Apply all stealth configurations before page loads
   await page.evaluateOnNewDocument((config: StealthConfig) => {
     // Override screen properties
