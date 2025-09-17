@@ -1770,26 +1770,77 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 }
               });
               
-              // Enhanced Turnstile challenge handling
+              // Enhanced Turnstile challenge handling with iframe interaction
+              // Look for Turnstile widget container first
+              const turnstileContainers = document.querySelectorAll('[id*="turnstile"], .cf-turnstile, [data-sitekey], div[data-callback*="turnstile"]');
+              if (turnstileContainers.length > 0) {
+                console.log(`Found ${turnstileContainers.length} Turnstile containers`);
+                
+                // Try clicking each container
+                turnstileContainers.forEach((container, index) => {
+                  try {
+                    container.click?.();
+                    console.log(`Clicked Turnstile container ${index}`);
+                    
+                    // Dispatch various events to trigger the challenge
+                    ['mousedown', 'mouseup', 'click'].forEach(eventType => {
+                      const event = new MouseEvent(eventType, {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                      });
+                      container.dispatchEvent(event);
+                    });
+                  } catch (e) {
+                    console.log(`Error clicking container ${index}:`, e);
+                  }
+                });
+              }
+              
+              // Look for Turnstile iframe and try to interact with it
+              const turnstileIframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[name^="cf-chl-widget"], iframe[title*="challenge"], iframe[title*="Widget"]');
+              if (turnstileIframes.length > 0) {
+                console.log(`Found ${turnstileIframes.length} Turnstile iframes`);
+                
+                turnstileIframes.forEach((iframe, index) => {
+                  try {
+                    // Try to focus and click the iframe
+                    iframe.focus?.();
+                    iframe.click?.();
+                    
+                    // Get iframe position for synthetic click
+                    const rect = iframe.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    // Create synthetic click at iframe center
+                    const clickEvent = new MouseEvent('click', {
+                      bubbles: true,
+                      cancelable: true,
+                      view: window,
+                      clientX: centerX,
+                      clientY: centerY
+                    });
+                    
+                    // Dispatch to both iframe and document
+                    iframe.dispatchEvent(clickEvent);
+                    document.elementFromPoint(centerX, centerY)?.dispatchEvent(clickEvent);
+                    
+                    console.log(`Attempted iframe interaction ${index} at (${centerX}, ${centerY})`);
+                  } catch (e) {
+                    console.log(`Error with iframe ${index}:`, e);
+                  }
+                });
+              }
+              
+              // Try global Turnstile API if available
               if (typeof window.turnstile !== 'undefined') {
                 try {
-                  // Try to trigger Turnstile render
+                  console.log('Turnstile API detected, attempting render');
                   window.turnstile.render?.();
-                  
-                  // Look for Turnstile widget container
-                  const turnstileWidget = document.querySelector('[id*="turnstile"], .cf-turnstile, [data-sitekey]');
-                  if (turnstileWidget) {
-                    console.log('Turnstile widget found, attempting interaction');
-                    turnstileWidget.click?.();
-                  }
-                  
-                  // Check for Turnstile iframe
-                  const turnstileIframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
-                  if (turnstileIframe) {
-                    console.log('Turnstile iframe detected');
-                  }
+                  window.turnstile.execute?.();
                 } catch (e) {
-                  console.log('Turnstile interaction error:', e);
+                  console.log('Turnstile API error:', e);
                 }
               }
               
@@ -1799,6 +1850,58 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 console.log('cf_clearance cookie detected - challenge may be complete');
               }
             });
+            
+            // Try to interact with Turnstile iframe using Puppeteer frames
+            try {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for iframe to load
+              
+              // Get all frames and look for Turnstile iframe
+              const frames = page.frames();
+              log(`[ProtectionBypass] Found ${frames.length} frames on page`, "scraper");
+              
+              for (const frame of frames) {
+                const frameUrl = frame.url();
+                if (frameUrl.includes('challenges.cloudflare.com') || frameUrl.includes('turnstile')) {
+                  log(`[ProtectionBypass] Found Turnstile iframe: ${frameUrl}`, "scraper");
+                  
+                  try {
+                    // Wait for checkbox or challenge element in iframe
+                    await frame.waitForSelector('input[type="checkbox"], .ctp-checkbox-container, #challenge-stage', { 
+                      timeout: 3000,
+                      visible: true 
+                    });
+                    
+                    // Try to click the checkbox
+                    const clicked = await frame.evaluate(() => {
+                      const checkbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+                      const container = document.querySelector('.ctp-checkbox-container');
+                      const challenge = document.querySelector('#challenge-stage');
+                      
+                      if (checkbox && !checkbox.checked) {
+                        checkbox.click();
+                        return 'checkbox';
+                      } else if (container) {
+                        container.click();
+                        return 'container';
+                      } else if (challenge) {
+                        challenge.click();
+                        return 'challenge';
+                      }
+                      return null;
+                    });
+                    
+                    if (clicked) {
+                      log(`[ProtectionBypass] Successfully clicked Turnstile ${clicked} in iframe`, "scraper");
+                      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for verification
+                    }
+                  } catch (frameError: any) {
+                    log(`[ProtectionBypass] Could not interact with Turnstile iframe: ${frameError.message}`, "scraper");
+                  }
+                }
+              }
+            } catch (frameHandlingError: any) {
+              log(`[ProtectionBypass] Frame handling error: ${frameHandlingError.message}`, "scraper");
+            }
             
             await new Promise(resolve => setTimeout(resolve, 500));
             interactionPhase = 5;
