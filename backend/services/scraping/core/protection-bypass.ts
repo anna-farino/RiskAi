@@ -131,6 +131,10 @@ export async function performCycleTLSRequest(
   } = options;
 
   try {
+    // Parse domain from URL for cookie scoping
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    
     // CRITICAL FIX 1: Apply browser profile and TLS fingerprinting immediately
     let session = globalSessions.get(sessionId);
     if (!session) {
@@ -138,9 +142,22 @@ export async function performCycleTLSRequest(
         cookies: [],
         browserProfile: getRandomBrowserProfile(),
         lastRequestTime: 0,
-        sessionId
+        sessionId,
+        domain // Set domain for new session
       };
       globalSessions.set(sessionId, session);
+    } else {
+      // Update domain if different
+      session.domain = domain;
+    }
+    
+    // Check for cached cf_clearance for this domain
+    const cachedClearance = getCachedCfClearance(domain);
+    if (cachedClearance && !session.cfClearance) {
+      session.cfClearance = cachedClearance;
+      session.cfClearanceExpiry = Date.now() + (24 * 60 * 60 * 1000); // Extend expiry
+      session.cookies.push(`cf_clearance=${cachedClearance}`);
+      log(`[ProtectionBypass] Using cached cf_clearance for ${domain}`, "scraper");
     }
 
     // CRITICAL FIX 2: Human-like request timing (prevent robotic patterns)
@@ -389,12 +406,30 @@ export async function performCycleTLSRequest(
       });
     }
 
-    // Update session with response cookies
+    // Update session with response cookies and extract cf_clearance
     if (response.headers && response.headers['set-cookie']) {
       const newCookies = Array.isArray(response.headers['set-cookie']) 
         ? response.headers['set-cookie']
         : [response.headers['set-cookie']];
       session.cookies.push(...newCookies);
+      
+      // Extract and cache cf_clearance if present
+      const cfClearance = extractCfClearance(newCookies);
+      if (cfClearance) {
+        // Parse domain from URL for proper scoping
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname;
+        
+        // Update session state
+        session.cfClearance = cfClearance;
+        session.cfClearanceExpiry = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+        session.domain = domain;
+        
+        // Cache for future requests to same domain
+        cacheCfClearance(domain, cfClearance, 24);
+        
+        log(`[ProtectionBypass] cf_clearance cookie captured for ${domain}`, "scraper");
+      }
     }
 
     log(`[ProtectionBypass] TLS request completed: ${response.status}`, "scraper");
