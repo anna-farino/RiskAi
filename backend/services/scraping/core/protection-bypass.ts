@@ -609,7 +609,7 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     
     log(`[ProtectionBypass] Starting session warmup`, "scraper");
   
-      // Step 1: Visit homepage (common human behavior)
+    // Step 1: Visit homepage (common human behavior)
     const warmupSites = [
       'https://www.google.com',
       'https://www.wikipedia.org',
@@ -617,63 +617,60 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
       'https://www.bing.com'
     ];
     
-    // Pick 2 random sites to visit
-    const shuffled = warmupSites.sort(() => Math.random() - 0.5);
-    const sitesToVisit = shuffled.slice(0, 2);
+    // Pick 1 random site to visit
+    const siteToVisit = warmupSites[Math.floor(Math.random() * warmupSites.length)];
     
-    for (const site of sitesToVisit) {
-      log(`[ProtectionBypass] Warming up with ${site}`, "scraper");
+    log(`[ProtectionBypass] Warming up with ${siteToVisit}`, "scraper");
+    
+    const warmupResponse = await performCycleTLSRequest(siteToVisit, {
+      method: 'GET',
+      sessionId,
+      timeout: 10000
+    });
+    
+    if (warmupResponse.success) {
+      log(`[ProtectionBypass] Warmup site visit successful: ${siteToVisit} (${warmupResponse.status})`, "scraper");
       
-      const warmupResponse = await performCycleTLSRequest(site, {
+      // Step 2: Brief human-like delay
+      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+      
+      // Step 3: Load favicon (common browser behavior)
+      await performCycleTLSRequest(`${baseUrl}/favicon.ico`, {
         method: 'GET',
         sessionId,
-        timeout: 10000
+        timeout: 5000,
+        headers: {
+          'Referer': baseUrl,
+          'Sec-Fetch-Dest': 'image',
+          'Sec-Fetch-Mode': 'no-cors',
+          'Sec-Fetch-Site': 'same-origin',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        }
       });
       
-      if (warmupResponse.success) {
-        log(`[ProtectionBypass] Warmup site visit successful: ${site} (${warmupResponse.status})`, "scraper");
-        
-        // Step 2: Brief human-like delay
-        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-        
-        // Step 3: Load favicon (common browser behavior)
-        await performCycleTLSRequest(`${baseUrl}/favicon.ico`, {
-          method: 'GET',
-          sessionId,
-          timeout: 5000,
-          headers: {
-            'Referer': baseUrl,
-            'Sec-Fetch-Dest': 'image',
-            'Sec-Fetch-Mode': 'no-cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-          }
-        });
-        
-        // Step 4: Another human delay
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-        
-        // Step 5: Try to load a common page (about or contact)
-        const commonPages = ['/about', '/contact', '/privacy', '/terms'];
-        const randomPage = commonPages[Math.floor(Math.random() * commonPages.length)];
-        
-        await performCycleTLSRequest(`${baseUrl}${randomPage}`, {
-          method: 'GET',
-          sessionId,
-          timeout: 5000,
-          headers: {
-            'Referer': baseUrl,
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'same-origin',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-          }
-        });
-      }
+      // Step 4: Another human delay
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
       
-      // Human-like delay between sites (3-5 seconds)
-      await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
+      // Step 5: Try to load a common page (about or contact)
+      const commonPages = ['/about', '/contact', '/privacy', '/terms'];
+      const randomPage = commonPages[Math.floor(Math.random() * commonPages.length)];
+      
+      await performCycleTLSRequest(`${baseUrl}${randomPage}`, {
+        method: 'GET',
+        sessionId,
+        timeout: 5000,
+        headers: {
+          'Referer': baseUrl,
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'same-origin',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+        }
+      });
     }
+    
+    // Human-like delay between sites (3-5 seconds)
+    await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
     
     log(`[ProtectionBypass] Session warmup completed`, "scraper");
   } catch (error: any) {
