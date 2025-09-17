@@ -1951,51 +1951,58 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 log(`[ProtectionBypass] Final frame content: elements=${frameContent.elementCount}, checkbox=${frameContent.hasCheckbox}, role=${frameContent.hasRoleCheckbox}`, "scraper");
                 log(`[ProtectionBypass] Frame selectors: ${JSON.stringify(frameContent.selectors)}`, "scraper");
                 
-                // Enhanced selectors for modern Turnstile
-                const checkboxSelectors = [
-                  'label',                          // Sometimes the label is clickable
-                  '[role="checkbox"]',              // ARIA checkbox
-                  'input[type="checkbox"]',         // Traditional checkbox
-                  'div[role="button"]',            // Button role
-                  'button',                        // Any button
-                  '.ctp-checkbox-container',       // Container
-                  '#challenge-stage',              // Challenge stage
-                  'svg',                          // Sometimes the SVG is clickable
-                  'div[style*="cursor: pointer"]', // Clickable divs
-                  '[data-action]',                // Any data-action
-                  'body'                          // Last resort - click body
-                ];
-                
                 let clicked = false;
-                for (const selector of checkboxSelectors) {
-                  try {
-                    // Check if element exists first
-                    const elementExists = await turnstileFrame.evaluate((sel) => {
-                      return !!document.querySelector(sel);
-                    }, selector);
-                    
-                    if (!elementExists) {
+                
+                // Skip ALL interaction for invisible challenges
+                if (isInvisible) {
+                  log(`[ProtectionBypass] Skipping interaction for invisible challenge - it will complete automatically`, "scraper");
+                  clicked = true; // Set to true to skip further interaction attempts
+                } else {
+                  // Enhanced selectors for visible Turnstile challenges
+                  const checkboxSelectors = [
+                    'label',                          // Sometimes the label is clickable
+                    '[role="checkbox"]',              // ARIA checkbox
+                    'input[type="checkbox"]',         // Traditional checkbox
+                    'div[role="button"]',            // Button role
+                    'button',                        // Any button
+                    '.ctp-checkbox-container',       // Container
+                    '#challenge-stage',              // Challenge stage
+                    'svg',                          // Sometimes the SVG is clickable
+                    'div[style*="cursor: pointer"]', // Clickable divs
+                    '[data-action]',                // Any data-action
+                    'body'                          // Last resort - click body
+                  ];
+                  
+                  for (const selector of checkboxSelectors) {
+                    try {
+                      // Check if element exists first
+                      const elementExists = await turnstileFrame.evaluate((sel) => {
+                        return !!document.querySelector(sel);
+                      }, selector);
+                      
+                      if (!elementExists) {
+                        continue;
+                      }
+                      
+                      log(`[ProtectionBypass] Found element with selector: ${selector}, attempting click`, "scraper");
+                      
+                      // Add small random delay to simulate human hesitation
+                      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+                      
+                      // Try to click with Puppeteer
+                      await turnstileFrame.click(selector, { delay: 50 + Math.random() * 100 });
+                      
+                      log(`[ProtectionBypass] Successfully clicked element: ${selector}`, "scraper");
+                      clicked = true;
+                      
+                      // Wait for challenge to process
+                      await new Promise(resolve => setTimeout(resolve, 3000));
+                      break; // Stop after successful click
+                      
+                    } catch (selectorError: any) {
+                      log(`[ProtectionBypass] Could not click ${selector}: ${selectorError.message}`, "scraper");
                       continue;
                     }
-                    
-                    log(`[ProtectionBypass] Found element with selector: ${selector}, attempting click`, "scraper");
-                    
-                    // Add small random delay to simulate human hesitation
-                    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
-                    
-                    // Try to click with Puppeteer
-                    await turnstileFrame.click(selector, { delay: 50 + Math.random() * 100 });
-                    
-                    log(`[ProtectionBypass] Successfully clicked element: ${selector}`, "scraper");
-                    clicked = true;
-                    
-                    // Wait for challenge to process
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    break; // Stop after successful click
-                    
-                  } catch (selectorError: any) {
-                    log(`[ProtectionBypass] Could not click ${selector}: ${selectorError.message}`, "scraper");
-                    continue;
                   }
                 }
                 
@@ -2073,7 +2080,58 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 // For invisible challenges, wait for automatic completion
                 if (isInvisible) {
                   log(`[ProtectionBypass] Waiting for invisible challenge to complete automatically...`, "scraper");
-                  await new Promise(resolve => setTimeout(resolve, 5000));
+                  
+                  // Monitor for challenge completion
+                  let challengeCompleted = false;
+                  for (let i = 0; i < 15; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Check if cf_clearance cookie is set
+                    const hasClearance = await page.evaluate(() => {
+                      return document.cookie.includes('cf_clearance');
+                    });
+                    
+                    if (hasClearance) {
+                      log(`[ProtectionBypass] Invisible challenge completed - cf_clearance cookie detected`, "scraper");
+                      challengeCompleted = true;
+                      break;
+                    }
+                    
+                    // Check if still on challenge page
+                    const stillChallenge = await page.evaluate(() => {
+                      return document.title?.toLowerCase().includes('just a moment') || 
+                             document.body?.innerText?.includes('Enable JavaScript and cookies');
+                    });
+                    
+                    if (!stillChallenge) {
+                      log(`[ProtectionBypass] Invisible challenge completed - navigated away from challenge`, "scraper");
+                      challengeCompleted = true;
+                      break;
+                    }
+                    
+                    // Check frame for success indicators
+                    try {
+                      const frameSuccess = await turnstileFrame.evaluate(() => {
+                        return !!document.querySelector('[class*="success"], [aria-checked="true"], .challenge-success');
+                      });
+                      
+                      if (frameSuccess) {
+                        log(`[ProtectionBypass] Invisible challenge shows success indicator`, "scraper");
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for cookie to be set
+                        break;
+                      }
+                    } catch (frameError) {
+                      // Frame may have navigated or been removed - that's okay
+                    }
+                    
+                    if (i % 3 === 0) {
+                      log(`[ProtectionBypass] Still waiting for invisible challenge (${i+1}/15)...`, "scraper");
+                    }
+                  }
+                  
+                  if (!challengeCompleted) {
+                    log(`[ProtectionBypass] WARNING: Invisible challenge did not complete after 15 seconds`, "scraper");
+                  }
                 }
               } else {
                 log(`[ProtectionBypass] No Turnstile frame found among ${frames.length} frames`, "scraper");
