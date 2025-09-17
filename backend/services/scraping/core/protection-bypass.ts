@@ -1786,6 +1786,84 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             
             log(`[ProtectionBypass] Challenge page info: ${JSON.stringify(challengeInfo, null, 2)}`, "scraper");
             
+            // Analyze the orchestrator script and look for exposed globals
+            const scriptAnalysis = await page.evaluate(() => {
+              const analysis: any = {
+                turnstileGlobals: {},
+                cfGlobals: {},
+                windowKeys: []
+              };
+              
+              // Check for Turnstile-related global objects
+              if ((window as any).turnstile) {
+                analysis.turnstileGlobals.exists = true;
+                analysis.turnstileGlobals.methods = Object.keys((window as any).turnstile);
+              }
+              
+              // Check for CF-related globals
+              const cfKeys = Object.keys(window).filter(k => k.toLowerCase().includes('cf') || k.toLowerCase().includes('turnstile'));
+              analysis.cfGlobals = cfKeys;
+              
+              // Check for challenge-specific data
+              if ((window as any).__CF) {
+                analysis.cfData = {
+                  exists: true,
+                  keys: Object.keys((window as any).__CF)
+                };
+              }
+              
+              // Look for completion callbacks or promises
+              if ((window as any).__cfRLUnblockHandlers) {
+                analysis.hasUnblockHandlers = true;
+              }
+              
+              // Check for ray ID in window
+              const scripts = Array.from(document.querySelectorAll('script:not([src])'));
+              for (const script of scripts) {
+                const content = script.innerHTML;
+                if (content.includes('window._cf_chl_opt')) {
+                  analysis.hasChallengeOptions = true;
+                  // Try to extract challenge config
+                  const match = content.match(/window\._cf_chl_opt\s*=\s*({[^}]+})/);
+                  if (match) {
+                    try {
+                      analysis.challengeOptions = JSON.parse(match[1]);
+                    } catch (e) {
+                      analysis.challengeOptions = 'parse_error';
+                    }
+                  }
+                }
+              }
+              
+              return analysis;
+            });
+            
+            log(`[ProtectionBypass] Script analysis: ${JSON.stringify(scriptAnalysis, null, 2)}`, "scraper");
+            
+            // Try to trigger the challenge programmatically if we find the right objects
+            if (scriptAnalysis.turnstileGlobals?.exists) {
+              log(`[ProtectionBypass] Found turnstile global object with methods: ${scriptAnalysis.turnstileGlobals.methods}`, "scraper");
+              
+              // Try to execute or reset the challenge
+              try {
+                await page.evaluate(() => {
+                  if ((window as any).turnstile?.execute) {
+                    console.log('Executing turnstile.execute()');
+                    (window as any).turnstile.execute();
+                  } else if ((window as any).turnstile?.render) {
+                    console.log('Executing turnstile.render()');
+                    const container = document.querySelector('[data-sitekey]') || document.querySelector('.cf-turnstile');
+                    if (container) {
+                      (window as any).turnstile.render(container);
+                    }
+                  }
+                });
+                log(`[ProtectionBypass] Attempted to trigger turnstile programmatically`, "scraper");
+              } catch (triggerError: any) {
+                log(`[ProtectionBypass] Could not trigger turnstile: ${triggerError.message}`, "scraper");
+              }
+            }
+            
             // Check for managed challenge form submission
             if (challengeInfo.formAction || challengeInfo.submitButton) {
               log(`[ProtectionBypass] Detected managed challenge with form/button`, "scraper");
@@ -2167,6 +2245,19 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             try {
               log(`[ProtectionBypass] Waiting for challenge completion (cookie or navigation)...`, "scraper");
               
+              // Also monitor for challenge completion via script state
+              await page.evaluateOnNewDocument(() => {
+                // Override XMLHttpRequest to catch challenge completion
+                const originalOpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method: string, url: string) {
+                  if (url.includes('challenges.cloudflare.com') && url.includes('submit')) {
+                    console.log('Challenge submission detected:', url);
+                    (window as any).__cfChallengeSubmitted = true;
+                  }
+                  return originalOpen.apply(this, arguments as any);
+                };
+              });
+              
               // Wait for either cf_clearance cookie or navigation
               await Promise.race([
                 // Wait for cf_clearance cookie
@@ -2194,6 +2285,15 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   { polling: 500, timeout: 8000 }
                 ).then(() => {
                   log(`[ProtectionBypass] Content loaded - found multiple links`, "scraper");
+                  challengeCompleted = true;
+                }),
+                
+                // Wait for challenge submission flag
+                page.waitForFunction(
+                  () => (window as any).__cfChallengeSubmitted === true,
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] Challenge submission detected via XHR`, "scraper");
                   challengeCompleted = true;
                 })
               ]).catch(() => {
