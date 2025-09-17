@@ -201,7 +201,7 @@ export async function getCredentialStatus(): Promise<{
   if (!credential || !currentToken) {
     return {
       hasCredential: false,
-      lastCheck
+      lastCheck: lastTokenCheck
     };
   }
 
@@ -214,7 +214,7 @@ export async function getCredentialStatus(): Promise<{
     tokenExpiry: currentToken.expiresOnTimestamp,
     timeToExpiry,
     isExpired,
-    lastCheck
+    lastCheck: lastTokenCheck
   };
 }
 
