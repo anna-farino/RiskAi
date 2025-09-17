@@ -1658,14 +1658,21 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     await humanBehavior.addWebGLNoise();
     await humanBehavior.randomizeWindow();
     
+    // Store the current URL (challenge page) before warming
+    const challengeUrl = page.url();
+    
     // Session warming - visit neutral sites to build browsing history
     // This makes us look like a real user who has been browsing before hitting the target
     try {
       log(`[ProtectionBypass] Warming session with neutral sites...`, "scraper");
-      await humanBehavior.warmSession(); // No need to pass target URL anymore
+      await humanBehavior.warmSession(); // This navigates away to neutral sites
     } catch (error) {
       log(`[ProtectionBypass] Session warming failed, continuing anyway`, "scraper");
     }
+    
+    // Navigate back to the challenge page with the referrer from neutral site
+    log(`[ProtectionBypass] Returning to challenge page from neutral site`, "scraper");
+    await page.goto(challengeUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     
     // Add "thinking time" before attempting challenge
     await humanBehavior.thinkingPause();
