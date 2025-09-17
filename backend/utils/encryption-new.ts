@@ -10,47 +10,212 @@ import { withUserContext } from "backend/db/with-user-context";
 
 const KEY_NAME = process.env.AZURE_KEY_NAME || "";
 
+// Credential management with refresh tracking
 let keyClient: KeyClient | null = null;
 let credential: DefaultAzureCredential | ManagedIdentityCredential | null = null;
+let lastTokenCheck: number = 0;
+let currentToken: { expiresOnTimestamp: number } | null = null;
 
-async function getKeyClient() {
+/**
+ * Check if the current credential token is expired or will expire soon
+ */
+async function isCredentialTokenExpired(): Promise<boolean> {
+  if (!credential || !currentToken) {
+    return true; // No credential or token info means we need to refresh
+  }
+
+  const now = Date.now();
+  const timeToExpiry = currentToken.expiresOnTimestamp - now;
+  const fiveMinutesInMs = 5 * 60 * 1000;
+
+  // Consider expired if less than 5 minutes remaining
+  if (timeToExpiry < fiveMinutesInMs) {
+    console.log(`[ENCRYPTION] Token expires in ${Math.round(timeToExpiry / 1000 / 60)} minutes, refreshing...`);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Initialize or refresh the Azure credential with retry logic
+ */
+async function initializeOrRefreshCredential(force: boolean = false): Promise<void> {
+  const now = Date.now();
+
+  // Only check token expiry every 30 seconds to avoid excessive calls
+  if (!force && (now - lastTokenCheck) < 30000 && credential && currentToken) {
+    const isExpired = await isCredentialTokenExpired();
+    if (!isExpired) {
+      return; // Current credential is still valid
+    }
+  }
+
+  lastTokenCheck = now;
+
+  try {
+    console.log(`[ENCRYPTION] ${force ? 'Force refreshing' : 'Initializing'} Azure credential...`);
+
+    let newCredential: DefaultAzureCredential | ManagedIdentityCredential;
+
+    // Initialize credential based on environment
+    if (process.env.NODE_ENV === 'production') {
+      newCredential = new ManagedIdentityCredential();
+
+      // Test ManagedIdentity first
+      try {
+        const token = await newCredential.getToken("https://vault.azure.net/.default");
+        console.log(`[ENCRYPTION] ManagedIdentityCredential successful, token expires in ${Math.round((token.expiresOnTimestamp - Date.now()) / 1000 / 60)} minutes`);
+        currentToken = token;
+      } catch (miTokenError) {
+        console.log(`[ENCRYPTION] ManagedIdentityCredential failed, falling back to DefaultAzureCredential:`, miTokenError);
+        newCredential = new DefaultAzureCredential();
+        const token = await newCredential.getToken("https://vault.azure.net/.default");
+        console.log(`[ENCRYPTION] DefaultAzureCredential successful, token expires in ${Math.round((token.expiresOnTimestamp - Date.now()) / 1000 / 60)} minutes`);
+        currentToken = token;
+      }
+    } else {
+      newCredential = new DefaultAzureCredential();
+      const token = await newCredential.getToken("https://vault.azure.net/.default");
+      console.log(`[ENCRYPTION] DefaultAzureCredential successful, token expires in ${Math.round((token.expiresOnTimestamp - Date.now()) / 1000 / 60)} minutes`);
+      currentToken = token;
+    }
+
+    // If we get here, credential initialization succeeded
+    credential = newCredential;
+
+    // Reset KeyClient so it gets recreated with new credential
+    keyClient = null;
+
+  } catch (error) {
+    console.error(`[ENCRYPTION] Failed to initialize/refresh credential:`, error);
+    // Reset all state on failure
+    credential = null;
+    keyClient = null;
+    currentToken = null;
+    throw error;
+  }
+}
+
+/**
+ * Get Key Vault client with automatic credential refresh
+ */
+async function getKeyClient(): Promise<KeyClient | null> {
   if (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'production') {
     return null;
   }
-  
-  if (!keyClient || !credential) {
-    const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
-    
-    try {
-      // Initialize credential
-      if (process.env.NODE_ENV === 'production') {
-        credential = new ManagedIdentityCredential();
-        
-        // Test credential immediately after creation
-        try {
-          await credential.getToken("https://vault.azure.net/.default");
-        } catch (miTokenError) {
-          console.log(`[ENCRYPTION] ManagedIdentityCredential failed, falling back to DefaultAzureCredential`);
-          credential = new DefaultAzureCredential();
-          await credential.getToken("https://vault.azure.net/.default");
-        }
-      } else {
-        credential = new DefaultAzureCredential();
-        await credential.getToken("https://vault.azure.net/.default");
-      }
-      
+
+  const VAULT_URL = `https://${process.env.AZURE_KEY_VAULT_NAME}.vault.azure.net`;
+
+  try {
+    // Check and refresh credential if needed
+    await initializeOrRefreshCredential();
+
+    // Create KeyClient if not exists or if credential was refreshed
+    if (!keyClient && credential) {
+      console.log(`[ENCRYPTION] Creating new KeyClient with refreshed credential`);
       keyClient = new KeyClient(VAULT_URL, credential);
-      
+    }
+
+    return keyClient;
+
+  } catch (error) {
+    console.error(`[ENCRYPTION] Error getting Key Vault client:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Enhanced credential-aware operation with retry logic
+ */
+async function executeWithCredentialRetry<T>(
+  operation: (cred: DefaultAzureCredential | ManagedIdentityCredential) => Promise<T>,
+  operationName: string,
+  maxRetries: number = 2
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Ensure we have a valid credential
+      await initializeOrRefreshCredential(attempt > 0); // Force refresh on retry
+
+      if (!credential) {
+        throw new Error(`Credential not available after initialization attempt ${attempt + 1}`);
+      }
+
+      console.log(`[ENCRYPTION] Executing ${operationName} (attempt ${attempt + 1}/${maxRetries})`);
+      const result = await operation(credential);
+
+      if (attempt > 0) {
+        console.log(`[ENCRYPTION] ${operationName} succeeded after ${attempt + 1} attempts`);
+      }
+
+      return result;
+
     } catch (error) {
-      console.error(`[ENCRYPTION] Error initializing Key Vault client:`, error);
-      // Reset both to null on failure
-      credential = null;
-      keyClient = null;
-      throw error;
+      lastError = error as Error;
+      console.error(`[ENCRYPTION] ${operationName} failed on attempt ${attempt + 1}:`, error);
+
+      // Check if this is a credential-related error
+      const errorMessage = String(error).toLowerCase();
+      const isCredentialError = errorMessage.includes('credential') ||
+                               errorMessage.includes('unauthorized') ||
+                               errorMessage.includes('authentication') ||
+                               errorMessage.includes('forbidden') ||
+                               errorMessage.includes('token');
+
+      if (isCredentialError && attempt < maxRetries - 1) {
+        console.log(`[ENCRYPTION] Credential error detected, will retry with fresh credential`);
+        // Force reset credential state for retry
+        credential = null;
+        keyClient = null;
+        currentToken = null;
+
+        // Wait briefly before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+
+      // If not a credential error or we've exhausted retries, fail
+      break;
     }
   }
-  
-  return keyClient;
+
+  throw lastError || new Error(`${operationName} failed after ${maxRetries} attempts`);
+}
+
+/**
+ * Get current credential status for debugging/monitoring
+ */
+export async function getCredentialStatus(): Promise<{
+  hasCredential: boolean;
+  credentialType?: string;
+  tokenExpiry?: number;
+  timeToExpiry?: number;
+  isExpired?: boolean;
+  lastCheck: number;
+}> {
+  const now = Date.now();
+
+  if (!credential || !currentToken) {
+    return {
+      hasCredential: false,
+      lastCheck
+    };
+  }
+
+  const timeToExpiry = currentToken.expiresOnTimestamp - now;
+  const isExpired = timeToExpiry <= 0;
+
+  return {
+    hasCredential: true,
+    credentialType: credential.constructor.name,
+    tokenExpiry: currentToken.expiresOnTimestamp,
+    timeToExpiry,
+    isExpired,
+    lastCheck
+  };
 }
 
 const IV_LEN = 12;
@@ -138,17 +303,20 @@ export async function envelopeEncrypt(plain: string): Promise<TidyEnvelope | str
 
   // Get the latest **versioned** key id, and wrap with that version
   const client = await getKeyClient();
-  if (!client || !credential) throw new Error("Key Vault not available");
-  
+  if (!client) throw new Error("Key Vault not available");
+
   const latest = await client.getKey(KEY_NAME);
   const versionedId = latest.id!; // .../keys/<name>/<version>
-  
-  if (!credential) {
-    throw new Error(`Credential is null when trying to create CryptographyClient`);
-  }
-  
-  const cryptoLatest = new CryptographyClient(versionedId, credential);
-  const { result: wrapped } = await cryptoLatest.wrapKey("RSA-OAEP", dek);
+
+  // Use credential retry for DEK wrapping during encryption
+  const wrapped = await executeWithCredentialRetry(
+    async (cred) => {
+      const cryptoLatest = new CryptographyClient(versionedId, cred);
+      const { result } = await cryptoLatest.wrapKey("RSA-OAEP", dek);
+      return result;
+    },
+    `DEK wrap for encryption (keyId: ${versionedId})`
+  );
 
   return {
     wrapped_dek: wrapped,
@@ -225,14 +393,18 @@ export async function envelopeDecryptAndRotate(
     const tag = blobBuf.subarray(blobBuf.length - TAG_LEN);
     const ct  = blobBuf.subarray(IV_LEN, blobBuf.length - TAG_LEN);
 
-    // Unwrap DEK using the exact version recorded in field-specific key_id
-    if (!credential) {
-      throw new Error(`Credential not available for decryption`);
-    }
-    
-    const cryptoVersioned = new CryptographyClient(row[keyIdColumn] as string, credential);
+    // Unwrap DEK using the exact version recorded in field-specific key_id with credential retry
     const wrappedDekBuffer = Buffer.from(row[wrappedDekColumn] as string, 'base64');
-    const { result: dek } = await cryptoVersioned.unwrapKey("RSA-OAEP", wrappedDekBuffer);
+    const keyId = row[keyIdColumn] as string;
+
+    const dek = await executeWithCredentialRetry(
+      async (cred) => {
+        const cryptoVersioned = new CryptographyClient(keyId, cred);
+        const { result } = await cryptoVersioned.unwrapKey("RSA-OAEP", wrappedDekBuffer);
+        return result;
+      },
+      `DEK unwrap for field '${fieldName}' (keyId: ${keyId})`
+    );
 
     const dec = createDecipheriv("aes-256-gcm", dek, iv);
     dec.setAuthTag(tag);
@@ -241,21 +413,33 @@ export async function envelopeDecryptAndRotate(
     // If stale, re-wrap the DEK under the latest **versioned** key and update
     try {
       const client = await getKeyClient();
-      if (client && credential) {
+      if (client) {
         const latest = await client.getKey(KEY_NAME);
         const latestId = latest.id!;
         if (row[keyIdColumn] !== latestId) {
-          const cryptoLatest = new CryptographyClient(latestId, credential);
-          const { result: newWrapped } = await cryptoLatest.wrapKey("RSA-OAEP", dek);
-          await withUserContext(userId, (contextDb) => 
+          console.log(`[ENCRYPTION] Rotating key from ${row[keyIdColumn]} to ${latestId}`);
+
+          // Use credential retry for key rotation
+          const newWrapped = await executeWithCredentialRetry(
+            async (cred) => {
+              const cryptoLatest = new CryptographyClient(latestId, cred);
+              const { result } = await cryptoLatest.wrapKey("RSA-OAEP", dek);
+              return result;
+            },
+            `Key rotation wrap for field '${fieldName}' (new keyId: ${latestId})`
+          );
+
+          await withUserContext(userId, (contextDb) =>
             contextDb
               .update(table)
-              .set({ 
-                [wrappedDekColumn]: Buffer.from(newWrapped).toString('base64'), 
-                [keyIdColumn]: latestId 
+              .set({
+                [wrappedDekColumn]: Buffer.from(newWrapped).toString('base64'),
+                [keyIdColumn]: latestId
               })
               .where(eq(table.id, rowId))
           );
+
+          console.log(`[ENCRYPTION] Key rotation completed for field '${fieldName}' in row ${rowId}`);
         }
       }
     } catch (rotationError) {
