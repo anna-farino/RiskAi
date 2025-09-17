@@ -18,6 +18,8 @@ interface StealthConfig {
   fonts: string[];
   audioNoiseLevel: number;
   canvasNoiseLevel: number;
+  hardwareConcurrency: number;
+  deviceMemory: number;
 }
 
 /**
@@ -127,7 +129,9 @@ export function generateStealthConfig(): StealthConfig {
     webglRenderer: webglRenderers[Math.floor(Math.random() * webglRenderers.length)],
     fonts: commonFonts.sort(() => Math.random() - 0.5).slice(0, 10 + Math.floor(Math.random() * 5)),
     audioNoiseLevel: 0.00001 + Math.random() * 0.00009, // Subtle audio fingerprint noise
-    canvasNoiseLevel: 0.0001 + Math.random() * 0.0009   // Subtle canvas fingerprint noise
+    canvasNoiseLevel: 0.0001 + Math.random() * 0.0009,  // Subtle canvas fingerprint noise
+    hardwareConcurrency: [4, 8, 12, 16][Math.floor(Math.random() * 4)], // Common CPU core counts
+    deviceMemory: [4, 8, 16, 32][Math.floor(Math.random() * 4)]       // Common RAM amounts
   };
 }
 
@@ -413,6 +417,80 @@ export async function applyEnhancedStealthMeasures(page: Page, config?: StealthC
         
         return result;
       }
+    });
+    
+    // Browser extension fingerprinting - simulate common extensions
+    if (!window.chrome) window.chrome = {} as any;
+    if (!window.chrome.runtime) window.chrome.runtime = {} as any;
+    
+    // Simulate common browser extensions (Grammarly, LastPass, AdBlock, etc.)
+    window.chrome.runtime.id = 'kbfnbcaeplbcioakkpcpgfkobkghlhen'; // Grammarly
+    
+    // Add plugin spoofing
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => {
+        const pluginArray = [
+          {
+            name: 'Chrome PDF Plugin',
+            description: 'Portable Document Format',
+            filename: 'internal-pdf-viewer',
+            length: 1,
+            item: (index: number) => index === 0 ? pluginArray[0] : null,
+            namedItem: (name: string) => name === 'Chrome PDF Plugin' ? pluginArray[0] : null,
+            0: {
+              type: 'application/pdf',
+              suffixes: 'pdf',
+              description: 'Portable Document Format'
+            }
+          },
+          {
+            name: 'Chrome PDF Viewer',
+            description: 'Portable Document Format',
+            filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
+            length: 1,
+            item: (index: number) => index === 0 ? pluginArray[1] : null,
+            namedItem: (name: string) => name === 'Chrome PDF Viewer' ? pluginArray[1] : null,
+            0: {
+              type: 'application/pdf',
+              suffixes: 'pdf',
+              description: 'Portable Document Format'
+            }
+          },
+          {
+            name: 'Native Client',
+            description: 'Native Client Executable',
+            filename: 'internal-nacl-plugin',
+            length: 2,
+            item: (index: number) => index < 2 ? pluginArray[2] : null,
+            namedItem: (name: string) => name === 'Native Client' ? pluginArray[2] : null,
+            0: {
+              type: 'application/x-nacl',
+              suffixes: '',
+              description: 'Native Client Executable'
+            },
+            1: {
+              type: 'application/x-pnacl',
+              suffixes: '',
+              description: 'Portable Native Client Executable'
+            }
+          }
+        ];
+        pluginArray.length = 3;
+        return pluginArray;
+      }
+    });
+    
+    // Add more realistic browser behavior
+    Object.defineProperty(navigator, 'doNotTrack', {
+      get: () => null // Most users don't have DNT enabled
+    });
+    
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      get: () => config.hardwareConcurrency || 8 // Common CPU core count
+    });
+    
+    Object.defineProperty(navigator, 'deviceMemory', {
+      get: () => config.deviceMemory || 8 // Common RAM amount
     });
     
     // Timezone spoofing

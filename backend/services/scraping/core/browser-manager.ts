@@ -181,6 +181,14 @@ const BROWSER_ARGS = [
   // Enable network service
   "--enable-features=NetworkService,NetworkServiceInProcess",
   "--force-color-profile=srgb",
+  // Additional fingerprinting enhancements
+  "--lang=en-US,en",
+  "--accept-lang=en-US,en",
+  // Simulate real browser behavior
+  "--enable-automation=false",
+  "--disable-features=site-per-process",
+  // Spoof timezone
+  "--tz=America/New_York",
 ];
 
 // Chrome path will be determined dynamically when browser is launched
