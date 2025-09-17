@@ -1918,6 +1918,16 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
 async function handleTurnstileChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
   try {
     log(`[ProtectionBypass] Handling Turnstile challenge`, "scraper");
+    
+    // Initialize human behavior simulator for Turnstile challenges too
+    const humanBehavior = new HumanBehavior(page);
+    
+    // Apply fingerprinting enhancements
+    await humanBehavior.addWebGLNoise();
+    await humanBehavior.randomizeWindow();
+    
+    // Add some human-like delay before starting
+    await humanBehavior.randomDelay(1000, 3000);
 
     // 1. Better Challenge Detection
     const challengeDetails = await safePageEvaluate(page, () => {
@@ -2056,10 +2066,21 @@ async function handleTurnstileChallenge(page: Page, detectionResult: ChallengeDe
     page.on('request', onRequest);
     page.on('response', onResponse);
 
+    let lastHumanActionTime = Date.now();
+    
     try {
       while (!challengeCompleted && (Date.now() - startTime) < maxWaitTime) {
-        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        // Use random delay instead of fixed 1 second to break pattern
+        const randomInterval = 800 + Math.random() * 1200; // 0.8 to 2 seconds
+        await new Promise((resolve) => setTimeout(resolve, randomInterval));
         waitTime = Date.now() - startTime; // Use actual elapsed time
+        
+        // Perform human-like actions periodically
+        const timeSinceLastAction = Date.now() - lastHumanActionTime;
+        if (timeSinceLastAction > 5000 && Math.random() > 0.5) { // ~50% chance after 5 seconds
+          await humanBehavior.performRandomActions(1); // Single random action
+          lastHumanActionTime = Date.now();
+        }
 
         // 3. Enhanced Challenge Interaction - Monitor specific elements and changes
         const challengeStatus = await page.evaluate(() => {
