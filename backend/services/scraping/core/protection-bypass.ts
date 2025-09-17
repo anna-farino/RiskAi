@@ -18,21 +18,14 @@ declare global {
   }
   
   interface Navigator {
-    vendor?: string;
-    vendorSub?: string;
-    productSub?: string;
+    // Only declare properties that are not in standard DOM lib
     scheduling?: any;
-    // Remove userActivation as it's already defined in DOM lib
     windowControlsOverlay?: any;
     pdfViewerEnabled?: boolean;
     webkitTemporaryStorage?: any;
     webkitPersistentStorage?: any;
-    language?: string;
-    appCodeName?: string;
-    appName?: string;
-    cookieEnabled?: boolean;
-    onLine?: boolean;
-    product?: string;
+    // Note: vendor, vendorSub, productSub, language, appCodeName, appName, 
+    // cookieEnabled, onLine, product are already in DOM lib
   }
   
   interface Document {
@@ -191,7 +184,6 @@ export async function performCycleTLSRequest(
     }
 
     // CRITICAL FIX 5: Add referer for navigation simulation
-    const urlObj = new URL(url);
     if (!consistentHeaders['Referer'] && session.lastRequestTime > 0) {
       consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
     }
@@ -1412,13 +1404,17 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         !!document.querySelector('.challenge-running') ||
         !!document.querySelector('#challenge-form');
       
-      // Check for challenge-specific elements
+      // Check for challenge-specific elements including Turnstile
       const challengeElements = {
         challengeForm: !!document.querySelector('#challenge-form'),
         challengeRunning: !!document.querySelector('.challenge-running'),
         challengeWrapper: !!document.querySelector('.cf-wrapper'),
         challengeSpinner: !!document.querySelector('.cf-browser-verification'),
-        cfElements: document.querySelectorAll('*[class*="cf-"]').length
+        cfElements: document.querySelectorAll('*[class*="cf-"]').length,
+        // Enhanced Turnstile detection
+        turnstileWidget: !!document.querySelector('[id*="turnstile"], .cf-turnstile, [data-sitekey], div[role="region"][data-sitekey]'),
+        turnstileIframe: !!document.querySelector('iframe[src*="challenges.cloudflare.com"], iframe[name^="cf-chl-widget"]'),
+        turnstileContainer: !!document.querySelector('div[data-callback*="turnstile"], div[class*="cf-turnstile"]')
       };
       
       const isCloudflareChallenge = hasJustAMomentTitle || hasChallengeScript || 
@@ -1910,18 +1906,27 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         const isStillChallenge = title.toLowerCase().includes('just a moment') ||
                                 title.toLowerCase().includes('please wait');
         
+        // Check for cf_clearance cookie indicating successful challenge
+        const hasCfClearance = document.cookie.includes('cf_clearance');
+        
         return {
           linkCount,
           title,
           isStillChallenge,
           hasNavigation: !!document.querySelector('nav, header'),
-          contentLength: document.body?.textContent?.length || 0
+          contentLength: document.body?.textContent?.length || 0,
+          hasCfClearance
         };
       });
 
       if (finalValidation.isStillChallenge || finalValidation.linkCount < 5) {
         log(`[ProtectionBypass] Final validation failed - still on challenge page or insufficient links (${finalValidation.linkCount})`, "scraper");
         return false;
+      }
+
+      // Log cf_clearance status
+      if (finalValidation.hasCfClearance) {
+        log(`[ProtectionBypass] cf_clearance cookie detected - challenge completed successfully`, "scraper");
       }
 
       log(`[ProtectionBypass] Cloudflare challenge successfully bypassed - Links: ${finalValidation.linkCount}, Content: ${finalValidation.contentLength} chars`, "scraper");
