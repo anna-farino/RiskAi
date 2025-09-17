@@ -382,15 +382,33 @@ export async function performCycleTLSRequest(
           }
         }
       } else if (Buffer.isBuffer(response.data)) {
-        // Try to decompress if it's gzipped
+        const zlib = require('zlib');
+        let decompressed = false;
+        
+        // Try Brotli decompression first (most common for HTML from Cloudflare)
         try {
-          const zlib = require('zlib');
-          responseBody = zlib.gunzipSync(response.data).toString('utf8');
-          log(`[ProtectionBypass] Decompressed gzipped buffer response`, "scraper");
-        } catch (e) {
-          // Not gzipped, just convert to string
-          log(`[ProtectionBypass] Buffer not gzipped, converting to string: ${e.message}`, "scraper");
-          responseBody = response.data.toString('utf8');
+          responseBody = zlib.brotliDecompressSync(response.data).toString('utf8');
+          log(`[ProtectionBypass] Successfully decompressed Brotli-compressed response`, "scraper");
+          decompressed = true;
+        } catch (brotliError) {
+          // Not Brotli, try gzip
+          try {
+            responseBody = zlib.gunzipSync(response.data).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed gzip-compressed response`, "scraper");
+            decompressed = true;
+          } catch (gzipError) {
+            // Not gzip, try deflate
+            try {
+              responseBody = zlib.inflateSync(response.data).toString('utf8');
+              log(`[ProtectionBypass] Successfully decompressed deflate-compressed response`, "scraper");
+              decompressed = true;
+            } catch (deflateError) {
+              // No compression detected, convert as-is
+              log(`[ProtectionBypass] No compression detected, converting buffer to string`, "scraper");
+              log(`[ProtectionBypass] Decompression attempts failed - Brotli: ${brotliError.message}, Gzip: ${gzipError.message}, Deflate: ${deflateError.message}`, "scraper");
+              responseBody = response.data.toString('utf8');
+            }
+          }
         }
       } else {
         log(`[ProtectionBypass] Response.data is object/other, stringifying`, "scraper");
