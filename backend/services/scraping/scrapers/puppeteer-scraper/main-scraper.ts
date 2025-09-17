@@ -450,12 +450,12 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
     const hasMinimalContent = contentLength < 50000; // Less than 50KB indicates minimal content
     const needsDynamicLoading = hasMinimalContent || htmxDetected || preloaderDetected;
     
-    // Initialize these outside the if block so they're available in all return paths
-    let htmxAssessment: HTMXAssessmentResult | null = null;
-    let htmxLinks: string[] = [];
-    
     if (needsDynamicLoading) {
       log(`[PuppeteerScraper] Dynamic loading needed - minimal content: ${hasMinimalContent} (${contentLength} chars), HTMX detected: ${htmxDetected}, preloader detected: ${preloaderDetected}`, "scraper");
+      
+      // Handle HTMX content loading ONLY if HTMX is actually detected
+      let htmxAssessment: HTMXAssessmentResult | null = null;
+      let htmxLinks: string[] = [];
       if (options?.handleHTMX && htmxDetected) {
         log(`[PuppeteerScraper] HTMX detected on page, loading HTMX content`, "scraper");
         htmxAssessment = await handleHTMXContent(page, url);
@@ -528,26 +528,6 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     log(`[PuppeteerScraper] Content extraction completed successfully (${validation.linkCount} links, ${validation.confidence}% confidence)`, "scraper");
 
-    // Extract actual links from the page if we haven't already (for non-HTMX pages)
-    if (htmxLinks.length === 0 && validation.linkCount > 0) {
-      try {
-        const extractedLinks = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href]'));
-          return links
-            .map(link => (link as HTMLAnchorElement).href)
-            .filter(href => href && href.startsWith('http'))
-            .slice(0, 500); // Limit to 500 links to avoid memory issues
-        });
-        
-        if (extractedLinks.length > 0) {
-          htmxLinks = extractedLinks;
-          log(`[PuppeteerScraper] Extracted ${htmxLinks.length} links from page`, "scraper");
-        }
-      } catch (error) {
-        log(`[PuppeteerScraper] Failed to extract links: ${error}`, "scraper");
-      }
-    }
-
     // Mark as failed if content validation failed completely - check link requirement only for source pages
     const isSuccess = validation.isValid && !validation.isErrorPage && 
                      (options?.isArticlePage || validation.linkCount >= 10);
@@ -562,9 +542,7 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
       method: 'puppeteer',
       responseTime: Date.now() - startTime,
       statusCode,
-      finalUrl: page.url(),
-      htmxLinks: htmxLinks.length > 0 ? htmxLinks : undefined,
-      htmxAssessment: htmxAssessment || undefined
+      finalUrl: page.url()
     };
 
   } catch (error: any) {
