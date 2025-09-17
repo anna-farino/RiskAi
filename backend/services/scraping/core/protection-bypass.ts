@@ -1872,8 +1872,64 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               if (turnstileFrame) {
                 log(`[ProtectionBypass] Found Turnstile frame: ${turnstileFrame.url()}`, "scraper");
                 
-                // Wait a bit for frame content to load
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Wait longer for frame content to fully render
+                log(`[ProtectionBypass] Waiting for Turnstile widget to render...`, "scraper");
+                
+                // Check if it's an invisible challenge
+                const isInvisible = turnstileFrame.url().includes('/rcv/') || turnstileFrame.url().includes('/invisible/');
+                if (isInvisible) {
+                  log(`[ProtectionBypass] Detected invisible Turnstile challenge - should complete automatically`, "scraper");
+                }
+                
+                // Wait for the widget to be ready
+                let widgetReady = false;
+                for (let i = 0; i < 10; i++) {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  
+                  try {
+                    const frameState = await turnstileFrame.evaluate(() => {
+                      return {
+                        hasWidget: !!document.querySelector('[id*="challenge"], .challenge-container, #cf-turnstile-wrapper'),
+                        hasCheckbox: !!document.querySelector('input[type="checkbox"], [role="checkbox"]'),
+                        hasLabel: !!document.querySelector('label'),
+                        hasSvg: document.querySelectorAll('svg').length > 0,
+                        elementCount: document.querySelectorAll('*').length,
+                        bodyText: document.body?.innerText || '',
+                        isLoading: !!document.querySelector('.spinner, .loading, [class*="spin"]'),
+                        hasSuccessIndicator: !!document.querySelector('[class*="success"], [class*="complete"], [aria-checked="true"]')
+                      };
+                    });
+                    
+                    log(`[ProtectionBypass] Widget state (attempt ${i+1}): elements=${frameState.elementCount}, checkbox=${frameState.hasCheckbox}, svg=${frameState.hasSvg}, loading=${frameState.isLoading}`, "scraper");
+                    
+                    // Check if widget is ready
+                    if (frameState.hasCheckbox || frameState.hasLabel || (frameState.hasSvg && frameState.elementCount > 20)) {
+                      widgetReady = true;
+                      log(`[ProtectionBypass] Turnstile widget is ready for interaction`, "scraper");
+                      break;
+                    }
+                    
+                    // Check if already completed
+                    if (frameState.hasSuccessIndicator) {
+                      log(`[ProtectionBypass] Turnstile appears to be already completed`, "scraper");
+                      widgetReady = true;
+                      break;
+                    }
+                    
+                    // For invisible challenges, just wait
+                    if (isInvisible && frameState.elementCount > 10) {
+                      log(`[ProtectionBypass] Invisible challenge detected with content, proceeding`, "scraper");
+                      widgetReady = true;
+                      break;
+                    }
+                  } catch (evalError) {
+                    log(`[ProtectionBypass] Error checking widget state: ${evalError}`, "scraper");
+                  }
+                }
+                
+                if (!widgetReady) {
+                  log(`[ProtectionBypass] WARNING: Turnstile widget did not become ready after 10 seconds`, "scraper");
+                }
                 
                 // Try to get frame content for debugging
                 const frameContent = await turnstileFrame.evaluate(() => {
@@ -1892,7 +1948,7 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   };
                 });
                 
-                log(`[ProtectionBypass] Frame content: elements=${frameContent.elementCount}, checkbox=${frameContent.hasCheckbox}, role=${frameContent.hasRoleCheckbox}`, "scraper");
+                log(`[ProtectionBypass] Final frame content: elements=${frameContent.elementCount}, checkbox=${frameContent.hasCheckbox}, role=${frameContent.hasRoleCheckbox}`, "scraper");
                 log(`[ProtectionBypass] Frame selectors: ${JSON.stringify(frameContent.selectors)}`, "scraper");
                 
                 // Enhanced selectors for modern Turnstile
@@ -1943,7 +1999,8 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   }
                 }
                 
-                if (!clicked) {
+                // For invisible challenges, we don't need to click
+                if (!clicked && !isInvisible) {
                   log(`[ProtectionBypass] Could not find clickable element, trying mouse coordinate approach`, "scraper");
                   
                   // Get iframe position on page for coordinate-based clicking
@@ -1996,8 +2053,8 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                     }
                   }
                   
-                  // Final synthetic click attempt in frame
-                  if (!clicked) {
+                  // Final synthetic click attempt in frame (skip for invisible challenges)
+                  if (!clicked && !isInvisible) {
                     await turnstileFrame.evaluate(() => {
                       const allElements = document.querySelectorAll('*');
                       for (const elem of allElements) {
@@ -2011,6 +2068,12 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                       }
                     });
                   }
+                }
+                
+                // For invisible challenges, wait for automatic completion
+                if (isInvisible) {
+                  log(`[ProtectionBypass] Waiting for invisible challenge to complete automatically...`, "scraper");
+                  await new Promise(resolve => setTimeout(resolve, 5000));
                 }
               } else {
                 log(`[ProtectionBypass] No Turnstile frame found among ${frames.length} frames`, "scraper");
