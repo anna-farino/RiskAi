@@ -2503,7 +2503,7 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
       
       // BATTERY API SPOOFING
       if ('getBattery' in navigator) {
-        const originalGetBattery = navigator.getBattery;
+        const originalGetBattery = navigator.getBattery as () => Promise<any>;
         navigator.getBattery = function() {
           return originalGetBattery.call(this).then((battery: any) => {
             // Create a proxy to intercept battery properties
@@ -3041,8 +3041,8 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
 
     // Audio Context fingerprinting protection
     await page.evaluateOnNewDocument(() => {
-      if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
-        const AudioCtx = AudioContext || webkitAudioContext;
+      if (typeof AudioContext !== 'undefined' || typeof (window as any).webkitAudioContext !== 'undefined') {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
         
         const originalCreateAnalyser = AudioCtx.prototype.createAnalyser;
         AudioCtx.prototype.createAnalyser = function() {
@@ -3076,7 +3076,7 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
 
       // Override timing methods
       const originalSetTimeout = window.setTimeout;
-      window.setTimeout = function(callback, delay, ...args) {
+      (window as any).setTimeout = function(callback: any, delay: any, ...args: any[]) {
         // Add slight randomization to prevent timing pattern detection
         const randomDelay = delay + (Math.random() - 0.5) * Math.min(delay * 0.1, 5);
         return originalSetTimeout.call(this, callback, Math.max(0, randomDelay), ...args);
