@@ -1499,9 +1499,10 @@ async function detectChallengeType(page: Page): Promise<ChallengeDetectionResult
       const hasJustAMomentTitle = title.toLowerCase().includes('just a moment') ||
                                  title.toLowerCase().includes('please wait');
       
-      // Extract Ray ID if present
-      const rayIdMatch = html.match(/ray\s*id\s*:\s*([a-f0-9]+)/i) || 
-                        html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i);
+      // Extract Ray ID if present (handle various formats including <code> tags)
+      const rayIdMatch = html.match(/ray\s*id\s*:?\s*(?:<code>)?([a-f0-9]+)(?:<\/code>)?/i) || 
+                        html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i) ||
+                        html.match(/"ray":\s*"([a-f0-9]+)"/i);
       const rayId = rayIdMatch ? rayIdMatch[1] : null;
       
       return {
@@ -1654,18 +1655,51 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     let lastRayId = detectionResult.signals.rayId;
     let consecutiveNoProgress = 0;
     let flowRequestCount = 0;
+    let lastFlowRequestTime = Date.now();
+    let flowRequestPattern: number[] = []; // Track time between request groups
+    let possibleLoop = false;
+    let loopDetectedAt = 0;
     
     // Monitor flow requests - FIXED: Use proper event listener cleanup
     const flowRequests: string[] = [];
     const responseHandler = (response: any) => {
       const url = response.url();
       if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform')) {
+        const currentTime = Date.now();
+        const timeSinceLastRequest = currentTime - lastFlowRequestTime;
+        
         flowRequestCount++;
         flowRequests.push(`${response.status()} ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`);
+        
+        // Detect loop pattern: requests come in groups with ~16 second intervals
+        if (timeSinceLastRequest > 10000) { // New group of requests
+          flowRequestPattern.push(timeSinceLastRequest);
+          
+          // Check if we have a repeating pattern (3+ similar intervals)
+          if (flowRequestPattern.length >= 3) {
+            const recentIntervals = flowRequestPattern.slice(-3);
+            const avgInterval = recentIntervals.reduce((a, b) => a + b, 0) / 3;
+            const isRepeating = recentIntervals.every(interval => 
+              Math.abs(interval - avgInterval) < 3000 // Within 3 seconds of average
+            );
+            
+            if (isRepeating && avgInterval > 14000 && avgInterval < 18000) {
+              if (!possibleLoop) {
+                possibleLoop = true;
+                loopDetectedAt = flowRequestCount;
+                log(`[ProtectionBypass] WARNING: Detected challenge loop pattern (${Math.floor(avgInterval/1000)}s intervals)`, "scraper");
+              }
+            }
+          }
+        }
+        
+        lastFlowRequestTime = currentTime;
         consecutiveNoProgress = 0; // Reset on activity
         
         if (response.status() === 200) {
           log(`[ProtectionBypass] Flow request successful: ${response.status()}`, "scraper");
+        } else if (response.status() >= 400) {
+          log(`[ProtectionBypass] Flow request error: ${response.status()}`, "scraper");
         }
       }
     };
@@ -1686,9 +1720,11 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
           const stillOnChallenge = title.toLowerCase().includes('just a moment') ||
                                   bodyText.toLowerCase().includes('verifying you are human');
           
-          // Extract current Ray ID
+          // Extract current Ray ID (handle various formats including <code> tags)
           const html = document.documentElement?.innerHTML || '';
-          const rayIdMatch = html.match(/ray\s*id\s*:\s*([a-f0-9]+)/i);
+          const rayIdMatch = html.match(/ray\s*id\s*:?\s*(?:<code>)?([a-f0-9]+)(?:<\/code>)?/i) || 
+                            html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i) ||
+                            html.match(/"ray":\s*"([a-f0-9]+)"/i);
           const currentRayId = rayIdMatch ? rayIdMatch[1] : null;
           
           return {
@@ -1735,13 +1771,37 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
           log(`[ProtectionBypass] Computational flow progress: ${elapsed}s elapsed, ${flowRequestCount} flow requests, Ray: ${status.currentRayId}`, "scraper");
         }
         
-        // Check for stuck state
-        if (consecutiveNoProgress >= 15) { // 30 seconds of no progress
+        // Check for stuck state or loop detection
+        if (consecutiveNoProgress >= 15 || (possibleLoop && flowRequestCount > loopDetectedAt + 6)) { 
+          // Either 30 seconds of no progress OR we've detected a loop and seen 6+ more requests
+          
+          if (possibleLoop) {
+            log(`[ProtectionBypass] Challenge stuck in loop after ${flowRequestCount} requests, attempting to break out`, "scraper");
+            
+            // Try clicking on the body to trigger any hidden interactions
+            await page.evaluate(() => {
+              document.body.click();
+              // Also try dispatching a click event
+              const event = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: window.innerWidth / 2,
+                clientY: window.innerHeight / 2
+              });
+              document.body.dispatchEvent(event);
+            }).catch(() => {});
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+          
           log(`[ProtectionBypass] No progress for 30 seconds, attempting soft reload`, "scraper");
           
           // Try a soft reload while preserving cookies
           await page.reload({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
           consecutiveNoProgress = 0;
+          possibleLoop = false; // Reset loop detection after reload
+          flowRequestPattern = [];
           
           // Give it more time after reload
           await new Promise(resolve => setTimeout(resolve, 5000));
