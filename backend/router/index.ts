@@ -21,6 +21,7 @@ import { handleChangePassword } from "backend/handlers/auth0/change-password";
 // import { handleMigrateUserPreferences } from 'backend/handlers/migrate-preferences';
 import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
 import { handleTestScraping, handleTestScrapingHealth } from "backend/test-scraping";
+import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
 import liveLogsRouter from "backend/api/live-logs-management";
 
 const limiter = rateLimit(rateLimitConfig);
@@ -39,6 +40,11 @@ router.get("/test-datadome-bypass", testDatadomeBypass);
 
 // HEALTH CHECKS (unprotected)
 router.get("/health/database", handleDatabaseHealthCheck);
+
+// CRYPTO TESTING (unprotected for debugging)
+router.get("/test/crypto/health", handleCryptoHealth);
+router.get("/test/crypto/decrypt", handleTestDecrypt);
+router.post("/test/crypto/encrypt-decrypt", limiter, handleTestEncryptDecrypt);
 
 // TEST SCRAPING (unprotected but password-secured)
 router.post("/test-scraping", limiter, handleTestScraping);
