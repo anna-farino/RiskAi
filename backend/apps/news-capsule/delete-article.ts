@@ -26,16 +26,12 @@ export async function deleteCapsuleArticle(req: Request, res: Response) {
       return res.status(403).json({ error: 'Not authorized to delete this article' });
     }
     
-    // Use a transaction to ensure both operations succeed or fail together
     await db.transaction(async (tx) => {
-      // First, remove the article from all reports
       await tx
-        .delete(capsuleArticlesInReports)
-        .where(eq(capsuleArticlesInReports.articleId, articleId));
-      
-      // Then, delete the article itself
-      await tx
-        .delete(capsuleArticles)
+        .update(capsuleArticles)
+        .set({
+          markedForDeletion: true,
+        })
         .where(eq(capsuleArticles.id, articleId));
     });
     
