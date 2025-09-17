@@ -124,7 +124,7 @@ export default function ThreatHome() {
     return params.toString();
   };
 
-  // Articles query with filtering
+  // Articles query with filtering - only fetch when keywords are selected
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
       "/api/threat-tracker/articles",
@@ -152,6 +152,7 @@ export default function ThreatHome() {
         return [];
       }
     },
+    enabled: selectedKeywordIds.length > 0, // Only fetch when keywords are selected
   });
 
   // Auto-select active keywords when keywords are loaded
