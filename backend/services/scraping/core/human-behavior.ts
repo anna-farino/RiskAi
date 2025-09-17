@@ -162,41 +162,65 @@ export class HumanBehavior {
     }
   }
 
-  // Session warming - build legitimate looking history
-  async warmSession(domain: string): Promise<void> {
+  // Session warming - build legitimate looking history with neutral sites
+  async warmSession(targetDomain?: string): Promise<void> {
     try {
-      // Normalize the URL - add https:// if missing
-      let normalizedUrl = domain;
-      if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
-        normalizedUrl = 'https://' + domain;
+      // Popular neutral sites to visit for session warming
+      const neutralSites = [
+        'https://www.google.com',
+        'https://www.wikipedia.org',
+        'https://www.bbc.com/news',
+        'https://www.reddit.com',
+        'https://news.ycombinator.com',
+        'https://www.github.com',
+        'https://www.stackoverflow.com'
+      ];
+      
+      // Pick 1-2 random sites to visit
+      const numSites = this.random(1, 2);
+      const selectedSites = neutralSites
+        .sort(() => Math.random() - 0.5)
+        .slice(0, numSites);
+      
+      for (const site of selectedSites) {
+        try {
+          // Visit the neutral site
+          await this.page.goto(site, { 
+            waitUntil: 'domcontentloaded',
+            timeout: 10000 
+          });
+          
+          // Spend some time on the page like a human would
+          await this.randomDelay(2000, 4000);
+          
+          // Perform some random actions (scroll, mouse movement)
+          await this.performRandomActions(1);
+          
+          // Maybe click on something or search (for Google)
+          if (site.includes('google.com') && Math.random() > 0.5) {
+            // Simulate a search
+            await this.page.evaluate(() => {
+              const searchBox = document.querySelector('input[name="q"]') as HTMLInputElement;
+              if (searchBox) {
+                searchBox.value = ['news', 'weather', 'tech', 'sports'][Math.floor(Math.random() * 4)];
+              }
+            }).catch(() => {});
+          }
+        } catch (error) {
+          // If one site fails, continue with others
+          continue;
+        }
       }
       
-      // Visit main domain first
-      const mainUrl = new URL(normalizedUrl).origin;
-      await this.page.goto(mainUrl, { 
-        waitUntil: 'domcontentloaded',
-        timeout: 15000 
-      });
-      
+      // Add a final delay before returning
       await this.thinkingPause();
       
-      // Perform some random actions to look human
-      await this.performRandomActions(2);
+      // Set referrer for next navigation (makes it look like we came from a neutral site)
+      const lastVisited = selectedSites[selectedSites.length - 1];
+      await this.page.setExtraHTTPHeaders({
+        'Referer': lastVisited
+      });
       
-      // Maybe visit another page
-      if (Math.random() > 0.5) {
-        const paths = ['/about', '/contact', '/privacy', '/terms'];
-        const randomPath = paths[this.random(0, paths.length - 1)];
-        
-        await this.page.goto(mainUrl + randomPath, { 
-          waitUntil: 'domcontentloaded',
-          timeout: 15000 
-        }).catch(() => {
-          // Page might not exist, that's ok
-        });
-        
-        await this.randomDelay(2000, 5000);
-      }
     } catch (error) {
       // Session warming failed, continue anyway
     }
