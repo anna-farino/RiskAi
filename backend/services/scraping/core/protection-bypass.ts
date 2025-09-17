@@ -1791,39 +1791,144 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               if (turnstileFrame) {
                 log(`[ProtectionBypass] Found Turnstile frame: ${turnstileFrame.url()}`, "scraper");
                 
-                // Wait for checkbox or challenge element inside the frame
+                // Wait a bit for frame content to load
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Try to get frame content for debugging
+                const frameContent = await turnstileFrame.evaluate(() => {
+                  return {
+                    bodyHTML: document.body ? document.body.innerHTML.substring(0, 200) : 'no body',
+                    hasCheckbox: !!document.querySelector('input[type="checkbox"]'),
+                    hasRoleCheckbox: !!document.querySelector('[role="checkbox"]'),
+                    elementCount: document.querySelectorAll('*').length,
+                    selectors: {
+                      label: !!document.querySelector('label'),
+                      button: !!document.querySelector('button'),
+                      divWithClick: !!document.querySelector('div[onclick]'),
+                      svgElements: document.querySelectorAll('svg').length,
+                      iframes: document.querySelectorAll('iframe').length
+                    }
+                  };
+                });
+                
+                log(`[ProtectionBypass] Frame content: elements=${frameContent.elementCount}, checkbox=${frameContent.hasCheckbox}, role=${frameContent.hasRoleCheckbox}`, "scraper");
+                log(`[ProtectionBypass] Frame selectors: ${JSON.stringify(frameContent.selectors)}`, "scraper");
+                
+                // Enhanced selectors for modern Turnstile
                 const checkboxSelectors = [
-                  '[role="checkbox"]',           // Common Turnstile checkbox
-                  'input[type="checkbox"]',      // Traditional checkbox
-                  '.ctp-checkbox-container',     // Container element
-                  '#challenge-stage',            // Challenge stage
-                  '[data-action="managed-challenge"]' // Managed challenge
+                  'label',                          // Sometimes the label is clickable
+                  '[role="checkbox"]',              // ARIA checkbox
+                  'input[type="checkbox"]',         // Traditional checkbox
+                  'div[role="button"]',            // Button role
+                  'button',                        // Any button
+                  '.ctp-checkbox-container',       // Container
+                  '#challenge-stage',              // Challenge stage
+                  'svg',                          // Sometimes the SVG is clickable
+                  'div[style*="cursor: pointer"]', // Clickable divs
+                  '[data-action]',                // Any data-action
+                  'body'                          // Last resort - click body
                 ];
                 
+                let clicked = false;
                 for (const selector of checkboxSelectors) {
                   try {
-                    await turnstileFrame.waitForSelector(selector, { 
-                      timeout: 3000,
-                      visible: true 
-                    });
+                    // Check if element exists first
+                    const elementExists = await turnstileFrame.evaluate((sel) => {
+                      return !!document.querySelector(sel);
+                    }, selector);
                     
-                    log(`[ProtectionBypass] Found challenge element: ${selector}`, "scraper");
+                    if (!elementExists) {
+                      continue;
+                    }
+                    
+                    log(`[ProtectionBypass] Found element with selector: ${selector}, attempting click`, "scraper");
                     
                     // Add small random delay to simulate human hesitation
                     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
                     
-                    // Click the element with human-like delay
+                    // Try to click with Puppeteer
                     await turnstileFrame.click(selector, { delay: 50 + Math.random() * 100 });
                     
-                    log(`[ProtectionBypass] Successfully clicked challenge element: ${selector}`, "scraper");
+                    log(`[ProtectionBypass] Successfully clicked element: ${selector}`, "scraper");
+                    clicked = true;
                     
                     // Wait for challenge to process
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     break; // Stop after successful click
                     
-                  } catch (selectorError) {
-                    // Try next selector
+                  } catch (selectorError: any) {
+                    log(`[ProtectionBypass] Could not click ${selector}: ${selectorError.message}`, "scraper");
                     continue;
+                  }
+                }
+                
+                if (!clicked) {
+                  log(`[ProtectionBypass] Could not find clickable element, trying mouse coordinate approach`, "scraper");
+                  
+                  // Get iframe position on page for coordinate-based clicking
+                  const iframeElement = await page.$('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
+                  if (iframeElement) {
+                    const box = await iframeElement.boundingBox();
+                    if (box) {
+                      log(`[ProtectionBypass] Iframe position: x=${box.x}, y=${box.y}, width=${box.width}, height=${box.height}`, "scraper");
+                      
+                      // Move mouse to center of iframe with natural movement
+                      const centerX = box.x + box.width / 2;
+                      const centerY = box.y + box.height / 2;
+                      
+                      // Natural mouse movement to iframe
+                      await page.mouse.move(centerX, centerY, { steps: 10 });
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      // Try clicking at common checkbox positions within iframe
+                      const clickPositions = [
+                        { x: box.x + 30, y: box.y + box.height / 2 },      // Left side (checkbox often here)
+                        { x: box.x + box.width / 2, y: box.y + box.height / 2 }, // Center
+                        { x: box.x + 50, y: box.y + 50 },                  // Top-left area
+                        { x: box.x + box.width - 50, y: box.y + 50 }       // Top-right area
+                      ];
+                      
+                      for (const pos of clickPositions) {
+                        log(`[ProtectionBypass] Attempting mouse click at (${pos.x}, ${pos.y})`, "scraper");
+                        
+                        await page.mouse.move(pos.x, pos.y, { steps: 5 });
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                        await page.mouse.down();
+                        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
+                        await page.mouse.up();
+                        
+                        // Wait to see if it worked
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Check if challenge completed
+                        const completed = await page.evaluate(() => {
+                          return document.cookie.includes('cf_clearance') || 
+                                 !document.title?.toLowerCase().includes('just a moment');
+                        });
+                        
+                        if (completed) {
+                          log(`[ProtectionBypass] Mouse click successful at position`, "scraper");
+                          clicked = true;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Final synthetic click attempt in frame
+                  if (!clicked) {
+                    await turnstileFrame.evaluate(() => {
+                      const allElements = document.querySelectorAll('*');
+                      for (const elem of allElements) {
+                        if (elem.tagName === 'LABEL' || elem.tagName === 'BUTTON' || 
+                            elem.getAttribute('role') === 'checkbox' || elem.getAttribute('role') === 'button') {
+                          const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+                          elem.dispatchEvent(event);
+                          console.log(`Synthetic clicked: ${elem.tagName} ${elem.getAttribute('role')}`);
+                          break;
+                        }
+                      }
+                    });
                   }
                 }
               } else {
@@ -1855,31 +1960,59 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               log(`[ProtectionBypass] Frame interaction error: ${frameInteractionError.message}`, "scraper");
             }
             
-            // Poll for cf_clearance cookie completion
-            let cfClearanceFound = false;
+            // Poll for cf_clearance cookie or navigation completion
+            let challengeCompleted = false;
             try {
-              log(`[ProtectionBypass] Polling for cf_clearance cookie...`, "scraper");
+              log(`[ProtectionBypass] Waiting for challenge completion (cookie or navigation)...`, "scraper");
               
-              cfClearanceFound = await page.waitForFunction(
-                () => document.cookie.includes('cf_clearance'),
-                { 
-                  polling: 500,
-                  timeout: 5000 
-                }
-              ).then(() => true).catch(() => false);
-              
-              if (cfClearanceFound) {
-                log(`[ProtectionBypass] cf_clearance cookie detected - challenge completed!`, "scraper");
+              // Wait for either cf_clearance cookie or navigation
+              await Promise.race([
+                // Wait for cf_clearance cookie
+                page.waitForFunction(
+                  () => document.cookie.includes('cf_clearance'),
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] cf_clearance cookie detected!`, "scraper");
+                  challengeCompleted = true;
+                }),
                 
+                // Wait for navigation away from challenge page
+                page.waitForFunction(
+                  () => !document.title?.toLowerCase().includes('just a moment') && 
+                       !document.title?.toLowerCase().includes('please wait'),
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] Navigation detected - title changed from challenge`, "scraper");
+                  challengeCompleted = true;
+                }),
+                
+                // Wait for significant content change
+                page.waitForFunction(
+                  () => document.querySelectorAll('a[href]').length > 10,
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] Content loaded - found multiple links`, "scraper");
+                  challengeCompleted = true;
+                })
+              ]).catch(() => {
+                log(`[ProtectionBypass] Challenge completion wait timed out`, "scraper");
+              });
+              
+              if (challengeCompleted) {
                 // Get actual cookies from page context
                 const cookies = await page.cookies();
                 const cfClearanceCookie = cookies.find(c => c.name === 'cf_clearance');
                 if (cfClearanceCookie) {
-                  log(`[ProtectionBypass] cf_clearance value captured: ${cfClearanceCookie.value.substring(0, 10)}...`, "scraper");
+                  log(`[ProtectionBypass] cf_clearance captured: ${cfClearanceCookie.value.substring(0, 10)}...`, "scraper");
+                  
+                  // Store in session for reuse
+                  const urlObj = new URL(page.url());
+                  const domain = urlObj.hostname;
+                  cacheCfClearance(domain, cfClearanceCookie.value, 24);
                 }
               }
-            } catch (cookiePollError: any) {
-              log(`[ProtectionBypass] Cookie polling error: ${cookiePollError.message}`, "scraper");
+            } catch (completionError: any) {
+              log(`[ProtectionBypass] Completion detection error: ${completionError.message}`, "scraper");
             }
             
             await new Promise(resolve => setTimeout(resolve, 500));
