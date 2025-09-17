@@ -4,6 +4,7 @@ import * as cheerio from 'cheerio';
 import UserAgent from 'user-agents';
 import { safePageEvaluate } from '../scrapers/puppeteer-scraper/error-handler';
 import { applyEnhancedStealthMeasures } from './stealth-enhancements';
+import { HumanBehavior } from './human-behavior';
 
 // Global type declarations for bot detection evasion
 declare global {
@@ -1650,6 +1651,25 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
   try {
     log(`[ProtectionBypass] Handling Computational Flow challenge (Ray ID: ${detectionResult.signals.rayId})`, "scraper");
     
+    // Initialize human behavior simulator
+    const humanBehavior = new HumanBehavior(page);
+    
+    // Apply WebGL noise and window randomization before starting
+    await humanBehavior.addWebGLNoise();
+    await humanBehavior.randomizeWindow();
+    
+    // Session warming - visit main domain first to build history
+    const currentUrl = page.url();
+    try {
+      log(`[ProtectionBypass] Warming session before challenge...`, "scraper");
+      await humanBehavior.warmSession(currentUrl);
+    } catch (error) {
+      log(`[ProtectionBypass] Session warming failed, continuing anyway`, "scraper");
+    }
+    
+    // Add "thinking time" before attempting challenge
+    await humanBehavior.thinkingPause();
+    
     const maxWaitTime = 90000; // 90 seconds for computational challenges
     const startTime = Date.now();
     let lastRayId = detectionResult.signals.rayId;
@@ -1659,6 +1679,7 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     let flowRequestPattern: number[] = []; // Track time between request groups
     let possibleLoop = false;
     let loopDetectedAt = 0;
+    let lastHumanActionTime = Date.now();
     
     // Monitor flow requests - FIXED: Use proper event listener cleanup
     const flowRequests: string[] = [];
@@ -1710,7 +1731,17 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     try {
       // Wait for computational challenge to complete
       while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Use random delay instead of fixed 2 seconds to break pattern
+        const waitTime = 1500 + Math.random() * 2500; // 1.5 to 4 seconds
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Perform human-like actions periodically (not every iteration to avoid pattern)
+        const timeSinceLastAction = Date.now() - lastHumanActionTime;
+        if (timeSinceLastAction > 8000 && Math.random() > 0.4) { // ~60% chance after 8 seconds
+          log(`[ProtectionBypass] Performing human-like interactions...`, "scraper");
+          await humanBehavior.performRandomActions(Math.floor(Math.random() * 2) + 1); // 1-2 actions
+          lastHumanActionTime = Date.now();
+        }
         
         // Check current status
         const status = await safePageEvaluate(page, () => {
@@ -1776,23 +1807,42 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
           // Either 30 seconds of no progress OR we've detected a loop and seen 6+ more requests
           
           if (possibleLoop) {
-            log(`[ProtectionBypass] Challenge stuck in loop after ${flowRequestCount} requests, attempting to break out`, "scraper");
+            log(`[ProtectionBypass] Challenge stuck in loop after ${flowRequestCount} requests, attempting aggressive loop-breaking`, "scraper");
             
-            // Try clicking on the body to trigger any hidden interactions
+            // Aggressive human-like behaviors to break the loop
+            await humanBehavior.simulateTabSwitch(); // Simulate leaving and coming back
+            await humanBehavior.performRandomActions(3); // Multiple random actions
+            
+            // Try clicking on various elements
             await page.evaluate(() => {
+              // Click on body
               document.body.click();
-              // Also try dispatching a click event
-              const event = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                clientX: window.innerWidth / 2,
-                clientY: window.innerHeight / 2
+              
+              // Try clicking on any challenge-related elements
+              const challengeElements = document.querySelectorAll('[class*="challenge"], [id*="challenge"], form, button');
+              challengeElements.forEach(el => {
+                try { (el as HTMLElement).click(); } catch(e) {}
               });
-              document.body.dispatchEvent(event);
+              
+              // Dispatch custom events that might trigger challenge
+              ['click', 'mousedown', 'mouseup'].forEach(eventType => {
+                const event = new MouseEvent(eventType, {
+                  view: window,
+                  bubbles: true,
+                  cancelable: true,
+                  clientX: Math.random() * window.innerWidth,
+                  clientY: Math.random() * window.innerHeight
+                });
+                document.body.dispatchEvent(event);
+              });
+              
+              // Try focusing on the document
+              document.documentElement.focus();
+              window.focus();
             }).catch(() => {});
             
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Random delay to seem more human
+            await humanBehavior.randomDelay(2000, 5000);
           }
           
           log(`[ProtectionBypass] No progress for 30 seconds, attempting soft reload`, "scraper");
