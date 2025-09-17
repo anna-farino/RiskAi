@@ -609,7 +609,7 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     
     log(`[ProtectionBypass] Starting session warmup`, "scraper");
     
-    // Step 0: Visit unprotected sites first to establish session legitimacy
+    // Step 1: Visit unprotected sites first to establish session legitimacy
     const warmupSites = [
       'https://www.google.com',
       'https://www.wikipedia.org',
@@ -640,7 +640,7 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     
     log(`[ProtectionBypass] Now approaching target site: ${baseUrl}`, "scraper");
     
-    // Step 1: Visit homepage (common human behavior)
+    // Step 2: Visit target homepage
     const homepageResponse = await performCycleTLSRequest(baseUrl, {
       method: 'GET',
       sessionId,
@@ -650,10 +650,10 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     if (homepageResponse.success) {
       log(`[ProtectionBypass] Homepage visit successful (${homepageResponse.status})`, "scraper");
       
-      // Step 2: Brief human-like delay
+      // Step 3: Brief human-like delay
       await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
       
-      // Step 3: Load favicon (common browser behavior)
+      // Step 4: Load favicon (common browser behavior)
       await performCycleTLSRequest(`${baseUrl}/favicon.ico`, {
         method: 'GET',
         sessionId,
@@ -667,10 +667,10 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
         }
       });
       
-      // Step 4: Another human delay
+      // Step 5: Another human delay
       await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
       
-      // Step 5: Try to load a common page (about or contact)
+      // Step 6: Try to load a common page (about or contact)
       const commonPages = ['/about', '/contact', '/privacy', '/terms'];
       const randomPage = commonPages[Math.floor(Math.random() * commonPages.length)];
       
