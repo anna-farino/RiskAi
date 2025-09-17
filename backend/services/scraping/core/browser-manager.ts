@@ -146,11 +146,15 @@ const BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
-  // CRITICAL: Enable third-party cookies for Turnstile challenges
+  // CRITICAL: Enable third-party cookies and iframes for Turnstile challenges
   "--disable-features=BlockThirdPartyCookies,ThirdPartyStoragePartitioning,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
+  // Allow cross-origin iframes (needed for challenges.cloudflare.com)
+  "--disable-web-security",
+  "--disable-features=IsolateOrigins,site-per-process",
+  "--allow-running-insecure-content",
   // Keep anti-automation detection
   "--disable-blink-features=AutomationControlled",
-  // Basic optimizations (removed suspicious flags)
+  // Basic optimizations
   "--disable-software-rasterizer",
   "--disable-extensions",
   "--mute-audio",

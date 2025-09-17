@@ -1823,14 +1823,42 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               
               const iframeSelector = 'iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"], iframe[name^="cf-chl-widget"], iframe[title*="Widget"]';
               
+              // First, wait a bit for the iframe to be injected dynamically
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
               try {
                 await page.waitForSelector(iframeSelector, { 
-                  timeout: 5000, 
+                  timeout: 8000, 
                   visible: true 
                 });
                 log(`[ProtectionBypass] Turnstile iframe detected on page`, "scraper");
+                
+                // Give the iframe more time to fully load its content
+                await new Promise(resolve => setTimeout(resolve, 2000));
               } catch (waitError) {
-                log(`[ProtectionBypass] No Turnstile iframe found within 5 seconds`, "scraper");
+                log(`[ProtectionBypass] No Turnstile iframe found within 8 seconds, attempting to trigger loading`, "scraper");
+                
+                // Try to trigger iframe loading by interacting with the page
+                await page.evaluate(() => {
+                  // Click on any challenge container that might trigger iframe loading
+                  const containers = document.querySelectorAll('[data-sitekey], .cf-turnstile, [id*="turnstile"], [class*="challenge"]');
+                  containers.forEach(c => {
+                    if (c instanceof HTMLElement) {
+                      c.click();
+                    }
+                  });
+                });
+                
+                // Wait again for iframe
+                try {
+                  await page.waitForSelector(iframeSelector, { 
+                    timeout: 3000, 
+                    visible: true 
+                  });
+                  log(`[ProtectionBypass] Turnstile iframe appeared after interaction`, "scraper");
+                } catch (secondWaitError) {
+                  log(`[ProtectionBypass] Still no Turnstile iframe after interaction`, "scraper");
+                }
               }
               
               // Find the Turnstile frame
