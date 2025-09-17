@@ -1439,14 +1439,375 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
   }
 }
 
+// Challenge type definitions
+export enum CloudflareChallengeType {
+  NONE = 'none',
+  TURNSTILE = 'turnstile',
+  COMPUTATIONAL_FLOW = 'computational_flow',
+  MANAGED = 'managed'
+}
+
+interface ChallengeDetectionResult {
+  type: CloudflareChallengeType;
+  signals: {
+    hasTurnstileGlobal: boolean;
+    hasTurnstileIframe: boolean;
+    hasFlowRequests: boolean;
+    hasComputationalText: boolean;
+    hasManagedChallenge: boolean;
+    hasJustAMomentTitle: boolean;
+    rayId: string | null;
+  };
+  confidence: number;
+}
+
 /**
- * Enhanced Cloudflare protection challenge handler
- * Implements comprehensive detection and extended waiting with proper interaction
+ * Detect the type of Cloudflare challenge present on the page
  */
+async function detectChallengeType(page: Page): Promise<ChallengeDetectionResult> {
+  try {
+    // Collect signals from the page
+    const signals = await safePageEvaluate(page, () => {
+      const title = document.title || '';
+      const bodyText = document.body?.textContent || '';
+      const html = document.documentElement?.innerHTML || '';
+      
+      // Check for Turnstile indicators
+      const hasTurnstileGlobal = typeof (window as any).turnstile !== 'undefined' && 
+                                 (window as any).turnstile !== null &&
+                                 Object.keys((window as any).turnstile || {}).length > 0;
+      
+      const hasTurnstileElements = !!document.querySelector('[data-sitekey], .cf-turnstile, [id*="turnstile"]');
+      
+      // Check for computational flow text patterns
+      const computationalPatterns = [
+        'verifying you are human',
+        'this may take a few seconds', 
+        'checking your browser',
+        'ddos protection by cloudflare'
+      ];
+      const hasComputationalText = computationalPatterns.some(pattern => 
+        bodyText.toLowerCase().includes(pattern)
+      );
+      
+      // Check for managed challenge indicators
+      const hasManagedChallenge = bodyText.toLowerCase().includes('attention required') ||
+                                  bodyText.toLowerCase().includes('one more step') ||
+                                  !!document.querySelector('.cf-error-details');
+      
+      // Check for Just a Moment title
+      const hasJustAMomentTitle = title.toLowerCase().includes('just a moment') ||
+                                 title.toLowerCase().includes('please wait');
+      
+      // Extract Ray ID if present
+      const rayIdMatch = html.match(/ray\s*id\s*:\s*([a-f0-9]+)/i) || 
+                        html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i);
+      const rayId = rayIdMatch ? rayIdMatch[1] : null;
+      
+      return {
+        hasTurnstileGlobal,
+        hasTurnstileElements,
+        hasComputationalText,
+        hasManagedChallenge,
+        hasJustAMomentTitle,
+        rayId,
+        hasFlowScripts: html.includes('/flow/ov') || html.includes('orchestrate/chl_page')
+      };
+    }) || {
+      hasTurnstileGlobal: false,
+      hasTurnstileElements: false,
+      hasComputationalText: false,
+      hasManagedChallenge: false,
+      hasJustAMomentTitle: false,
+      rayId: null,
+      hasFlowScripts: false
+    };
+    
+    // Check for Turnstile iframes
+    const frames = await page.frames();
+    const hasTurnstileIframe = frames.some(frame => 
+      frame.url().includes('challenges.cloudflare.com') && 
+      frame.url().includes('turnstile')
+    );
+    
+    // FIXED: Use waitForResponse with timeout instead of event listener to avoid leaks
+    let hasFlowRequests = false;
+    
+    // Check if flow scripts are already present
+    hasFlowRequests = signals.hasFlowScripts;
+    
+    // Also check for ongoing flow requests with timeout
+    try {
+      // Use Promise.race to check for flow requests with a timeout
+      await Promise.race([
+        page.waitForResponse(
+          response => {
+            const url = response.url();
+            const isFlowRequest = url.includes('/flow/ov') || 
+                                 url.includes('/cdn-cgi/challenge-platform');
+            if (isFlowRequest) {
+              hasFlowRequests = true;
+              log(`[ProtectionBypass] Detected flow request: ${url}`, "scraper");
+            }
+            return isFlowRequest;
+          },
+          { timeout: 2000 }
+        ).catch(() => {
+          // Timeout is expected if no flow requests occur
+          return null;
+        }),
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]);
+    } catch (error) {
+      // Timeout or error is fine, just means no flow requests detected
+      log(`[ProtectionBypass] No flow requests detected in 2s window`, "scraper");
+    }
+    
+    // FIXED: Compute confidence based on signal strength
+    let signalCount = 0;
+    let maxSignals = 7; // Total possible signals
+    
+    if (signals.hasTurnstileGlobal) signalCount++;
+    if (signals.hasTurnstileElements) signalCount++;
+    if (hasTurnstileIframe) signalCount++;
+    if (hasFlowRequests) signalCount++;
+    if (signals.hasComputationalText) signalCount++;
+    if (signals.hasManagedChallenge) signalCount++;
+    if (signals.hasJustAMomentTitle) signalCount++;
+    
+    // Base confidence on number of signals detected
+    let confidence = Math.min(1.0, 0.3 + (signalCount * 0.15));
+    
+    // Determine challenge type based on signals with computed confidence
+    let type = CloudflareChallengeType.NONE;
+    
+    if (signals.hasTurnstileGlobal || hasTurnstileIframe || signals.hasTurnstileElements) {
+      type = CloudflareChallengeType.TURNSTILE;
+      // Boost confidence for Turnstile detection
+      confidence = Math.max(confidence, 0.85);
+    } else if (signals.hasComputationalText && !signals.hasTurnstileGlobal && (hasFlowRequests || signals.hasFlowScripts)) {
+      type = CloudflareChallengeType.COMPUTATIONAL_FLOW;
+      confidence = Math.max(confidence, 0.75);
+    } else if (signals.hasManagedChallenge) {
+      type = CloudflareChallengeType.MANAGED;
+      confidence = Math.max(confidence, 0.7);
+    } else if (signals.hasJustAMomentTitle) {
+      // Default to computational flow if we see "Just a moment" but no Turnstile
+      type = CloudflareChallengeType.COMPUTATIONAL_FLOW;
+      confidence = Math.max(confidence, 0.6);
+    } else {
+      // No challenge detected
+      confidence = 0;
+    }
+    
+    // FIXED: Ensure all signals are properly included in the result
+    const result: ChallengeDetectionResult = {
+      type,
+      signals: {
+        hasTurnstileGlobal: signals.hasTurnstileGlobal,
+        hasTurnstileIframe: hasTurnstileIframe,  // FIXED: Now correctly uses the computed value
+        hasFlowRequests: hasFlowRequests,  // FIXED: Properly captures flow requests
+        hasComputationalText: signals.hasComputationalText,
+        hasManagedChallenge: signals.hasManagedChallenge,
+        hasJustAMomentTitle: signals.hasJustAMomentTitle,
+        rayId: signals.rayId
+      },
+      confidence
+    };
+    
+    log(`[ProtectionBypass] Challenge type detected: ${type} (confidence: ${confidence.toFixed(2)}, signals: ${signalCount}/${maxSignals})`, "scraper");
+    log(`[ProtectionBypass] Detection signals: ${JSON.stringify(result.signals)}`, "scraper");
+    
+    return result;
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error detecting challenge type: ${error.message}`, "scraper-error");
+    return {
+      type: CloudflareChallengeType.NONE,
+      signals: {
+        hasTurnstileGlobal: false,
+        hasTurnstileIframe: false,
+        hasFlowRequests: false,
+        hasComputationalText: false,
+        hasManagedChallenge: false,
+        hasJustAMomentTitle: false,
+        rayId: null
+      },
+      confidence: 0
+    };
+  }
+}
+
+/**
+ * Enhanced Cloudflare protection challenge handler with multi-type support
+ * Routes to appropriate handler based on detected challenge type
+ */
+/**
+ * Handle JavaScript Computational Flow challenges
+ * These use /flow/ov1/ requests and require time for computation
+ */
+async function handleComputationalFlowChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
+  try {
+    log(`[ProtectionBypass] Handling Computational Flow challenge (Ray ID: ${detectionResult.signals.rayId})`, "scraper");
+    
+    const maxWaitTime = 90000; // 90 seconds for computational challenges
+    const startTime = Date.now();
+    let lastRayId = detectionResult.signals.rayId;
+    let consecutiveNoProgress = 0;
+    let flowRequestCount = 0;
+    
+    // Monitor flow requests - FIXED: Use proper event listener cleanup
+    const flowRequests: string[] = [];
+    const responseHandler = (response: any) => {
+      const url = response.url();
+      if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform')) {
+        flowRequestCount++;
+        flowRequests.push(`${response.status()} ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`);
+        consecutiveNoProgress = 0; // Reset on activity
+        
+        if (response.status() === 200) {
+          log(`[ProtectionBypass] Flow request successful: ${response.status()}`, "scraper");
+        }
+      }
+    };
+    
+    // Add event listener with proper cleanup
+    page.on('response', responseHandler);
+    
+    try {
+      // Wait for computational challenge to complete
+      while (Date.now() - startTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check current status
+        const status = await safePageEvaluate(page, () => {
+          const title = document.title || '';
+          const bodyText = document.body?.textContent || '';
+          const hasClearance = document.cookie.includes('cf_clearance');
+          const stillOnChallenge = title.toLowerCase().includes('just a moment') ||
+                                  bodyText.toLowerCase().includes('verifying you are human');
+          
+          // Extract current Ray ID
+          const html = document.documentElement?.innerHTML || '';
+          const rayIdMatch = html.match(/ray\s*id\s*:\s*([a-f0-9]+)/i);
+          const currentRayId = rayIdMatch ? rayIdMatch[1] : null;
+          
+          return {
+            title,
+            hasClearance,
+            stillOnChallenge,
+            currentRayId,
+            linkCount: document.querySelectorAll('a[href]').length,
+            hasContent: bodyText.length > 500 && !stillOnChallenge
+          };
+        }) || {
+          title: '',
+          hasClearance: false,
+          stillOnChallenge: true,
+          currentRayId: null,
+          linkCount: 0,
+          hasContent: false
+        };
+        
+        // Check for completion
+        if (status.hasClearance) {
+          log(`[ProtectionBypass] Computational challenge completed - cf_clearance cookie set`, "scraper");
+          return true;
+        }
+        
+        // Check if we've navigated away from challenge
+        if (!status.stillOnChallenge && status.hasContent) {
+          log(`[ProtectionBypass] Computational challenge completed - navigated to content page`, "scraper");
+          return true;
+        }
+        
+        // Check if Ray ID changed (indicates progress)
+        if (status.currentRayId && status.currentRayId !== lastRayId) {
+          log(`[ProtectionBypass] Ray ID changed: ${lastRayId} -> ${status.currentRayId}`, "scraper");
+          lastRayId = status.currentRayId;
+          consecutiveNoProgress = 0;
+        } else {
+          consecutiveNoProgress++;
+        }
+        
+        // Log progress
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        if (elapsed % 10 === 0 && elapsed > 0) {
+          log(`[ProtectionBypass] Computational flow progress: ${elapsed}s elapsed, ${flowRequestCount} flow requests, Ray: ${status.currentRayId}`, "scraper");
+        }
+        
+        // Check for stuck state
+        if (consecutiveNoProgress >= 15) { // 30 seconds of no progress
+          log(`[ProtectionBypass] No progress for 30 seconds, attempting soft reload`, "scraper");
+          
+          // Try a soft reload while preserving cookies
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
+          consecutiveNoProgress = 0;
+          
+          // Give it more time after reload
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        
+        // Ultimate timeout check
+        if (Date.now() - startTime >= maxWaitTime) {
+          log(`[ProtectionBypass] Computational challenge timed out after ${maxWaitTime}ms`, "scraper");
+          log(`[ProtectionBypass] Flow requests summary: ${flowRequests.slice(-5).join(', ')}`, "scraper");
+          return false;
+        }
+      }
+      
+      return false;
+    } finally {
+      // FIXED: Always remove the event listener to prevent memory leak
+      page.off('response', responseHandler);
+      log(`[ProtectionBypass] Cleaned up response listener for computational flow handler`, "scraper");
+    }
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error handling computational flow challenge: ${error.message}`, "scraper-error");
+    return false;
+  }
+}
+
 export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
   try {
-    // Instrumentation is now applied globally in stealth-enhancements.ts
-    log(`[ProtectionBypass] Performing enhanced Cloudflare challenge detection...`, "scraper");
+    // Detect challenge type
+    const detection = await detectChallengeType(page);
+    
+    // Route to appropriate handler based on type
+    switch (detection.type) {
+      case CloudflareChallengeType.TURNSTILE:
+        log(`[ProtectionBypass] Routing to Turnstile handler`, "scraper");
+        return await handleTurnstileChallenge(page, detection);
+        
+      case CloudflareChallengeType.COMPUTATIONAL_FLOW:
+        log(`[ProtectionBypass] Routing to Computational Flow handler`, "scraper");
+        return await handleComputationalFlowChallenge(page, detection);
+        
+      case CloudflareChallengeType.MANAGED:
+        log(`[ProtectionBypass] Managed challenge detected - attempting basic bypass`, "scraper");
+        // For now, try the existing approach for managed challenges
+        return await handleTurnstileChallenge(page, detection);
+        
+      case CloudflareChallengeType.NONE:
+        log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
+        return true;
+        
+      default:
+        log(`[ProtectionBypass] Unknown challenge type, attempting default handling`, "scraper");
+        return false;
+    }
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error in challenge handler: ${error.message}`, "scraper-error");
+    return false;
+  }
+}
+
+/**
+ * Handle Turnstile-specific challenges
+ * Extracted from original handleCloudflareChallenge
+ */
+async function handleTurnstileChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
+  try {
+    log(`[ProtectionBypass] Handling Turnstile challenge`, "scraper");
 
     // 1. Better Challenge Detection
     const challengeDetails = await safePageEvaluate(page, () => {
