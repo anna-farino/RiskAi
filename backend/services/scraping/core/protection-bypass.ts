@@ -357,31 +357,83 @@ export async function performCycleTLSRequest(
     
     // Extract body from CycleTLS response (it uses 'data' or 'text', not 'body')
     let responseBody = '';
+    
+    // Enhanced logging for debugging CycleTLS response structure
+    log(`[ProtectionBypass] CycleTLS response fields present: data=${!!response.data}, text=${!!response.text}, body=${!!response.body}`, "scraper");
+    
     if (response.data) {
+      const dataType = typeof response.data;
+      log(`[ProtectionBypass] Response.data type: ${dataType}, isBuffer: ${Buffer.isBuffer(response.data)}`, "scraper");
+      
       // Handle data field (might be binary/gzipped)
       if (typeof response.data === 'string') {
         responseBody = response.data;
+        // Check if it looks like gzipped content even as string
+        if (responseBody.startsWith('\x1f\x8b') || responseBody.includes('�')) {
+          log(`[ProtectionBypass] WARNING: String data appears to contain binary/gzip content`, "scraper");
+          // Try to convert string to buffer and decompress
+          try {
+            const buffer = Buffer.from(response.data, 'binary');
+            const zlib = require('zlib');
+            responseBody = zlib.gunzipSync(buffer).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed string-encoded gzip data`, "scraper");
+          } catch (e) {
+            log(`[ProtectionBypass] Failed to decompress string as gzip: ${e.message}`, "scraper");
+          }
+        }
       } else if (Buffer.isBuffer(response.data)) {
         // Try to decompress if it's gzipped
         try {
           const zlib = require('zlib');
           responseBody = zlib.gunzipSync(response.data).toString('utf8');
-          log(`[ProtectionBypass] Decompressed gzipped response`, "scraper");
+          log(`[ProtectionBypass] Decompressed gzipped buffer response`, "scraper");
         } catch (e) {
           // Not gzipped, just convert to string
+          log(`[ProtectionBypass] Buffer not gzipped, converting to string: ${e.message}`, "scraper");
           responseBody = response.data.toString('utf8');
         }
       } else {
+        log(`[ProtectionBypass] Response.data is object/other, stringifying`, "scraper");
         responseBody = JSON.stringify(response.data);
       }
     } else if (response.text) {
+      log(`[ProtectionBypass] Using response.text field`, "scraper");
       responseBody = response.text;
     } else if (response.body) {
+      log(`[ProtectionBypass] Using response.body field`, "scraper");
       responseBody = response.body;
     }
     
-    // Log actual body length for debugging
+    // Enhanced logging for invalid content debugging
     log(`[ProtectionBypass] Response body extracted: ${responseBody.length} characters`, "scraper");
+    
+    // If content looks suspicious or invalid, log a sample
+    if (responseBody.length > 0) {
+      const firstChars = responseBody.substring(0, 100);
+      const hasHTML = responseBody.includes('<html') || responseBody.includes('<!DOCTYPE');
+      const hasLinks = responseBody.includes('<a ') || responseBody.includes('href=');
+      const hasBinary = /[\x00-\x08\x0E-\x1F\x7F-\x9F]/.test(firstChars);
+      
+      log(`[ProtectionBypass] Content analysis: hasHTML=${hasHTML}, hasLinks=${hasLinks}, hasBinary=${hasBinary}`, "scraper");
+      
+      if (hasBinary) {
+        log(`[ProtectionBypass] WARNING: Response contains binary characters, may be corrupted`, "scraper");
+        log(`[ProtectionBypass] First 100 chars (hex): ${Buffer.from(firstChars).toString('hex')}`, "scraper");
+      } else {
+        log(`[ProtectionBypass] First 100 chars: ${firstChars.replace(/\n/g, ' ')}`, "scraper");
+      }
+      
+      // If no links found but has substantial content, log more details
+      if (!hasLinks && responseBody.length > 10000) {
+        log(`[ProtectionBypass] WARNING: Large response (${responseBody.length} chars) but no links detected`, "scraper");
+        // Sample middle and end of content
+        const middleStart = Math.floor(responseBody.length / 2);
+        const middleSample = responseBody.substring(middleStart, middleStart + 100).replace(/\n/g, ' ');
+        const endSample = responseBody.substring(responseBody.length - 100).replace(/\n/g, ' ');
+        log(`[ProtectionBypass] Middle sample: ${middleSample}`, "scraper");
+        log(`[ProtectionBypass] End sample: ${endSample}`, "scraper");
+      }
+    }
     
     return {
       success: response.status >= 200 && response.status < 400,
