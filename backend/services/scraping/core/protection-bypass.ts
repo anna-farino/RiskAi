@@ -54,9 +54,49 @@ interface SessionState {
   browserProfile: BrowserProfile;
   lastRequestTime: number;
   sessionId: string;
+  cfClearance?: string; // Store cf_clearance cookie separately
+  cfClearanceExpiry?: number; // Track expiry time
+  domain?: string; // Store domain for cookie scope
 }
 
 const globalSessions = new Map<string, SessionState>();
+const cfClearanceCache = new Map<string, { cookie: string; expiry: number }>(); // Domain-based cf_clearance cache
+
+/**
+ * Helper function to extract cf_clearance cookie from cookies array
+ */
+function extractCfClearance(cookies: string[]): string | null {
+  for (const cookie of cookies) {
+    if (cookie.includes('cf_clearance=')) {
+      const match = cookie.match(/cf_clearance=([^;]+)/);
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Helper function to get cached cf_clearance for a domain
+ */
+function getCachedCfClearance(domain: string): string | null {
+  const cached = cfClearanceCache.get(domain);
+  if (cached && cached.expiry > Date.now()) {
+    log(`[ProtectionBypass] Using cached cf_clearance for ${domain}`, "scraper");
+    return cached.cookie;
+  }
+  return null;
+}
+
+/**
+ * Helper function to cache cf_clearance cookie
+ */
+function cacheCfClearance(domain: string, cookie: string, expiryHours: number = 24): void {
+  const expiry = Date.now() + (expiryHours * 60 * 60 * 1000);
+  cfClearanceCache.set(domain, { cookie, expiry });
+  log(`[ProtectionBypass] Cached cf_clearance for ${domain} (expires in ${expiryHours} hours)`, "scraper");
+}
 
 /**
  * ENHANCED TLS-PROTECTED HTTP REQUEST with session continuity
@@ -1623,11 +1663,33 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 }
               });
               
-              // Force challenge verification signals
+              // Enhanced Turnstile challenge handling
               if (typeof window.turnstile !== 'undefined') {
                 try {
+                  // Try to trigger Turnstile render
                   window.turnstile.render?.();
-                } catch (e) {}
+                  
+                  // Look for Turnstile widget container
+                  const turnstileWidget = document.querySelector('[id*="turnstile"], .cf-turnstile, [data-sitekey]');
+                  if (turnstileWidget) {
+                    console.log('Turnstile widget found, attempting interaction');
+                    turnstileWidget.click?.();
+                  }
+                  
+                  // Check for Turnstile iframe
+                  const turnstileIframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
+                  if (turnstileIframe) {
+                    console.log('Turnstile iframe detected');
+                  }
+                } catch (e) {
+                  console.log('Turnstile interaction error:', e);
+                }
+              }
+              
+              // Check for cf_clearance cookie (successful challenge completion)
+              const hasClearance = document.cookie.includes('cf_clearance');
+              if (hasClearance) {
+                console.log('cf_clearance cookie detected - challenge may be complete');
               }
             });
             
