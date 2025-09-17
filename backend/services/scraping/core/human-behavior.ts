@@ -165,8 +165,14 @@ export class HumanBehavior {
   // Session warming - build legitimate looking history
   async warmSession(domain: string): Promise<void> {
     try {
+      // Normalize the URL - add https:// if missing
+      let normalizedUrl = domain;
+      if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
+        normalizedUrl = 'https://' + domain;
+      }
+      
       // Visit main domain first
-      const mainUrl = new URL(domain).origin;
+      const mainUrl = new URL(normalizedUrl).origin;
       await this.page.goto(mainUrl, { 
         waitUntil: 'domcontentloaded',
         timeout: 15000 
