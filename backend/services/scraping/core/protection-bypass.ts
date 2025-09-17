@@ -1745,8 +1745,8 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             interactionPhase = 4;
             
           } else if (waitTime >= 18000 && waitTime < 19000 && interactionPhase === 4) {
-            // Phase 4: Challenge element interaction with robust Turnstile handling
-            log(`[ProtectionBypass] Phase 4: Attempting Turnstile challenge interaction`, "scraper");
+            // Phase 4: Challenge interaction (Turnstile or Managed)
+            log(`[ProtectionBypass] Phase 4: Attempting challenge interaction`, "scraper");
             
             // First verify JavaScript is enabled
             const jsEnabled = await page.evaluate(() => {
@@ -1763,10 +1763,63 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
               log(`[ProtectionBypass] WARNING: JavaScript or cookies disabled, challenge cannot complete`, "scraper-error");
             }
             
+            // Debug page content to understand the challenge type
+            const challengeInfo = await page.evaluate(() => {
+              const info: any = {
+                title: document.title,
+                hasIframes: document.querySelectorAll('iframe').length,
+                iframeSrcs: Array.from(document.querySelectorAll('iframe')).map(f => (f as HTMLIFrameElement).src),
+                challengeElements: {
+                  turnstileDiv: !!document.querySelector('[id*="turnstile"], [class*="turnstile"]'),
+                  cfChallenge: !!document.querySelector('[id*="challenge"], [class*="challenge"]'),
+                  cfTurnstile: !!document.querySelector('.cf-turnstile'),
+                  invisibleChallenge: !!document.querySelector('[data-ray], [data-cf-beacon]'),
+                  managedChallenge: !!document.querySelector('[data-cf-settings]')
+                },
+                scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).filter(s => s.includes('cdn-cgi')),
+                formAction: document.querySelector('form')?.action || null,
+                submitButton: !!document.querySelector('button[type="submit"], input[type="submit"], button[id*="submit"]'),
+                pageText: document.body?.innerText?.substring(0, 200) || ''
+              };
+              return info;
+            });
+            
+            log(`[ProtectionBypass] Challenge page info: ${JSON.stringify(challengeInfo, null, 2)}`, "scraper");
+            
+            // Check for managed challenge form submission
+            if (challengeInfo.formAction || challengeInfo.submitButton) {
+              log(`[ProtectionBypass] Detected managed challenge with form/button`, "scraper");
+              
+              try {
+                // Try to click any submit button
+                const clicked = await page.evaluate(() => {
+                  const button = document.querySelector('button[type="submit"], input[type="submit"], button[id*="submit"], button:not([type])');
+                  if (button && button instanceof HTMLElement) {
+                    button.click();
+                    return true;
+                  }
+                  // Try form submission
+                  const form = document.querySelector('form');
+                  if (form && form instanceof HTMLFormElement) {
+                    form.submit();
+                    return true;
+                  }
+                  return false;
+                });
+                
+                if (clicked) {
+                  log(`[ProtectionBypass] Triggered form/button submission for managed challenge`, "scraper");
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                }
+              } catch (formError: any) {
+                log(`[ProtectionBypass] Form submission error: ${formError.message}`, "scraper");
+              }
+            }
+            
             // Try to wait for and interact with Turnstile iframe
             try {
               // Wait for Turnstile iframe to appear
-              log(`[ProtectionBypass] Waiting for Turnstile iframe to load...`, "scraper");
+              log(`[ProtectionBypass] Looking for Turnstile iframe...`, "scraper");
               
               const iframeSelector = 'iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"], iframe[name^="cf-chl-widget"], iframe[title*="Widget"]';
               
