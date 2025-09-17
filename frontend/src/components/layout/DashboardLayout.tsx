@@ -2,9 +2,72 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { RisqHeader } from './RisqHeader';
 import { MainNavigation } from './MainNavigation';
+import { useAuth } from '@/hooks/use-auth';
+import { useEffect, useRef } from 'react';
+import { useLogout } from '@/hooks/use-logout';
+import { checkStoredTokenHealth, clearCorruptedTokens } from '@/utils/token-validation';
 
 export default function DashboardLayout() {
   const { isAuthenticated, isLoading, user } = useAuth0();
+  const { data: userData, isLoading: userDataLoading, error: userDataError } = useAuth();
+  const { logout } = useLogout();
+  const userDataFailureCount = useRef(0);
+  const lastUserDataCheck = useRef<number>(0);
+
+  // Monitor authentication state for broken sessions
+  useEffect(() => {
+    // Only check when we think we're authenticated
+    if (!isAuthenticated || isLoading) return;
+
+    const now = Date.now();
+
+    // IMMEDIATE TOKEN HEALTH CHECK (but only after initial loading is done)
+    if (!userDataLoading) {
+      const tokenHealth = checkStoredTokenHealth();
+      console.log("Token health check:", tokenHealth);
+
+      // 1. Check for corrupted tokens (but be more lenient)
+      if (tokenHealth.hasTokens && tokenHealth.accessTokenHealth?.isCorrupted) {
+        console.error("LOGOUT: Corrupted tokens detected in localStorage:", tokenHealth.accessTokenHealth.error);
+        clearCorruptedTokens();
+        logout('corrupted_tokens');
+        return;
+      }
+
+      // 2. Check for missing tokens when authenticated (only after userData fails)
+      if (!tokenHealth.hasTokens && isAuthenticated && !userData && !userDataLoading) {
+        console.error("LOGOUT: No Auth0 tokens found but still authenticated via cookies. Triggering logout...");
+        logout('corrupted_tokens');
+        return;
+      }
+
+      // 3. Don't check for expired tokens here - let Auth0 handle expiration
+      // Expired tokens should be refreshed automatically by Auth0
+    }
+
+    // 2. If userData fails to load and we're not in initial loading state
+    if (!userDataLoading && !userData && isAuthenticated) {
+      // Track consecutive userData failures
+      if (now - lastUserDataCheck.current < 10000) { // Within 10 seconds of last check
+        userDataFailureCount.current++;
+      } else {
+        userDataFailureCount.current = 1; // Reset if checks are spread out
+      }
+      lastUserDataCheck.current = now;
+
+      console.log(`UserData failure count: ${userDataFailureCount.current}`);
+
+      // If userData consistently fails to load, likely invalid token situation
+      // Reduced threshold to 1 for faster detection of corrupted tokens
+      if (userDataFailureCount.current >= 1) {
+        console.error("UserData failed to load despite authenticated state. Session appears broken. Triggering logout...");
+        logout('session_expired');
+      }
+    } else if (userData) {
+      // Reset counter if userData loads successfully
+      userDataFailureCount.current = 0;
+    }
+  }, [isAuthenticated, isLoading, userData, userDataLoading, logout]);
 
   // Show loading while Auth0 is determining authentication state
   if (isLoading) {
