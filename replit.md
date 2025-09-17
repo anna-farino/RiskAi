@@ -40,6 +40,7 @@ The RisqAi platform uses a monorepo structure with a React 18 (TypeScript) front
 - **Unified Research Toolbar**: Collapsible toolbar for News Capsule Research page with organized sections for URL Processing, Report Actions, and Article Management.
 - **Enhanced Bot Detection Bypass**: Implemented an error detection module, CycleTLS integration for TLS fingerprinting, and a tiered scraping strategy with progressive fallback.
 - **Link Count Validation**: Improved source scraping reliability by strictly enforcing a minimum of 10 links for source pages, ensuring proper escalation to Puppeteer when necessary.
+- **Advanced Turnstile Instrumentation**: Implemented comprehensive Cloudflare Turnstile API instrumentation that wraps render(), execute(), and getResponse() methods to capture real widget IDs and tokens. Fixed critical browser function execution bug and properly handles invisible challenges with automatic token capture and validation.
 
 ## External Dependencies
 

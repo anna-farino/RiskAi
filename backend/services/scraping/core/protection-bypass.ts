@@ -1445,6 +1445,133 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
  */
 export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
   try {
+    // Inject Turnstile instrumentation BEFORE navigation
+    await page.evaluateOnNewDocument(() => {
+      // Store original Turnstile for later
+      let originalTurnstile: any = null;
+      
+      // Create storage for widgets and events
+      (window as any).__tsWidgets = {};
+      (window as any).__tsEvents = {
+        tokens: [],
+        errors: [],
+        expired: []
+      };
+      
+      // Instrument Turnstile when it loads
+      Object.defineProperty(window, 'turnstile', {
+        get() {
+          return originalTurnstile;
+        },
+        set(value) {
+          if (value && !originalTurnstile) {
+            console.log('[CF] Instrumenting Turnstile API');
+            originalTurnstile = value;
+            
+            // Wrap the render function to capture widget IDs
+            const originalRender = value.render;
+            if (originalRender) {
+              value.render = function(container: any, options: any = {}) {
+                console.log('[CF] Turnstile render called');
+                
+                // Wrap callbacks to capture tokens
+                const originalCallback = options.callback;
+                const originalErrorCallback = options['error-callback'];
+                const originalExpiredCallback = options['expired-callback'];
+                
+                // Store the widget ID when it's created
+                const widgetId = originalRender.call(this, container, options);
+                console.log(`[CF] Widget rendered with ID: ${widgetId}`);
+                
+                // Enhanced callback wrapper to capture token
+                options.callback = function(token: string) {
+                  console.log(`[CF] Token received for widget ${widgetId}: ${token?.substring(0, 30)}...`);
+                  (window as any).__tsEvents.tokens.push({
+                    token,
+                    widgetId: widgetId,
+                    timestamp: Date.now()
+                  });
+                  (window as any).__latestToken = token;
+                  (window as any).__latestWidgetId = widgetId;
+                  if (originalCallback) originalCallback(token);
+                };
+                
+                options['error-callback'] = function(error: any) {
+                  console.log('[CF] Turnstile error:', error);
+                  (window as any).__tsEvents.errors.push({
+                    error,
+                    widgetId: widgetId,
+                    timestamp: Date.now()
+                  });
+                  if (originalErrorCallback) originalErrorCallback(error);
+                };
+                
+                options['expired-callback'] = function() {
+                  console.log('[CF] Token expired');
+                  (window as any).__tsEvents.expired.push({
+                    widgetId: widgetId,
+                    timestamp: Date.now()
+                  });
+                  if (originalExpiredCallback) originalExpiredCallback();
+                };
+                
+                // Store widget info
+                (window as any).__tsWidgets[widgetId] = {
+                  id: widgetId,
+                  container: container,
+                  options: options,
+                  timestamp: Date.now()
+                };
+                
+                return widgetId;
+              };
+            }
+            
+            // Also wrap execute to log calls
+            const originalExecute = value.execute;
+            if (originalExecute) {
+              value.execute = function(widgetId?: any) {
+                console.log(`[CF] Execute called for widget: ${widgetId}`);
+                const result = originalExecute.call(this, widgetId);
+                // Store the widget ID if execution succeeds
+                if (widgetId !== undefined) {
+                  (window as any).__lastExecutedWidgetId = widgetId;
+                }
+                return result;
+              };
+            }
+            
+            // Wrap getResponse to capture tokens
+            const originalGetResponse = value.getResponse;
+            if (originalGetResponse) {
+              value.getResponse = function(widgetId?: any) {
+                const response = originalGetResponse.call(this, widgetId);
+                if (response) {
+                  console.log(`[CF] GetResponse returned token for widget ${widgetId}: ${response.substring(0, 30)}...`);
+                  (window as any).__latestToken = response;
+                  (window as any).__latestWidgetId = widgetId;
+                }
+                return response;
+              };
+            }
+          }
+          originalTurnstile = value;
+        },
+        configurable: true
+      });
+      
+      // Also intercept auto-render widgets with data-sitekey
+      const originalQuerySelector = document.querySelector;
+      document.querySelector = function(selector: string) {
+        const element = originalQuerySelector.call(this, selector);
+        if (element && selector && selector.includes('data-sitekey')) {
+          // Store element for later reference
+          (window as any).__turnstileElement = element;
+        }
+        return element;
+      };
+    });
+    
     log(`[ProtectionBypass] Performing enhanced Cloudflare challenge detection...`, "scraper");
 
     // 1. Better Challenge Detection
@@ -2351,31 +2478,157 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   }
                 }
                 
-                // For invisible challenges, wait for automatic completion
+                // For invisible challenges, we still need to execute them
                 if (isInvisible) {
-                  log(`[ProtectionBypass] Waiting for invisible challenge to complete automatically...`, "scraper");
+                  log(`[ProtectionBypass] Invisible challenge detected - executing widget...`, "scraper");
                   
-                  // Monitor for challenge completion
+                  // Wait a bit for widget to be ready
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  
+                  // Use our instrumentation to get real widget IDs and execute
+                  const widgetExecution = await page.evaluate(() => {
+                    const ts = (window as any).turnstile;
+                    if (!ts) return { error: 'No turnstile object' };
+                    
+                    // Get real widget IDs from our instrumentation
+                    const capturedWidgets = (window as any).__tsWidgets || {};
+                    const widgetIds = Object.keys(capturedWidgets);
+                    
+                    // Also check for the latest widget ID from events
+                    const latestWidgetId = (window as any).__latestWidgetId;
+                    if (latestWidgetId && !widgetIds.includes(latestWidgetId)) {
+                      widgetIds.push(latestWidgetId);
+                    }
+                    
+                    // If no captured widgets, try to find them from DOM
+                    if (widgetIds.length === 0) {
+                      // Look for elements with data-widget-id attribute
+                      const widgetElements = document.querySelectorAll('[data-widget-id]');
+                      widgetElements.forEach(el => {
+                        const id = el.getAttribute('data-widget-id');
+                        if (id) widgetIds.push(id);
+                      });
+                      
+                      // Still nothing? Default to common IDs
+                      if (widgetIds.length === 0) {
+                        widgetIds.push('0', '1');
+                      }
+                    }
+                    
+                    console.log(`[CF] Found widget IDs: ${widgetIds.join(', ')}`);
+                    
+                    // Try to execute each widget
+                    let executed = false;
+                    let executedId = null;
+                    
+                    for (const widgetId of widgetIds) {
+                      try {
+                        console.log(`[CF] Attempting to execute widget ${widgetId}`);
+                        ts.execute(widgetId);
+                        executed = true;
+                        executedId = widgetId;
+                        console.log(`[CF] Successfully executed widget ${widgetId}`);
+                        break;
+                      } catch (e) {
+                        console.log(`[CF] Failed to execute widget ${widgetId}:`, e);
+                      }
+                    }
+                    
+                    // If no specific widget worked, try without ID
+                    if (!executed) {
+                      try {
+                        console.log('[CF] Executing without widget ID');
+                        ts.execute();
+                        executed = true;
+                        executedId = 'default';
+                      } catch (e: any) {
+                        return { error: e.message };
+                      }
+                    }
+                    
+                    return { 
+                      success: executed, 
+                      widgetId: executedId,
+                      widgetCount: widgetIds.length,
+                      capturedTokens: (window as any).__tsEvents?.tokens?.length || 0
+                    };
+                  });
+                  
+                  log(`[ProtectionBypass] Widget execution result: ${JSON.stringify(widgetExecution)}`, "scraper");
+                  
+                  // Now monitor for token generation
                   let challengeCompleted = false;
-                  for (let i = 0; i < 15; i++) {
+                  for (let i = 0; i < 20; i++) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     
-                    // Check for Turnstile token response
+                    // Check for Turnstile token response using our instrumentation
                     const tokenInfo = await page.evaluate(() => {
                       const ts = (window as any).turnstile;
                       if (!ts) return { hasToken: false };
                       
-                      // Try to get response for various widget IDs
+                      // First check our instrumented events for tokens
+                      const capturedTokens = (window as any).__tsEvents?.tokens || [];
+                      if (capturedTokens.length > 0) {
+                        // Use the most recent token
+                        const latestToken = capturedTokens[capturedTokens.length - 1];
+                        console.log(`[CF] Using captured token from events: ${latestToken.token.substring(0, 30)}...`);
+                        return {
+                          hasToken: true,
+                          token: latestToken.token,
+                          tokenLength: latestToken.token.length,
+                          widgetId: latestToken.widgetId,
+                          fromInstrumentation: true,
+                          hasClearance: document.cookie.includes('cf_clearance'),
+                          stillOnChallenge: document.title?.toLowerCase().includes('just a moment'),
+                          pageUrl: window.location.href
+                        };
+                      }
+                      
+                      // Check stored latest token
+                      const latestToken = (window as any).__latestToken;
+                      if (latestToken) {
+                        console.log(`[CF] Using stored latest token: ${latestToken.substring(0, 30)}...`);
+                        return {
+                          hasToken: true,
+                          token: latestToken,
+                          tokenLength: latestToken.length,
+                          widgetId: (window as any).__latestWidgetId,
+                          fromInstrumentation: true,
+                          hasClearance: document.cookie.includes('cf_clearance'),
+                          stillOnChallenge: document.title?.toLowerCase().includes('just a moment'),
+                          pageUrl: window.location.href
+                        };
+                      }
+                      
+                      // Fallback: try getResponse with known widget IDs
+                      const capturedWidgets = (window as any).__tsWidgets || {};
+                      const widgetIds = Object.keys(capturedWidgets);
+                      
+                      // Add any other known IDs
+                      if ((window as any).__lastExecutedWidgetId) {
+                        widgetIds.push((window as any).__lastExecutedWidgetId);
+                      }
+                      
+                      // Try default IDs if we have none
+                      if (widgetIds.length === 0) {
+                        widgetIds.push('0', '1');
+                      }
+                      
                       let token = null;
-                      const widgetIds = ['0', '1', (window as any).__cfTurnstileWidgetId];
+                      let foundWidgetId = null;
                       
                       for (const id of widgetIds) {
-                        if (!id) continue;
+                        if (id === undefined || id === null) continue;
                         try {
                           const response = ts.getResponse(id);
-                          if (response) {
+                          if (response && response.length > 10) {
                             token = response;
-                            console.log(`Got turnstile response for widget ${id}`);
+                            foundWidgetId = id;
+                            console.log(`[CF] Got token via getResponse(${id}): ${response.substring(0, 20)}...`);
+                            
+                            // Store it
+                            (window as any).__latestToken = response;
+                            (window as any).__latestWidgetId = id;
                             break;
                           }
                         } catch (e) {
@@ -2383,99 +2636,125 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                         }
                       }
                       
-                      // Also check if token was stored
-                      token = token || (window as any).__cfTurnstileToken;
+                      // Check if validation completed
+                      const hasClearance = document.cookie.includes('cf_clearance');
+                      const stillOnChallenge = document.title?.toLowerCase().includes('just a moment');
                       
                       return {
                         hasToken: !!token,
-                        token: token?.substring(0, 30),
-                        hasClearance: document.cookie.includes('cf_clearance')
+                        token: token,
+                        tokenLength: token?.length || 0,
+                        widgetId: foundWidgetId,
+                        fromInstrumentation: false,
+                        hasClearance,
+                        stillOnChallenge,
+                        pageUrl: window.location.href
                       };
                     });
                     
-                    if (tokenInfo.hasToken) {
-                      log(`[ProtectionBypass] Turnstile token received: ${tokenInfo.token}...`, "scraper");
+                    if (tokenInfo.hasToken && tokenInfo.token) {
+                      log(`[ProtectionBypass] Turnstile token received (length: ${tokenInfo.tokenLength})`, "scraper");
                       
-                      // Try to submit the token
-                      await page.evaluate((token) => {
-                        // Look for hidden input or form to submit
-                        let input = document.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement;
-                        if (!input) {
-                          input = document.createElement('input');
-                          input.type = 'hidden';
-                          input.name = 'cf-turnstile-response';
-                          document.body.appendChild(input);
+                      // Submit the token via the Cloudflare mechanism
+                      const submitResult = await page.evaluate((token) => {
+                        // Method 1: Call the callback if it exists
+                        if ((window as any).__cfCallback) {
+                          console.log('Calling CF callback with token');
+                          (window as any).__cfCallback(token);
+                          return { method: 'callback' };
                         }
-                        input.value = token;
                         
-                        // Try to submit any form
+                        // Method 2: Dispatch event with token
+                        const event = new CustomEvent('cf-turnstile-callback', {
+                          detail: { token }
+                        });
+                        document.dispatchEvent(event);
+                        
+                        // Method 3: Look for form submission
                         const form = document.querySelector('form');
                         if (form) {
-                          console.log('Submitting form with token');
-                          form.submit();
+                          let input = form.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement;
+                          if (!input) {
+                            input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'cf-turnstile-response';
+                            form.appendChild(input);
+                          }
+                          input.value = token;
+                          
+                          // Check if form has action
+                          if (form.action || form.getAttribute('action')) {
+                            console.log('Submitting form with token');
+                            form.submit();
+                            return { method: 'form' };
+                          }
                         }
+                        
+                        // Method 4: Store in window for CF to pick up
+                        (window as any).cfTurnstileResponse = token;
+                        
+                        return { method: 'stored' };
                       }, tokenInfo.token);
                       
-                      await new Promise(resolve => setTimeout(resolve, 2000));
+                      log(`[ProtectionBypass] Token submitted via: ${submitResult.method}`, "scraper");
+                      
+                      // Wait for validation to complete
+                      await new Promise(resolve => setTimeout(resolve, 3000));
                       challengeCompleted = true;
                       break;
                     }
                     
                     // Check if cf_clearance cookie is set
                     if (tokenInfo.hasClearance) {
-                      log(`[ProtectionBypass] Invisible challenge completed - cf_clearance cookie detected`, "scraper");
+                      log(`[ProtectionBypass] Challenge completed - cf_clearance cookie detected`, "scraper");
                       challengeCompleted = true;
                       break;
                     }
                     
-                    // Check if still on challenge page
-                    const stillChallenge = await page.evaluate(() => {
-                      return document.title?.toLowerCase().includes('just a moment') || 
-                             document.body?.innerText?.includes('Enable JavaScript and cookies');
-                    });
-                    
-                    if (!stillChallenge) {
-                      log(`[ProtectionBypass] Invisible challenge completed - navigated away from challenge`, "scraper");
+                    // Check if navigated away from challenge
+                    if (!tokenInfo.stillOnChallenge && tokenInfo.pageUrl !== 'about:blank') {
+                      log(`[ProtectionBypass] Challenge completed - navigated to: ${tokenInfo.pageUrl}`, "scraper");
                       challengeCompleted = true;
                       break;
                     }
                     
-                    // Check frame for success indicators
-                    try {
-                      const frameSuccess = await turnstileFrame.evaluate(() => {
-                        return !!document.querySelector('[class*="success"], [aria-checked="true"], .challenge-success');
-                      });
-                      
-                      if (frameSuccess) {
-                        log(`[ProtectionBypass] Invisible challenge shows success indicator`, "scraper");
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for cookie to be set
-                        break;
-                      }
-                    } catch (frameError) {
-                      // Frame may have navigated or been removed - that's okay
-                    }
-                    
-                    if (i % 3 === 0) {
-                      log(`[ProtectionBypass] Still waiting for invisible challenge (${i+1}/15)...`, "scraper");
-                      
-                      // Try to execute again
-                      if (i === 6) {
-                        await page.evaluate(() => {
-                          const ts = (window as any).turnstile;
-                          if (ts?.execute) {
-                            console.log('Retrying turnstile.execute()');
+                    // Retry execution periodically
+                    if (i === 5 || i === 10 || i === 15) {
+                      log(`[ProtectionBypass] Retrying widget execution (attempt ${i})...`, "scraper");
+                      await page.evaluate(() => {
+                        const ts = (window as any).turnstile;
+                        if (ts?.execute) {
+                          try {
+                            // Try with stored widget ID
+                            const widgetId = (window as any).__cfTurnstileWidgetId || '0';
+                            ts.execute(widgetId);
+                            console.log(`Retried execute with widget ID: ${widgetId}`);
+                          } catch (e) {
                             try {
-                              ts.execute('0');
-                            } catch (e) {
-                              try {
-                                ts.execute();
-                              } catch (e2) {
-                                console.log('Execute retry failed');
-                              }
+                              ts.execute();
+                              console.log('Retried execute without ID');
+                            } catch (e2) {
+                              console.log('Execute retry failed');
                             }
                           }
-                        });
-                      }
+                        }
+                        
+                        // Also try reset and execute
+                        if (ts?.reset && ts?.execute) {
+                          try {
+                            const widgetId = (window as any).__cfTurnstileWidgetId || '0';
+                            ts.reset(widgetId);
+                            ts.execute(widgetId);
+                            console.log('Reset and executed widget');
+                          } catch (e) {
+                            // Ignore
+                          }
+                        }
+                      });
+                    }
+                    
+                    if (i % 3 === 0 && i > 0) {
+                      log(`[ProtectionBypass] Still waiting for challenge completion (${i}/20)...`, "scraper");
                     }
                   }
                   
