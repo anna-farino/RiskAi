@@ -1,4 +1,4 @@
-import type { Page } from 'rebrowser-puppeteer';
+import type { Page } from "rebrowser-puppeteer";
 
 export class HumanBehavior {
   private page: Page;
@@ -15,7 +15,7 @@ export class HumanBehavior {
   // Random delay with human-like variation
   async randomDelay(minMs: number = 500, maxMs: number = 2000): Promise<void> {
     const delay = this.random(minMs, maxMs);
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
   }
 
   // Simulate human-like mouse movement
@@ -27,18 +27,18 @@ export class HumanBehavior {
       // Generate random path with 3-5 points
       const numPoints = this.random(3, 5);
       const points: { x: number; y: number }[] = [];
-      
+
       for (let i = 0; i < numPoints; i++) {
         points.push({
           x: this.random(100, viewport.width - 100),
-          y: this.random(100, viewport.height - 100)
+          y: this.random(100, viewport.height - 100),
         });
       }
 
       // Move through points with varying speed
       for (const point of points) {
         await this.page.mouse.move(point.x, point.y, {
-          steps: this.random(5, 15)
+          steps: this.random(5, 15),
         });
         await this.randomDelay(100, 500);
       }
@@ -52,14 +52,14 @@ export class HumanBehavior {
     try {
       const scrollDirection = Math.random() > 0.5 ? 1 : -1;
       const scrollAmount = this.random(50, 300) * scrollDirection;
-      
+
       await this.page.evaluate((amount) => {
         window.scrollBy({
           top: amount,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
       }, scrollAmount);
-      
+
       await this.randomDelay(500, 1500);
     } catch (error) {
       // Silently fail - non-critical operation
@@ -69,9 +69,9 @@ export class HumanBehavior {
   // Simulate keyboard focus events
   async randomKeyboardActivity(): Promise<void> {
     try {
-      const keys = ['Tab', 'Escape', ' '] as const; // Space key is just a space character
+      const keys = ["Tab", "Escape", " "] as const; // Space key is just a space character
       const key = keys[this.random(0, keys.length - 1)];
-      
+
       // Press and release with human-like timing
       await this.page.keyboard.down(key as any);
       await this.randomDelay(50, 150);
@@ -90,7 +90,7 @@ export class HumanBehavior {
       // Click in a safe area (avoid buttons/links)
       const x = this.random(viewport.width * 0.1, viewport.width * 0.9);
       const y = this.random(viewport.height * 0.1, viewport.height * 0.9);
-      
+
       await this.page.mouse.click(x, y);
       await this.randomDelay(200, 800);
     } catch (error) {
@@ -103,15 +103,15 @@ export class HumanBehavior {
     try {
       // Simulate going to another tab
       await this.page.evaluate(() => {
-        Object.defineProperty(document, 'hidden', {
+        Object.defineProperty(document, "hidden", {
           value: true,
-          writable: true
+          writable: true,
         });
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'hidden',
-          writable: true
+        Object.defineProperty(document, "visibilityState", {
+          value: "hidden",
+          writable: true,
         });
-        document.dispatchEvent(new Event('visibilitychange'));
+        document.dispatchEvent(new Event("visibilitychange"));
       });
 
       // Wait as if user is on another tab
@@ -119,15 +119,15 @@ export class HumanBehavior {
 
       // Come back to tab
       await this.page.evaluate(() => {
-        Object.defineProperty(document, 'hidden', {
+        Object.defineProperty(document, "hidden", {
           value: false,
-          writable: true
+          writable: true,
         });
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'visible',
-          writable: true
+        Object.defineProperty(document, "visibilityState", {
+          value: "visible",
+          writable: true,
         });
-        document.dispatchEvent(new Event('visibilitychange'));
+        document.dispatchEvent(new Event("visibilitychange"));
       });
     } catch (error) {
       // Silently fail - non-critical operation
@@ -141,7 +141,7 @@ export class HumanBehavior {
       () => this.randomScroll(),
       () => this.randomKeyboardActivity(),
       () => this.randomClick(),
-      () => this.simulateTabSwitch()
+      () => this.simulateTabSwitch(),
     ];
 
     for (let i = 0; i < count; i++) {
@@ -155,7 +155,7 @@ export class HumanBehavior {
   async thinkingPause(): Promise<void> {
     // Longer pause as if human is reading/thinking
     await this.randomDelay(3000, 8000);
-    
+
     // Maybe move mouse slightly while thinking
     if (Math.random() > 0.5) {
       await this.randomMouseMovement();
@@ -167,60 +167,61 @@ export class HumanBehavior {
     try {
       // Popular neutral sites to visit for session warming
       const neutralSites = [
-        'https://www.google.com',
-        'https://www.wikipedia.org',
-        'https://www.bbc.com/news',
-        'https://www.reddit.com',
-        'https://news.ycombinator.com',
-        'https://www.github.com',
-        'https://www.stackoverflow.com'
+        "https://www.google.com",
+        "https://www.wikipedia.org",
+        "https://www.bing.com",
       ];
-      
+
       // Pick 1-2 random sites to visit
       const numSites = this.random(1, 2);
       const selectedSites = neutralSites
         .sort(() => Math.random() - 0.5)
         .slice(0, numSites);
-      
+
       for (const site of selectedSites) {
         try {
           // Visit the neutral site
-          await this.page.goto(site, { 
-            waitUntil: 'domcontentloaded',
-            timeout: 10000 
+          await this.page.goto(site, {
+            waitUntil: "domcontentloaded",
+            timeout: 10000,
           });
-          
+
           // Spend some time on the page like a human would
           await this.randomDelay(2000, 4000);
-          
+
           // Perform some random actions (scroll, mouse movement)
           await this.performRandomActions(1);
-          
+
           // Maybe click on something or search (for Google)
-          if (site.includes('google.com') && Math.random() > 0.5) {
+          if (site.includes("google.com") && Math.random() > 0.5) {
             // Simulate a search
-            await this.page.evaluate(() => {
-              const searchBox = document.querySelector('input[name="q"]') as HTMLInputElement;
-              if (searchBox) {
-                searchBox.value = ['news', 'weather', 'tech', 'sports'][Math.floor(Math.random() * 4)];
-              }
-            }).catch(() => {});
+            await this.page
+              .evaluate(() => {
+                const searchBox = document.querySelector(
+                  'input[name="q"]',
+                ) as HTMLInputElement;
+                if (searchBox) {
+                  searchBox.value = ["news", "weather", "tech", "sports"][
+                    Math.floor(Math.random() * 4)
+                  ];
+                }
+              })
+              .catch(() => {});
           }
         } catch (error) {
           // If one site fails, continue with others
           continue;
         }
       }
-      
+
       // Add a final delay before returning
       await this.thinkingPause();
-      
+
       // Set referrer for next navigation (makes it look like we came from a neutral site)
       const lastVisited = selectedSites[selectedSites.length - 1];
       await this.page.setExtraHTTPHeaders({
-        'Referer': lastVisited
+        Referer: lastVisited,
       });
-      
     } catch (error) {
       // Session warming failed, continue anyway
     }
@@ -231,16 +232,18 @@ export class HumanBehavior {
     try {
       await this.page.evaluateOnNewDocument(() => {
         const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(parameter) {
-          if (parameter === 37445) { // UNMASKED_VENDOR_WEBGL
-            return 'Intel Inc.';
+        WebGLRenderingContext.prototype.getParameter = function (parameter) {
+          if (parameter === 37445) {
+            // UNMASKED_VENDOR_WEBGL
+            return "Intel Inc.";
           }
-          if (parameter === 37446) { // UNMASKED_RENDERER_WEBGL
+          if (parameter === 37446) {
+            // UNMASKED_RENDERER_WEBGL
             const renderers = [
-              'Intel Iris OpenGL Engine',
-              'Intel HD Graphics 630',
-              'Intel UHD Graphics 620',
-              'Mesa DRI Intel(R) HD Graphics'
+              "Intel Iris OpenGL Engine",
+              "Intel HD Graphics 630",
+              "Intel UHD Graphics 620",
+              "Mesa DRI Intel(R) HD Graphics",
             ];
             return renderers[Math.floor(Math.random() * renderers.length)];
           }
@@ -249,13 +252,21 @@ export class HumanBehavior {
 
         // Add noise to canvas fingerprinting
         const toDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function() {
-          const context = this.getContext('2d');
+        HTMLCanvasElement.prototype.toDataURL = function () {
+          const context = this.getContext("2d");
           if (context) {
             // Add tiny random noise
-            const imageData = context.getImageData(0, 0, this.width, this.height);
+            const imageData = context.getImageData(
+              0,
+              0,
+              this.width,
+              this.height,
+            );
             for (let i = 0; i < imageData.data.length; i += 100) {
-              imageData.data[i] = Math.min(255, imageData.data[i] + Math.random() * 2);
+              imageData.data[i] = Math.min(
+                255,
+                imageData.data[i] + Math.random() * 2,
+              );
             }
             context.putImageData(imageData, 0, 0);
           }
@@ -272,16 +283,22 @@ export class HumanBehavior {
     try {
       const width = this.random(1200, 1920);
       const height = this.random(700, 1080);
-      
+
       await this.page.setViewport({ width, height });
-      
+
       // Add random screen properties
-      await this.page.evaluateOnNewDocument((w, h) => {
-        Object.defineProperty(window.screen, 'width', { value: w });
-        Object.defineProperty(window.screen, 'height', { value: h });
-        Object.defineProperty(window.screen, 'availWidth', { value: w });
-        Object.defineProperty(window.screen, 'availHeight', { value: h - 40 });
-      }, width, height);
+      await this.page.evaluateOnNewDocument(
+        (w, h) => {
+          Object.defineProperty(window.screen, "width", { value: w });
+          Object.defineProperty(window.screen, "height", { value: h });
+          Object.defineProperty(window.screen, "availWidth", { value: w });
+          Object.defineProperty(window.screen, "availHeight", {
+            value: h - 40,
+          });
+        },
+        width,
+        height,
+      );
     } catch (error) {
       // Window randomization failed, continue anyway
     }

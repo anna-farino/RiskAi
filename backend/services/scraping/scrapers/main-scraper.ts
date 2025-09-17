@@ -230,6 +230,13 @@ export class StreamlinedUnifiedScraper {
       // Step 3: Use advanced extraction when assessment indicates it's needed
       // Reintegrated with smart assessment to prevent redundant scraping
       if (needsAdvancedExtraction) { // Enabled with smart assessment
+        // Skip advanced extraction if we already have sufficient results from Puppeteer
+        // This prevents creating a new page that would lose Cloudflare bypass cookies
+        if (result.method === 'puppeteer' && result.htmxLinks && result.htmxLinks.length >= 50) {
+          log(`[SimpleScraper] Puppeteer already extracted ${result.htmxLinks.length} links successfully - skipping redundant advanced extraction to preserve session`, "scraper");
+          return result.htmxLinks;
+        }
+        
         // Only skip advanced extraction if assessment specifically says we DON'T need it
         // The assessment's needsAdvancedExtraction flag is the authoritative decision
         if (htmxAssessment && !htmxAssessment.needsAdvancedExtraction && htmxAssessment.confidence > 90 && htmxAssessment.links.length >= 25) {
