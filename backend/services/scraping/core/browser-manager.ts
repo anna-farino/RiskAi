@@ -146,52 +146,37 @@ const BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
-  // "--display=:99", // Azure only use virtual display - added conditional logix for Azure below
-  "--disable-features=site-per-process,AudioServiceOutOfProcess",
+  // CRITICAL: Enable third-party cookies for Turnstile challenges
+  "--disable-features=BlockThirdPartyCookies,ThirdPartyStoragePartitioning,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
+  // Keep anti-automation detection
   "--disable-blink-features=AutomationControlled",
-  // Additional args from Threat Tracker for enhanced stealth
+  // Basic optimizations (removed suspicious flags)
   "--disable-software-rasterizer",
   "--disable-extensions",
-  "--disable-gl-drawing-for-tests",
   "--mute-audio",
-  "--no-zygote",
   "--no-first-run",
   "--no-default-browser-check",
   "--ignore-certificate-errors",
-  "--allow-running-insecure-content",
-  "--disable-web-security",
   // Crashpad disabling arguments
   "--disable-crashpad",
   "--disable-crash-reporter",
   "--disable-breakpad",
-  // Removed --single-process as it can cause instability
+  // User data and cache
   "--user-data-dir=/tmp/chrome-user-data",
   "--disk-cache-dir=/tmp/chrome-cache",
-  "--force-crash-handler-disable",
-  "--crash-handler-disabled",
-  "--disable-crash-handler",
-  // Enhanced memory management for Replit
-  "--max-old-space-size=512", // Reduced from 1024 to prevent OOM
+  // Memory management for Replit
+  "--max-old-space-size=512",
   "--js-flags=--max-old-space-size=512",
-  // Additional optimizations for resource-constrained environments
+  // Performance optimizations (kept minimal)
   "--disable-background-networking",
   "--disable-background-timer-throttling",
-  "--disable-backgrounding-occluded-windows",
-  "--disable-renderer-backgrounding",
-  "--disable-features=TranslateUI",
-  "--disable-ipc-flooding-protection",
-  "--disable-component-extensions-with-background-pages",
   "--disable-default-apps",
   "--disable-sync",
-  "--metrics-recording-only",
   "--no-pings",
   "--disable-domain-reliability",
-  "--disable-features=InterestFeedContentSuggestions",
-  "--disable-features=Translate",
-  "--disable-features=BackForwardCache",
+  // Enable network service
   "--enable-features=NetworkService,NetworkServiceInProcess",
   "--force-color-profile=srgb",
-  "--disable-features=VizDisplayCompositor",
 ];
 
 // Chrome path will be determined dynamically when browser is launched
