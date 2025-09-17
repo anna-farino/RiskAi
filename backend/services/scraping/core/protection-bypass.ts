@@ -1659,12 +1659,21 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     await humanBehavior.randomizeWindow();
     
     // Session warming - visit main domain first to build history
+    // IMPORTANT: Don't warm session if already on a challenge page!
     const currentUrl = page.url();
-    try {
-      log(`[ProtectionBypass] Warming session before challenge...`, "scraper");
-      await humanBehavior.warmSession(currentUrl);
-    } catch (error) {
-      log(`[ProtectionBypass] Session warming failed, continuing anyway`, "scraper");
+    const isAlreadyOnChallenge = currentUrl.includes('cdn-cgi') || 
+                                  currentUrl.includes('challenge') ||
+                                  detectionResult.signals.rayId;
+    
+    if (!isAlreadyOnChallenge) {
+      try {
+        log(`[ProtectionBypass] Warming session before challenge...`, "scraper");
+        await humanBehavior.warmSession(currentUrl);
+      } catch (error) {
+        log(`[ProtectionBypass] Session warming failed, continuing anyway`, "scraper");
+      }
+    } else {
+      log(`[ProtectionBypass] Skipping session warming - already on challenge page`, "scraper");
     }
     
     // Add "thinking time" before attempting challenge
@@ -1680,6 +1689,23 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     let possibleLoop = false;
     let loopDetectedAt = 0;
     let lastHumanActionTime = Date.now();
+    
+    // Intercept and delay flow requests to seem more human
+    await page.setRequestInterception(true);
+    
+    const requestHandler = async (request: any) => {
+      const url = request.url();
+      if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform/')) {
+        // Add human-like delay before allowing flow request
+        const delay = 100 + Math.random() * 300; // 100-400ms delay
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        log(`[ProtectionBypass] Flow request delayed by ${Math.round(delay)}ms: ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`, "scraper");
+      }
+      request.continue();
+    };
+    
+    page.on('request', requestHandler);
     
     // Monitor flow requests - FIXED: Use proper event listener cleanup
     const flowRequests: string[] = [];
@@ -1709,6 +1735,9 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
                 possibleLoop = true;
                 loopDetectedAt = flowRequestCount;
                 log(`[ProtectionBypass] WARNING: Detected challenge loop pattern (${Math.floor(avgInterval/1000)}s intervals)`, "scraper");
+                
+                // Set flag to trigger pattern breaking in main loop
+                // (Can't use await inside non-async response handler)
               }
             }
           }
@@ -1855,6 +1884,14 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
           
           // Give it more time after reload
           await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // Check if challenge type changed after reload
+          const newDetection = await detectChallengeType(page);
+          if (newDetection.type !== CloudflareChallengeType.COMPUTATIONAL_FLOW) {
+            log(`[ProtectionBypass] Challenge type changed after reload to: ${newDetection.type}`, "scraper");
+            // Exit this handler and let the main handler route to the correct one
+            return false;
+          }
         }
         
         // Ultimate timeout check
@@ -1867,9 +1904,16 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
       
       return false;
     } finally {
-      // FIXED: Always remove the event listener to prevent memory leak
+      // FIXED: Always remove the event listeners to prevent memory leak
       page.off('response', responseHandler);
-      log(`[ProtectionBypass] Cleaned up response listener for computational flow handler`, "scraper");
+      page.off('request', requestHandler);
+      // Disable request interception if it was enabled
+      try {
+        await page.setRequestInterception(false);
+      } catch (e) {
+        // Ignore errors when disabling interception
+      }
+      log(`[ProtectionBypass] Cleaned up event listeners for computational flow handler`, "scraper");
     }
   } catch (error: any) {
     log(`[ProtectionBypass] Error handling computational flow challenge: ${error.message}`, "scraper-error");
