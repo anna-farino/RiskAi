@@ -142,15 +142,16 @@ export async function performCycleTLSRequest(
       // Import CycleTLS Manager
       const { cycleTLSManager } = require('./cycletls-manager');
       
-      log(`[ProtectionBypass] Getting CycleTLS client with ${profile.deviceType} profile`, "scraper");
+      log(`[ProtectionBypass] Getting CycleTLS client with ${profile.deviceType} profile for session ${sessionId}`, "scraper");
       
-      // Get or create client through the manager
+      // Get or create client through the manager with sessionId for reuse
       const client = await cycleTLSManager.getClient({
         ja3: profile.ja3,                    // ✅ TLS fingerprinting
         userAgent: profile.userAgent,        // ✅ User agent string
         timeout: timeout || 30000,           // ✅ Request timeout
         proxy: "",                            // ✅ No proxy (supported option)
         disableRedirect: false,               // ✅ Follow redirects
+        sessionId: sessionId,                 // ✅ Session ID for client reuse
       });
       
       // Check if client is available (architecture compatibility)
