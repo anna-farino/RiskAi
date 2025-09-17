@@ -1844,93 +1844,143 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             if (scriptAnalysis.turnstileGlobals?.exists) {
               log(`[ProtectionBypass] Found turnstile global object with methods: ${scriptAnalysis.turnstileGlobals.methods}`, "scraper");
               
-              // Wait for turnstile to be ready
+              // Look for the onload callback and widget configuration
               try {
-                await page.evaluate(() => {
-                  return new Promise<void>((resolve) => {
-                    if ((window as any).turnstile?.ready) {
-                      (window as any).turnstile.ready(() => {
-                        console.log('Turnstile is ready');
-                        resolve();
-                      });
-                    } else {
-                      resolve();
-                    }
-                  });
-                });
-                log(`[ProtectionBypass] Turnstile widget is ready`, "scraper");
-                
-                // Get widget information and execute
-                const widgetInfo = await page.evaluate(() => {
+                const widgetConfig = await page.evaluate(() => {
                   const ts = (window as any).turnstile;
                   if (!ts) return null;
                   
-                  // Find widget container
-                  const container = document.querySelector('[data-sitekey]') || 
-                                   document.querySelector('.cf-turnstile') ||
-                                   document.querySelector('[id*="turnstile"]');
+                  // Look for challenge options
+                  const chlOpt = (window as any)._cf_chl_opt;
+                  const cfBeacon = (window as any).__cfBeacon;
                   
-                  // Try to get implicit render widgets
-                  if (ts.implicitRender) {
-                    console.log('Calling turnstile.implicitRender()');
-                    try {
-                      ts.implicitRender();
-                    } catch (e) {
-                      console.log('implicitRender error:', e);
-                    }
-                  }
+                  // Find all global functions that might be the onload callback
+                  const globalFuncs = Object.keys(window).filter(k => 
+                    typeof (window as any)[k] === 'function' && 
+                    k.length < 10 && // Short names like PXGpw7
+                    /^[A-Za-z0-9]+$/.test(k) // Alphanumeric only
+                  );
                   
-                  // Check if there's a widget ID stored
-                  const widgetId = (window as any).__cfTurnstileWidgetId || '0';
+                  // Find container with data-sitekey
+                  const container = document.querySelector('[data-sitekey]');
+                  const sitekey = container?.getAttribute('data-sitekey');
                   
-                  // Try to execute the widget
-                  let response = null;
-                  try {
-                    // First try to get existing response
-                    response = ts.getResponse(widgetId);
-                    console.log('Existing response:', response ? 'found' : 'none');
-                    
-                    if (!response) {
-                      // Try to execute
-                      console.log(`Executing turnstile.execute(${widgetId})`);
-                      ts.execute(widgetId);
-                    }
-                  } catch (e) {
-                    console.log('Execute error:', e);
-                    // Try without widget ID
-                    try {
-                      ts.execute();
-                    } catch (e2) {
-                      console.log('Execute without ID error:', e2);
-                    }
-                  }
+                  // Find any existing widget divs
+                  const widgetDivs = document.querySelectorAll('[id^="cf-turnstile-"]');
                   
                   return {
-                    hasContainer: !!container,
-                    widgetId,
-                    hasResponse: !!response,
-                    response: response?.substring(0, 20)
+                    hasTurnstile: !!ts,
+                    hasOptions: !!chlOpt,
+                    sitekey: sitekey,
+                    callbackFunctions: globalFuncs,
+                    widgetCount: widgetDivs.length,
+                    widgetIds: Array.from(widgetDivs).map(d => d.id),
+                    renderMode: (window.location.href.includes('render=explicit') ? 'explicit' : 'auto')
                   };
                 });
                 
-                log(`[ProtectionBypass] Widget info: ${JSON.stringify(widgetInfo)}`, "scraper");
+                log(`[ProtectionBypass] Widget config: ${JSON.stringify(widgetConfig)}`, "scraper");
                 
-                // If we got a response, store it
-                if (widgetInfo?.response) {
-                  await page.evaluate((token) => {
-                    // Store the token
-                    (window as any).__cfTurnstileToken = token;
-                    // Try to submit it if there's a form
-                    const form = document.querySelector('form');
-                    if (form) {
-                      const input = document.createElement('input');
-                      input.type = 'hidden';
-                      input.name = 'cf-turnstile-response';
-                      input.value = token;
-                      form.appendChild(input);
+                // Since we're in explicit render mode and can't use ready(), 
+                // we need to manually render the widget
+                if (widgetConfig?.renderMode === 'explicit' && widgetConfig?.sitekey) {
+                  const renderResult = await page.evaluate(() => {
+                    const ts = (window as any).turnstile;
+                    if (!ts?.render) return { error: 'No render method' };
+                    
+                    try {
+                      // Find or create container
+                      let container = document.querySelector('[data-sitekey]');
+                      if (!container) {
+                        container = document.createElement('div');
+                        container.setAttribute('data-sitekey', (window as any)._cf_chl_opt?.cData || '');
+                        document.body.appendChild(container);
+                      }
+                      
+                      // Render the widget explicitly
+                      console.log('Rendering Turnstile widget explicitly');
+                      const widgetId = ts.render(container, {
+                        sitekey: container.getAttribute('data-sitekey'),
+                        callback: function(token: string) {
+                          console.log('Turnstile callback received token:', token?.substring(0, 20));
+                          (window as any).__cfTurnstileToken = token;
+                          (window as any).__cfTurnstileWidgetId = widgetId;
+                        },
+                        'error-callback': function(error: any) {
+                          console.log('Turnstile error:', error);
+                        }
+                      });
+                      
+                      console.log('Widget rendered with ID:', widgetId);
+                      (window as any).__cfTurnstileWidgetId = widgetId;
+                      
+                      return { success: true, widgetId };
+                    } catch (e: any) {
+                      return { error: e.toString() };
                     }
-                  }, widgetInfo.response);
-                  log(`[ProtectionBypass] Turnstile token captured and stored`, "scraper");
+                  });
+                  
+                  log(`[ProtectionBypass] Render result: ${JSON.stringify(renderResult)}`, "scraper");
+                  
+                  // Now try to execute the widget
+                  if (renderResult?.widgetId !== undefined) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for render to complete
+                    
+                    const executeResult = await page.evaluate((widgetId) => {
+                      const ts = (window as any).turnstile;
+                      if (!ts) return { error: 'No turnstile' };
+                      
+                      try {
+                        // Try to execute the widget
+                        console.log(`Executing widget ${widgetId}`);
+                        ts.execute(widgetId);
+                        return { success: true };
+                      } catch (e: any) {
+                        // Try execute without ID
+                        try {
+                          ts.execute();
+                          return { success: true, fallback: true };
+                        } catch (e2: any) {
+                          return { error: e2.toString() };
+                        }
+                      }
+                    }, renderResult.widgetId);
+                    
+                    log(`[ProtectionBypass] Execute result: ${JSON.stringify(executeResult)}`, "scraper");
+                  }
+                } else {
+                  // If not explicit mode or no sitekey, try implicit render
+                  await page.evaluate(() => {
+                    const ts = (window as any).turnstile;
+                    if (ts?.implicitRender) {
+                      console.log('Calling implicitRender()');
+                      try {
+                        ts.implicitRender();
+                      } catch (e) {
+                        console.log('implicitRender error:', e);
+                      }
+                    }
+                  });
+                }
+                
+                // Check for onload callbacks
+                if (widgetConfig?.callbackFunctions?.length) {
+                  log(`[ProtectionBypass] Found potential callback functions: ${widgetConfig.callbackFunctions}`, "scraper");
+                  
+                  // Try to call them
+                  for (const funcName of widgetConfig.callbackFunctions) {
+                    await page.evaluate((name) => {
+                      try {
+                        const func = (window as any)[name];
+                        if (typeof func === 'function') {
+                          console.log(`Calling callback: ${name}`);
+                          func();
+                        }
+                      } catch (e) {
+                        console.log(`Failed to call ${name}:`, e);
+                      }
+                    }, funcName);
+                  }
                 }
                 
               } catch (triggerError: any) {
