@@ -12,7 +12,9 @@ declare global {
     datadome?: any;
     turnstile?: any;
     _datadome_started?: boolean;
+    _icdt?: any; // Added for Incapsula detection
     Notification?: any;
+    webkitAudioContext?: typeof AudioContext; // Added for WebKit audio context
   }
   
   interface Navigator {
@@ -20,7 +22,7 @@ declare global {
     vendorSub?: string;
     productSub?: string;
     scheduling?: any;
-    userActivation?: UserActivation;
+    // Remove userActivation as it's already defined in DOM lib
     windowControlsOverlay?: any;
     pdfViewerEnabled?: boolean;
     webkitTemporaryStorage?: any;
@@ -34,7 +36,8 @@ declare global {
   }
   
   interface Document {
-    hasFocus?: () => boolean;
+    // Remove hasFocus as it's already defined in DOM lib
+    // Keep other document extensions if needed
   }
   
   interface Element {
