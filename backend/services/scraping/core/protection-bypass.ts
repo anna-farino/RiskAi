@@ -1844,21 +1844,95 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             if (scriptAnalysis.turnstileGlobals?.exists) {
               log(`[ProtectionBypass] Found turnstile global object with methods: ${scriptAnalysis.turnstileGlobals.methods}`, "scraper");
               
-              // Try to execute or reset the challenge
+              // Wait for turnstile to be ready
               try {
                 await page.evaluate(() => {
-                  if ((window as any).turnstile?.execute) {
-                    console.log('Executing turnstile.execute()');
-                    (window as any).turnstile.execute();
-                  } else if ((window as any).turnstile?.render) {
-                    console.log('Executing turnstile.render()');
-                    const container = document.querySelector('[data-sitekey]') || document.querySelector('.cf-turnstile');
-                    if (container) {
-                      (window as any).turnstile.render(container);
+                  return new Promise<void>((resolve) => {
+                    if ((window as any).turnstile?.ready) {
+                      (window as any).turnstile.ready(() => {
+                        console.log('Turnstile is ready');
+                        resolve();
+                      });
+                    } else {
+                      resolve();
+                    }
+                  });
+                });
+                log(`[ProtectionBypass] Turnstile widget is ready`, "scraper");
+                
+                // Get widget information and execute
+                const widgetInfo = await page.evaluate(() => {
+                  const ts = (window as any).turnstile;
+                  if (!ts) return null;
+                  
+                  // Find widget container
+                  const container = document.querySelector('[data-sitekey]') || 
+                                   document.querySelector('.cf-turnstile') ||
+                                   document.querySelector('[id*="turnstile"]');
+                  
+                  // Try to get implicit render widgets
+                  if (ts.implicitRender) {
+                    console.log('Calling turnstile.implicitRender()');
+                    try {
+                      ts.implicitRender();
+                    } catch (e) {
+                      console.log('implicitRender error:', e);
                     }
                   }
+                  
+                  // Check if there's a widget ID stored
+                  const widgetId = (window as any).__cfTurnstileWidgetId || '0';
+                  
+                  // Try to execute the widget
+                  let response = null;
+                  try {
+                    // First try to get existing response
+                    response = ts.getResponse(widgetId);
+                    console.log('Existing response:', response ? 'found' : 'none');
+                    
+                    if (!response) {
+                      // Try to execute
+                      console.log(`Executing turnstile.execute(${widgetId})`);
+                      ts.execute(widgetId);
+                    }
+                  } catch (e) {
+                    console.log('Execute error:', e);
+                    // Try without widget ID
+                    try {
+                      ts.execute();
+                    } catch (e2) {
+                      console.log('Execute without ID error:', e2);
+                    }
+                  }
+                  
+                  return {
+                    hasContainer: !!container,
+                    widgetId,
+                    hasResponse: !!response,
+                    response: response?.substring(0, 20)
+                  };
                 });
-                log(`[ProtectionBypass] Attempted to trigger turnstile programmatically`, "scraper");
+                
+                log(`[ProtectionBypass] Widget info: ${JSON.stringify(widgetInfo)}`, "scraper");
+                
+                // If we got a response, store it
+                if (widgetInfo?.response) {
+                  await page.evaluate((token) => {
+                    // Store the token
+                    (window as any).__cfTurnstileToken = token;
+                    // Try to submit it if there's a form
+                    const form = document.querySelector('form');
+                    if (form) {
+                      const input = document.createElement('input');
+                      input.type = 'hidden';
+                      input.name = 'cf-turnstile-response';
+                      input.value = token;
+                      form.appendChild(input);
+                    }
+                  }, widgetInfo.response);
+                  log(`[ProtectionBypass] Turnstile token captured and stored`, "scraper");
+                }
+                
               } catch (triggerError: any) {
                 log(`[ProtectionBypass] Could not trigger turnstile: ${triggerError.message}`, "scraper");
               }
@@ -2164,12 +2238,69 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                   for (let i = 0; i < 15; i++) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     
-                    // Check if cf_clearance cookie is set
-                    const hasClearance = await page.evaluate(() => {
-                      return document.cookie.includes('cf_clearance');
+                    // Check for Turnstile token response
+                    const tokenInfo = await page.evaluate(() => {
+                      const ts = (window as any).turnstile;
+                      if (!ts) return { hasToken: false };
+                      
+                      // Try to get response for various widget IDs
+                      let token = null;
+                      const widgetIds = ['0', '1', (window as any).__cfTurnstileWidgetId];
+                      
+                      for (const id of widgetIds) {
+                        if (!id) continue;
+                        try {
+                          const response = ts.getResponse(id);
+                          if (response) {
+                            token = response;
+                            console.log(`Got turnstile response for widget ${id}`);
+                            break;
+                          }
+                        } catch (e) {
+                          // Ignore errors
+                        }
+                      }
+                      
+                      // Also check if token was stored
+                      token = token || (window as any).__cfTurnstileToken;
+                      
+                      return {
+                        hasToken: !!token,
+                        token: token?.substring(0, 30),
+                        hasClearance: document.cookie.includes('cf_clearance')
+                      };
                     });
                     
-                    if (hasClearance) {
+                    if (tokenInfo.hasToken) {
+                      log(`[ProtectionBypass] Turnstile token received: ${tokenInfo.token}...`, "scraper");
+                      
+                      // Try to submit the token
+                      await page.evaluate((token) => {
+                        // Look for hidden input or form to submit
+                        let input = document.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement;
+                        if (!input) {
+                          input = document.createElement('input');
+                          input.type = 'hidden';
+                          input.name = 'cf-turnstile-response';
+                          document.body.appendChild(input);
+                        }
+                        input.value = token;
+                        
+                        // Try to submit any form
+                        const form = document.querySelector('form');
+                        if (form) {
+                          console.log('Submitting form with token');
+                          form.submit();
+                        }
+                      }, tokenInfo.token);
+                      
+                      await new Promise(resolve => setTimeout(resolve, 2000));
+                      challengeCompleted = true;
+                      break;
+                    }
+                    
+                    // Check if cf_clearance cookie is set
+                    if (tokenInfo.hasClearance) {
                       log(`[ProtectionBypass] Invisible challenge completed - cf_clearance cookie detected`, "scraper");
                       challengeCompleted = true;
                       break;
@@ -2204,6 +2335,25 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                     
                     if (i % 3 === 0) {
                       log(`[ProtectionBypass] Still waiting for invisible challenge (${i+1}/15)...`, "scraper");
+                      
+                      // Try to execute again
+                      if (i === 6) {
+                        await page.evaluate(() => {
+                          const ts = (window as any).turnstile;
+                          if (ts?.execute) {
+                            console.log('Retrying turnstile.execute()');
+                            try {
+                              ts.execute('0');
+                            } catch (e) {
+                              try {
+                                ts.execute();
+                              } catch (e2) {
+                                console.log('Execute retry failed');
+                              }
+                            }
+                          }
+                        });
+                      }
                     }
                   }
                   
