@@ -56,6 +56,45 @@ const globalSessions = new Map<string, SessionState>();
 const cfClearanceCache = new Map<string, { cookie: string; expiry: number }>(); // Domain-based cf_clearance cache
 
 /**
+ * Parse a Set-Cookie header string into name=value pair
+ * Strips out attributes like Domain, Path, HttpOnly, etc.
+ */
+function parseCookieNameValue(setCookieHeader: string): { name: string; value: string } | null {
+  if (!setCookieHeader) return null;
+  
+  // Extract the first part before semicolon (name=value)
+  const nameValuePart = setCookieHeader.split(';')[0].trim();
+  const [name, ...valueParts] = nameValuePart.split('=');
+  
+  if (!name) return null;
+  
+  return {
+    name: name.trim(),
+    value: valueParts.join('=').trim() // Handle values with = in them
+  };
+}
+
+/**
+ * Convert an array of Set-Cookie headers to a Cookie header value
+ */
+function setCookiesToCookieHeader(setCookies: string[]): string {
+  const cookies: Map<string, string> = new Map();
+  
+  for (const setCookie of setCookies) {
+    const parsed = parseCookieNameValue(setCookie);
+    if (parsed) {
+      // Latest cookie wins for duplicate names
+      cookies.set(parsed.name, parsed.value);
+    }
+  }
+  
+  // Join all cookies as name=value pairs
+  return Array.from(cookies.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
+}
+
+/**
  * Helper function to extract cf_clearance cookie from cookies array
  */
 function extractCfClearance(cookies: string[]): string | null {
@@ -403,7 +442,16 @@ export async function performCycleTLSRequest(
       const newCookies = Array.isArray(response.headers['set-cookie']) 
         ? response.headers['set-cookie']
         : [response.headers['set-cookie']];
-      session.cookies.push(...newCookies);
+      
+      // Parse Set-Cookie headers and store only name=value pairs
+      for (const setCookie of newCookies) {
+        const parsed = parseCookieNameValue(setCookie);
+        if (parsed) {
+          // Remove old value if exists and add new
+          session.cookies = session.cookies.filter(c => !c.startsWith(parsed.name + '='));
+          session.cookies.push(`${parsed.name}=${parsed.value}`);
+        }
+      }
       
       // Extract and cache cf_clearance if present
       const cfClearance = extractCfClearance(newCookies);
@@ -641,10 +689,38 @@ async function performFallbackRequest(
     
     // Update session with new cookies
     const responseCookies: string[] = [];
-    const setCookieHeader = response.headers.get('set-cookie');
-    if (setCookieHeader) {
-      responseCookies.push(setCookieHeader);
-      session.cookies.push(setCookieHeader);
+    
+    // Get all Set-Cookie headers (fetch API collapses multiple values)
+    // We need to use the raw headers if available
+    const setCookieHeaders: string[] = [];
+    const rawSetCookie = response.headers.get('set-cookie');
+    
+    if (rawSetCookie) {
+      // Split by comma but not commas within expires dates
+      // This is a limitation of fetch API - ideally we'd use a different HTTP client
+      setCookieHeaders.push(rawSetCookie);
+      responseCookies.push(rawSetCookie);
+      
+      // Parse and store only name=value pairs
+      const parsed = parseCookieNameValue(rawSetCookie);
+      if (parsed) {
+        // Remove old value if exists and add new
+        session.cookies = session.cookies.filter(c => !c.startsWith(parsed.name + '='));
+        session.cookies.push(`${parsed.name}=${parsed.value}`);
+        
+        // Extract cf_clearance if present
+        if (parsed.name === 'cf_clearance') {
+          const urlObj = new URL(url);
+          const domain = urlObj.hostname;
+          
+          session.cfClearance = parsed.value;
+          session.cfClearanceExpiry = Date.now() + (24 * 60 * 60 * 1000);
+          session.domain = domain;
+          
+          cacheCfClearance(domain, parsed.value, 24);
+          log(`[ProtectionBypass] cf_clearance captured in fallback for ${domain}`, "scraper");
+        }
+      }
     }
     
     log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
