@@ -607,7 +607,38 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     const urlObj = new URL(url);
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
     
-    log(`[ProtectionBypass] Starting session warmup for ${baseUrl}`, "scraper");
+    log(`[ProtectionBypass] Starting session warmup`, "scraper");
+    
+    // Step 0: Visit unprotected sites first to establish session legitimacy
+    const warmupSites = [
+      'https://www.google.com',
+      'https://www.wikipedia.org',
+      'https://www.yahoo.com',
+      'https://www.bing.com'
+    ];
+    
+    // Pick 2 random sites to visit
+    const shuffled = warmupSites.sort(() => Math.random() - 0.5);
+    const sitesToVisit = shuffled.slice(0, 2);
+    
+    for (const site of sitesToVisit) {
+      log(`[ProtectionBypass] Warming up with ${site}`, "scraper");
+      
+      const warmupResponse = await performCycleTLSRequest(site, {
+        method: 'GET',
+        sessionId,
+        timeout: 10000
+      });
+      
+      if (warmupResponse.success) {
+        log(`[ProtectionBypass] Warmup site visit successful: ${site} (${warmupResponse.status})`, "scraper");
+      }
+      
+      // Human-like delay between sites (3-5 seconds)
+      await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
+    }
+    
+    log(`[ProtectionBypass] Now approaching target site: ${baseUrl}`, "scraper");
     
     // Step 1: Visit homepage (common human behavior)
     const homepageResponse = await performCycleTLSRequest(baseUrl, {
