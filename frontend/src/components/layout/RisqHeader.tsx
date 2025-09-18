@@ -4,6 +4,7 @@ import { Logo } from '@/components/ui/logo';
 import { ModeToggle } from '@/components/theme-toggle';
 import { useLogout } from '@/hooks/use-logout';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuth0 } from '@auth0/auth0-react';
 import { cn } from '@/lib/utils';
 import { ChevronDown, LogOut, Menu, Search } from 'lucide-react';
 import { MobileNavigation } from './MainNavigation';
@@ -14,6 +15,7 @@ export function RisqHeader() {
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const { logout } = useLogout();
   const { data: userData } = useAuth();
+  const { isAuthenticated } = useAuth0();
   
   // Add window resize listener
   useEffect(() => {
@@ -86,7 +88,7 @@ export function RisqHeader() {
           
           {/* User account section */}
           <div className="flex items-center space-x-3 border-l border-[#BF00FF]/20 pl-3">
-            {userData && (
+            {userData ? (
               <div className="relative group">
                 <button className="flex items-center text-sm font-medium text-white rounded-full hover:bg-[#BF00FF]/10 p-1.5">
                   <div className="bg-[#BF00FF]/50 text-white rounded-full h-6 w-6 flex items-center justify-center mr-1">
@@ -113,7 +115,19 @@ export function RisqHeader() {
                   </button>
                 </div>
               </div>
-            )}
+            ) : isAuthenticated ? (
+              // Fallback logout button when userData fails to load but Auth0 thinks user is authenticated
+              <div className="flex items-center">
+                <button
+                  onClick={() => logout('session_expired')}
+                  className="flex items-center text-sm font-medium text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/10 px-2 py-1 rounded transition-colors"
+                  title="Authentication session expired. Click to log out and sign in again."
+                >
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Logout
+                </button>
+              </div>
+            ) : null}
           </div>
           
           {/* Mobile navigation - repositioned to far right */}

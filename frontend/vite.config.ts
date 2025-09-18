@@ -40,7 +40,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'build',
-    sourcemap: false,
+    sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
     minify: 'esbuild',
     assetsDir: 'assets',
     rollupOptions: {

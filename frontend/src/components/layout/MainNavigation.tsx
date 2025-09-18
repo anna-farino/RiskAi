@@ -13,7 +13,8 @@ import {
   Shield,
   ShieldAlert,
   Menu,
-  X
+  X,
+  Terminal
 } from 'lucide-react';
 
 import {
@@ -31,6 +32,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
+import { useLiveLogsPermission } from '@/hooks/use-live-logs-permission';
 
 type NavItemProps = {
   href: string;
@@ -98,6 +100,7 @@ const NavGroup = ({ title, children, defaultOpen = false }: NavGroupProps) => {
 export const MainNavigation = ({ className }: { className?: string }) => {
   const location = useLocation();
   const pathname = location.pathname;
+  const liveLogsPermission = useLiveLogsPermission();
 
   const isActive = (path: string) => {
     if (path === '/dashboard' && pathname === '/dashboard') {
@@ -333,13 +336,24 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           </Collapsible>
         </div>
         
-        <NavItem 
-          href="/dashboard/settings" 
-          icon={<Settings size={18} className="text-gray-300" />} 
+        <NavItem
+          href="/dashboard/settings"
+          icon={<Settings size={18} className="text-gray-300" />}
           active={isActive('/dashboard/settings')}
         >
           Settings
         </NavItem>
+
+        {/* Live Logs - Available when user has permission */}
+        {liveLogsPermission.available && liveLogsPermission.hasPermission && (
+          <NavItem
+            href="/dashboard/dev/live-logs"
+            icon={<Terminal size={18} className="text-orange-400" />}
+            active={isActive('/dashboard/dev/live-logs')}
+          >
+            Live Logs
+          </NavItem>
+        )}
       </div>
     </div>
   );
@@ -354,6 +368,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
 export const MobileNavigation = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const liveLogsPermission = useLiveLogsPermission();
 
   // Check if user is on any News Radar page for auto-expand
   const isOnNewsRadarPage = location.pathname.startsWith('/dashboard/news');
@@ -600,13 +615,24 @@ export const MobileNavigation = () => {
                   </Collapsible>
                 </div>
                 
-                <NavItem 
-                  href="/dashboard/settings" 
-                  icon={<Settings size={18} className="text-gray-300" />} 
+                <NavItem
+                  href="/dashboard/settings"
+                  icon={<Settings size={18} className="text-gray-300" />}
                   active={location.pathname.startsWith('/dashboard/settings')}
                 >
                   Settings
                 </NavItem>
+
+                {/* Live Logs - Available when user has permission */}
+                {liveLogsPermission.available && liveLogsPermission.hasPermission && (
+                  <NavItem
+                    href="/dashboard/dev/live-logs"
+                    icon={<Terminal size={18} className="text-orange-400" />}
+                    active={location.pathname.startsWith('/dashboard/dev/live-logs')}
+                  >
+                    Live Logs
+                  </NavItem>
+                )}
             </div>
           </div>
         </SheetContent>
