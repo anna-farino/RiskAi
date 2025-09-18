@@ -276,7 +276,21 @@ export async function scrapeWithHTTP(
   if (preflightResult.protectionDetected) {
     log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
     
-    // Try one optimized request for protected sites using the warmed-up session
+    // Skip retry for hard 403 blocks - they won't change with cookies
+    if (preflightResult.status === 403) {
+      log(`[HTTPScraper] Hard 403 block detected - skipping retry (won't help)`, "scraper");
+      return {
+        html: preflightResult.body || '',
+        success: false,
+        method: "http",
+        responseTime: Date.now() - startTime,
+        statusCode: 403,
+        finalUrl: url,
+        requiresPuppeteer: true
+      };
+    }
+    
+    // Try one optimized request for soft blocks using the warmed-up session
     const response = await performCycleTLSRequest(url, {
       method: 'GET',
       timeout: 30000,
