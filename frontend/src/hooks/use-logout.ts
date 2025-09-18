@@ -66,6 +66,8 @@ export function useLogout() {
       }
 
       // Use Auth0 logout which will clear Auth0 session and redirect
+      // Note: The success toast is removed because Auth0 logout redirects immediately
+      // and the component unmounts before the toast can be shown properly
       await auth0Logout({
         logoutParams: {
           returnTo: window.location.origin + '/auth/login'

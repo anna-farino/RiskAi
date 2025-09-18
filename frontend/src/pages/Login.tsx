@@ -50,10 +50,19 @@ export default function Login() {
     if (searchParams.get("email_verified") === "true") {
       handleLogin()
     }
-  },[])
+  },[isAuthenticated, user])
 
   async function handleLogin() {
     localStorage.removeItem("email_not_verified")
+
+    // If user is already authenticated with verified email, navigate directly to dashboard
+    if (isAuthenticated && user?.email_verified) {
+      console.log("User already authenticated with verified email, navigating to dashboard")
+      navigate('/dashboard')
+      return
+    }
+
+    // Otherwise, trigger Auth0 login redirect
     await loginWithRedirect({
       authorizationParams: {
         audience
