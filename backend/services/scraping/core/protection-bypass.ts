@@ -2,8 +2,9 @@ import type { Page } from 'rebrowser-puppeteer';
 import { log } from "backend/utils/log";
 import * as cheerio from 'cheerio';
 import UserAgent from 'user-agents';
-import { createCursor } from 'ghost-cursor';
 import { safePageEvaluate } from '../scrapers/puppeteer-scraper/error-handler';
+import { applyEnhancedStealthMeasures } from './stealth-enhancements';
+import { HumanBehavior } from './human-behavior';
 
 // Global type declarations for bot detection evasion
 declare global {
@@ -12,29 +13,25 @@ declare global {
     datadome?: any;
     turnstile?: any;
     _datadome_started?: boolean;
+    _icdt?: any; // Added for Incapsula detection
     Notification?: any;
+    webkitAudioContext?: typeof AudioContext; // Added for WebKit audio context
   }
   
   interface Navigator {
-    vendor?: string;
-    vendorSub?: string;
-    productSub?: string;
+    // Only declare properties that are not in standard DOM lib
     scheduling?: any;
-    userActivation?: UserActivation;
     windowControlsOverlay?: any;
     pdfViewerEnabled?: boolean;
     webkitTemporaryStorage?: any;
     webkitPersistentStorage?: any;
-    language?: string;
-    appCodeName?: string;
-    appName?: string;
-    cookieEnabled?: boolean;
-    onLine?: boolean;
-    product?: string;
+    // Note: vendor, vendorSub, productSub, language, appCodeName, appName, 
+    // cookieEnabled, onLine, product are already in DOM lib
   }
   
   interface Document {
-    hasFocus?: () => boolean;
+    // Remove hasFocus as it's already defined in DOM lib
+    // Keep other document extensions if needed
   }
   
   interface Element {
@@ -51,9 +48,88 @@ interface SessionState {
   browserProfile: BrowserProfile;
   lastRequestTime: number;
   sessionId: string;
+  cfClearance?: string; // Store cf_clearance cookie separately
+  cfClearanceExpiry?: number; // Track expiry time
+  domain?: string; // Store domain for cookie scope
 }
 
 const globalSessions = new Map<string, SessionState>();
+const cfClearanceCache = new Map<string, { cookie: string; expiry: number }>(); // Domain-based cf_clearance cache
+
+/**
+ * Parse a Set-Cookie header string into name=value pair
+ * Strips out attributes like Domain, Path, HttpOnly, etc.
+ */
+function parseCookieNameValue(setCookieHeader: string): { name: string; value: string } | null {
+  if (!setCookieHeader) return null;
+  
+  // Extract the first part before semicolon (name=value)
+  const nameValuePart = setCookieHeader.split(';')[0].trim();
+  const [name, ...valueParts] = nameValuePart.split('=');
+  
+  if (!name) return null;
+  
+  return {
+    name: name.trim(),
+    value: valueParts.join('=').trim() // Handle values with = in them
+  };
+}
+
+/**
+ * Convert an array of Set-Cookie headers to a Cookie header value
+ */
+function setCookiesToCookieHeader(setCookies: string[]): string {
+  const cookies: Map<string, string> = new Map();
+  
+  for (const setCookie of setCookies) {
+    const parsed = parseCookieNameValue(setCookie);
+    if (parsed) {
+      // Latest cookie wins for duplicate names
+      cookies.set(parsed.name, parsed.value);
+    }
+  }
+  
+  // Join all cookies as name=value pairs
+  return Array.from(cookies.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
+}
+
+/**
+ * Helper function to extract cf_clearance cookie from cookies array
+ */
+function extractCfClearance(cookies: string[]): string | null {
+  for (const cookie of cookies) {
+    if (cookie.includes('cf_clearance=')) {
+      const match = cookie.match(/cf_clearance=([^;]+)/);
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Helper function to get cached cf_clearance for a domain
+ */
+function getCachedCfClearance(domain: string): string | null {
+  const cached = cfClearanceCache.get(domain);
+  if (cached && cached.expiry > Date.now()) {
+    log(`[ProtectionBypass] Using cached cf_clearance for ${domain}`, "scraper");
+    return cached.cookie;
+  }
+  return null;
+}
+
+/**
+ * Helper function to cache cf_clearance cookie
+ */
+function cacheCfClearance(domain: string, cookie: string, expiryHours: number = 24): void {
+  const expiry = Date.now() + (expiryHours * 60 * 60 * 1000);
+  cfClearanceCache.set(domain, { cookie, expiry });
+  log(`[ProtectionBypass] Cached cf_clearance for ${domain} (expires in ${expiryHours} hours)`, "scraper");
+}
 
 /**
  * ENHANCED TLS-PROTECTED HTTP REQUEST with session continuity
@@ -88,6 +164,10 @@ export async function performCycleTLSRequest(
   } = options;
 
   try {
+    // Parse domain from URL for cookie scoping
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    
     // CRITICAL FIX 1: Apply browser profile and TLS fingerprinting immediately
     let session = globalSessions.get(sessionId);
     if (!session) {
@@ -95,9 +175,22 @@ export async function performCycleTLSRequest(
         cookies: [],
         browserProfile: getRandomBrowserProfile(),
         lastRequestTime: 0,
-        sessionId
+        sessionId,
+        domain // Set domain for new session
       };
       globalSessions.set(sessionId, session);
+    } else {
+      // Update domain if different
+      session.domain = domain;
+    }
+    
+    // Check for cached cf_clearance for this domain
+    const cachedClearance = getCachedCfClearance(domain);
+    if (cachedClearance && !session.cfClearance) {
+      session.cfClearance = cachedClearance;
+      session.cfClearanceExpiry = Date.now() + (24 * 60 * 60 * 1000); // Extend expiry
+      session.cookies.push(`cf_clearance=${cachedClearance}`);
+      log(`[ProtectionBypass] Using cached cf_clearance for ${domain}`, "scraper");
     }
 
     // CRITICAL FIX 2: Human-like request timing (prevent robotic patterns)
@@ -131,7 +224,6 @@ export async function performCycleTLSRequest(
     }
 
     // CRITICAL FIX 5: Add referer for navigation simulation
-    const urlObj = new URL(url);
     if (!consistentHeaders['Referer'] && session.lastRequestTime > 0) {
       consistentHeaders['Referer'] = `${urlObj.protocol}//${urlObj.host}/`;
     }
@@ -142,15 +234,16 @@ export async function performCycleTLSRequest(
       // Import CycleTLS Manager
       const { cycleTLSManager } = require('./cycletls-manager');
       
-      log(`[ProtectionBypass] Getting CycleTLS client with ${profile.deviceType} profile`, "scraper");
+      log(`[ProtectionBypass] Getting CycleTLS client with ${profile.deviceType} profile for session ${sessionId}`, "scraper");
       
-      // Get or create client through the manager
+      // Get or create client through the manager with sessionId for reuse
       const client = await cycleTLSManager.getClient({
         ja3: profile.ja3,                    // ✅ TLS fingerprinting
         userAgent: profile.userAgent,        // ✅ User agent string
         timeout: timeout || 30000,           // ✅ Request timeout
         proxy: "",                            // ✅ No proxy (supported option)
         disableRedirect: false,               // ✅ Follow redirects
+        sessionId: sessionId,                 // ✅ Session ID for client reuse
       });
       
       // Check if client is available (architecture compatibility)
@@ -175,8 +268,8 @@ export async function performCycleTLSRequest(
       
       log(`[ProtectionBypass] Calling client.${method.toLowerCase()}() with URL: ${url}`, "scraper");
       
-      // Enhanced diagnostics for Azure vs Replit investigation
-      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+      // Enhanced diagnostics for Azure environment only
+      if (process.env.IS_AZURE === 'true') {
         log(`[Azure-Network-Debug] Request initiated`, "scraper");
         log(`[Azure-Network-Debug] Target: ${url}`, "scraper");  
         log(`[Azure-Network-Debug] Method: ${method.toUpperCase()}`, "scraper");
@@ -189,7 +282,7 @@ export async function performCycleTLSRequest(
       
       const startTime = Date.now(); // Track overall request timing
       
-      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+      if (process.env.IS_AZURE === 'true') {
         try {
           // Safe URL parsing without network calls
           const urlObj = new URL(url);
@@ -202,42 +295,75 @@ export async function performCycleTLSRequest(
         }
       }
       
-      // Call the appropriate method with URL as first param, options as second
-      switch (method.toLowerCase()) {
-        case 'get':
-          response = await client.get(url, requestOptions);
-          break;
-        case 'post':
-          response = await client.post(url, requestOptions);
-          break;
-        case 'head':
-          response = await client.head(url, requestOptions);
-          break;
-        case 'put':
-          response = await client.put(url, requestOptions);
-          break;
-        case 'delete':
-          response = await client.delete(url, requestOptions);
-          break;
-        case 'patch':
-          response = await client.patch(url, requestOptions);
-          break;
-        default:
-          // For unsupported methods, default to GET
-          log(`[ProtectionBypass] Method ${method} not directly supported, using GET`, "scraper");
-          response = await client.get(url, requestOptions);
-          break;
+      // CRITICAL FIX: Wrap CycleTLS calls in Promise with timeout to prevent process crashes
+      const executeRequest = async () => {
+        return new Promise((resolve, reject) => {
+          // Set a hard timeout to prevent hanging
+          const requestTimeout = setTimeout(() => {
+            reject(new Error(`CycleTLS request timeout after ${timeout || 30000}ms`));
+          }, timeout || 30000);
+          
+          // Execute the request with error isolation
+          const performRequest = async () => {
+            try {
+              let result;
+              // Call the appropriate method with URL as first param, options as second
+              switch (method.toLowerCase()) {
+                case 'get':
+                  result = await client.get(url, requestOptions);
+                  break;
+                case 'post':
+                  result = await client.post(url, requestOptions);
+                  break;
+                case 'head':
+                  result = await client.head(url, requestOptions);
+                  break;
+                case 'put':
+                  result = await client.put(url, requestOptions);
+                  break;
+                case 'delete':
+                  result = await client.delete(url, requestOptions);
+                  break;
+                case 'patch':
+                  result = await client.patch(url, requestOptions);
+                  break;
+                default:
+                  // For unsupported methods, default to GET
+                  log(`[ProtectionBypass] Method ${method} not directly supported, using GET`, "scraper");
+                  result = await client.get(url, requestOptions);
+                  break;
+              }
+              clearTimeout(requestTimeout);
+              resolve(result);
+            } catch (error) {
+              clearTimeout(requestTimeout);
+              reject(error);
+            }
+          };
+          
+          // Execute with error boundary
+          performRequest().catch(reject);
+        });
+      };
+      
+      try {
+        response = await executeRequest();
+      } catch (requestError: any) {
+        // Log the error but don't let it crash the process
+        log(`[ProtectionBypass] CycleTLS request failed safely: ${requestError.message}`, "scraper-error");
+        throw requestError; // Re-throw to be caught by outer try-catch
       }
       
-      // Note: Client cleanup is handled by CycleTLS Manager for optimal reuse
-      log(`[ProtectionBypass] Request completed, client returned to manager pool`, "scraper");
+      // DO NOT cleanup the client here - let CycleTLSManager handle lifecycle
+      // This was causing WebSocket disconnection issues
+      log(`[ProtectionBypass] CycleTLS request completed, keeping client alive`, "scraper");
       
       log(`[ProtectionBypass] CycleTLS response received`, "scraper");
       log(`[ProtectionBypass] Response type: ${typeof response}`, "scraper");
       log(`[ProtectionBypass] Response keys: ${response ? Object.keys(response) : 'null'}`, "scraper");
       
-      // Enhanced response diagnostics for Azure vs Replit investigation
-      if (url.includes('darkreading.com') || process.env.IS_AZURE === 'true') {
+      // Enhanced response diagnostics for Azure environment only
+      if (process.env.IS_AZURE === 'true') {
         const responseTime = Date.now() - (startTime || Date.now());
         log(`[Azure-Network-Debug] Response received after ${responseTime}ms`, "scraper");
         log(`[Azure-Network-Debug] Response status: ${response ? response.status : 'null'}`, "scraper");
@@ -312,21 +438,164 @@ export async function performCycleTLSRequest(
       });
     }
 
-    // Update session with response cookies
+    // Update session with response cookies and extract cf_clearance
     if (response.headers && response.headers['set-cookie']) {
       const newCookies = Array.isArray(response.headers['set-cookie']) 
         ? response.headers['set-cookie']
         : [response.headers['set-cookie']];
-      session.cookies.push(...newCookies);
+      
+      // Parse Set-Cookie headers and store only name=value pairs
+      for (const setCookie of newCookies) {
+        const parsed = parseCookieNameValue(setCookie);
+        if (parsed) {
+          // Remove old value if exists and add new
+          session.cookies = session.cookies.filter(c => !c.startsWith(parsed.name + '='));
+          session.cookies.push(`${parsed.name}=${parsed.value}`);
+        }
+      }
+      
+      // Extract and cache cf_clearance if present
+      const cfClearance = extractCfClearance(newCookies);
+      if (cfClearance) {
+        // Parse domain from URL for proper scoping
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname;
+        
+        // Update session state
+        session.cfClearance = cfClearance;
+        session.cfClearanceExpiry = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+        session.domain = domain;
+        
+        // Cache for future requests to same domain
+        cacheCfClearance(domain, cfClearance, 24);
+        
+        log(`[ProtectionBypass] cf_clearance cookie captured for ${domain}`, "scraper");
+      }
     }
 
     log(`[ProtectionBypass] TLS request completed: ${response.status}`, "scraper");
+    
+    // Extract body from CycleTLS response (it uses 'data' or 'text', not 'body')
+    let responseBody = '';
+    
+    // Enhanced logging for debugging CycleTLS response structure
+    log(`[ProtectionBypass] CycleTLS response fields present: data=${!!response.data}, text=${!!response.text}, body=${!!response.body}`, "scraper");
+    
+    if (response.data) {
+      const dataType = typeof response.data;
+      log(`[ProtectionBypass] Response.data type: ${dataType}, isBuffer: ${Buffer.isBuffer(response.data)}`, "scraper");
+      
+      // Handle data field (might be binary/gzipped)
+      if (typeof response.data === 'string') {
+        responseBody = response.data;
+        // Check if it looks like gzipped content even as string
+        if (responseBody.startsWith('\x1f\x8b') || responseBody.includes('�')) {
+          log(`[ProtectionBypass] WARNING: String data appears to contain binary/gzip content`, "scraper");
+          // Try to convert string to buffer and decompress
+          try {
+            const buffer = Buffer.from(response.data, 'binary');
+            const zlib = require('zlib');
+            responseBody = zlib.gunzipSync(buffer).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed string-encoded gzip data`, "scraper");
+          } catch (e) {
+            log(`[ProtectionBypass] Failed to decompress string as gzip: ${e.message}`, "scraper");
+          }
+        }
+      } else if (Buffer.isBuffer(response.data)) {
+        const zlib = require('zlib');
+        let decompressed = false;
+        
+        // Check for Zstandard compression first (magic bytes: 28 b5 2f fd)
+        if (response.data.length >= 4 && 
+            response.data[0] === 0x28 && 
+            response.data[1] === 0xb5 && 
+            response.data[2] === 0x2f && 
+            response.data[3] === 0xfd) {
+          try {
+            const { decompress } = require('@mongodb-js/zstd');
+            responseBody = (await decompress(response.data)).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed Zstandard-compressed response`, "scraper");
+            decompressed = true;
+          } catch (zstdError) {
+            log(`[ProtectionBypass] Failed to decompress as Zstandard: ${zstdError.message}`, "scraper");
+          }
+        }
+        
+        if (!decompressed) {
+          // Try Brotli decompression (most common for HTML from Cloudflare)
+          try {
+            responseBody = zlib.brotliDecompressSync(response.data).toString('utf8');
+            log(`[ProtectionBypass] Successfully decompressed Brotli-compressed response`, "scraper");
+            decompressed = true;
+          } catch (brotliError) {
+            // Not Brotli, try gzip
+            try {
+              responseBody = zlib.gunzipSync(response.data).toString('utf8');
+              log(`[ProtectionBypass] Successfully decompressed gzip-compressed response`, "scraper");
+              decompressed = true;
+            } catch (gzipError) {
+              // Not gzip, try deflate
+              try {
+                responseBody = zlib.inflateSync(response.data).toString('utf8');
+                log(`[ProtectionBypass] Successfully decompressed deflate-compressed response`, "scraper");
+                decompressed = true;
+              } catch (deflateError) {
+                // No compression detected, convert as-is
+                log(`[ProtectionBypass] No compression detected, converting buffer to string`, "scraper");
+                log(`[ProtectionBypass] Decompression attempts failed - Brotli: ${brotliError.message}, Gzip: ${gzipError.message}, Deflate: ${deflateError.message}`, "scraper");
+                responseBody = response.data.toString('utf8');
+              }
+            }
+          }
+        }
+      } else {
+        log(`[ProtectionBypass] Response.data is object/other, stringifying`, "scraper");
+        responseBody = JSON.stringify(response.data);
+      }
+    } else if (response.text) {
+      log(`[ProtectionBypass] Using response.text field`, "scraper");
+      responseBody = response.text;
+    } else if (response.body) {
+      log(`[ProtectionBypass] Using response.body field`, "scraper");
+      responseBody = response.body;
+    }
+    
+    // Enhanced logging for invalid content debugging
+    log(`[ProtectionBypass] Response body extracted: ${responseBody.length} characters`, "scraper");
+    
+    // If content looks suspicious or invalid, log a sample
+    if (responseBody.length > 0) {
+      const firstChars = responseBody.substring(0, 100);
+      const hasHTML = responseBody.includes('<html') || responseBody.includes('<!DOCTYPE');
+      const hasLinks = responseBody.includes('<a ') || responseBody.includes('href=');
+      const hasBinary = /[\x00-\x08\x0E-\x1F\x7F-\x9F]/.test(firstChars);
+      
+      log(`[ProtectionBypass] Content analysis: hasHTML=${hasHTML}, hasLinks=${hasLinks}, hasBinary=${hasBinary}`, "scraper");
+      
+      if (hasBinary) {
+        log(`[ProtectionBypass] WARNING: Response contains binary characters, may be corrupted`, "scraper");
+        log(`[ProtectionBypass] First 100 chars (hex): ${Buffer.from(firstChars).toString('hex')}`, "scraper");
+      } else {
+        log(`[ProtectionBypass] First 100 chars: ${firstChars.replace(/\n/g, ' ')}`, "scraper");
+      }
+      
+      // If no links found but has substantial content, log more details
+      if (!hasLinks && responseBody.length > 10000) {
+        log(`[ProtectionBypass] WARNING: Large response (${responseBody.length} chars) but no links detected`, "scraper");
+        // Sample middle and end of content
+        const middleStart = Math.floor(responseBody.length / 2);
+        const middleSample = responseBody.substring(middleStart, middleStart + 100).replace(/\n/g, ' ');
+        const endSample = responseBody.substring(responseBody.length - 100).replace(/\n/g, ' ');
+        log(`[ProtectionBypass] Middle sample: ${middleSample}`, "scraper");
+        log(`[ProtectionBypass] End sample: ${endSample}`, "scraper");
+      }
+    }
     
     return {
       success: response.status >= 200 && response.status < 400,
       status: response.status || 0,
       headers: response.headers || {},
-      body: response.body || '',
+      body: responseBody,
       cookies: session.cookies
     };
 
@@ -421,10 +690,38 @@ async function performFallbackRequest(
     
     // Update session with new cookies
     const responseCookies: string[] = [];
-    const setCookieHeader = response.headers.get('set-cookie');
-    if (setCookieHeader) {
-      responseCookies.push(setCookieHeader);
-      session.cookies.push(setCookieHeader);
+    
+    // Get all Set-Cookie headers (fetch API collapses multiple values)
+    // We need to use the raw headers if available
+    const setCookieHeaders: string[] = [];
+    const rawSetCookie = response.headers.get('set-cookie');
+    
+    if (rawSetCookie) {
+      // Split by comma but not commas within expires dates
+      // This is a limitation of fetch API - ideally we'd use a different HTTP client
+      setCookieHeaders.push(rawSetCookie);
+      responseCookies.push(rawSetCookie);
+      
+      // Parse and store only name=value pairs
+      const parsed = parseCookieNameValue(rawSetCookie);
+      if (parsed) {
+        // Remove old value if exists and add new
+        session.cookies = session.cookies.filter(c => !c.startsWith(parsed.name + '='));
+        session.cookies.push(`${parsed.name}=${parsed.value}`);
+        
+        // Extract cf_clearance if present
+        if (parsed.name === 'cf_clearance') {
+          const urlObj = new URL(url);
+          const domain = urlObj.hostname;
+          
+          session.cfClearance = parsed.value;
+          session.cfClearanceExpiry = Date.now() + (24 * 60 * 60 * 1000);
+          session.domain = domain;
+          
+          cacheCfClearance(domain, parsed.value, 24);
+          log(`[ProtectionBypass] cf_clearance captured in fallback for ${domain}`, "scraper");
+        }
+      }
     }
     
     log(`[ProtectionBypass] Fallback fetch completed: ${response.status}`, "scraper");
@@ -458,17 +755,29 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
     const urlObj = new URL(url);
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
     
-    log(`[ProtectionBypass] Starting session warmup for ${baseUrl}`, "scraper");
-    
+    log(`[ProtectionBypass] Starting session warmup`, "scraper");
+  
     // Step 1: Visit homepage (common human behavior)
-    const homepageResponse = await performCycleTLSRequest(baseUrl, {
+    const warmupSites = [
+      'https://www.google.com',
+      'https://www.wikipedia.org',
+      'https://www.yahoo.com',
+      'https://www.bing.com'
+    ];
+    
+    // Pick 1 random site to visit
+    const siteToVisit = warmupSites[Math.floor(Math.random() * warmupSites.length)];
+    
+    log(`[ProtectionBypass] Warming up with ${siteToVisit}`, "scraper");
+    
+    const warmupResponse = await performCycleTLSRequest(siteToVisit, {
       method: 'GET',
       sessionId,
       timeout: 10000
     });
     
-    if (homepageResponse.success) {
-      log(`[ProtectionBypass] Homepage visit successful (${homepageResponse.status})`, "scraper");
+    if (warmupResponse.success) {
+      log(`[ProtectionBypass] Warmup site visit successful: ${siteToVisit} (${warmupResponse.status})`, "scraper");
       
       // Step 2: Brief human-like delay
       await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
@@ -508,6 +817,9 @@ async function warmupSession(url: string, sessionId: string): Promise<void> {
       });
     }
     
+    // Human-like delay between sites (3-5 seconds)
+    await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
+    
     log(`[ProtectionBypass] Session warmup completed`, "scraper");
   } catch (error: any) {
     log(`[ProtectionBypass] Session warmup failed: ${error.message}`, "scraper");
@@ -526,6 +838,7 @@ export async function performPreflightCheck(url: string): Promise<{
   headers?: Record<string, string>;
   body?: string;  // Return the successful content
   status?: number; // Return the status code
+  sessionId?: string; // Return the sessionId for reuse
 }> {
   log(`[ProtectionBypass] Performing enhanced pre-flight check with session warming for ${url}`, "scraper");
 
@@ -562,7 +875,8 @@ export async function performPreflightCheck(url: string): Promise<{
       protectionType,
       requiresPuppeteer: protectionType !== 'none',
       cookies: response.cookies,
-      headers: response.headers
+      headers: response.headers,
+      sessionId // Return sessionId for reuse in bypass attempts
     };
   }
 
@@ -579,7 +893,8 @@ export async function performPreflightCheck(url: string): Promise<{
     cookies: response.cookies,
     headers: response.headers,
     body: response.body,  // Include the successful content
-    status: response.status // Include the status code
+    status: response.status, // Include the status code
+    sessionId // Return sessionId for potential reuse
   };
 }
 
@@ -817,7 +1132,8 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
                     
                     // 3. User interaction timing
                     if (typeof window._datadome_started === 'undefined') {
-                      window._datadome_started = Date.now() - Math.floor(Math.random() * 3000 + 2000);
+                      window._datadome_started = true;
+                      (window as any)._datadome_start_time = Date.now() - Math.floor(Math.random() * 3000 + 2000);
                     }
                     
                     resolve({ success: true, config: ddConfig });
@@ -1124,13 +1440,523 @@ export async function handleDataDomeChallenge(page: Page): Promise<boolean> {
   }
 }
 
+// Challenge type definitions
+export enum CloudflareChallengeType {
+  NONE = 'none',
+  TURNSTILE = 'turnstile',
+  COMPUTATIONAL_FLOW = 'computational_flow',
+  MANAGED = 'managed'
+}
+
+interface ChallengeDetectionResult {
+  type: CloudflareChallengeType;
+  signals: {
+    hasTurnstileGlobal: boolean;
+    hasTurnstileIframe: boolean;
+    hasFlowRequests: boolean;
+    hasComputationalText: boolean;
+    hasManagedChallenge: boolean;
+    hasJustAMomentTitle: boolean;
+    rayId: string | null;
+  };
+  confidence: number;
+}
+
 /**
- * Enhanced Cloudflare protection challenge handler
- * Implements comprehensive detection and extended waiting with proper interaction
+ * Detect the type of Cloudflare challenge present on the page
  */
+async function detectChallengeType(page: Page): Promise<ChallengeDetectionResult> {
+  try {
+    // Collect signals from the page
+    const signals = await safePageEvaluate(page, () => {
+      const title = document.title || '';
+      const bodyText = document.body?.textContent || '';
+      const html = document.documentElement?.innerHTML || '';
+      
+      // Check for Turnstile indicators
+      const hasTurnstileGlobal = typeof (window as any).turnstile !== 'undefined' && 
+                                 (window as any).turnstile !== null &&
+                                 Object.keys((window as any).turnstile || {}).length > 0;
+      
+      const hasTurnstileElements = !!document.querySelector('[data-sitekey], .cf-turnstile, [id*="turnstile"]');
+      
+      // Check for computational flow text patterns
+      const computationalPatterns = [
+        'verifying you are human',
+        'this may take a few seconds', 
+        'checking your browser',
+        'ddos protection by cloudflare'
+      ];
+      const hasComputationalText = computationalPatterns.some(pattern => 
+        bodyText.toLowerCase().includes(pattern)
+      );
+      
+      // Check for managed challenge indicators
+      const hasManagedChallenge = bodyText.toLowerCase().includes('attention required') ||
+                                  bodyText.toLowerCase().includes('one more step') ||
+                                  !!document.querySelector('.cf-error-details');
+      
+      // Check for Just a Moment title
+      const hasJustAMomentTitle = title.toLowerCase().includes('just a moment') ||
+                                 title.toLowerCase().includes('please wait');
+      
+      // Extract Ray ID if present (handle various formats including <code> tags)
+      const rayIdMatch = html.match(/ray\s*id\s*:?\s*(?:<code>)?([a-f0-9]+)(?:<\/code>)?/i) || 
+                        html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i) ||
+                        html.match(/"ray":\s*"([a-f0-9]+)"/i);
+      const rayId = rayIdMatch ? rayIdMatch[1] : null;
+      
+      return {
+        hasTurnstileGlobal,
+        hasTurnstileElements,
+        hasComputationalText,
+        hasManagedChallenge,
+        hasJustAMomentTitle,
+        rayId,
+        hasFlowScripts: html.includes('/flow/ov') || html.includes('orchestrate/chl_page')
+      };
+    }) || {
+      hasTurnstileGlobal: false,
+      hasTurnstileElements: false,
+      hasComputationalText: false,
+      hasManagedChallenge: false,
+      hasJustAMomentTitle: false,
+      rayId: null,
+      hasFlowScripts: false
+    };
+    
+    // Check for Turnstile iframes
+    const frames = await page.frames();
+    const hasTurnstileIframe = frames.some(frame => 
+      frame.url().includes('challenges.cloudflare.com') && 
+      frame.url().includes('turnstile')
+    );
+    
+    // FIXED: Use waitForResponse with timeout instead of event listener to avoid leaks
+    let hasFlowRequests = false;
+    
+    // Check if flow scripts are already present
+    hasFlowRequests = signals.hasFlowScripts;
+    
+    // Also check for ongoing flow requests with timeout
+    try {
+      // Use Promise.race to check for flow requests with a timeout
+      await Promise.race([
+        page.waitForResponse(
+          response => {
+            const url = response.url();
+            const isFlowRequest = url.includes('/flow/ov') || 
+                                 url.includes('/cdn-cgi/challenge-platform');
+            if (isFlowRequest) {
+              hasFlowRequests = true;
+              log(`[ProtectionBypass] Detected flow request: ${url}`, "scraper");
+            }
+            return isFlowRequest;
+          },
+          { timeout: 2000 }
+        ).catch(() => {
+          // Timeout is expected if no flow requests occur
+          return null;
+        }),
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]);
+    } catch (error) {
+      // Timeout or error is fine, just means no flow requests detected
+      log(`[ProtectionBypass] No flow requests detected in 2s window`, "scraper");
+    }
+    
+    // FIXED: Compute confidence based on signal strength
+    let signalCount = 0;
+    let maxSignals = 7; // Total possible signals
+    
+    if (signals.hasTurnstileGlobal) signalCount++;
+    if (signals.hasTurnstileElements) signalCount++;
+    if (hasTurnstileIframe) signalCount++;
+    if (hasFlowRequests) signalCount++;
+    if (signals.hasComputationalText) signalCount++;
+    if (signals.hasManagedChallenge) signalCount++;
+    if (signals.hasJustAMomentTitle) signalCount++;
+    
+    // Base confidence on number of signals detected
+    let confidence = Math.min(1.0, 0.3 + (signalCount * 0.15));
+    
+    // Determine challenge type based on signals with computed confidence
+    let type = CloudflareChallengeType.NONE;
+    
+    if (signals.hasTurnstileGlobal || hasTurnstileIframe || signals.hasTurnstileElements) {
+      type = CloudflareChallengeType.TURNSTILE;
+      // Boost confidence for Turnstile detection
+      confidence = Math.max(confidence, 0.85);
+    } else if (signals.hasComputationalText && !signals.hasTurnstileGlobal && (hasFlowRequests || signals.hasFlowScripts)) {
+      type = CloudflareChallengeType.COMPUTATIONAL_FLOW;
+      confidence = Math.max(confidence, 0.75);
+    } else if (signals.hasManagedChallenge) {
+      type = CloudflareChallengeType.MANAGED;
+      confidence = Math.max(confidence, 0.7);
+    } else if (signals.hasJustAMomentTitle) {
+      // Default to computational flow if we see "Just a moment" but no Turnstile
+      type = CloudflareChallengeType.COMPUTATIONAL_FLOW;
+      confidence = Math.max(confidence, 0.6);
+    } else {
+      // No challenge detected
+      confidence = 0;
+    }
+    
+    // FIXED: Ensure all signals are properly included in the result
+    const result: ChallengeDetectionResult = {
+      type,
+      signals: {
+        hasTurnstileGlobal: signals.hasTurnstileGlobal,
+        hasTurnstileIframe: hasTurnstileIframe,  // FIXED: Now correctly uses the computed value
+        hasFlowRequests: hasFlowRequests,  // FIXED: Properly captures flow requests
+        hasComputationalText: signals.hasComputationalText,
+        hasManagedChallenge: signals.hasManagedChallenge,
+        hasJustAMomentTitle: signals.hasJustAMomentTitle,
+        rayId: signals.rayId
+      },
+      confidence
+    };
+    
+    log(`[ProtectionBypass] Challenge type detected: ${type} (confidence: ${confidence.toFixed(2)}, signals: ${signalCount}/${maxSignals})`, "scraper");
+    log(`[ProtectionBypass] Detection signals: ${JSON.stringify(result.signals)}`, "scraper");
+    
+    return result;
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error detecting challenge type: ${error.message}`, "scraper-error");
+    return {
+      type: CloudflareChallengeType.NONE,
+      signals: {
+        hasTurnstileGlobal: false,
+        hasTurnstileIframe: false,
+        hasFlowRequests: false,
+        hasComputationalText: false,
+        hasManagedChallenge: false,
+        hasJustAMomentTitle: false,
+        rayId: null
+      },
+      confidence: 0
+    };
+  }
+}
+
+/**
+ * Enhanced Cloudflare protection challenge handler with multi-type support
+ * Routes to appropriate handler based on detected challenge type
+ */
+/**
+ * Handle JavaScript Computational Flow challenges
+ * These use /flow/ov1/ requests and require time for computation
+ */
+async function handleComputationalFlowChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
+  try {
+    log(`[ProtectionBypass] Handling Computational Flow challenge (Ray ID: ${detectionResult.signals.rayId})`, "scraper");
+    
+    // Initialize human behavior simulator
+    const humanBehavior = new HumanBehavior(page);
+    
+    // Apply WebGL noise and window randomization before starting
+    await humanBehavior.addWebGLNoise();
+    await humanBehavior.randomizeWindow();
+    
+    // Session warming now happens BEFORE navigation in main-scraper.ts
+    // This prevents the problematic pattern of warming AFTER being challenged
+    
+    // Add "thinking time" before attempting challenge
+    await humanBehavior.thinkingPause();
+    
+    const maxWaitTime = 90000; // 90 seconds for computational challenges
+    const startTime = Date.now();
+    let lastRayId = detectionResult.signals.rayId;
+    let consecutiveNoProgress = 0;
+    let flowRequestCount = 0;
+    let lastFlowRequestTime = Date.now();
+    let flowRequestPattern: number[] = []; // Track time between request groups
+    let possibleLoop = false;
+    let loopDetectedAt = 0;
+    let lastHumanActionTime = Date.now();
+    
+    // Intercept and delay flow requests to seem more human
+    await page.setRequestInterception(true);
+    
+    const requestHandler = async (request: any) => {
+      const url = request.url();
+      if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform/')) {
+        // Add human-like delay before allowing flow request
+        const delay = 100 + Math.random() * 300; // 100-400ms delay
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        log(`[ProtectionBypass] Flow request delayed by ${Math.round(delay)}ms: ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`, "scraper");
+      }
+      request.continue();
+    };
+    
+    page.on('request', requestHandler);
+    
+    // Monitor flow requests - FIXED: Use proper event listener cleanup
+    const flowRequests: string[] = [];
+    const responseHandler = (response: any) => {
+      const url = response.url();
+      if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform')) {
+        const currentTime = Date.now();
+        const timeSinceLastRequest = currentTime - lastFlowRequestTime;
+        
+        flowRequestCount++;
+        flowRequests.push(`${response.status()} ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`);
+        
+        // Detect loop pattern: requests come in groups with ~16 second intervals
+        if (timeSinceLastRequest > 10000) { // New group of requests
+          flowRequestPattern.push(timeSinceLastRequest);
+          
+          // Check if we have a repeating pattern (3+ similar intervals)
+          if (flowRequestPattern.length >= 3) {
+            const recentIntervals = flowRequestPattern.slice(-3);
+            const avgInterval = recentIntervals.reduce((a, b) => a + b, 0) / 3;
+            const isRepeating = recentIntervals.every(interval => 
+              Math.abs(interval - avgInterval) < 3000 // Within 3 seconds of average
+            );
+            
+            if (isRepeating && avgInterval > 14000 && avgInterval < 18000) {
+              if (!possibleLoop) {
+                possibleLoop = true;
+                loopDetectedAt = flowRequestCount;
+                log(`[ProtectionBypass] WARNING: Detected challenge loop pattern (${Math.floor(avgInterval/1000)}s intervals)`, "scraper");
+                
+                // Set flag to trigger pattern breaking in main loop
+                // (Can't use await inside non-async response handler)
+              }
+            }
+          }
+        }
+        
+        lastFlowRequestTime = currentTime;
+        consecutiveNoProgress = 0; // Reset on activity
+        
+        if (response.status() === 200) {
+          log(`[ProtectionBypass] Flow request successful: ${response.status()}`, "scraper");
+        } else if (response.status() >= 400) {
+          log(`[ProtectionBypass] Flow request error: ${response.status()}`, "scraper");
+        }
+      }
+    };
+    
+    // Add event listener with proper cleanup
+    page.on('response', responseHandler);
+    
+    try {
+      // Wait for computational challenge to complete
+      while (Date.now() - startTime < maxWaitTime) {
+        // Use random delay instead of fixed 2 seconds to break pattern
+        const waitTime = 1500 + Math.random() * 2500; // 1.5 to 4 seconds
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Perform human-like actions periodically (not every iteration to avoid pattern)
+        const timeSinceLastAction = Date.now() - lastHumanActionTime;
+        if (timeSinceLastAction > 8000 && Math.random() > 0.4) { // ~60% chance after 8 seconds
+          log(`[ProtectionBypass] Performing human-like interactions...`, "scraper");
+          await humanBehavior.performRandomActions(Math.floor(Math.random() * 2) + 1); // 1-2 actions
+          lastHumanActionTime = Date.now();
+        }
+        
+        // Check current status
+        const status = await safePageEvaluate(page, () => {
+          const title = document.title || '';
+          const bodyText = document.body?.textContent || '';
+          const hasClearance = document.cookie.includes('cf_clearance');
+          const stillOnChallenge = title.toLowerCase().includes('just a moment') ||
+                                  bodyText.toLowerCase().includes('verifying you are human');
+          
+          // Extract current Ray ID (handle various formats including <code> tags)
+          const html = document.documentElement?.innerHTML || '';
+          const rayIdMatch = html.match(/ray\s*id\s*:?\s*(?:<code>)?([a-f0-9]+)(?:<\/code>)?/i) || 
+                            html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i) ||
+                            html.match(/"ray":\s*"([a-f0-9]+)"/i);
+          const currentRayId = rayIdMatch ? rayIdMatch[1] : null;
+          
+          return {
+            title,
+            hasClearance,
+            stillOnChallenge,
+            currentRayId,
+            linkCount: document.querySelectorAll('a[href]').length,
+            hasContent: bodyText.length > 500 && !stillOnChallenge
+          };
+        }) || {
+          title: '',
+          hasClearance: false,
+          stillOnChallenge: true,
+          currentRayId: null,
+          linkCount: 0,
+          hasContent: false
+        };
+        
+        // Check for completion
+        if (status.hasClearance) {
+          log(`[ProtectionBypass] Computational challenge completed - cf_clearance cookie set`, "scraper");
+          return true;
+        }
+        
+        // Check if we've navigated away from challenge
+        if (!status.stillOnChallenge && status.hasContent) {
+          log(`[ProtectionBypass] Computational challenge completed - navigated to content page`, "scraper");
+          return true;
+        }
+        
+        // Check if Ray ID changed (indicates progress)
+        if (status.currentRayId && status.currentRayId !== lastRayId) {
+          log(`[ProtectionBypass] Ray ID changed: ${lastRayId} -> ${status.currentRayId}`, "scraper");
+          lastRayId = status.currentRayId;
+          consecutiveNoProgress = 0;
+        } else {
+          consecutiveNoProgress++;
+        }
+        
+        // Log progress
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        if (elapsed % 10 === 0 && elapsed > 0) {
+          log(`[ProtectionBypass] Computational flow progress: ${elapsed}s elapsed, ${flowRequestCount} flow requests, Ray: ${status.currentRayId}`, "scraper");
+        }
+        
+        // Check for stuck state or loop detection
+        if (consecutiveNoProgress >= 15 || (possibleLoop && flowRequestCount > loopDetectedAt + 6)) { 
+          // Either 30 seconds of no progress OR we've detected a loop and seen 6+ more requests
+          
+          if (possibleLoop) {
+            log(`[ProtectionBypass] Challenge stuck in loop after ${flowRequestCount} requests, attempting aggressive loop-breaking`, "scraper");
+            
+            // Aggressive human-like behaviors to break the loop
+            await humanBehavior.simulateTabSwitch(); // Simulate leaving and coming back
+            await humanBehavior.performRandomActions(3); // Multiple random actions
+            
+            // Try clicking on various elements
+            await page.evaluate(() => {
+              // Click on body
+              document.body.click();
+              
+              // Try clicking on any challenge-related elements
+              const challengeElements = document.querySelectorAll('[class*="challenge"], [id*="challenge"], form, button');
+              challengeElements.forEach(el => {
+                try { (el as HTMLElement).click(); } catch(e) {}
+              });
+              
+              // Dispatch custom events that might trigger challenge
+              ['click', 'mousedown', 'mouseup'].forEach(eventType => {
+                const event = new MouseEvent(eventType, {
+                  view: window,
+                  bubbles: true,
+                  cancelable: true,
+                  clientX: Math.random() * window.innerWidth,
+                  clientY: Math.random() * window.innerHeight
+                });
+                document.body.dispatchEvent(event);
+              });
+              
+              // Try focusing on the document
+              document.documentElement.focus();
+              window.focus();
+            }).catch(() => {});
+            
+            // Random delay to seem more human
+            await humanBehavior.randomDelay(2000, 5000);
+          }
+          
+          log(`[ProtectionBypass] No progress for 30 seconds, attempting soft reload`, "scraper");
+          
+          // Try a soft reload while preserving cookies
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
+          consecutiveNoProgress = 0;
+          possibleLoop = false; // Reset loop detection after reload
+          flowRequestPattern = [];
+          
+          // Give it more time after reload
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // Check if challenge type changed after reload
+          const newDetection = await detectChallengeType(page);
+          if (newDetection.type !== CloudflareChallengeType.COMPUTATIONAL_FLOW) {
+            log(`[ProtectionBypass] Challenge type changed after reload to: ${newDetection.type}`, "scraper");
+            // Exit this handler and let the main handler route to the correct one
+            return false;
+          }
+        }
+        
+        // Ultimate timeout check
+        if (Date.now() - startTime >= maxWaitTime) {
+          log(`[ProtectionBypass] Computational challenge timed out after ${maxWaitTime}ms`, "scraper");
+          log(`[ProtectionBypass] Flow requests summary: ${flowRequests.slice(-5).join(', ')}`, "scraper");
+          return false;
+        }
+      }
+      
+      return false;
+    } finally {
+      // FIXED: Always remove the event listeners to prevent memory leak
+      page.off('response', responseHandler);
+      page.off('request', requestHandler);
+      // Disable request interception if it was enabled
+      try {
+        await page.setRequestInterception(false);
+      } catch (e) {
+        // Ignore errors when disabling interception
+      }
+      log(`[ProtectionBypass] Cleaned up event listeners for computational flow handler`, "scraper");
+    }
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error handling computational flow challenge: ${error.message}`, "scraper-error");
+    return false;
+  }
+}
+
 export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
   try {
-    log(`[ProtectionBypass] Performing enhanced Cloudflare challenge detection...`, "scraper");
+    // Detect challenge type
+    const detection = await detectChallengeType(page);
+    
+    // Route to appropriate handler based on type
+    switch (detection.type) {
+      case CloudflareChallengeType.TURNSTILE:
+        log(`[ProtectionBypass] Routing to Turnstile handler`, "scraper");
+        return await handleTurnstileChallenge(page, detection);
+        
+      case CloudflareChallengeType.COMPUTATIONAL_FLOW:
+        log(`[ProtectionBypass] Routing to Computational Flow handler`, "scraper");
+        return await handleComputationalFlowChallenge(page, detection);
+        
+      case CloudflareChallengeType.MANAGED:
+        log(`[ProtectionBypass] Managed challenge detected - attempting basic bypass`, "scraper");
+        // For now, try the existing approach for managed challenges
+        return await handleTurnstileChallenge(page, detection);
+        
+      case CloudflareChallengeType.NONE:
+        log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
+        return true;
+        
+      default:
+        log(`[ProtectionBypass] Unknown challenge type, attempting default handling`, "scraper");
+        return false;
+    }
+  } catch (error: any) {
+    log(`[ProtectionBypass] Error in challenge handler: ${error.message}`, "scraper-error");
+    return false;
+  }
+}
+
+/**
+ * Handle Turnstile-specific challenges
+ * Extracted from original handleCloudflareChallenge
+ */
+async function handleTurnstileChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
+  try {
+    log(`[ProtectionBypass] Handling Turnstile challenge`, "scraper");
+    
+    // Initialize human behavior simulator for Turnstile challenges too
+    const humanBehavior = new HumanBehavior(page);
+    
+    // Apply fingerprinting enhancements
+    await humanBehavior.addWebGLNoise();
+    await humanBehavior.randomizeWindow();
+    
+    // Add some human-like delay before starting
+    await humanBehavior.randomDelay(1000, 3000);
 
     // 1. Better Challenge Detection
     const challengeDetails = await safePageEvaluate(page, () => {
@@ -1165,13 +1991,17 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         !!document.querySelector('.challenge-running') ||
         !!document.querySelector('#challenge-form');
       
-      // Check for challenge-specific elements
+      // Check for challenge-specific elements including Turnstile
       const challengeElements = {
         challengeForm: !!document.querySelector('#challenge-form'),
         challengeRunning: !!document.querySelector('.challenge-running'),
         challengeWrapper: !!document.querySelector('.cf-wrapper'),
         challengeSpinner: !!document.querySelector('.cf-browser-verification'),
-        cfElements: document.querySelectorAll('*[class*="cf-"]').length
+        cfElements: document.querySelectorAll('*[class*="cf-"]').length,
+        // Enhanced Turnstile detection
+        turnstileWidget: !!document.querySelector('[id*="turnstile"], .cf-turnstile, [data-sitekey], div[role="region"][data-sitekey]'),
+        turnstileIframe: !!document.querySelector('iframe[src*="challenges.cloudflare.com"], iframe[name^="cf-chl-widget"]'),
+        turnstileContainer: !!document.querySelector('div[data-callback*="turnstile"], div[class*="cf-turnstile"]')
       };
       
       const isCloudflareChallenge = hasJustAMomentTitle || hasChallengeScript || 
@@ -1265,10 +2095,21 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     page.on('request', onRequest);
     page.on('response', onResponse);
 
+    let lastHumanActionTime = Date.now();
+    
     try {
       while (!challengeCompleted && (Date.now() - startTime) < maxWaitTime) {
-        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        // Use random delay instead of fixed 1 second to break pattern
+        const randomInterval = 800 + Math.random() * 1200; // 0.8 to 2 seconds
+        await new Promise((resolve) => setTimeout(resolve, randomInterval));
         waitTime = Date.now() - startTime; // Use actual elapsed time
+        
+        // Perform human-like actions periodically
+        const timeSinceLastAction = Date.now() - lastHumanActionTime;
+        if (timeSinceLastAction > 5000 && Math.random() > 0.5) { // ~50% chance after 5 seconds
+          await humanBehavior.performRandomActions(1); // Single random action
+          lastHumanActionTime = Date.now();
+        }
 
         // 3. Enhanced Challenge Interaction - Monitor specific elements and changes
         const challengeStatus = await page.evaluate(() => {
@@ -1426,38 +2267,1042 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
             interactionPhase = 4;
             
           } else if (waitTime >= 18000 && waitTime < 19000 && interactionPhase === 4) {
-            // Phase 4: Challenge element interaction
-            log(`[ProtectionBypass] Phase 4: Attempting direct challenge interaction`, "scraper");
+            // Phase 4: Challenge interaction (Turnstile or Managed)
+            log(`[ProtectionBypass] Phase 4: Attempting challenge interaction`, "scraper");
             
-            await page.evaluate(() => {
-              // Look for any Cloudflare challenge elements
-              const challengeElements = [
-                document.querySelector('#challenge-form'),
-                document.querySelector('.cf-browser-verification'),
-                document.querySelector('[id*="cf-"]'),
-                document.querySelector('[class*="challenge"]')
-              ].filter(el => el !== null);
+            // First verify JavaScript is enabled
+            const jsEnabled = await page.evaluate(() => {
+              return typeof window !== 'undefined' && typeof document !== 'undefined';
+            });
+            
+            const cookiesEnabled = await page.evaluate(() => {
+              return navigator.cookieEnabled;
+            });
+            
+            log(`[ProtectionBypass] JavaScript enabled: ${jsEnabled}, Cookies enabled: ${cookiesEnabled}`, "scraper");
+            
+            if (!jsEnabled || !cookiesEnabled) {
+              log(`[ProtectionBypass] WARNING: JavaScript or cookies disabled, challenge cannot complete`, "scraper-error");
+            }
+            
+            // Debug page content to understand the challenge type
+            const challengeInfo = await page.evaluate(() => {
+              const info: any = {
+                title: document.title,
+                hasIframes: document.querySelectorAll('iframe').length,
+                iframeSrcs: Array.from(document.querySelectorAll('iframe')).map(f => (f as HTMLIFrameElement).src),
+                challengeElements: {
+                  turnstileDiv: !!document.querySelector('[id*="turnstile"], [class*="turnstile"]'),
+                  cfChallenge: !!document.querySelector('[id*="challenge"], [class*="challenge"]'),
+                  cfTurnstile: !!document.querySelector('.cf-turnstile'),
+                  invisibleChallenge: !!document.querySelector('[data-ray], [data-cf-beacon]'),
+                  managedChallenge: !!document.querySelector('[data-cf-settings]')
+                },
+                scripts: Array.from(document.querySelectorAll('script[src]')).map(s => (s as HTMLScriptElement).src).filter(s => s.includes('cdn-cgi')),
+                formAction: document.querySelector('form')?.action || null,
+                submitButton: !!document.querySelector('button[type="submit"], input[type="submit"], button[id*="submit"]'),
+                pageText: document.body?.innerText?.substring(0, 200) || ''
+              };
+              return info;
+            });
+            
+            log(`[ProtectionBypass] Challenge page info: ${JSON.stringify(challengeInfo, null, 2)}`, "scraper");
+            
+            // Analyze the orchestrator script and look for exposed globals
+            const scriptAnalysis = await page.evaluate(() => {
+              const analysis: any = {
+                turnstileGlobals: {},
+                cfGlobals: {},
+                windowKeys: []
+              };
               
-              challengeElements.forEach(element => {
-                try {
-                  // Trigger focus and interaction events
-                  element.focus?.();
-                  element.click?.();
-                  
-                  const interactionEvent = new Event('challenge-interaction', { bubbles: true });
-                  element.dispatchEvent(interactionEvent);
-                } catch (e) {
-                  // Continue on errors
+              // Check for Turnstile-related global objects
+              if ((window as any).turnstile) {
+                analysis.turnstileGlobals.exists = true;
+                analysis.turnstileGlobals.methods = Object.keys((window as any).turnstile);
+              }
+              
+              // Check for CF-related globals
+              const cfKeys = Object.keys(window).filter(k => k.toLowerCase().includes('cf') || k.toLowerCase().includes('turnstile'));
+              analysis.cfGlobals = cfKeys;
+              
+              // Check for challenge-specific data
+              if ((window as any).__CF) {
+                analysis.cfData = {
+                  exists: true,
+                  keys: Object.keys((window as any).__CF)
+                };
+              }
+              
+              // Look for completion callbacks or promises
+              if ((window as any).__cfRLUnblockHandlers) {
+                analysis.hasUnblockHandlers = true;
+              }
+              
+              // Check for ray ID in window
+              const scripts = Array.from(document.querySelectorAll('script:not([src])'));
+              for (const script of scripts) {
+                const content = script.innerHTML;
+                if (content.includes('window._cf_chl_opt')) {
+                  analysis.hasChallengeOptions = true;
+                  // Try to extract challenge config
+                  const match = content.match(/window\._cf_chl_opt\s*=\s*({[^}]+})/);
+                  if (match) {
+                    try {
+                      analysis.challengeOptions = JSON.parse(match[1]);
+                    } catch (e) {
+                      analysis.challengeOptions = 'parse_error';
+                    }
+                  }
                 }
+              }
+              
+              return analysis;
+            });
+            
+            log(`[ProtectionBypass] Script analysis: ${JSON.stringify(scriptAnalysis, null, 2)}`, "scraper");
+            
+            // Try to trigger the challenge programmatically if we find the right objects
+            if (scriptAnalysis.turnstileGlobals?.exists) {
+              log(`[ProtectionBypass] Found turnstile global object with methods: ${scriptAnalysis.turnstileGlobals.methods}`, "scraper");
+              
+              // Look for the onload callback and widget configuration
+              try {
+                const widgetConfig = await page.evaluate(() => {
+                  const ts = (window as any).turnstile;
+                  if (!ts) return null;
+                  
+                  // Look for challenge options
+                  const chlOpt = (window as any)._cf_chl_opt;
+                  const cfBeacon = (window as any).__cfBeacon;
+                  
+                  // Find all global functions that might be the onload callback
+                  // IMPORTANT: Exclude browser built-in functions
+                  const builtInFunctions = [
+                    'onerror', 'alert', 'atob', 'blur', 'btoa', 'close', 
+                    'confirm', 'fetch', 'find', 'focus', 'moveBy', 'moveTo', 
+                    'open', 'print', 'prompt', 'resizeBy', 'resizeTo', 
+                    'scroll', 'scrollBy', 'scrollTo', 'stop', 'getComputedStyle',
+                    'getSelection', 'matchMedia', 'requestAnimationFrame',
+                    'cancelAnimationFrame', 'clearInterval', 'clearTimeout',
+                    'setInterval', 'setTimeout', 'postMessage'
+                  ];
+                  
+                  const globalFuncs = Object.keys(window).filter(k => 
+                    typeof (window as any)[k] === 'function' && 
+                    k.length < 10 && // Short names like PXGpw7
+                    k.length > 3 && // But not too short
+                    /^[A-Za-z][A-Za-z0-9]+$/.test(k) && // Alphanumeric, starts with letter
+                    !builtInFunctions.includes(k.toLowerCase()) // Not a built-in
+                  );
+                  
+                  // Find container with data-sitekey
+                  const container = document.querySelector('[data-sitekey]');
+                  const sitekey = container?.getAttribute('data-sitekey');
+                  
+                  // Find any existing widget divs
+                  const widgetDivs = document.querySelectorAll('[id^="cf-turnstile-"]');
+                  
+                  return {
+                    hasTurnstile: !!ts,
+                    hasOptions: !!chlOpt,
+                    sitekey: sitekey,
+                    callbackFunctions: globalFuncs,
+                    widgetCount: widgetDivs.length,
+                    widgetIds: Array.from(widgetDivs).map(d => d.id),
+                    renderMode: (window.location.href.includes('render=explicit') ? 'explicit' : 'auto')
+                  };
+                });
+                
+                log(`[ProtectionBypass] Widget config: ${JSON.stringify(widgetConfig)}`, "scraper");
+                
+                // Check if we should look for the onload callback in the URL
+                const urlOnloadCallback = await page.evaluate(() => {
+                  // Look for onload parameter in any script URL
+                  const scripts = Array.from(document.querySelectorAll('script[src]'));
+                  for (const script of scripts) {
+                    const src = script.getAttribute('src') || '';
+                    const match = src.match(/[?&]onload=([A-Za-z0-9]+)/);
+                    if (match) {
+                      console.log(`Found onload callback in URL: ${match[1]}`);
+                      return match[1];
+                    }
+                  }
+                  return null;
+                });
+                
+                if (urlOnloadCallback) {
+                  log(`[ProtectionBypass] Found onload callback in URL: ${urlOnloadCallback}`, "scraper");
+                  
+                  // Call the specific onload callback
+                  try {
+                    const onloadResult = await page.evaluate((callbackName) => {
+                      const func = (window as any)[callbackName];
+                      if (typeof func === 'function') {
+                        console.log(`Calling onload callback: ${callbackName}`);
+                        func();
+                        return { success: true };
+                      }
+                      return { error: 'Function not found' };
+                    }, urlOnloadCallback);
+                    
+                    if (onloadResult.success) {
+                      log(`[ProtectionBypass] Successfully called onload callback`, "scraper");
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                  } catch (e) {
+                    log(`[ProtectionBypass] Failed to call onload callback`, "scraper");
+                  }
+                }
+                
+                // Handle explicit render mode
+                if (widgetConfig?.renderMode === 'explicit' && widgetConfig?.sitekey) {
+                  const renderResult = await page.evaluate(() => {
+                    const ts = (window as any).turnstile;
+                    if (!ts?.render) return { error: 'No render method' };
+                    
+                    try {
+                      // Find or create container
+                      let container = document.querySelector('[data-sitekey]');
+                      if (!container) {
+                        container = document.createElement('div');
+                        container.setAttribute('data-sitekey', (window as any)._cf_chl_opt?.cData || '');
+                        document.body.appendChild(container);
+                      }
+                      
+                      // Render the widget explicitly
+                      console.log('Rendering Turnstile widget explicitly');
+                      const widgetId = ts.render(container, {
+                        sitekey: container.getAttribute('data-sitekey'),
+                        callback: function(token: string) {
+                          console.log('Turnstile callback received token:', token?.substring(0, 20));
+                          (window as any).__cfTurnstileToken = token;
+                          (window as any).__cfTurnstileWidgetId = widgetId;
+                        },
+                        'error-callback': function(error: any) {
+                          console.log('Turnstile error:', error);
+                        }
+                      });
+                      
+                      console.log('Widget rendered with ID:', widgetId);
+                      (window as any).__cfTurnstileWidgetId = widgetId;
+                      
+                      return { success: true, widgetId };
+                    } catch (e: any) {
+                      return { error: e.toString() };
+                    }
+                  });
+                  
+                  log(`[ProtectionBypass] Render result: ${JSON.stringify(renderResult)}`, "scraper");
+                  
+                  // Now try to execute the widget
+                  if (renderResult?.widgetId !== undefined) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for render to complete
+                    
+                    const executeResult = await page.evaluate((widgetId) => {
+                      const ts = (window as any).turnstile;
+                      if (!ts) return { error: 'No turnstile' };
+                      
+                      try {
+                        // Try to execute the widget
+                        console.log(`Executing widget ${widgetId}`);
+                        ts.execute(widgetId);
+                        return { success: true };
+                      } catch (e: any) {
+                        // Try execute without ID
+                        try {
+                          ts.execute();
+                          return { success: true, fallback: true };
+                        } catch (e2: any) {
+                          return { error: e2.toString() };
+                        }
+                      }
+                    }, renderResult.widgetId);
+                    
+                    log(`[ProtectionBypass] Execute result: ${JSON.stringify(executeResult)}`, "scraper");
+                  }
+                } else {
+                  // If not explicit mode or no sitekey, try implicit render
+                  await page.evaluate(() => {
+                    const ts = (window as any).turnstile;
+                    if (ts?.implicitRender) {
+                      console.log('Calling implicitRender()');
+                      try {
+                        ts.implicitRender();
+                      } catch (e) {
+                        console.log('implicitRender error:', e);
+                      }
+                    }
+                  });
+                }
+                
+                // Check for onload callbacks (filtered to only Cloudflare-specific ones)
+                if (widgetConfig?.callbackFunctions?.length) {
+                  log(`[ProtectionBypass] Found potential Cloudflare callback functions: ${widgetConfig.callbackFunctions}`, "scraper");
+                  
+                  // Try to call them with safety checks
+                  for (const funcName of widgetConfig.callbackFunctions) {
+                    try {
+                      const callResult = await page.evaluate((name) => {
+                        try {
+                          const func = (window as any)[name];
+                          if (typeof func === 'function') {
+                            // Check if function looks safe to call (no parameters expected)
+                            const funcStr = func.toString();
+                            if (funcStr.includes('native code')) {
+                              console.log(`Skipping native function: ${name}`);
+                              return { skipped: true, reason: 'native' };
+                            }
+                            
+                            console.log(`Calling Cloudflare callback: ${name}`);
+                            // Call with timeout to prevent hanging
+                            const result = func();
+                            return { success: true, result: typeof result };
+                          }
+                          return { skipped: true, reason: 'not a function' };
+                        } catch (e: any) {
+                          console.log(`Failed to call ${name}:`, e.message);
+                          return { error: e.message };
+                        }
+                      }, funcName);
+                      
+                      if (callResult?.success) {
+                        log(`[ProtectionBypass] Successfully called callback: ${funcName}`, "scraper");
+                        // Give it time to initialize
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                      }
+                    } catch (evalError) {
+                      log(`[ProtectionBypass] Could not evaluate callback ${funcName}`, "scraper");
+                    }
+                  }
+                }
+                
+              } catch (triggerError: any) {
+                log(`[ProtectionBypass] Could not trigger turnstile: ${triggerError.message}`, "scraper");
+              }
+            }
+            
+            // Check for managed challenge form submission
+            if (challengeInfo.formAction || challengeInfo.submitButton) {
+              log(`[ProtectionBypass] Detected managed challenge with form/button`, "scraper");
+              
+              try {
+                // Try to click any submit button
+                const clicked = await page.evaluate(() => {
+                  const button = document.querySelector('button[type="submit"], input[type="submit"], button[id*="submit"], button:not([type])');
+                  if (button && button instanceof HTMLElement) {
+                    button.click();
+                    return true;
+                  }
+                  // Try form submission
+                  const form = document.querySelector('form');
+                  if (form && form instanceof HTMLFormElement) {
+                    form.submit();
+                    return true;
+                  }
+                  return false;
+                });
+                
+                if (clicked) {
+                  log(`[ProtectionBypass] Triggered form/button submission for managed challenge`, "scraper");
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                }
+              } catch (formError: any) {
+                log(`[ProtectionBypass] Form submission error: ${formError.message}`, "scraper");
+              }
+            }
+            
+            // Try to wait for and interact with Turnstile iframe
+            try {
+              // Wait for Turnstile iframe to appear
+              log(`[ProtectionBypass] Looking for Turnstile iframe...`, "scraper");
+              
+              const iframeSelector = 'iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"], iframe[name^="cf-chl-widget"], iframe[title*="Widget"]';
+              
+              // First, wait a bit for the iframe to be injected dynamically
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              try {
+                await page.waitForSelector(iframeSelector, { 
+                  timeout: 8000, 
+                  visible: true 
+                });
+                log(`[ProtectionBypass] Turnstile iframe detected on page`, "scraper");
+                
+                // Give the iframe more time to fully load its content
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              } catch (waitError) {
+                log(`[ProtectionBypass] No Turnstile iframe found within 8 seconds, attempting to trigger loading`, "scraper");
+                
+                // Try to trigger iframe loading by interacting with the page
+                await page.evaluate(() => {
+                  // Click on any challenge container that might trigger iframe loading
+                  const containers = document.querySelectorAll('[data-sitekey], .cf-turnstile, [id*="turnstile"], [class*="challenge"]');
+                  containers.forEach(c => {
+                    if (c instanceof HTMLElement) {
+                      c.click();
+                    }
+                  });
+                });
+                
+                // Wait again for iframe
+                try {
+                  await page.waitForSelector(iframeSelector, { 
+                    timeout: 3000, 
+                    visible: true 
+                  });
+                  log(`[ProtectionBypass] Turnstile iframe appeared after interaction`, "scraper");
+                } catch (secondWaitError) {
+                  log(`[ProtectionBypass] Still no Turnstile iframe after interaction`, "scraper");
+                }
+              }
+              
+              // Find the Turnstile frame
+              const frames = page.frames();
+              const turnstileFrame = frames.find(f => 
+                f.url().includes('challenges.cloudflare.com') || 
+                f.url().includes('turnstile') ||
+                f.url().includes('cf-chl-widget')
+              );
+              
+              if (turnstileFrame) {
+                log(`[ProtectionBypass] Found Turnstile frame: ${turnstileFrame.url()}`, "scraper");
+                
+                // Wait longer for frame content to fully render
+                log(`[ProtectionBypass] Waiting for Turnstile widget to render...`, "scraper");
+                
+                // Check if it's an invisible challenge
+                const isInvisible = turnstileFrame.url().includes('/rcv/') || turnstileFrame.url().includes('/invisible/');
+                if (isInvisible) {
+                  log(`[ProtectionBypass] Detected invisible Turnstile challenge - should complete automatically`, "scraper");
+                }
+                
+                // Wait for the widget to be ready
+                let widgetReady = false;
+                for (let i = 0; i < 10; i++) {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  
+                  try {
+                    const frameState = await turnstileFrame.evaluate(() => {
+                      return {
+                        hasWidget: !!document.querySelector('[id*="challenge"], .challenge-container, #cf-turnstile-wrapper'),
+                        hasCheckbox: !!document.querySelector('input[type="checkbox"], [role="checkbox"]'),
+                        hasLabel: !!document.querySelector('label'),
+                        hasSvg: document.querySelectorAll('svg').length > 0,
+                        elementCount: document.querySelectorAll('*').length,
+                        bodyText: document.body?.innerText || '',
+                        isLoading: !!document.querySelector('.spinner, .loading, [class*="spin"]'),
+                        hasSuccessIndicator: !!document.querySelector('[class*="success"], [class*="complete"], [aria-checked="true"]')
+                      };
+                    });
+                    
+                    log(`[ProtectionBypass] Widget state (attempt ${i+1}): elements=${frameState.elementCount}, checkbox=${frameState.hasCheckbox}, svg=${frameState.hasSvg}, loading=${frameState.isLoading}`, "scraper");
+                    
+                    // Check if widget is ready
+                    if (frameState.hasCheckbox || frameState.hasLabel || (frameState.hasSvg && frameState.elementCount > 20)) {
+                      widgetReady = true;
+                      log(`[ProtectionBypass] Turnstile widget is ready for interaction`, "scraper");
+                      break;
+                    }
+                    
+                    // Check if already completed
+                    if (frameState.hasSuccessIndicator) {
+                      log(`[ProtectionBypass] Turnstile appears to be already completed`, "scraper");
+                      widgetReady = true;
+                      break;
+                    }
+                    
+                    // For invisible challenges, just wait
+                    if (isInvisible && frameState.elementCount > 10) {
+                      log(`[ProtectionBypass] Invisible challenge detected with content, proceeding`, "scraper");
+                      widgetReady = true;
+                      break;
+                    }
+                  } catch (evalError) {
+                    log(`[ProtectionBypass] Error checking widget state: ${evalError}`, "scraper");
+                  }
+                }
+                
+                if (!widgetReady) {
+                  log(`[ProtectionBypass] WARNING: Turnstile widget did not become ready after 10 seconds`, "scraper");
+                }
+                
+                // Try to get frame content for debugging
+                const frameContent = await turnstileFrame.evaluate(() => {
+                  return {
+                    bodyHTML: document.body ? document.body.innerHTML.substring(0, 200) : 'no body',
+                    hasCheckbox: !!document.querySelector('input[type="checkbox"]'),
+                    hasRoleCheckbox: !!document.querySelector('[role="checkbox"]'),
+                    elementCount: document.querySelectorAll('*').length,
+                    selectors: {
+                      label: !!document.querySelector('label'),
+                      button: !!document.querySelector('button'),
+                      divWithClick: !!document.querySelector('div[onclick]'),
+                      svgElements: document.querySelectorAll('svg').length,
+                      iframes: document.querySelectorAll('iframe').length
+                    }
+                  };
+                });
+                
+                log(`[ProtectionBypass] Final frame content: elements=${frameContent.elementCount}, checkbox=${frameContent.hasCheckbox}, role=${frameContent.hasRoleCheckbox}`, "scraper");
+                log(`[ProtectionBypass] Frame selectors: ${JSON.stringify(frameContent.selectors)}`, "scraper");
+                
+                let clicked = false;
+                
+                // Skip ALL interaction for invisible challenges
+                if (isInvisible) {
+                  log(`[ProtectionBypass] Skipping interaction for invisible challenge - it will complete automatically`, "scraper");
+                  clicked = true; // Set to true to skip further interaction attempts
+                } else {
+                  // Enhanced selectors for visible Turnstile challenges
+                  const checkboxSelectors = [
+                    'label',                          // Sometimes the label is clickable
+                    '[role="checkbox"]',              // ARIA checkbox
+                    'input[type="checkbox"]',         // Traditional checkbox
+                    'div[role="button"]',            // Button role
+                    'button',                        // Any button
+                    '.ctp-checkbox-container',       // Container
+                    '#challenge-stage',              // Challenge stage
+                    'svg',                          // Sometimes the SVG is clickable
+                    'div[style*="cursor: pointer"]', // Clickable divs
+                    '[data-action]',                // Any data-action
+                    'body'                          // Last resort - click body
+                  ];
+                  
+                  for (const selector of checkboxSelectors) {
+                    try {
+                      // Check if element exists first
+                      const elementExists = await turnstileFrame.evaluate((sel) => {
+                        return !!document.querySelector(sel);
+                      }, selector);
+                      
+                      if (!elementExists) {
+                        continue;
+                      }
+                      
+                      log(`[ProtectionBypass] Found element with selector: ${selector}, attempting click`, "scraper");
+                      
+                      // Add small random delay to simulate human hesitation
+                      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+                      
+                      // Try to click with Puppeteer
+                      await turnstileFrame.click(selector, { delay: 50 + Math.random() * 100 });
+                      
+                      log(`[ProtectionBypass] Successfully clicked element: ${selector}`, "scraper");
+                      clicked = true;
+                      
+                      // Wait for challenge to process
+                      await new Promise(resolve => setTimeout(resolve, 3000));
+                      break; // Stop after successful click
+                      
+                    } catch (selectorError: any) {
+                      log(`[ProtectionBypass] Could not click ${selector}: ${selectorError.message}`, "scraper");
+                      continue;
+                    }
+                  }
+                }
+                
+                // For invisible challenges, we don't need to click
+                if (!clicked && !isInvisible) {
+                  log(`[ProtectionBypass] Could not find clickable element, trying mouse coordinate approach`, "scraper");
+                  
+                  // Get iframe position on page for coordinate-based clicking
+                  const iframeElement = await page.$('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
+                  if (iframeElement) {
+                    const box = await iframeElement.boundingBox();
+                    if (box) {
+                      log(`[ProtectionBypass] Iframe position: x=${box.x}, y=${box.y}, width=${box.width}, height=${box.height}`, "scraper");
+                      
+                      // Move mouse to center of iframe with natural movement
+                      const centerX = box.x + box.width / 2;
+                      const centerY = box.y + box.height / 2;
+                      
+                      // Natural mouse movement to iframe
+                      await page.mouse.move(centerX, centerY, { steps: 10 });
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      // Try clicking at common checkbox positions within iframe
+                      const clickPositions = [
+                        { x: box.x + 30, y: box.y + box.height / 2 },      // Left side (checkbox often here)
+                        { x: box.x + box.width / 2, y: box.y + box.height / 2 }, // Center
+                        { x: box.x + 50, y: box.y + 50 },                  // Top-left area
+                        { x: box.x + box.width - 50, y: box.y + 50 }       // Top-right area
+                      ];
+                      
+                      for (const pos of clickPositions) {
+                        log(`[ProtectionBypass] Attempting mouse click at (${pos.x}, ${pos.y})`, "scraper");
+                        
+                        await page.mouse.move(pos.x, pos.y, { steps: 5 });
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                        await page.mouse.down();
+                        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
+                        await page.mouse.up();
+                        
+                        // Wait to see if it worked
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Check if challenge completed
+                        const completed = await page.evaluate(() => {
+                          return document.cookie.includes('cf_clearance') || 
+                                 !document.title?.toLowerCase().includes('just a moment');
+                        });
+                        
+                        if (completed) {
+                          log(`[ProtectionBypass] Mouse click successful at position`, "scraper");
+                          clicked = true;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Final synthetic click attempt in frame (skip for invisible challenges)
+                  if (!clicked && !isInvisible) {
+                    await turnstileFrame.evaluate(() => {
+                      const allElements = document.querySelectorAll('*');
+                      for (const elem of allElements) {
+                        if (elem.tagName === 'LABEL' || elem.tagName === 'BUTTON' || 
+                            elem.getAttribute('role') === 'checkbox' || elem.getAttribute('role') === 'button') {
+                          const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+                          elem.dispatchEvent(event);
+                          console.log(`Synthetic clicked: ${elem.tagName} ${elem.getAttribute('role')}`);
+                          break;
+                        }
+                      }
+                    });
+                  }
+                }
+                
+                // For invisible challenges, we still need to execute them
+                if (isInvisible) {
+                  log(`[ProtectionBypass] Invisible challenge detected - executing widget...`, "scraper");
+                  
+                  // Wait a bit for widget to be ready
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  
+                  // Use our instrumentation to get real widget IDs and execute
+                  const widgetExecution = await page.evaluate(() => {
+                    const ts = (window as any).turnstile;
+                    if (!ts) return { error: 'No turnstile object' };
+                    
+                    // Get real widget IDs from our instrumentation
+                    const capturedWidgets = (window as any).__tsWidgets || {};
+                    const widgetIds = Object.keys(capturedWidgets);
+                    
+                    // Also check for the latest widget ID from events
+                    const latestWidgetId = (window as any).__latestWidgetId;
+                    if (latestWidgetId && !widgetIds.includes(latestWidgetId)) {
+                      widgetIds.push(latestWidgetId);
+                    }
+                    
+                    // If no captured widgets, try to find them from DOM
+                    if (widgetIds.length === 0) {
+                      // Look for elements with data-widget-id attribute
+                      const widgetElements = document.querySelectorAll('[data-widget-id]');
+                      widgetElements.forEach(el => {
+                        const id = el.getAttribute('data-widget-id');
+                        if (id) widgetIds.push(id);
+                      });
+                      
+                      // Still nothing? Default to common IDs
+                      if (widgetIds.length === 0) {
+                        widgetIds.push('0', '1');
+                      }
+                    }
+                    
+                    console.log(`[CF] Found widget IDs: ${widgetIds.join(', ')}`);
+                    
+                    // Try to execute each widget
+                    let executed = false;
+                    let executedId = null;
+                    
+                    for (const widgetId of widgetIds) {
+                      try {
+                        console.log(`[CF] Attempting to execute widget ${widgetId}`);
+                        ts.execute(widgetId);
+                        executed = true;
+                        executedId = widgetId;
+                        console.log(`[CF] Successfully executed widget ${widgetId}`);
+                        break;
+                      } catch (e) {
+                        console.log(`[CF] Failed to execute widget ${widgetId}:`, e);
+                      }
+                    }
+                    
+                    // If no specific widget worked, try without ID
+                    if (!executed) {
+                      try {
+                        console.log('[CF] Executing without widget ID');
+                        ts.execute();
+                        executed = true;
+                        executedId = 'default';
+                      } catch (e: any) {
+                        return { error: e.message };
+                      }
+                    }
+                    
+                    return { 
+                      success: executed, 
+                      widgetId: executedId,
+                      widgetCount: widgetIds.length,
+                      capturedTokens: (window as any).__tsEvents?.tokens?.length || 0
+                    };
+                  });
+                  
+                  log(`[ProtectionBypass] Widget execution result: ${JSON.stringify(widgetExecution)}`, "scraper");
+                  
+                  // Now monitor for token generation with smarter logic
+                  let challengeCompleted = false;
+                  let consecutiveNoProgress = 0;
+                  let lastTokenCount = 0;
+                  let lastErrorCount = 0;
+                  
+                  // Increase timeout for invisible challenges (they can take longer)
+                  const maxAttempts = 60; // 60 seconds total
+                  
+                  for (let i = 0; i < maxAttempts; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Check for Turnstile token response using our instrumentation
+                    const tokenInfo = await page.evaluate(() => {
+                      const ts = (window as any).turnstile;
+                      if (!ts) return { hasToken: false };
+                      
+                      // First check our instrumented events for tokens
+                      const capturedTokens = (window as any).__tsEvents?.tokens || [];
+                      if (capturedTokens.length > 0) {
+                        // Use the most recent token
+                        const latestToken = capturedTokens[capturedTokens.length - 1];
+                        console.log(`[CF] Using captured token from events: ${latestToken.token.substring(0, 30)}...`);
+                        return {
+                          hasToken: true,
+                          token: latestToken.token,
+                          tokenLength: latestToken.token.length,
+                          widgetId: latestToken.widgetId,
+                          fromInstrumentation: true,
+                          hasClearance: document.cookie.includes('cf_clearance'),
+                          stillOnChallenge: document.title?.toLowerCase().includes('just a moment'),
+                          pageUrl: window.location.href
+                        };
+                      }
+                      
+                      // Check stored latest token
+                      const latestToken = (window as any).__latestToken;
+                      if (latestToken) {
+                        console.log(`[CF] Using stored latest token: ${latestToken.substring(0, 30)}...`);
+                        return {
+                          hasToken: true,
+                          token: latestToken,
+                          tokenLength: latestToken.length,
+                          widgetId: (window as any).__latestWidgetId,
+                          fromInstrumentation: true,
+                          hasClearance: document.cookie.includes('cf_clearance'),
+                          stillOnChallenge: document.title?.toLowerCase().includes('just a moment'),
+                          pageUrl: window.location.href
+                        };
+                      }
+                      
+                      // Fallback: try getResponse with known widget IDs
+                      const capturedWidgets = (window as any).__tsWidgets || {};
+                      const widgetIds = Object.keys(capturedWidgets);
+                      
+                      // Add any other known IDs
+                      if ((window as any).__lastExecutedWidgetId) {
+                        widgetIds.push((window as any).__lastExecutedWidgetId);
+                      }
+                      
+                      // Try default IDs if we have none
+                      if (widgetIds.length === 0) {
+                        widgetIds.push('0', '1');
+                      }
+                      
+                      let token = null;
+                      let foundWidgetId = null;
+                      
+                      for (const id of widgetIds) {
+                        if (id === undefined || id === null) continue;
+                        try {
+                          const response = ts.getResponse(id);
+                          if (response && response.length > 10) {
+                            token = response;
+                            foundWidgetId = id;
+                            console.log(`[CF] Got token via getResponse(${id}): ${response.substring(0, 20)}...`);
+                            
+                            // Store it
+                            (window as any).__latestToken = response;
+                            (window as any).__latestWidgetId = id;
+                            break;
+                          }
+                        } catch (e) {
+                          // Ignore errors
+                        }
+                      }
+                      
+                      // Check if validation completed
+                      const hasClearance = document.cookie.includes('cf_clearance');
+                      const stillOnChallenge = document.title?.toLowerCase().includes('just a moment');
+                      
+                      return {
+                        hasToken: !!token,
+                        token: token,
+                        tokenLength: token?.length || 0,
+                        widgetId: foundWidgetId,
+                        fromInstrumentation: false,
+                        hasClearance,
+                        stillOnChallenge,
+                        pageUrl: window.location.href
+                      };
+                    });
+                    
+                    // Check for errors in our instrumentation
+                    const eventStatus = await page.evaluate(() => {
+                      const events = (window as any).__tsEvents || { tokens: [], errors: [] };
+                      return {
+                        tokenCount: events.tokens.length,
+                        errorCount: events.errors.length,
+                        lastError: events.errors.length > 0 ? events.errors[events.errors.length - 1] : null
+                      };
+                    });
+                    
+                    // Track progress
+                    if (eventStatus.tokenCount > lastTokenCount) {
+                      log(`[ProtectionBypass] Progress: New tokens detected (${eventStatus.tokenCount} total)`, "scraper");
+                      consecutiveNoProgress = 0;
+                      lastTokenCount = eventStatus.tokenCount;
+                    } else if (eventStatus.errorCount > lastErrorCount) {
+                      log(`[ProtectionBypass] Error detected in Turnstile: ${JSON.stringify(eventStatus.lastError)}`, "scraper");
+                      lastErrorCount = eventStatus.errorCount;
+                      consecutiveNoProgress = 0; // Reset since error is a form of progress
+                    } else {
+                      consecutiveNoProgress++;
+                    }
+                    
+                    if (tokenInfo.hasToken && tokenInfo.token) {
+                      log(`[ProtectionBypass] Turnstile token received (length: ${tokenInfo.tokenLength}, from instrumentation: ${tokenInfo.fromInstrumentation})`, "scraper");
+                      
+                      // Submit the token via the Cloudflare mechanism
+                      const submitResult = await page.evaluate((token) => {
+                        // Method 1: Call the callback if it exists
+                        if ((window as any).__cfCallback) {
+                          console.log('Calling CF callback with token');
+                          (window as any).__cfCallback(token);
+                          return { method: 'callback' };
+                        }
+                        
+                        // Method 2: Dispatch event with token
+                        const event = new CustomEvent('cf-turnstile-callback', {
+                          detail: { token }
+                        });
+                        document.dispatchEvent(event);
+                        
+                        // Method 3: Look for form submission
+                        const form = document.querySelector('form');
+                        if (form) {
+                          let input = form.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement;
+                          if (!input) {
+                            input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'cf-turnstile-response';
+                            form.appendChild(input);
+                          }
+                          input.value = token;
+                          
+                          // Check if form has action
+                          if (form.action || form.getAttribute('action')) {
+                            console.log('Submitting form with token');
+                            form.submit();
+                            return { method: 'form' };
+                          }
+                        }
+                        
+                        // Method 4: Store in window for CF to pick up
+                        (window as any).cfTurnstileResponse = token;
+                        
+                        return { method: 'stored' };
+                      }, tokenInfo.token);
+                      
+                      log(`[ProtectionBypass] Token submitted via: ${submitResult.method}`, "scraper");
+                      
+                      // Wait for validation to complete
+                      await new Promise(resolve => setTimeout(resolve, 3000));
+                      challengeCompleted = true;
+                      break;
+                    }
+                    
+                    // Check if cf_clearance cookie is set
+                    if (tokenInfo.hasClearance) {
+                      log(`[ProtectionBypass] Challenge completed - cf_clearance cookie detected`, "scraper");
+                      challengeCompleted = true;
+                      break;
+                    }
+                    
+                    // Check if navigated away from challenge
+                    if (!tokenInfo.stillOnChallenge && tokenInfo.pageUrl !== 'about:blank') {
+                      log(`[ProtectionBypass] Challenge completed - navigated to: ${tokenInfo.pageUrl}`, "scraper");
+                      challengeCompleted = true;
+                      break;
+                    }
+                    
+                    // If no progress for 20 seconds, consider it failed
+                    if (consecutiveNoProgress >= 20) {
+                      log(`[ProtectionBypass] No progress detected for 20 seconds, challenge likely failed`, "scraper");
+                      break;
+                    }
+                    
+                    // Log status periodically
+                    if (i % 5 === 4) {
+                      log(`[ProtectionBypass] Waiting for challenge (${i + 1}/${maxAttempts})... Tokens: ${eventStatus.tokenCount}, Errors: ${eventStatus.errorCount}, No progress: ${consecutiveNoProgress}s`, "scraper");
+                    }
+                    
+                    // Retry execution periodically if we're stuck
+                    if ((i === 10 || i === 20 || i === 30) && eventStatus.tokenCount === 0) {
+                      log(`[ProtectionBypass] Retrying widget execution (attempt ${i})...`, "scraper");
+                      await page.evaluate(() => {
+                        const ts = (window as any).turnstile;
+                        if (ts?.execute) {
+                          try {
+                            // Try with stored widget ID
+                            const widgetId = (window as any).__cfTurnstileWidgetId || '0';
+                            ts.execute(widgetId);
+                            console.log(`Retried execute with widget ID: ${widgetId}`);
+                          } catch (e) {
+                            try {
+                              ts.execute();
+                              console.log('Retried execute without ID');
+                            } catch (e2) {
+                              console.log('Execute retry failed');
+                            }
+                          }
+                        }
+                        
+                        // Also try reset and execute
+                        if (ts?.reset && ts?.execute) {
+                          try {
+                            const widgetId = (window as any).__cfTurnstileWidgetId || '0';
+                            ts.reset(widgetId);
+                            ts.execute(widgetId);
+                            console.log('Reset and executed widget');
+                          } catch (e) {
+                            // Ignore
+                          }
+                        }
+                      });
+                    }
+                    
+                    if (i % 3 === 0 && i > 0) {
+                      log(`[ProtectionBypass] Still waiting for challenge completion (${i}/20)...`, "scraper");
+                    }
+                  }
+                  
+                  if (!challengeCompleted) {
+                    log(`[ProtectionBypass] WARNING: Invisible challenge did not complete after 15 seconds`, "scraper");
+                  }
+                }
+              } else {
+                log(`[ProtectionBypass] No Turnstile frame found among ${frames.length} frames`, "scraper");
+                
+                // Fallback: Try clicking on the main page if container exists
+                const containerSelectors = [
+                  'div[data-sitekey]',
+                  '.cf-turnstile',
+                  '[id*="turnstile"]'
+                ];
+                
+                for (const selector of containerSelectors) {
+                  try {
+                    const element = await page.$(selector);
+                    if (element) {
+                      log(`[ProtectionBypass] Found Turnstile container on main page: ${selector}`, "scraper");
+                      await element.click({ delay: 50 + Math.random() * 100 });
+                      await new Promise(resolve => setTimeout(resolve, 2000));
+                      break;
+                    }
+                  } catch (e) {
+                    continue;
+                  }
+                }
+              }
+              
+            } catch (frameInteractionError: any) {
+              log(`[ProtectionBypass] Frame interaction error: ${frameInteractionError.message}`, "scraper");
+            }
+            
+            // Poll for cf_clearance cookie or navigation completion
+            let challengeCompleted = false;
+            try {
+              log(`[ProtectionBypass] Waiting for challenge completion (cookie or navigation)...`, "scraper");
+              
+              // Also monitor for challenge completion via script state
+              await page.evaluateOnNewDocument(() => {
+                // Override XMLHttpRequest to catch challenge completion
+                const originalOpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method: string, url: string) {
+                  if (url.includes('challenges.cloudflare.com') && url.includes('submit')) {
+                    console.log('Challenge submission detected:', url);
+                    (window as any).__cfChallengeSubmitted = true;
+                  }
+                  return originalOpen.apply(this, arguments as any);
+                };
               });
               
-              // Force challenge verification signals
-              if (typeof window.turnstile !== 'undefined') {
-                try {
-                  window.turnstile.render?.();
-                } catch (e) {}
+              // Wait for either cf_clearance cookie or navigation
+              await Promise.race([
+                // Wait for cf_clearance cookie
+                page.waitForFunction(
+                  () => document.cookie.includes('cf_clearance'),
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] cf_clearance cookie detected!`, "scraper");
+                  challengeCompleted = true;
+                }),
+                
+                // Wait for navigation away from challenge page
+                page.waitForFunction(
+                  () => !document.title?.toLowerCase().includes('just a moment') && 
+                       !document.title?.toLowerCase().includes('please wait'),
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] Navigation detected - title changed from challenge`, "scraper");
+                  challengeCompleted = true;
+                }),
+                
+                // Wait for significant content change
+                page.waitForFunction(
+                  () => document.querySelectorAll('a[href]').length > 10,
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] Content loaded - found multiple links`, "scraper");
+                  challengeCompleted = true;
+                }),
+                
+                // Wait for challenge submission flag
+                page.waitForFunction(
+                  () => (window as any).__cfChallengeSubmitted === true,
+                  { polling: 500, timeout: 8000 }
+                ).then(() => {
+                  log(`[ProtectionBypass] Challenge submission detected via XHR`, "scraper");
+                  challengeCompleted = true;
+                })
+              ]).catch(() => {
+                log(`[ProtectionBypass] Challenge completion wait timed out`, "scraper");
+              });
+              
+              if (challengeCompleted) {
+                // Get actual cookies from page context
+                const cookies = await page.cookies();
+                const cfClearanceCookie = cookies.find(c => c.name === 'cf_clearance');
+                if (cfClearanceCookie) {
+                  log(`[ProtectionBypass] cf_clearance captured: ${cfClearanceCookie.value.substring(0, 10)}...`, "scraper");
+                  
+                  // Store in session for reuse
+                  const urlObj = new URL(page.url());
+                  const domain = urlObj.hostname;
+                  cacheCfClearance(domain, cfClearanceCookie.value, 24);
+                }
               }
-            });
+            } catch (completionError: any) {
+              log(`[ProtectionBypass] Completion detection error: ${completionError.message}`, "scraper");
+            }
             
             await new Promise(resolve => setTimeout(resolve, 500));
             interactionPhase = 5;
@@ -1557,9 +3402,17 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
                 window.dispatchEvent(new Event('focus'));
                 document.dispatchEvent(new Event('visibilitychange'));
                 
-                // Simulate tab switching back to page
-                document.hidden = false;
-                document.visibilityState = 'visible';
+                // Simulate tab switching back to page - use Object.defineProperty for read-only properties
+                Object.defineProperty(document, 'hidden', {
+                  value: false,
+                  writable: true,
+                  configurable: true
+                });
+                Object.defineProperty(document, 'visibilityState', {
+                  value: 'visible',
+                  writable: true,
+                  configurable: true
+                });
               });
             }
             
@@ -1633,18 +3486,27 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
         const isStillChallenge = title.toLowerCase().includes('just a moment') ||
                                 title.toLowerCase().includes('please wait');
         
+        // Check for cf_clearance cookie indicating successful challenge
+        const hasCfClearance = document.cookie.includes('cf_clearance');
+        
         return {
           linkCount,
           title,
           isStillChallenge,
           hasNavigation: !!document.querySelector('nav, header'),
-          contentLength: document.body?.textContent?.length || 0
+          contentLength: document.body?.textContent?.length || 0,
+          hasCfClearance
         };
       });
 
       if (finalValidation.isStillChallenge || finalValidation.linkCount < 5) {
         log(`[ProtectionBypass] Final validation failed - still on challenge page or insufficient links (${finalValidation.linkCount})`, "scraper");
         return false;
+      }
+
+      // Log cf_clearance status
+      if (finalValidation.hasCfClearance) {
+        log(`[ProtectionBypass] cf_clearance cookie detected - challenge completed successfully`, "scraper");
       }
 
       log(`[ProtectionBypass] Cloudflare challenge successfully bypassed - Links: ${finalValidation.linkCount}, Content: ${finalValidation.contentLength} chars`, "scraper");
@@ -1673,21 +3535,80 @@ export async function bypassIncapsula(page: Page): Promise<boolean> {
     const hasIncapsula = await page.evaluate(() => {
       return document.documentElement?.innerHTML?.includes("_Incapsula_Resource") ||
              document.documentElement?.innerHTML?.includes("Incapsula") ||
-             document.documentElement?.innerHTML?.includes("window._icdt");
+             document.documentElement?.innerHTML?.includes("window._icdt") ||
+             window.hasOwnProperty('__incap_script') ||
+             document.cookie.includes('incap_ses_');
     });
 
     if (hasIncapsula) {
-      log(`[ProtectionBypass] Incapsula protection detected, performing bypass actions...`, "scraper");
+      log(`[ProtectionBypass] Incapsula protection detected, performing enhanced bypass...`, "scraper");
       
-      // Perform human-like actions to bypass Incapsula
+      // Strategy 1: Handle Incapsula cookies and wait for validation
+      await page.evaluate(() => {
+        // Incapsula often sets visid_incap and incap_ses cookies
+        const cookies = document.cookie.split(';');
+        const incapCookies = cookies.filter(c => 
+          c.includes('incap_') || c.includes('visid_')
+        );
+        console.log('Incapsula cookies found:', incapCookies.length);
+      });
+
+      // Strategy 2: Wait for Incapsula resources to load
+      try {
+        await page.waitForFunction(
+          () => {
+            // Check if Incapsula validation completed
+            return !document.querySelector('script[src*="_Incapsula_Resource"]') ||
+                   window.hasOwnProperty('__incap_script_loaded');
+          },
+          { timeout: 10000 }
+        );
+      } catch {
+        log(`[ProtectionBypass] Incapsula resources timeout, continuing...`, "scraper");
+      }
+      
+      // Strategy 3: Enhanced human-like actions for Incapsula
+      await page.mouse.move(100, 100);
+      await page.mouse.move(200, 200);
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await performHumanLikeActions(page);
       
-      // Wait for protection to clear
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      // Strategy 4: Handle Incapsula's JavaScript challenge
+      await page.evaluate(() => {
+        // Trigger any pending Incapsula validations
+        if (window._icdt) {
+          console.log('Triggering Incapsula validation');
+        }
+      });
       
-      // Reload page to get clean content
-      await page.reload({ waitUntil: 'networkidle2' });
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Wait for protection to clear with longer timeout
+      await new Promise((resolve) => setTimeout(resolve, 7000));
+      
+      // Strategy 5: Check if we need to reload
+      const stillBlocked = await page.evaluate(() => {
+        const html = document.documentElement.innerHTML;
+        return html.includes("Request unsuccessful") || 
+               html.includes("Incapsula incident") ||
+               html.length < 1000; // Very short response usually means blocked
+      });
+      
+      if (stillBlocked) {
+        log(`[ProtectionBypass] Still blocked, attempting reload...`, "scraper");
+        // Reload page to get clean content
+        await page.reload({ waitUntil: 'networkidle2' });
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+      
+      // Final validation
+      const finalCheck = await page.evaluate(() => {
+        return document.body?.innerText?.length > 500;
+      });
+      
+      if (finalCheck) {
+        log(`[ProtectionBypass] Incapsula bypass successful`, "scraper");
+      } else {
+        log(`[ProtectionBypass] Incapsula bypass may have partially failed`, "scraper");
+      }
       
       return true;
     } else {
@@ -2034,7 +3955,7 @@ export async function performBehavioralDelay(options: EnhancedScrapingOptions = 
 }
 
 /**
- * Enhanced human-like actions with ghost cursor
+ * Enhanced human-like actions with realistic mouse movements
  */
 export async function performEnhancedHumanActions(page: Page): Promise<void> {
   try {
@@ -2045,37 +3966,33 @@ export async function performEnhancedHumanActions(page: Page): Promise<void> {
     const maxX = viewport?.width || 1920;
     const maxY = viewport?.height || 1280;
     
-    // Try to use ghost-cursor with proper error handling
-    try {
-      const cursor = createCursor(page);
+    // Use native Puppeteer mouse simulation with realistic patterns
+    // Random mouse movements with bezier curves for more natural motion
+    for (let i = 0; i < 3; i++) {
+      const startX = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1);
+      const startY = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
+      const endX = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1);
+      const endY = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
       
-      // Random mouse movements
-      for (let i = 0; i < 3; i++) {
-        const x = Math.floor(Math.random() * maxX * 0.8) + Math.floor(maxX * 0.1); // Stay within 10-90% of viewport
-        const y = Math.floor(Math.random() * maxY * 0.8) + Math.floor(maxY * 0.1);
+      // Move in multiple small steps to simulate human-like movement
+      const steps = 10 + Math.floor(Math.random() * 10);
+      for (let step = 0; step <= steps; step++) {
+        const progress = step / steps;
+        // Add slight curve to the movement
+        const currentX = startX + (endX - startX) * progress + Math.sin(progress * Math.PI) * 20;
+        const currentY = startY + (endY - startY) * progress + Math.cos(progress * Math.PI) * 20;
         
-        await cursor.move(x, y);
-        await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
+        await page.mouse.move(currentX, currentY);
+        await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 30));
       }
       
-      // Safe click in the middle area
-      const safeX = Math.floor(maxX / 2);
-      const safeY = Math.floor(maxY / 2);
-      await cursor.click(safeX, safeY);
-      
-    } catch (cursorError: any) {
-      log(`[ProtectionBypass] Ghost cursor error: ${cursorError.message}, falling back to native mouse simulation`, "scraper");
-      
-      // Fallback to native Puppeteer mouse simulation
-      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
-      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
-      
-      await page.mouse.move(Math.floor(Math.random() * maxX), Math.floor(Math.random() * maxY));
-      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1000 } });
-      
-      // Safe click
-      await page.mouse.click(Math.floor(maxX / 2), Math.floor(maxY / 2));
+      await performBehavioralDelay({ behaviorDelay: { min: 500, max: 1500 } });
     }
+    
+    // Safe click in a random but reasonable area
+    const safeX = Math.floor(maxX * (0.3 + Math.random() * 0.4)); // 30-70% of width
+    const safeY = Math.floor(maxY * (0.3 + Math.random() * 0.4)); // 30-70% of height
+    await page.mouse.click(safeX, safeY);
     
     // Random scroll actions
     await page.evaluate(() => {
@@ -2114,7 +4031,11 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
   try {
     log(`[ProtectionBypass] Applying enhanced fingerprinting for ${profile.deviceType}`, "scraper");
     
-    // Set viewport to match profile
+    // First apply our comprehensive stealth measures from stealth-enhancements module
+    // This includes dynamic display, WebGL spoofing, WebRTC prevention, etc.
+    await applyEnhancedStealthMeasures(page);
+    
+    // Set viewport to match profile (will override the one from stealth measures)
     await page.setViewport(profile.viewport);
     
     // Set user agent
@@ -2264,7 +4185,7 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
       
       // BATTERY API SPOOFING
       if ('getBattery' in navigator) {
-        const originalGetBattery = navigator.getBattery;
+        const originalGetBattery = navigator.getBattery as () => Promise<any>;
         navigator.getBattery = function() {
           return originalGetBattery.call(this).then((battery: any) => {
             // Create a proxy to intercept battery properties
@@ -2802,8 +4723,8 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
 
     // Audio Context fingerprinting protection
     await page.evaluateOnNewDocument(() => {
-      if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
-        const AudioCtx = AudioContext || webkitAudioContext;
+      if (typeof AudioContext !== 'undefined' || typeof (window as any).webkitAudioContext !== 'undefined') {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
         
         const originalCreateAnalyser = AudioCtx.prototype.createAnalyser;
         AudioCtx.prototype.createAnalyser = function() {
@@ -2837,7 +4758,7 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
 
       // Override timing methods
       const originalSetTimeout = window.setTimeout;
-      window.setTimeout = function(callback, delay, ...args) {
+      (window as any).setTimeout = function(callback: any, delay: any, ...args: any[]) {
         // Add slight randomization to prevent timing pattern detection
         const randomDelay = delay + (Math.random() - 0.5) * Math.min(delay * 0.1, 5);
         return originalSetTimeout.call(this, callback, Math.max(0, randomDelay), ...args);

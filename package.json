@@ -20,6 +20,7 @@
     "@auth0/auth0-react": "^2.4.0",
     "@azure/identity": "^4.11.1",
     "@azure/keyvault-keys": "^4.10.0",
+    "@mongodb-js/zstd": "^2.0.1",
     "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-slot": "^1.2.3",

@@ -90,13 +90,12 @@ export class UnifiedStorageService {
       }
 
       // Step 3: Apply keyword filtering based on specific keywordIds or all active keywords
-      let keywordsToFilter: string[] = [];
+      let keywordsToFilter: any = [];
       
       if (filter?.keywordIds && filter.keywordIds.length > 0) {
         // Use specific keyword IDs sent from frontend
         
-        if (appType === 'news-radar' || appType === 'threat-tracker') {
-          
+        if (appType === 'news-radar') {          
           // Use withUserContext to bypass RLS and get keywords
           const encryptedKeywords = await withUserContext(
             userId,
@@ -126,11 +125,11 @@ export class UnifiedStorageService {
           );
           
           keywordsToFilter = decryptedKeywords.map(k => k.term);
-        } else {
+        } else if (appType === 'threat-tracker') {
           // Threat Tracker: Handle NULL user_id values in threat_keywords table
           
           // Try with withUserContext first for user-specific keywords
-          let keywordResults = [];
+          let userKeywordResults = [];
           try {
             const userKeywords = await withUserContext(
               userId,
@@ -140,7 +139,8 @@ export class UnifiedStorageService {
                   id: threatKeywords.id,
                   category: threatKeywords.category,
                   userId: threatKeywords.userId,
-                  active: threatKeywords.active
+                  active: threatKeywords.active,
+                  isDefault: threatKeywords.isDefault
                 })
                 .from(threatKeywords)
                 .where(
@@ -151,30 +151,39 @@ export class UnifiedStorageService {
                   )
                 )
             );
-            keywordResults = userKeywords;
+            
+            // Decrypt user keywords
+            userKeywordResults = await Promise.all(
+              userKeywords.map(async (k) => ({
+                ...k,
+                term: await envelopeDecryptAndRotate(threatKeywords, k.id, 'term', userId)
+              }))
+            );
           } catch (error) {
+            log(`[UnifiedStorage] Error fetching user threat keywords: ${error.message}`, 'storage');
           }
           
-          // Also get global threat keywords (userId is NULL)
-          const globalKeywords = await db
+          // Also get default/global threat keywords (userId is NULL, isDefault = true)
+          const defaultKeywords = await db
             .select({ 
               term: threatKeywords.term, 
               id: threatKeywords.id,
               category: threatKeywords.category,
               userId: threatKeywords.userId,
-              active: threatKeywords.active
+              active: threatKeywords.active,
+              isDefault: threatKeywords.isDefault
             })
             .from(threatKeywords)
             .where(
               and(
+                eq(threatKeywords.isDefault, true),
                 isNull(threatKeywords.userId),
-                inArray(threatKeywords.id, filter.keywordIds),
-                eq(threatKeywords.active, true)
+                inArray(threatKeywords.id, filter.keywordIds)
               )
             );
           
-          // Combine both results
-          const allKeywords = [...keywordResults, ...globalKeywords];
+          // Combine both results - default keywords don't need decryption
+          const allKeywords = [...userKeywordResults, ...defaultKeywords];
           
           // For Threat Tracker, store keywords with categories for cross-reference matching
           keywordsToFilter = allKeywords;

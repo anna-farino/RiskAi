@@ -393,6 +393,9 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
             log(`[${fieldType}Recovery] Rejected date-like text as author: "${result}"`, "scraper");
             continue;
           }
+          
+          // Clean up biographical content - extract just the name part
+          result = cleanAuthorName(result);
         }
         
         if (result) {
@@ -422,10 +425,13 @@ function extractWithRecovery($: cheerio.CheerioAPI, selector: string, fieldType:
         }
         
         // Additional validation: ensure it looks like a person's name
-        if (result.length < 3 || result.length > 50 || !/[a-zA-Z]/.test(result)) {
+        if (result.length < 3 || result.length > 80 || !/[a-zA-Z]/.test(result)) {
           log(`[${fieldType}Recovery] Rejected invalid author name: "${result}"`, "scraper");
           continue;
         }
+        
+        // Clean up biographical content - extract just the name part
+        result = cleanAuthorName(result);
         // Also check if it looks like a date instead of an author
         if (/\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|\d{1,2},?\s*\d{4}|\d{1,2}:\d{2}\s*(AM|PM))/i.test(result)) {
           log(`[${fieldType}Recovery] Rejected date-like text as author: "${result}"`, "scraper");
@@ -462,6 +468,79 @@ function getFieldFallbacks(fieldType: string): string[] {
   }
   
   return [];
+}
+
+/**
+ * Clean author name by extracting just the name part and removing biographical content
+ */
+export function cleanAuthorName(rawAuthor: string): string {
+  if (!rawAuthor) return rawAuthor;
+  
+  // Remove common biographical indicators and everything after them
+  const bioIndicators = [
+    /\s+is\s+(a|an)\s+/i,           // "John Smith is a writer..."
+    /\s+has\s+(been|worked)/i,      // "John Smith has been working..."
+    /\s+worked?\s+(at|for|in)/i,    // "John Smith worked at..."
+    /\s+(veteran|former|senior)\s+/i, // "John Smith, veteran journalist..."
+    /\s+of\s+more\s+than\s+\d+/i,   // "of more than 20 years"
+    /\.\s*[A-Z]/,                   // Period followed by capital letter (new sentence)
+    /\s+(received|won|earned)/i,    // Awards/achievements
+    /\s+(published|written)/i,      // Publications
+    /\s+specializes?\s+in/i,        // Specialization
+    /\s+covers?\s+(topics|stories)/i, // Coverage area
+  ];
+  
+  let cleaned = rawAuthor;
+  
+  // Find the earliest bio indicator and truncate there
+  let earliestIndex = cleaned.length;
+  for (const pattern of bioIndicators) {
+    const match = cleaned.match(pattern);
+    if (match && match.index !== undefined && match.index < earliestIndex) {
+      earliestIndex = match.index;
+    }
+  }
+  
+  if (earliestIndex < cleaned.length) {
+    cleaned = cleaned.substring(0, earliestIndex).trim();
+  }
+  
+  // Remove trailing commas and periods
+  cleaned = cleaned.replace(/[,.]$/, '').trim();
+  
+  // If it's still too long (>100 chars), likely still has bio content
+  if (cleaned.length > 100) {
+    // Try to extract just the first line or sentence
+    const lines = cleaned.split(/\n+/);
+    if (lines.length > 1 && lines[0].length < 80) {
+      cleaned = lines[0].trim();
+    } else {
+      // Try to find the first sentence ending
+      const sentenceEnd = cleaned.match(/^[^.!?]*[.!?]/);
+      if (sentenceEnd && sentenceEnd[0].length < 80) {
+        cleaned = sentenceEnd[0].replace(/[.!?]$/, '').trim();
+      }
+    }
+  }
+  
+  // Final length check - if still too long, truncate aggressively
+  if (cleaned.length > 80) {
+    // Look for common name patterns at the beginning
+    const namePattern = /^([A-Z][a-z]+(?:\s+[A-Z][a-z]*\.?){0,3}(?:,?\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)?)/;
+    const nameMatch = cleaned.match(namePattern);
+    if (nameMatch) {
+      cleaned = nameMatch[1].trim();
+    } else {
+      // Last resort: take first 60 characters and truncate at last space
+      cleaned = cleaned.substring(0, 60);
+      const lastSpace = cleaned.lastIndexOf(' ');
+      if (lastSpace > 20) {
+        cleaned = cleaned.substring(0, lastSpace);
+      }
+    }
+  }
+  
+  return cleaned.trim();
 }
 
 /**

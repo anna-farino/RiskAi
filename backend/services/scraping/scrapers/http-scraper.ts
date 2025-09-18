@@ -169,9 +169,37 @@ export async function scrapeWithHTTP(
       // Debug logging for validation process
       log(`[HTTPScraper] Starting validation of ${preflightResult.body.length} chars content`, "scraper");
       
+      // Enhanced debugging for content issues
+      const firstChars = preflightResult.body.substring(0, 200);
+      const hasBinary = /[\x00-\x08\x0E-\x1F\x7F-\x9F]/.test(firstChars);
+      const hasHTML = preflightResult.body.includes('<html') || preflightResult.body.includes('<!DOCTYPE');
+      const hasLinks = preflightResult.body.includes('<a ') || preflightResult.body.includes('href=');
+      
+      log(`[HTTPScraper] Pre-encoding analysis: hasBinary=${hasBinary}, hasHTML=${hasHTML}, hasLinks=${hasLinks}`, "scraper");
+      if (hasBinary) {
+        log(`[HTTPScraper] Binary content detected in first 200 chars (hex): ${Buffer.from(firstChars.substring(0, 50)).toString('hex')}`, "scraper");
+      } else {
+        log(`[HTTPScraper] First 200 chars: ${firstChars.replace(/[\r\n]+/g, ' ')}`, "scraper");
+      }
+      
       // Apply encoding detection to the pre-flight response
       const encodingFixedBody = detectAndFixEncoding(preflightResult.body, preflightResult.headers?.['content-type']);
       log(`[HTTPScraper] Encoding fixed: ${encodingFixedBody.length} chars`, "scraper");
+      
+      // Check content after encoding fix
+      const fixedFirstChars = encodingFixedBody.substring(0, 200);
+      const fixedHasBinary = /[\x00-\x08\x0E-\x1F\x7F-\x9F]/.test(fixedFirstChars);
+      const fixedHasHTML = encodingFixedBody.includes('<html') || encodingFixedBody.includes('<!DOCTYPE');
+      const fixedHasLinks = encodingFixedBody.includes('<a ') || encodingFixedBody.includes('href=');
+      
+      log(`[HTTPScraper] Post-encoding analysis: hasBinary=${fixedHasBinary}, hasHTML=${fixedHasHTML}, hasLinks=${fixedHasLinks}`, "scraper");
+      if (!fixedHasLinks && encodingFixedBody.length > 10000) {
+        log(`[HTTPScraper] WARNING: Large content but no links found after encoding fix`, "scraper");
+        // Log middle sample to see what's there
+        const middleStart = Math.floor(encodingFixedBody.length / 2);
+        const middleSample = encodingFixedBody.substring(middleStart, middleStart + 200).replace(/[\r\n]+/g, ' ');
+        log(`[HTTPScraper] Middle content sample: ${middleSample}`, "scraper");
+      }
       
       // Validate the content (pass isArticle flag for proper validation)
       const validation = await validateContent(encodingFixedBody, url, options?.isArticle || false);
@@ -248,11 +276,26 @@ export async function scrapeWithHTTP(
   if (preflightResult.protectionDetected) {
     log(`[HTTPScraper] Pre-flight detected protection: ${preflightResult.protectionType}`, "scraper");
     
-    // Try one optimized request for protected sites
+    // Skip retry for hard 403 blocks - they won't change with cookies
+    if (preflightResult.status === 403) {
+      log(`[HTTPScraper] Hard 403 block detected - skipping retry (won't help)`, "scraper");
+      return {
+        html: preflightResult.body || '',
+        success: false,
+        method: "http",
+        responseTime: Date.now() - startTime,
+        statusCode: 403,
+        finalUrl: url,
+        requiresPuppeteer: true
+      };
+    }
+    
+    // Try one optimized request for soft blocks using the warmed-up session
     const response = await performCycleTLSRequest(url, {
       method: 'GET',
       timeout: 30000,
-      cookies: preflightResult.cookies
+      cookies: preflightResult.cookies,
+      sessionId: preflightResult.sessionId  // Use the warmed-up sessionId
     });
     
     if (response.success && response.body) {

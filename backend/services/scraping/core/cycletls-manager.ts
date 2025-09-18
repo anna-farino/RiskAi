@@ -21,11 +21,13 @@ interface ClientConfig {
   timeout: number;
   proxy?: string;
   disableRedirect?: boolean;
+  sessionId?: string;  // Add sessionId for client reuse
 }
 
 class CycleTLSManager {
   private clients: Map<string, CycleTLSClient> = new Map();
   private clientUsageCount: Map<string, number> = new Map();
+  private sessionConfigs: Map<string, ClientConfig> = new Map(); // Store config per session
   private maxClientReuse = 10; // Reuse client up to 10 times
   private isArchitectureValidated = false;
   private architectureCompatible = false;
@@ -340,21 +342,36 @@ class CycleTLSManager {
       return null;
     }
 
-    const configKey = JSON.stringify(config);
+    // Use sessionId as primary key if available, otherwise fall back to config hash
+    const clientKey = config.sessionId || JSON.stringify(config);
+    
+    // If using sessionId, ensure we use the same config as the first request
+    if (config.sessionId) {
+      const storedConfig = this.sessionConfigs.get(config.sessionId);
+      if (storedConfig) {
+        // Use the stored config but keep the current timeout
+        config = { ...storedConfig, timeout: config.timeout };
+        log(`[CycleTLSManager] Using stored config for session ${config.sessionId}`, "scraper");
+      } else {
+        // First request with this sessionId, store the config
+        this.sessionConfigs.set(config.sessionId, config);
+        log(`[CycleTLSManager] Storing config for new session ${config.sessionId}`, "scraper");
+      }
+    }
     
     // Check if we have an existing client we can reuse
-    const existingClient = this.clients.get(configKey);
-    const usageCount = this.clientUsageCount.get(configKey) || 0;
+    const existingClient = this.clients.get(clientKey);
+    const usageCount = this.clientUsageCount.get(clientKey) || 0;
 
     if (existingClient && usageCount < this.maxClientReuse) {
-      this.clientUsageCount.set(configKey, usageCount + 1);
-      log(`[CycleTLSManager] Reusing existing CycleTLS client (usage: ${usageCount + 1}/${this.maxClientReuse})`, "scraper");
+      this.clientUsageCount.set(clientKey, usageCount + 1);
+      log(`[CycleTLSManager] Reusing existing CycleTLS client${config.sessionId ? ' for session ' + config.sessionId : ''} (usage: ${usageCount + 1}/${this.maxClientReuse})`, "scraper");
       return existingClient;
     }
 
     // Clean up old client if it exists
     if (existingClient) {
-      await this.cleanupClient(configKey);
+      await this.cleanupClient(clientKey);
     }
 
     // Create new client
@@ -362,22 +379,48 @@ class CycleTLSManager {
       log(`[CycleTLSManager] Creating new CycleTLS client`, "scraper");
       const cycletls = require('cycletls');
       
-      const client = await cycletls({
-        ja3: config.ja3,
-        userAgent: config.userAgent,
-        timeout: config.timeout,
-        proxy: config.proxy || "",
-        disableRedirect: config.disableRedirect || false
-      });
+      // CRITICAL FIX: Use initCycleTLS instead of direct invocation to prevent crashes
+      let client;
+      try {
+        // Try the newer API first
+        if (cycletls.initCycleTLS) {
+          client = await cycletls.initCycleTLS({
+            ja3: config.ja3,
+            userAgent: config.userAgent,
+            timeout: config.timeout,
+            proxy: config.proxy || "",
+            disableRedirect: config.disableRedirect || false
+          });
+        } else {
+          // Fallback to the older API
+          client = await cycletls({
+            ja3: config.ja3,
+            userAgent: config.userAgent,
+            timeout: config.timeout,
+            proxy: config.proxy || "",
+            disableRedirect: config.disableRedirect || false
+          });
+        }
+      } catch (initError: any) {
+        log(`[CycleTLSManager] Failed to initialize CycleTLS client: ${initError.message}`, "scraper-error");
+        // Try without JA3 as it might be causing issues
+        log(`[CycleTLSManager] Retrying without JA3 fingerprinting...`, "scraper");
+        client = await cycletls({
+          userAgent: config.userAgent,
+          timeout: config.timeout,
+          proxy: config.proxy || "",
+          disableRedirect: config.disableRedirect || false
+        });
+      }
 
       if (!client || typeof client.get !== 'function') {
         throw new Error('Invalid client object returned from CycleTLS');
       }
 
-      this.clients.set(configKey, client);
-      this.clientUsageCount.set(configKey, 1);
+      this.clients.set(clientKey, client);
+      this.clientUsageCount.set(clientKey, 1);
       
-      log(`[CycleTLSManager] ✓ New CycleTLS client created successfully`, "scraper");
+      log(`[CycleTLSManager] ✓ New CycleTLS client created successfully${config.sessionId ? ' for session ' + config.sessionId : ''}`, "scraper");
       return client;
       
     } catch (error) {

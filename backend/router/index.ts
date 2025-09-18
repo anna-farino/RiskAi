@@ -59,9 +59,7 @@ router.use("/live-logs-management", liveLogsRouter);
 // AUTH
 router.use("/auth", limiter, authRouter);
 
-// ================================================
-// PROTECTIONS ====================================
-// ================================================
+// PROTECTIONS
 
 router.use(auth0CheckJwt);
 router.use(jwtErrorHandler);
@@ -69,9 +67,9 @@ router.use(noSimpleRequests);
 
 router.use(auth0middleware);
 
-// ================================================
+// 
 // PROTECTED ROUTES
-// ================================================
+// 
 router.use("/users", usersRouter);
 router.post("/change-password", handleChangePassword);
 
