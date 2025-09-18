@@ -1658,23 +1658,8 @@ async function handleComputationalFlowChallenge(page: Page, detectionResult: Cha
     await humanBehavior.addWebGLNoise();
     await humanBehavior.randomizeWindow();
     
-    // Session warming - visit main domain first to build history
-    // IMPORTANT: Don't warm session if already on a challenge page!
-    const currentUrl = page.url();
-    const isAlreadyOnChallenge = currentUrl.includes('cdn-cgi') || 
-                                  currentUrl.includes('challenge') ||
-                                  detectionResult.signals.rayId;
-    
-    if (!isAlreadyOnChallenge) {
-      try {
-        log(`[ProtectionBypass] Warming session before challenge...`, "scraper");
-        await humanBehavior.warmSession(currentUrl);
-      } catch (error) {
-        log(`[ProtectionBypass] Session warming failed, continuing anyway`, "scraper");
-      }
-    } else {
-      log(`[ProtectionBypass] Skipping session warming - already on challenge page`, "scraper");
-    }
+    // Session warming now happens BEFORE navigation in main-scraper.ts
+    // This prevents the problematic pattern of warming AFTER being challenged
     
     // Add "thinking time" before attempting challenge
     await humanBehavior.thinkingPause();
