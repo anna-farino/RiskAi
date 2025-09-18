@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { generateFallbackSelectors } from './fallback-selectors';
 import { ArticleContent } from './selector-utilities';
+import { cleanAuthorName } from './content-extractor';
 
 /**
  * Extract content using fallback selectors
@@ -39,10 +40,14 @@ export function extractWithFallbackSelectors($: cheerio.CheerioAPI): Partial<Art
   const authorFallbacks = generateFallbackSelectors('author');
   for (const selector of authorFallbacks) {
     if (!result.author) {
-      const author = $(selector).first().text().trim();
-      if (author) {
-        result.author = author;
-        break;
+      let author = $(selector).first().text().trim();
+      if (author && author.length >= 3 && author.length <= 300 && /[a-zA-Z]/.test(author)) {
+        // Clean biographical content from author
+        author = cleanAuthorName(author);
+        if (author && author.length >= 3) {
+          result.author = author;
+          break;
+        }
       }
     }
   }

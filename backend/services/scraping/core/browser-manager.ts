@@ -2,6 +2,13 @@ import puppeteer, { type Browser, type Page } from "rebrowser-puppeteer";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import { log } from "backend/utils/log";
+import { 
+  generateRandomDisplayNumber, 
+  generateRealisticScreenResolution,
+  applyEnhancedStealthMeasures,
+  isAzureEnvironment,
+  getXvfbDisplayConfig
+} from "./stealth-enhancements";
 
 /**
  * Find Chrome executable path for Puppeteer
@@ -192,10 +199,15 @@ const BASE_BROWSER_ARGS = [
   "--disable-accelerated-2d-canvas",
   "--disable-gpu",
   "--window-size=1920x1080",
-  // "--display=:99", // Azure only use virtual display - added conditional logix for Azure below
-  "--disable-features=site-per-process,AudioServiceOutOfProcess",
+  // CRITICAL: Enable third-party cookies and iframes for Turnstile challenges
+  "--disable-features=BlockThirdPartyCookies,ThirdPartyStoragePartitioning,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
+  // Allow cross-origin iframes (needed for challenges.cloudflare.com)
+  "--disable-web-security",
+  "--disable-features=IsolateOrigins,site-per-process",
+  "--allow-running-insecure-content",
+  // Keep anti-automation detection
   "--disable-blink-features=AutomationControlled",
-  // Additional args from Threat Tracker for enhanced stealth
+  // Basic optimizations
   "--disable-software-rasterizer",
   "--disable-extensions",
   "--disable-gl-drawing-for-tests",
@@ -204,40 +216,34 @@ const BASE_BROWSER_ARGS = [
   "--no-first-run",
   "--no-default-browser-check",
   "--ignore-certificate-errors",
-  "--allow-running-insecure-content",
-  "--disable-web-security",
   // Crashpad disabling arguments
   "--disable-crashpad",
   "--disable-crash-reporter",
   "--disable-breakpad",
-  // Removed --single-process as it can cause instability
+  // User data and cache
   "--user-data-dir=/tmp/chrome-user-data",
   "--disk-cache-dir=/tmp/chrome-cache",
-  "--force-crash-handler-disable",
-  "--crash-handler-disabled",
-  "--disable-crash-handler",
-  // Enhanced memory management for Replit
-  "--max-old-space-size=512", // Reduced from 1024 to prevent OOM
+  // Memory management for Replit
+  "--max-old-space-size=512",
   "--js-flags=--max-old-space-size=512",
-  // Additional optimizations for resource-constrained environments
+  // Performance optimizations (kept minimal)
   "--disable-background-networking",
   "--disable-background-timer-throttling",
-  "--disable-backgrounding-occluded-windows",
-  "--disable-renderer-backgrounding",
-  "--disable-features=TranslateUI",
-  "--disable-ipc-flooding-protection",
-  "--disable-component-extensions-with-background-pages",
   "--disable-default-apps",
   "--disable-sync",
-  "--metrics-recording-only",
   "--no-pings",
   "--disable-domain-reliability",
-  "--disable-features=InterestFeedContentSuggestions",
-  "--disable-features=Translate",
-  "--disable-features=BackForwardCache",
+  // Enable network service
   "--enable-features=NetworkService,NetworkServiceInProcess",
   "--force-color-profile=srgb",
-  "--disable-features=VizDisplayCompositor",
+  // Additional fingerprinting enhancements
+  "--lang=en-US,en",
+  "--accept-lang=en-US,en",
+  // Simulate real browser behavior
+  "--enable-automation=false",
+  "--disable-features=site-per-process",
+  // Spoof timezone
+  "--tz=America/New_York",
 ];
 
 /**
@@ -321,6 +327,73 @@ export class BrowserManager {
   }
 
   /**
+   * Start XVFB on a specific display
+   */
+  private static async startXvfb(displayNumber: number): Promise<void> {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    const displayStr = `:${displayNumber}`;
+    
+    try {
+      // Check if XVFB is already running on this display
+      const { stdout: psOutput } = await execAsync('ps aux | grep Xvfb || true');
+      const isRunning = psOutput.includes(displayStr);
+      
+      if (isRunning) {
+        log(`[BrowserManager] XVFB already running on display ${displayStr}`, "scraper");
+        return;
+      }
+      
+      // Generate realistic screen resolution
+      const screenRes = generateRealisticScreenResolution();
+      
+      // Start XVFB with the random display number and resolution
+      // Try to find Xvfb in common locations
+      const xvfbPaths = [
+        'Xvfb', // System path
+        '/nix/store/*/bin/Xvfb', // Nix store pattern
+        '/usr/bin/Xvfb' // Standard Linux location
+      ];
+      
+      let xvfbPath = 'Xvfb';
+      for (const path of xvfbPaths) {
+        if (path.includes('*')) {
+          // Handle glob pattern for Nix store
+          try {
+            const { stdout } = await execAsync(`ls ${path} 2>/dev/null | head -1`);
+            if (stdout.trim()) {
+              xvfbPath = stdout.trim();
+              break;
+            }
+          } catch {}
+        } else {
+          try {
+            await execAsync(`which ${path}`);
+            xvfbPath = path;
+            break;
+          } catch {}
+        }
+      }
+      
+      const xvfbCommand = `${xvfbPath} ${displayStr} -screen 0 ${screenRes.width}x${screenRes.height}x24 -ac +extension GLX +render -noreset &`;
+      
+      log(`[BrowserManager] Starting XVFB on display ${displayStr} with resolution ${screenRes.width}x${screenRes.height}`, "scraper");
+      
+      await execAsync(xvfbCommand);
+      
+      // Wait for XVFB to initialize
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      log(`[BrowserManager] XVFB started successfully on display ${displayStr}`, "scraper");
+    } catch (error: any) {
+      log(`[BrowserManager] Warning: Could not start XVFB: ${error.message}`, "scraper");
+      // Continue anyway - might be running in a different environment
+    }
+  }
+
+  /**
    * Create a new browser instance with unified configuration
    * Enhanced with retry logic for protocol timeouts
    */
@@ -330,16 +403,32 @@ export class BrowserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Only set virtual display for Azure environments (staging/production)
-        const isAzureEnvironment =
-          process.env.NODE_ENV === "staging" ||
-          process.env.NODE_ENV === "production";
-        if (isAzureEnvironment && !process.env.DISPLAY) {
-          process.env.DISPLAY = ":99";
+        // Dynamic display configuration for Azure environments
+        const isAzure = isAzureEnvironment();
+        let displayNumber = 99; // Default fallback
+        
+        if (isAzure) {
+          // Generate random display number to avoid detection
+          displayNumber = generateRandomDisplayNumber();
+          const displayStr = `:${displayNumber}`;
+          
+          // Start XVFB on the generated display
+          await this.startXvfb(displayNumber);
+          
+          // Set display environment variable
+          process.env.DISPLAY = displayStr;
           log(
-            "[BrowserManager] Setting virtual display for Azure environment",
+            `[BrowserManager] Set DISPLAY=${displayStr} for Azure environment`,
             "scraper",
           );
+        } else {
+          // For non-Azure environments (like Replit), check if DISPLAY is set
+          if (!process.env.DISPLAY) {
+            // Try to start XVFB on default display
+            await this.startXvfb(99);
+            process.env.DISPLAY = ':99';
+            log(`[BrowserManager] Set DISPLAY=:99 for non-Azure environment`, "scraper");
+          }
         }
 
         // Determine Chrome path dynamically at launch time
@@ -350,11 +439,20 @@ export class BrowserManager {
         const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
 
         // Build browser args dynamically based on environment
-        const browserArgs = getBrowserArgs();
-        if (isAzureEnvironment) {
-          browserArgs.push("--display=:99"); // Add virtual display for Azure
+        const browserArgs = [...BROWSER_ARGS];
+        
+        // Generate realistic screen resolution
+        const screenRes = generateRealisticScreenResolution();
+        // Remove default window size and add dynamic one
+        const windowSizeIndex = browserArgs.findIndex(arg => arg.startsWith("--window-size"));
+        if (windowSizeIndex !== -1) {
+          browserArgs[windowSizeIndex] = `--window-size=${screenRes.width},${screenRes.height}`;
+        }
+        
+        if (isAzure) {
+          browserArgs.push(`--display=:${displayNumber}`); // Add randomized virtual display for Azure
           log(
-            "[BrowserManager] Adding virtual display argument for Azure environment",
+            `[BrowserManager] Adding randomized display :${displayNumber} with resolution ${screenRes.width}x${screenRes.height}`,
             "scraper",
           );
         }
@@ -448,7 +546,10 @@ export class BrowserManager {
         page.setDefaultTimeout(60000); // 1 minute default timeout
         page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
 
-        log(`[BrowserManager][createPage] Created new page`, "scraper");
+        // Apply enhanced stealth measures to the page
+        await applyEnhancedStealthMeasures(page);
+
+        log(`[BrowserManager][createPage] Created new page with enhanced stealth measures`, "scraper");
         return page;
       } catch (error: any) {
         lastError = error;

@@ -1,17 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Shield,
-  ListChecks,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
-import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useFetch } from "@/hooks/use-fetch";
@@ -53,7 +46,6 @@ export default function ThreatSources() {
     },
     placeholderData: [],
   });
-
 
   // Phase 4: Toggle source enabled/disabled
   const toggleSource = useMutation({

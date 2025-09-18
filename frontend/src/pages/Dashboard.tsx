@@ -89,13 +89,15 @@ export default function Dashboard() {
     staleTime: 60000, // Keywords don't change often
   });
 
+  // Get active keyword IDs for threat tracker
+  const activeTheatKeywordIds = threatKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
+  const hasActiveTheatKeywords = activeTheatKeywordIds.length > 0;
+
   // Fetch Threat Tracker articles with real-time updates
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
     queryKey: ['threat-tracker-articles-dashboard', threatKeywords],
     queryFn: async () => {
-      // Get active keyword IDs
-      const activeKeywordIds = threatKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
-      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
+      const keywordParams = activeTheatKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
       const url = `/api/threat-tracker/articles?${keywordParams ? keywordParams + '&' : ''}limit=50`;
       
       const response = await fetchWithAuth(url);
@@ -107,21 +109,19 @@ export default function Dashboard() {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!threatKeywords, // Only fetch articles after keywords are loaded
+    enabled: !!threatKeywords && hasActiveTheatKeywords, // Only fetch when keywords are loaded AND active keywords exist
     refetchInterval: 20000, // Refresh every 20 seconds for critical threat data
     staleTime: 10000, // Consider data stale after 10 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to tab
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
+  })
 
   // Fetch Threat Tracker article count
   const { data: threatCount } = useQuery({
     queryKey: ['threat-tracker-count-dashboard', threatKeywords],
     queryFn: async () => {
-      // Get active keyword IDs
-      const activeKeywordIds = threatKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
-      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
+      const keywordParams = activeTheatKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
       const url = `/api/threat-tracker/articles/count${keywordParams ? '?' + keywordParams : ''}`;
       
       const response = await fetchWithAuth(url);
@@ -133,7 +133,7 @@ export default function Dashboard() {
       const data = await response.json();
       return data.count || 0;
     },
-    enabled: !!threatKeywords, // Only fetch count after keywords are loaded
+    enabled: !!threatKeywords && hasActiveTheatKeywords, // Only fetch count when keywords are loaded AND active keywords exist
     refetchInterval: 20000, // Refresh at same rate as articles
     staleTime: 10000,
     refetchOnWindowFocus: true,
@@ -656,7 +656,6 @@ export default function Dashboard() {
                       })}
                     </div>
                   </div>
-
                 </>
               ) : (
                 <div className="bg-black rounded-md p-4 border border-purple-500/30 text-center">

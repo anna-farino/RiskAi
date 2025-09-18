@@ -29,6 +29,54 @@ export interface PuppeteerScrapingOptions extends EnhancedScrapingOptions {
   timeout?: number;
   enhancedFingerprinting?: boolean;
   enhancedHumanActions?: boolean;
+  skipWarmup?: boolean;
+}
+
+/**
+ * Warm up browser session by visiting neutral sites before target
+ * This establishes cookies, cache, and browsing patterns to appear more legitimate
+ */
+async function warmSessionBeforeTarget(page: Page, browserProfile: any): Promise<void> {
+  try {
+    log(`[PuppeteerScraper] Warming session with neutral sites before target...`, "scraper");
+    
+    // List of neutral sites to warm up with
+    const neutralSites = [
+      'https://www.google.com',
+      'https://www.wikipedia.org', 
+      'https://news.ycombinator.com'
+    ];
+    
+    // Visit 1-2 neutral sites randomly
+    const sitesToVisit = neutralSites.sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 2));
+    
+    for (const site of sitesToVisit) {
+      try {
+        log(`[PuppeteerScraper] Visiting neutral site: ${site}`, "scraper");
+        await page.goto(site, { 
+          waitUntil: 'domcontentloaded', 
+          timeout: 10000 
+        }).catch(() => {});
+        
+        // Simulate brief interaction
+        await page.evaluate(() => {
+          window.scrollTo(0, 300);
+        });
+        
+        // Random short delay
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+        
+      } catch (e: any) {
+        log(`[PuppeteerScraper] Failed to warm with ${site}: ${e.message}`, "scraper");
+      }
+    }
+    
+    log(`[PuppeteerScraper] Session warming completed, proceeding to target`, "scraper");
+    
+  } catch (error: any) {
+    log(`[PuppeteerScraper] Session warming error: ${error.message}`, "scraper");
+    // Don't throw - warming is optional enhancement
+  }
 }
 
 /**
@@ -127,6 +175,11 @@ export async function scrapeWithPuppeteer(url: string, options?: PuppeteerScrapi
 
     // Apply behavioral delay before navigation
     await performBehavioralDelay(options);
+
+    // Warm session BEFORE navigating to target (unless we're debugging or have explicit skip)
+    if (!options?.skipWarmup && !url.includes('cdn-cgi') && !url.includes('challenge')) {
+      await warmSessionBeforeTarget(page, browserProfile);
+    }
 
     // Navigate to the page with dynamic fallback mechanism
     let response;

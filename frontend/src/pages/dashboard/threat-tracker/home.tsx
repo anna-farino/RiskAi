@@ -1,8 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useFetch } from "@/hooks/use-fetch";
-import { ArticleCard } from "@/components/ui/article-card";
-import { apiRequest } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import type {
   ThreatArticle,
@@ -10,20 +8,11 @@ import type {
 } from "@shared/db/schema/threat-tracker/index";
 import { queryClient } from "@/lib/query-client";
 import {
-  Loader2,
   Shield,
-  Filter,
   Search,
   ArrowRight,
-  Trash2,
-  AlertTriangle,
   X,
-  Plus,
-  Check,
   FileText,
-  Star,
-  Play,
-  PlayCircle,
   Calendar,
   ChevronDown,
   ChevronUp,
@@ -135,7 +124,7 @@ export default function ThreatHome() {
     return params.toString();
   };
 
-  // Articles query with filtering
+  // Articles query with filtering - only fetch when keywords are selected
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
       "/api/threat-tracker/articles",
@@ -163,6 +152,7 @@ export default function ThreatHome() {
         return [];
       }
     },
+    enabled: selectedKeywordIds.length > 0, // Only fetch when keywords are selected
   });
 
   // Auto-select active keywords when keywords are loaded

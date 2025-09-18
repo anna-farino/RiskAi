@@ -152,7 +152,7 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
   // Only use Puppeteer if both HTTP and web_fetch failed
   log(`[SimpleScraper] Both HTTP and web_fetch insufficient, using Puppeteer fallback`, "scraper");
   
-  // Retry Puppeteer up to 2 times if browser disconnection occurs
+  // Retry Puppeteer only on technical errors, not protection challenges
   let lastError: Error | null = null;
   let lastPuppeteerResult: any = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -172,6 +172,17 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
         return puppeteerResult;
       }
       
+      // Check if this is a protection/challenge page (not worth retrying)
+      const isProtectionChallenge = puppeteerResult.html && (
+        puppeteerResult.html.includes('Just a moment...') ||
+        puppeteerResult.html.includes('Checking your browser') ||
+        puppeteerResult.html.includes('DDoS protection') ||
+        puppeteerResult.html.includes('cdn-cgi/challenge-platform') ||
+        puppeteerResult.html.includes('cf-challenge') ||
+        puppeteerResult.html.includes('cloudflare') ||
+        puppeteerResult.html.includes('_Incapsula_Resource')
+      );
+      
       // If Puppeteer didn't succeed but didn't throw, log the content for debugging
       log(`[SimpleScraper] Puppeteer returned unsuccessful result on attempt ${attempt}`, "scraper");
       log(`[SimpleScraper] Content length: ${puppeteerResult.html?.length || 0} chars`, "scraper");
@@ -186,6 +197,19 @@ export async function getContent(url: string, isArticle: boolean = false): Promi
         // Also count and log links for debugging
         const linkCount = (puppeteerResult.html.match(/<a[^>]*href[^>]*>/gi) || []).length;
         log(`[SimpleScraper] Links found in failed content: ${linkCount}`, "scraper");
+      }
+      
+      // Don't retry if it's a protection challenge - retrying won't help
+      if (isProtectionChallenge) {
+        log(`[SimpleScraper] Protection challenge detected - skipping retry (won't help)`, "scraper");
+        break;
+      }
+      
+      // Only retry if attempt < 2 and it's not a protection issue
+      if (attempt < 2) {
+        log(`[SimpleScraper] Non-protection failure on attempt ${attempt}, will retry`, "scraper");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        continue;
       }
       
       lastError = new Error(`Puppeteer returned unsuccessful result`);

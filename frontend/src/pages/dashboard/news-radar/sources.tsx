@@ -43,7 +43,6 @@ export default function Sources() {
     placeholderData: [],
   });
 
-
   // Phase 4: Toggle source enabled/disabled
   const toggleSource = useMutation({
     mutationFn: async ({ sourceId, isEnabled }: { sourceId: string; isEnabled: boolean }) => {
@@ -132,7 +131,6 @@ export default function Sources() {
           "flex flex-col",
         )}
       >
-        
         <div className="p-4 border-b border-slate-700/50">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">

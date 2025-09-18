@@ -4,7 +4,7 @@ import type {
   InsertThreatSource,
   ThreatKeyword,
   InsertThreatKeyword,
-  ThreatArticle,  
+  ThreatArticle,
   InsertThreatArticle,
   ThreatSetting,
 } from "@shared/db/schema/threat-tracker/index";
@@ -14,14 +14,29 @@ import {
   threatArticles,
   threatSettings,
 } from "@shared/db/schema/threat-tracker/index";
-import { 
-  globalArticles, 
-  globalSources, 
-  userSourcePreferences 
+import {
+  globalArticles,
+  globalSources,
+  userSourcePreferences,
 } from "@shared/db/schema/global-tables";
 import { db, pool } from "backend/db/db";
-import { eq, and, isNull, sql, SQL, desc, inArray, gte, lte, or, ilike } from "drizzle-orm";
-import { envelopeDecryptAndRotate, envelopeEncrypt } from "backend/utils/encryption-new";
+import {
+  eq,
+  and,
+  isNull,
+  sql,
+  SQL,
+  desc,
+  inArray,
+  gte,
+  lte,
+  or,
+  ilike,
+} from "drizzle-orm";
+import {
+  envelopeDecryptAndRotate,
+  envelopeEncrypt,
+} from "backend/utils/encryption-new";
 
 // Helper function to execute SQL with parameters
 async function executeRawSql<T>(
@@ -39,7 +54,10 @@ async function executeRawSql<T>(
 }
 
 // Helper function to get user's enabled sources from user_source_preferences
-async function getUserEnabledSources(userId: string, appContext: 'news_radar' | 'threat_tracker'): Promise<string[]> {
+async function getUserEnabledSources(
+  userId: string,
+  appContext: "news_radar" | "threat_tracker",
+): Promise<string[]> {
   try {
     const enabledSources = await db
       .select({ sourceId: userSourcePreferences.sourceId })
@@ -48,11 +66,11 @@ async function getUserEnabledSources(userId: string, appContext: 'news_radar' | 
         and(
           eq(userSourcePreferences.userId, userId),
           eq(userSourcePreferences.appContext, appContext),
-          eq(userSourcePreferences.isEnabled, true)
-        )
+          eq(userSourcePreferences.isEnabled, true),
+        ),
       );
-    
-    return enabledSources.map(s => s.sourceId);
+
+    return enabledSources.map((s) => s.sourceId);
   } catch (error) {
     console.error("Error getting user enabled sources:", error);
     return [];
@@ -79,7 +97,10 @@ export interface IStorage {
     category: string,
     userId?: string,
   ): Promise<ThreatKeyword[]>;
-  createKeyword(keyword: InsertThreatKeyword, userId?: string): Promise<ThreatKeyword>;
+  createKeyword(
+    keyword: InsertThreatKeyword,
+    userId?: string,
+  ): Promise<ThreatKeyword>;
   updateKeyword(
     id: string,
     keyword: Partial<ThreatKeyword>,
@@ -89,7 +110,10 @@ export interface IStorage {
 
   // Articles
   getArticle(id: string, userId?: string): Promise<ThreatArticle | undefined>;
-  getArticleByUrl(url: string, userId: string): Promise<ThreatArticle | undefined>;
+  getArticleByUrl(
+    url: string,
+    userId: string,
+  ): Promise<ThreatArticle | undefined>;
   getArticles(options?: {
     search?: string;
     keywordIds?: string[];
@@ -108,7 +132,7 @@ export interface IStorage {
   deleteAllArticles(userId?: string): Promise<boolean>;
   toggleArticleForCapsule(id: string, marked: boolean): Promise<boolean>;
   getArticlesMarkedForCapsule(userId?: string): Promise<ThreatArticle[]>;
-  getSourceArticleCount(id: string): Promise<number>
+  getSourceArticleCount(id: string): Promise<number>;
 
   // Settings
   getSetting(key: string, userId?: string): Promise<ThreatSetting | undefined>;
@@ -258,16 +282,13 @@ export const storage: IStorage = {
     lastScraped?: Date;
     userId?: string;
     isDefault?: boolean;
-}) => {
+  }) => {
     try {
       if (!source.name || !source.url) {
         throw new Error("Source must have a name and URL");
       }
 
-      const results = await db
-        .insert(threatSources)
-        .values(source)
-        .returning();
+      const results = await db.insert(threatSources).values(source).returning();
       return results[0];
     } catch (error) {
       console.error("Error creating threat source:", error);
@@ -364,27 +385,32 @@ export const storage: IStorage = {
           eq(threatKeywords.userId, userId),
           eq(threatKeywords.isDefault, false),
         ];
-        if (category) userConditions.push(eq(threatKeywords.category, category));
+        if (category)
+          userConditions.push(eq(threatKeywords.category, category));
 
-        userKeywords = await withUserContext(
-          userId,
-          async (db) => db
+        userKeywords = await withUserContext(userId, async (db) =>
+          db
             .select()
             .from(threatKeywords)
-            .where(and(...userConditions))
+            .where(and(...userConditions)),
         );
       }
 
-      const decryptedDefaultKeywords = defaultKeywords.map(keyword => ({
+      const decryptedDefaultKeywords = defaultKeywords.map((keyword) => ({
         ...keyword,
-        term: keyword.term
+        term: keyword.term,
       }));
 
       const decryptedUserKeywords = await Promise.all(
         userKeywords.map(async (keyword) => ({
           ...keyword,
-          term: await envelopeDecryptAndRotate(threatKeywords, keyword.id, 'term', userId!)
-        }))
+          term: await envelopeDecryptAndRotate(
+            threatKeywords,
+            keyword.id,
+            "term",
+            userId!,
+          ),
+        })),
       );
 
       // Combine default and user keywords
@@ -400,21 +426,25 @@ export const storage: IStorage = {
       if (!userId) {
         throw new Error("User ID is required for getKeyword");
       }
-      
-      const results = await withUserContext(
-        userId,
-        async (db) => db
+
+      const results = await withUserContext(userId, async (db) =>
+        db
           .select()
           .from(threatKeywords)
           .where(eq(threatKeywords.id, id))
-          .limit(1)
+          .limit(1),
       );
-      
+
       if (results.length > 0) {
         const keyword = results[0];
         return {
           ...keyword,
-          term: await envelopeDecryptAndRotate(threatKeywords, keyword.id, 'term', userId)
+          term: await envelopeDecryptAndRotate(
+            threatKeywords,
+            keyword.id,
+            "term",
+            userId,
+          ),
         };
       }
       return undefined;
@@ -442,9 +472,8 @@ export const storage: IStorage = {
       // Get user-specific keywords if userId is provided
       let userKeywords: ThreatKeyword[] = [];
       if (userId) {
-        userKeywords = await withUserContext(
-          userId,
-          async (db) => db
+        userKeywords = await withUserContext(userId, async (db) =>
+          db
             .select()
             .from(threatKeywords)
             .where(
@@ -453,22 +482,29 @@ export const storage: IStorage = {
                 eq(threatKeywords.userId, userId),
                 eq(threatKeywords.isDefault, false),
               ),
-            )
+            ),
         );
       }
 
       // Decrypt terms for both default and user keywords
-      const decryptedDefaultKeywords = defaultKeywords.map(keyword => ({
+      const decryptedDefaultKeywords = defaultKeywords.map((keyword) => ({
         ...keyword,
-        term: keyword.term // Default keywords are not encrypted
+        term: keyword.term, // Default keywords are not encrypted
       }));
 
-      const decryptedUserKeywords = userId ? await Promise.all(
-        userKeywords.map(async (keyword) => ({
-          ...keyword,
-          term: await envelopeDecryptAndRotate(threatKeywords, keyword.id, 'term', userId)
-        }))
-      ) : [];
+      const decryptedUserKeywords = userId
+        ? await Promise.all(
+            userKeywords.map(async (keyword) => ({
+              ...keyword,
+              term: await envelopeDecryptAndRotate(
+                threatKeywords,
+                keyword.id,
+                "term",
+                userId,
+              ),
+            })),
+          )
+        : [];
 
       // Combine default and user keywords
       return [...decryptedDefaultKeywords, ...decryptedUserKeywords];
@@ -483,7 +519,7 @@ export const storage: IStorage = {
       if (!userId && !keyword.userId) {
         throw new Error("User ID is required for createKeyword");
       }
-      
+
       if (!keyword.term || !keyword.category) {
         throw new Error("Keyword must have a term and category");
       }
@@ -495,42 +531,45 @@ export const storage: IStorage = {
 
       // Encrypt the term before saving
       const encryptedTerm = await envelopeEncrypt(keyword.term!);
-      const termValue = typeof encryptedTerm === 'string' ? encryptedTerm : Buffer.from(encryptedTerm.blob).toString('base64');
-      
+      const termValue =
+        typeof encryptedTerm === "string"
+          ? encryptedTerm
+          : Buffer.from(encryptedTerm.blob).toString("base64");
+
       // Ensure isDefault is set to false for user keywords
       const keywordToCreate: {
-          active?: boolean;
-          userId?: string;
-          isDefault?: boolean;
-          term: string;
-          category: "threat" | "vendor" | "client" | "hardware";
-          wrappedDekTerm?: string;
-          keyIdTerm?: string;
+        active?: boolean;
+        userId?: string;
+        isDefault?: boolean;
+        term: string;
+        category: "threat" | "vendor" | "client" | "hardware";
+        wrappedDekTerm?: string;
+        keyIdTerm?: string;
       } = {
         ...keyword,
         term: termValue,
         category: keyword.category!,
         isDefault: keyword.isDefault || false,
       };
-      
+
       // Add encryption metadata if envelope encryption was used
-      if (typeof encryptedTerm !== 'string') {
-        keywordToCreate.wrappedDekTerm = Buffer.from(encryptedTerm.wrapped_dek).toString('base64');
+      if (typeof encryptedTerm !== "string") {
+        keywordToCreate.wrappedDekTerm = Buffer.from(
+          encryptedTerm.wrapped_dek,
+        ).toString("base64");
         keywordToCreate.keyIdTerm = encryptedTerm.key_id;
       }
 
       const [result] = await withUserContext(
         userId || keyword.userId,
-        async (db) => db
-          .insert(threatKeywords)
-          .values(keywordToCreate)
-          .returning()
+        async (db) =>
+          db.insert(threatKeywords).values(keywordToCreate).returning(),
       );
-      
+
       // Return with original plaintext term for API consistency
       return {
         ...result,
-        term: keyword.term! // Return the original plaintext term since we know it
+        term: keyword.term!, // Return the original plaintext term since we know it
       };
     } catch (error) {
       console.error("Error creating threat keyword:", error);
@@ -538,20 +577,23 @@ export const storage: IStorage = {
     }
   },
 
-  updateKeyword: async (id: string, keyword: Partial<ThreatKeyword>, userId?: string) => {
+  updateKeyword: async (
+    id: string,
+    keyword: Partial<ThreatKeyword>,
+    userId?: string,
+  ) => {
     try {
       if (!userId) {
         throw new Error("User ID is required for updateKeyword");
       }
 
       // First check if this is a default keyword using withUserContext
-      const existingKeyword = await withUserContext(
-        userId,
-        async (db) => db
+      const existingKeyword = await withUserContext(userId, async (db) =>
+        db
           .select()
           .from(threatKeywords)
           .where(eq(threatKeywords.id, id))
-          .limit(1)
+          .limit(1),
       );
 
       if (existingKeyword.length === 0) {
@@ -565,32 +607,40 @@ export const storage: IStorage = {
       // Prevent changing isDefault flag through this endpoint
       const updateData = { ...keyword };
       delete (updateData as any).isDefault;
-      
+
       // Encrypt the term if it's being updated
       if (updateData.term) {
         const encryptedTerm = await envelopeEncrypt(updateData.term);
-        if (typeof encryptedTerm === 'string') {
+        if (typeof encryptedTerm === "string") {
           updateData.term = encryptedTerm;
         } else {
-          updateData.term = Buffer.from(encryptedTerm.blob).toString('base64');
-          (updateData as any).wrappedDekTerm = Buffer.from(encryptedTerm.wrapped_dek).toString('base64');
+          updateData.term = Buffer.from(encryptedTerm.blob).toString("base64");
+          (updateData as any).wrappedDekTerm = Buffer.from(
+            encryptedTerm.wrapped_dek,
+          ).toString("base64");
           (updateData as any).keyIdTerm = encryptedTerm.key_id;
         }
       }
 
-      const [result] = await withUserContext(
-        userId,
-        async (db) => db
+      const [result] = await withUserContext(userId, async (db) =>
+        db
           .update(threatKeywords)
           .set(updateData)
           .where(eq(threatKeywords.id, id))
-          .returning()
+          .returning(),
       );
-      
+
       // Return with decrypted term for API consistency
       return {
         ...result,
-        term: keyword.term || await envelopeDecryptAndRotate(threatKeywords, result.id, 'term', userId)
+        term:
+          keyword.term ||
+          (await envelopeDecryptAndRotate(
+            threatKeywords,
+            result.id,
+            "term",
+            userId,
+          )),
       };
     } catch (error) {
       console.error("Error updating threat keyword:", error);
@@ -605,13 +655,12 @@ export const storage: IStorage = {
       }
 
       // First check if this is a default keyword using withUserContext
-      const existingKeyword = await withUserContext(
-        userId,
-        async (db) => db
+      const existingKeyword = await withUserContext(userId, async (db) =>
+        db
           .select()
           .from(threatKeywords)
           .where(eq(threatKeywords.id, id))
-          .limit(1)
+          .limit(1),
       );
 
       if (existingKeyword.length === 0) {
@@ -622,9 +671,8 @@ export const storage: IStorage = {
         throw new Error("Cannot delete default keywords");
       }
 
-      await withUserContext(
-        userId,
-        async (db) => db.delete(threatKeywords).where(eq(threatKeywords.id, id))
+      await withUserContext(userId, async (db) =>
+        db.delete(threatKeywords).where(eq(threatKeywords.id, id)),
       );
     } catch (error) {
       console.error("Error deleting threat keyword:", error);
@@ -635,19 +683,29 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId, limit, page } = options;
+      const { search, keywordIds, startDate, endDate, userId, limit, page } =
+        options;
       const pageNum = page || 1;
       const pageSize = limit || 50;
 
       // Phase 3: Query-time filtering from global article pool
       // Step 1: Get user's enabled sources from user_source_preferences table
-      const sourceIds = await getUserEnabledSources(userId, 'threat_tracker');
+      const sourceIds = await getUserEnabledSources(userId, "threat_tracker");
 
-      // Step 2: Get user's active keywords for filtering
+      // Step 2: Get user's active keywords for filtering with categories
       const userKeywords = await storage.getKeywords(undefined, userId);
-      const activeKeywords = userKeywords
-        .filter(k => k.active !== false)
-        .map(k => k.term.toLowerCase());
+      const activeKeywordsWithCategories = userKeywords
+        .filter((k) => k.active !== false);
+      
+      // Separate keywords by category for proper filtering logic
+      // Use different variable names to avoid shadowing the imported threatKeywords table
+      const threatTerms = activeKeywordsWithCategories
+        .filter((k) => k.category === 'threat')
+        .map((k) => k.term.toLowerCase());
+      
+      const entityTerms = activeKeywordsWithCategories
+        .filter((k) => k.category === 'vendor' || k.category === 'client' || k.category === 'hardware')
+        .map((k) => k.term.toLowerCase());
 
       // Build WHERE clause based on search parameters
       const conditions = [];
@@ -697,28 +755,54 @@ export const storage: IStorage = {
 
       // Add keyword filter using detected keywords JSON
       if (keywordIds && keywordIds.length > 0) {
-        // Get the keywords terms for these IDs
+        // Get the keywords terms for these IDs - handle both default and user keywords
+        // Default keywords don't need decryption, user keywords do
         const keywordResults = await db
           .select()
           .from(threatKeywords)
           .where(inArray(threatKeywords.id, keywordIds));
 
         if (keywordResults.length) {
-          const keywordTerms = keywordResults.map((k) => k.term.toLowerCase());
-
-          // Search within the detectedKeywords JSON structure
-          const keywordConditions = keywordTerms.map((term) => {
-            return sql`(
-              ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
-              ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
-              ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
-              ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
-            )`;
+          // Process keywords - decrypt user keywords if needed
+          const keywordTermsPromises = keywordResults.map(async (k) => {
+            if (k.isDefault) {
+              return k.term.toLowerCase();
+            } else if (userId) {
+              // User keyword - needs decryption
+              try {
+                const decryptedTerm = await envelopeDecryptAndRotate(
+                  threatKeywords,
+                  k.id,
+                  "term",
+                  userId
+                );
+                return decryptedTerm.toLowerCase();
+              } catch (error) {
+                console.error(`Failed to decrypt keyword ${k.id}:`, error);
+                return null;
+              }
+            }
+            return null;
           });
+          
+          const keywordTerms = (await Promise.all(keywordTermsPromises))
+            .filter(term => term !== null) as string[];
 
-          // Combine all keyword conditions with OR (matches any selected keyword)
-          const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
-          conditions.push(combinedKeywordCondition);
+          if (keywordTerms.length > 0) {
+            // Search within the detectedKeywords JSON structure
+            const keywordConditions = keywordTerms.map((term) => {
+              return sql`(
+                ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
+                ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
+                ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
+                ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
+              )`;
+            });
+
+            // Combine all keyword conditions with OR (matches any selected keyword)
+            const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
+            conditions.push(combinedKeywordCondition);
+          }
         }
       }
 
@@ -729,43 +813,104 @@ export const storage: IStorage = {
       if (endDate) {
         conditions.push(lte(globalArticles.publishDate, endDate));
       }
+      
+      // Step 3: Apply keyword AND filtering in SQL (before pagination)
+      // This ensures we get correct results even with pagination
+      if (threatTerms.length > 0 && entityTerms.length > 0) {
+        // Build conditions for threat keywords
+        const threatConditions = threatTerms.map((term) => {
+          return sql`(
+            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
+            ${globalArticles.content} ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"}
+          )`;
+        });
+        
+        // Build conditions for entity keywords (vendor/client/hardware)
+        const entityConditions = entityTerms.map((term) => {
+          return sql`(
+            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
+            ${globalArticles.content} ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
+          )`;
+        });
+        
+        // Combine with AND: must match at least one threat AND at least one entity
+        const threatOrCondition = sql`(${sql.join(threatConditions, sql` OR `)})`;
+        const entityOrCondition = sql`(${sql.join(entityConditions, sql` OR `)})`;
+        conditions.push(sql`(${threatOrCondition} AND ${entityOrCondition})`);
+      } else if (threatTerms.length > 0 || entityTerms.length > 0) {
+        // If user only has keywords in one category, filter by those
+        // Note: This is a fallback behavior - strict requirement would return empty
+        const allTerms = [...threatTerms, ...entityTerms];
+        const keywordConditions = allTerms.map((term) => {
+          return sql`(
+            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
+            ${globalArticles.content} ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
+            ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
+          )`;
+        });
+        
+        if (keywordConditions.length > 0) {
+          const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
+          conditions.push(combinedKeywordCondition);
+        }
+      }
 
       // Build the query for global articles with proper chaining
       const baseQuery = db.select().from(globalArticles);
-      
+
       // Apply conditions and build complete query
-      const finalQuery = conditions.length > 0 
-        ? baseQuery
-            .where(and(...conditions))
-            .orderBy(
-              desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`),
-              desc(globalArticles.scrapedAt)
-            )
-            .limit(pageSize)
-            .offset((pageNum - 1) * pageSize)
-        : baseQuery
-            .orderBy(
-              desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`),
-              desc(globalArticles.scrapedAt)
-            )
-            .limit(pageSize)
-            .offset((pageNum - 1) * pageSize);
+      const finalQuery =
+        conditions.length > 0
+          ? baseQuery
+              .where(and(...conditions))
+              .orderBy(
+                desc(
+                  sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`,
+                ),
+                desc(globalArticles.scrapedAt),
+              )
+              .limit(pageSize)
+              .offset((pageNum - 1) * pageSize)
+          : baseQuery
+              .orderBy(
+                desc(
+                  sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`,
+                ),
+                desc(globalArticles.scrapedAt),
+              )
+              .limit(pageSize)
+              .offset((pageNum - 1) * pageSize);
 
       // Execute the query
       const result = await finalQuery.execute();
 
-      // Step 3: Apply keyword filtering (in memory for now)
-      if (activeKeywords.length > 0) {
-        return result.filter(article => {
-          const searchText = `${article.title} ${article.content}`.toLowerCase();
-          const detectedKeywordsText = JSON.stringify(article.detectedKeywords || {}).toLowerCase();
-          return activeKeywords.some(keyword => 
-            searchText.includes(keyword) || detectedKeywordsText.includes(keyword)
-          );
-        });
-      }
+      // Map global articles to ThreatArticle format for compatibility
+      // Note: Filtering is already done in SQL, no need for additional in-memory filtering
+      const mappedArticles = result.map((article) => ({
+        id: article.id,
+        sourceId: article.sourceId,
+        title: article.title,
+        content: article.content,
+        url: article.url,
+        author: article.author || null,
+        publishDate: article.publishDate,
+        summary: article.summary || null,
+        relevanceScore: null, // Global articles don't have relevance score
+        securityScore: article.securityScore ? String(article.securityScore) : null,
+        detectedKeywords: article.detectedKeywords || {},
+        scrapeDate: article.scrapedAt || new Date(),
+        userId: userId || null, // Add the user context
+        markedForCapsule: false, // Global articles aren't marked for capsule
+      }));
 
-      return result;
+      return mappedArticles as ThreatArticle[];
     } catch (error) {
       console.error("Error fetching threat articles:", error);
       return [];
@@ -797,10 +942,9 @@ export const storage: IStorage = {
       const results = await db
         .select()
         .from(threatArticles)
-        .where(and(
-          eq(threatArticles.url, url),
-          eq(threatArticles.userId, userId)
-        ))
+        .where(
+          and(eq(threatArticles.url, url), eq(threatArticles.userId, userId)),
+        )
         .limit(1)
         .execute();
       return results[0];
@@ -811,25 +955,27 @@ export const storage: IStorage = {
   },
 
   createArticle: async (article: {
-      url: string;
-      userId?: string;
-      sourceId?: string;
-      title: string;
-      content: string;
-      author?: string;
-      publishDate?: Date;
-      summary?: string;
-      relevanceScore?: string;
-      securityScore?: string;
-      detectedKeywords?: any;
-      markedForCapsule?: boolean;
+    url: string;
+    userId?: string;
+    sourceId?: string;
+    title: string;
+    content: string;
+    author?: string;
+    publishDate?: Date;
+    summary?: string;
+    relevanceScore?: string;
+    securityScore?: string;
+    detectedKeywords?: any;
+    markedForCapsule?: boolean;
   }) => {
     try {
       // For global scraping (no userId), insert into global_articles table
       if (!article.userId) {
-        // Import global_articles table  
-        const { globalArticles } = await import('@shared/db/schema/global-tables');
-        
+        // Import global_articles table
+        const { globalArticles } = await import(
+          "@shared/db/schema/global-tables"
+        );
+
         const [created] = await db
           .insert(globalArticles)
           .values({
@@ -841,12 +987,14 @@ export const storage: IStorage = {
             publishDate: article.publishDate,
             summary: article.summary,
             detectedKeywords: article.detectedKeywords,
-            securityScore: article.securityScore ? parseInt(article.securityScore) : null,
+            securityScore: article.securityScore
+              ? parseInt(article.securityScore)
+              : null,
             isCybersecurity: true, // Threat tracker articles are always cybersecurity
             scrapedAt: new Date(),
           })
           .returning();
-        
+
         // Map back to ThreatArticle type for compatibility
         return {
           ...created,
@@ -854,7 +1002,9 @@ export const storage: IStorage = {
           relevanceScore: article.relevanceScore,
           markedForCapsule: article.markedForCapsule || false,
           scrapeDate: created.scrapedAt,
-          securityScore: created.securityScore ? created.securityScore.toString() : null,
+          securityScore: created.securityScore
+            ? created.securityScore.toString()
+            : null,
         } as ThreatArticle;
       }
 
@@ -913,9 +1063,7 @@ export const storage: IStorage = {
       }
 
       // Only delete articles for this specific user
-      await db
-        .delete(threatArticles)
-        .where(eq(threatArticles.userId, userId));
+      await db.delete(threatArticles).where(eq(threatArticles.userId, userId));
       return true;
     } catch (error) {
       console.error("Error deleting all threat articles:", error);

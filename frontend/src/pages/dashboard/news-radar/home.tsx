@@ -311,6 +311,21 @@ export default function NewsHome() {
     }
   }, [keywords.data]); // Only depend on keywords.data
 
+  // Auto-select active keywords when keywords are loaded
+  useEffect(() => {
+    if (keywords.data && keywords.data.length > 0) {
+      const activeKeywordIds = keywords.data
+        .filter(keyword => keyword.active !== false) // Include keywords that are active (true or undefined)
+        .map(keyword => keyword.id);
+      
+      // Only update if the active keywords have changed
+      if (JSON.stringify(activeKeywordIds.sort()) !== JSON.stringify(selectedKeywordIds.sort())) {
+        console.log("Auto-selecting active keywords:", activeKeywordIds);
+        setSelectedKeywordIds(activeKeywordIds);
+      }
+    }
+  }, [keywords.data]); // Only depend on keywords.data
+
   // Reset pagination when filters change or when an article is highlighted
   useEffect(() => {
     setCurrentPage(1);
