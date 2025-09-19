@@ -547,15 +547,24 @@ export class BrowserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        log(`[BrowserManager][createPage] Attempt ${attempt} - Getting browser instance`, "scraper");
+        log(
+          `[BrowserManager][createPage] Attempt ${attempt} - Getting browser instance`,
+          "scraper",
+        );
         const browser = await this.getBrowser();
-        log(`[BrowserManager][createPage] Browser instance retrieved`, "scraper");
+        log(
+          `[BrowserManager][createPage] Browser instance retrieved`,
+          "scraper",
+        );
 
         // Check if we have too many pages open
         log(`[BrowserManager][createPage] Checking existing pages`, "scraper");
         const pages = await browser.pages();
-        log(`[BrowserManager][createPage] Found ${pages.length} existing pages`, "scraper");
-        
+        log(
+          `[BrowserManager][createPage] Found ${pages.length} existing pages`,
+          "scraper",
+        );
+
         if (pages.length > 5) {
           // Closing extra pages
           // Close all but the first page (usually blank)
@@ -570,20 +579,35 @@ export class BrowserManager {
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
         }
 
-        log(`[BrowserManager][createPage] About to call browser.newPage() at ${new Date().toISOString()}`, "scraper");
+        log(
+          `[BrowserManager][createPage] About to call browser.newPage() at ${new Date().toISOString()}`,
+          "scraper",
+        );
         const page = await browser.newPage();
-        log(`[BrowserManager][createPage] browser.newPage() completed at ${new Date().toISOString()}`, "scraper");
+        log(
+          `[BrowserManager][createPage] browser.newPage() completed at ${new Date().toISOString()}`,
+          "scraper",
+        );
 
         // Set default timeout for the page
         log(`[BrowserManager][createPage] Setting page timeouts`, "scraper");
         page.setDefaultTimeout(60000); // 1 minute default timeout
         page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
-        log(`[BrowserManager][createPage] Page timeouts set successfully`, "scraper");
+        log(
+          `[BrowserManager][createPage] Page timeouts set successfully`,
+          "scraper",
+        );
 
         // Apply enhanced stealth measures to the page
-        log(`[BrowserManager][createPage] Starting applyEnhancedStealthMeasures at ${new Date().toISOString()}`, "scraper");
+        log(
+          `[BrowserManager][createPage] Starting applyEnhancedStealthMeasures at ${new Date().toISOString()}`,
+          "scraper",
+        );
         await applyEnhancedStealthMeasures(page);
-        log(`[BrowserManager][createPage] applyEnhancedStealthMeasures completed at ${new Date().toISOString()}`, "scraper");
+        log(
+          `[BrowserManager][createPage] applyEnhancedStealthMeasures completed at ${new Date().toISOString()}`,
+          "scraper",
+        );
 
         log(
           `[BrowserManager][createPage] Created new page with enhanced stealth measures - SUCCESS`,
