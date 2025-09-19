@@ -439,7 +439,7 @@ export class BrowserManager {
         const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
 
         // Build browser args dynamically based on environment
-        const browserArgs = [...BROWSER_ARGS];
+        const browserArgs = getBrowserArgs();
         
         // Generate realistic screen resolution
         const screenRes = generateRealisticScreenResolution();
