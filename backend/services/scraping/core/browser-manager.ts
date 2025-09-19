@@ -423,7 +423,6 @@ export class BrowserManager {
         // Dynamic display configuration for Azure environments
         const isAzure = isAzureEnvironment();
         let displayNumber = 99; // Default fallback
-
         if (isAzure) {
           // Generate random display number to avoid detection
           displayNumber = generateRandomDisplayNumber();
@@ -443,6 +442,7 @@ export class BrowserManager {
           if (!process.env.DISPLAY) {
             // Try to start XVFB on default display
             await this.startXvfb(99);
+
             process.env.DISPLAY = ":99";
             log(
               `[BrowserManager] Set DISPLAY=:99 for non-Azure environment`,
