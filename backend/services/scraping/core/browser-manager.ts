@@ -423,6 +423,7 @@ export class BrowserManager {
         // Dynamic display configuration for Azure environments
         const isAzure = isAzureEnvironment();
         let displayNumber = 99; // Default fallback
+
         if (isAzure) {
           // Generate random display number to avoid detection
           displayNumber = generateRandomDisplayNumber();
@@ -442,7 +443,6 @@ export class BrowserManager {
           if (!process.env.DISPLAY) {
             // Try to start XVFB on default display
             await this.startXvfb(99);
-
             process.env.DISPLAY = ":99";
             log(
               `[BrowserManager] Set DISPLAY=:99 for non-Azure environment`,
@@ -547,16 +547,31 @@ export class BrowserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        log(
+          `[BrowserManager][createPage] Attempt ${attempt} - Getting browser instance`,
+          "scraper",
+        );
         const browser = await this.getBrowser();
+        log(
+          `[BrowserManager][createPage] Browser instance retrieved`,
+          "scraper",
+        );
 
         // Check if we have too many pages open
+        log(`[BrowserManager][createPage] Checking existing pages`, "scraper");
         const pages = await browser.pages();
+        log(
+          `[BrowserManager][createPage] Found ${pages.length} existing pages`,
+          "scraper",
+        );
+
         if (pages.length > 5) {
           // Closing extra pages
           // Close all but the first page (usually blank)
           for (let i = 1; i < pages.length - 2; i++) {
             await pages[i].close().catch(() => {});
           }
+          log(`[BrowserManager][createPage] Closed extra pages`, "scraper");
         }
 
         // Add a small delay to prevent rapid page creation
@@ -564,17 +579,38 @@ export class BrowserManager {
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
         }
 
+        log(
+          `[BrowserManager][createPage] About to call browser.newPage() at ${new Date().toISOString()}`,
+          "scraper",
+        );
         const page = await browser.newPage();
+        log(
+          `[BrowserManager][createPage] browser.newPage() completed at ${new Date().toISOString()}`,
+          "scraper",
+        );
 
         // Set default timeout for the page
+        log(`[BrowserManager][createPage] Setting page timeouts`, "scraper");
         page.setDefaultTimeout(60000); // 1 minute default timeout
         page.setDefaultNavigationTimeout(60000); // 1 minute navigation timeout
+        log(
+          `[BrowserManager][createPage] Page timeouts set successfully`,
+          "scraper",
+        );
 
         // Apply enhanced stealth measures to the page
+        log(
+          `[BrowserManager][createPage] Starting applyEnhancedStealthMeasures at ${new Date().toISOString()}`,
+          "scraper",
+        );
         await applyEnhancedStealthMeasures(page);
+        log(
+          `[BrowserManager][createPage] applyEnhancedStealthMeasures completed at ${new Date().toISOString()}`,
+          "scraper",
+        );
 
         log(
-          `[BrowserManager][createPage] Created new page with enhanced stealth measures`,
+          `[BrowserManager][createPage] Created new page with enhanced stealth measures - SUCCESS`,
           "scraper",
         );
         return page;
