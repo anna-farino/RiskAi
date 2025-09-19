@@ -15,12 +15,21 @@ RUN apt-get update && apt-get install -y \
   libgdk-pixbuf2.0-0 \
   libnspr4 \
   libnss3 \
+  libnss3-dev \
   libx11-xcb1 \
   libxcomposite1 \
+  libxcursor1 \
   libxdamage1 \
+  libxi6 \
+  libxtst6 \
   libxrandr2 \
+  libxtst6 \
   xdg-utils \
   libgbm1 \
+  libxcb-dri3-0 \
+  libdrm2 \
+  libxkbcommon0 \
+  libatspi2.0-0 \
   libxss1 \
   fonts-ipafont-gothic \
   fonts-wqy-zenhei \
