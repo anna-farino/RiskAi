@@ -2,12 +2,12 @@ import puppeteer, { type Browser, type Page } from "rebrowser-puppeteer";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import { log } from "backend/utils/log";
-import { 
-  generateRandomDisplayNumber, 
+import {
+  generateRandomDisplayNumber,
   generateRealisticScreenResolution,
   applyEnhancedStealthMeasures,
   isAzureEnvironment,
-  getXvfbDisplayConfig
+  getXvfbDisplayConfig,
 } from "./stealth-enhancements";
 
 /**
@@ -50,14 +50,15 @@ function findChromePath(): string {
 
   // Check for local Puppeteer cache paths (Mac ARM64)
   try {
-    const projectRoot = process.cwd().includes('/backend')
-      ? process.cwd().replace('/backend', '')
+    const projectRoot = process.cwd().includes("/backend")
+      ? process.cwd().replace("/backend", "")
       : process.cwd();
     const localPuppeteerCache = `${projectRoot}/.cache/puppeteer/chrome`;
 
     if (fs.existsSync(localPuppeteerCache)) {
       const chromeVersions = fs.readdirSync(localPuppeteerCache);
-      for (const version of chromeVersions.sort().reverse()) { // Try newest versions first
+      for (const version of chromeVersions.sort().reverse()) {
+        // Try newest versions first
         const chromePath = `${localPuppeteerCache}/${version}/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
         if (fs.existsSync(chromePath)) {
           log(
@@ -264,11 +265,11 @@ function getBrowserArgs(): string[] {
   const args = [...BASE_BROWSER_ARGS];
 
   // Add enhanced audio suppression for laptop development
-  if (process.env.DEV_ENV_LAPTOP === 'true') {
+  if (process.env.DEV_ENV_LAPTOP === "true") {
     args.push(...LAPTOP_DEV_AUDIO_ARGS);
     log(
       "[BrowserManager] Using enhanced audio suppression for laptop development",
-      "scraper"
+      "scraper",
     );
   }
 
@@ -330,39 +331,46 @@ export class BrowserManager {
    * Start XVFB on a specific display
    */
   private static async startXvfb(displayNumber: number): Promise<void> {
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
+    const { exec } = require("child_process");
+    const { promisify } = require("util");
     const execAsync = promisify(exec);
-    
+
     const displayStr = `:${displayNumber}`;
-    
+
     try {
       // Check if XVFB is already running on this display
-      const { stdout: psOutput } = await execAsync('ps aux | grep Xvfb || true');
+      const { stdout: psOutput } = await execAsync(
+        "ps aux | grep Xvfb || true",
+      );
       const isRunning = psOutput.includes(displayStr);
-      
+
       if (isRunning) {
-        log(`[BrowserManager] XVFB already running on display ${displayStr}`, "scraper");
+        log(
+          `[BrowserManager] XVFB already running on display ${displayStr}`,
+          "scraper",
+        );
         return;
       }
-      
+
       // Generate realistic screen resolution
       const screenRes = generateRealisticScreenResolution();
-      
+
       // Start XVFB with the random display number and resolution
       // Try to find Xvfb in common locations
       const xvfbPaths = [
-        'Xvfb', // System path
-        '/nix/store/*/bin/Xvfb', // Nix store pattern
-        '/usr/bin/Xvfb' // Standard Linux location
+        "Xvfb", // System path
+        "/nix/store/*/bin/Xvfb", // Nix store pattern
+        "/usr/bin/Xvfb", // Standard Linux location
       ];
-      
-      let xvfbPath = 'Xvfb';
+
+      let xvfbPath = "Xvfb";
       for (const path of xvfbPaths) {
-        if (path.includes('*')) {
+        if (path.includes("*")) {
           // Handle glob pattern for Nix store
           try {
-            const { stdout } = await execAsync(`ls ${path} 2>/dev/null | head -1`);
+            const { stdout } = await execAsync(
+              `ls ${path} 2>/dev/null | head -1`,
+            );
             if (stdout.trim()) {
               xvfbPath = stdout.trim();
               break;
@@ -376,19 +384,28 @@ export class BrowserManager {
           } catch {}
         }
       }
-      
+
       const xvfbCommand = `${xvfbPath} ${displayStr} -screen 0 ${screenRes.width}x${screenRes.height}x24 -ac +extension GLX +render -noreset &`;
-      
-      log(`[BrowserManager] Starting XVFB on display ${displayStr} with resolution ${screenRes.width}x${screenRes.height}`, "scraper");
-      
+
+      log(
+        `[BrowserManager] Starting XVFB on display ${displayStr} with resolution ${screenRes.width}x${screenRes.height}`,
+        "scraper",
+      );
+
       await execAsync(xvfbCommand);
-      
+
       // Wait for XVFB to initialize
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      log(`[BrowserManager] XVFB started successfully on display ${displayStr}`, "scraper");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      log(
+        `[BrowserManager] XVFB started successfully on display ${displayStr}`,
+        "scraper",
+      );
     } catch (error: any) {
-      log(`[BrowserManager] Warning: Could not start XVFB: ${error.message}`, "scraper");
+      log(
+        `[BrowserManager] Warning: Could not start XVFB: ${error.message}`,
+        "scraper",
+      );
       // Continue anyway - might be running in a different environment
     }
   }
@@ -406,15 +423,14 @@ export class BrowserManager {
         // Dynamic display configuration for Azure environments
         const isAzure = isAzureEnvironment();
         let displayNumber = 99; // Default fallback
-        
         if (isAzure) {
           // Generate random display number to avoid detection
           displayNumber = generateRandomDisplayNumber();
           const displayStr = `:${displayNumber}`;
-          
+
           // Start XVFB on the generated display
           await this.startXvfb(displayNumber);
-          
+
           // Set display environment variable
           process.env.DISPLAY = displayStr;
           log(
@@ -426,8 +442,12 @@ export class BrowserManager {
           if (!process.env.DISPLAY) {
             // Try to start XVFB on default display
             await this.startXvfb(99);
-            process.env.DISPLAY = ':99';
-            log(`[BrowserManager] Set DISPLAY=:99 for non-Azure environment`, "scraper");
+
+            process.env.DISPLAY = ":99";
+            log(
+              `[BrowserManager] Set DISPLAY=:99 for non-Azure environment`,
+              "scraper",
+            );
           }
         }
 
@@ -439,16 +459,19 @@ export class BrowserManager {
         const protocolTimeout = 600000 * attempt; // 10 min, 20 min, 30 min
 
         // Build browser args dynamically based on environment
-        const browserArgs = [...BROWSER_ARGS];
-        
+        const browserArgs = getBrowserArgs();
+
         // Generate realistic screen resolution
         const screenRes = generateRealisticScreenResolution();
         // Remove default window size and add dynamic one
-        const windowSizeIndex = browserArgs.findIndex(arg => arg.startsWith("--window-size"));
+        const windowSizeIndex = browserArgs.findIndex((arg) =>
+          arg.startsWith("--window-size"),
+        );
         if (windowSizeIndex !== -1) {
-          browserArgs[windowSizeIndex] = `--window-size=${screenRes.width},${screenRes.height}`;
+          browserArgs[windowSizeIndex] =
+            `--window-size=${screenRes.width},${screenRes.height}`;
         }
-        
+
         if (isAzure) {
           browserArgs.push(`--display=:${displayNumber}`); // Add randomized virtual display for Azure
           log(
@@ -458,16 +481,17 @@ export class BrowserManager {
         }
 
         // Conditional headless mode: silent for laptop dev, visible for production/staging
-        const headlessMode = process.env.DEV_ENV_LAPTOP === 'true' ? 'new' : false;
-        if (process.env.DEV_ENV_LAPTOP === 'true') {
+        const headlessMode =
+          process.env.DEV_ENV_LAPTOP === "true" ? "new" : false;
+        if (process.env.DEV_ENV_LAPTOP === "true") {
           log(
             "[BrowserManager] Using headless mode for laptop development",
-            "scraper"
+            "scraper",
           );
         } else {
           log(
             "[BrowserManager] Using headed mode (browser windows visible)",
-            "scraper"
+            "scraper",
           );
         }
 
@@ -549,7 +573,10 @@ export class BrowserManager {
         // Apply enhanced stealth measures to the page
         await applyEnhancedStealthMeasures(page);
 
-        log(`[BrowserManager][createPage] Created new page with enhanced stealth measures`, "scraper");
+        log(
+          `[BrowserManager][createPage] Created new page with enhanced stealth measures`,
+          "scraper",
+        );
         return page;
       } catch (error: any) {
         lastError = error;
