@@ -206,8 +206,12 @@ const BASE_BROWSER_ARGS = [
   "--disable-web-security",
   "--disable-features=IsolateOrigins,site-per-process",
   "--allow-running-insecure-content",
-  // Keep anti-automation detection
+  // Improvement #7: Enhanced anti-automation detection bypass for Incapsula
   "--disable-blink-features=AutomationControlled",
+  "--flag-switches-begin",
+  "--disable-site-isolation-trials",
+  "--flag-switches-end",
+  "--disable-features=CrossSiteDocumentBlockingIfIsolating",
   // Basic optimizations
   "--disable-software-rasterizer",
   "--disable-extensions",
