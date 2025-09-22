@@ -419,17 +419,39 @@ export class BrowserManager {
         }
       }
 
-      const xvfbCommand = `${xvfbPath} ${displayStr} -screen 0 ${screenRes.width}x${screenRes.height}x24 -ac +extension GLX +render -noreset &`;
+      // Check if XVFB exists before trying to start it
+      try {
+        const { stdout: whichOutput } = await execAsync(`which ${xvfbPath} 2>/dev/null || echo "NOT_FOUND"`);
+        if (whichOutput.trim() === "NOT_FOUND") {
+          log(`[BrowserManager] ERROR: XVFB not found at ${xvfbPath}. Skipping XVFB start in Azure.`, "scraper-error");
+          return; // Skip XVFB if not available
+        }
+      } catch (checkError: any) {
+        log(`[BrowserManager] WARNING: Could not verify XVFB existence: ${checkError.message}`, "scraper");
+      }
 
       log(
         `[BrowserManager] Starting XVFB on display ${displayStr} with resolution ${screenRes.width}x${screenRes.height}`,
         "scraper",
       );
 
-      await execAsync(xvfbCommand);
-
-      // Wait for XVFB to initialize
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Use spawn instead of exec for better background process control
+      const { spawn } = require('child_process');
+      const xvfbProcess = spawn(xvfbPath, [
+        displayStr,
+        '-screen', '0', `${screenRes.width}x${screenRes.height}x24`,
+        '-ac', '+extension', 'GLX', '+render', '-noreset'
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      
+      xvfbProcess.unref(); // Allow parent to exit independently
+      
+      log(`[BrowserManager] XVFB process spawned with PID: ${xvfbProcess.pid}`, "scraper");
+      
+      // Wait briefly for XVFB to initialize
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       log(
         `[BrowserManager] XVFB started successfully on display ${displayStr}`,
@@ -437,10 +459,19 @@ export class BrowserManager {
       );
     } catch (error: any) {
       log(
-        `[BrowserManager] Warning: Could not start XVFB: ${error.message}`,
-        "scraper",
+        `[BrowserManager] ERROR: Failed to start XVFB: ${error.message}`,
+        "scraper-error",
       );
-      // Continue anyway - might be running in a different environment
+      // In Azure, continue without XVFB if it fails
+      if (isAzureEnvironment()) {
+        log(
+          `[BrowserManager] Continuing without XVFB in Azure environment`,
+          "scraper",
+        );
+      } else {
+        // Re-throw in non-Azure environments
+        throw error;
+      }
     }
   }
 
