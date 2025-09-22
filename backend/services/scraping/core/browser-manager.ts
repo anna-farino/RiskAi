@@ -500,7 +500,6 @@ export class BrowserManager {
         // Dynamic display configuration for Azure environments
         const isAzure = isAzureEnvironment();
         let displayNumber = 99; // Default fallback
-
         if (isAzure) {
           // Generate random display number to avoid detection
           displayNumber = generateRandomDisplayNumber();
