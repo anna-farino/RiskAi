@@ -561,8 +561,8 @@ export class BrowserManager {
         }
 
         // Conditional headless mode: silent for laptop dev, visible for production/staging
-        const headlessMode =
-          process.env.DEV_ENV_LAPTOP === "true" ? "new" : false;
+        const headlessMode: boolean | "shell" =
+          process.env.DEV_ENV_LAPTOP === "true" ? true : false;
         if (process.env.DEV_ENV_LAPTOP === "true") {
           log(
             "[BrowserManager] Using headless mode for laptop development",

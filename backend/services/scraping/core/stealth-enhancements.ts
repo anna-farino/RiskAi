@@ -314,7 +314,7 @@ export async function applyEnhancedStealthMeasures(page: Page, config?: StealthC
     }
     
     // Add battery API (common in real browsers)
-    if (!navigator.getBattery) {
+    if (!(navigator as any).getBattery) {
       (navigator as any).getBattery = () => Promise.resolve({
         charging: true,
         chargingTime: 0,
