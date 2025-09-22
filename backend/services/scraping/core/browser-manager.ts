@@ -419,28 +419,71 @@ export class BrowserManager {
         }
       }
 
-      const xvfbCommand = `${xvfbPath} ${displayStr} -screen 0 ${screenRes.width}x${screenRes.height}x24 -ac +extension GLX +render -noreset &`;
+      // Check if XVFB exists before trying to start it
+      try {
+        const { stdout: whichOutput } = await execAsync(`which ${xvfbPath} 2>/dev/null || echo "NOT_FOUND"`);
+        if (whichOutput.trim() === "NOT_FOUND") {
+          const errorMsg = `XVFB executable not found at ${xvfbPath}. Cannot run Puppeteer in headed mode without XVFB. ` +
+                          `Please ensure XVFB is installed in your container: apt-get install xvfb`;
+          log(`[BrowserManager] CRITICAL: ${errorMsg}`, "scraper-error");
+          throw new Error(errorMsg);
+        }
+      } catch (checkError: any) {
+        // Re-throw if it's our explicit XVFB not found error
+        if (checkError.message?.includes('XVFB executable not found')) {
+          throw checkError;
+        }
+        // Otherwise just log the warning but continue to try starting XVFB
+        log(`[BrowserManager] WARNING: Could not verify XVFB existence: ${checkError.message}`, "scraper");
+      }
 
       log(
         `[BrowserManager] Starting XVFB on display ${displayStr} with resolution ${screenRes.width}x${screenRes.height}`,
         "scraper",
       );
 
-      await execAsync(xvfbCommand);
-
-      // Wait for XVFB to initialize
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Use spawn instead of exec for better background process control
+      const { spawn } = require('child_process');
+      const xvfbProcess = spawn(xvfbPath, [
+        displayStr,
+        '-screen', '0', `${screenRes.width}x${screenRes.height}x24`,
+        '-ac', '+extension', 'GLX', '+render', '-noreset'
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      
+      xvfbProcess.unref(); // Allow parent to exit independently
+      
+      log(`[BrowserManager] XVFB process spawned with PID: ${xvfbProcess.pid}`, "scraper");
+      
+      // Wait briefly for XVFB to initialize
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Verify XVFB actually started
+      try {
+        const { stdout: verifyOutput } = await execAsync(
+          `xdpyinfo -display ${displayStr} 2>&1 | head -1 || echo "DISPLAY_ERROR"`
+        );
+        if (verifyOutput.includes("DISPLAY_ERROR") || verifyOutput.includes("unable to open")) {
+          throw new Error(`XVFB process spawned but display ${displayStr} is not accessible`);
+        }
+      } catch (verifyError: any) {
+        throw new Error(`XVFB verification failed: ${verifyError.message}`);
+      }
 
       log(
-        `[BrowserManager] XVFB started successfully on display ${displayStr}`,
+        `[BrowserManager] XVFB started and verified successfully on display ${displayStr}`,
         "scraper",
       );
     } catch (error: any) {
-      log(
-        `[BrowserManager] Warning: Could not start XVFB: ${error.message}`,
-        "scraper",
-      );
-      // Continue anyway - might be running in a different environment
+      const errorMsg = `[BrowserManager] CRITICAL: Failed to start XVFB: ${error.message}. ` +
+                      `XVFB is required for headed mode in containerized environments. ` +
+                      `Ensure 'xvfb' package is installed and the container has sufficient resources.`;
+      log(errorMsg, "scraper-error");
+      
+      // Always throw - XVFB is mandatory for headed mode
+      throw new Error(errorMsg);
     }
   }
 
