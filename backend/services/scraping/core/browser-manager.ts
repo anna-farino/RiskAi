@@ -423,10 +423,17 @@ export class BrowserManager {
       try {
         const { stdout: whichOutput } = await execAsync(`which ${xvfbPath} 2>/dev/null || echo "NOT_FOUND"`);
         if (whichOutput.trim() === "NOT_FOUND") {
-          log(`[BrowserManager] ERROR: XVFB not found at ${xvfbPath}. Skipping XVFB start in Azure.`, "scraper-error");
-          return; // Skip XVFB if not available
+          const errorMsg = `XVFB executable not found at ${xvfbPath}. Cannot run Puppeteer in headed mode without XVFB. ` +
+                          `Please ensure XVFB is installed in your container: apt-get install xvfb`;
+          log(`[BrowserManager] CRITICAL: ${errorMsg}`, "scraper-error");
+          throw new Error(errorMsg);
         }
       } catch (checkError: any) {
+        // Re-throw if it's our explicit XVFB not found error
+        if (checkError.message?.includes('XVFB executable not found')) {
+          throw checkError;
+        }
+        // Otherwise just log the warning but continue to try starting XVFB
         log(`[BrowserManager] WARNING: Could not verify XVFB existence: ${checkError.message}`, "scraper");
       }
 
@@ -452,26 +459,31 @@ export class BrowserManager {
       
       // Wait briefly for XVFB to initialize
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Verify XVFB actually started
+      try {
+        const { stdout: verifyOutput } = await execAsync(
+          `xdpyinfo -display ${displayStr} 2>&1 | head -1 || echo "DISPLAY_ERROR"`
+        );
+        if (verifyOutput.includes("DISPLAY_ERROR") || verifyOutput.includes("unable to open")) {
+          throw new Error(`XVFB process spawned but display ${displayStr} is not accessible`);
+        }
+      } catch (verifyError: any) {
+        throw new Error(`XVFB verification failed: ${verifyError.message}`);
+      }
 
       log(
-        `[BrowserManager] XVFB started successfully on display ${displayStr}`,
+        `[BrowserManager] XVFB started and verified successfully on display ${displayStr}`,
         "scraper",
       );
     } catch (error: any) {
-      log(
-        `[BrowserManager] ERROR: Failed to start XVFB: ${error.message}`,
-        "scraper-error",
-      );
-      // In Azure, continue without XVFB if it fails
-      if (isAzureEnvironment()) {
-        log(
-          `[BrowserManager] Continuing without XVFB in Azure environment`,
-          "scraper",
-        );
-      } else {
-        // Re-throw in non-Azure environments
-        throw error;
-      }
+      const errorMsg = `[BrowserManager] CRITICAL: Failed to start XVFB: ${error.message}. ` +
+                      `XVFB is required for headed mode in containerized environments. ` +
+                      `Ensure 'xvfb' package is installed and the container has sufficient resources.`;
+      log(errorMsg, "scraper-error");
+      
+      // Always throw - XVFB is mandatory for headed mode
+      throw new Error(errorMsg);
     }
   }
 
