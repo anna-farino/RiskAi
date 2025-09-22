@@ -292,37 +292,71 @@ export class BrowserManager {
    * Combines best practices from all three apps
    */
   static async getBrowser(): Promise<Browser> {
+    log(
+      `[BrowserManager][getBrowser] Called - browser exists: ${!!this.browser}, creationPromise: ${!!this.creationPromise}`,
+      "scraper"
+    );
+
     if (this.isShuttingDown) {
       throw new Error("Browser manager is shutting down");
     }
 
     if (this.browser) {
       try {
-        // Verify browser is still connected
-        await this.browser.version();
+        log(`[BrowserManager][getBrowser] Checking browser health...`, "scraper");
+        
+        // Add timeout to health check - critical for Azure environments
+        const versionCheck = Promise.race([
+          this.browser.version(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Browser health check timed out after 5s')), 5000)
+          )
+        ]);
+        
+        await versionCheck;
+        log(`[BrowserManager][getBrowser] Browser is healthy, reusing existing instance`, "scraper");
         return this.browser;
-      } catch (error) {
+      } catch (error: any) {
         log(
-          `[BrowserManager][getBrowser] Browser disconnected, creating new instance`,
-          "scraper",
+          `[BrowserManager][getBrowser] Browser unresponsive or disconnected: ${error.message}`,
+          "scraper-error",
         );
+        
+        // Try to properly close the zombie browser
+        if (this.browser) {
+          try {
+            log(`[BrowserManager][getBrowser] Attempting to close zombie browser...`, "scraper");
+            await Promise.race([
+              this.browser.close(),
+              new Promise((resolve) => setTimeout(resolve, 2000)) // 2s timeout for close
+            ]);
+            log(`[BrowserManager][getBrowser] Zombie browser closed`, "scraper");
+          } catch (closeError: any) {
+            log(`[BrowserManager][getBrowser] Failed to close zombie browser: ${closeError.message}`, "scraper-error");
+          }
+        }
+        
         this.browser = null;
       }
     }
 
     // Prevent multiple concurrent browser creation attempts
     if (this.creationPromise) {
+      log(`[BrowserManager][getBrowser] Waiting for existing browser creation promise...`, "scraper");
       return await this.creationPromise;
     }
 
+    log(`[BrowserManager][getBrowser] Creating new browser instance...`, "scraper");
     this.creationPromise = this.createNewBrowser();
 
     try {
       this.browser = await this.creationPromise;
       this.creationPromise = null;
+      log(`[BrowserManager][getBrowser] New browser instance created successfully`, "scraper");
       return this.browser;
-    } catch (error) {
+    } catch (error: any) {
       this.creationPromise = null;
+      log(`[BrowserManager][getBrowser] Failed to create browser: ${error.message}`, "scraper-error");
       throw error;
     }
   }
