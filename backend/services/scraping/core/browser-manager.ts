@@ -560,17 +560,17 @@ export class BrowserManager {
           );
         }
 
-        // Conditional headless mode: silent for laptop dev, visible for production/staging
+        // Conditional headless mode: shell for laptop dev, default to false otherwise
         const headlessMode: boolean | "shell" =
-          process.env.DEV_ENV_LAPTOP === "true" ? true : false;
+          process.env.DEV_ENV_LAPTOP === "true" ? "shell" : false;
         if (process.env.DEV_ENV_LAPTOP === "true") {
           log(
-            "[BrowserManager] Using headless mode for laptop development",
+            "[BrowserManager] Using shell mode for laptop development",
             "scraper",
           );
         } else {
           log(
-            "[BrowserManager] Using headed mode (browser windows visible)",
+            "[BrowserManager] Using headless mode (browser windows hidden)",
             "scraper",
           );
         }
