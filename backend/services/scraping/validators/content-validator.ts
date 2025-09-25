@@ -5,6 +5,113 @@
 import { log } from "backend/utils/log";
 
 /**
+ * Normalize text by removing/collapsing invisible formatting characters
+ * for more accurate pattern detection
+ */
+function normalizeForRepetition(text: string): string {
+  // Common invisible formatting characters to collapse
+  const invisibleChars = [
+    '\u200B', // Zero-width space
+    '\u200C', // Zero-width non-joiner
+    '\u200D', // Zero-width joiner  
+    '\u2060', // Word joiner
+    '\uFEFF', // Zero-width no-break space
+    '\u00A0', // Non-breaking space
+    '\u202F', // Narrow no-break space
+    '\u2009', // Thin space
+    '\u200A', // Hair space
+    '\u200E', // Left-to-right mark
+    '\u200F', // Right-to-left mark
+    '\u202A', // Left-to-right embedding
+    '\u202B', // Right-to-left embedding
+    '\u202C', // Pop directional formatting
+    '\u202D', // Left-to-right override
+    '\u202E', // Right-to-left override
+  ];
+  
+  // Replace runs of invisible chars with single space
+  const invisiblePattern = new RegExp(`[${invisibleChars.join('')}]+`, 'g');
+  return text.replace(invisiblePattern, ' ');
+}
+
+/**
+ * Check if a pattern contains any visible content
+ */
+function hasVisibleContent(pattern: string): boolean {
+  // Check for letters, numbers, or meaningful punctuation using Unicode categories
+  return /[\p{L}\p{N}\p{P}]/u.test(pattern);
+}
+
+/**
+ * Calculate the visible character density in a text window
+ */
+function calculateVisibleDensity(text: string): number {
+  const visibleChars = (text.match(/[\p{L}\p{N}\p{P}\p{S}]/gu) || []).length;
+  return text.length > 0 ? visibleChars / text.length : 0;
+}
+
+/**
+ * Calculate a repetition corruption score for text
+ */
+function calculateRepetitionScore(text: string, originalText: string): { score: number; patterns: string[] } {
+  let score = 0;
+  const foundPatterns: string[] = [];
+  
+  // Use Unicode-aware regex on normalized text
+  const repeatedGibberish = /([\p{L}\p{N}\p{P}\p{S}]{2,8})\1{6,}/gu;
+  const matches = text.match(repeatedGibberish) || [];
+  
+  for (const pattern of matches) {
+    foundPatterns.push(pattern);
+    
+    // Skip if pattern has no visible content
+    if (!hasVisibleContent(pattern)) {
+      continue; // Don't increase score for invisible-only patterns
+    }
+    
+    // Score based on pattern length (adjusted for better detection)
+    if (pattern.length > 50) score += 0.25;
+    if (pattern.length > 100) score += 0.35;
+    if (pattern.length > 200) score += 0.4;
+    
+    // Additional scoring for repetition ratio
+    const baseUnit = pattern.match(/^([\p{L}\p{N}\p{P}\p{S}]{2,8})/u)?.[0];
+    if (baseUnit) {
+      const repetitions = pattern.length / baseUnit.length;
+      if (repetitions > 10) score += 0.2;
+      if (repetitions > 20) score += 0.3;
+    }
+    
+    // Check context around pattern in original text
+    const patternIndex = originalText.indexOf(pattern);
+    if (patternIndex !== -1) {
+      const contextStart = Math.max(0, patternIndex - 200);
+      const contextEnd = Math.min(originalText.length, patternIndex + pattern.length + 200);
+      const contextWindow = originalText.slice(contextStart, contextEnd);
+      
+      // Check visible character density in context
+      const visibleDensity = calculateVisibleDensity(contextWindow);
+      
+      // Low visible density with repetition suggests corruption
+      if (visibleDensity < 0.3) score += 0.2;
+      if (visibleDensity < 0.1) score += 0.3;
+      
+      // Check if the pattern makes up a large portion of the total content
+      const patternRatio = pattern.length / originalText.length;
+      if (patternRatio > 0.3) score += 0.3; // Pattern is >30% of content
+      if (patternRatio > 0.5) score += 0.4; // Pattern is >50% of content
+    }
+  }
+  
+  // Bonus score if multiple different gibberish patterns found
+  if (foundPatterns.length > 1) {
+    score += 0.1 * foundPatterns.length;
+  }
+  
+  return { score, patterns: foundPatterns };
+}
+
+/**
  * Detects if text contains corrupted or garbled characters
  */
 export function isCorruptedText(text: string): boolean {
@@ -64,63 +171,73 @@ export function isCorruptedText(text: string): boolean {
     return true;
   }
 
-  // Check for repeated gibberish patterns (but exclude common legitimate patterns)
-  const repeatedGibberish = /(.{2,5})\1{8,}/g; // Same 2-5 chars repeated 8+ times (increased from 5)
-  const gibberishMatch = text.match(repeatedGibberish);
-  if (gibberishMatch) {
-    // Check if it's a legitimate repeated pattern
-    const matchSample = gibberishMatch[0];
-
-    // Common legitimate repeated patterns to exclude
+  // Check for repeated patterns using Unicode-aware normalization
+  const normalizedText = normalizeForRepetition(text);
+  const repetitionAnalysis = calculateRepetitionScore(normalizedText, text);
+  
+  if (repetitionAnalysis.patterns.length > 0) {
+    // Check if patterns are legitimate (separators, formatting, etc.)
     const legitimatePatterns = [
       /^[\-=_\*\.]{6,}$/, // Separators like -------, ======, _____, ......
       /^[\s]{6,}$/, // Spaces
       /^[0]{6,}$/, // Zeros (like 00000000 in numbers/codes)
       /^[\n\r\t]{6,}$/, // Whitespace characters
+      /^[\u200B-\u200F\u2060\uFEFF]+$/, // Invisible formatting chars only
+      /^[\u00A0\u202F\u2009\u200A]+$/,  // Various space types only
+      /^[\u202A-\u202E]+$/,              // Directional formatting only
     ];
-
-    // Check if the match is a legitimate pattern
-    const isLegitimate = legitimatePatterns.some((pattern) =>
-      pattern.test(matchSample),
-    );
-
-    if (!isLegitimate) {
-      // Log the actual matched pattern and surrounding context
-      const matchIndex = text.indexOf(matchSample);
-      const contextStart = Math.max(0, matchIndex - 50);
-      const contextEnd = Math.min(
-        text.length,
-        matchIndex + matchSample.length + 50,
-      );
-      const contextSample = text.slice(contextStart, contextEnd);
-
+    
+    // Filter out legitimate patterns
+    const suspiciousPatterns = repetitionAnalysis.patterns.filter(pattern => {
+      return !legitimatePatterns.some(legitPattern => legitPattern.test(pattern));
+    });
+    
+    if (suspiciousPatterns.length > 0 && repetitionAnalysis.score > 0) {
       log(
-        `[ContentValidator] WARNING: Repeated pattern detected (may be false positive): "${matchSample}"`,
+        `[ContentValidator] Repetition analysis - Score: ${repetitionAnalysis.score.toFixed(2)}, Patterns found: ${suspiciousPatterns.length}`,
         "scraper",
       );
-      log(
-        `[ContentValidator] Context around pattern: "...${contextSample}..."`,
-        "scraper",
-      );
-      log(
-        `[ContentValidator] First 200 chars of text: "${text.slice(0, 200).replace(/\s+/g, " ")}"`,
-        "scraper",
-      );
-
-      // Only return true if the repeated pattern is very long or there are multiple different patterns
-      const allMatches = text.match(repeatedGibberish) || [];
-      const uniquePatterns = new Set(allMatches).size;
-
-      // Only mark as corrupted if there are multiple different repeated patterns or the pattern is very long
-      if (uniquePatterns > 2 || matchSample.length > 50) {
+      
+      // Log first suspicious pattern for debugging
+      if (suspiciousPatterns[0]) {
+        const firstPattern = suspiciousPatterns[0];
+        const patternIndex = text.indexOf(firstPattern);
+        const contextStart = Math.max(0, patternIndex - 50);
+        const contextEnd = Math.min(text.length, patternIndex + firstPattern.length + 50);
+        const contextSample = text.slice(contextStart, contextEnd);
+        
         log(
-          `[ContentValidator] Text marked as corrupted due to ${uniquePatterns} unique repeated patterns or long pattern (${matchSample.length} chars)`,
+          `[ContentValidator] Sample pattern (${firstPattern.length} chars): "${firstPattern.slice(0, 50)}${firstPattern.length > 50 ? '...' : ''}"`,
+          "scraper",
+        );
+        log(
+          `[ContentValidator] Context: "...${contextSample}..."`,
+          "scraper",
+        );
+        
+        // Log if pattern contains invisible characters
+        const hasInvisible = /[\u200B-\u200F\u2060\uFEFF\u202A-\u202E]/u.test(firstPattern);
+        if (hasInvisible) {
+          log(
+            `[ContentValidator] Pattern contains invisible Unicode characters - likely formatting`,
+            "scraper",
+          );
+        }
+      }
+      
+      // Use score-based threshold instead of hard rules
+      // Higher threshold = more lenient, lower = more strict
+      const corruptionThreshold = 0.7;
+      
+      if (repetitionAnalysis.score >= corruptionThreshold) {
+        log(
+          `[ContentValidator] Text marked as corrupted - repetition score (${repetitionAnalysis.score.toFixed(2)}) exceeds threshold (${corruptionThreshold})`,
           "scraper",
         );
         return true;
       } else {
         log(
-          `[ContentValidator] Repeated pattern found but not marking as corrupted (likely false positive)`,
+          `[ContentValidator] Repeated patterns found but score (${repetitionAnalysis.score.toFixed(2)}) below threshold - allowing content`,
           "scraper",
         );
       }
