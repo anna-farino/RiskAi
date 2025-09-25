@@ -206,8 +206,12 @@ const BASE_BROWSER_ARGS = [
   "--disable-web-security",
   "--disable-features=IsolateOrigins,site-per-process",
   "--allow-running-insecure-content",
-  // Keep anti-automation detection
+  // Improvement #7: Enhanced anti-automation detection bypass for Incapsula
   "--disable-blink-features=AutomationControlled",
+  "--flag-switches-begin",
+  "--disable-site-isolation-trials",
+  "--flag-switches-end",
+  "--disable-features=CrossSiteDocumentBlockingIfIsolating",
   // Basic optimizations
   "--disable-software-rasterizer",
   "--disable-extensions",
@@ -556,17 +560,17 @@ export class BrowserManager {
           );
         }
 
-        // Conditional headless mode: silent for laptop dev, visible for production/staging
-        const headlessMode =
-          process.env.DEV_ENV_LAPTOP === "true" ? "new" : false;
+        // Conditional headless mode: shell for laptop dev, default to false otherwise
+        const headlessMode: boolean | "shell" =
+          process.env.DEV_ENV_LAPTOP === "true" ? "shell" : false;
         if (process.env.DEV_ENV_LAPTOP === "true") {
           log(
-            "[BrowserManager] Using headless mode for laptop development",
+            "[BrowserManager] Using shell mode for laptop development",
             "scraper",
           );
         } else {
           log(
-            "[BrowserManager] Using headed mode (browser windows visible)",
+            "[BrowserManager] Using headless mode (browser windows hidden)",
             "scraper",
           );
         }
