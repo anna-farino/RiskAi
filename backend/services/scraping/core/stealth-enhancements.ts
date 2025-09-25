@@ -289,6 +289,43 @@ export async function applyEnhancedStealthMeasures(page: Page, config?: StealthC
   
   // Apply all stealth configurations before page loads
   await page.evaluateOnNewDocument((config: StealthConfig) => {
+    // Enhanced webdriver deletion - Improvement #1
+    try {
+      // Delete via prototype (more effective)
+      delete (navigator as any).__proto__.webdriver;
+    } catch (e) {
+      // Fallback to property override
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+        configurable: true
+      });
+    }
+    
+    // Add missing browser properties - Improvement #4
+    // Add permissions API if missing
+    if (!navigator.permissions) {
+      (navigator as any).permissions = {
+        query: (permission: any) => Promise.resolve({ 
+          state: 'granted',
+          status: 'granted',
+          name: permission.name 
+        })
+      };
+    }
+    
+    // Add battery API (common in real browsers)
+    if (!(navigator as any).getBattery) {
+      (navigator as any).getBattery = () => Promise.resolve({
+        charging: true,
+        chargingTime: 0,
+        dischargingTime: Infinity,
+        level: 0.99,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => true
+      });
+    }
+    
     // Override screen properties
     Object.defineProperty(window.screen, 'width', {
       get: () => config.screenResolution.width
