@@ -188,18 +188,80 @@ export function isValidArticleContent(
   ];
 
   const lowerContent = content.toLowerCase();
+  
+  // Check for sufficient meaningful sentences (moved up for use in validation)
+  const sentences = content.match(/[.!?]+/g) || [];
+  
+  // Context-aware validation (Option 1)
+  const contentWords = content.split(/\s+/).length;
+  const firstHundredChars = lowerContent.slice(0, 100);
+  
+  // Content analysis ratio (Option 5)
+  const suspiciousMatches: string[] = [];
+  const earlyMatches: string[] = [];
+  
   for (const indicator of errorIndicators) {
-    if (lowerContent.includes(indicator.toLowerCase())) {
+    const indicatorLower = indicator.toLowerCase();
+    if (lowerContent.includes(indicatorLower)) {
+      suspiciousMatches.push(indicator);
+      
+      // Check if it appears very early in content
+      if (firstHundredChars.includes(indicatorLower)) {
+        earlyMatches.push(indicator);
+      }
+    }
+  }
+  
+  // Calculate ratios and content quality metrics
+  const suspiciousRatio = suspiciousMatches.length / errorIndicators.length;
+  const hasSubstantialContent = content.length > 5000 && sentences.length > 20;
+  const hasModerateContent = content.length > 1000 && sentences.length > 10;
+  
+  // Decision logic combining both approaches
+  if (suspiciousMatches.length > 0) {
+    // If error indicators appear early AND content is short, likely an error page
+    if (earlyMatches.length > 0 && contentWords < 500) {
       log(
-        `[ContentValidator] Content appears to be an error page - contains: "${indicator}"`,
+        `[ContentValidator] Content appears to be an error page - contains "${earlyMatches[0]}" at beginning with short content (${contentWords} words)`,
         "scraper",
       );
       return false;
     }
+    
+    // If high ratio of suspicious indicators (>30%) and not substantial content
+    if (suspiciousRatio > 0.3 && !hasSubstantialContent) {
+      log(
+        `[ContentValidator] Content has high ratio of error indicators (${(suspiciousRatio * 100).toFixed(1)}%) without substantial content`,
+        "scraper",
+      );
+      log(
+        `[ContentValidator] Suspicious indicators found: ${suspiciousMatches.join(", ")}`,
+        "scraper",
+      );
+      return false;
+    }
+    
+    // If multiple indicators but content is moderate, check more carefully
+    if (suspiciousMatches.length >= 3 && !hasModerateContent) {
+      log(
+        `[ContentValidator] Content has multiple error indicators (${suspiciousMatches.length}) without enough legitimate content`,
+        "scraper",
+      );
+      return false;
+    }
+    
+    // If we get here, content has some suspicious terms but appears legitimate
+    log(
+      `[ContentValidator] Content contains potential error indicators but appears legitimate (${content.length} chars, ${sentences.length} sentences)`,
+      "scraper",
+    );
+    log(
+      `[ContentValidator] Found indicators: ${suspiciousMatches.join(", ")} - allowing due to substantial content`,
+      "scraper",
+    );
   }
 
-  // Check for sufficient meaningful sentences
-  const sentences = content.match(/[.!?]+/g) || [];
+  // Check for sufficient meaningful sentences (already declared above)
   if (sentences.length < 2) {
     log(
       `[ContentValidator] Content lacks proper sentence structure - only ${sentences.length} sentences found`,
